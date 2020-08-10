@@ -22,6 +22,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Due to historical reasons, before Flink 1.9, Flink's Table & SQL API data types were
 tightly coupled to Flink's `TypeInformation`. `TypeInformation` is used in the DataStream
 and DataSet API and is sufficient to describe all information needed to serialize and
@@ -31,7 +33,10 @@ However, `TypeInformation` was not designed to represent logical types independe
 an actual JVM class. In the past, it was difficult to map SQL standard types to this
 abstraction. Furthermore, some types were not SQL-compliant and introduced without a
 bigger picture in mind.
-
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 Starting with Flink 1.9, the Table & SQL API will receive a new type system that serves as a long-term
 solution for API stability and standard compliance.
 
@@ -42,8 +47,14 @@ Due to the simultaneous addition of a new planner for table programs (see [FLINK
 not every combination of planner and data type is supported. Furthermore, planners might not support every
 data type with the desired precision or parameter.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 <span class="label label-danger">Attention</span> Please see the planner compatibility table and limitations
 section before using a data type.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 * This will be replaced by the TOC
 {:toc}
@@ -67,18 +78,29 @@ A list of all pre-defined data types can be found [below](#list-of-data-types).
 
 ### Data Types in the Table API
 
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Users of the JVM-based API work with instances of `org.apache.flink.table.types.DataType` within the Table API or when
-defining connectors, catalogs, or user-defined functions. Users of the Python API work with instances of
-`pyflink.table.types.DataType` within the Python Table API or when defining Python user-defined functions.
+defining connectors, catalogs, or user-defined functions. 
 
 A `DataType` instance has two responsibilities:
 - **Declaration of a logical type** which does not imply a concrete physical representation for transmission
 or storage but defines the boundaries between JVM-based/Python languages and the table ecosystem.
 - *Optional:* **Giving hints about the physical representation of data to the planner** which is useful at the edges to other APIs.
-This is currently only available in the Java/Scalar Table API and still not available in the Python Table API.
 
 For JVM-based languages, all pre-defined data types are available in `org.apache.flink.table.api.DataTypes`.
+</div>
+<div data-lang="Python" markdown="1">
+Users of the Python API work with instances of `pyflink.table.types.DataType` within the Python Table API or when 
+defining Python user-defined functions.
+
+A `DataType` instance has such a responsibility:
+- **Declaration of a logical type** which does not imply a concrete physical representation for transmission
+or storage but defines the boundaries between Python languages and the table ecosystem.
+
 For Python language, those types are available in `pyflink.table.types.DataTypes`.
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 
@@ -113,6 +135,8 @@ t = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(3))
 
 </div>
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 #### Physical Hints
 
 Physical hints are required at the edges of the table ecosystem where the SQL-based type system ends and
@@ -125,7 +149,7 @@ the produced class into its internal data format. In return, a data sink can dec
 
 Here are some examples of how to declare a bridging conversion class:
 
-<div class="codetabs" markdown="1">
+<div class="codetabs" data-hide-tabs="1"  markdown="1">
 
 <div data-lang="Java" markdown="1">
 {% highlight java %}
@@ -157,16 +181,29 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 API is extended. Users of predefined sources/sinks/functions do not need to define such hints. Hints within
 a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are ignored.
 
-<span class="label label-danger">Attention</span> Please note that physical hints are currently not supported in the Python Table API.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 Planner Compatibility
 ---------------------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 As mentioned in the introduction, reworking the type system will span multiple releases, and the support of each data
 type depends on the used planner. This section aims to summarize the most significant differences.
+</div>
+<div data-lang="Python" markdown="1">
+This part is for Java/Scala users.
+There are no known similiar planner compatibility issues on the data types of Python Table API currently. 
+</div>
+</div>
 
 ### Old Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Flink's old planner, introduced before Flink 1.9, primarily supports type information. It has only limited
 support for data types. It is possible to declare data types that can be translated into type information such that the
 old planner understands them.
@@ -205,9 +242,16 @@ For the *Data Type Representation* column the table omits the prefix `org.apache
 
 <span class="label label-danger">Attention</span> If there is a problem with the new type system. Users
 can fallback to type information defined in `org.apache.flink.table.api.Types` at any time.
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 ### New Blink Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 The new Blink planner supports all of types of the old planner. This includes in particular
 the listed Java expression strings and type information.
 
@@ -236,21 +280,41 @@ The following data types are supported:
 | `ROW` | |
 | `RAW` | |
 | stuctured types | Only exposed in user-defined functions yet. |
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 Limitations
 -----------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 **Java Expression String**: Java expression strings in the Table API such as `table.select("field.cast(STRING)")`
 have not been updated to the new type system yet. Use the string representations declared in
 the [old planner section](#old-planner).
 
 **User-defined Functions**: User-defined aggregate functions cannot declare a data type yet. Scalar and table functions fully support data types.
+</div>
+<div data-lang="Python" markdown="1">
+This part is for Java/Scala users.
+There are no known similiar limitations on the data types of Python Table API currently.
+</div>
+</div>
 
 List of Data Types
 ------------------
 
-This section lists all pre-defined data types. For the JVM-based Table API those types are also available in `org.apache.flink.table.api.DataTypes`.
+This section lists all pre-defined data types.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+For the JVM-based Table API those types are also available in `org.apache.flink.table.api.DataTypes`.
+</div>
+<div data-lang="Python" markdown="1">
 For the Python Table API, those types are available in `pyflink.table.types.DataTypes`.
+</div>
+</div>
 
 ### Character Strings
 
@@ -291,8 +355,14 @@ Not supported.
 </div>
 </div>
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 The type can be declared using `CHAR(n)` where `n` is the number of code points. `n` must have a value between `1`
 and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `VARCHAR` / `STRING`
 
@@ -381,8 +451,14 @@ Not supported.
 </div>
 </div>
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 The type can be declared using `BINARY(n)` where `n` is the number of bytes. `n` must have a value
 between `1` and `2,147,483,647` (both inclusive). If no length is specified, `n` is equal to `1`.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `VARBINARY` / `BYTES`
 
@@ -761,8 +837,16 @@ Data type of a time *without* time zone consisting of `hour:minute:second[.fract
 up to nanosecond precision and values ranging from `00:00:00.000000000` to
 `23:59:59.999999999`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as
 the semantics are closer to `java.time.LocalTime`. A time *with* time zone is not provided.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+A time *with* time zone is not provided.
+</div>
+</div>
 
 **Declaration**
 
@@ -812,12 +896,22 @@ Data type of a timestamp *without* time zone consisting of `year-month-day hour:
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000` to
 `9999-12-31 23:59:59.999999999`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as
 the semantics are closer to `java.time.LocalDateTime`.
 
 A conversion from and to `BIGINT` (a JVM `long` type) is not supported as this would imply a time
 zone. However, this type is time zone free. For more `java.time.Instant`-like semantics use
 `TIMESTAMP WITH LOCAL TIME ZONE`.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+
+A conversion from and to `BIGINT` is not supported as this would imply a time zone.
+However, this type is time zone free. If you have such a requirement please use `TIMESTAMP WITH LOCAL TIME ZONE`.
+</div>
+</div>
 
 **Declaration**
 
@@ -869,8 +963,15 @@ Data type of a timestamp *with* time zone consisting of `year-month-day hour:min
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
 `9999-12-31 23:59:59.999999999 -14:59`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics
 are closer to `java.time.OffsetDateTime`.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+</div>
+</div>
 
 Compared to `TIMESTAMP WITH LOCAL TIME ZONE`, the time zone offset information is physically
 stored in every datum. It is used individually for every computation, visualization, or communication
@@ -908,9 +1009,15 @@ Not supported.
 </div>
 </div>
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 The type can be declared using `TIMESTAMP(p) WITH TIME ZONE` where `p` is the number of digits of
 fractional seconds (*precision*). `p` must have a value between `0` and `9` (both inclusive). If no
 precision is specified, `p` is equal to `6`.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `TIMESTAMP WITH LOCAL TIME ZONE`
 
@@ -918,12 +1025,23 @@ Data type of a timestamp *with local* time zone consisting of `year-month-day ho
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
 `9999-12-31 23:59:59.999999999 -14:59`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics are closer to `java.time.OffsetDateTime`.
 
 Compared to `TIMESTAMP WITH TIME ZONE`, the time zone offset information is not stored physically
 in every datum. Instead, the type assumes `java.time.Instant` semantics in UTC time zone at
 the edges of the table ecosystem. Every datum is interpreted in the local time zone configured in
 the current session for computation and visualization.
+</div>
+<div data-lang="Python" markdown="1">
+Leap seconds (`23:59:60` and `23:59:61`) are not supported.
+
+Compared to `TIMESTAMP WITH TIME ZONE`, the time zone offset information is not stored physically
+in every datum. 
+Every datum is interpreted in the local time zone configured in the current session for computation and visualization.
+</div>
+</div>
 
 This type fills the gap between time zone free and time zone mandatory timestamp types by allowing
 the interpretation of UTC timestamps according to the configured session time zone.
@@ -1318,6 +1436,8 @@ equivalent to `ROW<myField INT, myOtherField BOOLEAN>`.
 
 ### User-Defined Data Types
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 <span class="label label-danger">Attention</span> User-defined data types are not fully supported yet. They are
 currently (as of Flink 1.11) only exposed as unregistered structured types in parameters and return types of functions.
 
@@ -1363,6 +1483,10 @@ bridging classes defined for every data type in this document (e.g. `java.lang.I
 
 For some classes an annotation is required in order to map the class to a data type (e.g. `@DataTypeHint("DECIMAL(10, 2)")`
 to assign a fixed precision and scale for `java.math.BigDecimal`).
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 **Declaration**
 
@@ -1509,12 +1633,18 @@ Not supported.
 </div>
 </div>
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 The type can be declared using `RAW('class', 'snapshot')` where `class` is the originating class and
 `snapshot` is the serialized `TypeSerializerSnapshot` in Base64 encoding. Usually, the type string is not
 declared directly but is generated while persisting the type.
 
 In the API, the `RAW` type can be declared either by directly supplying a `Class` + `TypeSerializer` or
 by passing `Class` and letting the framework extract `Class` + `TypeSerializer` from there.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 #### `NULL`
 
@@ -1562,6 +1692,8 @@ Not supported.
 Data Type Extraction
 --------------------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 At many locations in the API, Flink tries to automatically extract data type from class information using
 reflection to avoid repetitive manual schema work. However, extracting a data type reflectively is not always
 successful because logical information might be missing. Therefore, it might be necessary to add additional
@@ -1615,6 +1747,10 @@ extent the default extraction logic should be modified by declaring a `@DataType
 
 The `@DataTypeHint` annotation provides a set of optional hint parameters. Some of those parameters are shown in the
 following example. More information can be found in the documentation of the annotation class.
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 
@@ -1674,7 +1810,11 @@ class User {
 }
 {% endhighlight %}
 </div>
-
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+Not supported.
+{% endhighlight %}
+</div>
 </div>
 
 {% top %}

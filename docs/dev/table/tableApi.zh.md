@@ -2736,86 +2736,27 @@ Table table = input
   .window([OverWindow w].as("w"))           // define over window with alias w
   .select($("a"), $("b").sum().over($("w")), $("c").min().over($("w"))); // aggregate over the over window w
 {% endhighlight %}
-
-The `OverWindow` defines a range of rows over which aggregates are computed. `OverWindow` is not an interface that users can implement. Instead, the Table API provides the `Over` class to configure the properties of the over window. Over windows can be defined on event-time or processing-time and on ranges specified as time interval or row-count. The supported over window definitions are exposed as methods on `Over` (and other classes) and are listed below:
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Method</th>
-      <th class="text-left">Required</th>
-      <th class="text-left">Description</th>
-    </tr>
-  </thead>
-
-  <tbody>
-    <tr>
-      <td><code>partitionBy</code></td>
-      <td>Optional</td>
-      <td>
-        <p>Defines a partitioning of the input on one or more attributes. Each partition is individually sorted and aggregate functions are applied to each partition separately.</p>
-
-        <p><b>Note:</b> In streaming environments, over window aggregates can only be computed in parallel if the window includes a partition by clause. Without <code>partitionBy(...)</code> the stream is processed by a single, non-parallel task.</p>
-      </td>
-    </tr>
-    <tr>
-      <td><code>orderBy</code></td>
-      <td>Required</td>
-      <td>
-        <p>Defines the order of rows within each partition and thereby the order in which the aggregate functions are applied to rows.</p>
-
-        <p><b>Note:</b> For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
-      </td>
-    </tr>
-    <tr>
-      <td><code>preceding</code></td>
-      <td>Optional</td>
-      <td>
-        <p>Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.</p>
-
-        <p><a href="tableApi.html#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
-
-        <p><a href="tableApi.html#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
-
-        <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
-      </td>
-    </tr>
-    <tr>
-      <td><code>following</code></td>
-      <td>Optional</td>
-      <td>
-        <p>Defines the window interval of rows that are included in the window and follow the current row. The interval must be specified in the same unit as the preceding interval (time or row-count).</p>
-
-        <p>At the moment, over windows with rows following the current row are not supported. Instead you can specify one of two constants:</p>
-
-        <ul>
-          <li><code>CURRENT_ROW</code> sets the upper bound of the window to the current row.</li>
-          <li><code>CURRENT_RANGE</code> sets the upper bound of the window to sort key of the current row, i.e., all rows with the same sort key as the current row are included in the window.</li>
-        </ul>
-
-        <p>If the <code>following</code> clause is omitted, the upper bound of a time interval window is defined as <code>CURRENT_RANGE</code> and the upper bound of a row-count interval window is defined as <code>CURRENT_ROW</code>.</p>
-      </td>
-    </tr>
-    <tr>
-      <td><code>as</code></td>
-      <td>Required</td>
-      <td>
-        <p>Assigns an alias to the over window. The alias is used to reference the over window in the following <code>select()</code> clause.</p>
-      </td>
-    </tr>
-  </tbody>
-</table>
 </div>
-
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
   .window([w: OverWindow] as $"w")              // define over window with alias w
   .select($"a", $"b".sum over $"w", $"c".min over $"w") // aggregate over the over window w
 {% endhighlight %}
+</div>
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# define over window with alias w and aggregate over the over window w
+table = input.over_window([w: OverWindow].alias("w")) \
+    .select("a, b.sum over w, c.min over w")
+{% endhighlight %}
+</div>
+</div>
 
 The `OverWindow` defines a range of rows over which aggregates are computed. `OverWindow` is not an interface that users can implement. Instead, the Table API provides the `Over` class to configure the properties of the over window. Over windows can be defined on event-time or processing-time and on ranges specified as time interval or row-count. The supported over window definitions are exposed as methods on `Over` (and other classes) and are listed below:
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -2885,14 +2826,6 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 </div>
 
 <div data-lang="python" markdown="1">
-{% highlight python %}
-# define over window with alias w and aggregate over the over window w
-table = input.over_window([w: OverWindow].alias("w")) \
-    .select("a, b.sum over w, c.min over w")
-{% endhighlight %}
-
-The `OverWindow` defines a range of rows over which aggregates are computed. `OverWindow` is not an interface that users can implement. Instead, the Table API provides the `Over` class to configure the properties of the over window. Over windows can be defined on event-time or processing-time and on ranges specified as time interval or row-count. The supported over window definitions are exposed as methods on `Over` (and other classes) and are listed below:
-
 <table class="table table-bordered">
   <thead>
     <tr>
