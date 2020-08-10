@@ -20,15 +20,19 @@ package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for HiveCatalog on generic metadata.
@@ -60,6 +64,43 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
 					false);
 
 			assertEquals(tableSchema, catalog.getTable(tablePath).getSchema());
+		} finally {
+			catalog.dropTable(tablePath, true);
+		}
+	}
+
+	@Test
+	public void testTableSchemaCompatibility() throws Exception {
+		catalog.createDatabase(db1, createDb(), false);
+		ObjectPath tablePath = new ObjectPath(db1, "generic110");
+
+		// create a table with old schema properties
+		Table hiveTable = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(tablePath.getDatabaseName(),
+				tablePath.getObjectName());
+		// create table generic110 (c char(265), vc varchar(65536), ts timestamp(3), watermark for ts as ts)
+		hiveTable.setDbName(tablePath.getDatabaseName());
+		hiveTable.setTableName(tablePath.getObjectName());
+		hiveTable.getParameters().put(CatalogConfig.IS_GENERIC, "true");
+		hiveTable.getParameters().put("flink.generic.table.schema.0.name", "c");
+		hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "CHAR(265)");
+		hiveTable.getParameters().put("flink.generic.table.schema.1.name", "vc");
+		hiveTable.getParameters().put("flink.generic.table.schema.1.data-type", "VARCHAR(65536)");
+		hiveTable.getParameters().put("flink.generic.table.schema.2.name", "ts");
+		hiveTable.getParameters().put("flink.generic.table.schema.2.data-type", "TIMESTAMP(3)");
+		hiveTable.getParameters().put("flink.generic.table.schema.watermark.0.rowtime", "ts");
+		hiveTable.getParameters().put("flink.generic.table.schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
+		hiveTable.getParameters().put("flink.generic.table.schema.watermark.0.strategy.expr", "ts");
+
+		try {
+			((HiveCatalog) catalog).client.createTable(hiveTable);
+			CatalogBaseTable catalogBaseTable = catalog.getTable(tablePath);
+			assertTrue(Boolean.parseBoolean(catalogBaseTable.getOptions().get(CatalogConfig.IS_GENERIC)));
+			TableSchema expectedSchema = TableSchema.builder()
+					.fields(new String[]{"c", "vc", "ts"},
+							new DataType[]{DataTypes.CHAR(265), DataTypes.VARCHAR(65536), DataTypes.TIMESTAMP(3)})
+					.watermark("ts", "ts", DataTypes.TIMESTAMP(3))
+					.build();
+			assertEquals(expectedSchema, catalogBaseTable.getSchema());
 		} finally {
 			catalog.dropTable(tablePath, true);
 		}

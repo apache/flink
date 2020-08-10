@@ -147,7 +147,8 @@ public class HiveCatalog extends AbstractCatalog {
 	private final String hiveVersion;
 	private final HiveShim hiveShim;
 
-	private HiveMetastoreClientWrapper client;
+	@VisibleForTesting
+	HiveMetastoreClientWrapper client;
 
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir) {
 		this(catalogName, defaultDatabase, hiveConfDir, HiveShimLoader.getHiveVersion());
