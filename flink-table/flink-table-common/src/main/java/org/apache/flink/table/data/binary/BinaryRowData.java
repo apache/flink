@@ -432,6 +432,20 @@ public final class BinaryRowData extends BinarySection implements RowData, Typed
 	}
 
 	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		// both BinaryRowData and NestedRowData have the same memory format
+		if (!(o instanceof BinaryRowData || o instanceof NestedRowData)) {
+			return false;
+		}
+		final BinarySection that = (BinarySection) o;
+		return sizeInBytes == that.sizeInBytes &&
+			BinarySegmentUtils.equals(segments, offset, that.segments, that.offset, sizeInBytes);
+	}
+
+	@Override
 	public int hashCode() {
 		return BinarySegmentUtils.hashByWords(segments, offset, sizeInBytes);
 	}
