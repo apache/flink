@@ -28,11 +28,6 @@ import java.util.List;
 public class DataStreamTestCollectSink<IN> implements SinkFunction<IN> {
 
 	private static List<Object> collectedResult = new ArrayList<>();
-	private boolean isPythonObjects = false;
-
-	public DataStreamTestCollectSink(boolean isPythonObjects) {
-		this.isPythonObjects = isPythonObjects;
-	}
 
 	/**
 	 * Collect the sink value into a static List so that the client side can fetch the result of flink job in test
@@ -44,12 +39,19 @@ public class DataStreamTestCollectSink<IN> implements SinkFunction<IN> {
 	public void invoke(IN value, Context context) throws Exception {
 
 		synchronized (collectedResult){
-			collectedResult.add(isPythonObjects ? value : value.toString());
+			collectedResult.add(value);
 		}
 	}
 
-	public List<Object> collectAndClear() {
-		List<Object> listToBeReturned = new ArrayList<>(collectedResult);
+	public List<Object> collectAndClear(boolean isPythonObjects) {
+		List<Object> listToBeReturned = new ArrayList<>();
+		if (isPythonObjects) {
+			listToBeReturned.addAll(collectedResult);
+		} else {
+			for (Object obj : collectedResult) {
+				listToBeReturned.add(obj.toString());
+			}
+		}
 		collectedResult.clear();
 		return listToBeReturned;
 	}
