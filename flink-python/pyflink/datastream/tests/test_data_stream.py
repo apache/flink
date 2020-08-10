@@ -165,7 +165,7 @@ class DataStreamTests(PyFlinkTestCase):
                                       type_info=Types.ROW(
                                           [Types.INT(), Types.STRING(), Types.STRING()])
                                       )
-        filtered_stream = ds.filter(MyFilterFunction())
+        filtered_stream = ds.filter(lambda x: x[0] % 2 == 0)
         collect_util = DataStreamCollectUtil()
         collect_util.collect(filtered_stream)
         self.env.execute("test filter")

@@ -22,6 +22,8 @@ from pyflink.common import typeinfo, ExecutionConfig
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
+    FilterFunctionWrapper
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
     KeySelectorFunctionWrapper, KeySelector, ReduceFunction, ReduceFunctionWrapper
@@ -285,6 +287,9 @@ class DataStream(object):
             def flat_map(self, value):
                 if self._func.filter(value):
                     yield value
+
+        if isinstance(func, Callable):
+            func = FilterFunctionWrapper(func)
 
         j_input_type = self._j_data_stream.getTransformation().getOutputType()
         type_info = typeinfo._from_java_type(j_input_type)

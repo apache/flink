@@ -137,10 +137,10 @@ class FilterFunction(Function):
     whether to keep the element, or to discard it.
     The basic syntax for using a FilterFunction is as follows:
     :
-         >>> ds = ...;
-         >>> result = ds.filter(new MyFilterFunction())
-    Note that the system assumes that the function does not modify the elemetns on which the
-    predicate is applied. Violating this assumption can lead to incoorect results.
+         >>> ds = ...
+         >>> result = ds.filter(MyFilterFunction())
+    Note that the system assumes that the function does not modify the elements on which the
+    predicate is applied. Violating this assumption can lead to incorrect results.
     """
 
     @abc.abstractmethod
@@ -149,7 +149,7 @@ class FilterFunction(Function):
         The filter function that evaluates the predicate.
 
         :param value: The value to be filtered.
-        :return: Tre for values that should be retained, false for values to be filtered out.
+        :return: True for values that should be retained, false for values to be filtered out.
         """
         pass
 
