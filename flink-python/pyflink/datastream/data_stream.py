@@ -19,10 +19,11 @@
 from typing import Callable, Union
 
 from pyflink.common import typeinfo, ExecutionConfig
-from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo
+from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
-    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
+    KeySelectorFunctionWrapper, KeySelector
 from pyflink.java_gateway import get_gateway
 
 
@@ -233,6 +234,54 @@ class DataStream(object):
             j_python_data_stream_scalar_function_operator
         ))
 
+    def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type_info: TypeInformation = None) -> 'KeyedStream':
+        """
+        Creates a new KeyedStream that uses the provided key for partitioning its operator states.
+
+        :param key_selector: The KeySelector to be used for extracting the key for partitioning.
+        :param key_type_info: The type information describing the key type.
+        :return: The DataStream with partitioned state(i.e. KeyedStream).
+        """
+        if callable(key_selector):
+            key_selector = KeySelectorFunctionWrapper(key_selector)
+        if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
+            raise TypeError("Parameter key_selector should be a type of KeySelector.")
+
+        gateway = get_gateway()
+        PickledKeySelector = gateway.jvm \
+            .org.apache.flink.datastream.runtime.functions.python.PickledKeySelector
+        j_output_type_info = self._j_data_stream.getTransformation().getOutputType()
+        output_type_info = typeinfo._from_java_type(j_output_type_info)
+        if key_type_info is None:
+            key_type_info = Types.PICKLED_BYTE_ARRAY()
+        generated_key_stream = KeyedStream(self.map(lambda x: (key_selector.get_key(x), x),
+                                                    type_info=Types.ROW([key_type_info,
+                                                                         output_type_info]))
+                                           ._j_data_stream
+                                           .keyBy(PickledKeySelector()))
+        generated_key_stream._original_data_type_info = output_type_info
+        return generated_key_stream
+
+    def _align_output_type(self) -> 'DataStream':
+        """
+        Transform the pickled python object into String if the output type is PickledByteArrayInfo.
+        """
+        output_type_info_class = self._j_data_stream.getTransformation().getOutputType().getClass()
+        if output_type_info_class.isAssignableFrom(
+            PickledBytesTypeInfo
+                .PICKLED_BYTE_ARRAY_TYPE_INFO().get_java_type_info().getClass()):
+            def python_obj_to_str_map_func(value):
+                if not isinstance(value, (str, bytes)):
+                    value = str(value)
+                return value
+
+            transformed_data_stream = DataStream(self.map(python_obj_to_str_map_func,
+                                                          type_info=Types.STRING())._j_data_stream)
+            return transformed_data_stream
+        else:
+            return self
+
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
                                            func_type: int):
@@ -373,3 +422,39 @@ class DataStreamSink(object):
         """
         self._j_data_stream_sink.setParallelism(parallelism)
         return self
+
+
+class KeyedStream(DataStream):
+    """
+    A KeyedStream represents a DataStream on which operator state is partitioned by key using a
+    provided KeySelector. Typical operations supported by a DataStream are also possible on a
+    KeyedStream, with the exception of partitioning methods such as shuffle, forward and keyBy.
+
+    Reduce-style operations, such as reduce and sum work on elements that have the same key.
+    """
+
+    def __init__(self, j_keyed_stream):
+        """
+        Constructor of KeyedStream.
+
+        :param j_keyed_stream: A java KeyedStream object.
+        """
+        super(KeyedStream, self).__init__(j_data_stream=j_keyed_stream)
+        self._original_data_type_info = None
+
+    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
+            -> 'DataStream':
+        return self._values().map(func, type_info)
+
+    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None)\
+            -> 'DataStream':
+        return self._values().flat_map(func, type_info)
+
+    def _values(self) -> 'DataStream':
+        """
+        Since python KeyedStream is in the format of Row(key_value, original_data), it is used for
+        getting the original_data.
+        """
+        j_transformed_stream = super().map(lambda x: x[1],
+                                           type_info=self._original_data_type_info)._j_data_stream
+        return DataStream(j_transformed_stream)
