@@ -290,6 +290,8 @@ class DataStream(object):
 
         if isinstance(func, Callable):
             func = FilterFunctionWrapper(func)
+        elif not isinstance(func, FilterFunction):
+            raise TypeError("func must be a Callable or instance of FilterFunction.")
 
         j_input_type = self._j_data_stream.getTransformation().getOutputType()
         type_info = typeinfo._from_java_type(j_input_type)
