@@ -18,6 +18,7 @@
 
 package org.apache.flink.orc.vector;
 
+import org.apache.flink.orc.TimestampUtil;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -57,7 +58,7 @@ public abstract class AbstractOrcColumnVector implements
 			ColumnVector vector, LogicalType logicalType) {
 		if (vector instanceof LongColumnVector) {
 			if (logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
-				return new OrcLegacyTimestampColumnVector(vector);
+				return new OrcLegacyTimestampColumnVector((LongColumnVector) vector);
 			} else {
 				return new OrcLongColumnVector((LongColumnVector) vector);
 			}
@@ -67,7 +68,7 @@ public abstract class AbstractOrcColumnVector implements
 			return new OrcBytesColumnVector((BytesColumnVector) vector);
 		} else if (vector instanceof DecimalColumnVector) {
 			return new OrcDecimalColumnVector((DecimalColumnVector) vector);
-		} else if (OrcLegacyTimestampColumnVector.isHiveTimestampColumnVector(vector)) {
+		} else if (TimestampUtil.isHiveTimestampColumnVector(vector)) {
 			return new OrcTimestampColumnVector(vector);
 		} else {
 			throw new UnsupportedOperationException("Unsupport vector: " + vector.getClass().getName());
@@ -114,7 +115,7 @@ public abstract class AbstractOrcColumnVector implements
 				}
 				return createLongVector(batchSize, dateToInternal((Date) value));
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return OrcLegacyTimestampColumnVector.createFromConstant(batchSize, value);
+				return TimestampUtil.createVectorFromConstant(batchSize, value);
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}

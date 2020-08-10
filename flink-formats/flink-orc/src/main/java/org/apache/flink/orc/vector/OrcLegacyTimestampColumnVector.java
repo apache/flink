@@ -19,131 +19,47 @@
 package org.apache.flink.orc.vector;
 
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 /**
  * This class is used to adapt to Hive's legacy (2.0.x) timestamp column vector which is a LongColumnVector.
- * This class does not import TimestampColumnVector and provides utils to decide whether new or legacy column
- * vector should be used.
  */
 public class OrcLegacyTimestampColumnVector extends AbstractOrcColumnVector implements
 		org.apache.flink.table.data.vector.TimestampColumnVector {
 
-	private static final Logger LOG = LoggerFactory.getLogger(OrcLegacyTimestampColumnVector.class);
+	private final LongColumnVector hiveVector;
 
-	private static Class hiveTSColVectorClz;
-	private static Constructor constructor;
-	private static Method getTimeMethod;
-	private static Method getNanosMethod;
-	private static Method fillMethod;
-	private static boolean hiveTSColVectorAvailable = false;
-
-	static {
-		try {
-			hiveTSColVectorClz = Class.forName("org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector");
-			constructor = hiveTSColVectorClz.getConstructor(int.class);
-			getTimeMethod = hiveTSColVectorClz.getDeclaredMethod("getTime", int.class);
-			getNanosMethod = hiveTSColVectorClz.getDeclaredMethod("getNanos", int.class);
-			fillMethod = hiveTSColVectorClz.getDeclaredMethod("fill", Timestamp.class);
-			hiveTSColVectorAvailable = true;
-		} catch (ClassNotFoundException | NoSuchMethodException e) {
-			LOG.debug("Hive TimestampColumnVector not available", e);
-		}
-	}
-
-	private final ColumnVector hiveVector;
-
-	OrcLegacyTimestampColumnVector(ColumnVector vector) {
+	OrcLegacyTimestampColumnVector(LongColumnVector vector) {
 		super(vector);
-		if (isHiveTimestampColumnVector(vector) || vector instanceof LongColumnVector) {
-			this.hiveVector = vector;
-		} else {
-			throw new IllegalArgumentException("Unsupported column vector type for timestamp: " + vector.getClass().getName());
-		}
+		this.hiveVector = vector;
 	}
 
 	@Override
 	public TimestampData getTimestamp(int i, int precision) {
 		int index = hiveVector.isRepeating ? 0 : i;
-		Timestamp timestamp;
-		if (hiveTSColVectorAvailable) {
-			timestamp = new Timestamp(getTime(index));
-			timestamp.setNanos(getNanos(index));
-		} else {
-			timestamp = toTimestamp(((LongColumnVector) hiveVector).vector[index]);
-		}
+		Timestamp timestamp = toTimestamp(hiveVector.vector[index]);
 		return TimestampData.fromTimestamp(timestamp);
 	}
 
-	private long getTime(int index) {
-		try {
-			return (long) getTimeMethod.invoke(hiveVector, index);
-		} catch (IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkRuntimeException(e);
-		}
-	}
-
-	private int getNanos(int index) {
-		try {
-			return (int) getNanosMethod.invoke(hiveVector, index);
-		} catch (IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkRuntimeException(e);
-		}
-	}
-
-	private void fill(Timestamp timestamp) {
-		try {
-			if (hiveTSColVectorAvailable) {
-				fillMethod.invoke(hiveVector, timestamp);
-			} else {
-				((LongColumnVector) hiveVector).fill(fromTimestamp(timestamp));
-			}
-		} catch (IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkRuntimeException(e);
-		}
-	}
-
-	static boolean isHiveTimestampColumnVector(ColumnVector vector) {
-		return hiveTSColVectorAvailable && hiveTSColVectorClz.isAssignableFrom(vector.getClass());
-	}
-
 	// creates a Hive ColumnVector of constant timestamp value
-	static ColumnVector createFromConstant(int batchSize, Object value) {
-		OrcLegacyTimestampColumnVector columnVector = new OrcLegacyTimestampColumnVector(createHiveColumnVector(batchSize));
+	public static ColumnVector createFromConstant(int batchSize, Object value) {
+		LongColumnVector res = new LongColumnVector(batchSize);
 		if (value == null) {
-			columnVector.hiveVector.noNulls = false;
-			columnVector.hiveVector.isNull[0] = true;
-			columnVector.hiveVector.isRepeating = true;
+			res.noNulls = false;
+			res.isNull[0] = true;
+			res.isRepeating = true;
 		} else {
 			Timestamp timestamp = value instanceof LocalDateTime ?
 					Timestamp.valueOf((LocalDateTime) value) : (Timestamp) value;
-			columnVector.fill(timestamp);
-			columnVector.hiveVector.isNull[0] = false;
+			res.fill(fromTimestamp(timestamp));
+			res.isNull[0] = false;
 		}
-		return columnVector.hiveVector;
-	}
-
-	private static ColumnVector createHiveColumnVector(int len) {
-		try {
-			if (hiveTSColVectorAvailable) {
-				return (ColumnVector) constructor.newInstance(len);
-			} else {
-				return new LongColumnVector(len);
-			}
-		} catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-			throw new FlinkRuntimeException(e);
-		}
+		return res;
 	}
 
 	// converting from/to Timestamp is copied from Hive 2.0.0 TimestampUtils
