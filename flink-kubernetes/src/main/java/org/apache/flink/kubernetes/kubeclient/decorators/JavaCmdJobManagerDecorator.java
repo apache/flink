@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 
 import java.util.Arrays;
 
+import static org.apache.flink.kubernetes.utils.Constants.NATIVE_KUBERNETES_COMMAND;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -60,7 +61,7 @@ public class JavaCmdJobManagerDecorator extends AbstractKubernetesStepDecorator 
 
 		final Container mainContainerWithStartCmd = new ContainerBuilder(flinkPod.getMainContainer())
 			.withCommand(kubernetesJobManagerParameters.getContainerEntrypoint())
-			.withArgs(Arrays.asList("/bin/bash", "-c", startCommand))
+			.withArgs(Arrays.asList(NATIVE_KUBERNETES_COMMAND, startCommand))
 			.build();
 
 		return new FlinkPod.Builder(flinkPod)

@@ -36,6 +36,7 @@ import java.util.List;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.NATIVE_KUBERNETES_COMMAND;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -107,7 +108,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getTaskManagerExpectedCommand("", "");
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -121,7 +122,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getTaskManagerExpectedCommand("", log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -135,7 +136,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getTaskManagerExpectedCommand("", logback);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -149,7 +150,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 
 		final String expectedCommand = getTaskManagerExpectedCommand("", logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -166,7 +167,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 
 		final String expectedCommand =
 				getTaskManagerExpectedCommand(jvmOpts, logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -181,7 +182,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 
 		assertEquals(Collections.singletonList(KUBERNETES_ENTRY_PATH), resultMainContainer.getCommand());
 		final String expectedCommand = getTaskManagerExpectedCommand(jvmOpts, logback + " " + log4j);
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(expectedArgs, resultMainContainer.getArgs());
 	}
 
@@ -207,7 +208,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 				" " + jvmOpts + " " + tmJvmOpts +
 				" " + tmLogfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + mainClassArgs;
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(resultMainContainer.getArgs(), expectedArgs);
 	}
 
@@ -234,7 +235,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 				" " + tmLogfile + " " + logback + " " + log4j +
 				" " + jvmOpts + " " + tmJvmOpts + " " + mainClass +
 				" " + mainClassArgs;
-		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
+		final List<String> expectedArgs = Arrays.asList(NATIVE_KUBERNETES_COMMAND, expectedCommand);
 		assertEquals(resultMainContainer.getArgs(), expectedArgs);
 	}
 

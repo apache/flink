@@ -155,7 +155,7 @@ public class KubernetesConfigOptions {
 	public static final ConfigOption<String> KUBERNETES_ENTRY_PATH =
 		key("kubernetes.entry.path")
 		.stringType()
-		.defaultValue("/opt/flink/bin/kubernetes-entry.sh")
+		.defaultValue("/docker-entrypoint.sh")
 		.withDescription("The entrypoint script of kubernetes in the image. It will be used as command for jobmanager " +
 			"and taskmanager container.");
 
