@@ -19,6 +19,7 @@ import decimal
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.functions import MapFunction, FlatMapFunction, FilterFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
@@ -150,11 +151,9 @@ class DataStreamTests(PyFlinkTestCase):
 
     def test_filter_without_data_types(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        filtered_stream = ds.filter(MyFilterFunction())
-        collect_util = DataStreamCollectUtil()
-        collect_util.collect(filtered_stream)
+        ds.filter(MyFilterFunction()).add_sink(self.test_sink)
         self.env.execute("test filter")
-        results = collect_util.results()
+        results = self.test_sink.get_results(True)
         expected = ["(2, 'Hello', 'Hi')"]
         results.sort()
         expected.sort()
@@ -165,11 +164,9 @@ class DataStreamTests(PyFlinkTestCase):
                                       type_info=Types.ROW(
                                           [Types.INT(), Types.STRING(), Types.STRING()])
                                       )
-        filtered_stream = ds.filter(lambda x: x[0] % 2 == 0)
-        collect_util = DataStreamCollectUtil()
-        collect_util.collect(filtered_stream)
+        ds.filter(lambda x: x[0] % 2 == 0).add_sink(self.test_sink)
         self.env.execute("test filter")
-        results = collect_util.results()
+        results = self.test_sink.get_results(False)
         expected = ['2,Hello,Hi']
         results.sort()
         expected.sort()
@@ -239,5 +236,6 @@ class MyKeySelector(KeySelector):
 
 
 class MyFilterFunction(FilterFunction):
+
     def filter(self, value):
         return value[0] % 2 == 0
