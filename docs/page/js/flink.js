@@ -109,7 +109,7 @@ function codeTabs() {
       tabBar.children("li").first().addClass("active");
     }
     if (hideTabs != null) {
-        tabBar.hide()
+        tabBar.hide();
     }
     counter++;
   });
