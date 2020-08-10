@@ -619,7 +619,7 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that collects the added buffers/events in multiple queue.
 	 */
-	static class CollectingPartitionWriter extends MockResultPartitionWriter {
+	public static class CollectingPartitionWriter extends MockResultPartitionWriter {
 		private final Queue<BufferConsumer>[] queues;
 		private final BufferProvider bufferProvider;
 
@@ -629,7 +629,7 @@ public class RecordWriterTest {
 		 * @param queues one queue per outgoing channel
 		 * @param bufferProvider buffer provider
 		 */
-		CollectingPartitionWriter(Queue<BufferConsumer>[] queues, BufferProvider bufferProvider) {
+		public CollectingPartitionWriter(Queue<BufferConsumer>[] queues, BufferProvider bufferProvider) {
 			this.queues = queues;
 			this.bufferProvider = bufferProvider;
 		}
@@ -655,7 +655,7 @@ public class RecordWriterTest {
 		}
 	}
 
-	static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
+	public static BufferOrEvent parseBuffer(BufferConsumer bufferConsumer, int targetChannel) throws IOException {
 		Buffer buffer = buildSingleBuffer(bufferConsumer);
 		if (buffer.isBuffer()) {
 			return new BufferOrEvent(buffer, new InputChannelInfo(0, targetChannel));

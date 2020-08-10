@@ -16,42 +16,53 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.api.writer;
+package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * The specific delegate implementation for the non output case like sink task.
- */
-public class NonRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
-	public NonRecordWriter() {
+/**
+ * The specific delegate implementation for the single output case.
+ */
+public class SingleRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
+
+	private final RecordWriter<T> recordWriter;
+
+	public SingleRecordWriter(RecordWriter<T> recordWriter) {
+		this.recordWriter = checkNotNull(recordWriter);
 	}
 
 	@Override
 	public void broadcastEvent(AbstractEvent event) throws IOException {
+		recordWriter.broadcastEvent(event);
 	}
 
 	@Override
 	public RecordWriter<T> getRecordWriter(int outputIndex) {
-		throw new UnsupportedOperationException("No record writer instance.");
+		checkArgument(outputIndex == 0, "The index should always be 0 for the single record writer delegate.");
+
+		return recordWriter;
 	}
 
 	@Override
 	public CompletableFuture<?> getAvailableFuture() {
-		throw new UnsupportedOperationException("No record writer instance.");
+		return recordWriter.getAvailableFuture();
 	}
 
 	@Override
 	public boolean isAvailable() {
-		return true;
+		return recordWriter.isAvailable();
 	}
 
 	@Override
 	public void close() {
+		recordWriter.close();
 	}
 }

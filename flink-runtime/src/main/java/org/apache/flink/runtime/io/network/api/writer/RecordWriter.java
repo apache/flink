@@ -225,7 +225,8 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	 * The {@link BufferBuilder} may already exist if not filled up last time, otherwise we need
 	 * request a new one for this target channel.
 	 */
-	abstract BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
+	@VisibleForTesting
+	public abstract BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
 
 	/**
 	 * Marks the current {@link BufferBuilder} as finished if present and clears the state for next one.
@@ -360,7 +361,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	}
 
 	@VisibleForTesting
-	ResultPartitionWriter getTargetPartition() {
+	public ResultPartitionWriter getTargetPartition() {
 		return targetPartition;
 	}
 }
