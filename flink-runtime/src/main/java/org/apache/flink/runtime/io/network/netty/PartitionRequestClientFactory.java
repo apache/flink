@@ -81,7 +81,15 @@ class PartitionRequestClientFactory {
 				Object old = clients.putIfAbsent(connectionId, connectingChannel);
 
 				if (old == null) {
-					nettyClient.connect(connectionId.getAddress()).addListener(connectingChannel);
+					ChannelFuture channelFuture;
+					try {
+						channelFuture = nettyClient.connect(connectionId.getAddress());
+					} catch (Exception e) {
+						// https://issues.apache.org/jira/browse/FLINK-18821
+						connectingChannel.notifyOfError(e);
+						throw new IOException("Connecting the channel failed: " + e.getMessage(), e);
+					}
+					channelFuture.addListener(connectingChannel);
 
 					client = connectingChannel.waitForChannel();
 

@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -48,6 +50,18 @@ import static org.junit.Assert.fail;
 public class PartitionRequestClientFactoryTest {
 
 	private final static int SERVER_PORT = NetUtils.getAvailablePort();
+
+	// see https://issues.apache.org/jira/browse/FLINK-18821
+	@Test(expected = IOException.class)
+	public void testFailureReportedToSubsequentRequests() throws Exception {
+		PartitionRequestClientFactory factory = new PartitionRequestClientFactory(new FailingNettyClient());
+		try {
+			factory.createPartitionRequestClient(new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+		} catch (IOException e) {
+			// expected
+		}
+		factory.createPartitionRequestClient(new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+	}
 
 	@Test
 	@Ignore
@@ -189,4 +203,17 @@ public class PartitionRequestClientFactoryTest {
 	private static ConnectionID createServerConnectionID(int connectionIndex) throws UnknownHostException {
 		return new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), SERVER_PORT), connectionIndex);
 	}
+
+	private static class FailingNettyClient extends NettyClient {
+
+		public FailingNettyClient() {
+			super(null);
+		}
+
+		@Override
+		ChannelFuture connect(final InetSocketAddress serverSocketAddress) {
+			throw new ChannelException("Simulate connect failure");
+		}
+	}
+
 }
