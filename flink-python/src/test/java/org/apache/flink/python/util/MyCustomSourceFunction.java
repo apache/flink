@@ -23,7 +23,7 @@ import org.apache.flink.types.Row;
 import java.util.Random;
 
 /**
- * A custom source function to for testing add a custom source in Python StreamExecutionEnvironment.
+ * A custom source function for testing adds a custom source in Python StreamExecutionEnvironment.
  */
 public class MyCustomSourceFunction implements SourceFunction<Row> {
 
@@ -44,7 +44,6 @@ public class MyCustomSourceFunction implements SourceFunction<Row> {
 			Row row = Row.of(random.nextInt(1000), NAMES[random.nextInt(NAMES.length)], random.nextDouble());
 			sourceContext.collect(row);
 		}
-
 	}
 
 	public void cancel() {
