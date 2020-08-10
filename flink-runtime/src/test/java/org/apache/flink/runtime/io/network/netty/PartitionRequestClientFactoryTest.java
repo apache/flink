@@ -45,12 +45,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Ignore
 public class PartitionRequestClientFactoryTest {
 
 	private final static int SERVER_PORT = NetUtils.getAvailablePort();
 
 	@Test
+	@Ignore
 	public void testResourceReleaseAfterInterruptedConnect() throws Exception {
 
 		// Latch to synchronize on the connect call.
