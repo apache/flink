@@ -399,8 +399,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	@Override
 	public void onFatalError(Throwable exception) {
-		Throwable enrichedException = ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
-		LOG.error("Fatal error occurred in the cluster entrypoint.", enrichedException);
+		ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
+		LOG.error("Fatal error occurred in the cluster entrypoint.", exception);
 
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}
