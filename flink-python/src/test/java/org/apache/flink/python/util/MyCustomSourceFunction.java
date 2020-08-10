@@ -29,23 +29,16 @@ public class MyCustomSourceFunction implements SourceFunction<Row> {
 
 	private static final String[] NAMES = {"Bob", "Marry", "Henry", "Mike", "Ted", "Jack"};
 
-	private int recordCount = 50;
-
-	public MyCustomSourceFunction() {
-	}
-
-	public MyCustomSourceFunction(int recordCount) {
-		this.recordCount = recordCount;
-	}
-
 	public void run(SourceContext sourceContext) {
 		Random random = new Random();
-		for (int i = 0; i < recordCount; i++) {
-			Row row = Row.of(random.nextInt(1000), NAMES[random.nextInt(NAMES.length)], random.nextDouble());
+		for (int i = 0; i < NAMES.length; i++) {
+			Row row = Row.of(i, NAMES[i]);
 			sourceContext.collect(row);
 		}
 	}
 
+	@Override
 	public void cancel() {
+
 	}
 }
