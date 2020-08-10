@@ -185,6 +185,9 @@ class DataStreamTests(PyFlinkTestCase):
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
 
+        with self.assertRaises(Exception):
+            keyed_stream.name("keyed stream")
+
         class AssertKeyMapFunction(MapFunction):
             def __init__(self):
                 self.pre = None

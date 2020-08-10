@@ -261,28 +261,10 @@ class DataStream(object):
                                                     type_info=Types.ROW([key_type_info,
                                                                          output_type_info]))
                                            ._j_data_stream
-                                           .keyBy(PickledKeySelector(is_key_pickled_byte_array)))
+                                           .keyBy(PickledKeySelector(is_key_pickled_byte_array),
+                                                  key_type_info.get_java_type_info()))
         generated_key_stream._original_data_type_info = output_type_info
         return generated_key_stream
-
-    def _align_output_type(self) -> 'DataStream':
-        """
-        Transform the pickled python object into String if the output type is PickledByteArrayInfo.
-        """
-        output_type_info_class = self._j_data_stream.getTransformation().getOutputType().getClass()
-        if output_type_info_class.isAssignableFrom(
-            PickledBytesTypeInfo
-                .PICKLED_BYTE_ARRAY_TYPE_INFO().get_java_type_info().getClass()):
-            def python_obj_to_str_map_func(value):
-                if not isinstance(value, (str, bytes)):
-                    value = str(value)
-                return value
-
-            transformed_data_stream = DataStream(self.map(python_obj_to_str_map_func,
-                                                          type_info=Types.STRING())._j_data_stream)
-            return transformed_data_stream
-        else:
-            return self
 
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
@@ -460,3 +442,40 @@ class KeyedStream(DataStream):
         j_transformed_stream = super().map(lambda x: x[1],
                                            type_info=self._original_data_type_info)._j_data_stream
         return DataStream(j_transformed_stream)
+
+    def set_parallelism(self, parallelism: int):
+        raise Exception("Set parallelism for KeyedStream is not supported.")
+
+    def name(self, name: str):
+        raise Exception("Set name for KeyedStream is not supported.")
+
+    def get_name(self) -> str:
+        raise Exception("Get name of KeyedStream is not supported.")
+
+    def uid(self, uid: str):
+        raise Exception("Set uid for KeyedStream is not supported.")
+
+    def set_uid_hash(self, uid_hash: str):
+        raise Exception("Set uid hash for KeyedStream is not supported.")
+
+    def set_max_parallelism(self, max_parallelism: int):
+        raise Exception("Set max parallelism for KeyedStream is not supported.")
+
+    def force_non_parallel(self):
+        raise Exception("Set force non-parallel for KeyedStream is not supported.")
+
+    def set_buffer_timeout(self, timeout_millis: int):
+        raise Exception("Set buffer timeout for KeyedStream is not supported.")
+
+
+
+
+
+
+
+
+
+
+
+
+
