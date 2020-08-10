@@ -150,7 +150,10 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		StreamElementSerializer<OUT> outputStreamRecordSerializer = new StreamElementSerializer<>(outputSerializer);
 
 		Queue<Object> outputList = new ArrayDeque<>();
-		streamMockEnvironment.addOutput(outputList, outputStreamRecordSerializer);
+		// set up multiple outputs
+		for (int i = 0; i < streamConfig.getOutEdgesInOrder(streamMockEnvironment.getUserClassLoader()).size(); i++) {
+			streamMockEnvironment.addOutput(outputList, outputStreamRecordSerializer);
+		}
 		streamMockEnvironment.setTaskMetricGroup(taskMetricGroup);
 
 		StreamTask<OUT, ?> task = taskFactory.apply(streamMockEnvironment);

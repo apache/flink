@@ -81,19 +81,44 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
 	@Override
 	public void collect(StreamRecord<OUT> record) {
-		if (this.outputTag != null) {
-			// we are not responsible for emitting to the main output.
-			return;
-		}
-
-		pushToRecordWriter(record);
+		collectAndCheckIfEmitted(record);
 	}
 
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
-			pushToRecordWriter(record);
+		collectAndCheckIfEmitted(outputTag, record);
+	}
+
+	/**
+	 * Emits a record and check if it was sent successfully.
+	 *
+	 * @param record The record to collect.
+	 */
+	public boolean collectAndCheckIfEmitted(StreamRecord<OUT> record) {
+		if (this.outputTag != null) {
+			// we are not responsible for emitting to the main output.
+			return false;
 		}
+
+		pushToRecordWriter(record);
+		return true;
+	}
+
+	/**
+	 * Emits a record the side output identified by the given {@link OutputTag} and check if it was sent successfully.
+	 *
+	 * @param record The record to collect.
+	 * @param outputTag  Identification of side outputs.
+	 */
+	public <X> boolean collectAndCheckIfEmitted(OutputTag<X> outputTag, StreamRecord<X> record) {
+		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
+			// we are not responsible for emitting to the side-output specified by this
+			// OutputTag.
+			return false;
+		}
+
+		pushToRecordWriter(record);
+		return true;
 	}
 
 	private <X> void pushToRecordWriter(StreamRecord<X> record) {

@@ -106,12 +106,13 @@ public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OU
 		OperatorMetricGroup operatorMetricGroup;
 		try {
 			operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
-			countingOutput = new CountingOutput(parameters.getOutput(), operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+			if (parameters.getOutput() instanceof CountingOutput) {
+				countingOutput = (CountingOutput<OUT>) parameters.getOutput();
+			} else {
+				countingOutput = new CountingOutput<>(parameters.getOutput(), operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+			}
 			if (config.isChainStart()) {
 				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
-			}
-			if (config.isChainEnd()) {
-				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
 			}
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating task metrics.", e);

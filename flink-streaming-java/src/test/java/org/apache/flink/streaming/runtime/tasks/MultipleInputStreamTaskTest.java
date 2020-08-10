@@ -36,11 +36,13 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
@@ -52,6 +54,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
 import org.apache.flink.streaming.util.TestBoundedMultipleInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.OutputTag;
 
 import org.hamcrest.collection.IsEmptyCollection;
 import org.hamcrest.collection.IsMapContaining;
@@ -60,6 +63,7 @@ import org.junit.Test;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -631,6 +635,101 @@ public class MultipleInputStreamTaskTest {
 		}
 	}
 
+	@Test
+	public void testTaskSideOutputStatistics() throws Exception {
+		TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+			@Override
+			public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+			}
+		};
+
+		final List<OutputSelector<?>> selectors = Collections.singletonList((OutputSelector<Integer>) value -> {
+			if (value % 2 == 0) {
+				return Collections.singletonList("even");
+			} else {
+				return Collections.singletonList("odd");
+			}
+		});
+
+		try (StreamTaskMailboxTestHarness<Integer> testHarness =
+				new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+					.addInput(BasicTypeInfo.INT_TYPE_INFO)
+					.addInput(BasicTypeInfo.INT_TYPE_INFO)
+					.addInput(BasicTypeInfo.INT_TYPE_INFO)
+					.setupOperatorChain(new OddEvenOperatorFactory())
+					.chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+					.setOperatorFactory(SimpleOperatorFactory.of(new OneInputStreamTaskTest.OddEvenOperator()))
+					.addNonChainedOutputsCount(new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO), 2)
+					.addNonChainedOutputsCount(1)
+					.build()
+					.chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+					.setOperatorFactory(SimpleOperatorFactory.of(new OneInputStreamTaskTest.DuplicatingOperator()))
+					.setOutputSelectors(selectors)
+					.addNonChainedOutputsCount(1, Collections.singletonList("even"))
+					.build()
+					.finish()
+					.setTaskMetricGroup(taskMetricGroup)
+					.build()) {
+			Counter numRecordsInCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
+			Counter numRecordsOutCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+
+			int numOddRecords = 5;
+			int numEvenRecords = 3;
+			int numNaturalRecords = 2;
+			for (int x = 0; x < numOddRecords; x++) {
+				testHarness.processElement(new StreamRecord<>(x * 2 + 1));
+			}
+			for (int x = 0; x < numEvenRecords; x++) {
+				testHarness.processElement(new StreamRecord<>(x * 2));
+			}
+			for (int x = 0; x < numNaturalRecords; x++) {
+				testHarness.processElement(new StreamRecord<>(x));
+			}
+
+			int totalOddRecords = numOddRecords + numNaturalRecords / 2;
+			int totalEvenRecords = numEvenRecords + (int) Math.ceil(numNaturalRecords / 2.0);
+			assertEquals(totalOddRecords + totalEvenRecords, numRecordsInCounter.getCount());
+			assertEquals(totalOddRecords + (totalOddRecords + totalEvenRecords) + totalEvenRecords * 2, numRecordsOutCounter.getCount());
+			testHarness.waitForTaskCompletion();
+		}
+	}
+
+	static class OddEvenOperator extends AbstractStreamOperatorV2<Integer>
+		implements MultipleInputStreamOperator<Integer> {
+
+		public OddEvenOperator(StreamOperatorParameters<Integer> parameters) {
+			super(parameters, 3);
+		}
+
+		@Override
+		public List<Input> getInputs() {
+			return Arrays.asList(
+				new OddEvenOperator.OddEvenInput(this, 1),
+				new OddEvenOperator.OddEvenInput(this, 2),
+				new OddEvenOperator.OddEvenInput(this, 3));
+		}
+
+		class OddEvenInput extends AbstractInput<Integer, Integer> {
+			private final OutputTag<Integer> oddOutputTag = new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO);
+			private final OutputTag<Integer> evenOutputTag = new OutputTag<>("even", BasicTypeInfo.INT_TYPE_INFO);
+
+			public OddEvenInput(AbstractStreamOperatorV2<Integer> owner, int inputId) {
+				super(owner, inputId);
+			}
+
+			@Override
+			public void processElement(StreamRecord<Integer> element) throws Exception {
+				if (element.getValue() % 2 == 0) {
+					output.collect(evenOutputTag, element);
+				} else {
+					output.collect(oddOutputTag, element);
+				}
+				output.collect(element);
+			}
+		}
+	}
+
 	/**
 	 * Test implementation of {@link MultipleInputStreamOperator}.
 	 */
@@ -734,6 +833,18 @@ public class MultipleInputStreamTaskTest {
 		@Override
 		public Class<? extends StreamOperator<String>> getStreamOperatorClass(ClassLoader classLoader) {
 			return MapToStringMultipleInputOperator.class;
+		}
+	}
+
+	private static class OddEvenOperatorFactory extends AbstractStreamOperatorFactory<Integer> {
+		@Override
+		public <T extends StreamOperator<Integer>> T createStreamOperator(StreamOperatorParameters<Integer> parameters) {
+			return (T) new OddEvenOperator(parameters);
+		}
+
+		@Override
+		public Class<? extends StreamOperator<Integer>> getStreamOperatorClass(ClassLoader classLoader) {
+			return OddEvenOperator.class;
 		}
 	}
 }

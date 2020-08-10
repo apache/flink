@@ -187,7 +187,10 @@ public class StreamTaskTestHarness<OUT> {
 
 	private void initializeOutput() {
 		outputList = new LinkedBlockingQueue<>();
-		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
+		// set up multiple outputs
+		for (int i = 0; i < streamConfig.getOutEdgesInOrder(mockEnv.getUserClassLoader()).size(); i++) {
+			mockEnv.addOutput(outputList, outputStreamRecordSerializer);
+		}
 	}
 
 	/**

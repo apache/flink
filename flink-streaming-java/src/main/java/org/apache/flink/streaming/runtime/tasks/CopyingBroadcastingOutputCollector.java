@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.OutputTag;
@@ -29,38 +31,69 @@ import org.apache.flink.util.OutputTag;
 final class CopyingBroadcastingOutputCollector<T> extends BroadcastingOutputCollector<T> {
 
 	public CopyingBroadcastingOutputCollector(
-			Output<StreamRecord<T>>[] outputs,
-			StreamStatusProvider streamStatusProvider) {
-		super(outputs, streamStatusProvider);
+			Output<StreamRecord<T>>[] allOutputs,
+			StreamStatusProvider streamStatusProvider,
+			Counter numRecordsOutForTask) {
+		super(allOutputs, streamStatusProvider, numRecordsOutForTask);
 	}
 
 	@Override
 	public void collect(StreamRecord<T> record) {
-
-		for (int i = 0; i < outputs.length - 1; i++) {
-			Output<StreamRecord<T>> output = outputs[i];
+		boolean emitted = false;
+		for (int i = 0; i < nonChainedOutputs.length - 1; i++) {
+			RecordWriterOutput<T> output = nonChainedOutputs[i];
 			StreamRecord<T> shallowCopy = record.copy(record.getValue());
-			output.collect(shallowCopy);
+			emitted |= output.collectAndCheckIfEmitted(shallowCopy);
 		}
 
-		if (outputs.length > 0) {
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(record);
+		if (chainedOutputs.length == 0 && nonChainedOutputs.length > 0) {
+			emitted |= nonChainedOutputs[nonChainedOutputs.length - 1].collectAndCheckIfEmitted(record);
+		} else if (nonChainedOutputs.length > 0) {
+			StreamRecord<T> shallowCopy = record.copy(record.getValue());
+			emitted |= nonChainedOutputs[nonChainedOutputs.length - 1].collectAndCheckIfEmitted(shallowCopy);
+		}
+
+		if (chainedOutputs.length > 0){
+			for (int i = 0; i < chainedOutputs.length - 1; i++) {
+				Output<StreamRecord<T>> output = chainedOutputs[i];
+				StreamRecord<T> shallowCopy = record.copy(record.getValue());
+				output.collect(shallowCopy);
+			}
+			chainedOutputs[chainedOutputs.length - 1].collect(record);
+		}
+
+		if (emitted) {
+			numRecordsOutForTask.inc();
 		}
 	}
 
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		for (int i = 0; i < outputs.length - 1; i++) {
-			Output<StreamRecord<T>> output = outputs[i];
-
+		boolean emitted = false;
+		for (int i = 0; i < nonChainedOutputs.length - 1; i++) {
+			RecordWriterOutput<T> output = nonChainedOutputs[i];
 			StreamRecord<X> shallowCopy = record.copy(record.getValue());
-			output.collect(outputTag, shallowCopy);
+			emitted |= output.collectAndCheckIfEmitted(outputTag, shallowCopy);
 		}
 
-		if (outputs.length > 0) {
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(outputTag, record);
+		if (chainedOutputs.length == 0 && nonChainedOutputs.length > 0) {
+			emitted |= nonChainedOutputs[nonChainedOutputs.length - 1].collectAndCheckIfEmitted(outputTag, record);
+		} else if (nonChainedOutputs.length > 0) {
+			StreamRecord<X> shallowCopy = record.copy(record.getValue());
+			emitted |= nonChainedOutputs[nonChainedOutputs.length - 1].collectAndCheckIfEmitted(outputTag, shallowCopy);
+		}
+
+		if (chainedOutputs.length > 0){
+			for (int i = 0; i < chainedOutputs.length - 1; i++) {
+				Output<StreamRecord<T>> output = chainedOutputs[i];
+				StreamRecord<X> shallowCopy = record.copy(record.getValue());
+				output.collect(outputTag, shallowCopy);
+			}
+			chainedOutputs[chainedOutputs.length - 1].collect(outputTag, record);
+		}
+
+		if (emitted) {
+			numRecordsOutForTask.inc();
 		}
 	}
 }

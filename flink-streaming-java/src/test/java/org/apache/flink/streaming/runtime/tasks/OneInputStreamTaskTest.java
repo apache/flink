@@ -50,17 +50,20 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -819,6 +822,86 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public void processWatermark(Watermark mark) {
 			output.emitWatermark(new Watermark(mark.getTimestamp() * 2));
+		}
+	}
+
+	@Test
+	public void testTaskSideOutputStatistics() throws Exception {
+		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+		final List<OutputSelector<?>> selectors = Collections.singletonList((OutputSelector<Integer>) value -> {
+			if (value % 2 == 0) {
+				return Collections.singletonList("even");
+			} else {
+				return Collections.singletonList("odd");
+			}
+		});
+
+		testHarness.setupOperatorChain(new OperatorID(), new OddEvenOperator())
+			.chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.setOperatorFactory(SimpleOperatorFactory.of(new OddEvenOperator()))
+			.addNonChainedOutputsCount(new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO), 2)
+			.addNonChainedOutputsCount(1)
+			.build()
+			.chain(BasicTypeInfo.INT_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.setOperatorFactory(SimpleOperatorFactory.of(new DuplicatingOperator()))
+			.setOutputSelectors(selectors)
+			.addNonChainedOutputsCount(1, Collections.singletonList("even"))
+			.build()
+			.finish();
+
+		final TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+			@Override
+			public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+			}
+		};
+
+		final StreamMockEnvironment env = new StreamMockEnvironment(
+			testHarness.jobConfig, testHarness.taskConfig, testHarness.memorySize, new MockInputSplitProvider(), testHarness.bufferSize, new TestTaskStateManager()) {
+			@Override
+			public TaskMetricGroup getMetricGroup() {
+				return taskMetricGroup;
+			}
+		};
+
+		final Counter numRecordsInCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOutCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+
+		testHarness.invoke(env);
+		testHarness.waitForTaskRunning();
+
+		final int numEvenRecords = 5;
+		final int numOddRecords = 3;
+
+		for (int x = 0; x < numEvenRecords; x++) {
+			testHarness.processElement(new StreamRecord<>(2 * x));
+		}
+
+		for (int x = 0; x < numOddRecords; x++) {
+			testHarness.processElement(new StreamRecord<>(2 * x + 1));
+		}
+		testHarness.waitForInputProcessing();
+
+		assertEquals(numEvenRecords + numOddRecords, numRecordsInCounter.getCount());
+		// (number of records sent via odd tag) + (number of records sent directly) + (number of records sent via even selector) * 2
+		assertEquals(numOddRecords + (numEvenRecords + numOddRecords) + numEvenRecords * 2, numRecordsOutCounter.getCount());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
+	}
+
+	static class OddEvenOperator extends AbstractStreamOperator<Integer> implements OneInputStreamOperator<Integer, Integer> {
+		private final OutputTag<Integer> oddOutputTag = new OutputTag<>("odd", BasicTypeInfo.INT_TYPE_INFO);
+		private final OutputTag<Integer> evenOutputTag = new OutputTag<>("even", BasicTypeInfo.INT_TYPE_INFO);
+
+		@Override
+		public void processElement(StreamRecord<Integer> element) {
+			if (element.getValue() % 2 == 0) {
+				output.collect(evenOutputTag, element);
+			} else {
+				output.collect(oddOutputTag, element);
+			}
+			output.collect(element);
 		}
 	}
 

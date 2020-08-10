@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -28,6 +30,8 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -524,6 +528,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		if (selectors == null || selectors.isEmpty()) {
 			// simple path, no selector necessary
 			if (allOutputs.size() == 1) {
+				if (allOutputs.get(0).f0 instanceof RecordWriterOutput) {
+					TaskMetricGroup taskMetricGroup = containingTask.getEnvironment().getMetricGroup();
+					OperatorMetricGroup operatorMetricGroup = taskMetricGroup.getOrAddOperator(operatorConfig.getOperatorID(), operatorConfig.getOperatorName());
+					operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
+					return new RecordWriterCountingOutput<>(allOutputs.get(0).f0, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+				}
 				return allOutputs.get(0).f0;
 			}
 			else {
@@ -538,10 +548,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				// This is the inverse of creating the normal ChainingOutput.
 				// If the chaining output does not copy we need to copy in the broadcast output,
 				// otherwise multi-chaining would not work correctly.
+				Counter numRecordsOutForTask = createStreamCounter(containingTask);
 				if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-					return new CopyingBroadcastingOutputCollector<>(asArray, this);
+					return new CopyingBroadcastingOutputCollector<>(asArray, this, numRecordsOutForTask);
 				} else  {
-					return new BroadcastingOutputCollector<>(asArray, this);
+					return new BroadcastingOutputCollector<>(asArray, this, numRecordsOutForTask);
 				}
 			}
 		}
@@ -551,12 +562,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			// This is the inverse of creating the normal ChainingOutput.
 			// If the chaining output does not copy we need to copy in the broadcast output,
 			// otherwise multi-chaining would not work correctly.
+			Counter numRecordsOutForTask = createStreamCounter(containingTask);
 			if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-				return new CopyingDirectedOutput<>(selectors, allOutputs);
+				return new CopyingDirectedOutput<>(selectors, allOutputs, numRecordsOutForTask);
 			} else {
-				return new DirectedOutput<>(selectors, allOutputs);
+				return new DirectedOutput<>(selectors, allOutputs, numRecordsOutForTask);
 			}
-
 		}
 	}
 
@@ -666,6 +677,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		return new RecordWriterOutput<>(recordWriter, outSerializer, sideOutputTag, this);
+	}
+
+	private Counter createStreamCounter(StreamTask<?, ?> containingTask) {
+		TaskIOMetricGroup taskIOMetricGroup = containingTask.getEnvironment().getMetricGroup().getIOMetricGroup();
+		Counter counter = new SimpleCounter();
+		taskIOMetricGroup.reuseRecordsOutputCounter(counter);
+		return counter;
 	}
 
 	/**

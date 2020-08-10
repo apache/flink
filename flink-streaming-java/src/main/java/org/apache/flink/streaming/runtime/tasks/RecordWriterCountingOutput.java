@@ -16,24 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.streaming.api.operators.CountingOutput;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
 /**
- * Wrapping {@link Output} that updates metrics on the number of emitted elements.
+ * Wrapping {@link RecordWriterOutput} that updates metrics on the number of emitted elements.
  */
-public class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
-	protected final Output<StreamRecord<OUT>> output;
-	protected final Counter numRecordsOut;
+public class RecordWriterCountingOutput<OUT> extends CountingOutput<OUT> implements WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
+	private final RecordWriterOutput<OUT> output;
 
-	public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
-		this.output = output;
-		this.numRecordsOut = counter;
+	public RecordWriterCountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
+		super(output, counter);
+		if (output instanceof RecordWriterOutput) {
+			this.output = (RecordWriterOutput<OUT>) output;
+		} else {
+			throw new IllegalArgumentException("The type of output must be " + RecordWriterOutput.class);
+		}
 	}
 
 	@Override
@@ -48,18 +55,25 @@ public class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	@Override
 	public void collect(StreamRecord<OUT> record) {
-		numRecordsOut.inc();
-		output.collect(record);
+		if (output.collectAndCheckIfEmitted(record)) {
+			numRecordsOut.inc();
+		}
 	}
 
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		numRecordsOut.inc();
-		output.collect(outputTag, record);
+		if (output.collectAndCheckIfEmitted(outputTag, record)) {
+			numRecordsOut.inc();
+		}
 	}
 
 	@Override
 	public void close() {
 		output.close();
+	}
+
+	@Override
+	public Gauge<Long> getWatermarkGauge() {
+		return output.getWatermarkGauge();
 	}
 }

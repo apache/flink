@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.collector.selector;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -35,8 +36,9 @@ public class CopyingDirectedOutput<OUT> extends DirectedOutput<OUT> {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public CopyingDirectedOutput(
 			List<OutputSelector<OUT>> outputSelectors,
-			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
-		super(outputSelectors, outputs);
+			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs,
+			Counter numRecordsOutForTask) {
+		super(outputSelectors, outputs, numRecordsOutForTask);
 	}
 
 	@Override
