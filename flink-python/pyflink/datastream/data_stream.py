@@ -21,9 +21,8 @@ from typing import Callable, Union
 from pyflink.common import typeinfo, ExecutionConfig
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo
 from pyflink.common.typeinfo import TypeInformation
-from pyflink.datastream.connectors import SinkFunction
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
-    MapFunction, MapFunctionWrapper, Function, FunctionWrapper
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction
 from pyflink.java_gateway import get_gateway
 
 
@@ -300,7 +299,7 @@ class DataStream(object):
         :param sink_func: The SinkFunction object.
         :return: The closed DataStream.
         """
-        return DataStreamSink(self._j_data_stream.addSink(sink_func._j_sink_func))
+        return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
 
 
 class DataStreamSink(object):

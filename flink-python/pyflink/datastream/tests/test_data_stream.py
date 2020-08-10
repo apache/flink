@@ -19,7 +19,7 @@ import decimal
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.functions import MapFunction, FlatMapFunction
+from pyflink.datastream.functions import MapFunction, FlatMapFunction, SinkFunction
 from pyflink.datastream.tests.test_util import DataStreamCollectUtil
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -145,6 +145,22 @@ class DataStreamTests(PyFlinkTestCase):
         self.env.execute('flat_map_test')
         results = collect_util.results()
         expected = ['a,0', 'bdc,2', 'deeefg,4']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_add_sink_with_sink_func_class(self):
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        sink_func_class = 'org.apache.flink.python.util.DataStreamTestCollectSink'
+        ds.add_sink(SinkFunction(sink_func_class, False))
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(ds)
+        self.env.execute("test_add_sink")
+        # the sink func and collect util share the same java list object to store the sink records,
+        # which will produce duplicate results, we use a set to deduplicate.
+        results = list(set(collect_util.results()))
+        expected = ['deeefg,4', 'bdc,2', 'ab,1', 'cfgs,3']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
