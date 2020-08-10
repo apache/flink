@@ -755,7 +755,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// an exception was thrown as a side effect of cancelling
 			// ----------------------------------------------------------------
 
-			t = TaskManagerExceptionUtils.tryEnrichTaskManagerError(t);
+			TaskManagerExceptionUtils.tryEnrichTaskManagerError(t);
 
 			try {
 				// check if the exception is unrecoverable
