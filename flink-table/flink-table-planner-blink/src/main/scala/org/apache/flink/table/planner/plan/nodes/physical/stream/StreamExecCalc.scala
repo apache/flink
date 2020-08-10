@@ -76,10 +76,8 @@ class StreamExecCalc(
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val substituteStreamOperator = CalcCodeGenerator.generateCalcOperator(
       ctx,
-      cluster,
       inputTransform,
       outputType,
-      config,
       calcProgram,
       condition,
       retainHeader = true,

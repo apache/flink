@@ -61,10 +61,8 @@ class BatchExecCalc(
     val ctx = CodeGeneratorContext(config)
     val operator = CalcCodeGenerator.generateCalcOperator(
       ctx,
-      cluster,
       inputTransform,
       outputType,
-      config,
       calcProgram,
       condition,
       opName = "BatchCalc"
