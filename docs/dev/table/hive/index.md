@@ -251,10 +251,6 @@ Please find the required dependencies for different Hive major versions below.
 </div>
 </div>
 
-If you use the hive version of HDP or CDH, you need to refer to the dependency in the previous section and select a similar version.
-
-And you need to specify selected and supported "hive-version" in yaml, HiveCatalog and HiveModule.
-
 ### Program maven
 
 If you are building your own program, you need the following dependencies in your mvn file.
@@ -297,9 +293,12 @@ the hive configuration file to their local environment first.
 Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
 Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
 
+`HiveCatalog` is capable of automatically detecting the Hive version in use. It's recommended **NOT** to specify the Hive
+version, unless the automatic detection fails.
+
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
-Take Hive version 2.3.4 for example:
+Following is an example of how to connect to Hive:
 
 {% highlight java %}
 
@@ -309,9 +308,8 @@ TableEnvironment tableEnv = TableEnvironment.create(settings);
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
 String hiveConfDir     = "/opt/hive-conf"; // a local path
-String version         = "2.3.4";
 
-HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
+HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir);
 tableEnv.registerCatalog("myhive", hive);
 
 // set the HiveCatalog as the current catalog of the session
@@ -329,9 +327,8 @@ val tableEnv = TableEnvironment.create(settings)
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
 val hiveConfDir     = "/opt/hive-conf" // a local path
-val version         = "2.3.4"
 
-val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
+val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir)
 tableEnv.registerCatalog("myhive", hive)
 
 // set the HiveCatalog as the current catalog of the session
