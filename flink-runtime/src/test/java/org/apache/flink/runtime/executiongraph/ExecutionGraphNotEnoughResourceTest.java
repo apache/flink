@@ -129,7 +129,7 @@ public class ExecutionGraphNotEnoughResourceTest extends TestLogger {
 
 			CommonTestUtils.waitUntilCondition(
 				() -> CompletableFuture.supplyAsync(eg::getState, mainThreadExecutor).join() == JobStatus.FAILED,
-				Deadline.fromNow(Duration.ofMillis(2000)));
+				Deadline.fromNow(Duration.ofSeconds(10)));
 
 			// the last suppressed restart is also counted
 			assertEquals(numRestarts + 1, CompletableFuture.supplyAsync(eg::getNumberOfRestarts, mainThreadExecutor).join().longValue());
