@@ -22,6 +22,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.streaming.runtime.io.OutputFlusher.OutputFlushers;
 
 import java.io.IOException;
 
@@ -29,19 +30,29 @@ import java.io.IOException;
  * The record writer delegate provides the availability function for task processor, and it might represent
  * a single {@link RecordWriter} or multiple {@link RecordWriter} instances in specific implementations.
  */
-public interface RecordWriterDelegate<T extends IOReadableWritable> extends AvailabilityProvider, AutoCloseable {
+public abstract class RecordWriterDelegate<T extends IOReadableWritable> implements AvailabilityProvider, AutoCloseable {
+	protected final OutputFlushers outputFlushers;
+
+	protected RecordWriterDelegate(OutputFlushers outputFlushers) {
+		this.outputFlushers = outputFlushers;
+	}
 
 	/**
 	 * Broadcasts the provided event to all the internal record writer instances.
 	 *
 	 * @param event the event to be emitted to all the output channels.
 	 */
-	void broadcastEvent(AbstractEvent event) throws IOException;
+	public abstract void broadcastEvent(AbstractEvent event) throws IOException;
 
 	/**
 	 * Returns the internal actual record writer instance based on the output index.
 	 *
 	 * @param outputIndex the index respective to the record writer instance.
 	 */
-	RecordWriter<T> getRecordWriter(int outputIndex);
+	public abstract RecordWriter<T> getRecordWriter(int outputIndex);
+
+	@Override
+	public void close() throws Exception {
+		outputFlushers.close();
+	}
 }

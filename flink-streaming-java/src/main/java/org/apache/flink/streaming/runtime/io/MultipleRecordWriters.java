@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.streaming.runtime.io.OutputFlusher.OutputFlushers;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The specific delegate implementation for the multiple outputs case.
  */
-public class MultipleRecordWriters<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
+public class MultipleRecordWriters<T extends IOReadableWritable> extends RecordWriterDelegate<T> {
 
 	/** The real record writer instances for this delegate. */
 	private final List<RecordWriter<T>> recordWriters;
@@ -43,7 +44,8 @@ public class MultipleRecordWriters<T extends IOReadableWritable> implements Reco
 	 */
 	private final CompletableFuture<?>[] futures;
 
-	public MultipleRecordWriters(List<RecordWriter<T>> recordWriters) {
+	public MultipleRecordWriters(List<RecordWriter<T>> recordWriters, OutputFlushers outputFlushers) {
+		super(outputFlushers);
 		this.recordWriters = checkNotNull(recordWriters);
 		this.futures = new CompletableFuture[recordWriters.size()];
 	}
@@ -89,7 +91,8 @@ public class MultipleRecordWriters<T extends IOReadableWritable> implements Reco
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
+		super.close();
 		for (RecordWriter recordWriter : recordWriters) {
 			recordWriter.close();
 		}

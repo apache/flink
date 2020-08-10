@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.streaming.runtime.io.OutputFlusher.OutputFlushers;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -28,9 +29,10 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The specific delegate implementation for the non output case like sink task.
  */
-public class NonRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
+public class NonRecordWriter<T extends IOReadableWritable> extends RecordWriterDelegate<T> {
 
 	public NonRecordWriter() {
+		super(new OutputFlushers());
 	}
 
 	@Override
@@ -50,9 +52,5 @@ public class NonRecordWriter<T extends IOReadableWritable> implements RecordWrit
 	@Override
 	public boolean isAvailable() {
 		return true;
-	}
-
-	@Override
-	public void close() {
 	}
 }

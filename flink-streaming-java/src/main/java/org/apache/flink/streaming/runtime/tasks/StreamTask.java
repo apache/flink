@@ -59,8 +59,9 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.io.MultipleRecordWriters;
 import org.apache.flink.streaming.runtime.io.NonRecordWriter;
-import org.apache.flink.streaming.runtime.io.RecordWriterDelegate;
 import org.apache.flink.streaming.runtime.io.OutputFlusher;
+import org.apache.flink.streaming.runtime.io.OutputFlusher.OutputFlushers;
+import org.apache.flink.streaming.runtime.io.RecordWriterDelegate;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.SingleRecordWriter;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
@@ -220,8 +221,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 */
 	private final ExecutorService channelIOExecutor;
 
-	private final OutputFlusher.OutputFlushers outputFlushers = new OutputFlusher.OutputFlushers();
-
 	private Long syncSavepointId = null;
 
 	private long latestAsyncCheckpointStartDelayNanos;
@@ -292,10 +291,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.asyncOperationsThreadPool = Executors.newCachedThreadPool(
 			new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
-		this.recordWriter = createRecordWriterDelegate(
+		this.recordWriter = createRecordWriters(
 			configuration,
 			environment,
-			outputFlushers,
 			mailboxProcessor.getMainMailboxExecutor());
 		this.stateBackend = createStateBackend();
 
@@ -640,8 +638,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		// if the operators were not disposed before, do a hard dispose
 		suppressedException = runAndSuppressThrowable(this::disposeAllOperators, suppressedException);
-
-		outputFlushers.close();
 
 		// release the output resources. this method should never fail.
 		suppressedException = runAndSuppressThrowable(this::releaseOutputResources, suppressedException);
@@ -1136,64 +1132,47 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public static <OUT> RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> createRecordWriterDelegate(
 			StreamConfig configuration,
 			Environment environment) {
-		OutputFlusher.OutputFlushers outputFlushers = new OutputFlusher.OutputFlushers();
-
-		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWrites = createRecordWriters(
+		return createRecordWriters(
 			configuration,
 			environment,
-			outputFlushers,
 			null);
-		Preconditions.checkState(outputFlushers.isEmpty());
-		if (recordWrites.size() == 1) {
-			return new SingleRecordWriter<>(recordWrites.get(0));
-		} else if (recordWrites.size() == 0) {
-			return new NonRecordWriter<>();
-		} else {
-			return new MultipleRecordWriters<>(recordWrites);
-		}
 	}
 
-	private static <OUT> RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> createRecordWriterDelegate(
+	private static <OUT> RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>>createRecordWriters(
 			StreamConfig configuration,
 			Environment environment,
-			OutputFlusher.OutputFlushers outputFlushers,
 			MailboxExecutor mailboxExecutor) {
-		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWrites = createRecordWriters(
-			configuration,
-			environment,
-			outputFlushers,
-			mailboxExecutor);
-		if (recordWrites.size() == 1) {
-			return new SingleRecordWriter<>(recordWrites.get(0));
-		} else if (recordWrites.size() == 0) {
-			return new NonRecordWriter<>();
-		} else {
-			return new MultipleRecordWriters<>(recordWrites);
-		}
-	}
+		OutputFlusher.OutputFlushers outputFlushers = new OutputFlushers();
 
-	private static <OUT> List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> createRecordWriters(
-			StreamConfig configuration,
-			Environment environment,
-			OutputFlusher.OutputFlushers outputFlushers,
-			MailboxExecutor mailboxExecutor) {
 		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters = new ArrayList<>();
 		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(environment.getUserClassLoader());
 		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigsWithSelf(environment.getUserClassLoader());
+		String taskName = environment.getTaskInfo().getTaskName();
 
 		for (int i = 0; i < outEdgesInOrder.size(); i++) {
 			StreamEdge edge = outEdgesInOrder.get(i);
-			recordWriters.add(
-				createRecordWriter(
-					edge,
-					i,
-					environment,
-					environment.getTaskInfo().getTaskName(),
-					chainedConfigs.get(edge.getSourceId()).getBufferTimeout(),
-					outputFlushers,
-					mailboxExecutor));
+			long bufferTimeout = chainedConfigs.get(edge.getSourceId()).getBufferTimeout();
+
+			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter = createRecordWriter(
+				edge,
+				i,
+				environment,
+				taskName,
+				bufferTimeout);
+
+			recordWriters.add(recordWriter);
+			if (bufferTimeout > 0) {
+				outputFlushers.addOutputFlusher(startOutputFlusher(recordWriter, taskName, bufferTimeout, mailboxExecutor));
+			}
 		}
-		return recordWriters;
+
+		if (recordWriters.size() == 1) {
+			return new SingleRecordWriter<>(recordWriters.get(0), outputFlushers);
+		} else if (recordWriters.size() == 0) {
+			return new NonRecordWriter<>();
+		} else {
+			return new MultipleRecordWriters<>(recordWriters, outputFlushers);
+		}
 	}
 
 	private static <OUT> RecordWriter<SerializationDelegate<StreamRecord<OUT>>> createRecordWriter(
@@ -1201,9 +1180,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			int outputIndex,
 			Environment environment,
 			String taskName,
-			long bufferTimeout,
-			OutputFlusher.OutputFlushers outputFlushers,
-			MailboxExecutor mailboxExecutor) {
+			long bufferTimeout) {
 		@SuppressWarnings("unchecked")
 		StreamPartitioner<OUT> outputPartitioner = (StreamPartitioner<OUT>) edge.getPartitioner();
 
@@ -1225,9 +1202,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			.build(bufferWriter);
 		output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
 
-		if (bufferTimeout > 0) {
-			outputFlushers.addOutputFlusher(startOutputFlusher(output, taskName, bufferTimeout, mailboxExecutor));
-		}
 		return output;
 	}
 
@@ -1236,7 +1210,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			String taskName,
 			long bufferTimeout,
 			MailboxExecutor mailboxExecutor) {
-		Preconditions.checkArgument(bufferTimeout >= -1);
 		OutputFlusher outputFlusher = new OutputFlusher(output, taskName, bufferTimeout, mailboxExecutor);
 		outputFlusher.start();
 		return outputFlusher;

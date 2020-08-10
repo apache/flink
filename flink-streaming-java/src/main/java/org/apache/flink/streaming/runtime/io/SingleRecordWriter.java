@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.streaming.runtime.io.OutputFlusher.OutputFlushers;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -31,11 +32,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The specific delegate implementation for the single output case.
  */
-public class SingleRecordWriter<T extends IOReadableWritable> implements RecordWriterDelegate<T> {
+public class SingleRecordWriter<T extends IOReadableWritable> extends RecordWriterDelegate<T> {
 
 	private final RecordWriter<T> recordWriter;
 
-	public SingleRecordWriter(RecordWriter<T> recordWriter) {
+	public SingleRecordWriter(RecordWriter<T> recordWriter, OutputFlushers outputFlushers) {
+		super(outputFlushers);
 		this.recordWriter = checkNotNull(recordWriter);
 	}
 
@@ -62,7 +64,8 @@ public class SingleRecordWriter<T extends IOReadableWritable> implements RecordW
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
+		super.close();
 		recordWriter.close();
 	}
 }

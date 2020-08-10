@@ -22,12 +22,14 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.concurrent.Future;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A dedicated thread that periodically flushes the output buffers, to set upper latency bounds.
@@ -53,10 +55,10 @@ public class OutputFlusher extends Thread {
 			long timeout,
 			MailboxExecutor mailboxExecutor) {
 		super(OUTPUT_FLUSH_THREAD_NAME + " for " + taskName);
+		Preconditions.checkArgument(timeout > 0);
 		this.recordWriter = recordWriter;
 		this.timeout = timeout;
 		this.mailboxExecutor = mailboxExecutor;
-		setDaemon(true);
 	}
 
 	public void terminate() {
@@ -67,13 +69,8 @@ public class OutputFlusher extends Thread {
 	@Override
 	public void run() {
 		try {
-			Future<?> future = null;
-
 			while (running) {
 				try {
-					if (future != null) {
-						future.get();
-					}
 					Thread.sleep(timeout);
 				} catch (InterruptedException e) {
 					// propagate this if we are still running, because it should not happen
@@ -100,14 +97,19 @@ public class OutputFlusher extends Thread {
 	 */
 	public static class OutputFlushers implements AutoCloseable {
 		private final ArrayList<OutputFlusher> outputFlushers = new ArrayList<>();
+		private boolean isClosed;
 
 		public void addOutputFlusher(OutputFlusher outputFlusher) {
+			checkState(!isClosed);
 			outputFlushers.add(outputFlusher);
 		}
 
 		public void close() {
+			isClosed = true;
 			for (OutputFlusher outputFlusher : outputFlushers) {
 				outputFlusher.terminate();
+			}
+			for (OutputFlusher outputFlusher : outputFlushers) {
 				try {
 					outputFlusher.join();
 				} catch (InterruptedException e) {
