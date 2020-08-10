@@ -140,7 +140,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
 
 		assertEquals(1, resultedMainContainer.getCommand().size());
-		assertEquals(3, resultedMainContainer.getArgs().size());
+		assertEquals(2, resultedMainContainer.getArgs().size());
 
 		assertEquals(1, resultedMainContainer.getVolumeMounts().size());
 	}
