@@ -74,7 +74,7 @@ Users can use SQL DDL to create tables in catalogs in both Table API and SQL.
 TableEnvironment tableEnv = ...
 
 // Create a HiveCatalog 
-Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>");
+Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
 
 // Register the catalog
 tableEnv.registerCatalog("myhive", catalog);
@@ -94,7 +94,7 @@ tableEnv.listTables(); // should return the tables in current catalog and databa
 val tableEnv = ...
 
 // Create a HiveCatalog 
-val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>")
+val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>")
 
 // Register the catalog
 tableEnv.registerCatalog("myhive", catalog)
@@ -161,7 +161,7 @@ import org.apache.flink.table.descriptors.Kafka;
 TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
 
 // Create a HiveCatalog 
-Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>");
+Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
 
 // Register the catalog
 tableEnv.registerCatalog("myhive", catalog);
@@ -203,7 +203,7 @@ import org.apache.flink.table.descriptors.Kafka
 val tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance.build)
 
 // Create a HiveCatalog 
-val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>", "<hive_version>")
+val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>")
 
 // Register the catalog
 tableEnv.registerCatalog("myhive", catalog)

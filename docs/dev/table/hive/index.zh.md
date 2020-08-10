@@ -250,10 +250,6 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 </div>
 </div>
 
-如果使用 Hive 的 HDP 或 CDH 版本，则需要参考上一节中的依赖项并选择一个类似的版本。
-
-并且您需要在定义 yaml 文件，或者创建 HiveCatalog 和 HiveModule 时，指定一个支持的 “hive-version”。
-
 ### Maven 依赖
 
 如果您在构建自己的应用程序，则需要在 mvn 文件中添加以下依赖项。
@@ -292,9 +288,11 @@ Apache Hive 是基于 Hadoop 之上构建的, 首先您需要 Hadoop 的依赖�
 
 请注意，虽然 HiveCatalog 不需要特定的 planner，但读写Hive表仅适用于 Blink planner。因此，强烈建议您在连接到 Hive 仓库时使用 Blink planner。
 
+`HiveCatalog` 能够自动检测使用的 Hive 版本。我们建议**不要**手动设置 Hive 版本，除非自动检测机制失败。
+
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
-以Hive 2.3.4版本为例：
+以下是如何连接到 Hive 的示例：
 
 {% highlight java %}
 
@@ -304,9 +302,8 @@ TableEnvironment tableEnv = TableEnvironment.create(settings);
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
 String hiveConfDir     = "/opt/hive-conf"; // a local path
-String version         = "2.3.4";
 
-HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
+HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir);
 tableEnv.registerCatalog("myhive", hive);
 
 // set the HiveCatalog as the current catalog of the session
@@ -324,9 +321,8 @@ val tableEnv = TableEnvironment.create(settings)
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
 val hiveConfDir     = "/opt/hive-conf" // a local path
-val version         = "2.3.4"
 
-val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
+val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir)
 tableEnv.registerCatalog("myhive", hive)
 
 // set the HiveCatalog as the current catalog of the session
