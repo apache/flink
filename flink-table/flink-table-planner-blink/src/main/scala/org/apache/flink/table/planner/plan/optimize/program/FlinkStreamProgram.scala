@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.optimize.program
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
+import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -122,7 +122,7 @@ object FlinkStreamProgram {
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkBatchRuleSets.FILTER_TABLESCAN_PUSHDOWN_RULES)
+            .add(FlinkStreamRuleSets.FILTER_TABLESCAN_PUSHDOWN_RULES)
             .build(), "push predicate into table scan")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
