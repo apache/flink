@@ -707,7 +707,9 @@ class Table(object):
 
     def to_pandas(self):
         """
-        Converts the table to a pandas DataFrame.
+        Converts the table to a pandas DataFrame. It will collect the content of the table to
+        the client side and so please make sure that the content of the table could fit in memory
+        before calling this method.
 
         Example:
         ::
