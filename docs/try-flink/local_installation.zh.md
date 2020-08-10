@@ -26,9 +26,9 @@ under the License.
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
   <b>
-  注意：Apache Flink 社区只发布 Apache Flink 发布版本的正式版本。
+  注意：Apache Flink 社区只发布 Apache Flink 的官方发行版。
   </b><br>
-  由于你当前正在查看文档的最新快照版本，因此以下所有版本引用都将不起作用。请通过菜单左侧的发布选择器将文档切换到最新发布的版本。
+  由于你当前正在查看文档的最新快照版本，因此以下所有版本链接都将不起作用。请通过左侧菜单底部的版本选择将文档切换到最新发布的版本。
 </p>
 {% else %}
 请按照以下几个步骤下载最新的稳定版本并开始使用。
@@ -37,7 +37,7 @@ under the License.
 
 ## 步骤 1：下载
 
-为了能够运行 Flink，唯一的要求就是安装有效的 __Java 8 或者 Java 11__。你可以通过发出以下命令来检查 Java 的正确安装。
+为了能够运行 Flink，唯一的要求就是安装有效的 __Java 8 或者 Java 11__。你可以通过运行以下命令来检查 Java 的正确安装。
 
 {% highlight bash %}
 java -version
@@ -54,7 +54,7 @@ $ cd flink-{{ site.version }}-bin-scala{{ site.scala_version_suffix }}
 
 ## 步骤 2：启动集群
 
-Flink 附带一个 bash 脚本来启动本地集群。
+Flink 附带了一个 bash 脚本，可以用于启动本地集群。
 
 {% highlight bash %}
 $ ./bin/start-cluster.sh
@@ -80,7 +80,7 @@ $ tail log/flink-*-taskexecutor-*.out
   (be,2)
 {% endhighlight %}
 
-另外，你可以检查 Flink 的 [Web UI](http://localhost:8080) 来监视集群的状态和正在运行的作业。
+另外，你可以查看 Flink 的 [Web UI](http://localhost:8080) 来监视集群的状态和正在运行的作业。
 
 <a name="step-4-stop-the-cluster"></a>
 
