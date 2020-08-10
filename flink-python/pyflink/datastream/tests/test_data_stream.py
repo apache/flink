@@ -183,7 +183,7 @@ class DataStreamTests(PyFlinkTestCase):
     def test_key_by_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(MyKeySelector())
+        keyed_stream = ds.key_by(MyKeySelector(), key_type_info=Types.INT())
 
         class AssertKeyMapFunction(MapFunction):
             def __init__(self):

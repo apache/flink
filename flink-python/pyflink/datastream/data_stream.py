@@ -253,13 +253,15 @@ class DataStream(object):
             .org.apache.flink.datastream.runtime.functions.python.PickledKeySelector
         j_output_type_info = self._j_data_stream.getTransformation().getOutputType()
         output_type_info = typeinfo._from_java_type(j_output_type_info)
+        is_key_pickled_byte_array = False
         if key_type_info is None:
             key_type_info = Types.PICKLED_BYTE_ARRAY()
+            is_key_pickled_byte_array = True
         generated_key_stream = KeyedStream(self.map(lambda x: (key_selector.get_key(x), x),
                                                     type_info=Types.ROW([key_type_info,
                                                                          output_type_info]))
                                            ._j_data_stream
-                                           .keyBy(PickledKeySelector()))
+                                           .keyBy(PickledKeySelector(is_key_pickled_byte_array)))
         generated_key_stream._original_data_type_info = output_type_info
         return generated_key_stream
 
