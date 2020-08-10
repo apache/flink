@@ -30,6 +30,8 @@ import org.apache.flink.types.LongValue;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Wrapping thread around {@link RecordWriter} that sends a fixed number of <tt>LongValue(0)</tt>
  * records.
@@ -42,7 +44,7 @@ public class LongRecordWriterThread extends CheckedThread {
 	private final MailboxProcessor mailboxProcessor;
 	private final MailboxExecutor mailboxExecutor;
 
-	private long currentRecordIteration = 0;
+	private long currentRecordIteration = -1;
 	private long recordIterationLimit = -1;
 
 	@Nullable
@@ -78,6 +80,12 @@ public class LongRecordWriterThread extends CheckedThread {
 	}
 
 	private void resumeAndSetRecordsToSend(long records) {
+		checkState(
+			recordIterationLimit == currentRecordIteration,
+			String.format(
+				"Previous iteration hasn't finished? [recordIterationLimit = %d], [currentRecordIteration = %d]",
+				recordIterationLimit,
+				currentRecordIteration));
 		recordIterationLimit = records;
 		currentRecordIteration = 1;
 
@@ -91,7 +99,9 @@ public class LongRecordWriterThread extends CheckedThread {
 			if (recordIterationLimit < 0) {
 				waitForRecordsToSend(controller);
 			}
-			sendRecords(controller);
+			else {
+				sendRecords(controller);
+			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -113,8 +123,8 @@ public class LongRecordWriterThread extends CheckedThread {
 
 	private void sendRecords(MailboxDefaultAction.Controller controller) throws Exception {
 		LongValue value = new LongValue(0);
-
-		if (currentRecordIteration++ < recordIterationLimit) {
+		currentRecordIteration++;
+		if (currentRecordIteration < recordIterationLimit) {
 			if (broadcastMode) {
 				recordWriter.broadcastEmit(value);
 			}
@@ -122,12 +132,19 @@ public class LongRecordWriterThread extends CheckedThread {
 				recordWriter.emit(value);
 			}
 		}
-		else {
+		else if (currentRecordIteration == recordIterationLimit) {
 			value.setValue(recordIterationLimit);
 			recordWriter.broadcastEmit(value);
 			recordWriter.flushAll();
 
 			waitForRecordsToSend(controller);
+		}
+		else {
+			throw new IllegalStateException(
+				String.format(
+					"[recordIterationLimit = %d], [currentRecordIteration = %d]",
+					recordIterationLimit,
+					currentRecordIteration));
 		}
 	}
 
