@@ -209,9 +209,9 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				assertEquals(podName, pod.getMetadata().getName());
 
 				// Check task manager main class args.
-				assertEquals(3, tmContainer.getArgs().size());
+				assertEquals(2, tmContainer.getArgs().size());
 				final String confDirOption = "--configDir " + flinkConfig.getString(KubernetesConfigOptions.FLINK_CONF_DIR);
-				assertTrue(tmContainer.getArgs().get(2).contains(confDirOption));
+				assertTrue(tmContainer.getArgs().get(1).contains(confDirOption));
 
 				resourceManager.onAdded(Collections.singletonList(new KubernetesPod(pod)));
 				final ResourceID resourceID = new ResourceID(podName);
