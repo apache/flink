@@ -34,7 +34,7 @@ under the License.
 <div data-lang="java" markdown="1">
 
 {% highlight java %}
-// 这需要是一个匿名的内部类，这样我们才能分析类型
+// 这需要是一个匿名的内部类，以便我们分析类型
 OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
 {% endhighlight %}
 </div>
@@ -98,7 +98,7 @@ val mainDataStream = input
         value: Int,
         ctx: ProcessFunction[Int, Int]#Context,
         out: Collector[Int]): Unit = {
-      // emit data to regular output
+      // 发送数据到主要的输出
       out.collect(value)
 
       // 发送数据到旁路输出
