@@ -169,8 +169,13 @@ class DataStreamTests(PyFlinkTestCase):
                 return value
 
         keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
-        keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
         self.env.execute('key_by_test')
+        results = self.test_sink.get_results(True)
+        expected = ["<Row('e', 2)>", "<Row('a', 0)>", "<Row('b', 0)>", "<Row('c', 1)>",
+                    "<Row('d', 1)>"]
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
 
     def tearDown(self) -> None:
         self.test_sink.get_results()
