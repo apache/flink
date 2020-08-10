@@ -26,9 +26,9 @@ under the License.
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
   <b>
-  注意：Apache Flink 社区只发布 Apache Flink 的官方发行版。
+  注意：Apache Flink 社区只发布 Apache Flink 的 release 版本。
   </b><br>
-  由于你当前正在查看文档的最新快照版本，因此以下所有版本链接都将不起作用。请通过左侧菜单底部的版本选择将文档切换到最新发布的版本。
+  由于你当前正在查看文档的最新 SNAPSHOT 版本，因此以下将不会显示任何 release 版本的链接。请通过左侧菜单底部的版本选择将文档切换到最新 release 的版本。
 </p>
 {% else %}
 请按照以下几个步骤下载最新的稳定版本并开始使用。
@@ -43,7 +43,7 @@ under the License.
 java -version
 {% endhighlight %}
 
-[下载](https://flink.apache.org/downloads.html) {{ site.version }} 发行版本并解压。
+[下载](https://flink.apache.org/downloads.html)发行版 {{ site.version }} 并解压。
 
 {% highlight bash %}
 $ tar -xzf flink-{{ site.version }}-bin-scala{{ site.scala_version_suffix }}.tgz
