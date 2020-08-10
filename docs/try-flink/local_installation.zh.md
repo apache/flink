@@ -28,7 +28,7 @@ under the License.
   <b>
   注意：Apache Flink 社区只发布 Apache Flink 的 release 版本。
   </b><br>
-  由于你当前正在查看文档的最新 SNAPSHOT 版本，因此以下将不会显示任何 release 版本的链接。请通过左侧菜单底部的版本选择将文档切换到最新 release 的版本。
+  由于你当前正在查看文档的最新 SNAPSHOT 版本，因此以下将不会显示任何 release 版本的链接。请通过左侧菜单底部的版本选择将文档切换到最新的 release 版本。
 </p>
 {% else %}
 请按照以下几个步骤下载最新的稳定版本并开始使用。
@@ -43,7 +43,7 @@ under the License.
 java -version
 {% endhighlight %}
 
-[下载](https://flink.apache.org/downloads.html)发行版 {{ site.version }} 并解压。
+[下载](https://flink.apache.org/downloads.html) release {{ site.version }} 并解压。
 
 {% highlight bash %}
 $ tar -xzf flink-{{ site.version }}-bin-scala{{ site.scala_version_suffix }}.tgz
@@ -67,7 +67,7 @@ Starting taskexecutor daemon on host.
 
 ## 步骤 3：提交作业（Job）
 
-Flink 的发行版本附带了许多示例作业。你可以将这些应用程序之一快速部署到正在运行的集群。
+Flink 的 Releases 附带了许多的示例作业。你可以将这些应用程序之一快速部署到正在运行的集群。
 
 {% highlight bash %}
 $ ./bin/flink run examples/streaming/WordCount.jar
