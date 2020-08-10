@@ -153,8 +153,14 @@ def _get_python_env():
 
 
 class JavaFunctionWrapper(object):
+    """
+    A wrapper class that maintains a Function implemented in Java.
+    """
 
-    def __init__(self, j_function):
+    def __init__(self, j_function: Union[str, JavaObject]):
+        if isinstance(j_function, str):
+            j_func_class = get_gateway().jvm.__getattr__(j_function)
+            j_function = j_func_class()
         self._j_function = j_function
 
     def get_java_function(self):
@@ -166,18 +172,10 @@ class SinkFunction(JavaFunctionWrapper):
     The base class for SinkFunctions.
     """
 
-    def __init__(self, sink_func: Union[str, JavaObject], *args):
+    def __init__(self, sink_func: Union[str, JavaObject]):
         """
         Constructor of SinkFunction.
 
-        :param sink_func: The java SinkFunction object.
+        :param sink_func: The java SinkFunction object or the full name of the SinkFunction class.
         """
-        if isinstance(sink_func, str):
-            j_source_func_class = get_gateway().jvm.__getattr__(sink_func)
-            if len(args) > 0:
-                j_sink_func = j_source_func_class(*args)
-            else:
-                j_sink_func = j_source_func_class()
-        else:
-            j_sink_func = sink_func
-        super(SinkFunction, self).__init__(j_sink_func)
+        super(SinkFunction, self).__init__(sink_func)

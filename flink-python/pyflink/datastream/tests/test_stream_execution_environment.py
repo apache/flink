@@ -26,7 +26,7 @@ from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
-from pyflink.datastream.tests.test_util import DataStreamCollectUtil
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -216,7 +216,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_from_collection_without_data_types(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        collect_util = DataStreamCollectUtil()
+        collect_util = DataStreamTestSinkFunction()
         collect_util.collect(ds)
         self.env.execute("test from collection")
         results = collect_util.results()
@@ -232,7 +232,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.STRING(),
                                                            Types.STRING()]))
-        collect_util = DataStreamCollectUtil()
+        collect_util = DataStreamTestSinkFunction()
         collect_util.collect(ds)
         self.env.execute("test from collection")
         results = collect_util.results()
