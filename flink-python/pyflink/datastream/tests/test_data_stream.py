@@ -148,6 +148,33 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_filter_without_data_types(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        filtered_stream = ds.filter(MyFilterFunction())
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(filtered_stream)
+        self.env.execute("test filter")
+        results = collect_util.results()
+        expected = ["(2, 'Hello', 'Hi')"]
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_filter_with_data_types(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+                                      type_info=Types.ROW(
+                                          [Types.INT(), Types.STRING(), Types.STRING()])
+                                      )
+        filtered_stream = ds.filter(MyFilterFunction())
+        collect_util = DataStreamCollectUtil()
+        collect_util.collect(filtered_stream)
+        self.env.execute("test filter")
+        results = collect_util.results()
+        expected = ['2,Hello,Hi']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
     def test_add_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -209,3 +236,8 @@ class MyFlatMapFunction(FlatMapFunction):
 class MyKeySelector(KeySelector):
     def get_key(self, value):
         return value[1]
+
+
+class MyFilterFunction(FilterFunction):
+    def filter(self, value):
+        return value[0] % 2 == 0

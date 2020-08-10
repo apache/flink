@@ -22,6 +22,7 @@ from pyflink.common import typeinfo, ExecutionConfig
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
     KeySelectorFunctionWrapper, KeySelector, ReduceFunction, ReduceFunctionWrapper
 from pyflink.java_gateway import get_gateway
@@ -265,6 +266,32 @@ class DataStream(object):
                                                   key_type_info.get_java_type_info()))
         generated_key_stream._original_data_type_info = output_type_info
         return generated_key_stream
+
+    def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
+        """
+        Applies a Filter transformation on a DataStream. The transformation calls a FilterFunction
+        for each element of the DataStream and retains only those element for which the function
+        returns true. Elements for which the function returns false are filtered. The user can also
+        extend RichFilterFunction to gain access to other features provided by the RichFunction
+        interface.
+
+        :param func: The FilterFunction that is called for each element of the DataStream.
+        :return: The filtered DataStream.
+        """
+        class FilterFlatMap(FlatMapFunction):
+            def __init__(self, filter_func):
+                self._func = filter_func
+
+            def flat_map(self, value):
+                if self._func.filter(value):
+                    yield value
+
+        j_input_type = self._j_data_stream.getTransformation().getOutputType()
+        type_info = typeinfo._from_java_type(j_input_type)
+        j_data_stream = self.flat_map(FilterFlatMap(func), type_info=type_info)._j_data_stream
+        filtered_stream = DataStream(j_data_stream)
+        filtered_stream.name("Filter")
+        return filtered_stream
 
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
