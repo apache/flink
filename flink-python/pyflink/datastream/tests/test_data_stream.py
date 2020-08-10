@@ -19,8 +19,7 @@ import decimal
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.functions import MapFunction, FlatMapFunction, KeySelector
-from pyflink.datastream.tests.test_util import DataStreamCollectUtil
+from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -149,37 +148,6 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def tearDown(self) -> None:
-        self.test_sink.get_results()
-
-    def test_key_by(self):
-        element_collection = [('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)]
-        self.env.set_parallelism(1)
-        ds = self.env.from_collection(element_collection,
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        class AssertKeyMapFunction(MapFunction):
-            def __init__(self):
-                self.pre = None
-
-            def map(self, value):
-                if value[0] == 'b':
-                    assert self.pre == 'a'
-                if value[0] == 'd':
-                    assert self.pre == 'c'
-                self.pre = value[0]
-                return value
-
-        mapped_stream = ds.key_by(MyKeySelector()).map(AssertKeyMapFunction())
-        self.collect_util.collect(mapped_stream)
-        self.env.execute('key_by_test')
-        results = self.collect_util.results()
-        expected = ["<Row('a', 0)>", "<Row('b', 0)>", "<Row('c', 1)>", "<Row('d', 1)>",
-                    "<Row('e', 2)>"]
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
-
     def test_key_by_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -200,11 +168,12 @@ class DataStreamTests(PyFlinkTestCase):
                 self.pre = value[0]
                 return value
 
-        mapped_stream_1 = keyed_stream.map(AssertKeyMapFunction())
-        mapped_stream_2 = keyed_stream.map(AssertKeyMapFunction())
-        self.collect_util.collect(mapped_stream_1)
-        self.collect_util.collect(mapped_stream_2)
+        keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
+        keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
         self.env.execute('key_by_test')
+
+    def tearDown(self) -> None:
+        self.test_sink.get_results()
 
 
 class MyMapFunction(MapFunction):
