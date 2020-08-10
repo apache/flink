@@ -26,7 +26,7 @@ from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
-from pyflink.datastream.tests.test_util import DataStreamCollectUtil
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -216,10 +216,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_from_collection_without_data_types(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        collect_util = DataStreamCollectUtil()
-        collect_util.collect(ds)
+        test_sink = DataStreamTestSinkFunction()
+        ds.add_sink(test_sink)
         self.env.execute("test from collection")
-        results = collect_util.results()
+        results = test_sink.get_results(True)
         # user does not specify data types for input data, the collected result should be in
         # in tuple format as inputs.
         expected = ["(1, 'Hi', 'Hello')", "(2, 'Hello', 'Hi')"]
@@ -232,10 +232,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.STRING(),
                                                            Types.STRING()]))
-        collect_util = DataStreamCollectUtil()
-        collect_util.collect(ds)
+        test_sink = DataStreamTestSinkFunction()
+        ds.add_sink(test_sink)
         self.env.execute("test from collection")
-        results = collect_util.results()
+        results = test_sink.get_results(False)
         # if user specifies data types of input data, the collected result should be in row format.
         expected = ['1,Hi,Hello', '2,Hello,Hi']
         results.sort()

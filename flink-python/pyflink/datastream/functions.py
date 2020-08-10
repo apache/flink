@@ -17,6 +17,9 @@
 ################################################################################
 
 import abc
+from typing import Union
+
+from py4j.java_gateway import JavaObject
 
 from pyflink.java_gateway import get_gateway
 
@@ -147,3 +150,32 @@ def _get_python_env():
     gateway = get_gateway()
     exec_type = gateway.jvm.org.apache.flink.table.functions.python.PythonEnv.ExecType.PROCESS
     return gateway.jvm.org.apache.flink.table.functions.python.PythonEnv(exec_type)
+
+
+class JavaFunctionWrapper(object):
+    """
+    A wrapper class that maintains a Function implemented in Java.
+    """
+
+    def __init__(self, j_function: Union[str, JavaObject]):
+        if isinstance(j_function, str):
+            j_func_class = get_gateway().jvm.__getattr__(j_function)
+            j_function = j_func_class()
+        self._j_function = j_function
+
+    def get_java_function(self):
+        return self._j_function
+
+
+class SinkFunction(JavaFunctionWrapper):
+    """
+    The base class for SinkFunctions.
+    """
+
+    def __init__(self, sink_func: Union[str, JavaObject]):
+        """
+        Constructor of SinkFunction.
+
+        :param sink_func: The java SinkFunction object or the full name of the SinkFunction class.
+        """
+        super(SinkFunction, self).__init__(sink_func)

@@ -22,7 +22,7 @@ from pyflink.common import typeinfo, ExecutionConfig
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
-    MapFunction, MapFunctionWrapper, Function, FunctionWrapper
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction
 from pyflink.java_gateway import get_gateway
 
 
@@ -82,7 +82,7 @@ class DataStream(object):
         Important: this should be used as a workaround or for trouble shooting. The provided hash
         needs to be unique per transformation and job. Otherwise, job submission will fail.
         Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
-        chain and tryint so will let your job fail.
+        chain and trying so will let your job fail.
 
         A use case for this is in migration between Flink versions or changing the jobs in a way
         that changes the automatically generated hashes. In this case, providing the previous hashes
@@ -290,3 +290,86 @@ class DataStream(object):
             output_type_info.get_java_type_info(),
             j_python_data_stream_function_info)
         return j_python_data_stream_scalar_function_operator, output_type_info
+
+    def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
+        """
+        Adds the given sink to this DataStream. Only streams with sinks added will be executed once
+        the StreamExecutionEnvironment.execute() method is called.
+
+        :param sink_func: The SinkFunction object.
+        :return: The closed DataStream.
+        """
+        return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
+
+
+class DataStreamSink(object):
+    """
+    A Stream Sink. This is used for emitting elements from a streaming topology.
+    """
+
+    def __init__(self, j_data_stream_sink):
+        """
+        The constructor of DataStreamSink.
+
+        :param j_data_stream_sink: A DataStreamSink java object.
+        """
+        self._j_data_stream_sink = j_data_stream_sink
+
+    def name(self, name: str) -> 'DataStreamSink':
+        """
+        Sets the name of this sink. THis name is used by the visualization and logging during
+        runtime.
+
+        :param name: The name of this sink.
+        :return: The named sink.
+        """
+        self._j_data_stream_sink.name(name)
+        return self
+
+    def uid(self, uid: str) -> 'DataStreamSink':
+        """
+        Sets an ID for this operator. The specified ID is used to assign the same operator ID across
+        job submissions (for example when starting a job from a savepoint).
+
+        Important: this ID needs to be unique per transformation and job. Otherwise, job submission
+        will fail.
+
+        :param uid: The unique user-specified ID of this transformation.
+        :return: The operator with the specified ID.
+        """
+        self._j_data_stream_sink.uid(uid)
+        return self
+
+    def set_uid_hash(self, uid_hash: str) -> 'DataStreamSink':
+        """
+        Sets an user provided hash for this operator. This will be used AS IS the create the
+        JobVertexID. The user provided hash is an alternative to the generated hashed, that is
+        considered when identifying an operator through the default hash mechanics fails (e.g.
+        because of changes between Flink versions).
+
+        Important: this should be used as a workaround or for trouble shooting. The provided hash
+        needs to be unique per transformation and job. Otherwise, job submission will fail.
+        Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
+        chain and trying so will let your job fail.
+
+        A use case for this is in migration between Flink versions or changing the jobs in a way
+        that changes the automatically generated hashes. In this case, providing the previous hashes
+        directly through this method (e.g. obtained from old logs) can help to reestablish a lost
+        mapping from states to their target operator.
+
+        :param uid_hash: The user provided hash for this operator. This will become the jobVertexID,
+                         which is shown in the logs and web ui.
+        :return: The operator with the user provided hash.
+        """
+        self._j_data_stream_sink.setUidHash(uid_hash)
+        return self
+
+    def set_parallelism(self, parallelism: int) -> 'DataStreamSink':
+        """
+        Sets the parallelism for this operator.
+
+        :param parallelism: THe parallelism for this operator.
+        :return: The operator with set parallelism.
+        """
+        self._j_data_stream_sink.setParallelism(parallelism)
+        return self
