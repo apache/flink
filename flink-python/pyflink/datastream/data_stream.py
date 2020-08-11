@@ -23,7 +23,7 @@ from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
-    KeySelectorFunctionWrapper, KeySelector
+    KeySelectorFunctionWrapper, KeySelector, ReduceFunction, ReduceFunctionWrapper
 from pyflink.java_gateway import get_gateway
 
 
@@ -191,7 +191,7 @@ class DataStream(object):
                 raise TypeError("The input must be a MapFunction or a callable function")
         func_name = str(func)
         from pyflink.fn_execution import flink_fn_execution_pb2
-        j_python_data_stream_scalar_function_operator, output_type_info = \
+        j_python_data_stream_scalar_function_operator, j_output_type_info = \
             self._get_java_python_function_operator(func,
                                                     type_info,
                                                     func_name,
@@ -199,7 +199,7 @@ class DataStream(object):
                                                     .UserDefinedDataStreamFunction.MAP)
         return DataStream(self._j_data_stream.transform(
             "Map",
-            output_type_info.get_java_type_info(),
+            j_output_type_info,
             j_python_data_stream_scalar_function_operator
         ))
 
@@ -222,7 +222,7 @@ class DataStream(object):
                 raise TypeError("The input must be a FlatMapFunction or a callable function")
         func_name = str(func)
         from pyflink.fn_execution import flink_fn_execution_pb2
-        j_python_data_stream_scalar_function_operator, output_type_info = \
+        j_python_data_stream_scalar_function_operator, j_output_type_info = \
             self._get_java_python_function_operator(func,
                                                     type_info,
                                                     func_name,
@@ -230,7 +230,7 @@ class DataStream(object):
                                                     .UserDefinedDataStreamFunction.FLAT_MAP)
         return DataStream(self._j_data_stream.transform(
             "FLAT_MAP",
-            output_type_info.get_java_type_info(),
+            j_output_type_info,
             j_python_data_stream_scalar_function_operator
         ))
 
@@ -314,15 +314,30 @@ class DataStream(object):
         PythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
         j_conf = PythonConfigUtil.getMergedConfig(j_env)
 
-        DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
-            .operators.python.DataStreamPythonStatelessFunctionOperator
+        # set max bundle size to 1 to force synchronize process for reduce function.
+        from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+        if func_type == UserDefinedDataStreamFunction.REDUCE:
+            j_conf.setInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE, 1)
+            DataStreamPythonReduceFunctionOperator = gateway.jvm.org.apache.flink.datastream \
+                .runtime.operators.python.DataStreamPythonReduceFunctionOperator
 
-        j_python_data_stream_scalar_function_operator = DataStreamPythonFunctionOperator(
-            j_conf,
-            j_input_types,
-            output_type_info.get_java_type_info(),
-            j_python_data_stream_function_info)
-        return j_python_data_stream_scalar_function_operator, output_type_info
+            j_output_type_info = j_input_types.getTypeAt(1)
+            j_python_data_stream_function_operator = DataStreamPythonReduceFunctionOperator(
+                j_conf,
+                j_input_types,
+                j_output_type_info,
+                j_python_data_stream_function_info)
+            return j_python_data_stream_function_operator, j_output_type_info
+        else:
+            DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+                .operators.python.DataStreamPythonStatelessFunctionOperator
+            j_python_data_stream_function_operator = DataStreamPythonFunctionOperator(
+                j_conf,
+                j_input_types,
+                output_type_info.get_java_type_info(),
+                j_python_data_stream_function_info)
+
+            return j_python_data_stream_function_operator, output_type_info.get_java_type_info()
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         """
@@ -434,7 +449,41 @@ class KeyedStream(DataStream):
             -> 'DataStream':
         return self._values().flat_map(func, type_info)
 
-    def _values(self) -> 'DataStream':
+    def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
+        """
+        Applies a reduce transformation on the grouped data stream grouped on by the given
+        key position. The `ReduceFunction` will receive input values based on the key value.
+        Only input values with the same key will go to the same reducer.
+
+        Example:
+        ::
+            >>> ds = env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b'])
+            >>> ds.key_by(lambda x: x[1]).reduce(lambda a, b: a[0] + b[0], b[1])
+
+        :param func: The ReduceFunction that is called for each element of the DataStream.
+        :return: The transformed DataStream.
+        """
+
+        if not isinstance(func, ReduceFunction):
+            if callable(func):
+                func = ReduceFunctionWrapper(func)
+            else:
+                raise TypeError("The input must be a ReduceFunction or a callable function!")
+
+        from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+        func_name = "m_reduce_" + str(func)
+        j_python_data_stream_scalar_function_operator, j_output_type_info = \
+            self._get_java_python_function_operator(func,
+                                                    None,
+                                                    func_name,
+                                                    UserDefinedDataStreamFunction.REDUCE)
+        return DataStream(self._j_data_stream.transform(
+            "Keyed Reduce",
+            j_output_type_info,
+            j_python_data_stream_scalar_function_operator
+        ))
+
+    def _values(self):
         """
         Since python KeyedStream is in the format of Row(key_value, original_data), it is used for
         getting the original_data.

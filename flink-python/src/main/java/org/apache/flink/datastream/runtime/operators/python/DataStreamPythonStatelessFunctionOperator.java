@@ -47,23 +47,23 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
+	protected static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
-	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
+	protected static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
+	protected static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
 
 
 	protected final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
-	private final TypeInformation<IN> inputTypeInfo;
+	protected final TypeInformation<IN> inputTypeInfo;
 
-	private final TypeInformation<OUT> outputTypeInfo;
+	protected final TypeInformation<OUT> outputTypeInfo;
 
-	private final Map<String, String> jobOptions;
+	protected final Map<String, String> jobOptions;
 
-	private transient TypeSerializer<IN> inputTypeSerializer;
+	protected transient TypeSerializer<IN> inputTypeSerializer;
 
-	private transient TypeSerializer<OUT> outputTypeSerializer;
+	protected transient TypeSerializer<OUT> outputTypeSerializer;
 
 	protected transient ByteArrayInputStreamWithPos bais;
 
@@ -150,7 +150,7 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 		emitResults();
 	}
 
-	private FlinkFnApi.UserDefinedDataStreamFunctions getUserDefinedDataStreamFunctionsProto() {
+	protected FlinkFnApi.UserDefinedDataStreamFunctions getUserDefinedDataStreamFunctionsProto() {
 		FlinkFnApi.UserDefinedDataStreamFunctions.Builder builder = FlinkFnApi.UserDefinedDataStreamFunctions.newBuilder();
 		builder.addUdfs(getUserDefinedDataStreamFunctionProto(pythonFunctionInfo));
 		return builder.build();

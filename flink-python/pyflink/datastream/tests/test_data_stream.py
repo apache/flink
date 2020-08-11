@@ -60,6 +60,17 @@ class DataStreamTests(PyFlinkTestCase):
         plan = eval(str(self.env.get_execution_plan()))
         self.assertEqual(1, plan['nodes'][0]['parallelism'])
 
+    def test_reduce_function_without_data_types(self):
+        ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
+                                      type_info=Types.ROW([Types.INT(), Types.STRING()]))
+        ds.key_by(lambda a: a[1]).reduce(lambda a, b: (a[0] + b[0], b[1])).add_sink(self.test_sink)
+        self.env.execute('reduce_function_test')
+        result = self.test_sink.get_results()
+        expected = ["1,a", "3,a", "6,a", "4,b"]
+        expected.sort()
+        result.sort()
+        self.assertEqual(expected, result)
+
     def test_map_function_without_data_types(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection([('ab', decimal.Decimal(1)),
