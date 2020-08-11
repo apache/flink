@@ -27,7 +27,11 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.factories.datagen.types.DataGeneratorMapper;
+import org.apache.flink.table.factories.datagen.types.RowDataGenerator;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -45,12 +49,12 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
-import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -206,8 +210,9 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 			.getElementType()
 			.accept(new RandomGeneratorVisitor(fieldName, config));
 
+		DataGenerator<Object[]> generator = RandomGenerator.arrayGenerator(container.getGenerator(), config.get(lenOption));
 		return DataGeneratorContainer.of(
-			RandomGenerator.arrayGenerator(container.getGenerator(), config.get(lenOption)),
+			new DataGeneratorMapper<>(generator, (GenericArrayData::new)),
 			container.getOptions().toArray(new ConfigOption<?>[0]));
 	}
 
@@ -222,10 +227,13 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 			.getElementType()
 			.accept(new RandomGeneratorVisitor(fieldName, config));
 
+		DataGenerator<Map<Object, Integer>> mapGenerator = RandomGenerator.mapGenerator(
+			container.getGenerator(),
+			RandomGenerator.intGenerator(0, 10),
+			config.get(lenOption));
+
 		return DataGeneratorContainer.of(
-			RandomGenerator.mapGenerator(container.getGenerator(),
-				RandomGenerator.intGenerator(0, 10),
-				config.get(lenOption)),
+			new DataGeneratorMapper<>(mapGenerator, GenericMapData::new),
 			container.getOptions().toArray(new ConfigOption<?>[0]));
 	}
 
@@ -249,11 +257,13 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 		Set<ConfigOption<?>> options = keyContainer.getOptions();
 		options.addAll(valContainer.getOptions());
 
+		DataGenerator<Map<Object, Object>> mapGenerator = RandomGenerator.mapGenerator(
+			keyContainer.getGenerator(),
+			valContainer.getGenerator(),
+			config.get(lenOption));
+
 		return DataGeneratorContainer.of(
-			RandomGenerator.mapGenerator(
-				keyContainer.getGenerator(),
-				valContainer.getGenerator(),
-				config.get(lenOption)),
+			new DataGeneratorMapper<>(mapGenerator, GenericMapData::new),
 			options.toArray(new ConfigOption<?>[0]));
 	}
 
@@ -271,12 +281,14 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 			.flatMap(container -> container.getOptions().stream())
 			.toArray(ConfigOption[]::new);
 
-		List<DataGenerator> generators = fieldContainers
+		DataGenerator[] generators = fieldContainers
 			.stream()
 			.map(DataGeneratorContainer::getGenerator)
-			.collect(Collectors.toList());
+			.toArray(DataGenerator[]::new);
 
-		return DataGeneratorContainer.of(new RowGenerator(name, rowType.getFieldNames(), generators), options);
+		String[] fieldNames = rowType.getFieldNames().toArray(new String[0]);
+
+		return DataGeneratorContainer.of(new RowDataGenerator(generators, fieldNames), options);
 	}
 
 	@Override
@@ -291,45 +303,6 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 				return StringData.fromString(random.nextHexString(length));
 			}
 		};
-	}
-
-	private static class RowGenerator implements DataGenerator<Row> {
-
-		private final String rowName;
-
-		private final List<String> fieldNames;
-
-		private final List<DataGenerator> generators;
-
-		private RowGenerator(String rowName, List<String> fieldNames, List<DataGenerator> generators) {
-			this.rowName = rowName;
-			this.fieldNames = fieldNames;
-			this.generators = generators;
-		}
-
-		@Override
-		public void open(String name, FunctionInitializationContext context, RuntimeContext runtimeContext) throws Exception {
-			for (int i = 0; i < generators.size(); i++) {
-				String fullName = rowName + "." + fieldNames.get(i);
-				generators.get(i).open(fullName, context, runtimeContext);
-			}
-		}
-
-		@Override
-		public boolean hasNext() {
-			return true;
-		}
-
-		@Override
-		public Row next() {
-			Row row = new Row(generators.size());
-
-			for (int i = 0; i < generators.size(); i++) {
-				row.setField(i, generators.get(i).next());
-			}
-
-			return row;
-		}
 	}
 
 	private static class BigDecimalRandomGenerator implements DataGenerator<BigDecimal> {

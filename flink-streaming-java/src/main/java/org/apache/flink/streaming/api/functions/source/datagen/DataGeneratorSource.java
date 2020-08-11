@@ -112,9 +112,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 			for (int i = 0; i < taskRowsPerSecond; i++) {
 				if (isRunning && generator.hasNext() && (numberOfRows == null || outputSoFar < toOutput)) {
 					synchronized (ctx.getCheckpointLock()) {
-						if (numberOfRows != null) {
-							outputSoFar++;
-						}
+						outputSoFar++;
 						ctx.collect(this.generator.next());
 					}
 				} else {
