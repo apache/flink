@@ -19,13 +19,18 @@
 package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.PojoField;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
+import org.apache.flink.table.dataview.ListViewTypeInfo;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +65,31 @@ public final class ListAggWsWithRetractAggFunction
 			return Objects.equals(list, that.list) &&
 				Objects.equals(retractList, that.retractList) &&
 				Objects.equals(delimiter, that.delimiter);
+		}
+	}
+
+	@Override
+	public TypeInformation<StringData> getResultType() {
+		return StringDataTypeInfo.INSTANCE;
+	}
+
+	@Override
+	public TypeInformation<ListAggWsWithRetractAccumulator> getAccumulatorType() {
+		try {
+			Class<ListAggWsWithRetractAccumulator> clazz = ListAggWsWithRetractAccumulator.class;
+			List<PojoField> pojoFields = new ArrayList<>();
+			pojoFields.add(new PojoField(
+				clazz.getDeclaredField("list"),
+				new ListViewTypeInfo<>(StringDataTypeInfo.INSTANCE)));
+			pojoFields.add(new PojoField(
+				clazz.getDeclaredField("retractList"),
+				new ListViewTypeInfo<>(StringDataTypeInfo.INSTANCE)));
+			pojoFields.add(new PojoField(
+				clazz.getDeclaredField("delimiter"),
+				StringDataTypeInfo.INSTANCE));
+			return new PojoTypeInfo<>(clazz, pojoFields);
+		} catch (NoSuchFieldException e) {
+			throw new WrappingRuntimeException(e);
 		}
 	}
 
