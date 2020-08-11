@@ -86,6 +86,33 @@ class FlatMapFunction(Function):
         pass
 
 
+class ReduceFunction(Function):
+    """
+    Base interface for Reduce functions. Reduce functions combine groups of elements to a single
+    value, by taking always two elements and combining them into one. Reduce functions may be
+    used on entire data sets, or on grouped data sets. In the latter case, each group is reduced
+    individually.
+
+    The basic syntax for using a ReduceFunction is as follows:
+    ::
+        >>> ds = ...
+        >>> new_ds = ds.key_by(lambda x: x[1]).reduce(MyReduceFunction())
+    """
+
+    @abc.abstractmethod
+    def reduce(self, value1, value2):
+        """
+        The core method of ReduceFunction, combining two values into one value of the same type.
+        The reduce function is consecutively applied to all values of a group until only a single
+        value remains.
+
+        :param value1: The first value to combine.
+        :param value2: The second value to combine.
+        :return: The combined value of both input values.
+        """
+        pass
+
+
 class KeySelector(Function):
     """
     The KeySelector allows to use deterministic objects for operations such as reduce, reduceGroup,
@@ -159,6 +186,31 @@ class FlatMapFunctionWrapper(FunctionWrapper):
         :return: the return value of user defined flat_map function.
         """
         return self._func(value)
+
+
+class ReduceFunctionWrapper(FunctionWrapper):
+    """
+    A wrapper class for ReduceFunction. It's used for wrapping up user defined function in a
+    ReduceFunction when user does not implement a ReduceFunction but directly pass a function
+    object or a lambda function to reduce() function.
+    """
+    def __init__(self, func):
+        """
+        The constructor of ReduceFunctionWrapper.
+
+        :param func: user defined function object.
+        """
+        super(ReduceFunctionWrapper, self).__init__(func)
+
+    def reduce(self, value1, value2):
+        """
+        A delegated reduce function to invoke user defined function.
+
+        :param value1: The first value to combine.
+        :param value2: The second value to combine.
+        :return: The combined value of both input values.
+        """
+        return self._func(value1, value2)
 
 
 class KeySelectorFunctionWrapper(FunctionWrapper):
