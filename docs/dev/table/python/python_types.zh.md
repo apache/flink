@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page describes the data types supported in PyFlink Table API.
+本节描述PyFlink Table API中所支持的数据类型.
 
 * This will be replaced by the TOC
 {:toc}
@@ -30,25 +30,20 @@ This page describes the data types supported in PyFlink Table API.
 Data Type
 ---------
 
-A *data type* describes the logical type of a value in the table ecosystem. It can be used to declare input and/or
-output types of Python user-defined functions. Users of the Python Table API work with instances of
-`pyflink.table.types.DataType` within the Python Table API or when defining user-defined functions.
+在Table生态系统中，数据类型用于描述值的逻辑类型。它可以用来声明Python用户自定义函数的输入／输出类型。
+Python Table API的用户可以在Python Table API中，或者定义Python用户自定义函数时，使用`pyflink.table.types.DataType`实例。
 
-A `DataType` instance declares the **logical type** which does not imply a concrete physical representation for transmission
-or storage. All pre-defined data types are available in `pyflink.table.types` and can be instantiated with the utility methods
-defined in `pyflink.table.types.DataTypes`.
+`DataType`实例声明了数据的**逻辑类型**，这并不能用于推断数据在进行传输或存储时的具体物理表示形式。
+所有预定义的数据类型都位于`pyflink.table.types`中，并且可以通过类`pyflink.table.types.DataTypes`中所定义的方法创建。
 
-A list of all pre-defined data types can be found [below]({{ site.baseurl }}/zh/dev/table/types.html#list-of-data-types).
+可以在[下面]({{ site.baseurl }}/zh/dev/table/types.html#list-of-data-types)找到所有预定义数据类型的列表。
 
-Data Type and Python Type Mapping
+数据类型（Data Type）和Python类型的映射关系
 ------------------
 
-A *data type* can be used to declare input and/or output types of Python user-defined functions. The inputs
-will be converted to Python objects corresponding to the data type and the type of the user-defined functions
-result must also match the defined data type.
+*数据类型*可用于声明Python用户自定义函数的输入/输出类型。输入数据将被转换为与所定义的数据类型相对应的Python对象，用户自定义函数的执行结果的类型也必须与所定义的数据类型匹配。
 
-For vectorized Python UDF, the input types and output type are `pandas.Series`. The element type
-of the `pandas.Series` corresponds to the specified data type.
+对于向量化Python UDF，输入类型和输出类型都为`pandas.Series`。`pandas.Series`中的元素类型对应于指定的数据类型。
 
 | Data Type | Python Type | Pandas Type |
 |:-----------------|:-----------------------|

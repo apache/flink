@@ -22,24 +22,24 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-PyFlink exposes a metric system that allows gathering and exposing metrics to external systems. 
+PyFlink支持指标系统，该指标系统允许收集指标并将其暴露给外部系统。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Registering metrics
+## 注册指标
 
-You can access the metric system from a [User-defined Function]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html) by calling `function_context.get_metric_group()` in the `open` method.
-The `get_metric_group()` method returns a `MetricGroup` object on which you can create and register new metrics.
+您可以通过在[用户自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html)的`open`方法中调用`function_context.get_metric_group()`来访问指标系统。
+`get_metric_group()`方法返回一个`MetricGroup`对象，您可以在该对象上创建和注册新指标。
 
-### Metric types
+### 指标类型
 
-PyFlink supports `Counters`, `Gauges`, `Distribution` and `Meters`.
+PyFlink支持计数器`Counters`，量表`Gauges`，分布`Distribution`和仪表`Meters`。
 
-#### Counter
+#### 计数器 Counter
 
-A `Counter` is used to count something. The current value can be in- or decremented using `inc()/inc(n: int)` or `dec()/dec(n: int)`.
-You can create and register a `Counter` by calling `counter(name: str)` on a `MetricGroup`.
+`Counter`用于计算某个东西的出现次数。可以通过`inc()/inc(n: int)`或`dec()/dec(n: int)`增加或减少当前值。
+您可以通过在`MetricGroup`上调用`counter(name: str)`来创建和注册`Counter`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
@@ -63,9 +63,9 @@ class MyUDF(ScalarFunction):
 
 </div>
 
-#### Gauge
+#### 量表
 
-A `Gauge` provides a value on demand. You can register a gauge by calling `gauge(name: str, obj: Callable[[], int])` on a MetricGroup. The Callable object will be used to report the values. Gauge metrics are restricted to integer-only values.
+`Gauge`可按需返回数值。您可以通过在MetricGroup上调用`gauge(name: str, obj: Callable[[], int])`来注册一个量表。Callable对象将用于汇报数值。量表指标(Gauge metrics)只能用于汇报整数值。
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
@@ -88,9 +88,9 @@ class MyUDF(ScalarFunction):
 
 </div>
 
-#### Distribution
+#### 分布（Distribution）
 
-A metric that reports information(sum, count, min, max and mean) about the distribution of reported values. The value can be updated using `update(n: int)`. You can register a distribution by calling `distribution(name: str)` on a MetricGroup. Distribution metrics are restricted to integer-only distributions.
+`Distribution`用于报告关于所报告值分布的信息（总和，计数，最小，最大和平均值）的指标。可以通过`update(n: int)`来更新当前值。您可以通过在MetricGroup上调用`distribution(name: str)`来注册该指标。分布指标(Distribution metrics)只能用于汇报整数指标。
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
@@ -113,9 +113,10 @@ class MyUDF(ScalarFunction):
 
 </div>
 
-#### Meter
+#### 仪表
 
-A Meter measures an average throughput. An occurrence of an event can be registered with the `mark_event()` method. The occurrence of multiple events at the same time can be registered with mark_event(n: int) method. You can register a meter by calling `meter(self, name: str, time_span_in_seconds: int = 60)` on a MetricGroup. The default value of time_span_in_seconds is 60.
+仪表用于汇报平均吞吐量。可以使用`mark_event()`函数来注册事件的发生，使用mark_event(n: int)函数来注册同时发生的多个事件。
+您可以通过在MetricGroup上调用`meter(self, name: str, time_span_in_seconds: int = 60)`来注册仪表。time_span_in_seconds的默认值为60。
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
@@ -129,7 +130,7 @@ class MyUDF(ScalarFunction):
 
     def open(self, function_context):
         super().open(function_context)
-        # an average rate of events per second over 120s, default is 60s.
+        # 120秒内统计的平均每秒事件数，默认是60秒
         self.meter = function_context.get_metric_group().meter("my_meter", time_span_in_seconds=120)
 
     def eval(self, i):
@@ -140,13 +141,14 @@ class MyUDF(ScalarFunction):
 
 </div>
 
-## Scope
+## 范围（Scope）
 
-You can refer to the Java metric document for more details on [Scope definition]({{ site.baseurl }}/zh/monitoring/metrics.html#Scope).
+您可以参考Java指标文档以获取有关[范围定义]({{ site.baseurl }}/zh/monitoring/metrics.html#Scope)的更多详细信息。
 
-### User Scope
+### 用户范围（User Scope）
 
-You can define a user scope by calling `MetricGroup.add_group(key: str, value: str = None)`. If extra is not None, creates a new key-value MetricGroup pair. The key group is added to this group's sub-groups, while the value group is added to the key group's sub-groups. In this case, the value group will be returned and a user variable will be defined.
+您可以通过调用`MetricGroup.add_group(key: str, value: str = None)`来定义用户范围。如果``value``不为``None``，则创建一个新的键值``MetricGroup``对。
+其中，键组被添加到该组的子组中，而值组又被添加到键组的子组中。在这种情况下，值组将作为结果返回，与此同时，创建一个用户变量。
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
@@ -167,19 +169,19 @@ function_context
 
 </div>
 
-### System Scope
+### 系统范围（System Scope）
 
-You can refer to the Java metric document for more details on [System Scope]({{ site.baseurl }}/zh/monitoring/metrics.html#system-scope).
+您可以参考Java指标文档以获取有关[系统范围]({{ site.baseurl }}/zh/monitoring/metrics.html#system-scope)的更多详细信息。
 
-### List of all Variables
+### 所有变量列表
 
-You can refer to the Java metric document for more details on [List of all Variables]({{ site.baseurl }}/zh/monitoring/metrics.html#list-of-all-variables).
+您可以参考Java指标文档以获取有关[“所有变量列表”的]({{ site.baseurl }}/zh/monitoring/metrics.html#list-of-all-variables)更多详细信息。
 
-### User Variables
+### 用户变量（User Variables）
 
-You can define a user variable by calling `MetricGroup.addGroup(key: str, value: str = None)` and specifying the value parameter.
+您可以通过调用`MetricGroup.addGroup(key: str, value: str = None)`并指定value参数来定义用户变量。
 
-**Important:** User variables cannot be used in scope formats.
+**重要提示：**用户变量不能在以`scope format`中使用。
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
@@ -193,15 +195,15 @@ function_context
 
 </div>
 
-## Common part between PyFlink and Flink
+##  PyFlink和Flink的共通部分
 
-You can refer to the Java metric document for more details on the following sections:
+您可以参考Java的指标文档，以获取关于以下部分的更多详细信息：
 
-- [Reporter]({{ site.baseurl }}/zh/monitoring/metrics.html#reporter).
-- [System metrics]({{ site.baseurl }}/zh/monitoring/metrics.html#system-metrics).
-- [Latency tracking]({{ site.baseurl }}/zh/monitoring/metrics.html#latency-tracking).
-- [REST API integration]({{ site.baseurl }}/zh/monitoring/metrics.html#rest-api-integration).
-- [Dashboard integration]({{ site.baseurl }}/zh/monitoring/metrics.html#dashboard-integration).
+*    [Reporter]({{ site.baseurl }}/zh/monitoring/metrics.html#reporter) 。
+*    [系统指标]({{ site.baseurl }}/zh/monitoring/metrics.html#system-metrics) 。
+*    [延迟跟踪]({{ site.baseurl }}/zh/monitoring/metrics.html#latency-tracking) 。
+*    [REST API集成]({{ site.baseurl }}/zh/monitoring/metrics.html#rest-api-integration) 。
+*    [仪表板集成]({{ site.baseurl }}/zh/monitoring/metrics.html#dashboard-integration) 。
 
 
 {% top %}
