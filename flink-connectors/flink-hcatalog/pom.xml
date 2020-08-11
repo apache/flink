@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-hcatalog_${scala.binary.version}</artifactId>
-	<name>flink-hcatalog</name>
+	<name>Flink : Connectors : HCatalog</name>
 
 	<packaging>jar</packaging>
 

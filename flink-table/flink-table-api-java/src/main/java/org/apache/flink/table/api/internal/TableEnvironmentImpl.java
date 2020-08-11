@@ -88,6 +88,8 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
+import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
@@ -1007,8 +1009,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof ShowCatalogsOperation) {
 			return buildShowResult("catalog name", listCatalogs());
+		} else if (operation instanceof ShowCurrentCatalogOperation){
+			return buildShowResult("current catalog name", new String[]{catalogManager.getCurrentCatalog()});
 		} else if (operation instanceof ShowDatabasesOperation) {
 			return buildShowResult("database name", listDatabases());
+		} else if (operation instanceof ShowCurrentDatabaseOperation) {
+			return buildShowResult("current database name", new String[]{catalogManager.getCurrentDatabase()});
 		} else if (operation instanceof ShowTablesOperation) {
 			return buildShowResult("table name", listTables());
 		} else if (operation instanceof ShowFunctionsOperation) {

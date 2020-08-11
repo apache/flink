@@ -35,6 +35,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -54,13 +56,14 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	// Logging variables
 	private static final String logback =
-			String.format("-Dlogback.configurationFile=file:%s/logback.xml", FLINK_CONF_DIR_IN_POD);
-	private static final String log4j =
-			String.format("-Dlog4j.configurationFile=file:%s/log4j.properties", FLINK_CONF_DIR_IN_POD);
+			String.format("-Dlogback.configurationFile=file:%s/%s", FLINK_CONF_DIR_IN_POD, CONFIG_FILE_LOGBACK_NAME);
+	private static final String log4j = String.format(
+		"-Dlog4j.configuration=file:%s/%s -Dlog4j.configurationFile=file:%s/%s",
+		FLINK_CONF_DIR_IN_POD,
+		CONFIG_FILE_LOG4J_NAME,
+		FLINK_CONF_DIR_IN_POD,
+		CONFIG_FILE_LOG4J_NAME);
 	private static final String jmLogfile = String.format("-Dlog.file=%s/jobmanager.log", FLINK_LOG_DIR_IN_POD);
-	private static final String jmLogRedirects =
-			String.format("1> %s/jobmanager.out 2> %s/jobmanager.err",
-					FLINK_LOG_DIR_IN_POD, FLINK_LOG_DIR_IN_POD);
 
 	// Memory variables
 	private final String jmJvmMem = JobManagerProcessUtils.generateJvmParametersStr(
@@ -108,7 +111,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testStartCommandWithLog4j() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
 
 		final Container resultMainContainer =
 				javaCmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod).getMainContainer();
@@ -122,7 +125,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testStartCommandWithLogback() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final Container resultMainContainer =
 				javaCmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod).getMainContainer();
@@ -136,8 +139,8 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testStartCommandWithLog4jAndLogback() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final Container resultMainContainer =
 				javaCmdJobManagerDecorator.decorateFlinkPod(baseFlinkPod).getMainContainer();
@@ -152,8 +155,8 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testStartCommandWithLogAndJVMOpts() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		flinkConfig.set(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		final Container resultMainContainer =
@@ -169,8 +172,8 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testStartCommandWithLogAndJMOpts() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		flinkConfig.set(CoreOptions.FLINK_JM_JVM_OPTIONS, jvmOpts);
 		final Container resultMainContainer =
@@ -184,11 +187,11 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testContainerStartCommandTemplate1() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final String containerStartCommandTemplate =
-				"%java% 1 %classpath% 2 %jvmmem% %jvmopts% %logging% %class% %args% %redirects%";
+				"%java% 1 %classpath% 2 %jvmmem% %jvmopts% %logging% %class% %args%";
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE,
 				containerStartCommandTemplate);
 
@@ -204,7 +207,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		final String expectedCommand = java + " 1 " + classpath + " 2 " + jmJvmMem +
 				" " + jvmOpts + " " + jmJvmOpts +
 				" " + jmLogfile + " " + logback + " " + log4j +
-				" " + ENTRY_POINT_CLASS + " " + jmLogRedirects;
+				" " + ENTRY_POINT_CLASS;
 
 		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
 		assertEquals(resultMainContainer.getArgs(), expectedArgs);
@@ -212,11 +215,11 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 
 	@Test
 	public void testContainerStartCommandTemplate2() throws IOException {
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
 
 		final String containerStartCommandTemplate =
-				"%java% %jvmmem% %logging% %jvmopts% %class% %args% %redirects%";
+				"%java% %jvmmem% %logging% %jvmopts% %class% %args%";
 		this.flinkConfig.set(KubernetesConfigOptions.CONTAINER_START_COMMAND_TEMPLATE,
 				containerStartCommandTemplate);
 
@@ -232,7 +235,7 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		final String expectedCommand = java + " " + jmJvmMem +
 				" " + jmLogfile + " " + logback + " " + log4j +
 				" " + jvmOpts + " " + jmJvmOpts +
-				" " + ENTRY_POINT_CLASS + " " + jmLogRedirects;
+				" " + ENTRY_POINT_CLASS;
 
 		final List<String> expectedArgs = Arrays.asList("/bin/bash", "-c", expectedCommand);
 		assertEquals(resultMainContainer.getArgs(), expectedArgs);
@@ -242,6 +245,6 @@ public class JavaCmdJobManagerDecoratorTest extends KubernetesJobManagerTestBase
 		return java + " " + classpath + " " + jmJvmMem +
 				(jvmAllOpts.isEmpty() ? "" : " " + jvmAllOpts) +
 				(logging.isEmpty() ? "" : " " + jmLogfile + " " + logging) +
-				" " + ENTRY_POINT_CLASS + " " + jmLogRedirects;
+				" " + ENTRY_POINT_CLASS;
 	}
 }

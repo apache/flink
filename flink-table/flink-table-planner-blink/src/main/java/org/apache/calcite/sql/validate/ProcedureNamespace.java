@@ -64,13 +64,25 @@ public final class ProcedureNamespace extends AbstractNamespace {
 				: "User-defined table function should have CURSOR type, not " + type;
 			final SqlUserDefinedTableFunction udf =
 				(SqlUserDefinedTableFunction) operator;
-			return udf.getRowType(validator.typeFactory, callBinding.operands());
+			RelDataType rowType = udf.getRowType(validator.typeFactory, callBinding.operands());
+			return validator.getTypeFactory().createTypeWithNullability(rowType, false);
 		}
 		// special handling of collection tables TABLE(function(...))
 		if (SqlUtil.stripAs(enclosingNode).getKind() == SqlKind.COLLECTION_TABLE) {
 			return toStruct(type, getNode());
 		}
 		return type;
+	}
+
+	/** Converts a type to a struct if it is not already. */
+	protected RelDataType toStruct(RelDataType type, SqlNode unnest) {
+		if (type.isStruct()) {
+			return validator.getTypeFactory().createTypeWithNullability(type, false);
+		}
+		return validator.getTypeFactory().builder()
+			.kind(type.getStructKind())
+			.add(validator.deriveAlias(unnest, 0), type)
+			.build();
 	}
 
 	public SqlNode getNode() {

@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -55,6 +56,9 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
@@ -127,11 +131,68 @@ public final class DataTypeUtils {
 		if (dataType instanceof FieldsDataType) {
 			return expandCompositeType((FieldsDataType) dataType);
 		} else if (dataType.getLogicalType() instanceof LegacyTypeInformationType &&
-			dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.STRUCTURED_TYPE) {
+				dataType.getLogicalType().getTypeRoot() == LogicalTypeRoot.STRUCTURED_TYPE) {
 			return expandLegacyCompositeType(dataType);
 		}
 
 		throw new IllegalArgumentException("Expected a composite type");
+	}
+
+	/**
+	 * Retrieves a nested field from a composite type at given position.
+	 *
+	 * <p>Throws an exception for a non composite type. You can use
+	 * {@link LogicalTypeChecks#isCompositeType(LogicalType)} to check that.
+	 *
+	 * @param compositeType Data type to expand. Must be a composite type.
+	 * @param index Index of the field to retrieve.
+	 * @return The field at the given position.
+	 */
+	public static Optional<DataType> getField(DataType compositeType, int index) {
+		TableSchema tableSchema = expandCompositeTypeToSchema(compositeType);
+		return tableSchema.getFieldDataType(index);
+	}
+
+	/**
+	 * Retrieves a nested field from a composite type with given name.
+	 *
+	 * <p>Throws an exception for a non composite type. You can use
+	 * {@link LogicalTypeChecks#isCompositeType(LogicalType)} to check that.
+	 *
+	 * @param compositeType Data type to expand. Must be a composite type.
+	 * @param name Name of the field to retrieve.
+	 * @return The field with the given name.
+	 */
+	public static Optional<DataType> getField(DataType compositeType, String name) {
+		TableSchema tableSchema = expandCompositeTypeToSchema(compositeType);
+		return tableSchema.getFieldDataType(name);
+	}
+
+	/**
+	 * Returns the data types of the flat representation in the first level of the given data type.
+	 */
+	public static List<DataType> flattenToDataTypes(DataType dataType) {
+		final LogicalType type = dataType.getLogicalType();
+		if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+			return flattenToDataTypes(dataType.getChildren().get(0));
+		} else if (isCompositeType(type)) {
+			return dataType.getChildren();
+		}
+		return Collections.singletonList(dataType);
+	}
+
+	/**
+	 * Returns the names of the flat representation in the first level of the given data type.
+	 */
+	public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
+		final LogicalType type = dataType.getLogicalType();
+		if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+			return flattenToNames(dataType.getChildren().get(0), existingNames);
+		} else if (isCompositeType(type)) {
+			return getFieldNames(type);
+		} else {
+			return Collections.singletonList(getAtomicName(existingNames));
+		}
 	}
 
 	/**
@@ -227,7 +288,11 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new CollectionDataType(newLogicalType, newElementType));
+			return transformation.transform(
+				new CollectionDataType(
+					newLogicalType,
+					collectionDataType.getConversionClass(),
+					newElementType));
 		}
 
 		@Override
@@ -277,7 +342,11 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new FieldsDataType(newLogicalType, newDataTypes));
+			return transformation.transform(
+				new FieldsDataType(
+					newLogicalType,
+					fieldsDataType.getConversionClass(),
+					newDataTypes));
 		}
 
 		@Override
@@ -294,7 +363,12 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new KeyValueDataType(newLogicalType, newKeyType, newValueType));
+			return transformation.transform(
+				new KeyValueDataType(
+					newLogicalType,
+					keyValueDataType.getConversionClass(),
+					newKeyType,
+					newValueType));
 		}
 
 		// ----------------------------------------------------------------------------------------

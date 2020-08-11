@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-state-processor-api_${scala.binary.version}</artifactId>
-	<name>flink-state-processor-api</name>
+	<name>Flink : Libraries : State processor API</name>
 
 	<packaging>jar</packaging>
 

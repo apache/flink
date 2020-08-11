@@ -136,8 +136,8 @@ public class SourceOperatorStreamTaskTest {
 				WatermarkStrategy.noWatermarks());
 
 		// build a test harness.
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-				new MultipleInputStreamTaskTestHarnessBuilder<>(SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO);
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+				new StreamTaskMailboxTestHarnessBuilder<>(SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO);
 		if (snapshot != null) {
 			// Set initial snapshot if needed.
 			builder.setTaskStateSnapshot(checkpointId, snapshot);

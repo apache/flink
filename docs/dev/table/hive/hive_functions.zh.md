@@ -47,6 +47,16 @@ val version         = "2.3.4"
 tableEnv.loadModue(name, new HiveModule(version));
 {% endhighlight %}
 </div>
+<div data-lang="Python" markdown="1">
+{% highlight Python %}
+from pyflink.table.module import HiveModule
+
+name = "myhive"
+version = "2.3.4"
+
+t_env.load_module(name, HiveModule(version))
+{% endhighlight %}
+</div>
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 modules:

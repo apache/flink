@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-influxdb_${scala.binary.version}</artifactId>
-	<name>flink-metrics-influxdb</name>
+	<name>Flink : Metrics : InfluxDB</name>
 
 	<dependencies>
 		<dependency>

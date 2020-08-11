@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
  * The function to execute row(event) time interval stream inner-join.
@@ -39,8 +39,8 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
 			long leftLowerBound,
 			long leftUpperBound,
 			long allowedLateness,
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc,
 			int leftTimeIdx,
 			int rightTimeIdx) {

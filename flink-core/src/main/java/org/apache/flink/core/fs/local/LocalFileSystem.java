@@ -52,6 +52,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The class {@code LocalFileSystem} is an implementation of the {@link FileSystem} interface
@@ -307,10 +308,22 @@ public class LocalFileSystem extends FileSystem {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Converts the given Path to a File for this file system.
+	 * Converts the given Path to a File for this file system. If the path is empty,
+	 * we will return <tt>new File(".")</tt> instead of <tt>new File("")</tt>, since
+	 * the latter returns <tt>false</tt> for <tt>isDirectory</tt> judgement (See issue
+	 * https://issues.apache.org/jira/browse/FLINK-18612).
 	 */
 	public File pathToFile(Path path) {
-		return new File(path.getPath());
+		String localPath = path.getPath();
+		checkState(
+			localPath != null,
+			"Cannot convert a null path to File");
+
+		if (localPath.length() == 0) {
+			return new File(".");
+		}
+
+		return new File(localPath);
 	}
 
 	// ------------------------------------------------------------------------

@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-api-java</artifactId>
-	<name>flink-table-api-java</name>
+	<name>Flink : Table : API Java</name>
 	<description>
 		This module contains the Table/SQL API for writing table programs
 		within the table ecosystem using the Java programming language.

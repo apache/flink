@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -68,7 +67,7 @@ public class NonBufferOverWindowOperatorTest {
 		}
 	};
 	static RowType inputType = RowType.of(new IntType(), new BigIntType(), new BigIntType());
-	static RowDataSerializer inputSer = new RowDataSerializer(new ExecutionConfig(), inputType);
+	static RowDataSerializer inputSer = new RowDataSerializer(inputType);
 
 	private static GeneratedAggsHandleFunction[] functions;
 

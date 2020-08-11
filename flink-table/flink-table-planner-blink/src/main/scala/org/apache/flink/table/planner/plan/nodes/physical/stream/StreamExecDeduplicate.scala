@@ -32,7 +32,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDedup
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
@@ -101,7 +101,7 @@ class StreamExecDeduplicate(
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
 
-    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val rowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val tableConfig = planner.getTableConfig
     val generateInsert = tableConfig.getConfiguration

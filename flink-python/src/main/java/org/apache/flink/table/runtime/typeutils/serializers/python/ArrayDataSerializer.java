@@ -52,7 +52,7 @@ public class ArrayDataSerializer extends org.apache.flink.table.runtime.typeutil
 	private final int elementSize;
 
 	public ArrayDataSerializer(LogicalType eleType, TypeSerializer elementTypeSerializer) {
-		super(eleType, null);
+		super(eleType);
 		this.elementType = eleType;
 		this.elementTypeSerializer = elementTypeSerializer;
 		this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);

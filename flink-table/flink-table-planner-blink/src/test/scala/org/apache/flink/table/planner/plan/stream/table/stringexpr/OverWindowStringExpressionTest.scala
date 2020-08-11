@@ -34,8 +34,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
@@ -53,8 +52,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over orderBy 'rowtime preceding UNBOUNDED_ROW following CURRENT_ROW as 'w)
@@ -72,8 +70,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over partitionBy('a, 'd) orderBy 'rowtime preceding 10.rows as 'w)
@@ -91,8 +88,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over orderBy 'rowtime preceding 10.rows following CURRENT_ROW as 'w)
@@ -110,8 +106,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1",'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
@@ -129,8 +124,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over orderBy 'rowtime preceding UNBOUNDED_RANGE following CURRENT_RANGE as 'w)
@@ -154,8 +148,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over orderBy 'proctime preceding UNBOUNDED_RANGE following CURRENT_RANGE as 'w)
@@ -179,8 +172,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over partitionBy('a, 'c) orderBy 'rowtime preceding 10.minutes as 'w)
@@ -198,8 +190,7 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over orderBy 'rowtime preceding 4.hours following CURRENT_RANGE as 'w)
@@ -217,10 +208,9 @@ class OverWindowStringExpressionTest extends TableTestBase {
     val t = util.addDataStream[(Long, Int, String, Int, Long)](
       "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
-    val weightedAvg = new WeightedAvgWithRetract
     val plusOne = Func1
     util.addFunction("plusOne", plusOne)
-    util.addFunction("weightedAvg", weightedAvg)
+    util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val resScala = t
       .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)

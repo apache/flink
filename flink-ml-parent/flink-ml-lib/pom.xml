@@ -27,7 +27,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-ml-lib_${scala.binary.version}</artifactId>
-	<name>flink-ml-lib</name>
+	<name>Flink : ML : Lib</name>
 
 	<dependencies>
 		<dependency>

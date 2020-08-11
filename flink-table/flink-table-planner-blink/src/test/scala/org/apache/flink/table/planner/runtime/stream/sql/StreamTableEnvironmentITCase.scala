@@ -114,4 +114,27 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "(true,Person{name='Jack', age=3})")
     assertEquals(expected.sorted, sink.getResults.sorted)
   }
+
+  @Test
+  def testRetractMsgWithPojoType(): Unit = {
+    val orders = env.fromCollection(Seq(
+      new Order(1L, new ProductItem("beer", 10L), 1),
+      new Order(1L, new ProductItem("beer", 10L), 2)
+    ))
+
+    val table = tEnv.fromDataStream(orders, 'user, 'product, 'amount)
+
+    val sink = new StringSink[(Boolean, Order)]()
+    tEnv.sqlQuery(s"""|SELECT user, product, sum(amount) as amount
+                      |FROM $table
+                      |GROUP BY user, product
+                      |""".stripMargin).toRetractStream[Order].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "(true,Order{user=1, product='Product{name='beer', id=10}', amount=1})",
+      "(false,Order{user=1, product='Product{name='beer', id=10}', amount=1})",
+      "(true,Order{user=1, product='Product{name='beer', id=10}', amount=3})")
+    assertEquals(expected.sorted, sink.getResults.sorted)
+  }
 }

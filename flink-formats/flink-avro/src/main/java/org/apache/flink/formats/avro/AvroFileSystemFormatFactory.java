@@ -147,7 +147,7 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 		// reuse object for per record
 		private transient GenericRowData rowData;
 		private transient IndexedRecord record;
-		private transient AvroRowDataDeserializationSchema.DeserializationRuntimeConverter converter;
+		private transient AvroToRowDataConverters.AvroToRowDataConverter converter;
 
 		public RowDataAvroInputFormat(
 				Path[] filePaths,
@@ -186,7 +186,7 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 					partitionKeys,
 					currentSplit.getPath(),
 					defaultPartValue);
-			this.converter = AvroRowDataDeserializationSchema.createRowConverter(formatRowType);
+			this.converter = AvroToRowDataConverters.createRowConverter(formatRowType);
 		}
 
 		@Override
@@ -241,8 +241,8 @@ public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 		@Override
 		public BulkWriter<RowData> create(FSDataOutputStream out) throws IOException {
 			BulkWriter<GenericRecord> writer = factory.create(out);
-			AvroRowDataSerializationSchema.SerializationRuntimeConverter converter =
-					AvroRowDataSerializationSchema.createRowConverter(rowType);
+			RowDataToAvroConverters.RowDataToAvroConverter converter =
+					RowDataToAvroConverters.createRowConverter(rowType);
 			Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 			return new BulkWriter<RowData>() {
 

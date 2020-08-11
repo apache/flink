@@ -160,14 +160,15 @@ class UserDefinedFunctionWrapper(object):
                 "Invalid function: not a function or callable (__call__ is not defined): {0}"
                 .format(type(func)))
 
-        if not isinstance(input_types, collections.Iterable):
-            input_types = [input_types]
+        if input_types is not None:
+            if not isinstance(input_types, collections.Iterable):
+                input_types = [input_types]
 
-        for input_type in input_types:
-            if not isinstance(input_type, DataType):
-                raise TypeError(
-                    "Invalid input_type: input_type should be DataType but contains {}".format(
-                        input_type))
+            for input_type in input_types:
+                if not isinstance(input_type, DataType):
+                    raise TypeError(
+                        "Invalid input_type: input_type should be DataType but contains {}".format(
+                            input_type))
 
         self._func = func
         self._input_types = input_types
@@ -228,8 +229,11 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
         import cloudpickle
         serialized_func = cloudpickle.dumps(func)
 
-        j_input_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                        [_to_java_type(i) for i in self._input_types])
+        if self._input_types is not None:
+            j_input_types = utils.to_jarray(
+                gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
+        else:
+            j_input_types = None
         j_result_type = _to_java_type(self._result_type)
         j_function_kind = get_python_function_kind(self._udf_type)
         PythonScalarFunction = gateway.jvm \
@@ -280,8 +284,11 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
         serialized_func = cloudpickle.dumps(func)
 
         gateway = get_gateway()
-        j_input_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                        [_to_java_type(i) for i in self._input_types])
+        if self._input_types is not None:
+            j_input_types = utils.to_jarray(
+                gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
+        else:
+            j_input_types = None
 
         j_result_types = utils.to_jarray(gateway.jvm.TypeInformation,
                                          [_to_java_type(i) for i in self._result_types])
@@ -327,8 +334,8 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
 
             >>> add_one = udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT())
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> # The input_types is optional.
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
 
@@ -339,7 +346,7 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
 
     :param f: lambda function or user-defined function.
     :type f: function or UserDefinedFunction or type
-    :param input_types: the input data types.
+    :param input_types: optional, the input data types.
     :type input_types: list[DataType] or DataType
     :param result_type: the result data type.
     :type result_type: DataType
@@ -375,8 +382,8 @@ def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=N
     Example:
         ::
 
-            >>> @udtf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()])
+            >>> # The input_types is optional.
+            >>> @udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()])
             ... def range_emit(s, e):
             ...     for i in range(e):
             ...         yield s, i
@@ -388,7 +395,7 @@ def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=N
 
     :param f: user-defined table function.
     :type f: function or UserDefinedFunction or type
-    :param input_types: the input data types.
+    :param input_types: optional, the input data types.
     :type input_types: list[DataType] or DataType
     :param result_types: the result data types.
     :type result_types: list[DataType] or DataType

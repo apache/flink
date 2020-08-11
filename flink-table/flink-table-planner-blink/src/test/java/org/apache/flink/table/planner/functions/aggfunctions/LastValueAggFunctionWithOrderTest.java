@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.BooleanLastValueAggFunction;
@@ -67,7 +67,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
+		protected AggregateFunction<Byte, RowData> getAggregator() {
 			return new ByteLastValueAggFunction();
 		}
 	}
@@ -84,7 +84,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRowData> getAggregator() {
+		protected AggregateFunction<Short, RowData> getAggregator() {
 			return new ShortLastValueAggFunction();
 		}
 	}
@@ -101,7 +101,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
+		protected AggregateFunction<Integer, RowData> getAggregator() {
 			return new IntLastValueAggFunction();
 		}
 	}
@@ -118,7 +118,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRowData> getAggregator() {
+		protected AggregateFunction<Long, RowData> getAggregator() {
 			return new LongLastValueAggFunction();
 		}
 	}
@@ -135,7 +135,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRowData> getAggregator() {
+		protected AggregateFunction<Float, RowData> getAggregator() {
 			return new FloatLastValueAggFunction();
 		}
 	}
@@ -152,7 +152,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRowData> getAggregator() {
+		protected AggregateFunction<Double, RowData> getAggregator() {
 			return new DoubleLastValueAggFunction();
 		}
 	}
@@ -242,7 +242,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
+		protected AggregateFunction<Boolean, RowData> getAggregator() {
 			return new BooleanLastValueAggFunction();
 		}
 	}
@@ -322,7 +322,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+		protected AggregateFunction<DecimalData, RowData> getAggregator() {
 			return new DecimalLastValueAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
@@ -400,7 +400,7 @@ public final class LastValueAggFunctionWithOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
+		protected AggregateFunction<StringData, RowData> getAggregator() {
 			return new StringLastValueAggFunction();
 		}
 	}

@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -134,8 +134,8 @@ class BatchExecExchange(
         input
     }
 
-    val inputType = input.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val outputRowType = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val inputType = input.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val outputRowType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val conf = planner.getTableConfig
     val shuffleMode = getShuffleMode(conf.getConfiguration)
@@ -183,7 +183,7 @@ class BatchExecExchange(
         val partitioner = new BinaryHashPartitioner(
           HashCodeGenerator.generateRowHash(
             CodeGeneratorContext(planner.getTableConfig),
-            RowType.of(inputType.getLogicalTypes: _*),
+            RowType.of(inputType.toRowFieldTypes: _*),
             "HashPartitioner",
             keys.map(_.intValue()).toArray),
           keys.map(getInput.getRowType.getFieldNames.get(_)).toArray

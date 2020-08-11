@@ -24,6 +24,7 @@ import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvide
 import org.apache.flink.connector.jdbc.internal.executor.InsertOrUpdateJdbcExecutor;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.function.Function;
 
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.getPrimaryKey;
@@ -64,7 +66,9 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 		int[] pkFields = Arrays.stream(dmlOptions.getFieldNames()).mapToInt(Arrays.asList(dmlOptions.getFieldNames())::indexOf).toArray();
 		int[] pkTypes = dmlOptions.getFieldTypes() == null ? null :
 				Arrays.stream(pkFields).map(f -> dmlOptions.getFieldTypes()[f]).toArray();
-		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames());
+		String deleteSql = FieldNamedPreparedStatementImpl.parseNamedStatement(
+			dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames()),
+			new HashMap<>());
 		return createKeyedRowExecutor(pkFields, pkTypes, deleteSql);
 	}
 
@@ -113,17 +117,21 @@ class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolea
 
 		return opt.getDialect()
 			.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
-			.map(sql -> createSimpleRowExecutor(sql, opt.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()))
+			.map(sql -> createSimpleRowExecutor(parseNamedStatement(sql), opt.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()))
 			.orElseGet(() ->
 				new InsertOrUpdateJdbcExecutor<>(
-					opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields().get()),
-					opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames()),
-					opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get()),
+					parseNamedStatement(opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields().get())),
+					parseNamedStatement(opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames())),
+					parseNamedStatement(opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())),
 					createRowJdbcStatementBuilder(pkTypes),
 					createRowJdbcStatementBuilder(opt.getFieldTypes()),
 					createRowJdbcStatementBuilder(opt.getFieldTypes()),
 					createRowKeyExtractor(pkFields),
 					ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity()));
+	}
+
+	private static String parseNamedStatement(String statement) {
+		return FieldNamedPreparedStatementImpl.parseNamedStatement(statement, new HashMap<>());
 	}
 
 	private static Function<Row, Row> createRowKeyExtractor(int[] pkFields) {

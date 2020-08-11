@@ -20,12 +20,15 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
-import org.apache.flink.table.data.GenericRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.TableAggregateFunction
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.planner.JLong
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.IntType
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 import java.lang.{Integer => JInt, Iterable => JIterable}
@@ -40,7 +43,7 @@ import scala.collection.mutable.ListBuffer
 /****** Function for testing basic functionality of TableAggregateFunction ******/
 
 class Top3Accum {
-  var data: util.HashMap[JInt, JInt] = _
+  var data: util.Map[JInt, JInt] = _
   var size: JInt = _
   var smallest: JInt = _
 }
@@ -54,7 +57,7 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
     acc
   }
 
-  def add(acc: Top3Accum, v: Int): Unit = {
+  def add(acc: Top3Accum, v: JInt): Unit = {
     var cnt = acc.data.get(v)
     acc.size += 1
     if (cnt == null) {
@@ -63,7 +66,7 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
     acc.data.put(v, cnt + 1)
   }
 
-  def delete(acc: Top3Accum, v: Int): Unit = {
+  def delete(acc: Top3Accum, v: JInt): Unit = {
     if (acc.data.containsKey(v)) {
       acc.size -= 1
       val cnt = acc.data.get(v) - 1
@@ -86,7 +89,7 @@ class Top3 extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
     }
   }
 
-  def accumulate(acc: Top3Accum, v: Int) {
+  def accumulate(acc: Top3Accum, v: JInt) {
     if (acc.size == 0) {
       acc.size = 1
       acc.smallest = v
@@ -210,6 +213,7 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
 /****** Function for testing retract input ******/
 
 class Top3WithRetractInputAcc {
+  @DataTypeHint("RAW")
   var data: ListBuffer[Int] = _
 }
 
@@ -223,11 +227,11 @@ class Top3WithRetractInput
     acc
   }
 
-  def accumulate(acc: Top3WithRetractInputAcc, v: Int) {
+  def accumulate(acc: Top3WithRetractInputAcc, v: JInt) {
     acc.data.append(v)
   }
 
-  def retract(acc: Top3WithRetractInputAcc, v: Int) {
+  def retract(acc: Top3WithRetractInputAcc, v: JInt) {
     acc.data.remove(acc.data.indexOf(v))
   }
 
@@ -245,27 +249,26 @@ class Top3WithRetractInput
 
 /****** Function for testing internal accumulator type ******/
 
-class TableAggSum extends TableAggregateFunction[JInt, GenericRowData] {
+@FunctionHint(accumulator = new DataTypeHint(value = "ROW<i INT>", bridgedTo = classOf[RowData]))
+class TableAggSum extends TableAggregateFunction[JInt, RowData] {
 
-  override def createAccumulator(): GenericRowData = {
+  override def createAccumulator(): RowData = {
     val acc = new GenericRowData(1)
     acc.setField(0, 0)
     acc
   }
 
-  def accumulate(acc: GenericRowData, v: Int): Unit = {
+  def accumulate(rowData: RowData, v: JInt): Unit = {
+    val acc = rowData.asInstanceOf[GenericRowData]
     acc.setField(0, acc.getInt(0) + v)
   }
 
-  def emitValue(acc: GenericRowData, out: Collector[JInt]): Unit = {
+  def emitValue(rowData: RowData, out: Collector[JInt]): Unit = {
+    val acc = rowData.asInstanceOf[GenericRowData]
     // output two records
     val result = acc.getInt(0)
     out.collect(result)
     out.collect(result)
-  }
-
-  override def getAccumulatorType: TypeInformation[GenericRowData] = {
-    new RowDataTypeInfo(new IntType()).asInstanceOf[TypeInformation[GenericRowData]]
   }
 }
 
@@ -276,13 +279,13 @@ class EmptyTableAggFunc extends TableAggregateFunction[JTuple2[JInt, JInt], Top3
 
   override def createAccumulator(): Top3Accum = new Top3Accum
 
-  def accumulate(acc: Top3Accum, catagory: Timestamp, value: Timestamp): Unit = {}
+  def accumulate(acc: Top3Accum, category: Timestamp, value: Timestamp): Unit = {}
 
-  def accumulate(acc: Top3Accum, category: Long, value: Timestamp): Unit = {}
+  def accumulate(acc: Top3Accum, category: JLong, value: Timestamp): Unit = {}
 
-  def accumulate(acc: Top3Accum, category: Long, value: Int): Unit = {}
+  def accumulate(acc: Top3Accum, category: JLong, value: JInt): Unit = {}
 
-  def accumulate(acc: Top3Accum, value: Int): Unit = {}
+  def accumulate(acc: Top3Accum, value: JInt): Unit = {}
 
   def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {}
 }
@@ -291,7 +294,7 @@ class EmptyTableAggFuncWithIntResultType extends TableAggregateFunction[JInt, To
 
   override def createAccumulator(): Top3Accum = new Top3Accum
 
-  def accumulate(acc: Top3Accum, value: Int): Unit = {}
+  def accumulate(acc: Top3Accum, value: JInt): Unit = {}
 
   def emitValue(acc: Top3Accum, out: Collector[JInt]): Unit = {}
 }

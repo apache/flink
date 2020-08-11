@@ -404,7 +404,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
   @transient private var meter: Meter = _
 
   override def open(config: Configuration): Unit = {
-    com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter()
+    val dropwizardMeter: com.codahale.metrics.Meter = new com.codahale.metrics.Meter()
   
     meter = getRuntimeContext()
       .getMetricGroup()
@@ -664,6 +664,7 @@ Example configuration:
 {% highlight yaml %}
 
 metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+metrics.reporter.influxdb.scheme: http
 metrics.reporter.influxdb.host: localhost
 metrics.reporter.influxdb.port: 8086
 metrics.reporter.influxdb.db: flink
@@ -1470,19 +1471,11 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="4"><strong>Operator</strong></th>
-      <td>currentInput1Watermark</td>
+      <th rowspan="3"><strong>Operator</strong></th>
+      <td>currentInput<strong>N</strong>Watermark</td>
       <td>
-        The last watermark this operator has received in its first input (in milliseconds).
-        <p><strong>Note:</strong> Only for operators with 2 inputs.</p>
-      </td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
-      <td>currentInput2Watermark</td>
-      <td>
-        The last watermark this operator has received in its second input (in milliseconds).
-        <p><strong>Note:</strong> Only for operators with 2 inputs.</p>
+        The last watermark this operator has received in its <strong>N'th</strong> input (in milliseconds), with index <strong>N</strong> starting from 1. For example currentInput<strong>1</strong>Watermark, currentInput<strong>2</strong>Watermark, ...
+        <p><strong>Note:</strong> Only for operators with 2 or more inputs.</p>
       </td>
       <td>Gauge</td>
     </tr>

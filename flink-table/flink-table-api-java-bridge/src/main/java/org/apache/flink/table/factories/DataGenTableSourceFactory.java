@@ -45,10 +45,12 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
 /**
  * Factory for creating configured instances of {@link DataGenTableSource} in a stream environment.
@@ -58,6 +60,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
 	public static final String IDENTIFIER = "datagen";
 	public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
+	public static final int RANDOM_STRING_LENGTH_DEFAULT = 100;
 
 	public static final ConfigOption<Long> ROWS_PER_SECOND = key("rows-per-second")
 			.longType()
@@ -97,125 +100,171 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		Configuration options = new Configuration();
 		context.getCatalogTable().getOptions().forEach(options::setString);
 
-		TableSchema tableSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+		TableSchema schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+		DataGenerator[] fieldGenerators = new DataGenerator[schema.getFieldCount()];
+		Set<ConfigOption<?>> optionalOptions = new HashSet<>();
 
-		DataGenerator[] fieldGenerators = new DataGenerator[tableSchema.getFieldCount()];
 		for (int i = 0; i < fieldGenerators.length; i++) {
-			fieldGenerators[i] = createDataGenerator(
-					tableSchema.getFieldName(i).get(),
-					tableSchema.getFieldDataType(i).get(),
-					options);
+			String name = schema.getFieldNames()[i];
+			DataType type = schema.getFieldDataTypes()[i];
+
+			ConfigOption<String> kind = key(FIELDS + "." + name + "." + KIND)
+					.stringType().defaultValue(RANDOM);
+			DataGeneratorContainer container = createContainer(name, type, options.get(kind), options);
+			fieldGenerators[i] = container.generator;
+
+			optionalOptions.add(kind);
+			optionalOptions.addAll(container.options);
 		}
 
-		return new DataGenTableSource(fieldGenerators, tableSchema, options.get(ROWS_PER_SECOND));
+		FactoryUtil.validateFactoryOptions(requiredOptions(), optionalOptions, options);
+
+		Set<String> consumedOptionKeys = new HashSet<>();
+		consumedOptionKeys.add(CONNECTOR.key());
+		consumedOptionKeys.add(ROWS_PER_SECOND.key());
+		optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
+		FactoryUtil.validateUnconsumedKeys(factoryIdentifier(), options.keySet(), consumedOptionKeys);
+
+		return new DataGenTableSource(fieldGenerators, schema, options.get(ROWS_PER_SECOND));
 	}
 
-	private DataGenerator createDataGenerator(String name, DataType type, ReadableConfig options) {
-		String genType = options.get(
-				key(FIELDS + "." + name + "." + KIND).stringType().defaultValue(RANDOM));
-		switch (genType) {
+	private DataGeneratorContainer createContainer(
+			String name, DataType type, String kind, ReadableConfig options) {
+		switch (kind) {
 			case RANDOM:
-				return createRandomGenerator(name, type, options);
+				return createRandomContainer(name, type, options);
 			case SEQUENCE:
-				return createSequenceGenerator(name, type, options);
+				return createSequenceContainer(name, type, options);
 			default:
-				throw new ValidationException("Unsupported generator type: " + genType);
+				throw new ValidationException("Unsupported generator kind: " + kind);
 		}
 	}
 
-	private DataGenerator createRandomGenerator(String name, DataType type, ReadableConfig options) {
-		ConfigOption<Integer> lenKey = key(FIELDS + "." + name + "." + LENGTH)
-				.intType().defaultValue(100);
+	private DataGeneratorContainer createRandomContainer(String name, DataType type, ReadableConfig config) {
 		OptionBuilder minKey = key(FIELDS + "." + name + "." + MIN);
 		OptionBuilder maxKey = key(FIELDS + "." + name + "." + MAX);
 		switch (type.getLogicalType().getTypeRoot()) {
-			case BOOLEAN:
-				return RandomGenerator.booleanGenerator();
+			case BOOLEAN: {
+				return DataGeneratorContainer.of(RandomGenerator.booleanGenerator());
+			}
 			case CHAR:
-			case VARCHAR:
-				int length = options.get(lenKey);
-				return getRandomStringGenerator(length);
-			case TINYINT:
-				return RandomGenerator.byteGenerator(
-						options.get(minKey.intType().defaultValue((int) Byte.MIN_VALUE)).byteValue(),
-						options.get(maxKey.intType().defaultValue((int) Byte.MAX_VALUE)).byteValue());
-			case SMALLINT:
-				return RandomGenerator.shortGenerator(
-						options.get(minKey.intType().defaultValue((int) Short.MIN_VALUE)).shortValue(),
-						options.get(maxKey.intType().defaultValue((int) Short.MAX_VALUE)).shortValue());
-			case INTEGER:
-				return RandomGenerator.intGenerator(
-						options.get(minKey.intType().defaultValue(Integer.MIN_VALUE)),
-						options.get(maxKey.intType().defaultValue(Integer.MAX_VALUE)));
-			case BIGINT:
-				return RandomGenerator.longGenerator(
-						options.get(minKey.longType().defaultValue(Long.MIN_VALUE)),
-						options.get(maxKey.longType().defaultValue(Long.MAX_VALUE)));
-			case FLOAT:
-				return RandomGenerator.floatGenerator(
-						options.get(minKey.floatType().defaultValue(Float.MIN_VALUE)),
-						options.get(maxKey.floatType().defaultValue(Float.MAX_VALUE)));
-			case DOUBLE:
-				return RandomGenerator.doubleGenerator(
-						options.get(minKey.doubleType().defaultValue(Double.MIN_VALUE)),
-						options.get(maxKey.doubleType().defaultValue(Double.MAX_VALUE)));
+			case VARCHAR: {
+				ConfigOption<Integer> lenOption = key(FIELDS + "." + name + "." + LENGTH)
+						.intType()
+						.defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
+				return DataGeneratorContainer.of(getRandomStringGenerator(config.get(lenOption)), lenOption);
+			}
+			case TINYINT: {
+				ConfigOption<Integer> min = minKey.intType().defaultValue((int) Byte.MIN_VALUE);
+				ConfigOption<Integer> max = maxKey.intType().defaultValue((int) Byte.MAX_VALUE);
+				return DataGeneratorContainer.of(
+						RandomGenerator.byteGenerator(
+								config.get(min).byteValue(), config.get(max).byteValue()),
+						min, max);
+			}
+			case SMALLINT: {
+				ConfigOption<Integer> min = minKey.intType().defaultValue((int) Short.MIN_VALUE);
+				ConfigOption<Integer> max = maxKey.intType().defaultValue((int) Short.MAX_VALUE);
+				return DataGeneratorContainer.of(
+						RandomGenerator.shortGenerator(
+								config.get(min).shortValue(),
+								config.get(max).shortValue()),
+						min, max);
+			}
+			case INTEGER: {
+				ConfigOption<Integer> min = minKey.intType().defaultValue(Integer.MIN_VALUE);
+				ConfigOption<Integer> max = maxKey.intType().defaultValue(Integer.MAX_VALUE);
+				return DataGeneratorContainer.of(
+						RandomGenerator.intGenerator(
+								config.get(min), config.get(max)),
+						min, max);
+			}
+			case BIGINT: {
+				ConfigOption<Long> min = minKey.longType().defaultValue(Long.MIN_VALUE);
+				ConfigOption<Long> max = maxKey.longType().defaultValue(Long.MAX_VALUE);
+				return DataGeneratorContainer.of(
+						RandomGenerator.longGenerator(
+								config.get(min), config.get(max)),
+						min, max);
+			}
+			case FLOAT: {
+				ConfigOption<Float> min = minKey.floatType().defaultValue(Float.MIN_VALUE);
+				ConfigOption<Float> max = maxKey.floatType().defaultValue(Float.MAX_VALUE);
+				return DataGeneratorContainer.of(
+						RandomGenerator.floatGenerator(
+								config.get(min), config.get(max)),
+						min, max);
+			}
+			case DOUBLE: {
+				ConfigOption<Double> min = minKey.doubleType().defaultValue(Double.MIN_VALUE);
+				ConfigOption<Double> max = maxKey.doubleType().defaultValue(Double.MAX_VALUE);
+				return DataGeneratorContainer.of(
+						RandomGenerator.doubleGenerator(
+								config.get(min), config.get(max)),
+						min, max);
+			}
 			default:
 				throw new ValidationException("Unsupported type: " + type);
 		}
 	}
 
-	private static RandomGenerator<StringData> getRandomStringGenerator(int length) {
-		return new RandomGenerator<StringData>() {
-			@Override
-			public StringData next() {
-				return StringData.fromString(random.nextHexString(length));
-			}
-		};
-	}
-
-	private DataGenerator createSequenceGenerator(String name, DataType type, ReadableConfig options) {
+	private DataGeneratorContainer createSequenceContainer(String name, DataType type, ReadableConfig config) {
 		String startKeyStr = FIELDS + "." + name + "." + START;
 		String endKeyStr = FIELDS + "." + name + "." + END;
 		OptionBuilder startKey = key(startKeyStr);
 		OptionBuilder endKey = key(endKeyStr);
 
-		options.getOptional(startKey.stringType().noDefaultValue()).orElseThrow(
+		config.getOptional(startKey.stringType().noDefaultValue()).orElseThrow(
 				() -> new ValidationException(
 						"Could not find required property '" + startKeyStr + "' for sequence generator."));
-		options.getOptional(endKey.stringType().noDefaultValue()).orElseThrow(
+		config.getOptional(endKey.stringType().noDefaultValue()).orElseThrow(
 				() -> new ValidationException(
 						"Could not find required property '" + endKeyStr + "' for sequence generator."));
 
+		ConfigOption<Integer> intStart = startKey.intType().noDefaultValue();
+		ConfigOption<Integer> intEnd = endKey.intType().noDefaultValue();
+		ConfigOption<Long> longStart = startKey.longType().noDefaultValue();
+		ConfigOption<Long> longEnd = endKey.longType().noDefaultValue();
 		switch (type.getLogicalType().getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
-			return getSequenceStringGenerator(
-					options.get(startKey.longType().noDefaultValue()),
-					options.get(endKey.longType().noDefaultValue()));
+				return DataGeneratorContainer.of(
+						getSequenceStringGenerator(
+								config.get(longStart), config.get(longEnd)),
+						longStart, longEnd);
 			case TINYINT:
-				return SequenceGenerator.byteGenerator(
-						options.get(startKey.intType().noDefaultValue()).byteValue(),
-						options.get(endKey.intType().noDefaultValue()).byteValue());
+				return DataGeneratorContainer.of(
+						SequenceGenerator.byteGenerator(
+								config.get(intStart).byteValue(),
+								config.get(intEnd).byteValue()),
+						intStart, intEnd);
 			case SMALLINT:
-				return SequenceGenerator.shortGenerator(
-						options.get(startKey.intType().noDefaultValue()).shortValue(),
-						options.get(endKey.intType().noDefaultValue()).shortValue());
+				return DataGeneratorContainer.of(
+						SequenceGenerator.shortGenerator(
+								config.get(intStart).shortValue(),
+								config.get(intEnd).shortValue()),
+						intStart, intEnd);
 			case INTEGER:
-				return SequenceGenerator.intGenerator(
-						options.get(startKey.intType().noDefaultValue()),
-						options.get(endKey.intType().noDefaultValue()));
+				return DataGeneratorContainer.of(
+						SequenceGenerator.intGenerator(
+								config.get(intStart), config.get(intEnd)),
+						intStart, intEnd);
 			case BIGINT:
-				return SequenceGenerator.longGenerator(
-						options.get(startKey.longType().noDefaultValue()),
-						options.get(endKey.longType().noDefaultValue()));
+				return DataGeneratorContainer.of(
+						SequenceGenerator.longGenerator(
+								config.get(longStart), config.get(longEnd)),
+						longStart, longEnd);
 			case FLOAT:
-				return SequenceGenerator.floatGenerator(
-						options.get(startKey.intType().noDefaultValue()).shortValue(),
-						options.get(endKey.intType().noDefaultValue()).shortValue());
+				return DataGeneratorContainer.of(
+						SequenceGenerator.floatGenerator(
+								config.get(intStart).shortValue(),
+								config.get(intEnd).shortValue()),
+						intStart, intEnd);
 			case DOUBLE:
-				return SequenceGenerator.doubleGenerator(
-						options.get(startKey.intType().noDefaultValue()),
-						options.get(endKey.intType().noDefaultValue()));
+				return DataGeneratorContainer.of(
+						SequenceGenerator.doubleGenerator(
+								config.get(intStart), config.get(intEnd)),
+						intStart, intEnd);
 			default:
 				throw new ValidationException("Unsupported type: " + type);
 		}
@@ -228,6 +277,37 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 				return StringData.fromString(valuesToEmit.poll().toString());
 			}
 		};
+	}
+
+	private static RandomGenerator<StringData> getRandomStringGenerator(int length) {
+		return new RandomGenerator<StringData>() {
+			@Override
+			public StringData next() {
+				return StringData.fromString(random.nextHexString(length));
+			}
+		};
+	}
+
+	// -------------------------------- Help Classes -------------------------------
+
+	private static class DataGeneratorContainer {
+
+		private DataGenerator generator;
+
+		/**
+		 * Generator config options, for validation.
+		 */
+		private Set<ConfigOption<?>> options;
+
+		private DataGeneratorContainer(DataGenerator generator, Set<ConfigOption<?>> options) {
+			this.generator = generator;
+			this.options = options;
+		}
+
+		private static DataGeneratorContainer of(
+				DataGenerator generator, ConfigOption<?>... options) {
+			return new DataGeneratorContainer(generator, new HashSet<>(Arrays.asList(options)));
+		}
 	}
 
 	/**

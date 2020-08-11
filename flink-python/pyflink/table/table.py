@@ -478,6 +478,9 @@ class Table(object):
 
             >>> tab.order_by("name.desc")
 
+        For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
+        fetch operation.
+
         :param fields: Order fields expression string.
         :type fields: str
         :return: The result table.
@@ -487,11 +490,11 @@ class Table(object):
 
     def offset(self, offset):
         """
-        Limits a sorted result from an offset position.
-        Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-        thus must be preceded by it.
-        :func:`~pyflink.table.Table.offset` can be combined with a subsequent
-        :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
+        Limits a (possibly sorted) result from an offset position.
+
+        This method can be combined with a preceding :func:`~pyflink.table.Table.order_by` call for
+        a deterministic order and a subsequent :func:`~pyflink.table.Table.fetch` call to return n
+        rows after skipping the first o rows.
 
         Example:
         ::
@@ -500,6 +503,8 @@ class Table(object):
             >>> tab.order_by("name.desc").offset(3)
             # skips the first 10 rows and returns the next 5 rows.
             >>> tab.order_by("name.desc").offset(10).fetch(5)
+
+        For unbounded tables, this operation requires a subsequent fetch operation.
 
         :param offset: Number of records to skip.
         :type offset: int
@@ -510,11 +515,11 @@ class Table(object):
 
     def fetch(self, fetch):
         """
-        Limits a sorted result to the first n rows.
-        Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-        thus must be preceded by it.
-        :func:`~pyflink.table.Table.offset` can be combined with a preceding
-        :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
+        Limits a (possibly sorted) result to the first n rows.
+
+        This method can be combined with a preceding :func:`~pyflink.table.Table.order_by` call for
+        a deterministic order and :func:`~pyflink.table.Table.offset` call to return n rows after
+        skipping the first o rows.
 
         Example:
 

@@ -28,7 +28,7 @@
 	</parent>
 
 	<artifactId>flink-gelly-examples_${scala.binary.version}</artifactId>
-	<name>flink-gelly-examples</name>
+	<name>Flink : Libraries : Gelly Examples</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

@@ -17,47 +17,58 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException}
-import org.apache.flink.table.data.{RowData, StringData, DecimalData, TimestampData}
+import org.apache.flink.table.catalog.DataTypeFactory
+import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampData}
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionKind, ImperativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
-import org.apache.flink.table.planner.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
+import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
+import org.apache.flink.table.planner.typeutils.DataViewUtils
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, _}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
 import org.apache.calcite.rel.`type`._
+import org.apache.calcite.rel.core.Aggregate.AggCallBinding
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlKind, SqlRankFunction}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 
 import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -296,51 +307,216 @@ object AggregateUtil extends Enumeration {
     // Step-3:
     // create aggregate information
     val factory = new AggFunctionFactory(inputRowType, orderKeyIdx, needRetraction)
-    val aggInfos = newAggCalls.zipWithIndex.map { case (call, index) =>
-      val argIndexes = call.getAggregation match {
-        case _: SqlRankFunction => orderKeyIdx
-        case _ => call.getArgList.map(_.intValue()).toArray
+    val aggInfos = newAggCalls
+      .zipWithIndex
+      .map { case (call, index) =>
+        val argIndexes = call.getAggregation match {
+          case _: SqlRankFunction => orderKeyIdx
+          case _ => call.getArgList.map(_.intValue()).toArray
+        }
+        transformToAggregateInfo(
+          inputRowType,
+          call,
+          index,
+          argIndexes,
+          factory.createAggFunction(call, index),
+          isStateBackedDataViews,
+          needRetraction(index))
       }
 
-      val function = factory.createAggFunction(call, index)
-      val (externalAccTypes, viewSpecs, externalResultType) = function match {
+    AggregateInfoList(aggInfos.toArray, indexOfCountStar, countStarInserted, distinctInfos)
+  }
+
+  private def transformToAggregateInfo(
+      inputRowRelDataType: RelDataType,
+      call: AggregateCall,
+      index: Int,
+      argIndexes: Array[Int],
+      udf: UserDefinedFunction,
+      hasStateBackedDataViews: Boolean,
+      needsRetraction: Boolean)
+    : AggregateInfo = call.getAggregation match {
+
+    case _: BridgingSqlAggFunction =>
+      createAggregateInfoFromBridgingFunction(
+        inputRowRelDataType,
+        call,
+        index,
+        argIndexes,
+        udf.asInstanceOf[ImperativeAggregateFunction[_, _]],
+        hasStateBackedDataViews,
+        needsRetraction)
+
+    case _ =>
+      createAggregateInfoFromLegacyFunction(
+        inputRowRelDataType,
+        call,
+        index,
+        argIndexes,
+        udf,
+        hasStateBackedDataViews,
+        needsRetraction)
+  }
+
+  private def createAggregateInfoFromBridgingFunction(
+      inputRowRelDataType: RelDataType,
+      call: AggregateCall,
+      index: Int,
+      argIndexes: Array[Int],
+      udf: ImperativeAggregateFunction[_, _],
+      hasStateBackedDataViews: Boolean,
+      needsRetraction: Boolean)
+    : AggregateInfo = {
+
+    val function = call.getAggregation.asInstanceOf[BridgingSqlAggFunction]
+
+    val dataTypeFactory = function.getDataTypeFactory
+
+    val inference = function.getTypeInference
+
+    // not all information is available in the call context of aggregate functions at this location
+    // e.g. literal information is lost because the aggregation is split into multiple operators
+    val callContext = new OperatorBindingCallContext(
+      dataTypeFactory,
+      udf,
+      new AggCallBinding(
+        function.getTypeFactory,
+        function,
+        SqlTypeUtil.projectTypes(
+          inputRowRelDataType,
+          argIndexes.map(Int.box).toList),
+        0,
+        false))
+
+    // enrich argument types with conversion class
+    val adaptedCallContext = TypeInferenceUtil.adaptArguments(
+      inference,
+      callContext,
+      null)
+    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+
+    // derive accumulator type with conversion class
+    val enrichedAccumulatorDataType = TypeInferenceUtil.inferOutputType(
+      adaptedCallContext,
+      inference.getAccumulatorTypeStrategy.orElse(inference.getOutputTypeStrategy))
+
+    // enrich output types with conversion class
+    val enrichedOutputDataType = TypeInferenceUtil.inferOutputType(
+      adaptedCallContext,
+      inference.getOutputTypeStrategy)
+
+    createAggregateInfo(
+      dataTypeFactory,
+      call,
+      udf,
+      index,
+      argIndexes,
+      enrichedArgumentDataTypes.toArray,
+      enrichedAccumulatorDataType,
+      enrichedOutputDataType,
+      needsRetraction,
+      hasStateBackedDataViews)
+  }
+
+  private def createAggregateInfo(
+      dataTypeFactory: DataTypeFactory,
+      call: AggregateCall,
+      udf: ImperativeAggregateFunction[_, _],
+      index: Int,
+      argIndexes: Array[Int],
+      inputDataTypes: Array[DataType],
+      accumulatorDataType: DataType,
+      outputDataType: DataType,
+      needsRetraction: Boolean,
+      hasStateBackedDataViews: Boolean)
+    : AggregateInfo = {
+
+    // extract data views and adapt the data views in the accumulator type
+    // if a view is backed by a state backend
+    val dataViewSpecs: Array[DataViewSpec] = if (hasStateBackedDataViews) {
+      DataViewUtils.extractDataViews(index, accumulatorDataType).asScala.toArray
+    } else {
+      Array()
+    }
+    val adjustedAccumulatorDataType = if (hasStateBackedDataViews) {
+      DataViewUtils.replaceDataViewsWithNull(accumulatorDataType)
+    } else {
+      accumulatorDataType
+    }
+
+    AggregateInfo(
+        call,
+        udf,
+        index,
+        argIndexes,
+        inputDataTypes,
+        Array(adjustedAccumulatorDataType),
+        dataViewSpecs,
+        outputDataType,
+        needsRetraction)
+  }
+
+  private def createAggregateInfoFromLegacyFunction(
+      inputRowRelDataType: RelDataType,
+      call: AggregateCall,
+      index: Int,
+      argIndexes: Array[Int],
+      udf: UserDefinedFunction,
+      hasStateBackedDataViews: Boolean,
+      needsRetraction: Boolean)
+    : AggregateInfo = {
+      val (externalArgTypes, externalAccTypes, viewSpecs, externalResultType) = udf match {
+
         case a: DeclarativeAggregateFunction =>
           val bufferTypes: Array[LogicalType] = a.getAggBufferTypes.map(_.getLogicalType)
           val bufferTypeInfos = bufferTypes.map(fromLogicalTypeToDataType)
-          (bufferTypeInfos, Array.empty[DataViewSpec],
-              fromLogicalTypeToDataType(a.getResultType.getLogicalType))
-        case a: UserDefinedAggregateFunction[_, _] =>
+          (
+            null,
+            bufferTypeInfos,
+            Array.empty[DataViewSpec],
+            fromLogicalTypeToDataType(a.getResultType.getLogicalType)
+          )
+
+        case a: ImperativeAggregateFunction[_, _] =>
           val (implicitAccType, implicitResultType) = call.getAggregation match {
             case aggSqlFun: AggSqlFunction =>
               (aggSqlFun.externalAccType, aggSqlFun.externalResultType)
             case _ => (null, null)
           }
           val externalAccType = getAccumulatorTypeOfAggregateFunction(a, implicitAccType)
+          val argTypes = call.getArgList
+            .map(idx => inputRowRelDataType.getFieldList.get(idx).getType)
+            .map(FlinkTypeFactory.toLogicalType)
+          val externalArgTypes: Array[DataType] = getAggUserDefinedInputTypes(
+            a,
+            externalAccType,
+            argTypes.toArray)
           val (newExternalAccType, specs) = useNullSerializerForStateViewFieldsFromAccType(
             index,
             a,
             externalAccType,
-            isStateBackedDataViews)
-          (Array(newExternalAccType), specs,
-            getResultTypeOfAggregateFunction(a, implicitResultType))
-        case _ => throw new TableException(s"Unsupported function: $function")
+            hasStateBackedDataViews)
+          (
+            externalArgTypes,
+            Array(newExternalAccType),
+            specs,
+            getResultTypeOfAggregateFunction(a, implicitResultType)
+          )
+
+        case _ => throw new TableException(s"Unsupported function: $udf")
       }
 
       AggregateInfo(
         call,
-        function,
+        udf,
         index,
         argIndexes,
+        externalArgTypes,
         externalAccTypes,
         viewSpecs,
         externalResultType,
-        needRetraction(index))
-
-    }.toArray
-
-    AggregateInfoList(aggInfos, indexOfCountStar, countStarInserted, distinctInfos)
+        needsRetraction)
   }
-
 
   /**
     * Inserts an COUNT(*) aggregate call if needed. The COUNT(*) aggregate call is used
@@ -483,10 +659,15 @@ object AggregateUtil extends Enumeration {
       val accDataType = fromLegacyInfoToDataType(accTypeInfo)
 
       val distinctMapViewSpec = if (isStateBackedDataViews) {
-        Some(MapViewSpec(
+        val mapViewSpec = new MapViewSpec(
           s"distinctAcc_$index",
           -1, // the field index will not be used
-          accTypeInfo))
+          accDataType,
+          true,
+          accTypeInfo.getKeyType.createSerializer(new ExecutionConfig),
+          accTypeInfo.getValueType.createSerializer(new ExecutionConfig)
+        )
+        Some(mapViewSpec)
       } else {
         None
       }
@@ -777,8 +958,11 @@ object AggregateUtil extends Enumeration {
 
   private[flink] def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls
-      .filter(e => e.getAggregation.isInstanceOf[AggSqlFunction])
-      .map(e => e.getAggregation.asInstanceOf[AggSqlFunction].aggregateFunction)
-      .exists(_.isInstanceOf[TableAggregateFunction[_, _]])
+      .flatMap(call => call.getAggregation match {
+        case asf: AggSqlFunction => Some(asf.aggregateFunction)
+        case bsaf: BridgingSqlAggFunction => Some(bsaf.getDefinition)
+        case _ => None
+      })
+      .exists(_.getKind == FunctionKind.TABLE_AGGREGATE)
   }
 }

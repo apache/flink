@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.GeneratedTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.TableAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -98,7 +98,7 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
 		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		RowDataTypeInfo accTypeInfo = new RowDataTypeInfo(accTypes);
+		InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
 		ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
 		accState = getRuntimeContext().getState(accDesc);
 
