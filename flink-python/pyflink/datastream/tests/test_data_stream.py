@@ -19,7 +19,7 @@ import decimal
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.functions import MapFunction, FlatMapFunction, FilterFunction
+from pyflink.datastream.functions import FilterFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction

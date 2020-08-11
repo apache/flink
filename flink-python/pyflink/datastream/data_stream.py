@@ -27,6 +27,7 @@ from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
     KeySelectorFunctionWrapper, KeySelector, ReduceFunction, ReduceFunctionWrapper
+    FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector
 from pyflink.java_gateway import get_gateway
 
 
