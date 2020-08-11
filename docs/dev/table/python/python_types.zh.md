@@ -30,25 +30,24 @@ This page describes the data types supported in PyFlink Table API.
 Data Type
 ---------
 
-A *data type* describes the logical type of a value in the table ecosystem. It can be used to declare input and/or
-output types of Python user-defined functions. Users of the Python Table API work with instances of
-`pyflink.table.types.DataType` within the Python Table API or when defining user-defined functions.
+ _数据类型_描述表生态系统中值的逻辑类型。它可以用来声明Python用户定义函数的输入和/或
+ 输出类型。Python Table API的用户在Python Table API中操作`` pyflink.table.types.DataType ``实例，也可以在定义用户自定义函数时操作。
 
-A `DataType` instance declares the **logical type** which does not imply a concrete physical representation for transmission
-or storage. All pre-defined data types are available in `pyflink.table.types` and can be instantiated with the utility methods
-defined in `pyflink.table.types.DataTypes`.
+ ` DataType `实例声明**逻辑类型**，这并不能用于推断进行传输或存储的具体物理表示形式。
+ 所有预定义的数据类型在`` pyflink.table.types ``都可用，并且可以使用`pyflink.table.types.DataTypes`定义的
+ 工具函数实例化。 
 
-A list of all pre-defined data types can be found [below]({{ site.baseurl }}/zh/dev/table/types.html#list-of-data-types).
+可以在[下面]({{ site.baseurl }}/zh/dev/table/types.html#list-of-data-types)找到所有预定义数据类型的列表。 
 
-Data Type and Python Type Mapping
+数据类型和Python类型映射
 ------------------
 
-A *data type* can be used to declare input and/or output types of Python user-defined functions. The inputs
-will be converted to Python objects corresponding to the data type and the type of the user-defined functions
-result must also match the defined data type.
+*数据类型*可用于声明Python用户定义函数的输入和/或输出类型。输入将
+转换为与数据类型相对应的Python对象，并且用户定义函数结果的类型
+也必须与定义的数据类型匹配。 
 
-For vectorized Python UDF, the input types and output type are `pandas.Series`. The element type
-of the `pandas.Series` corresponds to the specified data type.
+对于矢量化Python UDF，输入类型和输出类型为`pandas.Series` 。 `pandas.Series`的元素类型
+对应于指定的数据类型。 
 
 | Data Type | Python Type | Pandas Type |
 |:-----------------|:-----------------------|
