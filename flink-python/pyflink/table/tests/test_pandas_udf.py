@@ -172,71 +172,71 @@ class PandasUDFITTests(object):
                 'row_param of wrong type %s !' % type(row_param[0])
             return row_param
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "tinyint_func",
             udf(tinyint_func, result_type=DataTypes.TINYINT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "smallint_func",
             udf(smallint_func, result_type=DataTypes.SMALLINT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "int_func",
             udf(int_func, result_type=DataTypes.INT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "bigint_func",
             udf(bigint_func, result_type=DataTypes.BIGINT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "boolean_func",
             udf(boolean_func, result_type=DataTypes.BOOLEAN(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "float_func",
             udf(float_func, result_type=DataTypes.FLOAT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "double_func",
             udf(double_func, result_type=DataTypes.DOUBLE(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "varchar_func",
             udf(varchar_func, result_type=DataTypes.STRING(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "varbinary_func",
             udf(varbinary_func, result_type=DataTypes.BYTES(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "decimal_func",
             udf(decimal_func, result_type=DataTypes.DECIMAL(38, 18), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "date_func",
             udf(date_func, result_type=DataTypes.DATE(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "time_func",
             udf(time_func, result_type=DataTypes.TIME(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "timestamp_func",
             udf(timestamp_func, result_type=DataTypes.TIMESTAMP(3), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_str_func",
             udf(array_func, result_type=DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_timestamp_func",
             udf(array_func, result_type=DataTypes.ARRAY(DataTypes.TIMESTAMP(3)), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_int_func",
             udf(array_func, result_type=DataTypes.ARRAY(DataTypes.INT()), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "nested_array_func",
             udf(nested_array_func,
                 result_type=DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
@@ -246,7 +246,7 @@ class PandasUDFITTests(object):
              DataTypes.FIELD("f2", DataTypes.STRING()),
              DataTypes.FIELD("f3", DataTypes.TIMESTAMP(3)),
              DataTypes.FIELD("f4", DataTypes.ARRAY(DataTypes.INT()))])
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "row_func",
             udf(row_func, result_type=row_type, udf_type="pandas"))
 

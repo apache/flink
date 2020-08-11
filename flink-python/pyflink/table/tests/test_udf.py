@@ -16,9 +16,9 @@
 # limitations under the License.
 ################################################################################
 import datetime
+import unittest
 
 import pytz
-import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
@@ -76,7 +76,7 @@ class UserDefinedFunctionTests(object):
     def test_chaining_scalar_function(self):
         self.t_env.create_temporary_system_function(
             "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
         self.t_env.create_temporary_system_function("add", add)
 
@@ -94,7 +94,8 @@ class UserDefinedFunctionTests(object):
         t1 = self.t_env.from_elements([(2, "Hi")], ['a', 'b'])
         t2 = self.t_env.from_elements([(2, "Flink")], ['c', 'd'])
 
-        self.t_env.create_temporary_system_function("f", udf(lambda i: i, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("f", udf(lambda i: i,
+                                                             result_type=DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd'],
@@ -109,7 +110,8 @@ class UserDefinedFunctionTests(object):
         t1 = self.t_env.from_elements([(1, "Hi"), (2, "Hi")], ['a', 'b'])
         t2 = self.t_env.from_elements([(2, "Flink")], ['c', 'd'])
 
-        self.t_env.create_temporary_system_function("f", udf(lambda i: i, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("f", udf(lambda i: i,
+                                                             result_type=DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd'],
@@ -172,11 +174,11 @@ class UserDefinedFunctionTests(object):
 
             return p
 
-        self.t_env.register_function("udf_with_constant_params",
-                                     udf(udf_with_constant_params,
-                                         result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("udf_with_constant_params",
+                                                    udf(udf_with_constant_params,
+                                                        result_type=DataTypes.BIGINT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "udf_with_all_constant_params", udf(lambda i, j: i + j,
                                                 result_type=DataTypes.BIGINT()))
 
@@ -432,17 +434,15 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
 
-        t.select("bigint_func(a), bigint_func_none(b),"
-                 "tinyint_func(c), boolean_func(d),"
-                 "smallint_func(e),int_func(f),"
-                 "float_func(g),double_func(h),"
-                 "bytes_func(i),str_func(j),"
-                 "date_func(k),time_func(l),"
-                 "timestamp_func(m),array_func(n),"
-                 "map_func(o),decimal_func(p),"
-                 "decimal_cut_func(q)") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("bigint_func(a), bigint_func_none(b),"
+                                   "tinyint_func(c), boolean_func(d),"
+                                   "smallint_func(e),int_func(f),"
+                                   "float_func(g),double_func(h),"
+                                   "bytes_func(i),str_func(j),"
+                                   "date_func(k),time_func(l),"
+                                   "timestamp_func(m),array_func(n),"
+                                   "map_func(o),decimal_func(p),"
+                                   "decimal_cut_func(q)"), "Results")
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
@@ -484,7 +484,7 @@ class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
             "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
         self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])\
             .select("add(add_one(a), subtract_one(b)), c, 1")
