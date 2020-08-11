@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.util.Preconditions;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.amazonaws.services.kinesis.model.Record;
@@ -44,8 +45,12 @@ public class RecordBatch {
 
 	private final Long millisBehindLatest;
 
-	public RecordBatch(final List<Record> records, final StreamShardHandle subscribedShard, final Long millisBehindLatest) {
-		this.aggregatedRecordSize = records.size();
+	public RecordBatch(
+			final List<Record> records,
+			final StreamShardHandle subscribedShard,
+			@Nullable final Long millisBehindLatest) {
+		Preconditions.checkNotNull(subscribedShard);
+		this.aggregatedRecordSize = Preconditions.checkNotNull(records).size();
 		this.deaggregatedRecords = deaggregateRecords(records, subscribedShard);
 		this.totalSizeInBytes = this.deaggregatedRecords.stream().mapToInt(r -> r.getData().remaining()).sum();
 		this.millisBehindLatest = millisBehindLatest;
