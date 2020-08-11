@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.types.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.StringUtils;
@@ -40,12 +39,12 @@ import java.util.TimeZone;
  */
 public class RowDataTestUtil {
 
-	public static String rowToString(RowData value, RowDataTypeInfo rowTypeInfo, TimeZone tz) {
+	public static String rowToString(RowData value, InternalTypeInfo<RowData> rowTypeInfo, TimeZone tz) {
 		return rowToString(value, rowTypeInfo, tz, true);
 	}
 
-	public static String rowToString(RowData value, RowDataTypeInfo rowTypeInfo, TimeZone tz, boolean withHeader) {
-		GenericRowData genericRow = toGenericRowDeeply(value, rowTypeInfo.getLogicalTypes());
+	public static String rowToString(RowData value, InternalTypeInfo<RowData> rowTypeInfo, TimeZone tz, boolean withHeader) {
+		GenericRowData genericRow = toGenericRowDeeply(value, rowTypeInfo.toRowFieldTypes());
 		return genericRowToString(genericRow, tz, withHeader);
 	}
 
@@ -102,8 +101,7 @@ public class RowDataTestUtil {
 	}
 
 	public static void write(BinaryWriter writer, int pos, Object o, LogicalType type) {
-		BinaryWriter.write(writer, pos, o, type,
-				InternalSerializers.create(type, new ExecutionConfig()));
+		BinaryWriter.write(writer, pos, o, type, InternalSerializers.create(type));
 	}
 
 }

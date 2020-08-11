@@ -31,7 +31,7 @@ under the License.
     <packaging>pom</packaging>
 
     <artifactId>flink-plugins-test</artifactId>
-    <name>flink-plugins-test</name>
+    <name>Flink : E2E Tests : Plugins : </name>
 
     <modules>
         <module>dummy-fs</module>

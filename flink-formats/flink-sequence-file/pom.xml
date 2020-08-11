@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-sequence-file</artifactId>
-	<name>flink-sequence-file</name>
+	<name>Flink : Formats : Sequence file</name>
 
 	<packaging>jar</packaging>
 

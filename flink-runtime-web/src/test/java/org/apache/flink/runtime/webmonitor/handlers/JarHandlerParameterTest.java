@@ -259,7 +259,7 @@ public abstract class JarHandlerParameterTest
 			? Arrays.asList(PROG_ARGS) : null;
 	}
 
-	private static <REQB extends JarRequestBody, M extends JarMessageParameters>
+	protected static <REQB extends JarRequestBody, M extends JarMessageParameters>
 	HandlerRequest<REQB, M> createRequest(
 		REQB requestBody, M parameters, M unresolvedMessageParameters, Path jar)
 		throws HandlerRequestException {

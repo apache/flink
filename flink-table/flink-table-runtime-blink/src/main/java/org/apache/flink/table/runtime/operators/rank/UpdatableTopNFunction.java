@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.util.Collector;
 
@@ -66,7 +66,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
 	private static final Logger LOG = LoggerFactory.getLogger(UpdatableTopNFunction.class);
 
-	private final RowDataTypeInfo rowKeyType;
+	private final InternalTypeInfo<RowData> rowKeyType;
 	private final long cacheSize;
 
 	// a map state stores mapping from row key to record which is in topN
@@ -92,7 +92,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 	public UpdatableTopNFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
-			RowDataTypeInfo inputRowType,
+			InternalTypeInfo<RowData> inputRowType,
 			RowDataKeySelector rowKeySelector,
 			GeneratedRecordComparator generatedRecordComparator,
 			RowDataKeySelector sortKeySelector,

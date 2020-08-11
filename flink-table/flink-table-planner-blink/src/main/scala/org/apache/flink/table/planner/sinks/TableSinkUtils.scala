@@ -29,7 +29,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeTransformations.{legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw, toNullable}
@@ -89,10 +89,10 @@ object TableSinkUtils {
     } else {
       // format query and sink schema strings
       val srcSchema = queryLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSerializableString()}")
+        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
         .mkString("[", ", ", "]")
       val sinkSchema = sinkLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSerializableString()}")
+        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
         .mkString("[", ", ", "]")
 
       val sinkDesc: String = sinkIdentifier.getOrElse("")
@@ -322,8 +322,8 @@ object TableSinkUtils {
         fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
       case gt: GenericTypeInfo[RowData] if gt.getTypeClass == classOf[RowData] =>
         fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[RowData])
-      case bt: RowDataTypeInfo =>
-        val fields = bt.getFieldNames.zip(bt.getLogicalTypes).map { case (n, t) =>
+      case bt: InternalTypeInfo[RowData] =>
+        val fields = bt.toRowFieldNames.zip(bt.toRowFieldTypes).map { case (n, t) =>
           DataTypes.FIELD(n, fromLogicalToDataType(t))
         }
         DataTypes.ROW(fields: _*).bridgedTo(classOf[RowData])

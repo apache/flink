@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
 
@@ -171,15 +171,15 @@ class StreamExecLegacySink[T](
           s"Please select the rowtime field that should be used as event-time timestamp for the " +
           s"DataStream by casting all other fields to TIMESTAMP.")
     } else if (rowtimeFields.size == 1) {
-      val origRowType = parTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
-      val convFieldTypes = origRowType.getLogicalTypes.map { t =>
+      val origRowType = parTransformation.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+      val convFieldTypes = origRowType.toRowFieldTypes.map { t =>
         if (TypeCheckUtils.isRowTime(t)) {
           new TimestampType(3)
         } else {
           t
         }
       }
-      new RowDataTypeInfo(convFieldTypes, origRowType.getFieldNames)
+      InternalTypeInfo.ofFields(convFieldTypes, origRowType.toRowFieldNames)
     } else {
       parTransformation.getOutputType
     }
@@ -191,7 +191,7 @@ class StreamExecLegacySink[T](
       val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
         CodeGeneratorContext(config),
         config,
-        convType.asInstanceOf[RowDataTypeInfo].toRowType,
+        convType.asInstanceOf[InternalTypeInfo[RowData]].toRowType,
         sink,
         withChangeFlag,
         "SinkConversion"

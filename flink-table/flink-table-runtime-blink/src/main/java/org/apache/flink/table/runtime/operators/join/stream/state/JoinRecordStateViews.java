@@ -27,7 +27,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.IterableIterator;
 
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public final class JoinRecordStateViews {
 			RuntimeContext ctx,
 			String stateName,
 			JoinInputSideSpec inputSideSpec,
-			RowDataTypeInfo recordType,
+			InternalTypeInfo<RowData> recordType,
 			long retentionTime) {
 		StateTtlConfig ttlConfig = createTtlConfig(retentionTime);
 		if (inputSideSpec.hasUniqueKey()) {
@@ -80,7 +80,7 @@ public final class JoinRecordStateViews {
 		private JoinKeyContainsUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				RowDataTypeInfo recordType,
+				InternalTypeInfo<RowData> recordType,
 				StateTtlConfig ttlConfig) {
 			ValueStateDescriptor<RowData> recordStateDesc = new ValueStateDescriptor<>(
 				stateName,
@@ -123,8 +123,8 @@ public final class JoinRecordStateViews {
 		private InputSideHasUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				RowDataTypeInfo recordType,
-				RowDataTypeInfo uniqueKeyType,
+				InternalTypeInfo<RowData> recordType,
+				InternalTypeInfo<RowData> uniqueKeyType,
 				KeySelector<RowData, RowData> uniqueKeySelector,
 				StateTtlConfig ttlConfig) {
 			checkNotNull(uniqueKeyType);
@@ -165,7 +165,7 @@ public final class JoinRecordStateViews {
 		private InputSideHasNoUniqueKey(
 				RuntimeContext ctx,
 				String stateName,
-				RowDataTypeInfo recordType,
+				InternalTypeInfo<RowData> recordType,
 				StateTtlConfig ttlConfig) {
 			MapStateDescriptor<RowData, Integer> recordStateDesc = new MapStateDescriptor<>(
 				stateName,

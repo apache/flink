@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -36,7 +35,6 @@ import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -58,10 +56,9 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 	private transient BinaryArrayData reuseArray;
 	private transient BinaryArrayWriter reuseWriter;
 
-	@SuppressWarnings("unchecked")
-	public ArrayDataSerializer(LogicalType eleType, ExecutionConfig conf) {
+	public ArrayDataSerializer(LogicalType eleType) {
 		this.eleType = eleType;
-		this.eleSer = (TypeSerializer<Object>) InternalSerializers.create(eleType, conf);
+		this.eleSer = InternalSerializers.create(eleType);
 	}
 
 	private ArrayDataSerializer(LogicalType eleType, TypeSerializer<Object> eleSer) {

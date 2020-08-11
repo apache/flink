@@ -26,6 +26,7 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.InstantiateViaFactory;
+import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -259,6 +260,17 @@ public final class ReporterSetup {
 		}
 
 		if (reporterClassName != null) {
+			final Optional<MetricReporterFactory> interceptingFactory = reporterFactories.values().stream()
+				.filter(factory -> {
+					InterceptInstantiationViaReflection annotation = factory.getClass().getAnnotation(InterceptInstantiationViaReflection.class);
+					return annotation != null && annotation.reporterClassName().equals(reporterClassName);
+				})
+				.findAny();
+
+			if (interceptingFactory.isPresent()) {
+				return loadViaFactory(reporterConfig, interceptingFactory.get());
+			}
+
 			return loadViaReflection(reporterClassName, reporterName, reporterConfig, reporterFactories);
 		}
 
@@ -278,11 +290,18 @@ public final class ReporterSetup {
 			LOG.warn("The reporter factory ({}) could not be found for reporter {}. Available factories: {}.", factoryClassName, reporterName, reporterFactories.keySet());
 			return Optional.empty();
 		} else {
-			final MetricConfig metricConfig = new MetricConfig();
-			reporterConfig.addAllToProperties(metricConfig);
-
-			return Optional.of(factory.createMetricReporter(metricConfig));
+			return loadViaFactory(reporterConfig, factory);
 		}
+	}
+
+	private static Optional<MetricReporter> loadViaFactory(
+		final Configuration reporterConfig,
+		final MetricReporterFactory factory) {
+
+		final MetricConfig metricConfig = new MetricConfig();
+		reporterConfig.addAllToProperties(metricConfig);
+
+		return Optional.of(factory.createMetricReporter(metricConfig));
 	}
 
 	private static Optional<MetricReporter> loadViaReflection(

@@ -31,7 +31,9 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.LRUCache;
 import org.rocksdb.NativeLibraryLoader;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.WriteBufferManager;
+import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -245,5 +247,17 @@ public class RocksDBResourceContainerTest {
 		container.close();
 		assertThat(cache.isOwningHandle(), is(false));
 		assertThat(wbm.isOwningHandle(), is(false));
+	}
+
+	@Test
+	public void testFreeWriteReadOptionsAfterClose() throws Exception {
+		RocksDBResourceContainer container = new RocksDBResourceContainer();
+		WriteOptions writeOptions = container.getWriteOptions();
+		ReadOptions readOptions = container.getReadOptions();
+		assertThat(writeOptions.isOwningHandle(), is(true));
+		assertThat(readOptions.isOwningHandle(), is(true));
+		container.close();
+		assertThat(writeOptions.isOwningHandle(), is(false));
+		assertThat(readOptions.isOwningHandle(), is(false));
 	}
 }

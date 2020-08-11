@@ -48,11 +48,14 @@ The following example shows how to define your own vectorized Python scalar func
 and use it in a query:
 
 {% highlight python %}
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT(), udf_type="pandas")
+@udf(result_type=DataTypes.BIGINT(), udf_type="pandas")
 def add(i, j):
   return i + j
 
 table_env = BatchTableEnvironment.create(env)
+
+# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
+table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the vectorized Python scalar function
 table_env.register_function("add", add)
@@ -63,3 +66,7 @@ my_table.select("add(bigint, bigint)")
 # use the vectorized Python scalar function in SQL API
 table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 {% endhighlight %}
+
+<span class="label label-info">Note</span> If not using RocksDB as state backend, you can also configure the python
+worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
+Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.

@@ -214,4 +214,33 @@ Calc(select=[a, b, $2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCreateViewWithRowNumber">
+    <Resource name="sql">
+      <![CDATA[insert into sink select name, eat, cnt
+from view2 where row_num <= 3]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
+   +- LogicalFilter(condition=[<=($3, 3)])
+      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- Calc(select=[name, eat, cnt], where=[<=(w0$o0, 3)])
+   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
+      +- Sort(orderBy=[name ASC, cnt DESC])
+         +- Exchange(distribution=[hash[name]])
+            +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
+               +- Exchange(distribution=[hash[name, eat]])
+                  +- LocalHashAggregate(groupBy=[name, eat], select=[name, eat, Partial_SUM(age) AS sum$0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

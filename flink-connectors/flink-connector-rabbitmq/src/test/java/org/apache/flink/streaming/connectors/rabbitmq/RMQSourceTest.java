@@ -40,8 +40,8 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -63,7 +63,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 
 /**
  * Tests for the RMQSource. The source supports two operation modes.
@@ -350,6 +351,56 @@ public class RMQSourceTest {
 		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
 	}
 
+	@Test
+	public void testSetPrefetchCount() throws Exception {
+		RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+			.setHost("localhost")
+			.setPort(5000)
+			.setUserName("guest")
+			.setPassword("guest")
+			.setVirtualHost("/")
+			.setPrefetchCount(1000)
+			.build();
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource(connectionConfig) {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+		Mockito.verify(channel, Mockito.times(1)).basicQos(1000, true);
+	}
+
+	@Test
+	public void testUnsetPrefetchCount() throws Exception {
+		final Connection mockConnection = Mockito.mock(Connection.class);
+		Channel channel = Mockito.mock(Channel.class);
+		Mockito.when(mockConnection.createChannel()).thenReturn(channel);
+
+		RMQMockedRuntimeTestSource source = new RMQMockedRuntimeTestSource() {
+			@Override
+			protected Connection setupConnection() throws Exception {
+				return mockConnection;
+			}
+		};
+
+		FunctionInitializationContext mockContext = getMockContext();
+		source.initializeState(mockContext);
+		source.open(new Configuration());
+
+		Mockito.verify(mockConnection, Mockito.times(1)).createChannel();
+		Mockito.verify(channel, Mockito.times(0)).basicQos(anyInt());
+	}
+
 	private static class ConstructorTestClass extends RMQSource<String> {
 
 		private ConnectionFactory factory;
@@ -470,7 +521,7 @@ public class RMQSourceTest {
 			consumer = Mockito.mock(QueueingConsumer.class);
 
 			// Mock for delivery
-			final QueueingConsumer.Delivery deliveryMock = Mockito.mock(QueueingConsumer.Delivery.class);
+			final Delivery deliveryMock = Mockito.mock(Delivery.class);
 			Mockito.when(deliveryMock.getBody()).thenReturn("test".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
 			try {

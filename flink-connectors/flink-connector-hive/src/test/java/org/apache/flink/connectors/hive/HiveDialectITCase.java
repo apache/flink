@@ -180,6 +180,11 @@ public class HiveDialectITCase {
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
 		assertEquals(";", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.COLLECTION_DELIM));
 		assertEquals(":", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.MAPKEY_DELIM));
+
+		int createdTimeForTableExists = hiveTable.getCreateTime();
+		tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
+		assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
 	}
 
 	@Test
@@ -431,6 +436,10 @@ public class HiveDialectITCase {
 		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
 		assertEquals(1, databases.size());
 		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
+		String catalogName = tableEnv.executeSql("show current catalog").collect().next().toString();
+		assertEquals(DEFAULT_BUILTIN_CATALOG, catalogName);
+		String databaseName = tableEnv.executeSql("show current database").collect().next().toString();
+		assertEquals(DEFAULT_BUILTIN_DATABASE, databaseName);
 	}
 
 	@Test

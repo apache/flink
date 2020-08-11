@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
@@ -43,7 +43,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
  */
 public class ProcTimeSortOperatorTest {
 
-	private RowDataTypeInfo inputRowType = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(
 			new IntType(),
 			new BigIntType(),
 			new VarCharType(VarCharType.MAX_LENGTH),
@@ -60,7 +60,7 @@ public class ProcTimeSortOperatorTest {
 		}
 	};
 
-	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
+	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
 	@Test
 	public void test() throws Exception {

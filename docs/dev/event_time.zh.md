@@ -1,5 +1,5 @@
 ---
-title: "Event Time"
+title: "事件时间"
 nav-id: event_time
 nav-show_overview: true
 nav-parent_id: streaming
@@ -24,40 +24,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In this section you will learn about writing time-aware Flink programs. Please
-take a look at [Timely Stream Processing]({% link
-concepts/timely-stream-processing.zh.md %}) to learn about the concepts behind
-timely stream processing.
+在本节中，你将学习编写可感知时间变化（time-aware）的 Flink 程序。可以参阅[实时流处理]({% link concepts/timely-stream-processing.zh.md %})小节以了解实时流处理的概念。
 
-For information about how to use time in Flink programs refer to
-[windowing]({% link dev/stream/operators/windows.zh.md %}) and
-[ProcessFunction]({% link
-dev/stream/operators/process_function.zh.md %}).
+有关如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和 [ProcessFunction]({% link dev/stream/operators/process_function.zh.md %}) 小节。
 
-* toc
-{:toc}
+使用*事件时间*处理数据之前需要在程序中设置正确的*时间语义*。此项设置会定义源数据的处理方式（例如：程序是否会对数据分配时间戳），以及程序应使用什么时间语义执行 `KeyedStream.timeWindow(Time.seconds(30))` 之类的窗口操作。
 
-## Setting a Time Characteristic
-
-The first part of a Flink DataStream program usually sets the base *time characteristic*. That setting
-defines how data stream sources behave (for example, whether they will assign timestamps), and what notion of
-time should be used by window operations like `KeyedStream.timeWindow(Time.seconds(30))`.
-
-The following example shows a Flink program that aggregates events in hourly time windows. The behavior of the
-windows adapts with the time characteristic.
+可以通过 `StreamExecutionEnvironment.setStreamTimeCharacteristic()` 设置程序的时间语义，示例如下：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-// alternatively:
-// env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-// env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-
-DataStream<MyEvent> stream = env.addSource(new FlinkKafkaConsumer010<MyEvent>(topic, schema, props));
+DataStream<MyEvent> stream = env.addSource(new FlinkKafkaConsumer<MyEvent>(topic, schema, props));
 
 stream
     .keyBy( (event) -> event.getUser() )
@@ -70,13 +52,9 @@ stream
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
+env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-// alternatively:
-// env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-// env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-val stream: DataStream[MyEvent] = env.addSource(new FlinkKafkaConsumer010[MyEvent](topic, schema, props))
+val stream: DataStream[MyEvent] = env.addSource(new FlinkKafkaConsumer[MyEvent](topic, schema, props))
 
 stream
     .keyBy( _.getUser )
@@ -89,56 +67,18 @@ stream
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
 
-env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
-# alternatively:
-# env.set_stream_time_characteristic(TimeCharacteristic.IngestionTime)
-# env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 {% endhighlight %}
 </div>
 </div>
 
-Note that in order to run this example in *event time*, the program needs to either use sources
-that directly define event time for the data and emit watermarks themselves, or the program must
-inject a *Timestamp Assigner & Watermark Generator* after the sources. Those functions describe how to access
-the event timestamps, and what degree of out-of-orderness the event stream exhibits.
+注意：为了以*事件时间*的语义运行上述示例，程序需要满足下列其中一种条件，要么其消费的数据源直接为其数据定义了事件时间并且可以发出 watermark，要么程序必须在数据源之后显示声明*时间戳分配器和 Watermark 生成器*（*Timestamp Assigner＆Watermark Generator*）。这些函数可以定义 Flink 程序如何获取到事件时间戳以及定义事件流的乱序程度。
 
-The section below describes the general mechanism behind *timestamps* and *watermarks*. For a guide on how
-to use timestamp assignment and watermark generation in the Flink DataStream API, please refer to
-[Generating Timestamps / Watermarks]({{ site.baseurl }}/dev/event_timestamps_watermarks.html).
+## 接下来学习的内容？
 
-{% top %}
-
-## Idling sources
-
-Currently, with pure event time watermarks generators, watermarks can not progress if there are no elements
-to be processed. That means in case of gap in the incoming data, event time will not progress and for
-example the window operator will not be triggered and thus existing windows will not be able to produce any
-output data.
-
-To circumvent this one can use periodic watermark assigners that don't only assign based on
-element timestamps. An example solution could be an assigner that switches to using current processing time
-as the time basis after not observing new events for a while.
-
-Sources can be marked as idle using `SourceFunction.SourceContext#markAsTemporarilyIdle`. For details please refer to the Javadoc of
-this method as well as `StreamStatus`.
-
-## Debugging Watermarks
-
-Please refer to the [Debugging Windows & Event Time]({{ site.baseurl }}/monitoring/debugging_event_time.html) section for debugging
-watermarks at runtime.
-
-## How operators are processing watermarks
-
-As a general rule, operators are required to completely process a given watermark before forwarding it downstream. For example,
-`WindowOperator` will first evaluate which windows should be fired, and only after producing all of the output triggered by
-the watermark will the watermark itself be sent downstream. In other words, all elements produced due to occurrence of a watermark
-will be emitted before the watermark.
-
-The same rule applies to `TwoInputStreamOperator`. However, in this case the current watermark of the operator is defined as
-the minimum of both of its inputs.
-
-The details of this behavior are defined by the implementations of the `OneInputStreamOperator#processWatermark`,
-`TwoInputStreamOperator#processWatermark1` and `TwoInputStreamOperator#processWatermark2` methods.
+* [生成 Watermark]({% link dev/event_timestamps_watermarks.zh.md %})：展示如何编写 Flink 应用程序感知事件时间所必需的时间戳分配器和 watermark 生成器。
+* [内置 Watermark 生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 框架内置的 watermark 生成器。
+* [调试窗口和事件时间]({% link monitoring/debugging_event_time.zh.md %})：展示如何在含有事件时间语义的 Flink 应用程序中调试 watermark 和时间戳相关的问题。
 
 {% top %}

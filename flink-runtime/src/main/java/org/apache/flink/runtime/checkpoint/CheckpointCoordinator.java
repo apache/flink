@@ -78,6 +78,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -587,7 +588,7 @@ public class CheckpointCoordinator {
 					.exceptionally(error -> {
 						if (!isShutdown()) {
 							throw new CompletionException(error);
-						} else if (error instanceof RejectedExecutionException) {
+						} else if (findThrowable(error, RejectedExecutionException.class).isPresent()) {
 							LOG.debug("Execution rejected during shutdown");
 						} else {
 							LOG.warn("Error encountered during shutdown", error);
@@ -1745,7 +1746,7 @@ public class CheckpointCoordinator {
 		CheckpointFailureReason defaultReason, Throwable throwable) {
 
 		final Optional<CheckpointException> checkpointExceptionOptional =
-			ExceptionUtils.findThrowable(throwable, CheckpointException.class);
+			findThrowable(throwable, CheckpointException.class);
 		return checkpointExceptionOptional
 			.orElseGet(() -> new CheckpointException(defaultReason, throwable));
 	}

@@ -31,7 +31,7 @@ under the License.
     </parent>
 
     <artifactId>flink-cep_${scala.binary.version}</artifactId>
-    <name>flink-cep</name>
+    <name>Flink : Libraries : CEP</name>
     <packaging>jar</packaging>
 
     <dependencies>

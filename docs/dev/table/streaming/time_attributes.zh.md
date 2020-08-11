@@ -82,6 +82,8 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 </div>
 </div>
 
+<a name="processing-time"></a>
+
 处理时间
 ---------------
 
@@ -120,7 +122,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 DataStream<Tuple2<String, String>> stream = ...;
 
 // 声明一个额外的字段作为时间属性字段
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime()");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").proctime());
 
 WindowedTable windowedTable = table.window(
         Tumble.over(lit(10).minutes())
@@ -270,7 +272,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 DataStream<Tuple2<String, String>> stream = inputStream.assignTimestampsAndWatermarks(...);
 
 // 声明一个额外的逻辑字段作为事件时间属性
-Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime()");
+Table table = tEnv.fromDataStream(stream, $("user_name"), $("data"), $("user_action_time").rowtime());
 
 
 // Option 2:

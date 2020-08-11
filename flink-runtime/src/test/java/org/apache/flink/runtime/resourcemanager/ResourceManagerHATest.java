@@ -76,7 +76,8 @@ public class ResourceManagerHATest extends TestLogger {
 				AnyMatchingSlotMatchingStrategy.INSTANCE,
 				WorkerResourceSpec.ZERO,
 				1,
-				ResourceManagerOptions.MAX_SLOT_NUM.defaultValue()));
+				ResourceManagerOptions.MAX_SLOT_NUM.defaultValue(),
+				ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue()));
 		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			resourceManagerRuntimeServicesConfiguration,
 			highAvailabilityServices,

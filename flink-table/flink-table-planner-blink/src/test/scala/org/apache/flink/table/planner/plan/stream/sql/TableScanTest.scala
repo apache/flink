@@ -21,9 +21,8 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func0
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.{MockedFilterPushDownTableSource, MockedLookupTableSource}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.Test
 
 class TableScanTest extends TableTestBase {
@@ -155,7 +154,7 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testScanOnChangelogSource(): Unit = {
+  def testFilterOnChangelogSource(): Unit = {
     util.addTable(
       """
         |CREATE TABLE src (
@@ -168,6 +167,58 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testScanOnChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT b,a,ts FROM src", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testUnionChangelogSourceAndAggregation(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE changelog_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
+    util.addTable(
+      """
+        |CREATE TABLE append_src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I'
+        |)
+      """.stripMargin)
+
+    val query = """
+      |SELECT b, ts, a
+      |FROM (
+      |  SELECT * FROM changelog_src
+      |  UNION ALL
+      |  SELECT MAX(ts) as t, a, MAX(b) as b FROM append_src GROUP BY a
+      |)
+      |""".stripMargin
+    util.verifyPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -323,20 +374,20 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testUnsupportedAbilityInterface(): Unit = {
+  def testInvalidWatermarkOutputType(): Unit = {
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Watermark strategy '' must be of type TIMESTAMP but is of type 'CHAR(0) NOT NULL'.")
     util.addTable(
-      s"""
-         |CREATE TABLE src (
-         |  ts TIMESTAMP(3),
-         |  a INT,
-         |  b DOUBLE
-         |) WITH (
-         |  'connector' = 'values',
-         |  'table-source-class' = '${classOf[MockedFilterPushDownTableSource].getName}'
-         |)
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR `ts` AS ''
+        |) WITH (
+        |  'connector' = 'values'
+        |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage("DynamicTableSource with SupportsFilterPushDown ability is not supported")
-    util.verifyPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
   }
 }

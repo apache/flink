@@ -158,6 +158,7 @@ def construct_test_classpath():
         "flink-connectors/flink-connector-hbase/target/flink*.jar",
         "flink-ml-parent/flink-ml-api/target/flink-ml-api*.jar",
         "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*.jar",
+        "flink-python/target/data-stream-test/flink*.jar",
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()

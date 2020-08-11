@@ -20,9 +20,11 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.data.writer.BinaryRowWriter
+import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.runtime.generated.Projection
-import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType}
+import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
+
 import org.junit.{Assert, Test}
 
 import scala.util.Random
@@ -98,6 +100,36 @@ class ProjectionCodeGeneratorTest {
     for (i <- 0 until 100) {
       Assert.assertEquals(input.getInt(i), row.getInt(i))
     }
+  }
+
+  @Test
+  def testProjectionBinaryRowWithVariableLengthData(): Unit = {
+    val projection = ProjectionCodeGenerator.generateProjection(
+      new CodeGeneratorContext(new TableConfig),
+      "name",
+      RowType.of(
+        new DecimalType(38, 0),
+        new DecimalType(38, 0),
+        new TimestampType(9)),
+      RowType.of(
+        new DecimalType(38, 0),
+        new TimestampType(9),
+        new DecimalType(38, 0)),
+      Array(1, 2, 0)
+    ).newInstance(classLoader).asInstanceOf[Projection[RowData, BinaryRowData]]
+
+    val decimal = DecimalData.fromBigDecimal(java.math.BigDecimal.valueOf(123), 38, 0)
+    val timestamp = TimestampData.fromEpochMillis(123)
+
+    val expected: BinaryRowData = new BinaryRowData(3)
+    val writer: BinaryRowWriter = new BinaryRowWriter(expected)
+    writer.writeDecimal(0, decimal, 38)
+    writer.writeTimestamp(1, timestamp, 9)
+    writer.writeDecimal(2, decimal, 38)
+    writer.complete()
+
+    val actual: BinaryRowData = projection.apply(GenericRowData.of(decimal, decimal, timestamp))
+    Assert.assertEquals(expected, actual)
   }
 
   def ji(i: Int): Integer = {

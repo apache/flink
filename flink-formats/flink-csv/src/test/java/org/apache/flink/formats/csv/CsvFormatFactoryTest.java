@@ -32,7 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -65,7 +65,7 @@ public class CsvFormatFactoryTest extends TestLogger {
 	@Test
 	public void testSeDeSchema() {
 		final CsvRowDataDeserializationSchema expectedDeser =
-				new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, new RowDataTypeInfo(ROW_TYPE))
+				new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
 						.setFieldDelimiter(';')
 						.setQuoteCharacter('\'')
 						.setAllowComments(true)

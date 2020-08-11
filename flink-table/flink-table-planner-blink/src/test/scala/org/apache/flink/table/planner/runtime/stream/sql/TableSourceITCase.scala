@@ -44,13 +44,13 @@ class TableSourceITCase extends StreamingTestBase {
          |  `c` STRING
          |) WITH (
          |  'connector' = 'values',
-         |  'data-id' = '$myTableDataId'
+         |  'data-id' = '$myTableDataId',
+         |  'bounded' = 'false'
          |)
          |""".stripMargin)
 
     val filterableTableDataId = TestValuesTableFactory.registerData(
-      TestFilterableTableSource.defaultRows)
-    // TODO: [FLINK-17425] support filter pushdown for TestValuesTableSource
+      TestLegacyFilterableTableSource.defaultRows)
     tEnv.executeSql(
       s"""
          |CREATE TABLE FilterableTable (
@@ -60,7 +60,9 @@ class TableSourceITCase extends StreamingTestBase {
          |  price DOUBLE
          |) WITH (
          |  'connector' = 'values',
-         |  'data-id' = '$filterableTableDataId'
+         |  'filterable-fields' = 'amount',
+         |  'data-id' = '$filterableTableDataId',
+         |  'bounded' = 'false'
          |)
          |""".stripMargin)
   }
@@ -161,26 +163,26 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    val query = "SELECT id, name FROM FilterableTable WHERE amount > 4 AND price < 9"
+    val query = "SELECT id, amount, name FROM FilterableTable WHERE amount > 4 AND price < 9"
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
+    val expected = Seq("5,5,Record_5", "6,6,Record_6", "7,7,Record_7", "8,8,Record_8")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testTableSourceWithFunctionFilterable(): Unit = {
-    val query = "SELECT id, name FROM FilterableTable " +
+    val query = "SELECT id, amount, name FROM FilterableTable " +
       "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'"
     val result = tEnv.sqlQuery(query).toAppendStream[Row]
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    val expected = Seq("5,Record_5")
+    val expected = Seq("5,5,Record_5")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -261,36 +263,5 @@ class TableSourceITCase extends StreamingTestBase {
       "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
     )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
-  }
-
-  @Test
-  def testChangelogSource(): Unit = {
-    val dataId = TestValuesTableFactory.registerData(TestData.userChangelog)
-    val ddl =
-      s"""
-         |CREATE TABLE user_logs (
-         |  user_id STRING,
-         |  user_name STRING,
-         |  email STRING,
-         |  balance DECIMAL(18,2),
-         |  balance2 AS balance * 2
-         |) WITH (
-         | 'connector' = 'values',
-         | 'data-id' = '$dataId',
-         | 'changelog-mode' = 'I,UA,UB,D'
-         |)
-         |""".stripMargin
-    tEnv.executeSql(ddl)
-
-    val result = tEnv.sqlQuery("SELECT * FROM user_logs").toRetractStream[Row]
-    val sink = new TestingRetractSink()
-    result.addSink(sink).setParallelism(result.parallelism)
-    env.execute()
-
-    val expected = Seq(
-      "user1,Tom,tom123@gmail.com,8.10,16.20",
-      "user3,Bailey,bailey@qq.com,9.99,19.98",
-      "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 }

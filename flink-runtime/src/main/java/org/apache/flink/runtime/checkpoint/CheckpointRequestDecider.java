@@ -136,25 +136,17 @@ class CheckpointRequestDecider {
 				.map(unused -> queuedRequests.pollFirst());
 		}
 
-		long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
-		if (nextTriggerDelayMillis > 0) {
-			return onTooEarly(nextTriggerDelayMillis);
+		CheckpointTriggerRequest first = queuedRequests.first();
+		if (!first.isForce() && first.isPeriodic) {
+			long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
+			if (nextTriggerDelayMillis > 0) {
+				queuedRequests.pollFirst().completeExceptionally(new CheckpointException(MINIMUM_TIME_BETWEEN_CHECKPOINTS));
+				rescheduleTrigger.accept(nextTriggerDelayMillis);
+				return Optional.empty();
+			}
 		}
 
 		return Optional.of(queuedRequests.pollFirst());
-	}
-
-	private Optional<CheckpointTriggerRequest> onTooEarly(long nextTriggerDelayMillis) {
-		CheckpointTriggerRequest first = queuedRequests.first();
-		if (first.isForce()) {
-			return Optional.of(queuedRequests.pollFirst());
-		} else if (first.isPeriodic) {
-			queuedRequests.pollFirst().completeExceptionally(new CheckpointException(MINIMUM_TIME_BETWEEN_CHECKPOINTS));
-			rescheduleTrigger.accept(nextTriggerDelayMillis);
-			return Optional.empty();
-		} else {
-			return Optional.empty();
-		}
 	}
 
 	private long nextTriggerDelayMillis(long lastCheckpointCompletionRelativeTime) {

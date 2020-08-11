@@ -31,7 +31,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -65,7 +65,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 	public void testSeDeSchema() {
 		final DebeziumJsonDeserializationSchema expectedDeser = new DebeziumJsonDeserializationSchema(
 			ROW_TYPE,
-			new RowDataTypeInfo(ROW_TYPE),
+			InternalTypeInfo.of(ROW_TYPE),
 			true,
 			true,
 			TimestampFormat.ISO_8601);

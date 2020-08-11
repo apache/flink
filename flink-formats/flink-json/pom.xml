@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-json</artifactId>
-	<name>flink-json</name>
+	<name>Flink : Formats : Json</name>
 
 	<packaging>jar</packaging>
 

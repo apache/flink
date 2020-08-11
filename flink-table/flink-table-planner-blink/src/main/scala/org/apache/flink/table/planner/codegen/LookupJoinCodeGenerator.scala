@@ -197,7 +197,7 @@ object LookupJoinCodeGenerator {
           boxedTypeTermForType(e.resultType)
         }
         val assign = if (isExternalArgs) {
-          CodeGenUtils.genToExternal(ctx, dataType, e.resultTerm)
+          CodeGenUtils.genToExternalConverter(ctx, dataType, e.resultTerm)
         } else {
           e.resultTerm
         }

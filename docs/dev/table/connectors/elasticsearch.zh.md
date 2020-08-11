@@ -42,8 +42,8 @@ In order to setup the Elasticsearch connector, the following table provides depe
 
 | Elasticsearch Version   | Maven dependency                                                   | SQL Client JAR         |
 | :---------------------- | :----------------------------------------------------------------- | :----------------------|
-| 6.x                     | `flink-connector-elasticsearch6{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/elasticsearch.html) {% endif %}|
-| 7.x and later versions  | `flink-connector-elasticsearch7{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-elasticsearch7{{site.scala_version_suffix}}/{{site.version}}/flink-connector-elasticsearch7{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/elasticsearch.html) {% endif %}|
+| 6.x                     | `flink-connector-elasticsearch6{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch6{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/elasticsearch.html) {% endif %}|
+| 7.x and later versions  | `flink-connector-elasticsearch7{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-elasticsearch7{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/elasticsearch.html) {% endif %}|
 
 <br>
 <span class="label label-danger">Attention</span> Elasticsearch connector works with JSON format which defines how to encode documents for the external system, therefore, it must be added as a [dependency]({% link dev/table/connectors/formats/index.zh.md %}).
@@ -125,6 +125,20 @@ Connector Options
       <td style="word-wrap: break-word;">_</td>
       <td>String</td>
       <td>Delimiter for composite keys ("_" by default), e.g., "$" would result in IDs "KEY1$KEY2$KEY3"."</td>
+    </tr>
+    <tr>
+      <td><h5>username</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Username used to connect to Elasticsearch instance. Please notice that Elasticsearch doesn't pre-bundled security feature, but you can enable it by following the <a href="https://www.elastic.co/guide/en/elasticsearch/reference/master/configuring-security.html">guideline</a> to secure an Elasticsearch cluster.</td>
+    </tr>
+    <tr>
+      <td><h5>password</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>Password used to connect to Elasticsearch instance. If <code>username</code> is configured, this option must be configured with non-empty string as well.</td>
     </tr>
     <tr>
       <td><h5>failure-handler</h5></td>

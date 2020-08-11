@@ -146,7 +146,8 @@ class DistinctAggCodeGen(
       val code =
         s"""
            |$MAP_VIEW $mapViewTerm = new $MAP_VIEW();
-           |$BINARY_RAW_VALUE $accTerm = ${genToInternal(ctx, externalAccType, mapViewTerm)};
+           |$BINARY_RAW_VALUE $accTerm = ${genToInternalConverter(
+              ctx, externalAccType, mapViewTerm)};
          """.stripMargin
 
       Seq(GeneratedExpression(accTerm, NEVER_NULL, code, internalAccType))
@@ -181,7 +182,8 @@ class DistinctAggCodeGen(
       val accTerm = newName("distinct_acc")
       val code =
         s"""
-           |$BINARY_RAW_VALUE $accTerm = ${genToInternal(ctx, externalAccType, distinctAccTerm)};
+           |$BINARY_RAW_VALUE $accTerm = ${genToInternalConverter(
+              ctx, externalAccType, distinctAccTerm)};
          """.stripMargin
 
       Seq(GeneratedExpression(
@@ -487,7 +489,8 @@ class DistinctAggCodeGen(
                  |${expr.code}
                  |$otherMapViewTerm = null;
                  |if (!${expr.nullTerm}) {
-                 | $otherMapViewTerm = ${genToExternal(ctx, externalAccType, expr.resultTerm)};
+                 | $otherMapViewTerm = ${genToExternalConverter(
+                      ctx, externalAccType, expr.resultTerm)};
                  |}
                """.stripMargin
             GeneratedExpression(otherMapViewTerm, expr.nullTerm, code, internalAccType)

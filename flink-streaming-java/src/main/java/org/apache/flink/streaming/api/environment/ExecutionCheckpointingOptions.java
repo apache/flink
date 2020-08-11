@@ -138,8 +138,9 @@ public class ExecutionCheckpointingOptions {
 					"the stream of data anymore.")
 				.linebreak()
 				.linebreak()
-				.text("Unaligned checkpoints can only be enabled if %s is %s",
+				.text("Unaligned checkpoints can only be enabled if %s is %s and if %s is 1",
 					TextElement.code(CHECKPOINTING_MODE.key()),
-					TextElement.code(CheckpointingMode.EXACTLY_ONCE.toString()))
+					TextElement.code(CheckpointingMode.EXACTLY_ONCE.toString()),
+					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
 				.build());
 }

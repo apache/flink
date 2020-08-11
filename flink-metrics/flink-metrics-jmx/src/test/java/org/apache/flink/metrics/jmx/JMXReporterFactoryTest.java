@@ -17,6 +17,7 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.metrics.util.MetricReporterTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -60,5 +61,10 @@ public class JMXReporterFactoryTest extends TestLogger {
 		} finally {
 			metricReporter.close();
 		}
+	}
+
+	@Test
+	public void testMetricReporterSetupViaSPI() {
+		MetricReporterTestUtils.testMetricReporterSetupViaSPI(JMXReporterFactory.class);
 	}
 }

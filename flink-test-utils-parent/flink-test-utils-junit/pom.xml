@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-test-utils-junit</artifactId>
-	<name>flink-test-utils-junit</name>
+	<name>Flink : Test utils : Junit</name>
 
 	<packaging>jar</packaging>
 

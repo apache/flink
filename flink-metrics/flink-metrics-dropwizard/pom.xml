@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-dropwizard</artifactId>
-	<name>flink-metrics-dropwizard</name>
+	<name>Flink : Metrics : Dropwizard</name>
 
 	<dependencies>
 		<dependency>

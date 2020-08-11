@@ -24,7 +24,7 @@
 #
 # Creates multi-node, kerberized Hadoop cluster on Docker
 
-FROM sequenceiq/pam:ubuntu-14.04
+FROM openjdk:8
 
 RUN set -x \
     && addgroup hadoop \
@@ -35,7 +35,7 @@ RUN set -x \
 
 # install dev tools
 RUN set -x \
-    && apt-get update && apt-get install -y \
+    && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl tar sudo openssh-server openssh-client rsync unzip krb5-user
 
 # Kerberos client
@@ -51,19 +51,7 @@ RUN set -x \
     && ssh-keygen -q -N "" -t rsa -f /root/.ssh/id_rsa \
     && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
 
-# java
-RUN set -x \
-    && mkdir -p /usr/java/default \
-    && curl -Ls 'http://download.oracle.com/otn-pub/java/jdk/8u131-b11/d54c1d3a095b4ff2b6607d096fa80163/jdk-8u131-linux-x64.tar.gz' -H 'Cookie: oraclelicense=accept-securebackup-cookie' | \
-        tar --strip-components=1 -xz -C /usr/java/default/
-
-ENV JAVA_HOME /usr/java/default
-ENV PATH $PATH:$JAVA_HOME/bin
-
-RUN set -x \
-    && curl -LOH 'Cookie: oraclelicense=accept-securebackup-cookie' 'http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip' \
-    && unzip jce_policy-8.zip \
-    && cp /UnlimitedJCEPolicyJDK8/local_policy.jar /UnlimitedJCEPolicyJDK8/US_export_policy.jar $JAVA_HOME/jre/lib/security
+RUN sed -i 's/^#crypto.policy=unlimited/crypto.policy=unlimited/' $JAVA_HOME/jre/lib/security/java.security
 
 ARG HADOOP_VERSION=2.8.4
 

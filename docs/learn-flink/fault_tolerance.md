@@ -139,7 +139,7 @@ checkpoint, it has all of the sources record their offsets and insert numbered _
 into their streams. These barriers flow through the job graph, indicating the part of the stream
 before and after each checkpoint. 
 
-<img src="{{ site.baseurl }}/fig/stream_barriers.svg" alt="Checkpoint barriers are inserted into the streams" class="center" width="80%" />
+<img src="{% link /fig/stream_barriers.svg %}" alt="Checkpoint barriers are inserted into the streams" class="center" width="80%" />
 
 Checkpoint _n_ will contain the state of each operator that resulted from having consumed **every
 event before checkpoint barrier _n_, and none of the events after it**.
@@ -149,7 +149,7 @@ with two input streams (such as a `CoProcessFunction`) perform _barrier alignmen
 snapshot will reflect the state resulting from consuming events from both input streams up to (but
 not past) both barriers.
 
-<img src="{{ site.baseurl }}/fig/stream_aligning.svg" alt="Barrier alignment" class="center" width="100%" />
+<img src="{% link /fig/stream_aligning.svg %}" alt="Barrier alignment" class="center" width="100%" />
 
 Flink's state backends use a copy-on-write mechanism to allow stream processing to continue
 unimpeded while older versions of the state are being asynchronously snapshotted. Only when the

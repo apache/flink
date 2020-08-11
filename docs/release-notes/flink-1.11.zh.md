@@ -29,10 +29,24 @@ these notes carefully if you are planning to upgrade your Flink version to 1.11.
 {:toc}
 
 ### Clusters & Deployment
+#### Support for Application Mode ([FLIP-85](https://cwiki.apache.org/confluence/display/FLINK/FLIP-85+Flink+Application+Mode))
+The user can now submit applications and choose to execute their `main()` method on the cluster rather than the client.
+This allows for more light-weight application submission. For more details,
+see the [Application Mode documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/#application-mode).
+ 
+#### Web Submission behaves the same as detached mode.
+With [FLINK-16657](https://issues.apache.org/jira/browse/FLINK-16657) the web submission logic changes and it exposes
+the same behavior as submitting a job through the CLI in detached mode. This implies that, for instance, jobs based on 
+the DataSet API that were using sinks like `print()`, `count()` or `collect()` will now throw an exception while 
+before the output was simply never printed. See also comments on related [PR](https://github.com/apache/flink/pull/11460).
+
 #### Support for Hadoop 3.0.0 and higher ([FLINK-11086](https://issues.apache.org/jira/browse/FLINK-11086))
 Flink project does not provide any updated "flink-shaded-hadoop-*" jars.
 Users need to provide Hadoop dependencies through the HADOOP_CLASSPATH environment variable (recommended) or via `lib/` folder.
 Also, the `include-hadoop` Maven profile has been removed.
+
+#### `flink-csv` and `flink-json` are bundled in lib folder ([FLINK-18173](https://issues.apache.org/jira/browse/FLINK-18173))
+There is no need to download manually jar files for `flink-csv` and `flink-json` formats as they are now bundled in the `lib` folder.
 
 #### Removal of `LegacyScheduler` ([FLINK-15629](https://issues.apache.org/jira/browse/FLINK-15629))
 Flink no longer supports the legacy scheduler. 
@@ -61,13 +75,15 @@ Check the updated user documentation for [Flink Docker integration](https://ci.a
 - [standalone Kubernetes](https://ci.apache.org/projects/flink/flink-docs-master/ops/deployment/kubernetes.html)
 
 ### Memory Management
-#### New Flink Master Memory Model
+#### New JobManager Memory Model
 ##### Overview
-With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Unified+Memory+Configuration+for+Job+Managers), a new memory model has been introduced for the Flink Master. New configuration options have been introduced to control the memory consumption of the Flink Master process. This affects all types of deployments: standalone, YARN, Mesos, and the new active Kubernetes integration.
+With [FLIP-116](https://cwiki.apache.org/confluence/display/FLINK/FLIP-116%3A+Unified+Memory+Configuration+for+Job+Managers), a new memory model has been introduced for the JobManager. New configuration options have been introduced to control the memory consumption of the JobManager process. This affects all types of deployments: standalone, YARN, Mesos, and the new active Kubernetes integration.
 
-Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_master.html).
+Please, check the user documentation for [more details](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html).
 
-If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures. See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#migrate-job-manager-memory-configuration).
+If you try to reuse your previous Flink configuration without any adjustments, the new memory model can result in differently computed memory parameters for the JVM and, thus, performance changes or even failures.
+In order to start the JobManager process, you have to specify at least one of the following options [`jobmanager.memory.flink.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-flink-size), [`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size) or [`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size).
+See also [the migration guide](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#migrate-job-manager-memory-configuration) for more information.
 
 ##### Deprecation and breaking changes
 The following options are deprecated:
@@ -75,8 +91,8 @@ The following options are deprecated:
  * `jobmanager.heap.mb`
 
 If these deprecated options are still used, they will be interpreted as one of the following new options in order to maintain backwards compatibility:
- * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_master.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
- * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_master.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
+ * [JVM Heap](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html#configure-jvm-heap) ([`jobmanager.memory.heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-heap-size)) for standalone and Mesos deployments
+ * [Total Process Memory](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_setup_jobmanager.html#configure-total-memory) ([`jobmanager.memory.process.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-process-size)) for containerized deployments (Kubernetes and Yarn)
 
 The following options have been removed and have no effect anymore:
  * `containerized.heap-cutoff-ratio`
@@ -85,7 +101,7 @@ The following options have been removed and have no effect anymore:
 There is [no container cut-off](https://ci.apache.org/projects/flink/flink-docs-master/ops/memory/mem_migration.html#container-cut-off-memory) anymore.
 
 ##### JVM arguments
-The `direct` and `metaspace` memory of the Flink Master's JVM process are now limited by configurable values:
+The `direct` and `metaspace` memory of the JobManager's JVM process are now limited by configurable values:
  * [`jobmanager.memory.off-heap.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-off-heap-size)
  * [`jobmanager.memory.jvm-metaspace.size`](https://ci.apache.org/projects/flink/flink-docs-master/ops/config.html#jobmanager-memory-jvm-metaspace-size)
 

@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -276,7 +276,7 @@ public class CsvRowDataSerDeSchemaTest {
 
 		// deserialization
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-			new CsvRowDataDeserializationSchema.Builder(rowType, new RowDataTypeInfo(rowType));
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
 		deserializationConfig.accept(deserSchemaBuilder);
 		RowData deserializedRow = deserialize(deserSchemaBuilder, expectedCsv);
 
@@ -304,7 +304,7 @@ public class CsvRowDataSerDeSchemaTest {
 
 		// deserialization
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-			new CsvRowDataDeserializationSchema.Builder(rowType, new RowDataTypeInfo(rowType));
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
 		deserializationConfig.accept(deserSchemaBuilder);
 		RowData deserializedRow = deserialize(deserSchemaBuilder, csv);
 		Row actualRow = (Row) DataFormatConverters.getConverterForDataType(dataType)
@@ -323,7 +323,7 @@ public class CsvRowDataSerDeSchemaTest {
 			FIELD("f2", STRING()));
 		RowType rowType = (RowType) dataType.getLogicalType();
 		CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
-			new CsvRowDataDeserializationSchema.Builder(rowType, new RowDataTypeInfo(rowType))
+			new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType))
 				.setIgnoreParseErrors(allowParsingErrors)
 				.setAllowComments(allowComments);
 		RowData deserializedRow = deserialize(deserSchemaBuilder, string);

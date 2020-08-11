@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
-	<name>flink-metrics-jmx</name>
+	<name>Flink : Metrics : JMX</name>
 
 	<dependencies>
 		<dependency>

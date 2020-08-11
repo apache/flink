@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -81,7 +81,7 @@ class BatchExecTableSourceScan(
       env: StreamExecutionEnvironment,
       inputFormat: InputFormat[RowData, _],
       name: String,
-      outTypeInfo: RowDataTypeInfo): Transformation[RowData] = {
+      outTypeInfo: InternalTypeInfo[RowData]): Transformation[RowData] = {
     // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
     // paths. If read partitioned source, after partition pruning, we need let InputFormat
     // to read multiple partitions which are multiple paths.

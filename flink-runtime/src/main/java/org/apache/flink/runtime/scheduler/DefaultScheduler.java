@@ -38,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -114,7 +115,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
 		final ExecutionVertexOperations executionVertexOperations,
 		final ExecutionVertexVersioner executionVertexVersioner,
-		final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory) throws Exception {
+		final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
+		final ExecutionDeploymentTracker executionDeploymentTracker) throws Exception {
 
 		super(
 			log,
@@ -134,6 +136,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			shuffleMaster,
 			partitionTracker,
 			executionVertexVersioner,
+			executionDeploymentTracker,
 			false);
 
 		this.log = log;

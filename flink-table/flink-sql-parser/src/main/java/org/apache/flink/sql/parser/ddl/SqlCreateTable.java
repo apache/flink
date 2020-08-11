@@ -85,8 +85,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			@Nullable SqlWatermark watermark,
 			@Nullable SqlCharStringLiteral comment,
 			@Nullable SqlTableLike tableLike,
-			boolean isTemporary) {
-		super(OPERATOR, pos, false, false);
+			boolean isTemporary,
+			boolean ifNotExists) {
+		super(OPERATOR, pos, false, ifNotExists);
 		this.tableName = requireNonNull(tableName, "tableName should not be null");
 		this.columnList = requireNonNull(columnList, "columnList should not be null");
 		this.tableConstraints = requireNonNull(tableConstraints, "table constraints should not be null");
@@ -256,6 +257,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			writer.keyword("TEMPORARY");
 		}
 		writer.keyword("TABLE");
+		if (isIfNotExists()) {
+			writer.keyword("IF NOT EXISTS");
+		}
 		tableName.unparse(writer, leftPrec, rightPrec);
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
 		for (SqlNode column : columnList) {

@@ -271,26 +271,64 @@ public final class FactoryUtil {
 	 * <p>Note: It does not check for left-over options.
 	 */
 	public static void validateFactoryOptions(Factory factory, ReadableConfig options) {
+		validateFactoryOptions(factory.requiredOptions(), factory.optionalOptions(), options);
+	}
+
+	/**
+	 * Validates the required options and optional options.
+	 *
+	 * <p>Note: It does not check for left-over options.
+	 */
+	public static void validateFactoryOptions(
+			Set<ConfigOption<?>> requiredOptions,
+			Set<ConfigOption<?>> optionalOptions,
+			ReadableConfig options) {
 		// currently Flink's options have no validation feature which is why we access them eagerly
 		// to provoke a parsing error
 
-		final List<String> missingRequiredOptions = factory.requiredOptions().stream()
-			.filter(option -> readOption(options, option) == null)
-			.map(ConfigOption::key)
-			.sorted()
-			.collect(Collectors.toList());
+		final List<String> missingRequiredOptions = requiredOptions.stream()
+				.filter(option -> readOption(options, option) == null)
+				.map(ConfigOption::key)
+				.sorted()
+				.collect(Collectors.toList());
 
 		if (!missingRequiredOptions.isEmpty()) {
 			throw new ValidationException(
-				String.format(
-					"One or more required options are missing.\n\n" +
-					"Missing required options are:\n\n" +
-					"%s",
-					String.join("\n", missingRequiredOptions)));
+					String.format(
+							"One or more required options are missing.\n\n" +
+									"Missing required options are:\n\n" +
+									"%s",
+							String.join("\n", missingRequiredOptions)));
 		}
 
-		factory.optionalOptions()
-			.forEach(option -> readOption(options, option));
+		optionalOptions.forEach(option -> readOption(options, option));
+	}
+
+	/**
+	 * Validates unconsumed option keys.
+	 */
+	public static void validateUnconsumedKeys(
+			String factoryIdentifier,
+			Set<String> allOptionKeys,
+			Set<String> consumedOptionKeys) {
+		final Set<String> remainingOptionKeys = new HashSet<>(allOptionKeys);
+		remainingOptionKeys.removeAll(consumedOptionKeys);
+		if (remainingOptionKeys.size() > 0) {
+			throw new ValidationException(
+					String.format(
+							"Unsupported options found for connector '%s'.\n\n" +
+									"Unsupported options:\n\n" +
+									"%s\n\n" +
+									"Supported options:\n\n" +
+									"%s",
+							factoryIdentifier,
+							remainingOptionKeys.stream()
+									.sorted()
+									.collect(Collectors.joining("\n")),
+							consumedOptionKeys.stream()
+									.sorted()
+									.collect(Collectors.joining("\n"))));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -480,24 +518,7 @@ public final class FactoryUtil {
 		 */
 		public void validate() {
 			validateFactoryOptions(tableFactory, allOptions);
-			final Set<String> remainingOptionKeys = new HashSet<>(allOptions.keySet());
-			remainingOptionKeys.removeAll(consumedOptionKeys);
-			if (remainingOptionKeys.size() > 0) {
-				throw new ValidationException(
-					String.format(
-						"Unsupported options found for connector '%s'.\n\n" +
-						"Unsupported options:\n\n" +
-						"%s\n\n" +
-						"Supported options:\n\n" +
-						"%s",
-						tableFactory.factoryIdentifier(),
-						remainingOptionKeys.stream()
-							.sorted()
-							.collect(Collectors.joining("\n")),
-						consumedOptionKeys.stream()
-							.sorted()
-							.collect(Collectors.joining("\n"))));
-			}
+			validateUnconsumedKeys(tableFactory.factoryIdentifier(), allOptions.keySet(), consumedOptionKeys);
 		}
 
 		/**

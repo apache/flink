@@ -31,7 +31,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-cli-test_${scala.binary.version}</artifactId>
-	<name>flink-cli-test</name>
+	<name>Flink : E2E Tests : CLI</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-	<name>flink-runtime</name>
+	<name>Flink : Runtime</name>
 
 	<packaging>jar</packaging>
 
@@ -503,6 +503,7 @@ under the License.
 					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
 					<gitDescribe>
 						<!-- Don't generate the describe property -->
 						<!-- It is useless due to the way Flink does branches and tags -->
@@ -546,22 +547,17 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<!-- add akka, akka's netty, akka uncommon math -->
+									<!-- add akka, akka's netty -->
 									<!-- we can do this only because our own netty dependency is
 										already externally shaded (flink-shaded-netty) -->
 									<include>com.typesafe.akka:akka-remote_*</include>
 									<include>io.netty:netty</include>
-									<include>org.uncommons.maths:uncommons-maths</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.shaded.akka.org.jboss.netty</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.uncommons.math</pattern>
-									<shadedPattern>org.apache.flink.shaded.akka.org.uncommons.math</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
@@ -580,7 +576,6 @@ under the License.
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>META-INF/maven/io.netty/**</exclude>
-										<exclude>META-INF/maven/org.uncommons.maths/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

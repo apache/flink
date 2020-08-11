@@ -75,6 +75,8 @@ public class TestingExecutionGraphBuilder {
 	private JobGraph jobGraph = new JobGraph();
 	private MetricGroup metricGroup = new UnregisteredMetricsGroup();
 	private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
+	private ExecutionDeploymentListener executionDeploymentListener = NoOpExecutionDeploymentListener.get();
+	private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
 
 	private TestingExecutionGraphBuilder() {
 
@@ -155,6 +157,16 @@ public class TestingExecutionGraphBuilder {
 		return this;
 	}
 
+	public TestingExecutionGraphBuilder setExecutionDeploymentListener(ExecutionDeploymentListener executionDeploymentListener) {
+		this.executionDeploymentListener = executionDeploymentListener;
+		return this;
+	}
+
+	public TestingExecutionGraphBuilder setExecutionStateUpdateListener(ExecutionStateUpdateListener executionStateUpdateListener) {
+		this.executionStateUpdateListener = executionStateUpdateListener;
+		return this;
+	}
+
 	public ExecutionGraph build() throws JobException, JobExecutionException {
 		return ExecutionGraphBuilder.buildGraph(
 			null,
@@ -173,7 +185,9 @@ public class TestingExecutionGraphBuilder {
 			LOG,
 			shuffleMaster,
 			partitionTracker,
-			failoverStrategyFactory);
+			failoverStrategyFactory,
+			executionDeploymentListener,
+			executionStateUpdateListener);
 	}
 
 }

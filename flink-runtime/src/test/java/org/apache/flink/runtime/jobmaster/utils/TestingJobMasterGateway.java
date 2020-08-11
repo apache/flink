@@ -50,7 +50,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
@@ -112,7 +112,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	private final BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction;
 
 	@Nonnull
-	private final BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer;
+	private final BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload> taskManagerHeartbeatConsumer;
 
 	@Nonnull
 	private final Consumer<ResourceID> resourceManagerHeartbeatConsumer;
@@ -175,7 +175,7 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 			@Nonnull BiFunction<ResourceID, Collection<SlotOffer>, CompletableFuture<Collection<SlotOffer>>> offerSlotsFunction,
 			@Nonnull TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer,
 			@Nonnull BiFunction<String, UnresolvedTaskManagerLocation, CompletableFuture<RegistrationResponse>> registerTaskManagerFunction,
-			@Nonnull BiConsumer<ResourceID, AccumulatorReport> taskManagerHeartbeatConsumer,
+			@Nonnull BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload> taskManagerHeartbeatConsumer,
 			@Nonnull Consumer<ResourceID> resourceManagerHeartbeatConsumer,
 			@Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
 			@Nonnull Supplier<CompletableFuture<ArchivedExecutionGraph>> requestJobSupplier,
@@ -274,8 +274,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
-	public void heartbeatFromTaskManager(ResourceID resourceID, AccumulatorReport accumulatorReport) {
-		taskManagerHeartbeatConsumer.accept(resourceID, accumulatorReport);
+	public void heartbeatFromTaskManager(ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
+		taskManagerHeartbeatConsumer.accept(resourceID, payload);
 	}
 
 	@Override

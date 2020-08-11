@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
@@ -46,7 +46,7 @@ public class RowTimeSortOperatorTest {
 
 	@Test
 	public void testSortOnTwoFields() throws Exception {
-		RowDataTypeInfo inputRowType = new RowDataTypeInfo(
+		InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(
 				new IntType(),
 				new BigIntType(),
 				new VarCharType(VarCharType.MAX_LENGTH),
@@ -65,7 +65,7 @@ public class RowTimeSortOperatorTest {
 			}
 		};
 
-		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
+		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, gComparator);
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
@@ -129,13 +129,13 @@ public class RowTimeSortOperatorTest {
 
 	@Test
 	public void testOnlySortOnRowTime() throws Exception {
-		RowDataTypeInfo inputRowType = new RowDataTypeInfo(
+		InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(
 				new BigIntType(),
 				new BigIntType(),
 				new VarCharType(VarCharType.MAX_LENGTH),
 				new IntType());
 		int rowTimeIdx = 0;
-		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
+		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 		RowTimeSortOperator operator = createSortOperator(inputRowType, rowTimeIdx, null);
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 		testHarness.open();
@@ -194,7 +194,7 @@ public class RowTimeSortOperatorTest {
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
-	private RowTimeSortOperator createSortOperator(RowDataTypeInfo inputRowType, int rowTimeIdx,
+	private RowTimeSortOperator createSortOperator(InternalTypeInfo<RowData> inputRowType, int rowTimeIdx,
 			GeneratedRecordComparator gComparator) {
 		return new RowTimeSortOperator(inputRowType, rowTimeIdx, gComparator);
 	}

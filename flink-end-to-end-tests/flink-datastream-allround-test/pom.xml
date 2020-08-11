@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-datastream-allround-test</artifactId>
-	<name>flink-datastream-allround-test</name>
+	<name>Flink : E2E Tests : Datastream allround</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

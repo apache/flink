@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.sinks.TableSinkUtils
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext
 import org.apache.flink.table.runtime.operators.sink.SinkOperator
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConversions._
@@ -64,7 +64,7 @@ class CommonPhysicalSink (
       tableConfig: TableConfig,
       rowtimeFieldIndex: Int,
       isBounded: Boolean): Transformation[Any] = {
-    val inputTypeInfo = new RowDataTypeInfo(FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
+    val inputTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val runtimeProvider = tableSink.getSinkRuntimeProvider(
       new SinkRuntimeProviderContext(isBounded))
     val sinkFunction = runtimeProvider match {

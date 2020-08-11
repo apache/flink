@@ -78,17 +78,17 @@ CREATE TABLE datagen (
 </div>
 
 
-连接器选项
+连接器参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认参数</th>
+        <th class="text-center" style="width: 10%">数据类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
