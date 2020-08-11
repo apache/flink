@@ -519,6 +519,17 @@ class KeyedStream(DataStream):
         ))
 
     def _values(self):
+    def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
+        return self._values().filter(func)
+
+    def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
+        return self._values().add_sink(sink_func)
+
+    def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type_info: TypeInformation = None) -> 'KeyedStream':
+        return self._values().key_by(key_selector, key_type_info)
+
+    def _values(self) -> 'DataStream':
         """
         Since python KeyedStream is in the format of Row(key_value, original_data), it is used for
         getting the original_data.
