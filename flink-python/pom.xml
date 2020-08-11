@@ -459,6 +459,7 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/DataStreamTestCollectSink.class</include>
+								<include>**/MyCustomSourceFunction.class</include>
 							</includes>
 							<outputDirectory>
 								${project.build.directory}/data-stream-test

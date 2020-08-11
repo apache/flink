@@ -210,6 +210,20 @@ class JavaFunctionWrapper(object):
         return self._j_function
 
 
+class SourceFunction(JavaFunctionWrapper):
+    """
+    Base class for all stream data source in Flink.
+    """
+
+    def __init__(self, source_func: Union[str, JavaObject]):
+        """
+        Constructor of SinkFunction.
+
+        :param source_func: The java SourceFunction object.
+        """
+        super(SourceFunction, self).__init__(source_func)
+
+
 class SinkFunction(JavaFunctionWrapper):
     """
     The base class for SinkFunctions.
