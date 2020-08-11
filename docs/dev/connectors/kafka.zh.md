@@ -468,6 +468,11 @@ stream.addSink(myProducer)
  * *自定义分区器*：要将消息分配给特定的分区，可以向构造函数提供一个 `FlinkKafkaPartitioner` 的实现。这个分区器将被流中的每条记录调用，以确定消息应该发送到目标 topic 的哪个具体分区里。有关详细信息，请参阅 [Kafka Producer 分区方案](#kafka-producer-分区方案)。
  * *高级的序列化 schema*：与 consumer 类似，producer 还允许使用名为 `KeyedSerializationSchema` 的高级序列化 schema，该 schema 允许单独序列化 key 和 value。它还允许覆盖目标 topic，以便 producer 实例可以将数据发送到多个 topic。
 
+### Kafka Producer 分区发现
+Flink Kafka Consumer 支持发现动态创建的 Kafka 分区。默认情况下，是禁用了分区发现的。若要启用它，请在提供的属性配置中为 `flink.partition-discovery.interval-millis` 设置大于 0 的值，表示发现分区的间隔是以毫秒为单位的。
+
+**注意**：实际的时间间隔取决于 kafka 参数 `metadata.max.age.ms` 和 flink 参数 `flink.partition-discovery.interval-millis` 中的较大者。
+
 ### Kafka Producer 分区方案
 
 默认情况下，如果没有为 Flink Kafka Producer 指定自定义分区程序，则 producer 将使用 `FlinkFixedPartitioner` 为每个 Flink Kafka Producer 并行子任务映射到单个 Kafka 分区（即，接收子任务接收到的所有消息都将位于同一个 Kafka 分区中）。
