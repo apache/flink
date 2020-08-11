@@ -22,19 +22,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-It supports to convert between PyFlink Table and Pandas DataFrame.
+它支持在PyFlink表和Pandas DataFrame之间进行转换。 
 
 * This will be replaced by the TOC
 {:toc}
 
-## Convert Pandas DataFrame to PyFlink Table
+## 将Pandas DataFrame转换为PyFlink表
 
-It supports creating a PyFlink Table from a Pandas DataFrame. Internally, it will serialize the Pandas DataFrame
-using Arrow columnar format at client side and the serialized data will be processed and deserialized in Arrow source
-during execution. The Arrow source could also be used in streaming jobs and it will properly handle the checkpoint
-and provides the exactly once guarantees.
+它支持从Pandas DataFrame创建PyFlink表。在内部，它将在客户端使用
+Arrow列格式对Pandas DataFrame进行序列化，并且序列化的数据将
+在执行期间在Arrow源中进行处理和反序列化。 Arrow源还可以用于流作业中，
+它将正确处理检查点并提供恰好一次的保证。 
 
-The following example shows how to create a PyFlink Table from a Pandas DataFrame:
+以下示例显示如何从Pandas DataFrame创建PyFlink表： 
 
 {% highlight python %}
 import pandas as pd
@@ -58,14 +58,14 @@ table = t_env.from_pandas(pdf,
                                          DataTypes.FIELD("f1", DataTypes.DOUBLE())])
 {% endhighlight %}
 
-## Convert PyFlink Table to Pandas DataFrame
+## 将PyFlink表转换为Pandas DataFrame 
 
-It also supports converting a PyFlink Table to a Pandas DataFrame. Internally, it will materialize the results of the 
-table and serialize them into multiple Arrow batches of Arrow columnar format at client side. The maximum Arrow batch size
-is determined by the config option [python.fn-execution.arrow.batch.size]({{ site.baseurl }}/zh/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size).
-The serialized data will then be converted to Pandas DataFrame.
+它还支持将PyFlink表转换为Pandas DataFrame。在内部，它将具体化表的结果，并
+将其在客户端序列化为Arrow列格式的多个Arrow批次。最大Arrow批处理大小
+由配置选项[python.fn-execution.arrow.batch.size]({{ site.baseurl }}/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size) 确定。然
+后，序列化的数据将转换为Pandas DataFrame。 
 
-The following example shows how to convert a PyFlink Table to a Pandas DataFrame:
+以下示例显示了如何将PyFlink表转换为Pandas DataFrame： 
 
 {% highlight python %}
 import pandas as pd
