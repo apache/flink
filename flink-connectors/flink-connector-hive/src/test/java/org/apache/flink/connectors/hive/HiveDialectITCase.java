@@ -467,8 +467,8 @@ public class HiveDialectITCase {
 
 	@Test
 	public void testShowPartitions() throws Exception {
-		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt date,country string)");
-		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (country string)");
+		tableEnv.executeSql("alter table tbl add partition (country='china') partition (country='us')");
 
 		ObjectPath tablePath = new ObjectPath("default", "tbl");
 		assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
