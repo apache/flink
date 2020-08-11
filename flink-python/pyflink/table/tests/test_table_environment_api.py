@@ -21,9 +21,11 @@ import pathlib
 import sys
 
 from py4j.protocol import Py4JJavaError
+from pyflink.common.typeinfo import Types
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
@@ -392,6 +394,59 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             results.append(f.readline())
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
+
+    def test_from_data_stream(self):
+        self.env.set_parallelism(1)
+
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.STRING(),
+                                                           Types.STRING()]))
+        t_env = self.t_env
+        table = t_env.from_data_stream(ds)
+        field_names = ['a', 'b', 'c']
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink("Sink",
+                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.insert_into("Sink", table)
+        t_env.execute("test_from_data_stream")
+        result = source_sink_utils.results()
+        expected = ['1,Hi,Hello', '2,Hello,Hi']
+        self.assert_equals(result, expected)
+
+    def test_to_append_stream(self):
+        self.env.set_parallelism(1)
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
+        new_table = table.select("a + 1, b + 'flink', c")
+        ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+                                                                          Types.STRING(),
+                                                                          Types.STRING()]))
+        test_sink = DataStreamTestSinkFunction()
+        ds.add_sink(test_sink)
+        self.env.execute("test_to_append_stream")
+        result = test_sink.get_results(False)
+        expected = ['2,Hiflink,Hello', '3,Helloflink,Hi']
+        self.assertEqual(result, expected)
+
+    def test_to_retract_stream(self):
+        self.env.set_parallelism(1)
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+        table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
+        new_table = table.group_by("c").select("a.sum, c as b")
+        ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
+                                                                           Types.STRING()]))
+        test_sink = DataStreamTestSinkFunction()
+        ds.map(lambda x: x).add_sink(test_sink)
+        self.env.execute("test_to_retract_stream")
+        result = test_sink.get_results(True)
+        expected = ["(True, <Row(1, 'Hello')>)", "(False, <Row(1, 'Hello')>)",
+                    "(True, <Row(2, 'Hello')>)"]
+        self.assertEqual(result, expected)
 
     def test_set_jars(self):
         self.verify_set_java_dependencies("pipeline.jars", self.execute_with_t_env)
