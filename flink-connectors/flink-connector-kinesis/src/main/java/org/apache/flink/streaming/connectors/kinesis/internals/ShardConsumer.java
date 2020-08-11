@@ -213,11 +213,11 @@ public class ShardConsumer<T> implements Runnable {
 	 * @return {@code true} if the record should be retained
 	 */
 	private boolean filterDeaggregatedRecord(final UserRecord record) {
-		if (lastSequenceNum.isAggregated()) {
-			return !record.getSequenceNumber().equals(lastSequenceNum.getSequenceNumber()) ||
-				record.getSubSequenceNumber() > lastSequenceNum.getSubSequenceNumber();
+		if (!lastSequenceNum.isAggregated()) {
+			return true;
 		}
 
-		return true;
+		return !record.getSequenceNumber().equals(lastSequenceNum.getSequenceNumber()) ||
+			record.getSubSequenceNumber() > lastSequenceNum.getSubSequenceNumber();
 	}
 }
