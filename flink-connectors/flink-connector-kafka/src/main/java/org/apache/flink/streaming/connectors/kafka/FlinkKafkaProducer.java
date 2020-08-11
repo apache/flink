@@ -1323,7 +1323,7 @@ public class FlinkKafkaProducer<IN>
 				}
 				
 				// do not waste any time sleeping if we're not running anymore
-				if (true && discoveryIntervalMillis != 0) {
+				if (running && discoveryIntervalMillis > 0) {
 					try {
 						Thread.sleep(discoveryIntervalMillis);
 					} catch (InterruptedException iex) {
