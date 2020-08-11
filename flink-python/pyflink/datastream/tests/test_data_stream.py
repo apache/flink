@@ -19,6 +19,7 @@ import decimal
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.functions import FilterFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
@@ -148,6 +149,29 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_filter_without_data_types(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        ds.filter(MyFilterFunction()).add_sink(self.test_sink)
+        self.env.execute("test filter")
+        results = self.test_sink.get_results(True)
+        expected = ["(2, 'Hello', 'Hi')"]
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_filter_with_data_types(self):
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+                                      type_info=Types.ROW(
+                                          [Types.INT(), Types.STRING(), Types.STRING()])
+                                      )
+        ds.filter(lambda x: x[0] % 2 == 0).add_sink(self.test_sink)
+        self.env.execute("test filter")
+        results = self.test_sink.get_results(False)
+        expected = ['2,Hello,Hi']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
     def test_add_sink(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -188,6 +212,19 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_multi_key_by(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds.key_by(MyKeySelector(), key_type_info=Types.INT()).key_by(lambda x: x[0])\
+            .add_sink(self.test_sink)
+
+        self.env.execute("test multi key by")
+        results = self.test_sink.get_results(False)
+        expected = ['d,1', 'c,1', 'a,0', 'b,0', 'e,2']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
     def tearDown(self) -> None:
         self.test_sink.get_results()
 
@@ -209,3 +246,9 @@ class MyFlatMapFunction(FlatMapFunction):
 class MyKeySelector(KeySelector):
     def get_key(self, value):
         return value[1]
+
+
+class MyFilterFunction(FilterFunction):
+
+    def filter(self, value):
+        return value[0] % 2 == 0

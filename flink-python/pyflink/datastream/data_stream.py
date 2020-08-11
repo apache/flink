@@ -22,8 +22,9 @@ from pyflink.common import typeinfo, ExecutionConfig
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
-    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
-    KeySelectorFunctionWrapper, KeySelector, ReduceFunction, ReduceFunctionWrapper
+    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
+    FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
+    ReduceFunctionWrapper
 from pyflink.java_gateway import get_gateway
 
 
@@ -262,9 +263,40 @@ class DataStream(object):
                                                                          output_type_info]))
                                            ._j_data_stream
                                            .keyBy(PickledKeySelector(is_key_pickled_byte_array),
-                                                  key_type_info.get_java_type_info()))
+                                                  key_type_info.get_java_type_info()), self)
         generated_key_stream._original_data_type_info = output_type_info
         return generated_key_stream
+
+    def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
+        """
+        Applies a Filter transformation on a DataStream. The transformation calls a FilterFunction
+        for each element of the DataStream and retains only those element for which the function
+        returns true. Elements for which the function returns false are filtered. The user can also
+        extend RichFilterFunction to gain access to other features provided by the RichFunction
+        interface.
+
+        :param func: The FilterFunction that is called for each element of the DataStream.
+        :return: The filtered DataStream.
+        """
+        class FilterFlatMap(FlatMapFunction):
+            def __init__(self, filter_func):
+                self._func = filter_func
+
+            def flat_map(self, value):
+                if self._func.filter(value):
+                    yield value
+
+        if isinstance(func, Callable):
+            func = FilterFunctionWrapper(func)
+        elif not isinstance(func, FilterFunction):
+            raise TypeError("func must be a Callable or instance of FilterFunction.")
+
+        j_input_type = self._j_data_stream.getTransformation().getOutputType()
+        type_info = typeinfo._from_java_type(j_input_type)
+        j_data_stream = self.flat_map(FilterFlatMap(func), type_info=type_info)._j_data_stream
+        filtered_stream = DataStream(j_data_stream)
+        filtered_stream.name("Filter")
+        return filtered_stream
 
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
@@ -432,14 +464,16 @@ class KeyedStream(DataStream):
     Reduce-style operations, such as reduce and sum work on elements that have the same key.
     """
 
-    def __init__(self, j_keyed_stream):
+    def __init__(self, j_keyed_stream, origin_stream: DataStream):
         """
         Constructor of KeyedStream.
 
         :param j_keyed_stream: A java KeyedStream object.
+        :param origin_stream: The DataStream before key by.
         """
         super(KeyedStream, self).__init__(j_data_stream=j_keyed_stream)
         self._original_data_type_info = None
+        self._origin_stream = origin_stream
 
     def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
             -> 'DataStream':
@@ -483,7 +517,17 @@ class KeyedStream(DataStream):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def _values(self):
+    def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
+        return self._values().filter(func)
+
+    def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
+        return self._values().add_sink(sink_func)
+
+    def key_by(self, key_selector: Union[Callable, KeySelector],
+               key_type_info: TypeInformation = None) -> 'KeyedStream':
+        return self._origin_stream.key_by(key_selector, key_type_info)
+
+    def _values(self) -> 'DataStream':
         """
         Since python KeyedStream is in the format of Row(key_value, original_data), it is used for
         getting the original_data.

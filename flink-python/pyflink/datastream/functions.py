@@ -131,6 +131,29 @@ class KeySelector(Function):
         pass
 
 
+class FilterFunction(Function):
+    """
+    A filter function is a predicate applied individually to each record. The predicate decides
+    whether to keep the element, or to discard it.
+    The basic syntax for using a FilterFunction is as follows:
+    :
+         >>> ds = ...
+         >>> result = ds.filter(MyFilterFunction())
+    Note that the system assumes that the function does not modify the elements on which the
+    predicate is applied. Violating this assumption can lead to incorrect results.
+    """
+
+    @abc.abstractmethod
+    def filter(self, value):
+        """
+        The filter function that evaluates the predicate.
+
+        :param value: The value to be filtered.
+        :return: True for values that should be retained, false for values to be filtered out.
+        """
+        pass
+
+
 class FunctionWrapper(object):
     """
     A basic wrapper class for user defined function.
@@ -185,6 +208,19 @@ class FlatMapFunctionWrapper(FunctionWrapper):
         :param value: The input value.
         :return: the return value of user defined flat_map function.
         """
+        return self._func(value)
+
+
+class FilterFunctionWrapper(FunctionWrapper):
+    """
+        A wrapper class for FilterFunction. It's used for wrapping up user defined function in a
+        FilterFunction when user does not implement a FilterFunction but directly pass a function
+        object or a lambda function to filter() function.
+        """
+    def __init__(self, func):
+        super(FilterFunctionWrapper, self).__init__(func)
+
+    def filter(self, value):
         return self._func(value)
 
 
