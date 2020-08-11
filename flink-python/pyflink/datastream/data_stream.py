@@ -266,7 +266,7 @@ class DataStream(object):
                                                                          output_type_info]))
                                            ._j_data_stream
                                            .keyBy(PickledKeySelector(is_key_pickled_byte_array),
-                                                  key_type_info.get_java_type_info()))
+                                                  key_type_info.get_java_type_info()), self)
         generated_key_stream._original_data_type_info = output_type_info
         return generated_key_stream
 
@@ -467,14 +467,16 @@ class KeyedStream(DataStream):
     Reduce-style operations, such as reduce and sum work on elements that have the same key.
     """
 
-    def __init__(self, j_keyed_stream):
+    def __init__(self, j_keyed_stream, origin_stream: DataStream):
         """
         Constructor of KeyedStream.
 
         :param j_keyed_stream: A java KeyedStream object.
+        :param origin_stream: The DataStream before key by.
         """
         super(KeyedStream, self).__init__(j_data_stream=j_keyed_stream)
         self._original_data_type_info = None
+        self._origin_stream = origin_stream
 
     def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
             -> 'DataStream':
@@ -527,7 +529,7 @@ class KeyedStream(DataStream):
 
     def key_by(self, key_selector: Union[Callable, KeySelector],
                key_type_info: TypeInformation = None) -> 'KeyedStream':
-        return self._values().key_by(key_selector, key_type_info)
+        return self._origin_stream.key_by(key_selector, key_type_info)
 
     def _values(self) -> 'DataStream':
         """

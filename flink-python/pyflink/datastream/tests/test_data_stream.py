@@ -212,6 +212,19 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_multi_key_by(self):
+        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds.key_by(MyKeySelector(), key_type_info=Types.INT()).key_by(lambda x: x[0])\
+            .add_sink(self.test_sink)
+
+        self.env.execute("test multi key by")
+        results = self.test_sink.get_results(False)
+        expected = ['d,1', 'c,1', 'a,0', 'b,0', 'e,2']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
     def tearDown(self) -> None:
         self.test_sink.get_results()
 
