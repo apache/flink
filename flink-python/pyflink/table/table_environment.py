@@ -23,6 +23,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Union, List, Tuple
 
 from py4j.java_gateway import get_java_class, get_method
+
+from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
 
 from pyflink.common import JobExecutionResult
@@ -1728,7 +1730,7 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
 
-    def from_data_stream(self, data_stream, fields=None):
+    def from_data_stream(self, data_stream: DataStream, fields: List[str] = None) -> Table:
         """
         Converts the given DataStream into a Table with specified field names.
 
@@ -1757,7 +1759,7 @@ class StreamTableEnvironment(TableEnvironment):
             j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream)
         return Table(j_table=j_table, t_env=self._j_tenv)
 
-    def to_append_stream(self, table, type_info):
+    def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
         Converts the given Table into a DataStream of a specified type. The Table must only have
         insert (append) changes. If the Table is also modified by update or delete changes, the
@@ -1770,10 +1772,10 @@ class StreamTableEnvironment(TableEnvironment):
         :param type_info: The TypeInformation that specifies the type of the DataStream.
         :return: The converted DataStream.
         """
-        j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info._j_typeinfo)
+        j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
 
-    def to_retract_stream(self, table, type_info):
+    def to_retract_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
         Converts the given Table into a DataStream of add and retract messages. The message will be
         encoded as Tuple. The first field is a boolean flag, the second field holds the record of
@@ -1788,7 +1790,7 @@ class StreamTableEnvironment(TableEnvironment):
         :param type_info: The TypeInformation of the requested record type.
         :return: The converted DataStream.
         """
-        j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info._j_typeinfo)
+        j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
 
 
