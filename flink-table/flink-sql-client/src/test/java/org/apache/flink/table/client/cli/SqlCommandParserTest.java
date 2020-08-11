@@ -302,8 +302,6 @@ public class SqlCommandParserTest {
 
 	@Test
 	public void testHiveCommands() throws Exception {
-		SqlParserHelper helper = new SqlParserHelper(SqlDialect.HIVE);
-		parser = helper.getSqlParser();
 		List<TestItem> testItems = Collections.singletonList(
 			// show partitions
 			TestItem.validSql(SqlDialect.HIVE, "SHOW PARTITIONS t1", SqlCommand.SHOW_PARTITIONS, "SHOW PARTITIONS t1")

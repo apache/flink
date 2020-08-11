@@ -475,6 +475,21 @@ public class HiveDialectITCase {
 
 		List<Row> partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
 		assertEquals(2, partitions.size());
+		assertTrue(partitions.toString().contains("country=china"));
+		assertTrue(partitions.toString().contains("country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (country='china')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("country=china"));
+
+		tableEnv.executeSql("alter table tbl drop partition (country='china'),partition (country='us')");
+		assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
+
+		tableEnv.executeSql("drop table tbl");
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt date, country string)");
+		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
+
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		assertEquals(2, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
 		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30')").collect());
@@ -488,6 +503,8 @@ public class HiveDialectITCase {
 		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-04-30',country='us')");
 		assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
 
+		tableEnv.executeSql("drop table tbl");
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt timestamp, country string)");
 		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30 01:02:03',country='china') partition (dt='2020-04-30 04:05:06',country='us')");
 
 		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
@@ -503,9 +520,6 @@ public class HiveDialectITCase {
 		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03',country='china')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
-
-		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30 01:02:03',country='china'),partition (dt='2020-04-30 04:05:06',country='us')");
-		assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {

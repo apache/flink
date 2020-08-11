@@ -535,8 +535,8 @@ public class CliClient {
 				.collect(Collectors.toList());
 	}
 
-	private List<String> getShowResult(String objectToShow, SqlCommandCall cmdCall) {
-		TableResult tableResult = executor.executeSql(sessionId, "SHOW " + objectToShow + " " + cmdCall.operands[0]);
+	private List<String> getShowResult(SqlCommandCall cmdCall) {
+		TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
 		return CollectionUtil.iteratorToList(tableResult.collect())
 			.stream()
 			.map(r -> checkNotNull(r.getField(0)).toString())
@@ -563,7 +563,7 @@ public class CliClient {
 	private void callShowPartitions(SqlCommandCall cmdCall) {
 		final List<String> partitions;
 		try {
-			partitions = getShowResult("PARTITIONS", cmdCall);
+			partitions = getShowResult(cmdCall);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;
