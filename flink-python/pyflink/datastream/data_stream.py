@@ -23,11 +23,8 @@ from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
-    FilterFunctionWrapper
-    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction
-    MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, \
-    KeySelectorFunctionWrapper, KeySelector, ReduceFunction, ReduceFunctionWrapper
-    FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector
+    FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
+    ReduceFunctionWrapper
 from pyflink.java_gateway import get_gateway
 
 
@@ -520,7 +517,6 @@ class KeyedStream(DataStream):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def _values(self):
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         return self._values().filter(func)
 
