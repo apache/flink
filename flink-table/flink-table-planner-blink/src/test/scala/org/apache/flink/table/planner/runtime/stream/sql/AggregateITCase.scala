@@ -547,6 +547,55 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+
+  @Test
+  def testListAggWithRetraction(): Unit = {
+    env.setParallelism(1) // we have to use parallelism=1 to make sure the result is deterministic
+    val dataWithNull = List(
+      ("1", "a"),
+      ("1", "b"),
+      ("1", null),
+      ("1", "a"))
+
+    val t: DataStream[(String, String)] = failingDataSource(dataWithNull)
+    val streamTable = t.toTable(tEnv, 'x, 'y)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.executeSql(
+      """
+        |CREATE VIEW view1 AS
+        |SELECT
+        |    x,
+        |    y,
+        |    CAST(COUNT(1) AS VARCHAR) AS ct
+        |FROM T
+        |GROUP BY
+        |    x, y
+        |""".stripMargin)
+
+    // | x | concat_ws  |
+    // |---|------------|
+    // | 1 | a=2        |
+    // | 1 | b=1        |
+    // | 1 | 1          |
+    val sqlQuery =
+      s"""
+         |select
+         |     x,
+         |     '[' || LISTAGG(CONCAT_WS('=', y, ct), ';') || ']' AS list1,
+         |     '[' || LISTAGG(CONCAT_WS('=', y, ct)) || ']' AS list2
+         |FROM view1
+         |GROUP BY x
+       """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("1,[b=1;1;a=2],[b=1,1,a=2]")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
   @Test
   def testListAggWithNullData(): Unit = {
     val dataWithNull = List(
