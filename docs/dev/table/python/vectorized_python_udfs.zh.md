@@ -22,30 +22,28 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Vectorized Python user-defined functions are functions which are executed by transferring a batch of elements between JVM and Python VM in Arrow columnar format.
-The performance of vectorized Python user-defined functions are usually much higher than non-vectorized Python user-defined functions as the serialization/deserialization
-overhead and invocation overhead are much reduced. Besides, users could leverage the popular Python libraries such as Pandas, Numpy, etc for the vectorized Python user-defined functions implementation.
-These Python libraries are highly optimized and provide high-performance data structures and functions. It shares the similar way as the
-[non-vectorized user-defined functions]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html) on how to define vectorized user-defined functions.
-Users only need to add an extra parameter `udf_type="pandas"` in the decorator `udf` to mark it as a vectorized user-defined function.
+向量化Python用户自定义函数，是在执行时，通过在JVM和Python VM之间以Arrow列存格式批量传输数据，来执行的函数。
+向量化Python用户自定义函数的性能通常比非向量化Python用户自定义函数要高得多，因为向量化Python用户自定义函数可以大大减少序列化/反序列化的开销和调用开销。
+此外，用户可以利用流行的Python库（例如Pandas，Numpy等）来实现向量化Python用户自定义函数的逻辑。这些Python库通常经过高度优化，并提供了高性能的数据结构和功能。
+向量化用户自定义函数的定义，与[非向量化用户自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html)具有相似的方式，
+用户只需要在调用`udf`装饰器时添加一个额外的参数`udf_type="pandas"`，将其标记为一个向量化用户自定义函数即可。
 
-**NOTE:** Python UDF execution requires Python version (3.5, 3.6 or 3.7) with PyFlink installed. It's required on both the client side and the cluster side. 
+**注意：**要执行Python UDF，需要安装PyFlink的Python版本（3.5、3.6或3.7）。客户端和群集端都需要安装它。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Vectorized Scalar Functions
+## 向量化标量函数
 
-Vectorized Python scalar functions take `pandas.Series` as the inputs and return a `pandas.Series` of the same length as the output.
-Internally, Flink will split the input elements into batches, convert a batch of input elements into `Pandas.Series`
-and then call user-defined vectorized Python scalar functions for each batch of input elements. Please refer to the config option
-[python.fn-execution.arrow.batch.size]({{ site.baseurl }}/zh/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size) for more details
-on how to configure the batch size.
+向量化Python标量函数以`pandas.Series`类型的参数作为输入，并返回与输入长度相同的`pandas.Series`。
+在内部实现中，Flink会将输入数据拆分为多个批次，并将每一批次的输入数据转换为`Pandas.Series`类型，
+然后为每一批输入数据调用用户自定义的向量化Python标量函数。请参阅配置选项
+[python.fn-execution.arrow.batch.size，]({{ site.baseurl }}/zh/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size)
+以获取有关如何配置批次大小的更多详细信息。
 
-Vectorized Python scalar function could be used in any places where non-vectorized Python scalar functions could be used.
+向量化Python标量函数可以在任何可以使用非向量化Python标量函数的地方使用。
 
-The following example shows how to define your own vectorized Python scalar function which computes the sum of two columns,
-and use it in a query:
+以下示例显示了如何定义自己的向量化Python标量函数，该函数计算两列的总和，并在查询中使用它：
 
 {% highlight python %}
 @udf(result_type=DataTypes.BIGINT(), udf_type="pandas")
@@ -63,10 +61,11 @@ table_env.register_function("add", add)
 # use the vectorized Python scalar function in Python Table API
 my_table.select("add(bigint, bigint)")
 
-# use the vectorized Python scalar function in SQL API
+# 在SQL API中使用Python向量化标量函数
 table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 {% endhighlight %}
 
-<span class="label label-info">Note</span> If not using RocksDB as state backend, you can also configure the python
-worker to use the managed memory of taskmanager by setting **python.fn-execution.memory.managed** to be **true**.
-Then there is no need to set the the configuration **taskmanager.memory.task.off-heap.size**.
+<span class="label label-info">注意</span>如果不使用RocksDB作为状态后端，则还可以通过
+将**python.fn-execution.memory.managed**设置为**true** ，来配置python worker以使用taskmanager的托管内存，
+则无需配置**taskmanager.memory.task.off-heap.size** 。
+

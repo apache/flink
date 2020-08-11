@@ -146,7 +146,7 @@ You can refer to the Java metric document for more details on [Scope definition]
 
 ### User Scope
 
-You can define a user scope by calling `MetricGroup.add_group(key: str, value: str = None)`. If extra is not None, creates a new key-value MetricGroup pair. The key group is added to this group's sub-groups, while the value group is added to the key group's sub-groups. In this case, the value group will be returned and a user variable will be defined.
+You can define a user scope by calling `MetricGroup.add_group(key: str, value: str = None)`. If value is not None, creates a new key-value MetricGroup pair. The key group is added to this group's sub-groups, while the value group is added to the key group's sub-groups. In this case, the value group will be returned and a user variable will be defined.
 
 <div class="codetabs" markdown="1">
 <div data-lang="python" markdown="1">
