@@ -43,12 +43,19 @@ import org.apache.flink.table.sources.StreamTableSource;
 public class DataGenTableSource implements ScanTableSource {
 
 	private final DataGenerator[] fieldGenerators;
+	private final String tableName;
 	private final TableSchema schema;
 	private final long rowsPerSecond;
 	private final Long numberOfRows;
 
-	public DataGenTableSource(DataGenerator[] fieldGenerators, TableSchema schema, long rowsPerSecond, Long numberOfRows) {
+	public DataGenTableSource(
+		DataGenerator[] fieldGenerators,
+		String tableName,
+		TableSchema schema,
+		long rowsPerSecond,
+		Long numberOfRows) {
 		this.fieldGenerators = fieldGenerators;
+		this.tableName = tableName;
 		this.schema = schema;
 		this.rowsPerSecond = rowsPerSecond;
 		this.numberOfRows = numberOfRows;
@@ -64,12 +71,12 @@ public class DataGenTableSource implements ScanTableSource {
 	public DataGeneratorSource<RowData> createSource() {
 		return new DataGeneratorSource<>(
 			new RowGenerator(fieldGenerators, schema.getFieldNames()),
-			rowsPerSecond, numberOfRows);
+			tableName, rowsPerSecond, numberOfRows);
 	}
 
 	@Override
 	public DynamicTableSource copy() {
-		return new DataGenTableSource(fieldGenerators, schema, rowsPerSecond, numberOfRows);
+		return new DataGenTableSource(fieldGenerators, tableName, schema, rowsPerSecond, numberOfRows);
 	}
 
 	@Override

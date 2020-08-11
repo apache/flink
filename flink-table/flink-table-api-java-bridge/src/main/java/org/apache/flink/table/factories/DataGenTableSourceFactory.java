@@ -118,7 +118,8 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		optionalOptions.stream().map(ConfigOption::key).forEach(consumedOptionKeys::add);
 		FactoryUtil.validateUnconsumedKeys(factoryIdentifier(), options.keySet(), consumedOptionKeys);
 
-		return new DataGenTableSource(fieldGenerators, schema, options.get(ROWS_PER_SECOND), options.get(NUMBER_OF_ROWS));
+		String name = context.getObjectIdentifier().toString();
+		return new DataGenTableSource(fieldGenerators, name, schema, options.get(ROWS_PER_SECOND), options.get(NUMBER_OF_ROWS));
 	}
 
 	private DataGeneratorContainer createContainer(
