@@ -451,6 +451,14 @@ stream.addSink(myProducer)
 </div>
 </div>
 
+### Kafka Producer Partition Discovery
+
+
+The Flink Kafka Producer supports discovering dynamically created Kafka partitions. By default, partition discovery is disabled. To enable it, set a non-negative value
+for `flink.partition-discovery.interval-millis` in the provided properties config,representing the discovery interval in milliseconds. 
+
+**Note**: Actual discovery interval depends on the maximum between kafka parameter `metadata.max.age.ms` and flink parameter `flink.partition-discovery.interval-millis`
+
 ## The `SerializationSchema`
 
 The Flink Kafka Producer needs to know how to turn Java/Scala objects into binary data.
