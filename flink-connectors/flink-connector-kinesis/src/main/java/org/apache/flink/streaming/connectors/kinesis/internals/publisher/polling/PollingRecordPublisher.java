@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.util.Preconditions;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
@@ -70,17 +71,20 @@ public class PollingRecordPublisher implements RecordPublisher {
 	 * @param maxNumberOfRecordsPerFetch the maximum number of records to retrieve per batch
 	 * @param expiredIteratorBackoffMillis the duration to sleep in the event of an {@link ExpiredIteratorException}
 	 */
-	public PollingRecordPublisher(
+	PollingRecordPublisher(
 			final StreamShardHandle subscribedShard,
 			final PollingRecordPublisherMetricsReporter metricsReporter,
 			final KinesisProxyInterface kinesisProxy,
 			final int maxNumberOfRecordsPerFetch,
 			final long expiredIteratorBackoffMillis) {
-		this.subscribedShard = subscribedShard;
-		this.metricsReporter = metricsReporter;
-		this.kinesisProxy = kinesisProxy;
+		this.subscribedShard = Preconditions.checkNotNull(subscribedShard);
+		this.metricsReporter = Preconditions.checkNotNull(metricsReporter);
+		this.kinesisProxy = Preconditions.checkNotNull(kinesisProxy);
 		this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
 		this.expiredIteratorBackoffMillis = expiredIteratorBackoffMillis;
+
+		Preconditions.checkArgument(expiredIteratorBackoffMillis >= 0);
+		Preconditions.checkArgument(maxNumberOfRecordsPerFetch > 0);
 	}
 
 	@Override

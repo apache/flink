@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
+
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 
 import javax.annotation.Nullable;
@@ -33,6 +35,7 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 /**
  * The position in which to start consuming from a stream.
  */
+@Internal
 public class StartingPosition {
 
 	private final ShardIteratorType shardIteratorType;

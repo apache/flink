@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher.FlinkKinesisProxyFactory;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ import static org.mockito.Mockito.mock;
  */
 public class PollingRecordPublisherFactoryTest {
 
-	private final PollingRecordPublisherFactory factory = new PollingRecordPublisherFactory(mock(FlinkKinesisProxyFactory.class));
+	private final PollingRecordPublisherFactory factory = new PollingRecordPublisherFactory(props -> mock(KinesisProxy.class));
 
 	@Test
 	public void testBuildPollingRecordPublisher() {

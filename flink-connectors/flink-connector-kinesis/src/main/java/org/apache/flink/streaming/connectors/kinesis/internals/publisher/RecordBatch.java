@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
@@ -32,6 +33,7 @@ import java.util.List;
  * Input records are de-aggregated using KCL 1.x library.
  * It is expected that AWS SDK v2.x messages are converted to KCL 1.x {@link UserRecord}.
  */
+@Internal
 public class RecordBatch {
 
 	private final int aggregatedRecordSize;

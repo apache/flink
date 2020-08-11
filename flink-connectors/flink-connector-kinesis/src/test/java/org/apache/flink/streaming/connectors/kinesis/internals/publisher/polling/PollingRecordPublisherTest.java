@@ -26,7 +26,9 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +51,9 @@ import static org.mockito.Mockito.verify;
  * Tests for {@link PollingRecordPublisher}.
  */
 public class PollingRecordPublisherTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testRunPublishesRecordsToConsumer() throws InterruptedException {
@@ -102,6 +107,30 @@ public class PollingRecordPublisherTest {
 
 		// Get shard iterator is called twice, once during first run, secondly to refresh expired iterator
 		verify(fakeKinesis, times(2)).getShardIterator(any(), any(), any());
+	}
+
+	@Test
+	public void validateExpiredIteratorBackoffMillisNegativeThrows() {
+		thrown.expect(IllegalArgumentException.class);
+
+		new PollingRecordPublisher(
+			TestUtils.createDummyStreamShardHandle(),
+			mock(PollingRecordPublisherMetricsReporter.class),
+			mock(KinesisProxyInterface.class),
+			100,
+			-1);
+	}
+
+	@Test
+	public void validateMaxNumberOfRecordsPerFetchZeroThrows() {
+		thrown.expect(IllegalArgumentException.class);
+
+		new PollingRecordPublisher(
+			TestUtils.createDummyStreamShardHandle(),
+			mock(PollingRecordPublisherMetricsReporter.class),
+			mock(KinesisProxyInterface.class),
+			0,
+			100);
 	}
 
 	private StartingPosition latest() {

@@ -50,7 +50,7 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
 
 	private final PollingRecordPublisherMetricsReporter metricsReporter;
 
-	public AdaptivePollingRecordPublisher(
+	AdaptivePollingRecordPublisher(
 			final StreamShardHandle subscribedShard,
 			final PollingRecordPublisherMetricsReporter metricsReporter,
 			final KinesisProxyInterface kinesisProxy,
