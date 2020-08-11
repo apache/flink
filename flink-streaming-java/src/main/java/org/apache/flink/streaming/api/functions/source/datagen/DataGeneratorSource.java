@@ -24,6 +24,8 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -37,15 +39,18 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 
 	private static final long serialVersionUID = 1L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(DataGeneratorSource.class);
+
 	private final DataGenerator<T> generator;
+
 	private final long rowsPerSecond;
 
 	@Nullable
-	private Long numberOfRows;
+	private final Long numberOfRows;
 
-	private int outputSoFar;
+	private transient int outputSoFar;
 
-	private int toOutput;
+	private transient int toOutput;
 
 	transient volatile boolean isRunning;
 
@@ -65,7 +70,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	 * @param rowsPerSecond Control the emit rate.
 	 * @param numberOfRows Total number of rows to output.
 	 */
-	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond, Long numberOfRows) {
+	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond, @Nullable Long numberOfRows) {
 		this.generator = generator;
 		this.rowsPerSecond = rowsPerSecond;
 		this.numberOfRows = numberOfRows;
@@ -104,9 +109,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 			for (int i = 0; i < taskRowsPerSecond; i++) {
 				if (isRunning && generator.hasNext() && (numberOfRows == null || outputSoFar < toOutput)) {
 					synchronized (ctx.getCheckpointLock()) {
-						if (numberOfRows != null) {
-							outputSoFar++;
-						}
+						outputSoFar++;
 						ctx.collect(this.generator.next());
 					}
 				} else {
@@ -121,6 +124,12 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 				toWaitMs = nextReadTime - System.currentTimeMillis();
 			}
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		super.close();
+		LOG.info("generated {} rows", outputSoFar);
 	}
 
 	@Override

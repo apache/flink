@@ -20,9 +20,6 @@ package org.apache.flink.table.factories.datagen;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
@@ -31,8 +28,8 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.datagen.types.RowDataGenerator;
 import org.apache.flink.table.sources.StreamTableSource;
 
 /**
@@ -42,13 +39,20 @@ import org.apache.flink.table.sources.StreamTableSource;
 @Internal
 public class DataGenTableSource implements ScanTableSource {
 
-	private final DataGenerator[] fieldGenerators;
+	private final DataGenerator<?>[] fieldGenerators;
+	private final String tableName;
 	private final TableSchema schema;
 	private final long rowsPerSecond;
 	private final Long numberOfRows;
 
-	public DataGenTableSource(DataGenerator[] fieldGenerators, TableSchema schema, long rowsPerSecond, Long numberOfRows) {
+	public DataGenTableSource(
+		DataGenerator<?>[] fieldGenerators,
+		String tableName,
+		TableSchema schema,
+		long rowsPerSecond,
+		Long numberOfRows) {
 		this.fieldGenerators = fieldGenerators;
+		this.tableName = tableName;
 		this.schema = schema;
 		this.rowsPerSecond = rowsPerSecond;
 		this.numberOfRows = numberOfRows;
@@ -56,20 +60,20 @@ public class DataGenTableSource implements ScanTableSource {
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
-		boolean isBounded = numberOfRows == null;
+		boolean isBounded = numberOfRows != null;
 		return SourceFunctionProvider.of(createSource(), isBounded);
 	}
 
 	@VisibleForTesting
 	public DataGeneratorSource<RowData> createSource() {
 		return new DataGeneratorSource<>(
-			new RowGenerator(fieldGenerators, schema.getFieldNames()),
+			new RowDataGenerator(fieldGenerators, schema.getFieldNames()),
 			rowsPerSecond, numberOfRows);
 	}
 
 	@Override
 	public DynamicTableSource copy() {
-		return new DataGenTableSource(fieldGenerators, schema, rowsPerSecond, numberOfRows);
+		return new DataGenTableSource(fieldGenerators, tableName, schema, rowsPerSecond, numberOfRows);
 	}
 
 	@Override
@@ -80,55 +84,6 @@ public class DataGenTableSource implements ScanTableSource {
 	@Override
 	public ChangelogMode getChangelogMode() {
 		return ChangelogMode.insertOnly();
-	}
-
-	private static class RowGenerator implements DataGenerator<RowData> {
-
-		private static final long serialVersionUID = 1L;
-
-		private final DataGenerator[] fieldGenerators;
-		private final String[] fieldNames;
-
-		private RowGenerator(DataGenerator[] fieldGenerators, String[] fieldNames) {
-			this.fieldGenerators = fieldGenerators;
-			this.fieldNames = fieldNames;
-		}
-
-		@Override
-		public void open(
-			String name,
-			FunctionInitializationContext context,
-			RuntimeContext runtimeContext) throws Exception {
-			for (int i = 0; i < fieldGenerators.length; i++) {
-				fieldGenerators[i].open(fieldNames[i], context, runtimeContext);
-			}
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			for (DataGenerator generator : fieldGenerators) {
-				generator.snapshotState(context);
-			}
-		}
-
-		@Override
-		public boolean hasNext() {
-			for (DataGenerator generator : fieldGenerators) {
-				if (!generator.hasNext()) {
-					return false;
-				}
-			}
-			return true;
-		}
-
-		@Override
-		public RowData next() {
-			GenericRowData row = new GenericRowData(fieldNames.length);
-			for (int i = 0; i < fieldGenerators.length; i++) {
-				row.setField(i, fieldGenerators[i].next());
-			}
-			return row;
-		}
 	}
 }
 
