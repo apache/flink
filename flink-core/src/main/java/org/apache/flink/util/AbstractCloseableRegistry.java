@@ -163,9 +163,9 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	/**
 	 * Removes a mapping from the registry map, respecting locking.
 	 */
-	protected final boolean removeCloseableInternal(Closeable closeable, T object) {
+	protected final boolean removeCloseableInternal(Closeable closeable) {
 		synchronized (getSynchronizationLock()) {
-			return closeableToRef.remove(closeable, object);
+			return closeableToRef.remove(closeable) != null;
 		}
 	}
 

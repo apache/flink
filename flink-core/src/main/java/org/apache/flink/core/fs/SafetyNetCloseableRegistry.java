@@ -178,7 +178,7 @@ public class SafetyNetCloseableRegistry extends
 			// Mark sure the inner closeable is still registered and thus unclosed to
 			// prevent duplicated and concurrent closing from registry closing. This could
 			// happen if registry is closing after this phantom reference was enqueued.
-			if (closeableRegistry.removeCloseableInternal(innerCloseable, this)) {
+			if (closeableRegistry.removeCloseableInternal(innerCloseable)) {
 				LOG.warn("Closing unclosed resource via safety-net: {}", getDebugString());
 				innerCloseable.close();
 			}
