@@ -100,6 +100,10 @@ public class TestUtils {
 	}
 
 	public static StreamShardHandle createDummyStreamShardHandle() {
+		return createDummyStreamShardHandle("stream-name", "000000");
+	}
+
+	public static StreamShardHandle createDummyStreamShardHandle(final String streamName, final String shardId) {
 		final Shard shard = new Shard()
 			.withSequenceNumberRange(new SequenceNumberRange()
 				.withStartingSequenceNumber("0")
@@ -107,9 +111,9 @@ public class TestUtils {
 			.withHashKeyRange(new HashKeyRange()
 				.withStartingHashKey("0")
 				.withEndingHashKey(new BigInteger(StringUtils.repeat("FF", 16), 16).toString()))
-			.withShardId("000000");
+			.withShardId(shardId);
 
-		return new StreamShardHandle("stream-name", shard);
+		return new StreamShardHandle(streamName, shard);
 	}
 
 }

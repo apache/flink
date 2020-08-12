@@ -43,6 +43,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.createDummyStreamShardHandle;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -415,9 +416,7 @@ public class FakeKinesisBehavioursFactory {
 					List<StreamShardHandle> shardsOfStream = new ArrayList<>(shardCount);
 					for (int i = 0; i < shardCount; i++) {
 						shardsOfStream.add(
-							new StreamShardHandle(
-								streamName,
-								new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(i))));
+							createDummyStreamShardHandle(streamName, KinesisShardIdGenerator.generateFromShardOrder(i)));
 					}
 					streamsWithListOfShards.put(streamName, shardsOfStream);
 				}

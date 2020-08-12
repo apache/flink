@@ -19,15 +19,12 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
-import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 
 /**
  * A {@code RecordPublisher} will consume records from an external stream and deliver them to the registered subscriber.
  */
 @Internal
 public interface RecordPublisher {
-
-	void initialize(StartingPosition startingPosition) throws InterruptedException;
 
 	/**
 	 * Run the record publisher. Records will be consumed from the stream and published to the consumer.

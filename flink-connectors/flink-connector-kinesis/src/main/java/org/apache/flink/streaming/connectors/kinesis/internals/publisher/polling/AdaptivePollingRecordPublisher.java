@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
@@ -48,12 +49,13 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
 	private final PollingRecordPublisherMetricsReporter metricsReporter;
 
 	AdaptivePollingRecordPublisher(
+			final StartingPosition startingPosition,
 			final StreamShardHandle subscribedShard,
 			final PollingRecordPublisherMetricsReporter metricsReporter,
 			final KinesisProxyInterface kinesisProxy,
 			final int maxNumberOfRecordsPerFetch,
-			final long fetchIntervalMillis) {
-		super(subscribedShard, metricsReporter, kinesisProxy, maxNumberOfRecordsPerFetch, fetchIntervalMillis);
+			final long fetchIntervalMillis) throws InterruptedException {
+		super(startingPosition, subscribedShard, metricsReporter, kinesisProxy, maxNumberOfRecordsPerFetch, fetchIntervalMillis);
 		this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
 		this.fetchIntervalMillis = fetchIntervalMillis;
 		this.metricsReporter = metricsReporter;

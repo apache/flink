@@ -55,7 +55,7 @@ public class PollingRecordPublisherTest {
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
-	public void testRunPublishesRecordsToConsumer() throws InterruptedException {
+	public void testRunPublishesRecordsToConsumer() throws Exception {
 		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
@@ -68,7 +68,7 @@ public class PollingRecordPublisherTest {
 	}
 
 	@Test
-	public void testRunReturnsCompleteWhenShardExpires() throws InterruptedException {
+	public void testRunReturnsCompleteWhenShardExpires() throws Exception {
 		// There are 2 batches available in the stream
 		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 2, 100);
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
@@ -81,7 +81,7 @@ public class PollingRecordPublisherTest {
 	}
 
 	@Test
-	public void testRunOnCompletelyConsumedShardReturnsComplete() throws InterruptedException {
+	public void testRunOnCompletelyConsumedShardReturnsComplete() throws Exception {
 		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
@@ -90,7 +90,7 @@ public class PollingRecordPublisherTest {
 	}
 
 	@Test
-	public void testRunGetShardIteratorReturnsNullIsComplete() throws InterruptedException {
+	public void testRunGetShardIteratorReturnsNullIsComplete() throws Exception {
 		KinesisProxyInterface fakeKinesis = FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour();
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
@@ -98,7 +98,7 @@ public class PollingRecordPublisherTest {
 	}
 
 	@Test
-	public void testRunGetRecordsRecoversFromExpiredIteratorException() throws InterruptedException {
+	public void testRunGetRecordsRecoversFromExpiredIteratorException() throws Exception  {
 		KinesisProxyInterface fakeKinesis = spy(FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(2, 2, 1, 500));
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
@@ -109,10 +109,11 @@ public class PollingRecordPublisherTest {
 	}
 
 	@Test
-	public void validateExpiredIteratorBackoffMillisNegativeThrows() {
+	public void validateExpiredIteratorBackoffMillisNegativeThrows() throws Exception {
 		thrown.expect(IllegalArgumentException.class);
 
 		new PollingRecordPublisher(
+			StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
 			TestUtils.createDummyStreamShardHandle(),
 			mock(PollingRecordPublisherMetricsReporter.class),
 			mock(KinesisProxyInterface.class),
@@ -121,10 +122,11 @@ public class PollingRecordPublisherTest {
 	}
 
 	@Test
-	public void validateMaxNumberOfRecordsPerFetchZeroThrows() {
+	public void validateMaxNumberOfRecordsPerFetchZeroThrows() throws Exception  {
 		thrown.expect(IllegalArgumentException.class);
 
 		new PollingRecordPublisher(
+			StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
 			TestUtils.createDummyStreamShardHandle(),
 			mock(PollingRecordPublisherMetricsReporter.class),
 			mock(KinesisProxyInterface.class),
@@ -132,33 +134,16 @@ public class PollingRecordPublisherTest {
 			100);
 	}
 
-	@Test
-	public void testUninitialisedRecordConsumerFailsToRun() throws InterruptedException {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("nextStartingPosition is null, did you forget to call initialise()?");
-
-		new PollingRecordPublisher(
-			TestUtils.createDummyStreamShardHandle(),
-			mock(PollingRecordPublisherMetricsReporter.class),
-			mock(KinesisProxyInterface.class),
-			100,
-			100)
-			.run(new TestConsumer());
-	}
-
-	PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis) throws InterruptedException {
+	PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis) throws Exception {
 		PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class));
 
-		PollingRecordPublisher recordPublisher = new PollingRecordPublisher(
+		return new PollingRecordPublisher(
+			StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()),
 			TestUtils.createDummyStreamShardHandle(),
 			metricsReporter,
 			kinesis,
 			10000,
 			500L);
-
-		recordPublisher.initialize(StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
-
-		return recordPublisher;
 	}
 
 	private static class TestConsumer implements RecordBatchConsumer {

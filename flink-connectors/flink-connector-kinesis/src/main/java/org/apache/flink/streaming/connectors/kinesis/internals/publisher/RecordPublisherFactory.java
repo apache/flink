@@ -19,9 +19,18 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Properties;
+
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A factory interface used to create instances of {@link RecordPublisher}.
@@ -37,6 +46,41 @@ public interface RecordPublisherFactory {
 	 * @param streamShardHandle the stream shard in which to consume from
 	 * @return the constructed {@link RecordPublisher}
 	 */
-	RecordPublisher create(Properties consumerConfig, MetricGroup metricGroup, StreamShardHandle streamShardHandle);
+	RecordPublisher create(
+			SequenceNumber sequenceNumber,
+			Properties consumerConfig,
+			MetricGroup metricGroup,
+			StreamShardHandle streamShardHandle) throws InterruptedException;
+
+	/**
+	 * Determines the starting position in which the {@link RecordPublisher} should start consuming from.
+	 *
+	 * @param sequenceNumber the sequence number to start from
+	 * @param consumerConfig the consumer properties
+	 * @return the {@link StartingPosition} in which to start consuming from
+	 */
+	default StartingPosition getStartingPosition(
+			final SequenceNumber sequenceNumber,
+			final Properties consumerConfig) {
+		if (sequenceNumber.equals(SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
+			Date initTimestamp;
+			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
+
+			try {
+				String format = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT,
+					ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
+				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
+				initTimestamp = customDateFormat.parse(timestamp);
+			} catch (IllegalArgumentException | NullPointerException exception) {
+				throw new IllegalArgumentException(exception);
+			} catch (ParseException exception) {
+				initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
+			}
+
+			return StartingPosition.fromTimestamp(initTimestamp);
+		} else {
+			return StartingPosition.restartFromSequenceNumber(checkNotNull(sequenceNumber));
+		}
+	}
 
 }

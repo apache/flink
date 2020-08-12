@@ -99,11 +99,11 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 		StreamShardHandle handle,
 		SequenceNumber lastSeqNum,
 		MetricGroup metricGroup,
-		KinesisDeserializationSchema<T> shardDeserializer) {
+		KinesisDeserializationSchema<T> shardDeserializer) throws InterruptedException {
 
 		return new ShardConsumer<T>(
 			this,
-			createRecordPublisher(getConsumerConfiguration(), metricGroup, handle),
+			createRecordPublisher(lastSeqNum, getConsumerConfiguration(), metricGroup, handle),
 			subscribedShardStateIndex,
 			handle,
 			lastSeqNum,

@@ -404,11 +404,11 @@ public class KinesisDataFetcher<T> {
 		StreamShardHandle subscribedShard,
 		SequenceNumber lastSequenceNum,
 		MetricGroup metricGroup,
-		KinesisDeserializationSchema<T> shardDeserializer) {
+		KinesisDeserializationSchema<T> shardDeserializer) throws InterruptedException {
 
 		return new ShardConsumer<>(
 			this,
-			createRecordPublisher(configProps, metricGroup, subscribedShard),
+			createRecordPublisher(lastSequenceNum, configProps, metricGroup, subscribedShard),
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
@@ -421,10 +421,11 @@ public class KinesisDataFetcher<T> {
 	}
 
 	protected RecordPublisher createRecordPublisher(
+			final SequenceNumber sequenceNumber,
 			final Properties configProps,
 			final MetricGroup metricGroup,
-			final StreamShardHandle subscribedShard) {
-		return recordPublisherFactory.create(configProps, metricGroup, subscribedShard);
+			final StreamShardHandle subscribedShard) throws InterruptedException {
+		return recordPublisherFactory.create(sequenceNumber, configProps, metricGroup, subscribedShard);
 	}
 
 	/**

@@ -19,13 +19,11 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
-import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
@@ -33,14 +31,9 @@ import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Properties;
 
 import static java.util.Optional.ofNullable;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
-import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -58,8 +51,6 @@ public class ShardConsumer<T> implements Runnable {
 	private final StreamShardHandle subscribedShard;
 
 	private final ShardConsumerMetricsReporter shardConsumerMetricsReporter;
-
-	private final StartingPosition startingPosition;
 
 	private SequenceNumber lastSequenceNum;
 
@@ -95,35 +86,11 @@ public class ShardConsumer<T> implements Runnable {
 			"Should not start a ShardConsumer if the shard has already been completely read.");
 
 		this.deserializer = shardDeserializer;
-
-		Properties consumerConfig = fetcherRef.getConsumerConfiguration();
-
-		if (lastSequenceNum.equals(SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
-			Date initTimestamp;
-			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
-
-			try {
-				String format = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT,
-					ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
-				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
-				initTimestamp = customDateFormat.parse(timestamp);
-			} catch (IllegalArgumentException | NullPointerException exception) {
-				throw new IllegalArgumentException(exception);
-			} catch (ParseException exception) {
-				initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
-			}
-
-			startingPosition = StartingPosition.fromTimestamp(initTimestamp);
-		} else {
-			startingPosition = StartingPosition.restartFromSequenceNumber(checkNotNull(lastSequenceNum));
-		}
 	}
 
 	@Override
 	public void run() {
 		try {
-			recordPublisher.initialize(startingPosition);
-
 			while (isRunning()) {
 				final RecordPublisherRunResult result = recordPublisher.run(batch -> {
 					for (UserRecord userRecord : batch.getDeaggregatedRecords()) {

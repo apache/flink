@@ -65,6 +65,7 @@ public class PollingRecordPublisher implements RecordPublisher {
 	 * A Polling implementation of {@link RecordPublisher} that polls kinesis for records.
 	 * The following KDS services are used: GetRecords and GetShardIterator.
 	 *
+	 * @param startingPosition the position in the stream to start consuming from
 	 * @param subscribedShard the shard in which to consume from
 	 * @param metricsReporter a metric reporter used to output metrics
 	 * @param kinesisProxy the proxy used to communicate with kinesis
@@ -72,11 +73,13 @@ public class PollingRecordPublisher implements RecordPublisher {
 	 * @param expiredIteratorBackoffMillis the duration to sleep in the event of an {@link ExpiredIteratorException}
 	 */
 	PollingRecordPublisher(
+			final StartingPosition startingPosition,
 			final StreamShardHandle subscribedShard,
 			final PollingRecordPublisherMetricsReporter metricsReporter,
 			final KinesisProxyInterface kinesisProxy,
 			final int maxNumberOfRecordsPerFetch,
-			final long expiredIteratorBackoffMillis) {
+			final long expiredIteratorBackoffMillis) throws InterruptedException {
+		this.nextStartingPosition = Preconditions.checkNotNull(startingPosition);
 		this.subscribedShard = Preconditions.checkNotNull(subscribedShard);
 		this.metricsReporter = Preconditions.checkNotNull(metricsReporter);
 		this.kinesisProxy = Preconditions.checkNotNull(kinesisProxy);
@@ -85,12 +88,8 @@ public class PollingRecordPublisher implements RecordPublisher {
 
 		Preconditions.checkArgument(expiredIteratorBackoffMillis >= 0);
 		Preconditions.checkArgument(maxNumberOfRecordsPerFetch > 0);
-	}
 
-	@Override
-	public void initialize(StartingPosition startingPosition) throws InterruptedException {
-		nextStartingPosition = startingPosition;
-		nextShardItr = getShardIterator();
+		this.nextShardItr = getShardIterator();
 	}
 
 	@Override

@@ -23,6 +23,8 @@ import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetche
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
@@ -51,16 +53,19 @@ public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 	 */
 	@Override
 	public PollingRecordPublisher create(
+			final SequenceNumber sequenceNumber,
 			final Properties consumerConfig,
 			final MetricGroup metricGroup,
-			final StreamShardHandle streamShardHandle) {
+			final StreamShardHandle streamShardHandle) throws InterruptedException {
 
 		final PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(consumerConfig);
 		final PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(metricGroup);
 		final KinesisProxyInterface kinesisProxy = kinesisProxyFactory.create(consumerConfig);
+		final StartingPosition startingPosition = getStartingPosition(sequenceNumber, consumerConfig);
 
 		if (configuration.isAdaptiveReads()) {
 			return new AdaptivePollingRecordPublisher(
+				startingPosition,
 				streamShardHandle,
 				metricsReporter,
 				kinesisProxy,
@@ -68,6 +73,7 @@ public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 				configuration.getFetchIntervalMillis());
 		} else {
 			return new PollingRecordPublisher(
+				startingPosition,
 				streamShardHandle,
 				metricsReporter,
 				kinesisProxy,

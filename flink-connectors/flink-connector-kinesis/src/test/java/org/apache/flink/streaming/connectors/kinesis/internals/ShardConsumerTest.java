@@ -65,7 +65,7 @@ import static org.mockito.Mockito.verify;
 public class ShardConsumerTest {
 
 	@Test
-	public void testMetricsReporting() {
+	public void testMetricsReporting() throws Exception {
 		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(500, 5, 500);
 
 		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
@@ -108,7 +108,7 @@ public class ShardConsumerTest {
 	}
 
 	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithUnexpectedExpiredIterator() {
+	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithUnexpectedExpiredIterator() throws Exception {
 		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(1000, 9, 7, 500L);
 
 		// Get a total of 1000 records with 9 getRecords() calls,
@@ -117,7 +117,7 @@ public class ShardConsumerTest {
 	}
 
 	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() {
+	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() throws Exception {
 		Properties consumerProperties = new Properties();
 		consumerProperties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
 
@@ -166,7 +166,7 @@ public class ShardConsumerTest {
 	private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
 		final int expectedNumberOfMessages,
 		final KinesisProxyInterface kinesis,
-		final SequenceNumber startingSequenceNumber) {
+		final SequenceNumber startingSequenceNumber) throws Exception {
 		return assertNumberOfMessagesReceivedFromKinesis(expectedNumberOfMessages, kinesis, startingSequenceNumber, new Properties());
 	}
 
@@ -174,7 +174,7 @@ public class ShardConsumerTest {
 		final int expectedNumberOfMessages,
 		final KinesisProxyInterface kinesis,
 		final SequenceNumber startingSequenceNumber,
-		final Properties consumerProperties) {
+		final Properties consumerProperties) throws Exception {
 		ShardConsumerMetricsReporter shardMetricsReporter = new ShardConsumerMetricsReporter(mock(MetricGroup.class));
 
 		StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
@@ -202,9 +202,10 @@ public class ShardConsumerTest {
 				Mockito.mock(KinesisProxyInterface.class));
 
 		final StreamShardHandle shardHandle = subscribedShardsStateUnderTest.get(0).getStreamShardHandle();
+		SequenceNumber lastProcessedSequenceNum = subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum();
 
 		final RecordPublisher recordPublisher = new PollingRecordPublisherFactory(config -> kinesis)
-			.create(fetcher.getConsumerConfiguration(), mock(MetricGroup.class), shardHandle);
+			.create(lastProcessedSequenceNum, fetcher.getConsumerConfiguration(), mock(MetricGroup.class), shardHandle);
 
 		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
 		new ShardConsumer<>(
@@ -212,7 +213,7 @@ public class ShardConsumerTest {
 			recordPublisher,
 			shardIndex,
 			shardHandle,
-			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
+			lastProcessedSequenceNum,
 			shardMetricsReporter,
 			deserializationSchema)
 			.run();
