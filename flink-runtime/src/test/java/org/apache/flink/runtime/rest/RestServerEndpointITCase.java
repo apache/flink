@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -533,12 +534,13 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	/**
 	 * Tests that after calling {@link RestServerEndpoint#closeAsync()}, the handlers are closed
-	 * first, and we wait for in-flight requests to finish. Once the shutdown is initiated, no further requests should
-	 * be accepted.
+	 * first, and we wait for in-flight requests to finish. As long as not all handlers are closed,
+	 * HTTP requests should be served.
 	 */
 	@Test
 	public void testShouldWaitForHandlersWhenClosing() throws Exception {
 		final HandlerBlocker handlerBlocker = new HandlerBlocker(timeout);
+		testHandler.closeFuture = new CompletableFuture<>();
 		testHandler.handlerBody = id -> {
 			// Intentionally schedule the work on a different thread. This is to simulate
 			// handlers where the CompletableFuture is finished by the RPC framework.
@@ -548,12 +550,17 @@ public class RestServerEndpointITCase extends TestLogger {
 			});
 		};
 
+		// Initiate closing RestServerEndpoint but the test handler should block.
+		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
+		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
+
 		// create an in-flight request
 		final CompletableFuture<TestResponse> request = sendRequestToTestHandler(new TestRequest(1));
 		handlerBlocker.awaitRequestToArrive();
 
-		// Initiate closing RestServerEndpoint but the test handler should block due to the in-flight request
-		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
+		// Allow handler to close but there is still one in-flight request which should prevent
+		// the RestServerEndpoint from closing.
+		testHandler.closeFuture.complete(null);
 		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
 
 		// Finish the in-flight request.
@@ -564,28 +571,35 @@ public class RestServerEndpointITCase extends TestLogger {
 	}
 
 	/**
-	 * Tests that new requests are ignored after calling {@link RestServerEndpoint#closeAsync()}.
+	 * Tests that new requests are ignored after a handler is shut down.
 	 */
 	@Test
-	public void testRequestsRejectedAfterShutdownInitiation() throws Exception {
-		testHandler.closeFuture = new CompletableFuture<>();
-		testHandler.handlerBody = id -> CompletableFuture.completedFuture(new TestResponse(id));
+	public void testRequestsRejectedAfterShutdownOfHandlerIsCompleted() throws Exception {
+		testHandler.handlerBody = id -> CompletableFuture.completedFuture(new TestResponse(id, "foobar"));
 
-		// Initiate closing RestServerEndpoint, but the test handler should block
+		// let the test upload handler block the shut down of the RestServerEndpoint
+		testUploadHandler.closeFuture = new CompletableFuture<>();
+
 		final CompletableFuture<Void> closeRestServerEndpointFuture = serverEndpoint.closeAsync();
+
 		assertThat(closeRestServerEndpointFuture.isDone(), is(false));
 
-		// attempt to submit a request
+		// wait until the TestHandler is closed
+		testHandler.closeLatch.await();
+
+		// requests to the TestHandler should now get rejected
 		final CompletableFuture<TestResponse> request = sendRequestToTestHandler(new TestRequest(1));
+
 		try {
 			request.get(timeout.getSize(), timeout.getUnit());
-			fail("Request should have failed.");
-		} catch (Exception ignored) {
-			// expected
+			fail("Expected a ConnectionClosedException");
+		} catch (ExecutionException ee) {
+			if (!ExceptionUtils.findThrowable(ee, ConnectionClosedException.class).isPresent()) {
+				throw ee;
+			}
 		} finally {
-			// allow the endpoint to shut down
-			testHandler.closeFuture.complete(null);
-			closeRestServerEndpointFuture.get(timeout.getSize(), timeout.getUnit());
+			testUploadHandler.closeFuture.complete(null);
+			closeRestServerEndpointFuture.get();
 		}
 	}
 
@@ -704,6 +718,8 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
 
+		private final OneShotLatch closeLatch = new OneShotLatch();
+
 		private CompletableFuture<Void> closeFuture = CompletableFuture.completedFuture(null);
 
 		private Function<Integer, CompletableFuture<TestResponse>> handlerBody;
@@ -727,6 +743,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		@Override
 		public CompletableFuture<Void> closeHandlerAsync() {
+			closeLatch.trigger();
 			return closeFuture;
 		}
 	}
@@ -975,6 +992,8 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	private static class TestUploadHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
+		private volatile CompletableFuture<Void> closeFuture = CompletableFuture.completedFuture(null);
+
 		private volatile byte[] lastUploadedFileContents;
 
 		private TestUploadHandler(
@@ -1000,6 +1019,11 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		public byte[] getLastUploadedFileContents() {
 			return lastUploadedFileContents;
+		}
+
+		@Override
+		protected CompletableFuture<Void> closeHandlerAsync() {
+			return closeFuture;
 		}
 	}
 
