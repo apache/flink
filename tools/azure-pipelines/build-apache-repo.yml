@@ -76,7 +76,7 @@ stages:
     jobs:
       - template: build-nightly-dist.yml
         parameters:
-          stage_name: cron_nightly_dist
+          stage_name: cron_snapshot_deployment
           environment: PROFILE=""
           container: flink-build-container
       - template: jobs-template.yml
