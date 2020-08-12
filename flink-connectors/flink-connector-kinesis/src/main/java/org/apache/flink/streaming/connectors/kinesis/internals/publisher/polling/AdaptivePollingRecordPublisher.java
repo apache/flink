@@ -19,13 +19,10 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher.pollin
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordBatch;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
-import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
-
-import java.util.function.Consumer;
 
 /**
  * An adaptive record publisher to add a dynamic loop delay and batch read size for {@link PollingRecordPublisher}.
@@ -63,11 +60,12 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
 	}
 
 	@Override
-	public RecordPublisherRunResult run(final StartingPosition startingPosition, final Consumer<RecordBatch> consumer) throws InterruptedException {
-		final RecordPublisherRunResult result = super.run(startingPosition, batch -> {
-			consumer.accept(batch);
+	public RecordPublisherRunResult run(final RecordBatchConsumer consumer) throws InterruptedException {
+		final RecordPublisherRunResult result = super.run(batch -> {
+			SequenceNumber latestSequenceNumber = consumer.accept(batch);
 			lastRecordBatchSize = batch.getDeaggregatedRecordSize();
 			lastRecordBatchSizeInBytes = batch.getTotalSizeInBytes();
+			return latestSequenceNumber;
 		}, maxNumberOfRecordsPerFetch);
 
 		long adjustmentEndTimeNanos = adjustRunLoopFrequency(processingStartTimeNanos, System.nanoTime());

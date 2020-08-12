@@ -34,8 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.function.Consumer;
-
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.LATEST;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
@@ -56,6 +54,8 @@ public class PollingRecordPublisher implements RecordPublisher {
 	private final StreamShardHandle subscribedShard;
 
 	private String nextShardItr;
+
+	private StartingPosition nextStartingPosition;
 
 	private final int maxNumberOfRecordsPerFetch;
 
@@ -88,14 +88,18 @@ public class PollingRecordPublisher implements RecordPublisher {
 	}
 
 	@Override
-	public RecordPublisherRunResult run(final StartingPosition startingPosition, final Consumer<RecordBatch> consumer) throws InterruptedException {
-		return run(startingPosition, consumer, maxNumberOfRecordsPerFetch);
+	public void initialize(StartingPosition startingPosition) throws InterruptedException {
+		nextStartingPosition = startingPosition;
+		nextShardItr = getShardIterator();
 	}
 
-	public RecordPublisherRunResult run(final StartingPosition startingPosition, final Consumer<RecordBatch> consumer, int maxNumberOfRecords) throws InterruptedException {
-		if (nextShardItr == null) {
-			nextShardItr = getShardIterator(startingPosition);
-		}
+	@Override
+	public RecordPublisherRunResult run(final RecordBatchConsumer consumer) throws InterruptedException {
+		return run(consumer, maxNumberOfRecordsPerFetch);
+	}
+
+	public RecordPublisherRunResult run(final RecordBatchConsumer consumer, int maxNumberOfRecords) throws InterruptedException {
+		Preconditions.checkNotNull(nextStartingPosition, "nextStartingPosition is null, did you forget to call initialise()?");
 
 		if (nextShardItr == null) {
 			return COMPLETE;
@@ -103,10 +107,12 @@ public class PollingRecordPublisher implements RecordPublisher {
 
 		metricsReporter.setMaxNumberOfRecordsPerFetch(maxNumberOfRecords);
 
-		GetRecordsResult result = getRecords(nextShardItr, startingPosition, maxNumberOfRecords);
+		GetRecordsResult result = getRecords(nextShardItr, maxNumberOfRecords);
 
-		consumer.accept(new RecordBatch(result.getRecords(), subscribedShard, result.getMillisBehindLatest()));
+		RecordBatch recordBatch = new RecordBatch(result.getRecords(), subscribedShard, result.getMillisBehindLatest());
+		SequenceNumber latestSeequenceNumber = consumer.accept(recordBatch);
 
+		nextStartingPosition = StartingPosition.continueFromSequenceNumber(latestSeequenceNumber);
 		nextShardItr = result.getNextShardIterator();
 		return nextShardItr == null ? COMPLETE : INCOMPLETE;
 	}
@@ -123,11 +129,10 @@ public class PollingRecordPublisher implements RecordPublisher {
 	 * incorrect shard iteration if the iterator had to be refreshed.
 	 *
 	 * @param shardItr shard iterator to use
-	 * @param startingPosition the position in the stream in which to consume from
 	 * @param maxNumberOfRecords the maximum number of records to fetch for this getRecords attempt
 	 * @return get records result
 	 */
-	private GetRecordsResult getRecords(String shardItr, final StartingPosition startingPosition, int maxNumberOfRecords) throws InterruptedException {
+	private GetRecordsResult getRecords(String shardItr, int maxNumberOfRecords) throws InterruptedException {
 		GetRecordsResult getRecordsResult = null;
 		while (getRecordsResult == null) {
 			try {
@@ -136,7 +141,7 @@ public class PollingRecordPublisher implements RecordPublisher {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);
 
-				shardItr = getShardIterator(startingPosition);
+				shardItr = getShardIterator();
 
 				// sleep for the fetch interval before the next getRecords attempt with the refreshed iterator
 				if (expiredIteratorBackoffMillis != 0) {
@@ -153,14 +158,14 @@ public class PollingRecordPublisher implements RecordPublisher {
 	 * @return shard iterator
 	 */
 	@Nullable
-	private String getShardIterator(final StartingPosition startingPosition) throws InterruptedException {
-		if (startingPosition.getShardIteratorType() == LATEST && subscribedShard.isClosed()) {
+	private String getShardIterator() throws InterruptedException {
+		if (nextStartingPosition.getShardIteratorType() == LATEST && subscribedShard.isClosed()) {
 			return null;
 		}
 
 		return kinesisProxy.getShardIterator(
-				subscribedShard,
-				startingPosition.getShardIteratorType().toString(),
-				startingPosition.getStartingMarker());
+			subscribedShard,
+			nextStartingPosition.getShardIteratorType().toString(),
+			nextStartingPosition.getStartingMarker());
 	}
 }

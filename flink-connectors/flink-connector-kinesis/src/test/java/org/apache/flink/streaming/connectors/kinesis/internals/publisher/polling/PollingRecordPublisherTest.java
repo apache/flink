@@ -19,26 +19,25 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher.pollin
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordBatch;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordBatchConsumer;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
+import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
-import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
-import static org.apache.flink.streaming.connectors.kinesis.model.StartingPosition.continueFromSequenceNumber;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,7 +60,7 @@ public class PollingRecordPublisherTest {
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
 		TestConsumer consumer = new TestConsumer();
-		RecordPublisherRunResult result = recordPublisher.run(earliest(), consumer);
+		recordPublisher.run(consumer);
 
 		assertEquals(1, consumer.recordBatches.size());
 		assertEquals(5, consumer.recordBatches.get(0).getDeaggregatedRecordSize());
@@ -75,10 +74,10 @@ public class PollingRecordPublisherTest {
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
 		// First call results in INCOMPLETE, there is one batch left
-		assertEquals(INCOMPLETE, recordPublisher.run(earliest(), batch -> {}));
+		assertEquals(INCOMPLETE, recordPublisher.run(new TestConsumer()));
 
 		// After second call the shard is complete
-		assertEquals(COMPLETE, recordPublisher.run(earliest(), batch -> {}));
+		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
 	}
 
 	@Test
@@ -86,8 +85,8 @@ public class PollingRecordPublisherTest {
 		KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 1, 100);
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		assertEquals(COMPLETE, recordPublisher.run(earliest(), batch -> {}));
-		assertEquals(COMPLETE, recordPublisher.run(earliest(), batch -> {}));
+		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
+		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
 	}
 
 	@Test
@@ -95,7 +94,7 @@ public class PollingRecordPublisherTest {
 		KinesisProxyInterface fakeKinesis = FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour();
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		assertEquals(COMPLETE, recordPublisher.run(earliest(), batch -> {}));
+		assertEquals(COMPLETE, recordPublisher.run(new TestConsumer()));
 	}
 
 	@Test
@@ -103,7 +102,7 @@ public class PollingRecordPublisherTest {
 		KinesisProxyInterface fakeKinesis = spy(FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(2, 2, 1, 500));
 		PollingRecordPublisher recordPublisher = createPollingRecordPublisher(fakeKinesis);
 
-		recordPublisher.run(earliest(), batch -> {});
+		recordPublisher.run(new TestConsumer());
 
 		// Get shard iterator is called twice, once during first run, secondly to refresh expired iterator
 		verify(fakeKinesis, times(2)).getShardIterator(any(), any(), any());
@@ -133,31 +132,49 @@ public class PollingRecordPublisherTest {
 			100);
 	}
 
-	private StartingPosition latest() {
-		return continueFromSequenceNumber(SENTINEL_LATEST_SEQUENCE_NUM.get());
+	@Test
+	public void testUninitialisedRecordConsumerFailsToRun() throws InterruptedException {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("nextStartingPosition is null, did you forget to call initialise()?");
+
+		new PollingRecordPublisher(
+			TestUtils.createDummyStreamShardHandle(),
+			mock(PollingRecordPublisherMetricsReporter.class),
+			mock(KinesisProxyInterface.class),
+			100,
+			100)
+			.run(new TestConsumer());
 	}
 
-	private StartingPosition earliest() {
-		return continueFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get());
-	}
-
-	PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis) {
+	PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis) throws InterruptedException {
 		PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class));
 
-		return new PollingRecordPublisher(
+		PollingRecordPublisher recordPublisher = new PollingRecordPublisher(
 			TestUtils.createDummyStreamShardHandle(),
 			metricsReporter,
 			kinesis,
 			10000,
 			500L);
+
+		recordPublisher.initialize(StartingPosition.restartFromSequenceNumber(SENTINEL_EARLIEST_SEQUENCE_NUM.get()));
+
+		return recordPublisher;
 	}
 
-	private static class TestConsumer implements Consumer<RecordBatch> {
+	private static class TestConsumer implements RecordBatchConsumer {
 		private final List<RecordBatch> recordBatches = new ArrayList<>();
+		private String latestSequenceNumber;
 
 		@Override
-		public void accept(final RecordBatch batch) {
+		public SequenceNumber accept(final RecordBatch batch) {
 			recordBatches.add(batch);
+
+			if (batch.getDeaggregatedRecordSize() > 0) {
+				List<UserRecord> records = batch.getDeaggregatedRecords();
+				latestSequenceNumber = records.get(records.size() - 1).getSequenceNumber();
+			}
+
+			return new SequenceNumber(latestSequenceNumber);
 		}
 	}
 }

@@ -59,7 +59,7 @@ public class ShardConsumer<T> implements Runnable {
 
 	private final ShardConsumerMetricsReporter shardConsumerMetricsReporter;
 
-	private StartingPosition startingPosition;
+	private final StartingPosition startingPosition;
 
 	private SequenceNumber lastSequenceNum;
 
@@ -122,8 +122,10 @@ public class ShardConsumer<T> implements Runnable {
 	@Override
 	public void run() {
 		try {
+			recordPublisher.initialize(startingPosition);
+
 			while (isRunning()) {
-				final RecordPublisherRunResult result = recordPublisher.run(startingPosition, batch -> {
+				final RecordPublisherRunResult result = recordPublisher.run(batch -> {
 					for (UserRecord userRecord : batch.getDeaggregatedRecords()) {
 						if (filterDeaggregatedRecord(userRecord)) {
 							deserializeRecordForCollectionAndUpdateState(userRecord);
@@ -134,6 +136,8 @@ public class ShardConsumer<T> implements Runnable {
 					shardConsumerMetricsReporter.setNumberOfAggregatedRecords(batch.getAggregatedRecordSize());
 					shardConsumerMetricsReporter.setNumberOfDeaggregatedRecords(batch.getDeaggregatedRecordSize());
 					ofNullable(batch.getMillisBehindLatest()).ifPresent(shardConsumerMetricsReporter::setMillisBehindLatest);
+
+					return lastSequenceNum;
 				});
 
 				if (result == COMPLETE) {
@@ -141,8 +145,6 @@ public class ShardConsumer<T> implements Runnable {
 
 					// we can close this consumer thread once we've reached the end of the subscribed shard
 					break;
-				} else {
-					startingPosition = StartingPosition.continueFromSequenceNumber(lastSequenceNum);
 				}
 			}
 		} catch (Throwable t) {
@@ -202,7 +204,7 @@ public class ShardConsumer<T> implements Runnable {
 			subscribedShardStateIndex,
 			collectedSequenceNumber);
 
-		lastSequenceNum = collectedSequenceNumber;
+		this.lastSequenceNum = collectedSequenceNumber;
 	}
 
 	/**

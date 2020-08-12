@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
-
-import java.util.function.Consumer;
 
 /**
  * A {@code RecordPublisher} will consume records from an external stream and deliver them to the registered subscriber.
@@ -28,16 +27,17 @@ import java.util.function.Consumer;
 @Internal
 public interface RecordPublisher {
 
+	void initialize(StartingPosition startingPosition) throws InterruptedException;
+
 	/**
 	 * Run the record publisher. Records will be consumed from the stream and published to the consumer.
 	 * The number of batches retrieved by a single invocation will vary based on implementation.
 	 *
-	 * @param startingPosition the position in the stream from which to consume
-	 * @param recordConsumer the record consumer in which to output records
+	 * @param recordBatchConsumer the record batch consumer in which to output records
 	 * @return a status enum to represent whether a shard has been fully consumed
 	 * @throws InterruptedException
 	 */
-	RecordPublisherRunResult run(StartingPosition startingPosition, Consumer<RecordBatch> recordConsumer) throws InterruptedException;
+	RecordPublisherRunResult run(RecordBatchConsumer recordBatchConsumer) throws InterruptedException;
 
 	/**
 	 * A status enum to represent whether a shard has been fully consumed.
@@ -48,5 +48,13 @@ public interface RecordPublisher {
 
 		/** There are more records to consume from this shard. */
 		INCOMPLETE
+	}
+
+	/**
+	 * An interface used to collect record batches, and reply with the latest consumed sequence number.
+	 */
+	interface RecordBatchConsumer {
+
+		SequenceNumber accept(RecordBatch recordBatch);
 	}
 }
