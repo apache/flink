@@ -117,13 +117,10 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 		FileUploads uploadedFiles = null;
 		try {
-			synchronized (this) {
-				if (terminationFuture != null) {
-					log.debug("The handler instance for {} had already been closed.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
-					ctx.channel().close();
-					return;
-				}
-				inFlightRequestTracker.registerRequest();
+			if (!inFlightRequestTracker.registerRequest()) {
+				log.debug("The handler instance for {} had already been closed.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
+				ctx.channel().close();
+				return;
 			}
 
 			if (!(httpRequest instanceof FullHttpRequest)) {
