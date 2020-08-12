@@ -38,6 +38,19 @@ import static java.lang.System.identityHashCode;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MANY_CHECKPOINT_REQUESTS;
 
+/**
+ * Decides whether a {@link CheckpointCoordinator.CheckpointTriggerRequest checkpoint request} should be executed,
+ * dropped or postponed.
+ * Dropped requests are failed immediately.
+ * Postponed requests are enqueued into a queue and can be dequeued later.
+ * <p>
+ * Decision is made according to:<ul>
+ * <li>checkpoint properties (e.g. isForce, isPeriodic)</li>
+ * <li>checkpointing configuration (e.g. max concurrent checkpoints, min pause)</li>
+ * <li>current state (other queued requests, pending checkpoints, last checkpoint completion time)</li>
+ * </ul>
+ * </p>
+ */
 @SuppressWarnings("ConstantConditions")
 class CheckpointRequestDecider {
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointRequestDecider.class);
@@ -85,6 +98,10 @@ class CheckpointRequestDecider {
 		this.maxQueuedRequests = maxQueuedRequests;
 	}
 
+	/**
+	 * Submit a new checkpoint request and decide whether it or some other request can be executed.
+	 * @return request that should be executed
+	 */
 	Optional<CheckpointTriggerRequest> chooseRequestToExecute(CheckpointTriggerRequest newRequest, boolean isTriggering, long lastCompletionMs) {
 		if (queuedRequests.size() >= maxQueuedRequests && !queuedRequests.last().isPeriodic) {
 			// there are only non-periodic (ie user-submitted) requests enqueued - retain them and drop the new one
@@ -101,6 +118,10 @@ class CheckpointRequestDecider {
 		}
 	}
 
+	/**
+	 * Choose one of the queued requests to execute, if any.
+	 * @return request that should be executed
+	 */
 	Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute(boolean isTriggering, long lastCompletionMs) {
 		Optional<CheckpointTriggerRequest> request = chooseRequestToExecute(isTriggering, lastCompletionMs);
 		request.ifPresent(CheckpointRequestDecider::logInQueueTime);
@@ -110,7 +131,7 @@ class CheckpointRequestDecider {
 	/**
 	 * Choose the next {@link CheckpointTriggerRequest request} to execute based on the provided candidate and the
 	 * current state. Acquires a lock and may update the state.
-	 * @return request to execute, if any.
+	 * @return request that should be executed
 	 */
 	private Optional<CheckpointTriggerRequest> chooseRequestToExecute(boolean isTriggering, long lastCompletionMs) {
 		if (isTriggering || queuedRequests.isEmpty()) {
