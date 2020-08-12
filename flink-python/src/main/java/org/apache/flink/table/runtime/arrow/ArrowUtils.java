@@ -23,9 +23,6 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.internal.BatchTableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -124,9 +121,6 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.LinkedHashMultiset;
 
 import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.BufferAllocator;
@@ -617,21 +611,6 @@ public final class ArrowUtils {
 	 */
 	public static CustomIterator<byte[]> collectAsPandasDataFrame(Table table, int maxArrowBatchSize) throws Exception {
 		checkArrowUsable();
-		boolean isRetractTable = false;
-		if (isStreamingMode(table)) {
-			StreamTableEnvironment tableEnv = (StreamTableEnvironment) ((TableImpl) table).getTableEnvironment();
-			try {
-				tableEnv.toAppendStream(table, Row.class);
-			} catch (Throwable t) {
-				if (t.getMessage().contains("toAppendStream doesn't support consuming update changes") ||
-						t.getMessage().contains("Table is not an append-only table")) {
-					isRetractTable = true;
-				} else {
-					throw new RuntimeException("Failed to determine whether the given table is append only.", t);
-				}
-			}
-		}
-
 		BufferAllocator allocator = getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
 		RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
@@ -641,20 +620,13 @@ public final class ArrowUtils {
 
 		ArrowWriter arrowWriter;
 		Iterator<Row> results = table.execute().collect();
-		Iterator<Row> appendOnlyResults;
-		if (isRetractTable) {
-			appendOnlyResults = filterOutRetractRows(results);
-		} else {
-			appendOnlyResults = results;
-		}
-
 		Iterator convertedResults;
 		if (isBlinkPlanner(table)) {
 			arrowWriter = createRowDataArrowWriter(root, rowType);
 			convertedResults = new Iterator<RowData>() {
 				@Override
 				public boolean hasNext() {
-					return appendOnlyResults.hasNext();
+					return results.hasNext();
 				}
 
 				@Override
@@ -665,12 +637,12 @@ public final class ArrowUtils {
 						SelectTableSinkSchemaConverter.changeDefaultConversionClass(table.getSchema());
 					DataFormatConverters.DataFormatConverter converter =
 						DataFormatConverters.getConverterForDataType(convertedTableSchema.toRowDataType());
-					return (RowData) converter.toInternal(appendOnlyResults.next());
+					return (RowData) converter.toInternal(results.next());
 				}
 			};
 		} else {
 			arrowWriter = createRowArrowWriter(root, rowType);
-			convertedResults = appendOnlyResults;
+			convertedResults = results;
 		}
 
 		return new CustomIterator<byte[]>() {
@@ -707,24 +679,6 @@ public final class ArrowUtils {
 		};
 	}
 
-	private static Iterator<Row> filterOutRetractRows(Iterator<Row> data) {
-		LinkedHashMultiset<Row> result = LinkedHashMultiset.create();
-		while (data.hasNext()) {
-			Row element = data.next();
-			if (element.getKind() == RowKind.INSERT || element.getKind() == RowKind.UPDATE_AFTER) {
-				element.setKind(RowKind.INSERT);
-				result.add(element);
-			} else {
-				element.setKind(RowKind.INSERT);
-				if (!result.remove(element)) {
-					throw new RuntimeException(
-						String.format("Could not remove element '%s', should never happen.", element));
-				}
-			}
-		}
-		return result.iterator();
-	}
-
 	private static boolean isBlinkPlanner(Table table) {
 		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
 		if (tableEnv instanceof TableEnvImpl) {
@@ -734,23 +688,7 @@ public final class ArrowUtils {
 			return planner instanceof PlannerBase;
 		} else {
 			throw new RuntimeException(String.format(
-				"Could not determine the planner type for table environment class %s.", tableEnv.getClass()));
-		}
-	}
-
-	private static boolean isStreamingMode(Table table) throws Exception {
-		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
-		if (tableEnv instanceof BatchTableEnvironment || tableEnv instanceof BatchTableEnvImpl) {
-			return false;
-		} else if (tableEnv instanceof StreamTableEnvironment) {
-			return true;
-		} else if (tableEnv instanceof TableEnvironmentImpl) {
-			java.lang.reflect.Field isStreamingModeMethod = TableEnvironmentImpl.class.getDeclaredField("isStreamingMode");
-			isStreamingModeMethod.setAccessible(true);
-			return (boolean) isStreamingModeMethod.get(tableEnv);
-		} else {
-			throw new RuntimeException(String.format(
-				"Could not determine the streaming mode for table environment class %s", tableEnv.getClass()));
+				"Could not determine the planner type for table environment class %s", tableEnv.getClass()));
 		}
 	}
 
