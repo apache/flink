@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperatorFactory
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
@@ -109,7 +109,7 @@ class StreamExecWatermarkAssigner(
         idleTimeout,
         watermarkGenerator)
 
-    val outputRowTypeInfo = RowDataTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val outputRowTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
     val transformation = new OneInputTransformation[RowData, RowData](
       inputTransformation,
       getRelDetailedDescription,

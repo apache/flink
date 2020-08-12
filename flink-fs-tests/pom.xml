@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-fs-tests</artifactId>
-	<name>flink-fs-tests</name>
+	<name>Flink : FileSystems : Tests</name>
 
 	<packaging>jar</packaging>
 

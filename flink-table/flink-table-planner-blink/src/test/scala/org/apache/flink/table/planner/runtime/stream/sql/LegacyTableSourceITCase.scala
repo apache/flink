@@ -26,7 +26,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestLegacyFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -307,9 +307,9 @@ class LegacyTableSourceITCase extends StreamingTestBase {
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       tEnv,
-      TestFilterableTableSource.defaultSchema,
+      TestLegacyFilterableTableSource.defaultSchema,
       "MyTable")
 
     val sqlQuery = "SELECT id, name FROM MyTable WHERE amount > 4 AND price < 9"

@@ -23,12 +23,8 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
-import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.security.SecurityConfiguration;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
@@ -43,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 /**
  * This class is the executable entry point for running a TaskExecutor in a YARN container.
@@ -90,17 +85,9 @@ public class YarnTaskExecutorRunner {
 			LOG.info("Current working Directory: {}", currDir);
 
 			final Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+			setupAndModifyConfiguration(configuration, currDir, ENV);
 
-			final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
-
-			FileSystem.initialize(configuration, pluginManager);
-
-			setupConfigurationAndInstallSecurityContext(configuration, currDir, ENV);
-
-			SecurityUtils.getInstalledContext().runSecured((Callable<Void>) () -> {
-				TaskManagerRunner.runTaskManager(configuration, pluginManager);
-				return null;
-			});
+			TaskManagerRunner.runTaskManagerSecurely(configuration);
 		}
 		catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
@@ -111,15 +98,13 @@ public class YarnTaskExecutorRunner {
 	}
 
 	@VisibleForTesting
-	static void setupConfigurationAndInstallSecurityContext(Configuration configuration, String currDir, Map<String, String> variables) throws Exception {
+	static void setupAndModifyConfiguration(Configuration configuration, String currDir, Map<String, String> variables) throws Exception {
 		final String localDirs = variables.get(Environment.LOCAL_DIRS.key());
 		LOG.info("Current working/local Directory: {}", localDirs);
 
 		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
 
 		setupConfigurationFromVariables(configuration, currDir, variables);
-
-		SecurityUtils.install(new SecurityConfiguration(configuration));
 	}
 
 	private static void setupConfigurationFromVariables(Configuration configuration, String currDir, Map<String, String> variables) throws IOException {

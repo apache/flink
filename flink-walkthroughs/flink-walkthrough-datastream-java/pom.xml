@@ -33,5 +33,6 @@ under the License.
 
 	<artifactId>flink-walkthrough-datastream-java</artifactId>
 	<packaging>maven-archetype</packaging>
+	<name>Flink : Walkthrough : Datastream Java</name>
 
 </project>

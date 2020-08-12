@@ -28,8 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-mapr-fs</artifactId>
-	<name>flink-mapr-fs</name>
-
+	<name>Flink : FileSystems : Mapr FS</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

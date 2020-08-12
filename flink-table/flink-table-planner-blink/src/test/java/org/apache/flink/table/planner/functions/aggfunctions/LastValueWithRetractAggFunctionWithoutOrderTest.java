@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.BooleanLastValueWithRetractAggFunction;
@@ -67,7 +67,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Byte, GenericRowData> getAggregator() {
+		protected AggregateFunction<Byte, RowData> getAggregator() {
 			return new ByteLastValueWithRetractAggFunction();
 		}
 	}
@@ -84,7 +84,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Short, GenericRowData> getAggregator() {
+		protected AggregateFunction<Short, RowData> getAggregator() {
 			return new ShortLastValueWithRetractAggFunction();
 		}
 	}
@@ -101,7 +101,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Integer, GenericRowData> getAggregator() {
+		protected AggregateFunction<Integer, RowData> getAggregator() {
 			return new IntLastValueWithRetractAggFunction();
 		}
 	}
@@ -118,7 +118,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Long, GenericRowData> getAggregator() {
+		protected AggregateFunction<Long, RowData> getAggregator() {
 			return new LongLastValueWithRetractAggFunction();
 		}
 	}
@@ -135,7 +135,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Float, GenericRowData> getAggregator() {
+		protected AggregateFunction<Float, RowData> getAggregator() {
 			return new FloatLastValueWithRetractAggFunction();
 		}
 	}
@@ -152,7 +152,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Double, GenericRowData> getAggregator() {
+		protected AggregateFunction<Double, RowData> getAggregator() {
 			return new DoubleLastValueWithRetractAggFunction();
 		}
 	}
@@ -208,7 +208,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<Boolean, GenericRowData> getAggregator() {
+		protected AggregateFunction<Boolean, RowData> getAggregator() {
 			return new BooleanLastValueWithRetractAggFunction();
 		}
 	}
@@ -260,7 +260,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<DecimalData, GenericRowData> getAggregator() {
+		protected AggregateFunction<DecimalData, RowData> getAggregator() {
 			return new DecimalLastValueWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
 		}
 	}
@@ -310,7 +310,7 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 		}
 
 		@Override
-		protected AggregateFunction<StringData, GenericRowData> getAggregator() {
+		protected AggregateFunction<StringData, RowData> getAggregator() {
 			return new StringLastValueWithRetractAggFunction();
 		}
 	}
@@ -327,11 +327,11 @@ public final class LastValueWithRetractAggFunctionWithoutOrderTest {
 	 * The base test class for LastValueWithRetractAggFunction without order.
 	 */
 	public abstract static class LastValueWithRetractAggFunctionWithoutOrderTestBase<T>
-		extends AggFunctionTestBase<T, GenericRowData> {
+		extends AggFunctionTestBase<T, RowData> {
 
 		@Override
 		protected Class<?> getAccClass() {
-			return GenericRowData.class;
+			return RowData.class;
 		}
 
 		@Override

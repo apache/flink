@@ -121,10 +121,10 @@ public class FakeKinesisBehavioursFactory {
 	 * @param numOfGetRecordsCalls the number batches available in the fake stream
 	 */
 	public static KinesisProxyInterface aggregatedRecords(
-		final int numOfAggregatedRecords,
-		final int numOfChildRecords,
-		final int numOfGetRecordsCalls) {
-		return new SingleShardEmittingAggregatedRecordsKinesis(numOfAggregatedRecords, numOfChildRecords, numOfGetRecordsCalls);
+			final int numOfAggregatedRecords,
+			final int numOfChildRecords,
+			final int numOfGetRecordsCalls) {
+			return new SingleShardEmittingAggregatedRecordsKinesis(numOfAggregatedRecords, numOfChildRecords, numOfGetRecordsCalls);
 	}
 
 	public static KinesisProxyInterface blockingQueueGetRecords(Map<String, List<BlockingQueue<String>>> streamsToShardQueues) {
@@ -335,14 +335,14 @@ public class FakeKinesisBehavioursFactory {
 
 		public SingleShardEmittingAggregatedRecordsKinesis(
 				final int numOfAggregatedRecords,
-			final int numOfChildRecords,
-			final int numOfGetRecordsCalls) {
+				final int numOfChildRecords,
+				final int numOfGetRecordsCalls) {
 			super(initShardItrToRecordBatch(numOfAggregatedRecords, numOfChildRecords, numOfGetRecordsCalls));
 		}
 
 		private static Map<String, List<Record>> initShardItrToRecordBatch(final int numOfAggregatedRecords,
-			final int numOfChildRecords,
-			final int numOfGetRecordsCalls) {
+				final int numOfChildRecords,
+				final int numOfGetRecordsCalls) {
 
 			Map<String, List<Record>> shardToRecordBatch = new HashMap<>();
 

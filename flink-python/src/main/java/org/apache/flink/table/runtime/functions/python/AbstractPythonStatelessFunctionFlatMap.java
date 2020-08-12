@@ -22,20 +22,25 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.python.env.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonStatelessFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
@@ -43,6 +48,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +57,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -107,25 +112,9 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	protected transient LinkedBlockingQueue<Row> forwardedInputQueue;
 
 	/**
-	 * The queue holding the user-defined function execution results. The execution results
-	 * are in the same order as the input elements.
-	 */
-	protected transient LinkedBlockingQueue<byte[]> userDefinedFunctionResultQueue;
-
-	/**
-	 * Use an AtomicBoolean because we start/stop bundles by a timer thread.
-	 */
-	private transient AtomicBoolean bundleStarted;
-
-	/**
 	 * Max number of elements to include in a bundle.
 	 */
 	private transient int maxBundleSize;
-
-	/**
-	 * The collector used to collect records.
-	 */
-	protected transient Collector<Row> resultCollector;
 
 	/**
 	 * Number of processed elements in the current bundle.
@@ -133,9 +122,19 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	private transient int elementCount;
 
 	/**
+	 * OutputStream Wrapper.
+	 */
+	transient DataOutputViewStreamWrapper baosWrapper;
+
+	/**
+	 * The collector used to collect records.
+	 */
+	protected transient Collector<Row> resultCollector;
+
+	/**
 	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
 	 */
-	private transient PythonFunctionRunner<Row> pythonFunctionRunner;
+	protected transient PythonFunctionRunner pythonFunctionRunner;
 
 	/**
 	 * Reusable InputStream used to holding the execution results to be deserialized.
@@ -148,14 +147,14 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	protected transient DataInputViewStreamWrapper baisWrapper;
 
 	/**
-	 * The TypeSerializer for user-defined function execution results.
-	 */
-	protected transient TypeSerializer<Row> userDefinedFunctionTypeSerializer;
-
-	/**
 	 * The type serializer for the forwarded fields.
 	 */
 	protected transient TypeSerializer<Row> forwardedInputSerializer;
+
+	/**
+	 * Reusable OutputStream used to holding the serialized input elements.
+	 */
+	protected transient ByteArrayOutputStreamWithPos baos;
 
 	public AbstractPythonStatelessFunctionFlatMap(
 		Configuration config,
@@ -174,12 +173,10 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 
 		this.elementCount = 0;
-		this.bundleStarted = new AtomicBoolean(false);
 		this.maxBundleSize = config.getMaxBundleSize();
 		if (this.maxBundleSize <= 0) {
 			this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
@@ -194,35 +191,35 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 				"Config maximum bundle size instead! " +
 				"Under batch mode, bundle size should be enough to control both throughput and latency.");
 		}
-
 		forwardedInputQueue = new LinkedBlockingQueue<>();
-		userDefinedFunctionResultQueue = new LinkedBlockingQueue<>();
 		userDefinedFunctionInputType = new RowType(
 			Arrays.stream(userDefinedFunctionInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
+
 		bais = new ByteArrayInputStreamWithPos();
 		baisWrapper = new DataInputViewStreamWrapper(bais);
 
+		baos = new ByteArrayOutputStreamWithPos();
+		baosWrapper = new DataOutputViewStreamWrapper(baos);
+
 		userDefinedFunctionOutputType = new RowType(outputType.getFields().subList(getForwardedFieldsCount(), outputType.getFieldCount()));
-		userDefinedFunctionTypeSerializer = PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
 
 		this.pythonFunctionRunner = createPythonFunctionRunner();
-		this.pythonFunctionRunner.open();
+		this.pythonFunctionRunner.open(config);
 	}
 
 	@Override
 	public void flatMap(Row value, Collector<Row> out) throws Exception {
 		this.resultCollector = out;
 		bufferInput(value);
-
-		checkInvokeStartBundle();
-		pythonFunctionRunner.processElement(getFunctionInput(value));
+		processElementInternal(value);
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public TypeInformation<Row> getProducedType() {
 		return (TypeInformation<Row>) LegacyTypeInfoDataTypeConverter
 			.toLegacyTypeInfo(LogicalTypeDataTypeConverter.toDataType(outputType));
@@ -247,13 +244,32 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	 */
 	public abstract PythonEnv getPythonEnv();
 
-	public abstract PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException;
-
 	public abstract void bufferInput(Row input);
 
-	public abstract void emitResults() throws IOException;
+	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
 
 	public abstract int getForwardedFieldsCount();
+
+	/**
+	 * Gets the proto representation of the Python user-defined functions to be executed.
+	 */
+	public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+
+	public abstract String getInputOutputCoderUrn();
+
+	public abstract String getFunctionUrn();
+
+	public abstract void processElementInternal(Row value) throws Exception;
+
+	/**
+	 * Checks whether to invoke finishBundle by elements count. Called in flatMap.
+	 */
+	protected void checkInvokeFinishBundleByCount() throws Exception {
+		elementCount++;
+		if (elementCount >= maxBundleSize) {
+			invokeFinishBundle();
+		}
+	}
 
 	protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
 		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(
@@ -270,40 +286,59 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		}
 	}
 
+	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
+		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
+		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
+		for (Object input : pythonFunctionInfo.getInputs()) {
+			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
+				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
+			if (input instanceof PythonFunctionInfo) {
+				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
+			} else if (input instanceof Integer) {
+				inputProto.setInputOffset((Integer) input);
+			} else {
+				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
+			}
+			builder.addInputs(inputProto);
+		}
+		return builder.build();
+	}
+
 	protected FlinkMetricContainer getFlinkMetricContainer() {
 		return this.config.isMetricEnabled() ?
 			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
 
-	/**
-	 * Checks whether to invoke startBundle.
-	 */
-	private void checkInvokeStartBundle() throws Exception {
-		if (bundleStarted.compareAndSet(false, true)) {
-			pythonFunctionRunner.startBundle();
-		}
-	}
-
-	/**
-	 * Checks whether to invoke finishBundle by elements count. Called in flatMap.
-	 */
-	private void checkInvokeFinishBundleByCount() throws Exception {
-		elementCount++;
-		if (elementCount >= maxBundleSize) {
-			invokeFinishBundle();
-		}
-	}
-
-	private void invokeFinishBundle() throws Exception {
-		if (bundleStarted.compareAndSet(true, false)) {
-			pythonFunctionRunner.finishBundle();
-			emitResults();
-			elementCount = 0;
-		}
-	}
-
-	private Row getFunctionInput(Row element) {
+	protected Row getFunctionInput(Row element) {
 		return Row.project(element, userDefinedFunctionInputOffsets);
+	}
+
+	private void emitResults() throws Exception {
+		Tuple2<byte[], Integer> resultTuple;
+		while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
+			emitResult(resultTuple);
+		}
+	}
+
+	protected void invokeFinishBundle() throws Exception {
+		if (elementCount > 0) {
+			pythonFunctionRunner.flush();
+			elementCount = 0;
+			emitResults();
+		}
+	}
+
+	private PythonFunctionRunner createPythonFunctionRunner() throws IOException {
+		return new BeamTablePythonStatelessFunctionRunner(
+			getRuntimeContext().getTaskName(),
+			createPythonEnvironmentManager(),
+			userDefinedFunctionInputType,
+			userDefinedFunctionOutputType,
+			getFunctionUrn(),
+			getUserDefinedFunctionsProto(),
+			getInputOutputCoderUrn(),
+			jobOptions,
+			getFlinkMetricContainer());
 	}
 
 	private Map<String, String> buildJobOptions(Configuration config) {

@@ -24,7 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -41,7 +41,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
  */
 public class StreamSortOperatorTest {
 
-	private RowDataTypeInfo inputRowType = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new IntType());
 
@@ -56,7 +56,7 @@ public class StreamSortOperatorTest {
 		}
 	};
 
-	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.getFieldTypes());
+	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
 	@Test
 	public void test() throws Exception {

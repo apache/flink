@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,6 +146,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * @param resourcePath path of the resource to be registered
 	 * @param relativeDstPath the relative path at the target location
 	 *                              (this will be prefixed by the application-specific directory)
+	 * @param resourceType type of the resource, which can be one of FILE, PATTERN, or ARCHIVE
 	 * @param whetherToAddToRemotePaths whether to add the path of local resource to <tt>remotePaths</tt>
 	 * @param whetherToAddToEnvShipResourceList whether to add the local resource to <tt>envShipResourceList</tt>
 	 *
@@ -154,6 +156,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			final String key,
 			final Path resourcePath,
 			final String relativeDstPath,
+			final LocalResourceType resourceType,
 			final boolean whetherToAddToRemotePaths,
 			final boolean whetherToAddToEnvShipResourceList) throws IOException {
 
@@ -164,7 +167,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			LOG.debug("Using remote file {} to register local resource", fileStatus.getPath());
 
 			final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION);
+				.fromFileStatus(key, fileStatus, LocalResourceVisibility.APPLICATION, resourceType);
 			addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 			localResources.put(key, descriptor.toLocalResource());
 			return descriptor;
@@ -177,7 +180,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
 			remoteFileInfo.f0,
 			localFile.length(),
 			remoteFileInfo.f1,
-			LocalResourceVisibility.APPLICATION);
+			LocalResourceVisibility.APPLICATION,
+			resourceType);
 		addToEnvShipResourceList(whetherToAddToEnvShipResourceList, descriptor);
 		localResources.put(key, descriptor.toLocalResource());
 		return descriptor;
@@ -215,12 +219,15 @@ class YarnApplicationFileUploader implements AutoCloseable {
 	 * 		local or remote files to register as Yarn local resources
 	 * @param localResourcesDirectory
 	 *		the directory the localResources are uploaded to
+	 * @param resourceType
+	 *      type of the resource, which can be one of FILE, PATTERN, or ARCHIVE
 	 *
 	 * @return list of class paths with the the proper resource keys from the registration
 	 */
 	List<String> registerMultipleLocalResources(
 			final Collection<Path> shipFiles,
-			final String localResourcesDirectory) throws IOException {
+			final String localResourcesDirectory,
+			final LocalResourceType resourceType) throws IOException {
 
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
@@ -267,6 +274,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 						key,
 						localPath,
 						relativePath.getParent().toString(),
+						resourceType,
 						true,
 						true);
 
@@ -301,6 +309,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 				localJarPath.getName(),
 				localJarPath,
 				"",
+				LocalResourceType.FILE,
 				true,
 				false);
 		return flinkDist;
@@ -322,7 +331,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
 					LOG.debug("Using remote file {} to register local resource", filePath);
 
 					final YarnLocalResourceDescriptor descriptor = YarnLocalResourceDescriptor
-							.fromFileStatus(fileName, fileStatus, LocalResourceVisibility.PUBLIC);
+							.fromFileStatus(fileName, fileStatus, LocalResourceVisibility.PUBLIC, LocalResourceType.FILE);
 					localResources.put(fileName, descriptor.toLocalResource());
 					remotePaths.add(filePath);
 					envShipResourceList.add(descriptor);

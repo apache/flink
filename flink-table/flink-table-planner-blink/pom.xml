@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-	<name>flink-table-planner-blink</name>
+	<name>Flink : Table : Planner Blink</name>
 	<description>
 		This module bridges Table/SQL API and runtime. It contains
 		all resources that are required during pre-flight and runtime
@@ -220,6 +220,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 

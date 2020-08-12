@@ -90,7 +90,7 @@ In Flink, this is represented by a [*Temporal Table Function*](#temporal-table-f
 
 On the other hand, some use cases require to join a changing dimension table which is an external database table.
 
-Let's assume that `LatestRates` is a table (e.g. stored in) which is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
+Let's assume that `LatestRates` is a table (e.g. stored in HBase) which is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
 
 {% highlight text %}
 10:58> SELECT * FROM LatestRates;

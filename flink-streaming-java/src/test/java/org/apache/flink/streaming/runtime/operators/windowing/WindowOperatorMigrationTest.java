@@ -92,7 +92,9 @@ public class WindowOperatorMigrationTest {
 			MigrationVersion.v1_6,
 			MigrationVersion.v1_7,
 			MigrationVersion.v1_8,
-			MigrationVersion.v1_9);
+			MigrationVersion.v1_9,
+			MigrationVersion.v1_10,
+			MigrationVersion.v1_11);
 	}
 
 	private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =

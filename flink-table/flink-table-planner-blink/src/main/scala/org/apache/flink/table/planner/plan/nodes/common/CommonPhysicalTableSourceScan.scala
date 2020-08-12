@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
@@ -68,7 +68,7 @@ abstract class CommonPhysicalTableSourceScan(
       name: String): Transformation[RowData] = {
     val runtimeProvider = tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE)
     val outRowType = FlinkTypeFactory.toLogicalRowType(tableSourceTable.getRowType)
-    val outTypeInfo = new RowDataTypeInfo(outRowType)
+    val outTypeInfo = InternalTypeInfo.of(outRowType)
 
     runtimeProvider match {
       case provider: SourceFunctionProvider =>
@@ -90,5 +90,5 @@ abstract class CommonPhysicalTableSourceScan(
       env: StreamExecutionEnvironment,
       inputFormat: InputFormat[RowData, _],
       name: String,
-      outTypeInfo: RowDataTypeInfo): Transformation[RowData]
+      outTypeInfo: InternalTypeInfo[RowData]): Transformation[RowData]
 }

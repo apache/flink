@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-compress</artifactId>
-	<name>flink-compress</name>
+	<name>Flink : Formats : Compress</name>
 
 	<packaging>jar</packaging>
 

@@ -49,14 +49,13 @@ public final class DataStreamUtils {
 			stream.getExecutionEnvironment().getConfig());
 		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
+		StreamExecutionEnvironment env = stream.getExecutionEnvironment();
 		CollectSinkOperatorFactory<OUT> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
 		CollectSinkOperator<OUT> operator = (CollectSinkOperator<OUT>) factory.getOperator();
 		CollectResultIterator<OUT> iterator = new CollectResultIterator<>(
-			operator.getOperatorIdFuture(), serializer, accumulatorName);
+			operator.getOperatorIdFuture(), serializer, accumulatorName, env.getCheckpointConfig());
 		CollectStreamSink<OUT> sink = new CollectStreamSink<>(stream, factory);
 		sink.name("Data stream collect sink");
-
-		StreamExecutionEnvironment env = stream.getExecutionEnvironment();
 		env.addOperator(sink.getTransformation());
 
 		try {

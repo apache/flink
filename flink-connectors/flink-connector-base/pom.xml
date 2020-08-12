@@ -30,7 +30,7 @@
 	</parent>
 
 	<artifactId>flink-connector-base</artifactId>
-	<name>flink-connector-base</name>
+	<name>Flink : Connectors : Base</name>
 
 	<packaging>jar</packaging>
 

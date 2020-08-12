@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonCalc.PYTHON_SCALAR_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConversions._
@@ -55,8 +55,8 @@ trait CommonPythonCalc extends CommonPythonBase {
 
   private def getPythonScalarFunctionOperator(
       config: Configuration,
-      inputRowTypeInfo: RowDataTypeInfo,
-      outputRowTypeInfo: RowDataTypeInfo,
+      inputRowTypeInfo: InternalTypeInfo[RowData],
+      outputRowTypeInfo: InternalTypeInfo[RowData],
       udfInputOffsets: Array[Int],
       pythonFunctionInfos: Array[PythonFunctionInfo],
       forwardedFields: Array[Int],
@@ -102,9 +102,10 @@ trait CommonPythonCalc extends CommonPythonBase {
       extractPythonScalarFunctionInfos(pythonRexCalls)
 
     val inputLogicalTypes =
-      inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo].getLogicalTypes
-    val pythonOperatorInputTypeInfo = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo]
-    val pythonOperatorResultTyeInfo = new RowDataTypeInfo(
+      inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowFieldTypes
+    val pythonOperatorInputTypeInfo = inputTransform.getOutputType
+      .asInstanceOf[InternalTypeInfo[RowData]]
+    val pythonOperatorResultTyeInfo = InternalTypeInfo.ofFields(
       forwardedFields.map(inputLogicalTypes(_)) ++
         pythonRexCalls.map(node => FlinkTypeFactory.toLogicalType(node.getType)): _*)
 

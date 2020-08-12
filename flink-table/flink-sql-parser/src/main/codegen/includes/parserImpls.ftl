@@ -58,6 +58,21 @@ SqlShowCatalogs SqlShowCatalogs() :
     }
 }
 
+SqlCall SqlShowCurrentCatalogOrDatabase() :
+{
+}
+{
+    <SHOW> <CURRENT> ( <CATALOG>
+        {
+            return new SqlShowCurrentCatalog(getPos());
+        }
+    | <DATABASE>
+        {
+            return new SqlShowCurrentDatabase(getPos());
+        }
+    )
+}
+
 SqlDescribeCatalog SqlDescribeCatalog() :
 {
     SqlIdentifier catalogName;
@@ -706,6 +721,7 @@ SqlNodeList TableProperties():
 SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
+    boolean ifNotExists = false;
     SqlIdentifier tableName;
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
@@ -719,6 +735,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 }
 {
     <TABLE>
+
+    ifNotExists = IfNotExistsOpt()
 
     tableName = CompoundIdentifier()
     [
@@ -761,7 +779,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
                 watermark,
                 comment,
                 tableLike,
-                isTemporary);
+                isTemporary,
+                ifNotExists);
     }
 }
 

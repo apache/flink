@@ -33,7 +33,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
 GroupAggregate(select=[COUNT_RETRACT(*) AS EXPR$0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[single], changelogMode=[I,UB,UA])
    +- Calc(select=[0 AS $f0], where=[>(a, 1)], changelogMode=[I,UB,UA])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, project=[a]]], fields=[a], changelogMode=[I,UB,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[a]]], fields=[a], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>
@@ -146,7 +146,7 @@ LogicalProject(ts=[$0], a=[$1], b=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -242,7 +242,7 @@ LogicalProject(ts=[$0], a=[$1], b=[$2])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I])
-+- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[ts, a, b], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

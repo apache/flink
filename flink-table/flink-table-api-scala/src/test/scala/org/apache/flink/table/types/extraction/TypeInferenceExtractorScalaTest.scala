@@ -34,6 +34,7 @@ import org.junit.runners.Parameterized.Parameters
 import org.junit.{Rule, Test}
 
 import scala.annotation.meta.getter
+import scala.annotation.varargs
 
 /**
  * Scala tests for [[TypeInferenceExtractor]].
@@ -78,7 +79,8 @@ object TypeInferenceExtractorScalaTest {
   def testData: Array[TestSpec] = Array(
 
     // Scala function with data type hint
-    TestSpec.forScalarFunction(classOf[ScalaScalarFunction])
+    TestSpec
+      .forScalarFunction(classOf[ScalaScalarFunction])
       .expectNamedArguments("i", "s", "d")
       .expectTypedArguments(
         DataTypes.INT.notNull().bridgedTo(classOf[Int]),
@@ -93,8 +95,42 @@ object TypeInferenceExtractorScalaTest {
             InputTypeStrategies.explicit(DataTypes.DECIMAL(10, 4)))),
         TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))),
 
+    TestSpec
+      .forScalarFunction(classOf[ScalaPrimitiveVarArgScalarFunction])
+      .expectOutputMapping(
+        InputTypeStrategies.varyingSequence(
+          Array[String]("i", "s", "d"),
+          Array[ArgumentTypeStrategy](
+            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
+            InputTypeStrategies.explicit(DataTypes.STRING),
+            InputTypeStrategies.explicit(DataTypes.DOUBLE().notNull().bridgedTo(classOf[Double])))),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))),
+
+    TestSpec
+      .forScalarFunction(classOf[ScalaBoxedVarArgScalarFunction])
+      .expectOutputMapping(
+        InputTypeStrategies.varyingSequence(
+          Array[String]("i", "s", "d"),
+          Array[ArgumentTypeStrategy](
+            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
+            InputTypeStrategies.explicit(DataTypes.STRING),
+            InputTypeStrategies.explicit(DataTypes.DOUBLE()))),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))),
+
+    TestSpec
+      .forScalarFunction(classOf[ScalaHintVarArgScalarFunction])
+      .expectOutputMapping(
+        InputTypeStrategies.varyingSequence(
+          Array[String]("i", "s", "d"),
+          Array[ArgumentTypeStrategy](
+            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
+            InputTypeStrategies.explicit(DataTypes.STRING),
+            InputTypeStrategies.explicit(DataTypes.DECIMAL(10, 4)))),
+        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))),
+
     // global output hint with local input overloading
-    TestSpec.forScalarFunction(classOf[ScalaGlobalOutputFunctionHint])
+    TestSpec
+      .forScalarFunction(classOf[ScalaGlobalOutputFunctionHint])
       .expectOutputMapping(
         InputTypeStrategies.sequence(InputTypeStrategies.explicit(DataTypes.INT)),
         TypeStrategies.explicit(DataTypes.INT))
@@ -121,5 +157,29 @@ object TypeInferenceExtractorScalaTest {
 
     @FunctionHint(input = Array(new DataTypeHint("STRING")))
     def eval(n: String): Integer = null
+  }
+
+  private class ScalaPrimitiveVarArgScalarFunction extends ScalarFunction {
+    @varargs
+    def eval(
+      i: Int,
+      s: String,
+      d: Double*): Boolean = false
+  }
+
+  private class ScalaBoxedVarArgScalarFunction extends ScalarFunction {
+    @varargs
+    def eval(
+      i: Int,
+      s: String,
+      d: java.lang.Double*): Boolean = false
+  }
+
+  private class ScalaHintVarArgScalarFunction extends ScalarFunction {
+    @varargs
+    def eval(
+      i: Int,
+      s: String,
+      @DataTypeHint("ARRAY<DECIMAL(10, 4)>") d: java.math.BigDecimal*): Boolean = false
   }
 }

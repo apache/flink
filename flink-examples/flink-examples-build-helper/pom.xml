@@ -29,6 +29,8 @@ under the License.
 	</parent>
 
 	<artifactId>flink-examples-build-helper</artifactId>
+	<name>Flink : Examples : Build Helper : </name>
+
 	<packaging>pom</packaging>
 	<description>This is a utility module for building example jars to be used in flink-dist.</description>
 

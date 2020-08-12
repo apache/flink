@@ -18,9 +18,10 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -29,15 +30,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Rule;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -61,17 +63,16 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
  */
 public class JsonRowDataSerDeSchemaTest {
-
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testSerDe() throws Exception {
@@ -89,6 +90,9 @@ public class JsonRowDataSerDeSchemaTest {
 		LocalTime time = LocalTime.parse("12:12:43");
 		Timestamp timestamp3 = Timestamp.valueOf("1990-10-14 12:12:43.123");
 		Timestamp timestamp9 = Timestamp.valueOf("1990-10-14 12:12:43.123456789");
+		Instant timestampWithLocalZone =
+			LocalDateTime.of(1990, 10, 14, 12, 12, 43, 123456789).
+				atOffset(ZoneOffset.of("Z")).toInstant();
 
 		Map<String, Long> map = new HashMap<>();
 		map.put("flink", 123L);
@@ -117,6 +121,7 @@ public class JsonRowDataSerDeSchemaTest {
 		root.put("time", "12:12:43");
 		root.put("timestamp3", "1990-10-14T12:12:43.123");
 		root.put("timestamp9", "1990-10-14T12:12:43.123456789");
+		root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
 		root.putObject("map").put("flink", 123);
 		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
@@ -137,15 +142,16 @@ public class JsonRowDataSerDeSchemaTest {
 			FIELD("time", TIME(0)),
 			FIELD("timestamp3", TIMESTAMP(3)),
 			FIELD("timestamp9", TIMESTAMP(9)),
+			FIELD("timestampWithLocalZone", TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
 			FIELD("map", MAP(STRING(), BIGINT())),
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
 		RowType schema = (RowType) dataType.getLogicalType();
-		RowDataTypeInfo resultTypeInfo = new RowDataTypeInfo(schema);
+		TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
 
-		Row expected = new Row(16);
+		Row expected = new Row(17);
 		expected.setField(0, true);
 		expected.setField(1, tinyint);
 		expected.setField(2, smallint);
@@ -160,8 +166,9 @@ public class JsonRowDataSerDeSchemaTest {
 		expected.setField(11, time);
 		expected.setField(12, timestamp3.toLocalDateTime());
 		expected.setField(13, timestamp9.toLocalDateTime());
-		expected.setField(14, map);
-		expected.setField(15, nestedMap);
+		expected.setField(14, timestampWithLocalZone);
+		expected.setField(15, map);
+		expected.setField(16, nestedMap);
 
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		Row actual = convertToExternal(rowData, dataType);
@@ -211,7 +218,7 @@ public class JsonRowDataSerDeSchemaTest {
 		RowType rowType = (RowType) dataType.getLogicalType();
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-			rowType, new RowDataTypeInfo(rowType), false, false,  TimestampFormat.ISO_8601);
+			rowType, InternalTypeInfo.of(rowType), false, false,  TimestampFormat.ISO_8601);
 
 		Row expected = new Row(7);
 		expected.setField(0, bool);
@@ -236,7 +243,7 @@ public class JsonRowDataSerDeSchemaTest {
 		).getLogicalType();
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-			rowType, new RowDataTypeInfo(rowType), false, false,  TimestampFormat.ISO_8601);
+			rowType, InternalTypeInfo.of(rowType), false, false,  TimestampFormat.ISO_8601);
 		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType, TimestampFormat.ISO_8601);
 
 		ObjectMapper objectMapper = new ObjectMapper();
@@ -290,7 +297,7 @@ public class JsonRowDataSerDeSchemaTest {
 		).getLogicalType();
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-			rowType, new RowDataTypeInfo(rowType), false, true, TimestampFormat.ISO_8601);
+			rowType, InternalTypeInfo.of(rowType), false, true, TimestampFormat.ISO_8601);
 		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType, TimestampFormat.ISO_8601);
 
 		for (int i = 0; i < jsons.length; i++) {
@@ -315,7 +322,7 @@ public class JsonRowDataSerDeSchemaTest {
 
 		// pass on missing field
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-			schema, new RowDataTypeInfo(schema), false, false, TimestampFormat.ISO_8601);
+			schema, InternalTypeInfo.of(schema), false, false, TimestampFormat.ISO_8601);
 
 		Row expected = new Row(1);
 		Row actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
@@ -323,35 +330,44 @@ public class JsonRowDataSerDeSchemaTest {
 
 		// fail on missing field
 		deserializationSchema = deserializationSchema = new JsonRowDataDeserializationSchema(
-			schema, new RowDataTypeInfo(schema), true, false, TimestampFormat.ISO_8601);
+			schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
 
-		thrown.expect(IOException.class);
-		thrown.expectMessage("Failed to deserialize JSON '{\"id\":123123123}'");
-		deserializationSchema.deserialize(serializedJson);
+		String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
+		try {
+			deserializationSchema.deserialize(serializedJson);
+			fail("expecting exception message: " + errorMessage);
+		} catch (Throwable t) {
+			assertEquals(errorMessage, t.getMessage());
+		}
 
 		// ignore on parse error
 		deserializationSchema = new JsonRowDataDeserializationSchema(
-			schema, new RowDataTypeInfo(schema), false, true, TimestampFormat.ISO_8601);
+			schema, InternalTypeInfo.of(schema), false, true, TimestampFormat.ISO_8601);
 		actual = convertToExternal(deserializationSchema.deserialize(serializedJson), dataType);
 		assertEquals(expected, actual);
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage("JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled");
-		// failOnMissingField and ignoreParseErrors both enabled
-		//noinspection ConstantConditions
-		new JsonRowDataDeserializationSchema(
-			schema, new RowDataTypeInfo(schema), true, true, TimestampFormat.ISO_8601);
+		errorMessage = "JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.";
+		try {
+			// failOnMissingField and ignoreParseErrors both enabled
+			new JsonRowDataDeserializationSchema(
+				schema, InternalTypeInfo.of(schema), true, true, TimestampFormat.ISO_8601);
+			Assert.fail("expecting exception message: " + errorMessage);
+		} catch (Throwable t) {
+			assertEquals(errorMessage, t.getMessage());
+		}
 	}
 
 	@Test
 	public void testSerDeSQLTimestampFormat() throws Exception{
 		RowType rowType = (RowType) ROW(
 			FIELD("timestamp3", TIMESTAMP(3)),
-			FIELD("timestamp9", TIMESTAMP(9))
+			FIELD("timestamp9", TIMESTAMP(9)),
+			FIELD("timestamp_with_local_timezone3", TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+			FIELD("timestamp_with_local_timezone9", TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))
 		).getLogicalType();
 
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
-			rowType, new RowDataTypeInfo(rowType), false, false, TimestampFormat.SQL);
+			rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
 		JsonRowDataSerializationSchema serializationSchema = new JsonRowDataSerializationSchema(rowType, TimestampFormat.SQL);
 
 		ObjectMapper objectMapper = new ObjectMapper();
@@ -359,6 +375,8 @@ public class JsonRowDataSerDeSchemaTest {
 		ObjectNode root = objectMapper.createObjectNode();
 		root.put("timestamp3", "1990-10-14 12:12:43.123");
 		root.put("timestamp9", "1990-10-14 12:12:43.123456789");
+		root.put("timestamp_with_local_timezone3", "1990-10-14 12:12:43.123Z");
+		root.put("timestamp_with_local_timezone9", "1990-10-14 12:12:43.123456789Z");
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		byte[] actual = serializationSchema.serialize(rowData);
@@ -378,8 +396,8 @@ public class JsonRowDataSerDeSchemaTest {
 	private void testIgnoreParseErrors(TestSpec spec) throws Exception {
 		// the parsing field should be null and no exception is thrown
 		JsonRowDataDeserializationSchema ignoreErrorsSchema = new JsonRowDataDeserializationSchema(
-			spec.rowType,  new RowDataTypeInfo(spec.rowType), false, true,
-			TimestampFormat.ISO_8601);
+			spec.rowType, InternalTypeInfo.of(spec.rowType), false, true,
+			spec.timestampFormat);
 		Row expected;
 		if (spec.expected != null) {
 			expected = spec.expected;
@@ -396,11 +414,15 @@ public class JsonRowDataSerDeSchemaTest {
 	private void testParseErrors(TestSpec spec) throws Exception {
 		// expect exception if parse error is not ignored
 		JsonRowDataDeserializationSchema failingSchema = new JsonRowDataDeserializationSchema(
-			spec.rowType,  new RowDataTypeInfo(spec.rowType), false, false,
+			spec.rowType, InternalTypeInfo.of(spec.rowType), false, false,
 			spec.timestampFormat);
 
-		thrown.expectMessage(spec.errorMessage);
-		failingSchema.deserialize(spec.json.getBytes());
+		try {
+			failingSchema.deserialize(spec.json.getBytes());
+			fail("expecting exception " + spec.errorMessage);
+		} catch (Throwable t) {
+			assertEquals(t.getMessage(), spec.errorMessage);
+		}
 	}
 
 	private static List<TestSpec> testData = Arrays.asList(
@@ -417,7 +439,7 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":\"abc\"}")
 			.rowType(ROW(FIELD("id", INT())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'."),
 
 		TestSpec
 			.json("{\"id\":112.013}")
@@ -427,84 +449,121 @@ public class JsonRowDataSerDeSchemaTest {
 		TestSpec
 			.json("{\"id\":\"long\"}")
 			.rowType(ROW(FIELD("id", BIGINT())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"112.013.123\"}")
 			.rowType(ROW(FIELD("id", FLOAT())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"112.013.123\"}")
 			.rowType(ROW(FIELD("id", DOUBLE())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"112.013.123\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"18:00:243\"}")
 			.rowType(ROW(FIELD("id", TIME())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"18:00:243\"}")
 			.rowType(ROW(FIELD("id", TIME())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"18:00:243\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"20191112\"}")
 			.rowType(ROW(FIELD("id", DATE())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"20191112\"}")
 			.rowType(ROW(FIELD("id", DATE())))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"20191112\"}'."),
+
+		TestSpec
+			.json("{\"id\":true}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("true")),
+
+		TestSpec
+			.json("{\"id\":123.234}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("123.234")),
+
+		TestSpec
+			.json("{\"id\":1234567}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("1234567")),
+
+		TestSpec
+			.json("{\"id\":\"string field\"}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("string field")),
+
+		TestSpec
+			.json("{\"id\":[\"array data1\",\"array data2\",123,234.345]}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("[\"array data1\",\"array data2\",123,234.345]")),
+
+		TestSpec
+			.json("{\"id\":{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}}")
+			.rowType(ROW(FIELD("id", STRING())))
+			.expect(Row.of("{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}")),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12 18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
 			.timestampFormat(TimestampFormat.ISO_8601)
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"2019-11-12T18:00:12Z\"}")
 			.rowType(ROW(FIELD("id", TIMESTAMP(0))))
 			.timestampFormat(TimestampFormat.ISO_8601)
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12Z\"}'."),
 
 		TestSpec
 			.json("{\"id\":\"abc\"}")
 			.rowType(ROW(FIELD("id", DECIMAL(10, 3))))
-			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'."),
 
 		TestSpec
 			.json("{\"row\":{\"id\":\"abc\"}}")
 			.rowType(ROW(FIELD("row", ROW(FIELD("id", BOOLEAN())))))
-			.expect(Row.of(new Row(1)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"row\":{\"id\":\"abc\"}}'"),
+			.expect(Row.of(Row.of(false))),
 
 		TestSpec
 			.json("{\"array\":[123, \"abc\"]}")
 			.rowType(ROW(FIELD("array", ARRAY(INT()))))
 			.expect(Row.of((Object) new Integer[]{123, null}))
-			.expectErrorMessage("Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'"),
+			.expectErrorMessage("Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'."),
 
 		TestSpec
 			.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
 			.rowType(ROW(FIELD("map", MAP(STRING(), INT()))))
 			.expect(Row.of(createHashMap("key1", 123, "key2", null)))
-			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'")
+			.expectErrorMessage("Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'."),
 
+		TestSpec
+			.json("{\"id\":\"2019-11-12T18:00:12\"}")
+			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12\"}'."),
 
+		TestSpec
+			.json("{\"id\":\"2019-11-12T18:00:12+0800\"}")
+			.rowType(ROW(FIELD("id", TIMESTAMP_WITH_LOCAL_TIME_ZONE(0))))
+			.expectErrorMessage("Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'.")
 	);
 
 	private static Map<String, Integer> createHashMap(String k1, Integer v1, String k2, Integer v2) {

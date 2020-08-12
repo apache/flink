@@ -62,25 +62,49 @@ else:
         from Cython.Build import cythonize
         extensions = cythonize([
             Extension(
-                name="pyflink.fn_execution.fast_coder_impl",
-                sources=["pyflink/fn_execution/fast_coder_impl.pyx"],
+                name="pyflink.fn_execution.coder_impl_fast",
+                sources=["pyflink/fn_execution/coder_impl_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
-                name="pyflink.fn_execution.fast_operations",
-                sources=["pyflink/fn_execution/fast_operations.pyx"],
-                include_dirs=["pyflink/fn_execution/"])
+                name="pyflink.fn_execution.stream",
+                sources=["pyflink/fn_execution/stream.pyx"],
+                include_dirs=["pyflink/fn_execution/"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_stream",
+                sources=["pyflink/fn_execution/beam/beam_stream.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_coder_impl_fast",
+                sources=["pyflink/fn_execution/beam/beam_coder_impl_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
+            Extension(
+                name="pyflink.fn_execution.beam.beam_operations_fast",
+                sources=["pyflink/fn_execution/beam/beam_operations_fast.pyx"],
+                include_dirs=["pyflink/fn_execution/beam"]),
         ])
     except ImportError:
-        if os.path.exists("pyflink/fn_execution/fast_coder_impl.c"):
+        if os.path.exists("pyflink/fn_execution/coder_impl_fast.c"):
             extensions = ([
                 Extension(
-                    name="pyflink.fn_execution.fast_coder_impl",
-                    sources=["pyflink/fn_execution/fast_coder_impl.c"],
+                    name="pyflink.fn_execution.coder_impl_fast",
+                    sources=["pyflink/fn_execution/coder_impl_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
-                    name="pyflink.fn_execution.fast_operations",
-                    sources=["pyflink/fn_execution/fast_operations.c"],
-                    include_dirs=["pyflink/fn_execution/"])
+                    name="pyflink.fn_execution.stream",
+                    sources=["pyflink/fn_execution/stream.c"],
+                    include_dirs=["pyflink/fn_execution/"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_stream",
+                    sources=["pyflink/fn_execution/beam/beam_stream.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_coder_impl_fast",
+                    sources=["pyflink/fn_execution/beam/beam_coder_impl_fast.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
+                Extension(
+                    name="pyflink.fn_execution.beam.beam_operations_fast",
+                    sources=["pyflink/fn_execution/beam/beam_operations_fast.c"],
+                    include_dirs=["pyflink/fn_execution/beam"]),
             ])
         else:
             extensions = ([])
@@ -238,6 +262,7 @@ run sdist.
                 'pyflink.dataset',
                 'pyflink.common',
                 'pyflink.fn_execution',
+                'pyflink.fn_execution.beam',
                 'pyflink.metrics',
                 'pyflink.ml',
                 'pyflink.ml.api',

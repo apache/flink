@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-slf4j</artifactId>
-	<name>flink-metrics-slf4j</name>
+	<name>Flink : Metrics : Slf4j</name>
 
 	<dependencies>
 		<dependency>

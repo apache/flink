@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.planner.codegen.CodeGenException;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
@@ -446,7 +445,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testPrimitiveScalarFunction() throws Exception {
+	public void testPrimitiveScalarFunction() {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1, 1L, "-"),
 			Row.of(2, 2L, "--"),
@@ -471,7 +470,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testNullScalarFunction() throws Exception {
+	public void testNullScalarFunction() {
 		final List<Row> sinkData = Collections.singletonList(
 			Row.of("Boolean", "String", "<<unknown>>", "String", "Object", "Boolean"));
 
@@ -496,7 +495,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testRowScalarFunction() throws Exception {
+	public void testRowScalarFunction() {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1, Row.of(1, "1")),
 			Row.of(2, Row.of(2, "2")),
@@ -518,7 +517,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testComplexScalarFunction() throws Exception {
+	public void testComplexScalarFunction() {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1, new byte[]{1, 2, 3}),
 			Row.of(2, new byte[]{2, 3, 4}),
@@ -588,7 +587,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testCustomScalarFunction() throws Exception {
+	public void testCustomScalarFunction() {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1),
 			Row.of(2),
@@ -622,7 +621,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testRawLiteralScalarFunction() throws Exception {
+	public void testRawLiteralScalarFunction() {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of(1, DayOfWeek.MONDAY),
 			Row.of(2, DayOfWeek.FRIDAY),
@@ -736,19 +735,19 @@ public class FunctionITCase extends StreamingTestBase {
 				"INSERT INTO SinkTable " +
 				"SELECT CustomScalarFunction('test')");
 			fail();
-		} catch (CodeGenException e) {
+		} catch (ValidationException e) {
 			assertThat(
 				e,
 				hasMessage(
 					equalTo(
-						"Could not find an implementation method in class '" + CustomScalarFunction.class.getCanonicalName() +
-						"' for function 'CustomScalarFunction' that matches the following signature: \n" +
+						"Could not find an implementation method 'eval' in class '" + CustomScalarFunction.class +
+						"' for function 'CustomScalarFunction' that matches the following signature:\n" +
 						"java.lang.String eval(java.lang.String)")));
 		}
 	}
 
 	@Test
-	public void testRowTableFunction() throws Exception {
+	public void testRowTableFunction() {
 		final List<Row> sourceData = Arrays.asList(
 			Row.of("1,2,3"),
 			Row.of("2,3,4"),
@@ -801,7 +800,7 @@ public class FunctionITCase extends StreamingTestBase {
 	}
 
 	@Test
-	public void testDynamicTableFunction() throws Exception {
+	public void testDynamicCatalogTableFunction() {
 		final Row[] sinkData = new Row[]{
 			Row.of("Test is a string"),
 			Row.of("42"),
@@ -812,7 +811,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().createTemporarySystemFunction("DynamicTableFunction", DynamicTableFunction.class);
+		tEnv().createFunction("DynamicTableFunction", DynamicTableFunction.class);
 		execInsertSqlAndWaitResult(
 			"INSERT INTO SinkTable " +
 			"SELECT T1.s FROM TABLE(DynamicTableFunction('Test')) AS T1(s) " +
@@ -826,7 +825,7 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfScalarFunction() {
-		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE TABLE SinkTable(s BIGINT NOT NULL) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("PrimitiveScalarFunction", PrimitiveScalarFunction.class);
 		try {
@@ -839,7 +838,7 @@ public class FunctionITCase extends StreamingTestBase {
 				e,
 				hasMessage(
 					containsString(
-						"No match found for function signature PrimitiveScalarFunction(<NUMERIC>, <NUMERIC>, <CHARACTER>)")));
+						"SQL validation failed. Function 'PrimitiveScalarFunction' cannot be used as a table function.")));
 		}
 	}
 
@@ -863,21 +862,17 @@ public class FunctionITCase extends StreamingTestBase {
 
 	@Test
 	public void testInvalidUseOfTableFunction() {
-		tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+		TestCollectionTableFactory.reset();
+
+		tEnv().executeSql("CREATE TABLE SinkTable(s ROW<s STRING, sa ARRAY<STRING> NOT NULL>) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
-		try {
-			tEnv().executeSql(
-				"INSERT INTO SinkTable " +
-				"SELECT RowTableFunction('test')");
-			fail();
-		} catch (ValidationException e) {
-			assertThat(
-				e,
-				hasMessage(
-					containsString(
-						"No match found for function signature RowTableFunction(<CHARACTER>)")));
-		}
+		tEnv().executeSql(
+			"INSERT INTO SinkTable " +
+			"SELECT RowTableFunction('test')");
+
+		// currently, calling a table function like a scalar function produces no result
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(Collections.emptyList()));
 	}
 
 	// --------------------------------------------------------------------------------------------

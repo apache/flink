@@ -48,7 +48,8 @@ public class Kafka010DynamicSink extends KafkaDynamicSinkBase {
 			topic,
 			properties,
 			partitioner,
-			encodingFormat);
+			encodingFormat,
+			KafkaSinkSemantic.AT_LEAST_ONCE);
 	}
 
 	@Override
@@ -56,7 +57,8 @@ public class Kafka010DynamicSink extends KafkaDynamicSinkBase {
 			String topic,
 			Properties properties,
 			SerializationSchema<RowData> serializationSchema,
-			Optional<FlinkKafkaPartitioner<RowData>> partitioner) {
+			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
+			KafkaSinkSemantic semantic) {
 		return new FlinkKafkaProducer010<>(
 			topic,
 			serializationSchema,

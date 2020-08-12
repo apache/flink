@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -57,7 +57,7 @@ abstract class TopNFunctionTestBase {
 	Time maxTime = Time.milliseconds(20);
 	long cacheSize = 10000L;
 
-	RowDataTypeInfo inputRowType = new RowDataTypeInfo(
+	InternalTypeInfo<RowData> inputRowType = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new IntType());
@@ -75,8 +75,9 @@ abstract class TopNFunctionTestBase {
 
 	private int sortKeyIdx = 2;
 
-	BinaryRowDataKeySelector sortKeySelector = new BinaryRowDataKeySelector(new int[] { sortKeyIdx },
-			inputRowType.getLogicalTypes());
+	BinaryRowDataKeySelector sortKeySelector = new BinaryRowDataKeySelector(
+		new int[] { sortKeyIdx },
+		inputRowType.toRowFieldTypes());
 
 	static GeneratedRecordEqualiser generatedEqualiser = new GeneratedRecordEqualiser("", "", new Object[0]) {
 
@@ -90,29 +91,30 @@ abstract class TopNFunctionTestBase {
 
 	private int partitionKeyIdx = 0;
 
-	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { partitionKeyIdx },
-			inputRowType.getLogicalTypes());
+	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(
+		new int[] { partitionKeyIdx },
+		inputRowType.toRowFieldTypes());
 
-	private RowDataTypeInfo outputTypeWithoutRowNumber = inputRowType;
+	private InternalTypeInfo<RowData> outputTypeWithoutRowNumber = inputRowType;
 
-	private RowDataTypeInfo outputTypeWithRowNumber = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> outputTypeWithRowNumber = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new IntType(),
 			new BigIntType());
 
 	RowDataHarnessAssertor assertorWithoutRowNumber = new RowDataHarnessAssertor(
-			outputTypeWithoutRowNumber.getFieldTypes(),
-			new GenericRowRecordSortComparator(sortKeyIdx, outputTypeWithoutRowNumber.getLogicalTypes()[sortKeyIdx]));
+			outputTypeWithoutRowNumber.toRowFieldTypes(),
+			new GenericRowRecordSortComparator(sortKeyIdx, outputTypeWithoutRowNumber.toRowFieldTypes()[sortKeyIdx]));
 
 	RowDataHarnessAssertor assertorWithRowNumber = new RowDataHarnessAssertor(
-			outputTypeWithRowNumber.getFieldTypes(),
-			new GenericRowRecordSortComparator(sortKeyIdx, outputTypeWithRowNumber.getLogicalTypes()[sortKeyIdx]));
+			outputTypeWithRowNumber.toRowFieldTypes(),
+			new GenericRowRecordSortComparator(sortKeyIdx, outputTypeWithRowNumber.toRowFieldTypes()[sortKeyIdx]));
 
 	// rowKey only used in UpdateRankFunction
 	private int rowKeyIdx = 1;
 	BinaryRowDataKeySelector rowKeySelector = new BinaryRowDataKeySelector(new int[] { rowKeyIdx },
-			inputRowType.getLogicalTypes());
+			inputRowType.toRowFieldTypes());
 
 	/** RankEnd column must be long, int or short type, but could not be string type yet. */
 	@Test(expected = UnsupportedOperationException.class)

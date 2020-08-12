@@ -31,7 +31,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
@@ -58,7 +58,7 @@ public class AvroFormatFactoryTest extends TestLogger {
 	@Test
 	public void testSeDeSchema() {
 		final AvroRowDataDeserializationSchema expectedDeser =
-				new AvroRowDataDeserializationSchema(ROW_TYPE, new RowDataTypeInfo(ROW_TYPE));
+				new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
 
 		final Map<String, String> options = getAllOptions();
 

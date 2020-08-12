@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -43,7 +43,7 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 
 	private static final long serialVersionUID = -8981813609115029119L;
 
-	private final RowDataTypeInfo rowTypeInfo;
+	private final InternalTypeInfo<RowData> rowTypeInfo;
 	private final boolean generateUpdateBefore;
 	private final boolean generateInsert;
 	private final TypeSerializer<RowData> typeSerializer;
@@ -52,7 +52,7 @@ public class MiniBatchDeduplicateKeepLastRowFunction
 	private ValueState<RowData> state;
 
 	public MiniBatchDeduplicateKeepLastRowFunction(
-			RowDataTypeInfo rowTypeInfo,
+			InternalTypeInfo<RowData> rowTypeInfo,
 			boolean generateUpdateBefore,
 			boolean generateInsert,
 			TypeSerializer<RowData> typeSerializer,

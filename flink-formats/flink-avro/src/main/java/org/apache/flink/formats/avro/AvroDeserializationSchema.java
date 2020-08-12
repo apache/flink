@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.typeutils.AvroFactory;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
@@ -38,6 +39,7 @@ import org.apache.avro.specific.SpecificRecord;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -144,7 +146,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
 			SpecificData specificData = new SpecificData(cl);
 			this.datumReader = new SpecificDatumReader<>(specificData);
-			this.reader = specificData.getSchema(recordClazz);
+			this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
 		} else {
 			this.reader = new Schema.Parser().parse(schemaString);
 			GenericData genericData = new GenericData(cl);
@@ -168,5 +170,23 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
 		} else {
 			return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		AvroDeserializationSchema<?> that = (AvroDeserializationSchema<?>) o;
+		return recordClazz.equals(that.recordClazz) &&
+				Objects.equals(reader, that.reader);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(recordClazz, reader);
 	}
 }

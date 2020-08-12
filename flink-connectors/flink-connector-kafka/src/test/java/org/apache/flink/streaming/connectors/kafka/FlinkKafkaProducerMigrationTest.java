@@ -45,7 +45,9 @@ public class FlinkKafkaProducerMigrationTest extends KafkaMigrationTestBase {
 	public static Collection<MigrationVersion> parameters() {
 		return Arrays.asList(
 			MigrationVersion.v1_8,
-			MigrationVersion.v1_9);
+			MigrationVersion.v1_9,
+			MigrationVersion.v1_10,
+			MigrationVersion.v1_11);
 	}
 
 	public FlinkKafkaProducerMigrationTest(MigrationVersion testMigrateVersion) {

@@ -39,6 +39,10 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.AT_LEAST_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.EXACTLY_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.NONE;
+
 /** Option utils for Kafka table source sink. */
 public class KafkaOptions {
 	private KafkaOptions() {}
@@ -103,6 +107,11 @@ public class KafkaOptions {
 					+ "\"round-robin\": (a Flink partition is distributed to Kafka partitions round-robin)\n"
 					+ "\"custom class name\": (use a custom FlinkKafkaPartitioner subclass)");
 
+	public static final ConfigOption<String> SINK_SEMANTIC = ConfigOptions.key("sink.semantic")
+			.stringType()
+			.defaultValue("at-least-once")
+			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
+
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations
 	// --------------------------------------------------------------------------------------------
@@ -129,6 +138,17 @@ public class KafkaOptions {
 			SINK_PARTITIONER_VALUE_FIXED,
 			SINK_PARTITIONER_VALUE_ROUND_ROBIN));
 
+	// Sink semantic
+	public static final String SINK_SEMANTIC_VALUE_EXACTLY_ONCE = "exactly-once";
+	public static final String SINK_SEMANTIC_VALUE_AT_LEAST_ONCE = "at-least-once";
+	public static final String SINK_SEMANTIC_VALUE_NONE = "none";
+
+	private static final Set<String> SINK_SEMANTIC_ENUMS = new HashSet<>(Arrays.asList(
+		SINK_SEMANTIC_VALUE_AT_LEAST_ONCE,
+		SINK_SEMANTIC_VALUE_EXACTLY_ONCE,
+		SINK_SEMANTIC_VALUE_NONE
+	));
+
 	// Prefix for Kafka specific properties.
 	public static final String PROPERTIES_PREFIX = "properties.";
 
@@ -143,6 +163,7 @@ public class KafkaOptions {
 	public static void validateTableOptions(ReadableConfig tableOptions) {
 		validateScanStartupMode(tableOptions);
 		validateSinkPartitioner(tableOptions);
+		validateSinkSemantic(tableOptions);
 	}
 
 	private static void validateScanStartupMode(ReadableConfig tableOptions) {
@@ -191,9 +212,32 @@ public class KafkaOptions {
 				});
 	}
 
+	private static void validateSinkSemantic(ReadableConfig tableOptions) {
+		tableOptions.getOptional(SINK_SEMANTIC).ifPresent(semantic -> {
+			if (!SINK_SEMANTIC_ENUMS.contains(semantic)){
+				throw new ValidationException(
+					String.format("Unsupported value '%s' for '%s'. Supported values are ['at-least-once', 'exactly-once', 'none'].",
+						semantic, SINK_SEMANTIC.key()));
+			}
+		});
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
+
+	public static KafkaSinkSemantic getSinkSemantic(ReadableConfig tableOptions){
+		switch (tableOptions.get(SINK_SEMANTIC)){
+			case SINK_SEMANTIC_VALUE_EXACTLY_ONCE:
+				return EXACTLY_ONCE;
+			case SINK_SEMANTIC_VALUE_AT_LEAST_ONCE:
+				return AT_LEAST_ONCE;
+			case SINK_SEMANTIC_VALUE_NONE:
+				return NONE;
+			default:
+				throw new TableException("Validator should have checked that");
+		}
+	}
 
 	public static StartupOptions getStartupOptions(
 			ReadableConfig tableOptions,

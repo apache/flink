@@ -23,7 +23,7 @@ import org.apache.flink.formats.avro.generated.JodaTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -96,7 +96,7 @@ public class AvroRowDataDeSerializationSchemaTest {
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
 			FIELD("map2array", MAP(STRING(), ARRAY(INT()))));
 		final RowType rowType = (RowType) dataType.getLogicalType();
-		final TypeInformation<RowData> typeInfo = new RowDataTypeInfo(rowType);
+		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 
 		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 		final GenericRecord record = new GenericData.Record(schema);
@@ -180,7 +180,7 @@ public class AvroRowDataDeSerializationSchemaTest {
 				FIELD("type_date", DATE()),
 				FIELD("type_time_millis", TIME(3)));
 		final RowType rowType = (RowType) dataType.getLogicalType();
-		final TypeInformation<RowData> typeInfo = new RowDataTypeInfo(rowType);
+		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
 		serializationSchema.open(null);
 		AvroRowDataDeserializationSchema deserializationSchema =

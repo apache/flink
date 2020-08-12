@@ -32,7 +32,7 @@ import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, ImperativeAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations.ddl._
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
@@ -244,7 +244,7 @@ abstract class TableEnvImpl(
     */
   private[flink] def registerAggregateFunctionInternal[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      function: UserDefinedAggregateFunction[T, ACC])
+      function: ImperativeAggregateFunction[T, ACC])
     : Unit = {
     val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(
@@ -743,8 +743,12 @@ abstract class TableEnvImpl(
         TableResultImpl.TABLE_RESULT_OK
       case _: ShowCatalogsOperation =>
         buildShowResult("catalog name", listCatalogs())
+      case _: ShowCurrentCatalogOperation =>
+        buildShowResult("current catalog name", Array(catalogManager.getCurrentCatalog))
       case _: ShowDatabasesOperation =>
         buildShowResult("database name", listDatabases())
+      case _: ShowCurrentDatabaseOperation =>
+        buildShowResult("current database name", Array(catalogManager.getCurrentDatabase))
       case _: ShowTablesOperation =>
         buildShowResult("table name", listTables())
       case _: ShowFunctionsOperation =>
@@ -831,7 +835,7 @@ abstract class TableEnvImpl(
       }
     }
     buildResult(
-      Array("name", "type", "null", "key", "compute column", "watermark"),
+      Array("name", "type", "null", "key", "computed column", "watermark"),
       Array(DataTypes.STRING, DataTypes.STRING, DataTypes.BOOLEAN, DataTypes.STRING,
         DataTypes.STRING, DataTypes.STRING),
       data)

@@ -20,11 +20,14 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TerminalUtils;
 import org.apache.flink.table.client.cli.utils.TerminalUtils.MockOutputStream;
+import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -33,6 +36,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.jline.reader.Candidate;
@@ -73,6 +77,7 @@ public class CliClientTest extends TestLogger {
 	private static final String INSERT_INTO_STATEMENT = "INSERT INTO MyTable SELECT * FROM MyOtherTable";
 	private static final String INSERT_OVERWRITE_STATEMENT = "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
 	private static final String SELECT_STATEMENT = "SELECT * FROM MyOtherTable";
+	private static final Row SHOW_ROW = new Row(1);
 
 	@Test
 	public void testUpdateSubmission() throws Exception {
@@ -109,7 +114,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testUseNonExistingDB() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-			.setUseDatabaseConsumer((ignored1, ignored2) -> {
+			.setExecuteSqlConsumer((ignored1, ignored2) -> {
 				throw new SqlExecutionException("mocked exception");
 			})
 			.build();
@@ -122,7 +127,7 @@ public class CliClientTest extends TestLogger {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 
 			cliClient.open();
-			assertThat(executor.getNumUseDatabaseCalls(), is(1));
+			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
@@ -133,7 +138,7 @@ public class CliClientTest extends TestLogger {
 	@Test
 	public void testUseNonExistingCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-			.setUseCatalogConsumer((ignored1, ignored2) -> {
+			.setExecuteSqlConsumer((ignored1, ignored2) -> {
 				throw new SqlExecutionException("mocked exception");
 			})
 			.build();
@@ -146,7 +151,7 @@ public class CliClientTest extends TestLogger {
 		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
 			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
 			cliClient.open();
-			assertThat(executor.getNumUseCatalogCalls(), is(1));
+			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		} finally {
 			if (cliClient != null) {
 				cliClient.close();
@@ -178,32 +183,53 @@ public class CliClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testUseCatalog() throws Exception {
+	public void testUseCatalogAndShowCurrentCatalog() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-				.setUseCatalogConsumer((ignored1, catalogName) -> {
-					if (!catalogName.equals("cat")) {
-						throw new SqlExecutionException("unexpected catalog name: " + catalogName);
-					}
-				})
+				.setExecuteSqlConsumer((ignored1, sql) -> {
+					if (sql.toLowerCase().equals("use catalog cat")) {
+						return TestTableResult.TABLE_RESULT_OK;
+					} else if (sql.toLowerCase().equals("show current catalog")){
+						SHOW_ROW.setField(0, "cat");
+						return new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT,
+							TableSchema.builder().field("current catalog name", DataTypes.STRING()).build(),
+							CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+					} else {
+						throw new SqlExecutionException("unexpected sql statement: " + sql);
+					}})
 				.build();
 
 		String output = testExecuteSql(executor, "use catalog cat;");
-		assertThat(executor.getNumUseCatalogCalls(), is(1));
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		assertFalse(output.contains("unexpected catalog name"));
+
+		output = testExecuteSql(executor, "show current catalog;");
+		assertThat(executor.getNumExecuteSqlCalls(), is(2));
+		assertTrue(output.contains("cat"));
 	}
 
 	@Test
-	public void testUseDatabase() throws Exception {
+	public void testUseDatabaseAndShowCurrentDatabase() throws Exception {
 		TestingExecutor executor = new TestingExecutorBuilder()
-				.setUseDatabaseConsumer((ignored1, databaseName) -> {
-					if (!databaseName.equals("db")) {
-						throw new SqlExecutionException("unexpected database name: " + databaseName);
+				.setExecuteSqlConsumer((ignored1, sql) -> {
+					if (sql.toLowerCase().equals("use db")) {
+						return TestTableResult.TABLE_RESULT_OK;
+					} else if (sql.toLowerCase().equals("show current database")) {
+						SHOW_ROW.setField(0, "db");
+						return new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT,
+							TableSchema.builder().field("current database name", DataTypes.STRING()).build(),
+							CloseableIterator.ofElement(SHOW_ROW, ele -> {}));
+					} else {
+						throw new SqlExecutionException("unexpected database name: db");
 					}
 				})
 				.build();
 		String output = testExecuteSql(executor, "use db;");
-		assertThat(executor.getNumUseDatabaseCalls(), is(1));
+		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		assertFalse(output.contains("unexpected database name"));
+
+		output = testExecuteSql(executor, "show current database;");
+		assertThat(executor.getNumExecuteSqlCalls(), is(2));
+		assertTrue(output.contains("db"));
 	}
 
 	@Test
@@ -255,14 +281,16 @@ public class CliClientTest extends TestLogger {
 
 	@Test
 	public void testCreateCatalog() throws Exception {
-		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK).build();
 		testExecuteSql(executor, "create catalog c1 with('type'='generic_in_memory');");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
 
 	@Test
 	public void testDropCatalog() throws Exception {
-		TestingExecutor executor = new TestingExecutorBuilder().setExecuteSqlConsumer((s, s2) -> null).build();
+		TestingExecutor executor = new TestingExecutorBuilder()
+				.setExecuteSqlConsumer((s, s2) -> TestTableResult.TABLE_RESULT_OK).build();
 		testExecuteSql(executor, "drop catalog c1;");
 		assertThat(executor.getNumExecuteSqlCalls(), is(1));
 	}
@@ -393,62 +421,12 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public List<String> listCatalogs(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public List<String> listDatabases(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public void createTable(String sessionId, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public List<String> listTables(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
 		public TableResult executeSql(String sessionId, String statement) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public List<String> listFunctions(String sessionId) throws SqlExecutionException {
-			return null;
+			return TestTableResult.TABLE_RESULT_OK;
 		}
 
 		@Override
 		public List<String> listModules(String sessionId) throws SqlExecutionException {
-			return null;
-		}
-
-		@Override
-		public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
-
-		}
-
-		@Override
-		public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
 			return null;
 		}
 

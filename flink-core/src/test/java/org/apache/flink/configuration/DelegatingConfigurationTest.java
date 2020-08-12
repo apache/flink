@@ -23,6 +23,8 @@ import org.junit.Test;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -113,5 +115,26 @@ public class DelegatingConfigurationTest {
 		keySet = configuration.keySet();
 
 		assertTrue(keySet.isEmpty());
+	}
+
+	@Test
+	public void testDelegationConfigurationToMapConsistentWithAddAllToProperties()  {
+		Configuration conf = new Configuration();
+		conf.setString("k0", "v0");
+		conf.setString("prefix.k1", "v1");
+		conf.setString("prefix.prefix.k2", "v2");
+		conf.setString("k3.prefix.prefix.k3", "v3");
+		DelegatingConfiguration dc = new DelegatingConfiguration(conf, "prefix.");
+		// Collect all properties
+		Properties properties = new Properties();
+		dc.addAllToProperties(properties);
+		// Convert the Map<String, String> object into a Properties object
+		Map<String, String> map = dc.toMap();
+		Properties mapProperties = new Properties();
+		for (Map.Entry<String, String> entry : map.entrySet()) {
+			mapProperties.put(entry.getKey(), entry.getValue());
+		}
+		// Verification
+		assertEquals(properties, mapProperties);
 	}
 }

@@ -25,6 +25,7 @@ import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
@@ -42,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -69,6 +69,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 	private final String username;
 	private final String password;
 	private final DataType[] keyTypes;
+	private final String[] keyNames;
 	private final long cacheMaxSize;
 	private final long cacheExpireMs;
 	private final int maxRetryTimes;
@@ -77,7 +78,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 	private final JdbcRowConverter lookupKeyRowConverter;
 
 	private transient Connection dbConn;
-	private transient PreparedStatement statement;
+	private transient FieldNamedPreparedStatement statement;
 	private transient Cache<RowData, List<RowData>> cache;
 
 	public JdbcRowDataLookupFunction(
@@ -95,6 +96,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		this.dbURL = options.getDbURL();
 		this.username = options.getUsername().orElse(null);
 		this.password = options.getPassword().orElse(null);
+		this.keyNames = keyNames;
 		List<String> nameList = Arrays.asList(fieldNames);
 		this.keyTypes = Arrays.stream(keyNames)
 			.map(s -> {
@@ -199,7 +201,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 		} else {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
-		statement = dbConn.prepareStatement(query);
+		statement = FieldNamedPreparedStatement.prepareStatement(dbConn, query, keyNames);
 	}
 
 	@Override

@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchGlobalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -171,7 +171,7 @@ class StreamExecGlobalGroupAggregate(
       throw new TableException("Local-Global optimization is only worked in miniBatch mode")
     }
 
-    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[RowDataTypeInfo]
+    val inputTypeInfo = inputTransformation.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
     val selector = KeySelectorUtil.getRowDataSelector(grouping, inputTypeInfo)
 
     // partitioned aggregation
@@ -179,7 +179,7 @@ class StreamExecGlobalGroupAggregate(
       inputTransformation,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outRowType),
+      InternalTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
 
     if (inputsContainSingleton()) {

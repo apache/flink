@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, Types}
+import org.apache.flink.table.api.EnvironmentSettings
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
@@ -63,7 +63,11 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
     val testHarness = createHarnessTester(
       resultTable.toRetractStream[Row], "GroupTableAggregate")
-    val assertor = new RowDataHarnessAssertor(Array(Types.INT, Types.INT, Types.INT))
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.INT().getLogicalType,
+        DataTypes.INT().getLogicalType,
+        DataTypes.INT().getLogicalType))
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -124,7 +128,10 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(2))
     val testHarness = createHarnessTester(
       resultTable.toRetractStream[Row], "GroupTableAggregate")
-    val assertor = new RowDataHarnessAssertor(Array(Types.INT, Types.INT))
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.INT().getLogicalType,
+        DataTypes.INT().getLogicalType))
 
     testHarness.open()
     val expectedOutput = new ConcurrentLinkedQueue[Object]()

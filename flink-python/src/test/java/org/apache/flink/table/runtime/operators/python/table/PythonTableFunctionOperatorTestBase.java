@@ -23,7 +23,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.AbstractPythonScalarFunctionRunnerTest;
+import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -185,7 +185,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 		AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN> operator = getTestOperator(
 			config,
 			new PythonFunctionInfo(
-				AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
+				PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
 				new Integer[]{0}),
 			inputType,
 			outputType,

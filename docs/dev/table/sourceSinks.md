@@ -60,7 +60,7 @@ The filled arrows show how objects are transformed to other objects from one sta
 the translation process.
 
 <div style="text-align: center">
-  <img width="90%" src="{% link fig/table_connectors.svg %}" alt="Translation of table connectors" />
+  <img width="90%" src="{% link /fig/table_connectors.svg %}" alt="Translation of table connectors" />
 </div>
 
 ### Metadata
@@ -398,6 +398,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 
@@ -429,6 +430,10 @@ public class ChangelogCsvFormatFactory implements DeserializationFormatFactory {
   public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
       DynamicTableFactory.Context context,
       ReadableConfig formatOptions) {
+    // either implement your custom validation logic here ...
+    // or use the provided helper method
+    FactoryUtil.validateFactoryOptions(this, formatOptions);
+
     // get the validated options
     final String columnDelimiter = formatOptions.get(COLUMN_DELIMITER);
 
@@ -621,7 +626,7 @@ public class ChangelogCsvDeserializer implements DeserializationSchema<RowData> 
 
   @Override
   public void open(InitializationContext context) {
-    // converters must be opened
+    // converters must be open
     converter.open(Context.create(ChangelogCsvDeserializer.class.getClassLoader()));
   }
 
