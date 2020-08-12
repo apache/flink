@@ -21,6 +21,7 @@ import tempfile
 from typing import List, Any
 
 from pyflink.common.execution_config import ExecutionConfig
+from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies
 from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
@@ -419,6 +420,20 @@ class StreamExecutionEnvironment(object):
             return JobExecutionResult(self._j_stream_execution_environment.execute())
         else:
             return JobExecutionResult(self._j_stream_execution_environment.execute(job_name))
+
+    def execute_async(self, job_name: str = 'Flink Streaming Job') -> JobClient:
+        """
+        Triggers the program asynchronously. The environment will execute all parts of the program
+        that have resulted in a "sink" operation. Sink operations are for example printing results
+        or forwarding them to a message queue.
+        The program execution will be logged and displayed with a generated default name.
+
+        :param job_name: Desired name of the job.
+        :return: A JobClient that can be used to communicate with the submitted job, completed on
+                 submission succeeded.
+        """
+        j_job_client = self._j_stream_execution_environment.executeAsync(job_name)
+        return JobClient(j_job_client=j_job_client)
 
     def get_execution_plan(self):
         """

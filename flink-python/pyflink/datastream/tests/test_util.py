@@ -45,6 +45,6 @@ class DataStreamTestSinkFunction(SinkFunction):
             return str_results
 
     def clear(self):
-        if self._j_data_stream_test_collect_sink is None:
+        if self.j_data_stream_collect_sink is None:
             return
-        self._j_data_stream_test_collect_sink.collectAndClear()
+        self.j_data_stream_collect_sink.clear()

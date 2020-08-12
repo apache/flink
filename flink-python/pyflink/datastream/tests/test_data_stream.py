@@ -323,7 +323,7 @@ class DataStreamTests(PyFlinkTestCase):
             keyed_stream.forward()
 
     def tearDown(self) -> None:
-        self.test_sink.get_results()
+        self.test_sink.clear()
 
 
 class MyMapFunction(MapFunction):
