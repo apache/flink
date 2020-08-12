@@ -80,7 +80,7 @@ public class OrcSplitReaderUtil {
 				LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();
 				vectors[i] = partitionSpec.containsKey(name) ?
 						createFlinkVectorFromConstant(type, partitionSpec.get(name), batchSize) :
-						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)]);
+						createFlinkVector(rowBatch.cols[nonPartNames.indexOf(name)], type);
 			}
 			return new VectorizedColumnBatch(vectors);
 		};
