@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
@@ -83,6 +84,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import scala.collection.Seq;
@@ -245,18 +247,14 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
-	private static final ConfigOption<Boolean> USE_PARTITION_PUSH_DOWN = ConfigOptions
-		.key("use-partition-push-down")
-		.booleanType()
-		.defaultValue(false);
-
 	/**
-	 * Parse partition list from Options with the format as "key1:val1, key2:val2;key1:val3, key2:val4".
+	 * Parse partition list from Options with the format as "key1:val1,key2:val2;key1:val3,key2:val4".
 	 */
-	private static final ConfigOption<String> PARTITION_LIST = ConfigOptions
+	private static final ConfigOption<List<String>> PARTITION_LIST = ConfigOptions
 		.key("partition-list")
 		.stringType()
-		.noDefaultValue();
+		.asList()
+		.defaultValues();
 
 	@Override
 	public String factoryIdentifier() {
@@ -276,21 +274,20 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
-		boolean shouldPushPartitionDown = helper.getOptions().get(USE_PARTITION_PUSH_DOWN);
 		Set<String> filterableFieldsSet = new HashSet<>();
 		filterableFields.ifPresent(filterableFieldsSet::addAll);
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
-			List<Map<String, String>> partitions =
-				shouldPushPartitionDown ? parsePartitionList(helper.getOptions().get(PARTITION_LIST)) : Collections.EMPTY_LIST;
+			List<Map<String, String>> partitions = parsePartitionList(helper.getOptions().get(PARTITION_LIST));
 			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
 			// pushing project into scan will prune schema and we have to get the mapping between partition and row
-			Map<Map<String, String>, Collection<Row>> partition2Rows = null;
-			if (shouldPushPartitionDown) {
-				partition2Rows = mapRowsToPartitions(physicalSchema, data, partitions);
+			Map<Map<String, String>, Collection<Row>> partition2Rows;
+			if (!partitions.isEmpty()) {
+				partition2Rows = mapPartitionToRow(physicalSchema, data, partitions);
 			} else {
 				// put all data into one partition
+				partitions = Collections.EMPTY_LIST;
 				partition2Rows = new HashMap<>();
 				partition2Rows.put(Collections.EMPTY_MAP, data);
 			}
@@ -308,7 +305,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				null,
 				filterableFieldsSet,
 				Long.MAX_VALUE,
-				shouldPushPartitionDown,
 				partitions);
 		} else {
 			try {
@@ -317,7 +313,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					DynamicTableSource.class,
 					Thread.currentThread().getContextClassLoader());
 			} catch (FlinkException e) {
-				throw new RuntimeException("Can't instantiate class " + sourceClass, e);
+				throw new TableException("Can't instantiate class " + sourceClass, e);
 			}
 		}
 	}
@@ -358,12 +354,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_EXPECTED_MESSAGES_NUM,
 			NESTED_PROJECTION_SUPPORTED,
 			FILTERABLE_FIELDS,
-			USE_PARTITION_PUSH_DOWN,
 			PARTITION_LIST));
 	}
 
-	private List<Map<String, String>> parsePartitionList(String partitionString) {
-		return Arrays.stream(partitionString.split(";")).map(
+	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
+		return stringPartitions.stream().map(
 			partition -> {
 				Map<String, String> spec = new HashMap<>();
 				Arrays.stream(partition.split(",")).forEach(pair -> {
@@ -371,28 +366,22 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					spec.put(split[0].trim(), split[1].trim());
 				});
 				return spec;
-			}
-		).collect(Collectors.toList());
+			}).collect(Collectors.toList());
 	}
 
-	private Map<Map<String, String>, Collection<Row>> mapRowsToPartitions(
-			TableSchema schema,
-			Collection<Row> rows,
-			List<Map<String, String>> partitions) {
-		if (!rows.isEmpty() && partitions.isEmpty()) {
-			throw new IllegalArgumentException(
-				"Please add partition list if use partition push down. Currently TestValuesTableSource doesn't support create partition list automatically.");
-		}
+	private static Map<Map<String, String>, Collection<Row>> mapPartitionToRow(
+		TableSchema schema,
+		Collection<Row> rows,
+		List<Map<String, String>> partitions) {
 		Map<Map<String, String>, Collection<Row>> map = new HashMap<>();
 		for (Map<String, String> partition: partitions) {
 			map.put(partition, new ArrayList<>());
 		}
 		String[] fieldnames = schema.getFieldNames();
-		boolean match = true;
 		for (Row row: rows) {
 			for (Map<String, String> partition: partitions) {
-				match = true;
-				for (Map.Entry<?, ?> entry: partition.entrySet()) {
+				boolean match = true;
+				for (Map.Entry<String, String> entry: partition.entrySet()) {
 					int index = Arrays.asList(fieldnames).indexOf(entry.getKey());
 					if (index < 0) {
 						throw new IllegalArgumentException(
@@ -453,14 +442,13 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private final Map<Map<String, String>, Collection<Row>> data;
+		private Map<Map<String, String>, Collection<Row>> data;
 		private final boolean isAsync;
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
-		private final boolean shouldPushPartitionDown;
 		private long limit;
 		private List<Map<String, String>> allPartitions;
 
@@ -477,7 +465,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
 				long limit,
-				boolean shouldPushPartitionDown,
 				List<Map<String, String>> allPartitions) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
@@ -491,7 +478,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
 			this.limit = limit;
-			this.shouldPushPartitionDown = shouldPushPartitionDown;
 			this.allPartitions = allPartitions;
 		}
 
@@ -516,7 +502,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 						new FromElementsFunction<>(serializer, values),
 						bounded);
 				} catch (IOException e) {
-					throw new RuntimeException(e);
+					throw new TableException("Fail to init source function", e);
 				}
 			} else if (runtimeSource.equals("InputFormat")) {
 				return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
@@ -552,8 +538,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
 			} else {
 				rows = new ArrayList<>();
-				allPartitions.stream()
-					.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<Row>())));
+				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<Row>())));
 			}
 			rows.forEach(record -> {
 				Row key = Row.of(Arrays.stream(lookupIndices)
@@ -590,8 +575,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		public Result applyFilters(List<ResolvedExpression> filters) {
 			List<ResolvedExpression> acceptedFilters = new ArrayList<>();
 			List<ResolvedExpression> remainingFilters = new ArrayList<>();
+			FilterUtil util = FilterUtil.INSTANCE;
 			for (ResolvedExpression expr : filters) {
-				if (shouldPushDown(expr)) {
+				if (util.shouldPushDown(expr, filterableFields)) {
 					acceptedFilters.add(expr);
 				} else {
 					remainingFilters.add(expr);
@@ -601,106 +587,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return Result.of(acceptedFilters, remainingFilters);
 		}
 
-		private boolean shouldPushDown(Expression expr) {
-			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
-				return shouldPushDownUnaryExpression(((CallExpression) expr).getResolvedChildren().get(0))
-					&& shouldPushDownUnaryExpression(((CallExpression) expr).getResolvedChildren().get(1));
-			}
-			return false;
-		}
-
-		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr) {
-			// validate that type is comparable
-			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
-				return false;
-			}
-			if (expr instanceof FieldReferenceExpression) {
-				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
-					return true;
-				}
-			}
-
-			if (expr instanceof ValueLiteralExpression) {
-				return true;
-			}
-
-			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
-					|| ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
-					return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0));
-				}
-			}
-			// other resolved expressions return false
-			return false;
-		}
-
-		private boolean isRetainedAfterApplyingFilterPredicates(Row row) {
-			if (filterPredicates == null) {
-				return true;
-			}
-			for (ResolvedExpression expr : filterPredicates) {
-				if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
-					if (!binaryFilterApplies((CallExpression) expr, row)) {
-						return false;
-					}
-				} else {
-					throw new RuntimeException(expr + " not supported!");
-				}
-			}
-			return true;
-		}
-
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
-			List<Expression> children = binExpr.getChildren();
-			Preconditions.checkArgument(children.size() == 2);
-			Comparable lhsValue = getValue(children.get(0), row);
-			Comparable rhsValue = getValue(children.get(1), row);
-			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) > 0;
-			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) < 0;
-			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) >= 0;
-			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) <= 0;
-			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) == 0;
-			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) != 0;
-			} else {
-				return false;
-			}
-		}
-
-		private boolean isComparable(Class<?> clazz) {
-			return Comparable.class.isAssignableFrom(clazz);
-		}
-
-		private Comparable<?> getValue(Expression expr, Row row) {
-			if (expr instanceof ValueLiteralExpression) {
-				Optional<?> value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
-				return (Comparable<?>) value.orElse(null);
-			}
-
-			if (expr instanceof FieldReferenceExpression) {
-				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(((FieldReferenceExpression) expr).getName());
+		private Function<String, Comparable<?>> getGetter(Row row) {
+			return fieldName -> {
+				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(fieldName);
 				return (Comparable<?>) row.getField(idx);
-			}
-
-			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				Object child = getValue(expr.getChildren().get(0), row);
-				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
-				if (functionDefinition.equals(UPPER)) {
-					return child.toString().toUpperCase();
-				} else if (functionDefinition.equals(LOWER)) {
-					return child.toString().toLowerCase();
-				} else {
-					throw new RuntimeException(expr + " not supported!");
-				}
-			}
-			throw new RuntimeException(expr + " not supported!");
+			};
 		}
 
 		@Override
@@ -718,7 +609,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				filterPredicates,
 				filterableFields,
 				limit,
-				shouldPushPartitionDown,
 				allPartitions);
 		}
 
@@ -732,15 +622,25 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
-			List<Map<String, String>> keys = Collections.EMPTY_LIST.equals(allPartitions) ?
+			List<Map<String, String>> keys = allPartitions.isEmpty() ?
 				Collections.singletonList(Collections.EMPTY_MAP) :
 				allPartitions;
+			FilterUtil util = FilterUtil.INSTANCE;
+			boolean isRetained = true;
 			for (Map<String, String> partition: keys) {
 				for (Row value : data.get(partition)) {
 					if (result.size() >= limit) {
 						return result;
 					}
-					if (isRetainedAfterApplyingFilterPredicates(value)) {
+					if (filterPredicates != null && !filterPredicates.isEmpty()) {
+						for (ResolvedExpression predicate: filterPredicates) {
+							isRetained = util.isRetainedAfterApplyingFilterPredicates(predicate, getGetter(value));
+							if (!isRetained) {
+								break;
+							}
+						}
+					}
+					if (isRetained) {
 						Row projectedRow;
 						if (projectedFields == null) {
 							projectedRow = value;
@@ -764,15 +664,25 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public Optional<List<Map<String, String>>> listPartitions() {
-			if (!shouldPushPartitionDown) {
-				return Optional.empty();
+			if (allPartitions.isEmpty()) {
+				throw new UnsupportedOperationException("Please use catalog to read partitions");
 			}
 			return Optional.of(allPartitions);
 		}
 
 		@Override
 		public void applyPartitions(List<Map<String, String>> remainingPartitions) {
-			this.allPartitions = remainingPartitions;
+			// remainingPartition is non-nullable.
+			if (allPartitions.isEmpty()) {
+				// read partitions from catalog
+				if (!remainingPartitions.isEmpty()) {
+					// map data into partitions
+					this.allPartitions = remainingPartitions;
+					this.data = mapPartitionToRow(physicalSchema, data.get(Collections.EMPTY_MAP), remainingPartitions);
+				}
+			} else {
+				this.allPartitions = remainingPartitions;
+			}
 		}
 
 		@Override
@@ -938,4 +848,125 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Table utils
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Utils for catalog and source to filter partition or row.
+	 * */
+	public static class FilterUtil {
+		public static final FilterUtil INSTANCE = new FilterUtil();
+
+		private FilterUtil() {}
+
+		public boolean shouldPushDown(ResolvedExpression expr, Set<String> filterableFields) {
+			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
+				return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0), filterableFields)
+					&& shouldPushDownUnaryExpression(expr.getResolvedChildren().get(1), filterableFields);
+			}
+			return false;
+		}
+
+		public boolean isRetainedAfterApplyingFilterPredicates(ResolvedExpression predicate, Function<String, Comparable<?>> getter) {
+			if (predicate instanceof CallExpression) {
+				FunctionDefinition definition = ((CallExpression) predicate).getFunctionDefinition();
+				if (definition.equals(BuiltInFunctionDefinitions.OR)) {
+					// nested filter, such as (key1 > 2 or key2 > 3)
+					boolean result = false;
+					for (Expression expr: predicate.getChildren()) {
+						if (!(expr instanceof CallExpression && expr.getChildren().size() == 2)) {
+							throw new TableException(expr + " not supported!");
+						}
+						result |= binaryFilterApplies((CallExpression) expr, getter);
+						if (result) {
+							return result;
+						}
+					}
+					return result;
+				} else if (predicate.getChildren().size() == 2) {
+					return binaryFilterApplies((CallExpression) predicate, getter);
+				}
+			}
+			throw new UnsupportedOperationException(predicate + " not supported!");
+		}
+
+		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr, Set<String> filterableFields) {
+			// validate that type is comparable
+			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
+				return false;
+			}
+			if (expr instanceof FieldReferenceExpression) {
+				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
+					return true;
+				}
+			}
+
+			if (expr instanceof ValueLiteralExpression) {
+				return true;
+			}
+
+			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
+				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
+					|| ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
+					return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0), filterableFields);
+				}
+			}
+			// other resolved expressions return false
+			return false;
+		}
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		private boolean binaryFilterApplies(CallExpression binExpr, Function<String, Comparable<?>> getter) {
+			List<Expression> children = binExpr.getChildren();
+			Preconditions.checkArgument(children.size() == 2);
+
+			Comparable lhsValue = getValue(children.get(0), getter);
+			Comparable rhsValue = getValue(children.get(1), getter);
+			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
+			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) > 0;
+			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) < 0;
+			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) >= 0;
+			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) <= 0;
+			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) == 0;
+			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
+				return lhsValue.compareTo(rhsValue) != 0;
+			} else {
+				throw new UnsupportedOperationException("Unsupported operator: " + functionDefinition);
+			}
+		}
+
+		private boolean isComparable(Class<?> clazz) {
+			return Comparable.class.isAssignableFrom(clazz);
+		}
+
+		private Comparable<?> getValue(Expression expr, Function<String, Comparable<?>> getter) {
+			if (expr instanceof ValueLiteralExpression) {
+				Optional<?> value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
+				return (Comparable<?>) value.orElse(null);
+			}
+
+			if (expr instanceof FieldReferenceExpression) {
+				return getter.apply(((FieldReferenceExpression) expr).getName());
+			}
+
+			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
+				Object child = getValue(expr.getChildren().get(0), getter);
+				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
+				if (functionDefinition.equals(UPPER)) {
+					return child.toString().toUpperCase();
+				} else if (functionDefinition.equals(LOWER)) {
+					return child.toString().toLowerCase();
+				} else {
+					throw new UnsupportedOperationException(String.format("Unrecognized", child, functionDefinition));
+				}
+			}
+			throw new UnsupportedOperationException(expr + " not supported!");
+		}
+	}
 }

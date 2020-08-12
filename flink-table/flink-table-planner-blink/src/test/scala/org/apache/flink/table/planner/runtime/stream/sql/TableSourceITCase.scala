@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.{Before, Test}
-import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong, String => JString}
+import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 class TableSourceITCase extends StreamingTestBase {
 
@@ -181,45 +181,6 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("5,5,Record_5")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testTableSourceWithPartitionable(): Unit = {
-    val data = Seq(
-      Row.of(new JInt(1), new JString("ZhangSan"), new JString("A"), new JInt(1)),
-      Row.of(new JInt(2), new JString("LiSi"), new JString("A"), new JInt(1)),
-      Row.of(new JInt(3), new JString("Jack"), new JString("A"), new JInt(2)),
-      Row.of(new JInt(4), new JString("Tom"), new JString("B"), new JInt(3)),
-      Row.of(new JInt(5), new JString("Vivi"),new JString("C"), new JInt(1))
-    )
-    val dataId = TestValuesTableFactory.registerData(data)
-    tEnv.executeSql(
-      s"""
-        |CREATE TABLE PartitionableTable (
-        |  id int,
-        |  name string,
-        |  part1 string,
-        |  part2 int
-        |) PARTITIONED BY (`part1`,`part2`)
-        |WITH (
-        |  'connector' = 'values',
-        |  'data-id' = '$dataId',
-        |  'bounded' = 'true',
-        |  'use-partition-push-down' = 'true',
-        |  'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'
-        |)
-        |""".stripMargin)
-
-
-    val result = tEnv.sqlQuery(
-      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'")
-      .toAppendStream[Row]
-    val sink = new TestingAppendSink
-    result.addSink(sink)
-    env.execute()
-
-    val expected = Seq("3,Jack,A,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
