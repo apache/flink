@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>
  * 	A {@link ShardConsumer} is responsible for:
  * 	<ul>
- * 	    <li>Running the {@link RecordPublisher} to consumer all records from the subscribed shard</li>
+ * 	    <li>Running the {@link RecordPublisher} to consume all records from the subscribed shard</li>
  * 	    <li>Deserializing and deaggregating incoming records from Kinesis</li>
  * 	    <li>Logging metrics</li>
  * 	    <li>Passing the records up to the {@link KinesisDataFetcher}</li>
