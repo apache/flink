@@ -38,7 +38,6 @@ import java.util.Map;
 @Internal
 public class BeamTablePythonStatelessFunctionRunner extends BeamPythonStatelessFunctionRunner {
 
-	private static final long serialVersionUID = 1L;
 	private final RowType inputType;
 	private final RowType outputType;
 	private final String coderUrn;
