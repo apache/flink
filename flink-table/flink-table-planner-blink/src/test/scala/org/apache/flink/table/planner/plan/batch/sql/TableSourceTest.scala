@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.table.planner.utils._
+
 import org.junit.{Before, Test}
 
 class TableSourceTest extends TableTestBase {
@@ -53,21 +54,6 @@ class TableSourceTest extends TableTestBase {
         |)
         |""".stripMargin
     util.tableEnv.executeSql(ddl2)
-    val ddl3 =
-      """
-        |CREATE TABLE PartitionableTable (
-        |  id int,
-        |  name string,
-        |  part1 string,
-        |  part2 int
-        |) PARTITIONED BY (`part1`,`part2`)
-        |WITH (
-        |  'connector' = 'values',
-        |  'bounded' = 'true',
-        |  'partition-list' = 'part1:A, part2:1;part1:A, part2:2;part1:B, part2:3;part1:C, part2:1'
-        |)
-        |""".stripMargin
-    util.tableEnv.executeSql(ddl3)
   }
 
   @Test

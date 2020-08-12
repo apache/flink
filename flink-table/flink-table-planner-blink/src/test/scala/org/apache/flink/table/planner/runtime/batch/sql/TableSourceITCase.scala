@@ -23,7 +23,9 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Test}
+
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 class TableSourceITCase extends BatchTestBase {

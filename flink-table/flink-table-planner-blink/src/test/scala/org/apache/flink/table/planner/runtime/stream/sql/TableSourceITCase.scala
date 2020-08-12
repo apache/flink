@@ -24,8 +24,10 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.{Before, Test}
+
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
 class TableSourceITCase extends StreamingTestBase {
