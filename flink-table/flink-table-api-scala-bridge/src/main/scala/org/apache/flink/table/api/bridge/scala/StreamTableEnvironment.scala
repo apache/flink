@@ -53,7 +53,14 @@ trait StreamTableEnvironment extends TableEnvironment {
     *
     * @param name The name under which the function is registered.
     * @param tf The TableFunction to register
+    *
+    * @deprecated Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please
+    *             note that the new method also uses the new type system and reflective extraction
+    *             logic. It might be necessary to update the function implementation as well. See
+    *             the documentation of [[TableFunction]] for more information on the new function
+    *             design.
     */
+  @deprecated
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit
 
   /**
