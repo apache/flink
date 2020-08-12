@@ -160,19 +160,44 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
+	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
+	}
+
+	public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_OUT_1, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate serializer.", e);
+		}
+	}
+
+	public void setTypeSerializerSideOut(OutputTag<?> outputTag, TypeSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
+	}
+
+	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
+		try {
+			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
+		} catch (IOException e) {
+			throw new StreamTaskException("Could not serialize type serializer.", e);
+		}
+	}
+
+	public <T> TypeSerializer<T> getTypeSerializerSideOut(OutputTag<?> outputTag, ClassLoader cl) {
+		Preconditions.checkNotNull(outputTag, "Side output id must not be null.");
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate serializer.", e);
+		}
+	}
+
 	public void setTypeSerializersIn(TypeSerializer<?> ...serializers) {
 		config.setInteger(TYPE_SERIALIZERS_IN_COUNT, serializers.length);
 		for (int i = 0; i < serializers.length; i++) {
 			setTypeSerializer(String.format(TYPE_SERIALIZERS_IN_PATTERN, i), serializers[i]);
 		}
-	}
-
-	public void setTypeSerializerOut(TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
-	}
-
-	public void setTypeSerializerSideOut(OutputTag<?> outputTag, TypeSerializer<?> serializer) {
-		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
 	}
 
 	@Deprecated
@@ -209,31 +234,6 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException(
 				String.format("Could not instantiate serializer for [%d] input.", index),
 				e);
-		}
-	}
-
-	public <T> TypeSerializer<T> getTypeSerializerOut(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_OUT_1, cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
-		}
-	}
-
-	public <T> TypeSerializer<T> getTypeSerializerSideOut(OutputTag<?> outputTag, ClassLoader cl) {
-		Preconditions.checkNotNull(outputTag, "Side output id must not be null.");
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), cl);
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not instantiate serializer.", e);
-		}
-	}
-
-	private void setTypeSerializer(String key, TypeSerializer<?> typeWrapper) {
-		try {
-			InstantiationUtil.writeObjectToConfig(typeWrapper, this.config, key);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize type serializer.", e);
 		}
 	}
 
