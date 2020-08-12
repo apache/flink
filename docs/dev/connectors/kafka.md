@@ -458,6 +458,7 @@ The Flink Kafka Producer supports discovering dynamically created Kafka partitio
 for `flink.partition-discovery.interval-millis` in the provided properties config,representing the discovery interval in milliseconds. 
 
 **Note**: Actual discovery interval depends on the maximum between kafka parameter `metadata.max.age.ms` and flink parameter `flink.partition-discovery.interval-millis`
+**Note**: Only support the universal flink kafka connector
 
 ## The `SerializationSchema`
 
