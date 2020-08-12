@@ -175,8 +175,13 @@ public class SafetyNetCloseableRegistry extends
 
 		@Override
 		public void close() throws IOException {
-			closeableRegistry.removeCloseableInternal(innerCloseable);
-			innerCloseable.close();
+			// Mark sure the inner closeable is still registered and thus unclosed to
+			// prevent duplicated and concurrent closing from registry closing. This could
+			// happen if registry is closing after this phantom reference was enqueued.
+			if (closeableRegistry.removeCloseableInternal(innerCloseable)) {
+				LOG.warn("Closing unclosed resource via safety-net: {}", getDebugString());
+				innerCloseable.close();
+			}
 		}
 	}
 
@@ -205,7 +210,6 @@ public class SafetyNetCloseableRegistry extends
 
 					if (toClose != null) {
 						try {
-							LOG.warn("Closing unclosed resource via safety-net: {}", toClose.getDebugString());
 							toClose.close();
 						}
 						catch (Throwable t) {
