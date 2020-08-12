@@ -79,4 +79,5 @@ class TableSourceTest extends TableTestBase {
       """.stripMargin
     util.verifyPlan(sqlQuery)
   }
+
 }
