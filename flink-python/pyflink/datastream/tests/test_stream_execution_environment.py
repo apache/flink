@@ -254,3 +254,20 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
+
+    def test_read_text_file(self):
+        texts = ["Mike", "Marry", "Ted", "Jack", "Bob", "Henry"]
+        text_file_path = self.tempdir + '/text_file'
+        with open(text_file_path, 'a') as f:
+            for text in texts:
+                f.write(text)
+                f.write('\n')
+
+        ds = self.env.read_text_file(text_file_path)
+        test_sink = DataStreamTestSinkFunction()
+        ds.add_sink(test_sink)
+        self.env.execute("test read text file")
+        results = test_sink.get_results()
+        results.sort()
+        texts.sort()
+        self.assertEqual(texts, results)

@@ -381,6 +381,42 @@ class DataStream(object):
         """
         return DataStreamSink(self._j_data_stream.addSink(sink_func.get_java_function()))
 
+    def print(self, sink_identifier: str = None) -> 'DataStreamSink':
+        """
+        Writes a DataStream to the standard output stream (stdout).
+        For each element of the DataStream the object string is writen.
+
+        NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
+        worker, and is not fault tolerant.
+
+        :param sink_identifier: The string to prefix the output with.
+        :return: The closed DataStream.
+        """
+        if sink_identifier is not None:
+            j_data_stream_sink = self._align_output_type()._j_data_stream.print(sink_identifier)
+        else:
+            j_data_stream_sink = self._align_output_type()._j_data_stream.print()
+        return DataStreamSink(j_data_stream_sink)
+
+    def _align_output_type(self) -> 'DataStream':
+        """
+        Transform the pickled python object into String if the output type is PickledByteArrayInfo.
+        """
+        output_type_info_class = self._j_data_stream.getTransformation().getOutputType().getClass()
+        if output_type_info_class.isAssignableFrom(
+                PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO().get_java_type_info()
+                .getClass()):
+            def python_obj_to_str_map_func(value):
+                if not isinstance(value, (str, bytes)):
+                    value = str(value)
+                return value
+
+            transformed_data_stream = DataStream(self.map(python_obj_to_str_map_func,
+                                                          type_info=Types.STRING())._j_data_stream)
+            return transformed_data_stream
+        else:
+            return self
+
 
 class DataStreamSink(object):
     """
@@ -526,6 +562,9 @@ class KeyedStream(DataStream):
     def key_by(self, key_selector: Union[Callable, KeySelector],
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         return self._origin_stream.key_by(key_selector, key_type_info)
+
+    def print(self, sink_identifier=None):
+        return self._values().print()
 
     def _values(self) -> 'DataStream':
         """
