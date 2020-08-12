@@ -52,7 +52,11 @@ public class DataStreamTestCollectSink<IN> implements SinkFunction<IN> {
 				listToBeReturned.add(obj.toString());
 			}
 		}
-		collectedResult.clear();
+		clear();
 		return listToBeReturned;
+	}
+
+	public void clear() {
+		collectedResult.clear();
 	}
 }
