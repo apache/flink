@@ -336,6 +336,9 @@ class DataStream(object):
                               fields in the output tuple corresponds to the order of field indexes.
         :return: The projected DataStream.
         """
+        if not isinstance(self.get_type(), typeinfo.TupleTypeInfo):
+            raise Exception('Only Tuple DataStreams can be projected.')
+
         gateway = get_gateway()
         j_index_arr = gateway.new_array(gateway.jvm.int, len(field_indexes))
         for i in range(len(field_indexes)):
@@ -658,22 +661,22 @@ class KeyedStream(DataStream):
         return self._values().union(*streams)
 
     def shuffle(self) -> 'DataStream':
-        return self._origin_stream.shuffle()
+        raise Exception('Cannot override partitioning for KeyedStream.')
 
     def project(self, *field_indexes) -> 'DataStream':
-        return self._origin_stream.project(*field_indexes)
+        return self._values().project(*field_indexes)
 
     def rescale(self) -> 'DataStream':
-        return self._origin_stream.rescale()
+        raise Exception('Cannot override partitioning for KeyedStream.')
 
     def rebalance(self) -> 'DataStream':
-        return self._origin_stream.rebalance()
+        raise Exception('Cannot override partitioning for KeyedStream.')
 
     def forward(self) -> 'DataStream':
-        return self._origin_stream.forward()
+        raise Exception('Cannot override partitioning for KeyedStream.')
 
     def broadcast(self) -> 'DataStream':
-        return self._origin_stream.broadcast()
+        raise Exception('Cannot override partitioning for KeyedStream.')
 
     def print(self, sink_identifier=None):
         return self._values().print()

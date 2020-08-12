@@ -304,6 +304,24 @@ class DataStreamTests(PyFlinkTestCase):
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
 
+    def test_keyed_stream_partitioning(self):
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
+        keyed_stream = ds.key_by(lambda x: x[1])
+        with self.assertRaises(Exception):
+            keyed_stream.shuffle()
+
+        with self.assertRaises(Exception):
+            keyed_stream.rebalance()
+
+        with self.assertRaises(Exception):
+            keyed_stream.rescale()
+
+        with self.assertRaises(Exception):
+            keyed_stream.broadcast()
+
+        with self.assertRaises(Exception):
+            keyed_stream.forward()
+
     def tearDown(self) -> None:
         self.test_sink.get_results()
 
