@@ -78,4 +78,12 @@ public class InFlightRequestTrackerTest {
 			awaitFuture,
 			inFlightRequestTracker.awaitAsync());
 	}
+
+	@Test
+	public void testShouldNotRegisterNewRequestsAfterTermination() {
+		final CompletableFuture<Void> terminationFuture = inFlightRequestTracker.awaitAsync();
+
+		assertTrue(terminationFuture.isDone());
+		assertFalse(inFlightRequestTracker.registerRequest());
+	}
 }
