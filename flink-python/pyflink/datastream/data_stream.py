@@ -298,6 +298,100 @@ class DataStream(object):
         filtered_stream.name("Filter")
         return filtered_stream
 
+    def union(self, *streams) -> 'DataStream':
+        """
+        Creates a new DataStream by merging DataStream outputs of the same type with each other. The
+        DataStreams merged using this operator will be transformed simultaneously.
+
+        :param streams: The DataStream to union outputwith.
+        :return: The DataStream.
+        """
+        j_data_streams = []
+        for data_stream in streams:
+            j_data_streams.append(data_stream._j_data_stream)
+        gateway = get_gateway()
+        j_data_stream_class = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream
+        j_data_stream_arr = get_gateway().new_array(j_data_stream_class, len(j_data_streams))
+        for i in range(len(j_data_streams)):
+            j_data_stream_arr[i] = j_data_streams[i]
+        j_united_stream = self._j_data_stream.union(j_data_stream_arr)
+        return DataStream(j_data_stream=j_united_stream)
+
+    def shuffle(self) -> 'DataStream':
+        """
+        Sets the partitioning of the DataStream so that the output elements are shuffled uniformly
+        randomly to the next operation.
+
+        :return: The DataStream with shuffle partitioning set.
+        """
+        return DataStream(self._j_data_stream.shuffle())
+
+    def project(self, *field_indexes) -> 'DataStream':
+        """
+        Initiates a Project transformation on a Tuple DataStream.
+
+        Note that only Tuple DataStreams can be projected.
+
+        :param field_indexes: The field indexes of the input tuples that are retained. The order of
+                              fields in the output tuple corresponds to the order of field indexes.
+        :return: The projected DataStream.
+        """
+        if not isinstance(self.get_type(), typeinfo.TupleTypeInfo):
+            raise Exception('Only Tuple DataStreams can be projected.')
+
+        gateway = get_gateway()
+        j_index_arr = gateway.new_array(gateway.jvm.int, len(field_indexes))
+        for i in range(len(field_indexes)):
+            j_index_arr[i] = field_indexes[i]
+        return DataStream(self._j_data_stream.project(j_index_arr))
+
+    def rescale(self) -> 'DataStream':
+        """
+        Sets the partitioning of the DataStream so that the output elements are distributed evenly
+        to a subset of instances of the next operation in a round-robin fashion.
+
+        The subset of downstream operations to which the upstream operation sends elements depends
+        on the degree of parallelism of both the upstream and downstream operation. For example, if
+        the upstream operation has parallelism 2 and the downstream operation has parallelism 4,
+        then one upstream operation would distribute elements to two downstream operations. If, on
+        the other hand, the downstream operation has parallelism 4 then two upstream operations will
+        distribute to one downstream operation while the other two upstream operations will
+        distribute to the other downstream operations.
+
+        In cases where the different parallelisms are not multiples of each one or several
+        downstream operations will have a differing number of inputs from upstream operations.
+
+        :return: The DataStream with rescale partitioning set.
+        """
+        return DataStream(self._j_data_stream.rescale())
+
+    def rebalance(self) -> 'DataStream':
+        """
+        Sets the partitioning of the DataStream so that the output elements are distributed evenly
+        to instances of the next operation in a round-robin fashion.
+
+        :return: The DataStream with rebalance partition set.
+        """
+        return DataStream(self._j_data_stream.rebalance())
+
+    def forward(self) -> 'DataStream':
+        """
+        Sets the partitioning of the DataStream so that the output elements are forwarded to the
+        local sub-task of the next operation.
+
+        :return: The DataStream with forward partitioning set.
+        """
+        return DataStream(self._j_data_stream.forward())
+
+    def broadcast(self) -> 'DataStream':
+        """
+        Sets the partitioning of the DataStream so that the output elements are broadcasted to every
+        parallel instance of the next operation.
+
+        :return: The DataStream with broadcast partitioning set.
+        """
+        return DataStream(self._j_data_stream.broadcast())
+
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
                                            func_type: int):
@@ -562,6 +656,27 @@ class KeyedStream(DataStream):
     def key_by(self, key_selector: Union[Callable, KeySelector],
                key_type_info: TypeInformation = None) -> 'KeyedStream':
         return self._origin_stream.key_by(key_selector, key_type_info)
+
+    def union(self, *streams) -> 'DataStream':
+        return self._values().union(*streams)
+
+    def shuffle(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
+
+    def project(self, *field_indexes) -> 'DataStream':
+        return self._values().project(*field_indexes)
+
+    def rescale(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
+
+    def rebalance(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
+
+    def forward(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
+
+    def broadcast(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
 
     def print(self, sink_identifier=None):
         return self._values().print()
