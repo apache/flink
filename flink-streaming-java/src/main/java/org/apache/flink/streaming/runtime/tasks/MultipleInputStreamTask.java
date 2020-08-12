@@ -18,11 +18,11 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -53,12 +53,12 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		TypeSerializer<?>[] inputDeserializers = configuration.getTypeSerializersIn(userClassLoader);
+		InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
-		ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputDeserializers.length];
-		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputDeserializers.length];
+		ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputs.length];
+		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputs.length];
 
-		for (int i = 0; i < inputDeserializers.length; i++) {
+		for (int i = 0; i < inputs.length; i++) {
 			inputLists[i] = new ArrayList<>();
 			watermarkGauges[i] = new WatermarkGauge();
 			headOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
@@ -76,7 +76,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			inputLists[inputType - 1].add(reader);
 		}
 
-		createInputProcessor(inputLists, inputDeserializers, watermarkGauges);
+		createInputProcessor(inputLists, inputs, watermarkGauges);
 
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
@@ -84,11 +84,11 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 	protected void createInputProcessor(
 			List<IndexedInputGate>[] inputGates,
-			TypeSerializer<?>[] inputDeserializers,
+			InputConfig[] inputs,
 			WatermarkGauge[] inputWatermarkGauges) {
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
-			inputGates.length);
+			inputs.length);
 
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
 			this,
@@ -101,7 +101,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 		inputProcessor = new StreamMultipleInputProcessor(
 			checkpointedInputGates,
-			inputDeserializers,
+			inputs,
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
 			headOperator,

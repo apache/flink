@@ -19,11 +19,12 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
+import org.apache.flink.streaming.api.graph.StreamConfig.NetworkInputConfig;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -71,7 +72,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	public StreamMultipleInputProcessor(
 			CheckpointedInputGate[] checkpointedInputGates,
-			TypeSerializer<?>[] inputSerializers,
+			InputConfig[] configuredInputs,
 			IOManager ioManager,
 			StreamStatusMaintainer streamStatusMaintainer,
 			MultipleInputStreamOperator<?> streamOperator,
@@ -82,29 +83,37 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
-		List<Input> inputs = streamOperator.getInputs();
-		int inputsCount = inputs.size();
+		List<Input> operatorInputs = streamOperator.getInputs();
+		int inputsCount = operatorInputs.size();
 
 		this.inputProcessors = new InputProcessor[inputsCount];
 		this.streamStatuses = new StreamStatus[inputsCount];
 		this.numRecordsIn = numRecordsIn;
 
 		for (int i = 0; i < inputsCount; i++) {
+			InputConfig configuredInput = configuredInputs[i];
 			streamStatuses[i] = StreamStatus.ACTIVE;
-			StreamTaskNetworkOutput dataOutput = new StreamTaskNetworkOutput<>(
-				inputs.get(i),
-				streamStatusMaintainer,
-				inputWatermarkGauges[i],
-				i);
+			if (configuredInput instanceof NetworkInputConfig) {
+				NetworkInputConfig networkInput = (NetworkInputConfig) configuredInput;
+				StreamTaskNetworkOutput dataOutput = new StreamTaskNetworkOutput<>(
+					operatorInputs.get(i),
+					streamStatusMaintainer,
+					inputWatermarkGauges[i],
+					i);
 
-			inputProcessors[i] = new InputProcessor(
-				dataOutput,
-				new StreamTaskNetworkInput<>(
-					checkpointedInputGates[i],
-					inputSerializers[i],
-					ioManager,
-					new StatusWatermarkValve(checkpointedInputGates[i].getNumberOfInputChannels(), dataOutput),
-					i));
+				inputProcessors[i] = new InputProcessor(
+					dataOutput,
+					new StreamTaskNetworkInput<>(
+						checkpointedInputGates[networkInput.getInputGateIndex()],
+						networkInput.getTypeSerializer(),
+						ioManager,
+						new StatusWatermarkValve(checkpointedInputGates[networkInput.getInputGateIndex()].getNumberOfInputChannels(), dataOutput),
+						i));
+			}
+			else {
+				throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
+			}
+
 		}
 
 		this.operatorChain = checkNotNull(operatorChain);
