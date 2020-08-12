@@ -245,10 +245,6 @@ public class StreamConfig implements Serializable {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
-	public boolean isFlushAlwaysEnabled() {
-		return getBufferTimeout() == 0;
-	}
-
 	@VisibleForTesting
 	public void setStreamOperator(StreamOperator<?> operator) {
 		setStreamOperatorFactory(SimpleOperatorFactory.of(operator));
@@ -533,10 +529,6 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
 		}
-	}
-
-	public byte[] getSerializedStateBackend() {
-		return this.config.getBytes(STATE_BACKEND, null);
 	}
 
 	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
