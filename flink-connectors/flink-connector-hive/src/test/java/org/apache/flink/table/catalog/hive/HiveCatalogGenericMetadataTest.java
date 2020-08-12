@@ -109,7 +109,6 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
 					.build();
 			assertEquals(expectedSchema, catalogBaseTable.getSchema());
 
-
 			// table with character types
 			tablePath = new ObjectPath(db1, "generic2");
 			hiveTable = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(tablePath.getDatabaseName(),
