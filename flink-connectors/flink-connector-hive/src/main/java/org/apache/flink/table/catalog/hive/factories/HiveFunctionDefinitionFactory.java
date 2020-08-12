@@ -26,9 +26,9 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.hive.HiveFunctionWrapper;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.functions.hive.HiveGenericUDF;
@@ -63,10 +63,17 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 	@Override
 	public FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction) {
 		if (catalogFunction.isGeneric()) {
-			return FunctionDefinitionUtil.createFunctionDefinition(name, catalogFunction.getClassName());
+			return createFunctionDefinitionFromFlinkFunction(name, catalogFunction);
 		}
-
 		return createFunctionDefinitionFromHiveFunction(name, catalogFunction.getClassName());
+	}
+
+	public FunctionDefinition createFunctionDefinitionFromFlinkFunction(String name, CatalogFunction catalogFunction) {
+		return UserDefinedFunctionHelper.instantiateFunction(
+				Thread.currentThread().getContextClassLoader(),
+				null,
+				name,
+				catalogFunction);
 	}
 
 	/**

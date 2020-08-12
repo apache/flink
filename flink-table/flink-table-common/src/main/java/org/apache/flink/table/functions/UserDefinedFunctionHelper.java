@@ -26,9 +26,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.util.InstantiationUtil;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -184,7 +188,42 @@ public final class UserDefinedFunctionHelper {
 	}
 
 	/**
-	 * Instantiates a {@link UserDefinedFunction} assuming a default constructor.
+	 * Instantiates a {@link UserDefinedFunction} from a {@link CatalogFunction}.
+	 *
+	 * <p>Requires access to {@link ReadableConfig} if Python functions should be supported.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public static UserDefinedFunction instantiateFunction(
+			ClassLoader classLoader,
+			@Nullable ReadableConfig config,
+			String name,
+			CatalogFunction catalogFunction) {
+		try {
+			switch (catalogFunction.getFunctionLanguage()) {
+				case PYTHON:
+					if (config == null) {
+						throw new IllegalStateException("Python functions are not supported at this location.");
+					}
+					return (UserDefinedFunction) PythonFunctionUtils.getPythonFunction(
+						catalogFunction.getClassName(),
+						config);
+				case JAVA:
+				case SCALA:
+					final Class<?> functionClass = classLoader.loadClass(catalogFunction.getClassName());
+					return UserDefinedFunctionHelper.instantiateFunction((Class) functionClass);
+				default:
+					throw new IllegalArgumentException(
+						"Unknown function language: " + catalogFunction.getFunctionLanguage());
+			}
+		} catch (Exception e) {
+			throw new ValidationException(
+				String.format("Cannot instantiate user-defined function '%s'.", name),
+				e);
+		}
+	}
+
+	/**
+	 * Instantiates a {@link UserDefinedFunction} assuming a JVM function with default constructor.
 	 */
 	public static UserDefinedFunction instantiateFunction(Class<? extends UserDefinedFunction> functionClass) {
 		validateClass(functionClass, true);

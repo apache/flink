@@ -53,7 +53,14 @@ trait StreamTableEnvironment extends TableEnvironment {
     *
     * @param name The name under which the function is registered.
     * @param tf The TableFunction to register
+    *
+    * @deprecated Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please
+    *             note that the new method also uses the new type system and reflective extraction
+    *             logic. It might be necessary to update the function implementation as well. See
+    *             the documentation of [[TableFunction]] for more information on the new function
+    *             design.
     */
+  @deprecated
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit
 
   /**
@@ -64,7 +71,14 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param f The AggregateFunction to register.
     * @tparam T The type of the output value.
     * @tparam ACC The type of aggregate accumulator.
+    *
+    * @deprecated Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please
+    *             note that the new method also uses the new type system and reflective extraction
+    *             logic. It might be necessary to update the function implementation as well. See
+    *             the documentation of [[AggregateFunction]] for more information on the new
+    *             function design.
     */
+  @deprecated
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
     name: String,
     f: AggregateFunction[T, ACC]): Unit
@@ -77,7 +91,14 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param f The TableAggregateFunction to register.
     * @tparam T The type of the output value.
     * @tparam ACC The type of aggregate accumulator.
+    *
+    * @deprecated Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please
+    *             note that the new method also uses the new type system and reflective extraction
+    *             logic. It might be necessary to update the function implementation as well. See
+    *             the documentation of [[TableAggregateFunction]] for more information on the new
+    *             function design.
     */
+  @deprecated
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
     name: String,
     f: TableAggregateFunction[T, ACC]): Unit

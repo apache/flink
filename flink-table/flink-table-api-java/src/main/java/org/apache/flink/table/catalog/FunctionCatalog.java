@@ -30,7 +30,6 @@ import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionDefinitionUtil;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ImperativeAggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -584,8 +583,7 @@ public final class FunctionCatalog {
 					fd = catalog.getFunctionDefinitionFactory().get()
 						.createFunctionDefinition(oi.getObjectName(), catalogFunction);
 				} else {
-					// TODO update the FunctionDefinitionUtil once we drop the old function stack in DDL
-					fd = getFunctionDefinition(oi.getObjectName(), catalogFunction);
+					fd = getFunctionDefinition(oi.asSummaryString(), catalogFunction);
 				}
 
 				return Optional.of(
@@ -651,12 +649,11 @@ public final class FunctionCatalog {
 			// directly.
 			return ((InlineCatalogFunction) function).getDefinition();
 		}
-		// Until all functions support the new type inference, uninstantiated functions from sql and
-		// catalog use the FunctionDefinitionUtil to instantiate them and wrap them with `AggregateFunctionDefinition`,
-		// `TableAggregateFunctionDefinition`. If the new type inference is fully functional, this should be
-		// changed to use `UserDefinedFunctionHelper#instantiateFunction`.
-		return FunctionDefinitionUtil.createFunctionDefinition(
-			name, function.getClassName(), function.getFunctionLanguage(), config);
+		return UserDefinedFunctionHelper.instantiateFunction(
+			Thread.currentThread().getContextClassLoader(), // TODO use classloader of catalog manager in the future
+			config,
+			name,
+			function);
 	}
 
 	/**
