@@ -28,7 +28,7 @@ under the License.
   <b>
   注意：Apache Flink 社区只发布 Apache Flink 的 release 版本。
   </b><br>
-  由于你当前正在查看文档的最新 SNAPSHOT 版本，因此以下将不会显示任何 release 版本的链接。请通过左侧菜单底部的版本选择将文档切换到最新的 release 版本。
+  由于你当前正在查看的是文档最新的 SNAPSHOT 版本，因此相关内容会被隐藏。请通过左侧菜单底部的版本选择将文档切换到最新的 release 版本。
 </p>
 {% else %}
 请按照以下几个步骤下载最新的稳定版本并开始使用。
