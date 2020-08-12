@@ -130,10 +130,7 @@ public class TableEnvHiveConnectorITCase {
 	public void testDifferentFormats() throws Exception {
 		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv", "avro"};
 		for (String format : formats) {
-			if (format.equals("orc") && HiveShimLoader.getHiveVersion().startsWith("2.0")) {
-				// Ignore orc test for Hive version 2.0.x for now due to FLINK-13998
-				continue;
-			} else if (format.equals("avro") && !HiveVersionTestUtil.HIVE_110_OR_LATER) {
+			if (format.equals("avro") && !HiveVersionTestUtil.HIVE_110_OR_LATER) {
 				// timestamp is not supported for avro tables before 1.1.0
 				continue;
 			}
@@ -190,11 +187,14 @@ public class TableEnvHiveConnectorITCase {
 
 		verifyFlinkQueryResult(tableEnv.sqlQuery("select * from db1.src"), expected);
 
-		// populate dest table with source table
-		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
+		// Ignore orc write test for Hive version 2.0.x for now due to FLINK-13998
+		if (!format.equals("orc") || !HiveShimLoader.getHiveVersion().startsWith("2.0")) {
+			// populate dest table with source table
+			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 
-		// verify data on hive side
-		verifyHiveQueryResult("select * from db1.dest", expected);
+			// verify data on hive side
+			verifyHiveQueryResult("select * from db1.dest", expected);
+		}
 
 		tableEnv.executeSql("drop database db1 cascade");
 	}
