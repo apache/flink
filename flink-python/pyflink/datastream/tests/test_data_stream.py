@@ -225,6 +225,23 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_print_without_align_output(self):
+        # No need to align output typeinfo since we have specified the type info of the DataStream.
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds.print()
+        plan = eval(str(self.env.get_execution_plan()))
+        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][1]['type'])
+
+    def test_print_with_align_output(self):
+        # need to align output type before print, therefore the plan will contain three nodes
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
+        ds.print()
+        plan = eval(str(self.env.get_execution_plan()))
+        self.assertEqual(3, len(plan['nodes']))
+        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][2]['type'])
+
     def tearDown(self) -> None:
         self.test_sink.get_results()
 
