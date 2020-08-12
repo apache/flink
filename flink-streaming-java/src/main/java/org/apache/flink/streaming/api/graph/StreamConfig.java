@@ -75,8 +75,7 @@ public class StreamConfig implements Serializable {
 	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String TYPE_SERIALIZERS_IN_COUNT = "typeSerializer_in_count";
-	private static final String TYPE_SERIALIZERS_IN_PATTERN = "typeSerializer_in_%d";
+	private static final String INPUTS = "inputs";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
 	private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
 	private static final String ITERATON_WAIT = "iterationWait";
@@ -194,9 +193,30 @@ public class StreamConfig implements Serializable {
 	}
 
 	public void setTypeSerializersIn(TypeSerializer<?> ...serializers) {
-		config.setInteger(TYPE_SERIALIZERS_IN_COUNT, serializers.length);
+		InputConfig[] inputs = new InputConfig[serializers.length];
 		for (int i = 0; i < serializers.length; i++) {
-			setTypeSerializer(String.format(TYPE_SERIALIZERS_IN_PATTERN, i), serializers[i]);
+			inputs[i] = new NetworkInputConfig(serializers[i], i);
+		}
+		setInputs(inputs);
+	}
+
+	public void setInputs(InputConfig...inputs) {
+		try {
+			InstantiationUtil.writeObjectToConfig(inputs, this.config, INPUTS);
+		} catch (IOException e) {
+			throw new StreamTaskException("Could not serialize inputs.", e);
+		}
+	}
+
+	public InputConfig[] getInputs(ClassLoader cl) {
+		try {
+			InputConfig[] inputs = InstantiationUtil.readObjectFromConfig(this.config, INPUTS, cl);
+			if (inputs == null) {
+				return new InputConfig[0];
+			}
+			return inputs;
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not deserialize inputs", e);
 		}
 	}
 
@@ -210,31 +230,11 @@ public class StreamConfig implements Serializable {
 		return getTypeSerializerIn(1, cl);
 	}
 
-	public TypeSerializer<?>[] getTypeSerializersIn(ClassLoader cl) {
-		int typeSerializersCount = config.getInteger(TYPE_SERIALIZERS_IN_COUNT, -1);
-		checkState(
-			typeSerializersCount >= 0,
-			"Missing value for %s in the config? [%d]",
-			TYPE_SERIALIZERS_IN_COUNT,
-			typeSerializersCount);
-		TypeSerializer<?>[] typeSerializers = new TypeSerializer<?>[typeSerializersCount];
-		for (int i = 0; i < typeSerializers.length; i++) {
-			typeSerializers[i] = getTypeSerializerIn(i, cl);
-		}
-		return typeSerializers;
-	}
-
 	public <T> TypeSerializer<T> getTypeSerializerIn(int index, ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(
-				this.config,
-				String.format(TYPE_SERIALIZERS_IN_PATTERN, index),
-				cl);
-		} catch (Exception e) {
-			throw new StreamTaskException(
-				String.format("Could not instantiate serializer for [%d] input.", index),
-				e);
-		}
+		InputConfig[] inputs = getInputs(cl);
+		checkState(index < inputs.length);
+		checkState(inputs[index] instanceof NetworkInputConfig, "Input [%s] was assumed to be network input", index);
+		return (TypeSerializer<T>) ((NetworkInputConfig) inputs[index]).typeSerializer;
 	}
 
 	public void setBufferTimeout(long timeout) {
@@ -619,5 +619,32 @@ public class StreamConfig implements Serializable {
 		}
 
 		return builder.toString();
+	}
+
+	/**
+	 * Interface representing chained inputs.
+	 */
+	public interface InputConfig extends Serializable {
+	}
+
+	/**
+	 * A representation of a Network {@link InputConfig}.
+	 */
+	public static class NetworkInputConfig implements InputConfig {
+		private final TypeSerializer<?> typeSerializer;
+		private int inputGateIndex;
+
+		public NetworkInputConfig(TypeSerializer<?> typeSerializer, int inputGateIndex) {
+			this.typeSerializer = typeSerializer;
+			this.inputGateIndex = inputGateIndex;
+		}
+
+		public TypeSerializer<?> getTypeSerializer() {
+			return typeSerializer;
+		}
+
+		public int getInputGateIndex() {
+			return inputGateIndex;
+		}
 	}
 }

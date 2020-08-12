@@ -844,6 +844,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		for (int chainedIndex = 1; chainedIndex < numberChainedTasks; chainedIndex++) {
 			TestingStreamOperator<Integer, Integer> chainedOperator = new TestingStreamOperator<>();
 			StreamConfig chainedConfig = new StreamConfig(new Configuration());
+			chainedConfig.setTypeSerializersIn(StringSerializer.INSTANCE);
 			chainedConfig.setStreamOperator(chainedOperator);
 			chainedConfig.setOperatorID(new OperatorID(0L, chainedIndex));
 			chainedTaskConfigs.put(chainedIndex, chainedConfig);
