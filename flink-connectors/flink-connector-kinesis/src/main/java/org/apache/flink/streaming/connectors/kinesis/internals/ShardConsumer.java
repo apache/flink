@@ -38,7 +38,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Thread that does the actual data pulling from AWS Kinesis shards. Each thread is in charge of one Kinesis shard only.
+ * Thread that subscribes to the given {@link RecordPublisher}. Each thread is in charge of one Kinesis shard only.
+ * <p>
+ * 	A {@link ShardConsumer} is responsible for:
+ * 	<ul>
+ * 	    <li>Running the {@link RecordPublisher} to consumer all records from the subscribed shard</li>
+ * 	    <li>Deserializing and deaggregating incoming records from Kinesis</li>
+ * 	    <li>Logging metrics</li>
+ * 	    <li>Passing the records up to the {@link KinesisDataFetcher}</li>
+ * 	</ul>
+ * </p>
  */
 @Internal
 public class ShardConsumer<T> implements Runnable {
