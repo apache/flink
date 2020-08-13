@@ -470,16 +470,6 @@ class ImperativeAggCodeGen(
       )
     }
 
-    if (needReset) {
-      UserDefinedFunctionHelper.validateClassForRuntime(
-        function.getClass,
-        UserDefinedFunctionHelper.AGGREGATE_RESET,
-        accumulatorClass,
-        classOf[Unit],
-        functionName
-      )
-    }
-
     if (needEmitValue) {
       UserDefinedFunctionHelper.validateClassForRuntime(
         function.getClass,

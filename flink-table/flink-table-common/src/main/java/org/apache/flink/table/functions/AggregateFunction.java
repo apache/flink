@@ -61,7 +61,6 @@ import org.apache.flink.table.types.inference.TypeInference;
  * <ul>
  *     <li>{@code retract}</li>
  *     <li>{@code merge}</li>
- *     <li>{@code resetAccumulator}</li>
  * </ul>
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
@@ -88,7 +87,7 @@ import org.apache.flink.table.types.inference.TypeInference;
  * Retracts the input values from the accumulator instance. The current design assumes the
  * inputs are the values that have been previously accumulated. The method retract can be
  * overloaded with different custom types and arguments. This method must be implemented for
- * unbounded OVER aggregates.
+ * bounded OVER aggregates over unbounded tables.
  *
  * param: accumulator           the accumulator which contains the current aggregated results
  * param: [user defined inputs] the input value (usually obtained from new arrived data).
@@ -106,26 +105,15 @@ import org.apache.flink.table.types.inference.TypeInference;
  *                    be noted that the accumulator may contain the previous aggregated
  *                    results. Therefore user should not replace or clean this instance in the
  *                    custom merge method.
- * param: its         an java.lang.Iterable pointed to a group of accumulators that will be
+ * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
  *                    merged.
  *
  * public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
  * }
  * </pre>
  *
- * <pre>
- * {@code
- * Resets the accumulator for this aggregate function. This method must be implemented for
- * bounded grouping aggregates.
- *
- * param: accumulator the accumulator which needs to be reset
- *
- * public void resetAccumulator(ACC accumulator)
- * }
- * </pre>
- *
- * <p>If this aggregate function can only be applied in an OVER window, this can be declared using the
- * requirement {@link FunctionRequirement#OVER_WINDOW_ONLY} in {@link #getRequirements()}.
+ * <p>If this aggregate function can only be applied in an OVER window, this can be declared by returning
+ * the requirement {@link FunctionRequirement#OVER_WINDOW_ONLY} in {@link #getRequirements()}.
  *
  * <p>If an accumulator needs to store large amounts of data, {@link ListView} and {@link MapView}
  * provide advanced features for leveraging Flink's state backends in unbounded data scenarios.

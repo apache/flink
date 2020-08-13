@@ -78,10 +78,6 @@ object UserDefinedFunctionTestUtils {
     override def createAccumulator(): CountAccumulator = {
       new CountAccumulator
     }
-
-    def resetAccumulator(acc: CountAccumulator): Unit = {
-      acc.f0 = 0L
-    }
   }
 
   /** The initial accumulator for count aggregate function */
@@ -117,10 +113,6 @@ object UserDefinedFunctionTestUtils {
 
     override def createAccumulator(): CountAccumulator = {
       new CountAccumulator
-    }
-
-    def resetAccumulator(acc: CountAccumulator): Unit = {
-      acc.f0 = 0L
     }
   }
 
@@ -477,9 +469,5 @@ class GenericAggregateFunction extends AggregateFunction[java.lang.Integer, Rand
 
   def retract(acc: RandomClass, value: Int): Unit = {
     acc.i = value
-  }
-
-  def resetAccumulator(acc: RandomClass): Unit = {
-    acc.i = 0
   }
 }
