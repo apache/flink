@@ -37,11 +37,11 @@ import scala.language.postfixOps
 import scala.util.Random
 
 /**
- * An example of grouped stream windowing where different eviction and 
- * trigger policies can be used. A source fetches events from cars 
+ * An example of grouped stream windowing where different eviction and
+ * trigger policies can be used. A source fetches events from cars
  * every 100 msec containing their id, their current speed (kmh),
  * overall elapsed distance (m) and a timestamp. The streaming
- * example triggers the top speed of each car every x meters elapsed 
+ * example triggers the top speed of each car every x meters elapsed
  * for the last y seconds.
  */
 object TopSpeedWindowing {
@@ -103,7 +103,7 @@ object TopSpeedWindowing {
 
     val topSpeeds = cars
       .assignAscendingTimestamps( _.time )
-      .keyBy("carId")
+      .keyBy(_.carId)
       .window(GlobalWindows.create)
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
       .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {

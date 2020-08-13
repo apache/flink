@@ -39,7 +39,6 @@ import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExecutorUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -304,7 +303,7 @@ public class AsyncIOExample {
 			public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
 				out.collect(new Tuple2<>(value, 1));
 			}
-		}).keyBy(0).sum(1).print();
+		}).keyBy(value -> value.f0).sum(1).print();
 
 		// execute the program
 		env.execute("Async IO Example");

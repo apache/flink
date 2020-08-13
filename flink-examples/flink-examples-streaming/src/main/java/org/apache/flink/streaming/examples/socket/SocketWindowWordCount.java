@@ -76,7 +76,7 @@ public class SocketWindowWordCount {
 					}
 				})
 
-				.keyBy("word")
+				.keyBy(value -> value.word)
 				.timeWindow(Time.seconds(5))
 
 				.reduce(new ReduceFunction<WordWithCount>() {

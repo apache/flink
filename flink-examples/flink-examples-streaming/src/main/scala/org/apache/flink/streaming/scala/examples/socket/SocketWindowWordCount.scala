@@ -24,9 +24,9 @@ import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
  * Implements a streaming windowed version of the "WordCount" program.
- * 
+ *
  * This program connects to a server socket and reads strings from the socket.
- * The easiest way to try this out is to open a text sever (at port 12345) 
+ * The easiest way to try this out is to open a text sever (at port 12345)
  * using the ''netcat'' tool via
  * {{{
  * nc -l 12345 on Linux or nc -l -p 12345 on Windows
@@ -56,18 +56,18 @@ object SocketWindowWordCount {
         return
       }
     }
-    
+
     // get the execution environment
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-    
+
     // get input data by connecting to the socket
     val text: DataStream[String] = env.socketTextStream(hostname, port, '\n')
 
-    // parse the data, group it, window it, and aggregate the counts 
+    // parse the data, group it, window it, and aggregate the counts
     val windowCounts = text
           .flatMap { w => w.split("\\s") }
           .map { w => WordWithCount(w, 1) }
-          .keyBy("word")
+          .keyBy(_.word)
           .timeWindow(Time.seconds(5))
           .sum("count")
 
