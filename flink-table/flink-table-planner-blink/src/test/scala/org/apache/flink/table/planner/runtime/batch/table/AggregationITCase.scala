@@ -440,10 +440,6 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
 
   override def getValue(acc: Array[JTuple2[JInt, JFloat]]): Array[JTuple2[JInt, JFloat]] = acc
 
-  def resetAccumulator(acc: Array[JTuple2[JInt, JFloat]]): Unit = {
-    java.util.Arrays.fill(acc.asInstanceOf[Array[Object]], null)
-  }
-
   def merge(
       acc: Array[JTuple2[JInt, JFloat]],
       its: java.lang.Iterable[Array[JTuple2[JInt, JFloat]]]): Unit = {

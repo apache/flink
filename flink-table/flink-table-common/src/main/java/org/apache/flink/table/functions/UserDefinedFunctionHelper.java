@@ -66,11 +66,11 @@ public final class UserDefinedFunctionHelper {
 
 	public static final String AGGREGATE_MERGE = "merge";
 
-	public static final String AGGREGATE_RESET = "resetAccumulator";
-
 	public static final String TABLE_AGGREGATE_ACCUMULATE = "accumulate";
 
 	public static final String TABLE_AGGREGATE_RETRACT = "retract";
+
+	public static final String TABLE_AGGREGATE_MERGE = "merge";
 
 	public static final String TABLE_AGGREGATE_EMIT = "emitValue";
 
@@ -328,10 +328,10 @@ public final class UserDefinedFunctionHelper {
 			validateImplementationMethod(functionClass, true, false, AGGREGATE_ACCUMULATE);
 			validateImplementationMethod(functionClass, true, true, AGGREGATE_RETRACT);
 			validateImplementationMethod(functionClass, true, true, AGGREGATE_MERGE);
-			validateImplementationMethod(functionClass, true, true, AGGREGATE_RESET);
 		} else if (TableAggregateFunction.class.isAssignableFrom(functionClass)) {
 			validateImplementationMethod(functionClass, true, false, TABLE_AGGREGATE_ACCUMULATE);
 			validateImplementationMethod(functionClass, true, true, TABLE_AGGREGATE_RETRACT);
+			validateImplementationMethod(functionClass, true, true, TABLE_AGGREGATE_MERGE);
 			validateImplementationMethod(functionClass, true, false, TABLE_AGGREGATE_EMIT, TABLE_AGGREGATE_EMIT_RETRACT);
 		}
 	}
