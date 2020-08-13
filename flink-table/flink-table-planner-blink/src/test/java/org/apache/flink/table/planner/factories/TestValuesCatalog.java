@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
@@ -68,13 +69,12 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
 
 		CatalogBaseTable table = this.getTable(tablePath);
 		TableSchema schema = table.getSchema();
-		TestValuesTableFactory.FilterUtil util = TestValuesTableFactory.FilterUtil.INSTANCE;
 		List<CatalogPartitionSpec> remainingPartitions = new ArrayList<>();
 		for (CatalogPartitionSpec partition : partitions) {
 			boolean isRetained = true;
 			Function<String, Comparable<?>> getter = getValueGetter(partition.getPartitionSpec(), schema);
 			for (Expression predicate : filters) {
-				isRetained = util.isRetainedAfterApplyingFilterPredicates((ResolvedExpression) predicate, getter);
+				isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates((ResolvedExpression) predicate, getter);
 				if (!isRetained) {
 					break;
 				}

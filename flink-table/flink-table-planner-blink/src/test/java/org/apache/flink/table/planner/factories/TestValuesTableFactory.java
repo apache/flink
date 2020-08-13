@@ -44,17 +44,11 @@ import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
@@ -62,13 +56,13 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Async
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.KeyedUpsertingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
+import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -81,6 +75,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -89,8 +84,6 @@ import java.util.stream.Collectors;
 
 import scala.collection.Seq;
 
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -287,9 +280,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				partition2Rows = mapPartitionToRow(physicalSchema, data, partitions);
 			} else {
 				// put all data into one partition
-				partitions = Collections.EMPTY_LIST;
+				partitions = Collections.emptyList();
 				partition2Rows = new HashMap<>();
-				partition2Rows.put(Collections.EMPTY_MAP, data);
+				partition2Rows.put(Collections.emptyMap(), data);
 			}
 
 			return new TestValuesTableSource(
@@ -370,9 +363,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	}
 
 	private static Map<Map<String, String>, Collection<Row>> mapPartitionToRow(
-		TableSchema schema,
-		Collection<Row> rows,
-		List<Map<String, String>> partitions) {
+			TableSchema schema,
+			Collection<Row> rows,
+			List<Map<String, String>> partitions) {
 		Map<Map<String, String>, Collection<Row>> map = new HashMap<>();
 		for (Map<String, String> partition: partitions) {
 			map.put(partition, new ArrayList<>());
@@ -387,8 +380,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 						throw new IllegalArgumentException(
 							String.format("Illegal partition list: partition key %s is not found in schema.", entry.getKey()));
 					}
-					if (!row.getField(index).toString().equals(entry.getValue())) {
-						match = false;
+					if (entry.getValue() != null) {
+						if (row.getField(index) == null) {
+							match = false;
+						} else {
+							match = entry.getValue().equals(Objects.requireNonNull(row.getField(index)).toString());
+						}
+					} else {
+						match = row.getField(index) == null;
+					}
+					if (!match) {
 						break;
 					}
 				}
@@ -575,9 +576,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		public Result applyFilters(List<ResolvedExpression> filters) {
 			List<ResolvedExpression> acceptedFilters = new ArrayList<>();
 			List<ResolvedExpression> remainingFilters = new ArrayList<>();
-			FilterUtil util = FilterUtil.INSTANCE;
 			for (ResolvedExpression expr : filters) {
-				if (util.shouldPushDown(expr, filterableFields)) {
+				if (FilterUtils.shouldPushDown(expr, filterableFields)) {
 					acceptedFilters.add(expr);
 				} else {
 					remainingFilters.add(expr);
@@ -623,18 +623,17 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			List<Map<String, String>> keys = allPartitions.isEmpty() ?
-				Collections.singletonList(Collections.EMPTY_MAP) :
+				Collections.singletonList(Collections.emptyMap()) :
 				allPartitions;
-			FilterUtil util = FilterUtil.INSTANCE;
-			boolean isRetained = true;
 			for (Map<String, String> partition: keys) {
 				for (Row value : data.get(partition)) {
 					if (result.size() >= limit) {
 						return result;
 					}
+					boolean isRetained = true;
 					if (filterPredicates != null && !filterPredicates.isEmpty()) {
 						for (ResolvedExpression predicate: filterPredicates) {
-							isRetained = util.isRetainedAfterApplyingFilterPredicates(predicate, getValueGetter(value));
+							isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates(predicate, getValueGetter(value));
 							if (!isRetained) {
 								break;
 							}
@@ -679,9 +678,16 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					// map data into partitions
 					this.allPartitions = remainingPartitions;
 					this.data = mapPartitionToRow(physicalSchema, data.get(Collections.EMPTY_MAP), remainingPartitions);
+				} else {
+					// we will read data from Collections.emptyList() if allPartitions is empty.
+					// therefore, we should clear all data manually.
+					this.data.put(Collections.emptyMap(), Collections.emptyList());
 				}
 			} else {
 				this.allPartitions = remainingPartitions;
+				if (remainingPartitions.isEmpty()) {
+					this.data.put(Collections.emptyMap(), Collections.emptyList());
+				}
 			}
 		}
 
@@ -845,128 +851,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public String asSummaryString() {
 			return "TestValues";
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Table utils
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Utils for catalog and source to filter partition or row.
-	 * */
-	public static class FilterUtil {
-		public static final FilterUtil INSTANCE = new FilterUtil();
-
-		private FilterUtil() {}
-
-		public boolean shouldPushDown(ResolvedExpression expr, Set<String> filterableFields) {
-			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
-				return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0), filterableFields)
-					&& shouldPushDownUnaryExpression(expr.getResolvedChildren().get(1), filterableFields);
-			}
-			return false;
-		}
-
-		public boolean isRetainedAfterApplyingFilterPredicates(ResolvedExpression predicate, Function<String, Comparable<?>> getter) {
-			if (predicate instanceof CallExpression) {
-				FunctionDefinition definition = ((CallExpression) predicate).getFunctionDefinition();
-				if (definition.equals(BuiltInFunctionDefinitions.OR)) {
-					// nested filter, such as (key1 > 2 or key2 > 3)
-					boolean result = false;
-					for (Expression expr: predicate.getChildren()) {
-						if (!(expr instanceof CallExpression && expr.getChildren().size() == 2)) {
-							throw new TableException(expr + " not supported!");
-						}
-						result |= binaryFilterApplies((CallExpression) expr, getter);
-						if (result) {
-							return result;
-						}
-					}
-					return result;
-				} else if (predicate.getChildren().size() == 2) {
-					return binaryFilterApplies((CallExpression) predicate, getter);
-				}
-			}
-			throw new UnsupportedOperationException(predicate + " not supported!");
-		}
-
-		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr, Set<String> filterableFields) {
-			// validate that type is comparable
-			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
-				return false;
-			}
-			if (expr instanceof FieldReferenceExpression) {
-				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
-					return true;
-				}
-			}
-
-			if (expr instanceof ValueLiteralExpression) {
-				return true;
-			}
-
-			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
-					|| ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
-					return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0), filterableFields);
-				}
-			}
-			// other resolved expressions return false
-			return false;
-		}
-
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		private boolean binaryFilterApplies(CallExpression binExpr, Function<String, Comparable<?>> getter) {
-			List<Expression> children = binExpr.getChildren();
-			Preconditions.checkArgument(children.size() == 2);
-
-			Comparable lhsValue = getValue(children.get(0), getter);
-			Comparable rhsValue = getValue(children.get(1), getter);
-			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) > 0;
-			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) < 0;
-			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) >= 0;
-			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) <= 0;
-			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) == 0;
-			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) != 0;
-			} else {
-				throw new UnsupportedOperationException("Unsupported operator: " + functionDefinition);
-			}
-		}
-
-		private boolean isComparable(Class<?> clazz) {
-			return Comparable.class.isAssignableFrom(clazz);
-		}
-
-		private Comparable<?> getValue(Expression expr, Function<String, Comparable<?>> getter) {
-			if (expr instanceof ValueLiteralExpression) {
-				Optional<?> value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
-				return (Comparable<?>) value.orElse(null);
-			}
-
-			if (expr instanceof FieldReferenceExpression) {
-				return getter.apply(((FieldReferenceExpression) expr).getName());
-			}
-
-			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				Object child = getValue(expr.getChildren().get(0), getter);
-				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
-				if (functionDefinition.equals(UPPER)) {
-					return child.toString().toUpperCase();
-				} else if (functionDefinition.equals(LOWER)) {
-					return child.toString().toLowerCase();
-				} else {
-					throw new UnsupportedOperationException(String.format("Unrecognized function definition: %s.", functionDefinition));
-				}
-			}
-			throw new UnsupportedOperationException(expr + " not supported!");
 		}
 	}
 }
