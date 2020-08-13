@@ -70,7 +70,7 @@ wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
     }
 });
 
-wordCounts.keyBy(0); // also valid .keyBy("f0")
+wordCounts.keyBy(value -> value.f0); // .keyBy(0) is @Deprecated
 
 
 {% endhighlight %}
@@ -86,11 +86,11 @@ val input = env.fromElements(
     WordCount("hello", 1),
     WordCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word)// .keyBy("word") is @Deprecated
 
 val input2 = env.fromElements(("hello", 1), ("world", 2)) // Tuple2 Data Set
 
-input2.keyBy(0, 1) // key by field positions 0 and 1
+input2.keyBy(value => (value._1, value._2)) // key by field positions 0 and 1
 {% endhighlight %}
 
 </div>
@@ -137,7 +137,7 @@ DataStream<WordWithCount> wordCounts = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2));
 
-wordCounts.keyBy("word"); // key by field expression "word"
+wordCounts.keyBy(value -> value.word); // .keyBy("word") is @Deprecated
 
 {% endhighlight %}
 </div>
@@ -153,7 +153,7 @@ val input = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word) // .keyBy("word") is @Deprecated
 
 {% endhighlight %}
 </div>
@@ -237,7 +237,7 @@ Flink 会尽力推断有关数据类型的大量信息，这些数据会在分�
 可以把它想象成一个推断表结构的数据库。在大多数情况下，Flink 可以依赖自身透明的推断出所有需要的类型信息。
 掌握这些类型信息可以帮助 Flink 实现很多意想不到的特性：
 
-* 对于使用 POJOs 类型的数据，可以通过指定字段名（比如 `dataSet.keyBy("username")` ）进行 grouping 、joining、aggregating 操作。
+* 对于使用 POJOs 类型的数据，可以通过指定字段名（比如 `dataSet.keyBy(value -> value.username)` ）进行 grouping 、joining、aggregating 操作。
   类型信息可以帮助 Flink 在运行前做一些拼写错误以及类型兼容方面的检查，而不是等到运行时才暴露这些问题。
 
 * Flink 对数据类型了解的越多，序列化和数据布局方案就越好。

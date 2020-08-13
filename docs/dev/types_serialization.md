@@ -70,7 +70,7 @@ wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
     }
 });
 
-wordCounts.keyBy(0); // also valid .keyBy("f0")
+wordCounts.keyBy(value -> value.f0); // .keyBy(0) is @Deprecated
 
 
 {% endhighlight %}
@@ -86,11 +86,11 @@ val input = env.fromElements(
     WordCount("hello", 1),
     WordCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word) // .keyBy("word") is @Deprecated
 
 val input2 = env.fromElements(("hello", 1), ("world", 2)) // Tuple2 Data Set
 
-input2.keyBy(0, 1) // key by field positions 0 and 1
+input2.keyBy(value => (value._1, value._2)) // key by field positions 0 and 1
 {% endhighlight %}
 
 </div>
@@ -137,7 +137,7 @@ DataStream<WordWithCount> wordCounts = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2));
 
-wordCounts.keyBy("word"); // key by field expression "word"
+wordCounts.keyBy(value -> value.word); // .keyBy("word") is @Deprecated
 
 {% endhighlight %}
 </div>
@@ -153,7 +153,7 @@ val input = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word) // .keyBy("word") is @Deprecated
 
 {% endhighlight %}
 </div>
@@ -238,7 +238,7 @@ Flink tries to infer a lot of information about the data types that are exchange
 Think about it like a database that infers the schema of tables. In most cases, Flink infers all necessary information seamlessly
 by itself. Having the type information allows Flink to do some cool things:
 
-* Using POJOs types and grouping / joining / aggregating them by referring to field names (like `dataSet.keyBy("username")`).
+* Using POJOs types and grouping / joining / aggregating them by referring to field names (like `dataSet.keyBy(value -> value.username)`).
   The type information allows Flink to check (for typos and type compatibility) early rather than failing later at runtime.
 
 * The more Flink knows about data types, the better the serialization and data layout schemes are.

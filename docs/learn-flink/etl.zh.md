@@ -130,6 +130,7 @@ public static class NYCEnrichment implements FlatMapFunction<TaxiRide, EnrichedR
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
+    // .keyBy("fieldname") is @Deprecated, could use .keyBy(value -> value.startCell)
     .keyBy("startCell")
 {% endhighlight %}
 
@@ -206,7 +207,7 @@ DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
 
 {% highlight java %}
 minutesByStartCell
-  .keyBy(0) // startCell
+  .keyBy(value -> value.startCell) // .keyBy(0) is @Deprecated, could use .keyBy(value -> value.f0)
   .maxBy(1) // duration
   .print();
 {% endhighlight %}

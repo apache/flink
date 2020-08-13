@@ -149,6 +149,7 @@ this would mean doing some sort of GROUP BY with the `startCell`, while in Flink
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
+    // .keyBy("fieldname") is @Deprecated, could use .keyBy(value -> value.startCell) 
     .keyBy("startCell")
 {% endhighlight %}
 
@@ -241,7 +242,7 @@ specify the key.
 
 {% highlight java %}
 minutesByStartCell
-  .keyBy(0) // startCell
+  .keyBy(0) // .keyBy(0) is @Deprecated, could use .keyBy(value -> value.f0)
   .maxBy(1) // duration
   .print();
 {% endhighlight %}
