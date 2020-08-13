@@ -17,9 +17,9 @@ Stage 2 : Data Source
 
 	Stage 3 : Operator
 		content : from: (count, word)
-		ship_strategy : REBALANCE
+		ship_strategy : FORWARD
 
 		Stage 4 : Operator
 			content : from: (count, word)
-			ship_strategy : REBALANCE
+			ship_strategy : FORWARD
 
