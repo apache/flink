@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.connectors.kinesis.model;
 
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.Date;
 
@@ -29,6 +31,9 @@ import static org.junit.Assert.assertNull;
  * Tests for {@link StartingPosition}.
  */
 public class StartingPositionTest {
+
+	@Rule
+	public final ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testStartingPositionFromTimestamp() {
@@ -78,11 +83,14 @@ public class StartingPositionTest {
 		assertNull(position.getStartingMarker());
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testStartingPositionRestartFromSentinelEnding() {
+		thrown.expect(IllegalArgumentException.class);
+
 		SequenceNumber sequenceNumber = SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get();
 		StartingPosition position = StartingPosition.restartFromSequenceNumber(sequenceNumber);
 		assertEquals(ShardIteratorType.LATEST, position.getShardIteratorType());
 		assertNull(position.getStartingMarker());
 	}
+
 }

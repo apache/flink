@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis.internals.publisher.pollin
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 
@@ -27,7 +28,7 @@ import org.junit.Test;
 import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
-import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -42,7 +43,7 @@ public class PollingRecordPublisherFactoryTest {
 	@Test
 	public void testBuildPollingRecordPublisher() throws Exception {
 		RecordPublisher recordPublisher = factory.create(
-			SENTINEL_EARLIEST_SEQUENCE_NUM.get(),
+			StartingPosition.restartFromSequenceNumber(SENTINEL_LATEST_SEQUENCE_NUM.get()),
 			new Properties(),
 			mock(MetricGroup.class),
 			mock(StreamShardHandle.class));
@@ -57,7 +58,7 @@ public class PollingRecordPublisherFactoryTest {
 		properties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
 
 		RecordPublisher recordPublisher = factory.create(
-			SENTINEL_EARLIEST_SEQUENCE_NUM.get(),
+			StartingPosition.restartFromSequenceNumber(SENTINEL_LATEST_SEQUENCE_NUM.get()),
 			properties,
 			mock(MetricGroup.class),
 			mock(StreamShardHandle.class));

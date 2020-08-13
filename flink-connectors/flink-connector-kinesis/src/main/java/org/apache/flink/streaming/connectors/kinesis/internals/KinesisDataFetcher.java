@@ -35,12 +35,14 @@ import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetric
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
@@ -425,7 +427,9 @@ public class KinesisDataFetcher<T> {
 			final Properties configProps,
 			final MetricGroup metricGroup,
 			final StreamShardHandle subscribedShard) throws InterruptedException {
-		return recordPublisherFactory.create(sequenceNumber, configProps, metricGroup, subscribedShard);
+
+		StartingPosition startingPosition = AWSUtil.getStartingPosition(sequenceNumber, configProps);
+		return recordPublisherFactory.create(startingPosition, configProps, metricGroup, subscribedShard);
 	}
 
 	/**

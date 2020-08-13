@@ -98,8 +98,6 @@ public class PollingRecordPublisher implements RecordPublisher {
 	}
 
 	public RecordPublisherRunResult run(final RecordBatchConsumer consumer, int maxNumberOfRecords) throws InterruptedException {
-		Preconditions.checkNotNull(nextStartingPosition, "nextStartingPosition is null, did you forget to call initialise()?");
-
 		if (nextShardItr == null) {
 			return COMPLETE;
 		}

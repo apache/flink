@@ -31,10 +31,14 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -105,13 +109,13 @@ public class KinesisConfigUtil {
 
 			// specified initial timestamp in stream when using AT_TIMESTAMP
 			if (InitialPosition.valueOf(initPosType) == InitialPosition.AT_TIMESTAMP) {
-				if (!config.containsKey(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP)) {
+				if (!config.containsKey(STREAM_INITIAL_TIMESTAMP)) {
 					throw new IllegalArgumentException("Please set value for initial timestamp ('"
-						+ ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
+						+ STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
 				}
 				validateOptionalDateProperty(config,
-					ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP,
-					config.getProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT),
+					STREAM_INITIAL_TIMESTAMP,
+					config.getProperty(STREAM_TIMESTAMP_DATE_FORMAT, DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT),
 					"Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream. "
 						+ "Must be a valid format: yyyy-MM-dd'T'HH:mm:ss.SSSXXX or non-negative double value. For example, 2016-04-04T19:58:46.480-00:00 or 1459799926.480 .");
 			}
@@ -297,6 +301,26 @@ public class KinesisConfigUtil {
 				}
 				throw new IllegalArgumentException("Invalid AWS region set in config. Valid values are: " + sb.toString());
 			}
+		}
+	}
+
+	/**
+	 * Parses the timestamp in which to start consuming from the stream, from the given properties.
+	 *
+	 * @param consumerConfig the properties to parse timestamp from
+	 * @return the timestamp
+	 */
+	public static Date parseStreamTimestampStartingPosition(final Properties consumerConfig) {
+		String timestamp = consumerConfig.getProperty(STREAM_INITIAL_TIMESTAMP);
+
+		try {
+			String format = consumerConfig.getProperty(STREAM_TIMESTAMP_DATE_FORMAT, DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
+			SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
+			return customDateFormat.parse(timestamp);
+		} catch (IllegalArgumentException | NullPointerException exception) {
+			throw new IllegalArgumentException(exception);
+		} catch (ParseException exception) {
+			return new Date((long) (Double.parseDouble(timestamp) * 1000));
 		}
 	}
 

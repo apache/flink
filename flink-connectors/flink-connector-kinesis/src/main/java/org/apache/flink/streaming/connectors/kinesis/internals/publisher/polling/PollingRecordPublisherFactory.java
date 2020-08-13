@@ -23,10 +23,10 @@ import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetche
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
-import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
 
@@ -46,6 +46,7 @@ public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 	 * Create a {@link PollingRecordPublisher}.
 	 * An {@link AdaptivePollingRecordPublisher} will be created should adaptive reads be enabled in the configuration.
 	 *
+	 * @param startingPosition the position in the shard to start consuming records from
 	 * @param consumerConfig the consumer configuration properties
 	 * @param metricGroup the metric group to report metrics to
 	 * @param streamShardHandle the shard this consumer is subscribed to
@@ -53,15 +54,18 @@ public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 	 */
 	@Override
 	public PollingRecordPublisher create(
-			final SequenceNumber sequenceNumber,
+			final StartingPosition startingPosition,
 			final Properties consumerConfig,
 			final MetricGroup metricGroup,
 			final StreamShardHandle streamShardHandle) throws InterruptedException {
+		Preconditions.checkNotNull(startingPosition);
+		Preconditions.checkNotNull(consumerConfig);
+		Preconditions.checkNotNull(metricGroup);
+		Preconditions.checkNotNull(streamShardHandle);
 
 		final PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(consumerConfig);
 		final PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(metricGroup);
 		final KinesisProxyInterface kinesisProxy = kinesisProxyFactory.create(consumerConfig);
-		final StartingPosition startingPosition = getStartingPosition(sequenceNumber, consumerConfig);
 
 		if (configuration.isAdaptiveReads()) {
 			return new AdaptivePollingRecordPublisher(
