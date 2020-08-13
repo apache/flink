@@ -759,7 +759,7 @@ class KeyedStream(DataStream):
         raise Exception("Start new chain for KeyedStream is not supported.")
 
     def disable_chaining(self) -> 'DataStream':
-        raise Exception("Disable_chaining for KeyedStream is not supported.")
+        raise Exception("Disable chaining for KeyedStream is not supported.")
 
     def slot_sharing_group(self, slot_sharing_group: str) -> 'DataStream':
         raise Exception("Setting slot sharing group for KeyedStream is not supported.")

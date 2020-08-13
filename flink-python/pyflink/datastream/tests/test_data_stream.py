@@ -345,15 +345,15 @@ class DataStreamTests(PyFlinkTestCase):
 
     def test_chaining_strategy(self):
         chained_operator_name = "map_operator_1"
-        chained_operator_name_2 = "map_operator_2"
+        chained_operator_name_1 = "map_operator_2"
 
         ds = self.env.from_collection([1, 2, 3])
         ds.set_parallelism(2).map(lambda x: x).set_parallelism(2)\
             .name(chained_operator_name).map(lambda x: x).set_parallelism(2)\
-            .name(chained_operator_name_2).add_sink(self.test_sink)
+            .name(chained_operator_name_1).add_sink(self.test_sink)
 
         def assert_chainable(j_stream_graph, expected_upstream_chainable,
-                             expected_downstream_chainable_2):
+                             expected_downstream_chainable):
             j_stream_nodes = list(j_stream_graph.getStreamNodes().toArray())
             for j_stream_node in j_stream_nodes:
                 if j_stream_node.getOperatorName() == chained_operator_name:
@@ -368,7 +368,7 @@ class DataStreamTests(PyFlinkTestCase):
                     j_out_stream_edge = j_stream_node.getOutEdges().get(0)
                     downstream_chainable = JStreamingJobGraphGenerator.isChainable(
                         j_out_stream_edge, j_stream_graph)
-                    self.assertEqual(expected_downstream_chainable_2, downstream_chainable)
+                    self.assertEqual(expected_downstream_chainable, downstream_chainable)
 
         # The map_operator_1 has the same parallelism with source operator and map_operator_2, and
         # ship_strategy for collection source and map_operator_1 is FORWARD, so the map_operator_1
@@ -381,7 +381,7 @@ class DataStreamTests(PyFlinkTestCase):
         # Start a new chain for map_operator_1
         ds.set_parallelism(2).map(lambda x: x).set_parallelism(2) \
             .name(chained_operator_name).start_new_chain()\
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1)\
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
@@ -394,13 +394,13 @@ class DataStreamTests(PyFlinkTestCase):
         # Disable chaining for map_operator_1
         ds.set_parallelism(2).map(lambda x: x).set_parallelism(2) \
             .name(chained_operator_name).disable_chaining() \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1) \
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
             .getStreamGraph("test start new_chain", True)
-        # We start a disable chaining for map_operator_1, therefore, it cannot be chained with
-        # upstream and downstream operator.
+        # We disable chaining for map_operator_1, therefore, it cannot be chained with
+        # upstream and downstream operators.
         assert_chainable(j_generated_stream_graph, False, False)
 
     def tearDown(self) -> None:
