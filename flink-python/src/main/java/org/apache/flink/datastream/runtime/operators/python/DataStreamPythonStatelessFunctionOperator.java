@@ -75,8 +75,6 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 
 	protected transient StreamRecordCollector streamRecordCollector;
 
-	private Configuration mergedEnvConfig;
-
 	public DataStreamPythonStatelessFunctionOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
@@ -87,7 +85,6 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 		jobOptions = config.toMap();
 		this.inputTypeInfo = inputTypeInfo;
 		this.outputTypeInfo = outputTypeInfo;
-		this.mergedEnvConfig = config;
 	}
 
 	@Override
@@ -151,10 +148,6 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 		baos.reset();
 		checkInvokeFinishBundleByCount();
 		emitResults();
-	}
-
-	public Configuration getMergedEnvConfig(){
-		return this.mergedEnvConfig;
 	}
 
 	protected FlinkFnApi.UserDefinedDataStreamFunctions getUserDefinedDataStreamFunctionsProto() {

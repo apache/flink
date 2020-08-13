@@ -409,19 +409,8 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             assert os.environ["python"] == python_exec_link_path
             return i
 
-        def check_pyflink_gateway_disabled(i):
-            try:
-                from pyflink.java_gateway import get_gateway
-                get_gateway()
-            except Exception as e:
-                assert str(e).startswith("It's launching the PythonGatewayServer during Python UDF"
-                                         " execution which is unexpected.")
-            else:
-                raise Exception("The gateway server is not disabled!")
-            return i
-
         ds = self.env.from_collection([1, 2, 3, 4, 5])
-        ds.map(check_python_exec).map(check_pyflink_gateway_disabled).add_sink(self.test_sink)
+        ds.map(check_python_exec).add_sink(self.test_sink)
         self.env.execute("test set python executable")
         result = self.test_sink.get_results(True)
         expected = ['1', '2', '3', '4', '5']

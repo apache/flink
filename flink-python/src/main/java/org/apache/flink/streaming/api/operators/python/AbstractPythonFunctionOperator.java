@@ -243,9 +243,15 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Reset the {@link PythonConfig} if needed.
 	 * */
-	@Internal
 	public void setPythonConfig(PythonConfig pythonConfig) {
 		this.config = pythonConfig;
+	}
+
+	/**
+	 * Returns the {@link PythonConfig}.
+	 * */
+	public PythonConfig getConfig() {
+		return config;
 	}
 
 	/**

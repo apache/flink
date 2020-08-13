@@ -438,9 +438,7 @@ class DataStream(object):
             j_python_data_stream_scalar_function,
             func_type)
 
-        j_env = self._j_data_stream.getExecutionEnvironment()
-        PythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
-        j_conf = PythonConfigUtil.getEnvConfigWithDependencies(j_env)
+        j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
 
         # set max bundle size to 1 to force synchronize process for reduce function.
         from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction

@@ -17,11 +17,9 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonStatelessFunctionOperator;
 import org.apache.flink.python.PythonConfig;
-import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -34,8 +32,6 @@ import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * A Util class to get the {@link StreamExecutionEnvironment} configuration and merged configuration with environment
@@ -94,20 +90,22 @@ public class PythonConfigUtil {
 		if (streamNode.getOperatorName().equals(KEYED_STREAM_VALUE_OPERATOR_NAME)) {
 			StreamEdge downStreamEdge = streamNode.getOutEdges().get(0);
 			StreamNode downStreamNode = streamGraph.getStreamNode(downStreamEdge.getTargetId());
+			chainStreamNode(downStreamEdge, streamNode, downStreamNode);
 			downStreamEdge.setPartitioner(new ForwardPartitioner());
-			streamNode.setParallelism(downStreamNode.getParallelism());
-			streamNode.setCoLocationGroup(downStreamNode.getCoLocationGroup());
-			streamNode.setSlotSharingGroup(downStreamNode.getSlotSharingGroup());
 		}
 
 		if (streamNode.getOperatorName().equals(STREAM_KEY_BY_MAP_OPERATOR_NAME)) {
 			StreamEdge upStreamEdge = streamNode.getInEdges().get(0);
 			StreamNode upStreamNode = streamGraph.getStreamNode(upStreamEdge.getSourceId());
-			upStreamEdge.setPartitioner(new ForwardPartitioner<>());
-			streamNode.setParallelism(upStreamNode.getParallelism());
-			streamNode.setSlotSharingGroup(upStreamNode.getSlotSharingGroup());
-			streamNode.setCoLocationGroup(upStreamNode.getCoLocationGroup());
+			chainStreamNode(upStreamEdge, streamNode, upStreamNode);
 		}
+	}
+
+	private static void chainStreamNode(StreamEdge streamEdge, StreamNode firstStream, StreamNode secondStream){
+		streamEdge.setPartitioner(new ForwardPartitioner<>());
+		firstStream.setParallelism(secondStream.getParallelism());
+		firstStream.setCoLocationGroup(secondStream.getCoLocationGroup());
+		firstStream.setSlotSharingGroup(secondStream.getSlotSharingGroup());
 	}
 
 	/**
@@ -133,7 +131,9 @@ public class PythonConfigUtil {
 				if (streamOperator instanceof DataStreamPythonStatelessFunctionOperator) {
 					DataStreamPythonStatelessFunctionOperator dataStreamPythonStatelessFunctionOperator =
 						(DataStreamPythonStatelessFunctionOperator) streamOperator;
-					Configuration oldConfig = dataStreamPythonStatelessFunctionOperator.getMergedEnvConfig();
+
+					Configuration oldConfig = dataStreamPythonStatelessFunctionOperator.getPythonConfig()
+						.getMergedConfig();
 					dataStreamPythonStatelessFunctionOperator.setPythonConfig(generateNewPythonConfig(oldConfig,
 						mergedConfig));
 				}
@@ -146,39 +146,9 @@ public class PythonConfigUtil {
 	 * Generator a new {@link  PythonConfig} with the combined config which is derived from oldConfig.
 	 */
 	private static PythonConfig generateNewPythonConfig(Configuration oldConfig, Configuration newConfig) {
-		setIfNotExist(PythonOptions.MAX_BUNDLE_SIZE, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.MAX_BUNDLE_TIME_MILLS, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.MAX_BUNDLE_TIME_MILLS, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.PYTHON_EXECUTABLE, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.PYTHON_METRIC_ENABLED, oldConfig, newConfig);
-		setIfNotExist(PythonOptions.USE_MANAGED_MEMORY, oldConfig, newConfig);
-
-		combineConfigValue(PythonDependencyUtils.PYTHON_FILES, oldConfig, newConfig);
-		combineConfigValue(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE, oldConfig, newConfig);
-		combineConfigValue(PythonDependencyUtils.PYTHON_ARCHIVES, oldConfig, newConfig);
-
-		return new PythonConfig(oldConfig);
+		Configuration mergedConfig = newConfig.clone();
+		mergedConfig.addAll(oldConfig);
+		return new PythonConfig(mergedConfig);
 	}
 
-	/**
-	 * Make sure new configuration not overriding the previously configured value. For example, the MAX_BUNDLE_SIZE of
-	 * {@link org.apache.flink.datastream.runtime.operators.python.DataStreamPythonReduceFunctionOperator} is
-	 * pre-configured to be 1, we must not to change it.
-	 */
-	private static void setIfNotExist(ConfigOption configOption, Configuration oldConfig, Configuration newConfig) {
-		if (!oldConfig.containsKey(configOption.key())) {
-			oldConfig.set(configOption, newConfig.get(configOption));
-		}
-	}
-
-	/**
-	 * Dependency file information maintained by a Map in old config can be combined with new config.
-	 */
-	private static void combineConfigValue(ConfigOption<Map<String, String>> configOption, Configuration oldConfig, Configuration newConfig) {
-		Map<String, String> oldConfigValue = oldConfig.getOptional(configOption).orElse(new HashMap<>());
-		oldConfigValue.putAll(newConfig.getOptional(configOption).orElse(new HashMap<>()));
-		oldConfig.set(configOption, oldConfigValue);
-	}
 }

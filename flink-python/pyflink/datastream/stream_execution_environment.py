@@ -20,6 +20,8 @@ import tempfile
 
 from typing import List, Any
 
+from py4j.java_gateway import JavaObject
+
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
@@ -396,7 +398,6 @@ class StreamExecutionEnvironment(object):
         Please make sure that these dependencies can be imported.
 
         :param file_path: The path of the python dependency.
-        :type file_path: str
         """
         jvm = get_gateway().jvm
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil\
@@ -438,10 +439,8 @@ class StreamExecutionEnvironment(object):
             SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
-        :type requirements_file_path: str
         :param requirements_cache_dir: The path of the local directory which contains the
                                        installation packages.
-        :type requirements_cache_dir: str
         """
         jvm = get_gateway().jvm
         python_requirements = requirements_file_path
@@ -499,9 +498,7 @@ class StreamExecutionEnvironment(object):
             The other archive formats such as tar, tar.gz, 7z, rar, etc are not supported.
 
         :param archive_path: The archive file path.
-        :type archive_path: str
         :param target_dir: Optional, the target dir name that the archive file extracted to.
-        :type target_dir: str
         """
         jvm = get_gateway().jvm
         if target_dir is not None:
@@ -550,7 +547,6 @@ class StreamExecutionEnvironment(object):
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
-        :type python_exec: str
         """
         jvm = get_gateway().jvm
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
@@ -584,12 +580,8 @@ class StreamExecutionEnvironment(object):
         :param job_name: Desired name of the job, optional.
         :return: The result of the job execution, containing elapsed time and accumulators.
         """
-        j_stream_graph = get_gateway().jvm \
-            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
-            self._j_stream_execution_environment, True)
 
-        if job_name is not None:
-            j_stream_graph.setJobName(job_name)
+        j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
 
         return JobExecutionResult(self._j_stream_execution_environment.execute(j_stream_graph))
 
@@ -604,10 +596,7 @@ class StreamExecutionEnvironment(object):
         :return: A JobClient that can be used to communicate with the submitted job, completed on
                  submission succeeded.
         """
-        j_stream_graph = get_gateway().jvm \
-            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
-            self._j_stream_execution_environment, True)
-        j_stream_graph.setJobName(job_name)
+        j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
 
         j_job_client = self._j_stream_execution_environment.executeAsync(j_stream_graph)
         return JobClient(j_job_client=j_job_client)
@@ -624,9 +613,7 @@ class StreamExecutionEnvironment(object):
 
         :return: The execution plan of the program, as a JSON String.
         """
-        j_stream_graph = get_gateway().jvm\
-            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
-            self._j_stream_execution_environment, False)
+        j_stream_graph = self._generate_stream_graph(False)
 
         return j_stream_graph.getStreamingPlanAsJSON()
 
@@ -726,3 +713,14 @@ class StreamExecutionEnvironment(object):
             return DataStream(j_data_stream=j_data_stream_source)
         finally:
             os.unlink(temp_file.name)
+
+    def _generate_stream_graph(self, clear_transformations: bool = False, job_name: str = None) \
+            -> JavaObject:
+        j_stream_graph = get_gateway().jvm \
+            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
+            self._j_stream_execution_environment, clear_transformations)
+
+        if job_name is not None:
+            j_stream_graph.setJobName(job_name)
+
+        return j_stream_graph
