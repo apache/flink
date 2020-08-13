@@ -95,7 +95,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * The python config.
 	 */
-	private final PythonConfig config;
+	private PythonConfig config;
 
 	public AbstractPythonFunctionOperator(Configuration config) {
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
@@ -238,6 +238,14 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 					}
 				};
 		}
+	}
+
+	/**
+	 * Reset the {@link PythonConfig} if needed.
+	 * */
+	@Internal
+	public void setPythonConfig(PythonConfig pythonConfig) {
+		this.config = pythonConfig;
 	}
 
 	/**
