@@ -304,6 +304,9 @@ public class CliClient {
 			case SHOW_MODULES:
 				callShowModules();
 				break;
+			case SHOW_PARTITIONS:
+				callShowPartitions(cmdCall);
+				break;
 			case USE_CATALOG:
 				callUseCatalog(cmdCall);
 				break;
@@ -532,6 +535,14 @@ public class CliClient {
 				.collect(Collectors.toList());
 	}
 
+	private List<String> getShowResult(SqlCommandCall cmdCall) {
+		TableResult tableResult = executor.executeSql(sessionId, cmdCall.operands[0]);
+		return CollectionUtil.iteratorToList(tableResult.collect())
+			.stream()
+			.map(r -> checkNotNull(r.getField(0)).toString())
+			.collect(Collectors.toList());
+	}
+
 	private void callShowModules() {
 		final List<String> modules;
 		try {
@@ -545,6 +556,22 @@ public class CliClient {
 		} else {
 			// modules are already in the loaded order
 			modules.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowPartitions(SqlCommandCall cmdCall) {
+		final List<String> partitions;
+		try {
+			partitions = getShowResult(cmdCall);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+		if (partitions.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			partitions.forEach((v) -> terminal.writer().println(v));
 		}
 		terminal.flush();
 	}

@@ -432,4 +432,12 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"PARTITION (`P1` = 'b', `P2` = 2)");
 		// TODO: support IGNORE PROTECTION, PURGE
 	}
+
+	@Test
+	public void testShowPartitions() {
+		sql("show partitions tbl")
+			.ok("SHOW PARTITIONS `TBL`");
+		sql("show partitions tbl partition (p=1)")
+			.ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
+	}
 }
