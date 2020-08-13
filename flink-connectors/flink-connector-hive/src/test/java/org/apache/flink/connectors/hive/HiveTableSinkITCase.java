@@ -258,7 +258,7 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testPartStreamingWrite() throws Exception {
 		testStreamingWrite(true, false, "parquet", this::checkSuccessFiles);
-		// disable orc test for hive 2.x due to dependency conflict
+		// disable vector orc writer test for hive 2.x due to dependency conflict
 		if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
 			testStreamingWrite(true, false, "orc", this::checkSuccessFiles);
 		}
@@ -267,6 +267,7 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testNonPartStreamingWrite() throws Exception {
 		testStreamingWrite(false, false, "parquet", (p) -> {});
+		// disable vector orc writer test for hive 2.x due to dependency conflict
 		if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
 			testStreamingWrite(false, false, "orc", (p) -> {});
 		}
@@ -275,7 +276,8 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testPartStreamingMrWrite() throws Exception {
 		testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
-		if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
+		// doesn't support writer 2.0 orc table
+		if (!hiveCatalog.getHiveVersion().startsWith("2.0")) {
 			testStreamingWrite(true, true, "orc", this::checkSuccessFiles);
 		}
 	}
@@ -283,7 +285,8 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testNonPartStreamingMrWrite() throws Exception {
 		testStreamingWrite(false, true, "parquet", (p) -> {});
-		if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
+		// doesn't support writer 2.0 orc table
+		if (!hiveCatalog.getHiveVersion().startsWith("2.0")) {
 			testStreamingWrite(false, true, "orc", (p) -> {});
 		}
 	}
