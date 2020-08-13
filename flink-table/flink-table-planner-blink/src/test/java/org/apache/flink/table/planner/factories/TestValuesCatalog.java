@@ -48,7 +48,7 @@ import java.util.function.Function;
  * Use TestValuesCatalog to test partition push down.
  * */
 public class TestValuesCatalog extends GenericInMemoryCatalog {
-	private boolean supportListPartitionByFilter;
+	private final boolean supportListPartitionByFilter;
 	public TestValuesCatalog(String name, String defaultDatabase, boolean supportListPartitionByFilter) {
 		super(name, defaultDatabase);
 		this.supportListPartitionByFilter = supportListPartitionByFilter;
@@ -72,9 +72,9 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
 		List<CatalogPartitionSpec> remainingPartitions = new ArrayList<>();
 		for (CatalogPartitionSpec partition : partitions) {
 			boolean isRetained = true;
-			Function<String, Comparable<?>> gettter = getGetter(partition.getPartitionSpec(), schema);
+			Function<String, Comparable<?>> getter = getValueGetter(partition.getPartitionSpec(), schema);
 			for (Expression predicate : filters) {
-				isRetained = util.isRetainedAfterApplyingFilterPredicates((ResolvedExpression) predicate, gettter);
+				isRetained = util.isRetainedAfterApplyingFilterPredicates((ResolvedExpression) predicate, getter);
 				if (!isRetained) {
 					break;
 				}
@@ -86,7 +86,7 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
 		return remainingPartitions;
 	}
 
-	private Function<String, Comparable<?>> getGetter(Map<String, String> spec, TableSchema schema) {
+	private Function<String, Comparable<?>> getValueGetter(Map<String, String> spec, TableSchema schema) {
 		return field -> {
 			Optional<DataType> optionalDataType = schema.getFieldDataType(field);
 			if (!optionalDataType.isPresent()) {
@@ -108,7 +108,7 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
 		} else if (type instanceof VarCharType) {
 			return value;
 		} else {
-			throw new UnsupportedOperationException(String.format("Unsupported data type: %s", type));
+			throw new UnsupportedOperationException(String.format("Unsupported data type: %s.", type));
 		}
 	}
 }

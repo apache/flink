@@ -94,17 +94,15 @@ public class PushPartitionIntoTableSourceScanRuleTest extends PushPartitionIntoL
 			util().tableEnv().executeSql(String.format(ddlTemp, partitionString));
 			util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, partitionString));
 		} else {
-			// replace catalog with TestValuesCatalog
-			util().tableEnv().executeSql("drop catalog default_catalog");
 			TestValuesCatalog catalog =
-				new TestValuesCatalog("default_catalog", "default_database", useCatalogFilter());
-			util().tableEnv().registerCatalog("default_catalog", catalog);
-			util().tableEnv().useCatalog("default_catalog");
+				new TestValuesCatalog("test_catalog", "test_database", useCatalogFilter());
+			util().tableEnv().registerCatalog("test_catalog", catalog);
+			util().tableEnv().useCatalog("test_catalog");
 			// register table without partitions
 			util().tableEnv().executeSql(String.format(ddlTemp, ""));
 			util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, ""));
-			ObjectPath mytablePath = ObjectPath.fromString("default_database.MyTable");
-			ObjectPath virtualTablePath = ObjectPath.fromString("default_database.VirtualTable");
+			ObjectPath mytablePath = ObjectPath.fromString("test_database.MyTable");
+			ObjectPath virtualTablePath = ObjectPath.fromString("test_database.VirtualTable");
 			// partition map
 			List<Map<String, String>> partitions = Arrays.asList(
 				new HashMap<String, String>(){{

@@ -538,7 +538,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
 			} else {
 				rows = new ArrayList<>();
-				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<Row>())));
+				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
 			}
 			rows.forEach(record -> {
 				Row key = Row.of(Arrays.stream(lookupIndices)
@@ -587,7 +587,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return Result.of(acceptedFilters, remainingFilters);
 		}
 
-		private Function<String, Comparable<?>> getGetter(Row row) {
+		private Function<String, Comparable<?>> getValueGetter(Row row) {
 			return fieldName -> {
 				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(fieldName);
 				return (Comparable<?>) row.getField(idx);
@@ -634,7 +634,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					}
 					if (filterPredicates != null && !filterPredicates.isEmpty()) {
 						for (ResolvedExpression predicate: filterPredicates) {
-							isRetained = util.isRetainedAfterApplyingFilterPredicates(predicate, getGetter(value));
+							isRetained = util.isRetainedAfterApplyingFilterPredicates(predicate, getValueGetter(value));
 							if (!isRetained) {
 								break;
 							}
@@ -963,7 +963,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				} else if (functionDefinition.equals(LOWER)) {
 					return child.toString().toLowerCase();
 				} else {
-					throw new UnsupportedOperationException(String.format("Unrecognized", child, functionDefinition));
+					throw new UnsupportedOperationException(String.format("Unrecognized function definition: %s.", functionDefinition));
 				}
 			}
 			throw new UnsupportedOperationException(expr + " not supported!");

@@ -81,7 +81,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 	public PushPartitionIntoTableSourceScanRule() {
 		super(operand(Filter.class,
 				operand(LogicalTableScan.class, none())),
-			"PushPartitionTableSourceScanRule");
+			"PushPartitionIntoTableSourceScanRule");
 	}
 
 	@Override
@@ -296,17 +296,13 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 				return readPartitionFromCatalogWithoutFilterAndPrune(catalog, tablePath, pruner);
 			}
 		}
-		if (partitionFilters.size() > 0) {
-			try {
-				List<Map<String, String>> remainingPartitions = catalog.listPartitionsByFilter(tablePath, partitionFilters)
-					.stream()
-					.map(CatalogPartitionSpec::getPartitionSpec)
-					.collect(Collectors.toList());
-				return Optional.of(remainingPartitions);
-			} catch (UnsupportedOperationException e) {
-				return readPartitionFromCatalogWithoutFilterAndPrune(catalog, tablePath, pruner);
-			}
-		} else {
+		try {
+			List<Map<String, String>> remainingPartitions = catalog.listPartitionsByFilter(tablePath, partitionFilters)
+				.stream()
+				.map(CatalogPartitionSpec::getPartitionSpec)
+				.collect(Collectors.toList());
+			return Optional.of(remainingPartitions);
+		} catch (UnsupportedOperationException e) {
 			return readPartitionFromCatalogWithoutFilterAndPrune(catalog, tablePath, pruner);
 		}
 	}
@@ -314,7 +310,8 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
 	private Optional<List<Map<String, String>>> readPartitionFromCatalogWithoutFilterAndPrune(
 			Catalog catalog,
 			ObjectPath tablePath,
-			Function<List<Map<String, String>>, List<Map<String, String>>> pruner) throws TableNotExistException, CatalogException, TableNotPartitionedException {
+			Function<List<Map<String, String>>, List<Map<String, String>>> pruner)
+			throws TableNotExistException, CatalogException, TableNotPartitionedException {
 		List<Map<String, String>> allPartitions, remainingPartitions;
 		allPartitions = catalog.listPartitions(tablePath)
 			.stream()
