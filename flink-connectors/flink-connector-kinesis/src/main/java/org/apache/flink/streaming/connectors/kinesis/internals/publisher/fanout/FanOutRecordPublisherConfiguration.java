@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-
 /**
  * This is a configuration class for enhanced fan-out components.
  */
@@ -125,7 +124,7 @@ public class FanOutRecordPublisherConfiguration {
 	private final long describeStreamBaseBackoffMillis;
 
 	/**
-	 *  Maximum backoff millis for the describe stream operation.
+	 * Maximum backoff millis for the describe stream operation.
 	 */
 	private final long describeStreamMaxBackoffMillis;
 
@@ -145,7 +144,7 @@ public class FanOutRecordPublisherConfiguration {
 	private final long describeStreamConsumerBaseBackoffMillis;
 
 	/**
-	 *  Maximum backoff millis for the describe stream consumer operation.
+	 * Maximum backoff millis for the describe stream consumer operation.
 	 */
 	private final long describeStreamConsumerMaxBackoffMillis;
 
@@ -177,83 +176,84 @@ public class FanOutRecordPublisherConfiguration {
 			}
 		}
 
-		this.subscribeToShardMaxRetries = Integer.parseInt(
-			configProps.getProperty(
-				ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_RETRIES,
-				Long.toString(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES)));
-		this.subscribeToShardBaseBackoffMillis = Long.parseLong(
-			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE)));
-		this.subscribeToShardMaxBackoffMillis = Long.parseLong(
-			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_MAX)));
-		this.subscribeToShardExpConstant = Double.parseDouble(
-			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT)));
+		this.subscribeToShardMaxRetries = Optional
+			.ofNullable(configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_RETRIES))
+			.map(Integer::parseInt)
+			.orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES);
+		this.subscribeToShardBaseBackoffMillis = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE);
+		this.subscribeToShardMaxBackoffMillis = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_MAX);
+		this.subscribeToShardExpConstant = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT))
+			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT);
 
-		this.registerStreamBaseBackoffMillis = Long.parseLong(
+		this.registerStreamBaseBackoffMillis = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_BASE)));
-		this.registerStreamMaxBackoffMillis = Long.parseLong(
+				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_BASE);
+		this.registerStreamMaxBackoffMillis = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_MAX)));
-		this.registerStreamExpConstant = Double.parseDouble(
+				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_MAX);
+		this.registerStreamExpConstant = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.registerStreamMaxRetries = Integer.parseInt(
+				ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT))
+			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT);
+		this.registerStreamMaxRetries = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.REGISTER_STREAM_RETRIES,
-				Long.toString(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_RETRIES)));
+				ConsumerConfigConstants.REGISTER_STREAM_RETRIES))
+			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_RETRIES);
 
-		this.deregisterStreamBaseBackoffMillis = Long.parseLong(
+		this.deregisterStreamBaseBackoffMillis = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE)));
-		this.deregisterStreamMaxBackoffMillis = Long.parseLong(
+				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE);
+		this.deregisterStreamMaxBackoffMillis = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX)));
-		this.deregisterStreamExpConstant = Double.parseDouble(
+				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_MAX))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX);
+		this.deregisterStreamExpConstant = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.deregisterStreamMaxRetries = Integer.parseInt(
+				ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT))
+			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT);
+		this.deregisterStreamMaxRetries = Optional.ofNullable(
 			configProps.getProperty(
-				ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES,
-				Long.toString(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_RETRIES)));
+				ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES))
+			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_RETRIES);
 
-		this.describeStreamMaxRetries = Integer.parseInt(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES,
-				Integer.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_RETRIES)));
-		this.describeStreamBaseBackoffMillis = Long.parseLong(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
-		this.describeStreamMaxBackoffMillis = Long.parseLong(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
-		this.describeStreamExpConstant = Double.parseDouble(
-			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.describeStreamConsumerMaxRetries = Integer.parseInt(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES,
-				Integer.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES)));
-		this.describeStreamConsumerBaseBackoffMillis = Long.parseLong(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE)));
-		this.describeStreamConsumerMaxBackoffMillis = Long.parseLong(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX)));
-		this.describeStreamConsumerExpConstant = Double.parseDouble(
-			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT)));
+		this.describeStreamMaxRetries = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES))
+			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_RETRIES);
+		this.describeStreamBaseBackoffMillis = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE);
+		this.describeStreamMaxBackoffMillis = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX);
+		this.describeStreamExpConstant = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT))
+			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT);
+		this.describeStreamConsumerMaxRetries = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES))
+			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES);
+		this.describeStreamConsumerBaseBackoffMillis = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE);
+		this.describeStreamConsumerMaxBackoffMillis = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX))
+			.map(Long::parseLong).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX);
+		this.describeStreamConsumerExpConstant = Optional.ofNullable(
+			configProps.getProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT))
+			.map(Double::parseDouble).orElse(ConsumerConfigConstants.DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT);
 	}
 
 	// ------------------------------------------------------------------------
 	//  subscribeToShard() related performance settings
 	// ------------------------------------------------------------------------
+
 	/**
 	 * Get maximum retry attempts for the subscribe to shard operation.
 	 */
@@ -285,6 +285,7 @@ public class FanOutRecordPublisherConfiguration {
 	// ------------------------------------------------------------------------
 	//  registerStream() related performance settings
 	// ------------------------------------------------------------------------
+
 	/**
 	 * Get base backoff millis for the register stream operation.
 	 */
@@ -316,6 +317,7 @@ public class FanOutRecordPublisherConfiguration {
 	// ------------------------------------------------------------------------
 	//  deregisterStream() related performance settings
 	// ------------------------------------------------------------------------
+
 	/**
 	 * Get base backoff millis for the deregister stream operation.
 	 */
@@ -420,13 +422,6 @@ public class FanOutRecordPublisherConfiguration {
 	 */
 	public Optional<String> getConsumerName() {
 		return Optional.ofNullable(consumerName);
-	}
-
-	/**
-	 * Get stream consumer arns, will be null if efo registration type is 'LAZY' or 'EAGER'.
-	 */
-	public Optional<Map<String, String>> getStreamConsumerArns() {
-		return Optional.ofNullable(streamConsumerArns);
 	}
 
 	/**

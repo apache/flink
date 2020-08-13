@@ -99,7 +99,6 @@ public class FanOutRecordPublisherConfigurationTest extends TestLogger {
 		expectedStreamArns.put("fakedstream2", "fakedstream2");
 
 		assertEquals(fanOutRecordPublisherConfiguration.getStreamConsumerArn("fakedstream1"), Optional.of("fakedstream1"));
-		assertEquals(fanOutRecordPublisherConfiguration.getStreamConsumerArns(), Optional.of(expectedStreamArns));
 	}
 
 	@Test
