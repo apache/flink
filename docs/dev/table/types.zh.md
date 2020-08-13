@@ -161,13 +161,28 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 <span class="label label-danger">注意</span> 请注意，通常只有在扩展 API 时才需要物理提示。
 预定义的 Source、Sink、Function 的用户不需要定义这样的提示。在 Table 编程中（例如 `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`）这些提示将被忽略。
 
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
+
 Planner 兼容性
 ---------------------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 正如简介里提到的，重新开发类型系统将跨越多个版本，每个数据类型的支持取决于使用的 Planner。本节旨在总结最重要的差异。
+</div>
+<div data-lang="Python" markdown="1">
+本节仅适用于Java/Scala用户。
+目前Python Table API的类型系统上还未发现类似的Planner兼容性问题。
+</div>
+</div>
 
 ### 旧的 Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Information），它只对数据类型提供有限的支持，可以声明能够转换为类型信息的数据类型，以便旧的 Planner 能够理解它们。
 
 下表总结了数据类型和类型信息之间的区别。大多数简单类型以及 Row 类型保持不变。Time 类型、 Array 类型和 Decimal 类型需要特别注意。不允许使用其他的类型提示。
@@ -201,9 +216,16 @@ Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Informat
 | 其他通用类型 | | `RAW(...)` | |
 
 <span class="label label-danger">注意</span> 如果对于新的类型系统有任何疑问，用户可以随时切换到 `org.apache.flink.table.api.Types` 中定义的 type information。
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 ### 新的 Blink Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 新的 Blink Planner 支持旧的 Planner 的全部类型，尤其包括列出的 Java 表达式字符串和类型信息。
 
 支持以下数据类型：
@@ -233,16 +255,25 @@ Flink 1.9 之前引入的旧的 Planner 主要支持类型信息（Type Informat
 | `ROW` | |
 | `RAW` | |
 | stuctured types | 暂只能在用户自定义函数里使用。 |
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 局限性
 -----------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 **Java 表达式字符串**：Table API 中的 Java 表达式字符串，例如 `table.select("field.cast(STRING)")`，尚未被更新到新的类型系统中，使用[旧的 Planner 章节](#旧的-planner)中声明的字符串来表示。
 
 **用户自定义函数**：用户自定义聚合函数尚不能声明数据类型，标量函数和表函数充分支持数据类型。
 
 </div>
 <div data-lang="Python" markdown="1">
+本节仅适用于Java/Scala用户。
+目前Python Table API的类型系统上还未发现类似的局限性。
 </div>
 </div>
 
@@ -877,18 +908,19 @@ DataTypes.TIMESTAMP(p)
 
 #### `TIMESTAMP WITH TIME ZONE`
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="SQL/Java/Scala" markdown="1">
 *带有*时区的时间戳数据类型，由 `year-month-day hour:minute:second[.fractional] zone` 组成，精度达到纳秒，范围从 `0000-01-01 00:00:00.000000000 +14:59` 到
 `9999-12-31 23:59:59.999999999 -14:59`。
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`），语义上更接近于 `java.time.OffsetDateTime`。
-
-与 `TIMESTAMP WITH LOCAL TIME ZONE` 相比，时区偏移信息物理存储在每个数据中。它单独用于每次计算、可视化或者与外部系统的通信。
 </div>
 <div data-lang="Python" markdown="1">
+与 SQL 标准相比，不支持闰秒（`23:59:60` 和 `23:59:61`）。
 </div>
 </div>
+
+与 `TIMESTAMP WITH LOCAL TIME ZONE` 相比，时区偏移信息物理存储在每个数据中。它单独用于每次计算、可视化或者与外部系统的通信。
 
 **声明**
 
@@ -1460,15 +1492,9 @@ DataTypes.BOOLEAN()
 
 #### `RAW`
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="SQL/Java/Scala" markdown="1">
 任意序列化类型的数据类型。此类型对于 Flink Table 来讲是一个黑盒子，仅在跟外部交互时被反序列化。
 
 Raw 类型是 SQL 标准的扩展。
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
 
 **声明**
 
@@ -1516,8 +1542,6 @@ DataTypes.RAW(class)
 
 #### `NULL`
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="SQL/Java/Scala" markdown="1">
 表示空类型 `NULL` 值的数据类型。
 
 NULL 类型是 SQL 标准的扩展。NULL 类型除 `NULL` 值以外没有其他值，因此可以将其强制转换为 JVM 里的任何可空类型。
@@ -1525,10 +1549,6 @@ NULL 类型是 SQL 标准的扩展。NULL 类型除 `NULL` 值以外没有其他
 此类型有助于使用 `NULL` 字面量表示 `API` 调用中的未知类型，以及桥接到定义该类型的 JSON 或 Avro 等格式。
 
 这种类型在实践中不是很有用，为完整起见仅在此提及。
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
 
 **声明**
 

@@ -181,15 +181,29 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 API is extended. Users of predefined sources/sinks/functions do not need to define such hints. Hints within
 a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are ignored.
 
+</div>
+<div data-lang="Python" markdown="1">
+</div>
+</div>
 
 Planner Compatibility
 ---------------------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 As mentioned in the introduction, reworking the type system will span multiple releases, and the support of each data
 type depends on the used planner. This section aims to summarize the most significant differences.
+</div>
+<div data-lang="Python" markdown="1">
+This part is for Java/Scala users.
+There are no known similiar planner compatibility issues on the data types of Python Table API currently. 
+</div>
+</div>
 
 ### Old Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 Flink's old planner, introduced before Flink 1.9, primarily supports type information. It has only limited
 support for data types. It is possible to declare data types that can be translated into type information such that the
 old planner understands them.
@@ -228,9 +242,16 @@ For the *Data Type Representation* column the table omits the prefix `org.apache
 
 <span class="label label-danger">Attention</span> If there is a problem with the new type system. Users
 can fallback to type information defined in `org.apache.flink.table.api.Types` at any time.
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 ### New Blink Planner
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 The new Blink planner supports all of types of the old planner. This includes in particular
 the listed Java expression strings and type information.
 
@@ -261,18 +282,26 @@ The following data types are supported:
 | `ROW` | |
 | `RAW` | |
 | stuctured types | Only exposed in user-defined functions yet. |
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
 
 Limitations
 -----------
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
 **Java Expression String**: Java expression strings in the Table API such as `table.select("field.cast(STRING)")`
 have not been updated to the new type system yet. Use the string representations declared in
 the [old planner section](#old-planner).
 
 **User-defined Functions**: User-defined aggregate functions cannot declare a data type yet. Scalar and table functions fully support data types.
-
 </div>
 <div data-lang="Python" markdown="1">
+This part is for Java/Scala users.
+There are no known similiar limitations on the data types of Python Table API currently.
 </div>
 </div>
 
@@ -932,22 +961,23 @@ is specified, `p` is equal to `6`.
 
 #### `TIMESTAMP WITH TIME ZONE`
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="SQL/Java/Scala" markdown="1">
 Data type of a timestamp *with* time zone consisting of `year-month-day hour:minute:second[.fractional] zone`
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
 `9999-12-31 23:59:59.999999999 -14:59`.
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="SQL/Java/Scala" markdown="1">
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics
 are closer to `java.time.OffsetDateTime`.
+</div>
+<div data-lang="Python" markdown="1">
+Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported.
+</div>
+</div>
 
 Compared to `TIMESTAMP WITH LOCAL TIME ZONE`, the time zone offset information is physically
 stored in every datum. It is used individually for every computation, visualization, or communication
 to external systems.
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
 
 **Declaration**
 
@@ -1568,16 +1598,10 @@ DataTypes.BOOLEAN()
 
 #### `RAW`
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="SQL/Java/Scala" markdown="1">
 Data type of an arbitrary serialized type. This type is a black box within the table ecosystem
 and is only deserialized at the edges.
 
 The raw type is an extension to the SQL standard.
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
 
 **Declaration**
 
@@ -1628,8 +1652,6 @@ by passing `Class` and letting the framework extract `Class` + `TypeSerializer` 
 
 #### `NULL`
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="SQL/Java/Scala" markdown="1">
 Data type for representing untyped `NULL` values.
 
 The null type is an extension to the SQL standard. A null type has no other value
@@ -1639,10 +1661,6 @@ This type helps in representing unknown types in API calls that use a `NULL` lit
 as well as bridging to formats such as JSON or Avro that define such a type as well.
 
 This type is not very useful in practice and is just mentioned here for completeness.
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
 
 **Declaration**
 
