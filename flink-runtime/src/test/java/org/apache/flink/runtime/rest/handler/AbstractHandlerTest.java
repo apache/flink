@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.router.RouteResult;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
@@ -31,11 +30,9 @@ import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -47,24 +44,17 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.ArgumentCaptor;
 
 import javax.annotation.Nonnull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.StringContains.containsString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -74,48 +64,6 @@ public class AbstractHandlerTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	@Test
-	public void testOOMEnrichment() {
-		RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder()
-				.build();
-
-		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
-				CompletableFuture.completedFuture(mockRestfulGateway);
-
-		CompletableFuture<Void> requestProcessingCompleteFuture = new CompletableFuture<>();
-		requestProcessingCompleteFuture.completeExceptionally(new OutOfMemoryError("Metaspace"));
-		TestHandler handler = new TestHandler(requestProcessingCompleteFuture, mockGatewayRetriever);
-
-		RouteResult<?> routeResult = new RouteResult<>("", "", Collections.emptyMap(), Collections.emptyMap(), "");
-		HttpRequest request = new DefaultFullHttpRequest(
-				HttpVersion.HTTP_1_1,
-				HttpMethod.GET,
-				TestHandler.TestHeaders.INSTANCE.getTargetRestEndpointURL(),
-				Unpooled.wrappedBuffer(new byte[0]));
-		RoutedRequest<?> routerRequest = new RoutedRequest<>(routeResult, request);
-
-		Attribute<FileUploads> attribute = new SimpleAttribute();
-		Channel channel = mock(Channel.class);
-		when(channel.attr(any(AttributeKey.class))).thenReturn(attribute);
-
-		ChannelPipeline mockPipeline = mock(ChannelPipeline.class);
-		when(mockPipeline.get(FlinkHttpObjectAggregator.class)).thenReturn(new FlinkHttpObjectAggregator(2048, new HashMap<>()));
-
-		ChannelHandlerContext context = mock(ChannelHandlerContext.class);
-		when(context.channel()).thenReturn(channel);
-		when(context.pipeline()).thenReturn(mockPipeline);
-
-		handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
-
-		ArgumentCaptor<Object> dataCaptor = ArgumentCaptor.forClass(Object.class);
-		verify(context, times(2)).write(dataCaptor.capture());
-		assertThat(dataCaptor.getAllValues().size(), is(2));
-
-		ByteBuf data = (ByteBuf) dataCaptor.getAllValues().get(1);
-		String message = new String(data.array());
-		assertThat(message, containsString("OutOfMemoryError: Metaspace. The metaspace out-of-memory error has occurred."));
-	}
 
 	@Test
 	public void testFileCleanup() throws Exception {
