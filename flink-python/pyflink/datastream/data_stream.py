@@ -258,10 +258,12 @@ class DataStream(object):
         if key_type_info is None:
             key_type_info = Types.PICKLED_BYTE_ARRAY()
             is_key_pickled_byte_array = True
-        generated_key_stream = KeyedStream(self.map(lambda x: (key_selector.get_key(x), x),
-                                                    type_info=Types.ROW([key_type_info,
-                                                                         output_type_info]))
-                                           ._j_data_stream
+
+        intermediate_map_stream = self.map(lambda x: (key_selector.get_key(x), x),
+                                           type_info=Types.ROW([key_type_info, output_type_info]))
+        intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+                                     .STREAM_KEY_BY_MAP_OPERATOR_NAME)
+        generated_key_stream = KeyedStream(intermediate_map_stream._j_data_stream
                                            .keyBy(PickledKeySelector(is_key_pickled_byte_array),
                                                   key_type_info.get_java_type_info()), self)
         generated_key_stream._original_data_type_info = output_type_info
@@ -436,9 +438,7 @@ class DataStream(object):
             j_python_data_stream_scalar_function,
             func_type)
 
-        j_env = self._j_data_stream.getExecutionEnvironment()
-        PythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
-        j_conf = PythonConfigUtil.getMergedConfig(j_env)
+        j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
 
         # set max bundle size to 1 to force synchronize process for reduce function.
         from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
@@ -686,9 +686,10 @@ class KeyedStream(DataStream):
         Since python KeyedStream is in the format of Row(key_value, original_data), it is used for
         getting the original_data.
         """
-        j_transformed_stream = super().map(lambda x: x[1],
-                                           type_info=self._original_data_type_info)._j_data_stream
-        return DataStream(j_transformed_stream)
+        transformed_stream = super().map(lambda x: x[1], type_info=self._original_data_type_info)
+        transformed_stream.name(get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+                                .KEYED_STREAM_VALUE_OPERATOR_NAME)
+        return DataStream(transformed_stream._j_data_stream)
 
     def set_parallelism(self, parallelism: int):
         raise Exception("Set parallelism for KeyedStream is not supported.")

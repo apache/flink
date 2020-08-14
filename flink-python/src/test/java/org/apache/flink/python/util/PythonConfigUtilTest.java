@@ -34,7 +34,7 @@ public class PythonConfigUtilTest {
 	@Test
 	public void testGetEnvironmentConfig() throws IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 		StreamExecutionEnvironment executionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
-		Configuration envConfig = PythonConfigUtil.getMergedConfig(executionEnvironment);
+		Configuration envConfig = PythonConfigUtil.getEnvConfigWithDependencies(executionEnvironment);
 		assertNotNull(envConfig);
 	}
 }
