@@ -19,7 +19,12 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.TypeStrategy;
+
+import java.util.Optional;
 
 /**
  * Interface for Hive simple udf, generic udf, and generic udtf.
@@ -53,4 +58,31 @@ public interface HiveFunction {
 	 * @return result type.
 	 */
 	DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes);
+
+	/**
+	 * Output {@link TypeStrategy} for Hive functions.
+	 */
+	class ResultTypeStrategy implements TypeStrategy {
+
+		private final HiveFunction hiveFunction;
+
+		ResultTypeStrategy(HiveFunction hiveFunction) {
+			this.hiveFunction = hiveFunction;
+		}
+
+		@Override
+		public Optional<DataType> inferType(CallContext callContext) {
+			DataType[] argTypes = callContext.getArgumentDataTypes().toArray(new DataType[0]);
+			Object[] constantArgs = new Object[argTypes.length];
+			for (int i = 0; i < constantArgs.length; i++) {
+				if (callContext.isArgumentLiteral(i)) {
+					constantArgs[i] = callContext.getArgumentValue(
+							i, ClassLogicalTypeConverter.getDefaultExternalClassForType(argTypes[i].getLogicalType()))
+							.orElse(null);
+				}
+			}
+			hiveFunction.setArgumentTypesAndConstants(constantArgs, argTypes);
+			return Optional.of(hiveFunction.getHiveResultType(constantArgs, argTypes));
+		}
+	}
 }

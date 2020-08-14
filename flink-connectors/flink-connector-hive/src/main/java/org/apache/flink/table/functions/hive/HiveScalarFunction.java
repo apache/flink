@@ -20,11 +20,13 @@ package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
@@ -80,6 +82,13 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 		openInternal();
 
 		isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
+	}
+
+	@Override
+	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+		TypeInference.Builder builder = TypeInference.newBuilder();
+		builder.outputTypeStrategy(new ResultTypeStrategy(this));
+		return builder.build();
 	}
 
 	/**
