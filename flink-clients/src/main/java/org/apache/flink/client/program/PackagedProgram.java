@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.JarUtils;
@@ -294,7 +293,7 @@ public class PackagedProgram {
 		} catch (InvocationTargetException e) {
 			Throwable exceptionInMethod = e.getTargetException();
 			if (exceptionInMethod instanceof Error) {
-				throw (Error) ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exceptionInMethod);
+				throw (Error) exceptionInMethod;
 			} else if (exceptionInMethod instanceof ProgramParametrizationException) {
 				throw (ProgramParametrizationException) exceptionInMethod;
 			} else if (exceptionInMethod instanceof ProgramInvocationException) {
