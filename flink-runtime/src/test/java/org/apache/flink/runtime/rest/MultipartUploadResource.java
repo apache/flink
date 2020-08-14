@@ -119,7 +119,7 @@ public class MultipartUploadResource extends ExternalResource {
 		jsonHandler = new MultipartJsonHandler(mockGatewayRetriever);
 		fileHandler = new MultipartFileHandler(mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
 
-		serverEndpoint = new TestRestServerEndpoint.Builder(serverConfig)
+		serverEndpoint = TestRestServerEndpoint.builder(serverConfig)
 				.withHandler(mixedHandler)
 				.withHandler(jsonHandler)
 				.withHandler(fileHandler)

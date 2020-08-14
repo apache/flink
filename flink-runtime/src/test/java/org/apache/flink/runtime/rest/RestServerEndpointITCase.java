@@ -227,7 +227,7 @@ public class RestServerEndpointITCase extends TestLogger {
 			RpcUtils.INF_TIMEOUT,
 			temporaryFolder.getRoot());
 
-		serverEndpoint = new TestRestServerEndpoint.Builder(serverConfig)
+		serverEndpoint = TestRestServerEndpoint.builder(serverConfig)
 				.withHandler(new TestHeaders(), testHandler)
 				.withHandler(TestUploadHeaders.INSTANCE, testUploadHandler)
 				.withHandler(testVersionHandler)
@@ -615,8 +615,8 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
-		try (RestServerEndpoint serverEndpoint1 = new TestRestServerEndpoint.Builder(serverConfig).build();
-			RestServerEndpoint serverEndpoint2 = new TestRestServerEndpoint.Builder(serverConfig).build()) {
+		try (RestServerEndpoint serverEndpoint1 = TestRestServerEndpoint.builder(serverConfig).build();
+			RestServerEndpoint serverEndpoint2 = TestRestServerEndpoint.builder(serverConfig).build()) {
 
 			serverEndpoint1.start();
 			serverEndpoint2.start();
@@ -638,7 +638,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertThrows("REST handler registration",
 			FlinkRuntimeException.class,
 			() -> {
-				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint.Builder(serverConfig)
+				try (TestRestServerEndpoint restServerEndpoint =  TestRestServerEndpoint.builder(serverConfig)
 					 .withHandler(new TestHeaders(), testHandler)
 					 .withHandler(new TestHeaders(), testUploadHandler)
 					 .build()
@@ -656,7 +656,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		assertThrows("Duplicate REST handler",
 			FlinkRuntimeException.class,
 			() -> {
-				try (TestRestServerEndpoint restServerEndpoint = new TestRestServerEndpoint.Builder(serverConfig)
+				try (TestRestServerEndpoint restServerEndpoint = TestRestServerEndpoint.builder(serverConfig)
 						.withHandler(new TestHeaders(), testHandler)
 						.withHandler(TestUploadHeaders.INSTANCE, testHandler)
 						.build()

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.RestClient;
@@ -39,21 +38,15 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringContains;
-import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.net.InetAddress;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class AbstractHandlerITCase extends TestLogger {
@@ -100,8 +93,7 @@ public class AbstractHandlerITCase extends TestLogger {
 				FutureUtils.completedExceptionally(new OutOfMemoryError("Metaspace"))
 		);
 
-		try (final TestRestServerEndpoint server = new TestRestServerEndpoint
-				.Builder(RestServerEndpointConfiguration.fromConfiguration(REST_BASE_CONFIG))
+		try (final TestRestServerEndpoint server = TestRestServerEndpoint.builder(RestServerEndpointConfiguration.fromConfiguration(REST_BASE_CONFIG))
 				.withHandler(messageHeaders, testHandler)
 				.buildAndStart();
 			 final RestClient restClient = createRestClient(server.getServerAddress().getPort())

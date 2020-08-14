@@ -109,7 +109,7 @@ public class RestServerSSLAuthITCase extends TestLogger {
 				() -> CompletableFuture.completedFuture(restfulGateway),
 				RpcUtils.INF_TIMEOUT);
 
-			serverEndpoint = new TestRestServerEndpoint.Builder(restServerConfig)
+			serverEndpoint = TestRestServerEndpoint.builder(restServerConfig)
 					.withHandler(testVersionHandler.getMessageHeaders(), testVersionHandler)
 					.buildAndStart();
 			restClient = new RestServerEndpointITCase.TestRestClient(restClientConfig);

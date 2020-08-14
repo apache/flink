@@ -238,7 +238,7 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 	private static RestServerEndpoint createRestServerEndpoint(
 			final FunctionWithException<SavepointTriggerRequestBody, TriggerId, RestHandlerException> triggerHandlerLogic,
 			final FunctionWithException<TriggerId, SavepointInfo, RestHandlerException> savepointHandlerLogic) throws Exception {
-		return new TestRestServerEndpoint.Builder(restServerEndpointConfiguration)
+		return TestRestServerEndpoint.builder(restServerEndpointConfiguration)
 				.withHandler(new TestSavepointTriggerHandler(triggerHandlerLogic))
 				.withHandler(new TestSavepointHandler(savepointHandlerLogic))
 				.buildAndStart();

@@ -36,12 +36,16 @@ import java.util.concurrent.CompletableFuture;
  */
 public class TestRestServerEndpoint extends RestServerEndpoint {
 
+	public static Builder builder(RestServerEndpointConfiguration configuration) {
+		return new Builder(configuration);
+	}
+
 	public static class Builder {
 
 		private final RestServerEndpointConfiguration configuration;
 		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
 
-		public Builder(RestServerEndpointConfiguration configuration) {
+		private Builder(RestServerEndpointConfiguration configuration) {
 			this.configuration = configuration;
 		}
 
