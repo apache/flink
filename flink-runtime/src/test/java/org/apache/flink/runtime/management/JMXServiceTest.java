@@ -20,7 +20,6 @@ package org.apache.flink.runtime.management;
 
 import org.junit.Test;
 
-import javax.management.JMX;
 import java.net.ServerSocket;
 
 import static org.junit.Assert.assertFalse;

@@ -25,9 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -106,6 +104,7 @@ public class JMXService {
 		}
 		return successfullyStartedServer;
 	}
+
 	/**
 	 * This method tries to poke for a new port number, then releases it.
 	 *
