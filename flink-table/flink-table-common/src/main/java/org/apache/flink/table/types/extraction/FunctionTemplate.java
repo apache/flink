@@ -74,6 +74,28 @@ final class FunctionTemplate {
 		);
 	}
 
+	/**
+	 * Creates an instance of {@link FunctionResultTemplate} from a {@link DataTypeHint}.
+	 */
+	static @Nullable FunctionResultTemplate createResultTemplate(
+			DataTypeFactory typeFactory,
+			@Nullable DataTypeHint hint) {
+		if (hint == null) {
+			return null;
+		}
+		final DataTypeTemplate template;
+		try {
+			template = DataTypeTemplate.fromAnnotation(typeFactory, hint);
+		} catch (Throwable t) {
+			throw extractionError(t, "Error in data type hint annotation.");
+		}
+		if (template.dataType != null) {
+			return FunctionResultTemplate.of(template.dataType);
+		}
+		throw extractionError(
+			"Data type hint does not specify a data type for use as function result.");
+	}
+
 	@Nullable FunctionSignatureTemplate getSignatureTemplate() {
 		return signatureTemplate;
 	}
@@ -139,25 +161,6 @@ final class FunctionTemplate {
 				.collect(Collectors.toList()),
 			isVarArg,
 			argumentNames);
-	}
-
-	private static @Nullable FunctionResultTemplate createResultTemplate(
-			DataTypeFactory typeFactory,
-			@Nullable DataTypeHint hint) {
-		if (hint == null) {
-			return null;
-		}
-		final DataTypeTemplate template;
-		try {
-			template = DataTypeTemplate.fromAnnotation(typeFactory, hint);
-		} catch (Throwable t) {
-			throw extractionError(t, "Error in data type hint annotation.");
-		}
-		if (template.dataType != null) {
-			return FunctionResultTemplate.of(template.dataType);
-		}
-		throw extractionError(
-			"Data type hint does not specify a data type for use as function result.");
 	}
 
 	private static FunctionArgumentTemplate createArgumentTemplate(
