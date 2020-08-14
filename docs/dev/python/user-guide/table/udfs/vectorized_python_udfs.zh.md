@@ -1,6 +1,7 @@
 ---
 title: "自定义向量化函数"
-nav-parent_id: python_tableapi
+nav-id: vectorized_python_udf
+nav-parent_id: python_udf
 nav-pos: 30
 ---
 <!--

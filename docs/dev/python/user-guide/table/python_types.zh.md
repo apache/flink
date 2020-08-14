@@ -1,7 +1,7 @@
 ---
-title: "Python 数据类型"
+title: "数据类型"
 nav-parent_id: python_tableapi
-nav-pos: 15
+nav-pos: 30
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

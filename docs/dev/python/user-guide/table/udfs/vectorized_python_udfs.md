@@ -1,6 +1,7 @@
 ---
 title: "Vectorized User-defined Functions"
-nav-parent_id: python_tableapi
+nav-id: vectorized_python_udf
+nav-parent_id: python_udf
 nav-pos: 30
 ---
 <!--

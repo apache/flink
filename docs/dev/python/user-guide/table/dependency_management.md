@@ -1,7 +1,7 @@
 ---
 title: "Dependency Management"
 nav-parent_id: python_tableapi
-nav-pos: 100
+nav-pos: 45
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

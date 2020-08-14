@@ -1,6 +1,6 @@
 ---
 title: "Installation"
-nav-parent_id: python_tableapi
+nav-parent_id: python_start
 nav-pos: 10
 ---
 <!--

@@ -1,6 +1,6 @@
 ---
 title: "常见问题"
-nav-parent_id: python_tableapi
+nav-parent_id: python
 nav-pos: 140
 ---
 <!--

@@ -1,6 +1,6 @@
 ---
-title: "Common Questions"
-nav-parent_id: python_tableapi
+title: "FAQ"
+nav-parent_id: python
 nav-pos: 140
 ---
 <!--

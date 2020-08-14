@@ -1,9 +1,8 @@
 ---
-title: "Python Table API"
+title: "Table API"
 nav-id: python_tableapi
-nav-parent_id: tableapi
-nav-pos: 100
-nav-show_overview: true
+nav-parent_id: python_user_guide
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
