@@ -1,6 +1,6 @@
 ---
 title: "常见问题"
-nav-parent_id: python_tableapi
+nav-parent_id: python
 nav-pos: 140
 ---
 <!--
@@ -60,12 +60,12 @@ $ # 指定用于执行python UDF workers (用户自定义函数工作者) 的pyt
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html#usage)。
+如果需要了解`add_python_archive`和`set_python_executable`用法的详细信息，请参阅[相关文档]({% link dev/python/user-guide/table/dependency_management.zh.md %}#python-dependency)。
 
 ## 添加Jar文件
 
 PyFlink作业可能依赖jar文件，比如connector，Java UDF等。
-您可以在提交作业时使用以下Python Table API或通过<a href="{{ site.baseurl }}/zh/ops/cli.html#usage">命令行参数</a>来指定依赖项。
+您可以在提交作业时使用以下Python Table API或通过[命令行参数]({% link ops/cli.zh.md %}#usage)来指定依赖项。
 
 {% highlight python %}
 # 注意：仅支持本地文件URL（以"file:"开头）。
@@ -75,7 +75,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-有关添加Java依赖项的API的详细信息，请参阅[相关文档]({{ site.baseurl }}/zh/dev/table/python/dependency_management.html##java-dependency)。
+有关添加Java依赖项的API的详细信息，请参阅[相关文档]({% link dev/python/user-guide/table/dependency_management.zh.md %}#java-dependency)。
 
 ## 添加Python文件
 您可以使用命令行参数`pyfs`或TableEnvironment的API `add_python_file`添加python文件依赖，这些依赖可以是python文件，python软件包或本地目录。

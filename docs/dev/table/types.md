@@ -78,7 +78,7 @@ A list of all pre-defined data types can be found [below](#list-of-data-types).
 
 ### Data Types in the Table API
 
-<div class="codetabs" markdown="1">
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
 Users of the JVM-based API work with instances of `org.apache.flink.table.types.DataType` within the Table API or when
 defining connectors, catalogs, or user-defined functions. 

@@ -1,7 +1,7 @@
 ---
 title: "Conversions between PyFlink Table and Pandas DataFrame"
 nav-parent_id: python_tableapi
-nav-pos: 50
+nav-pos: 40
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -62,7 +62,7 @@ table = t_env.from_pandas(pdf,
 
 It also supports converting a PyFlink Table to a Pandas DataFrame. Internally, it will materialize the results of the 
 table and serialize them into multiple Arrow batches of Arrow columnar format at client side. The maximum Arrow batch size
-is determined by the config option [python.fn-execution.arrow.batch.size]({{ site.baseurl }}/dev/table/python/python_config.html#python-fn-execution-arrow-batch-size).
+is determined by the config option [python.fn-execution.arrow.batch.size]({% link dev/python/user-guide/table/python_config.md %}#python-fn-execution-arrow-batch-size).
 The serialized data will then be converted to Pandas DataFrame. It will collect the content of the table to
 the client side and so please make sure that the content of the table could fit in memory before calling this method.
 

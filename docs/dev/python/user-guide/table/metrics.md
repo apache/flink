@@ -29,7 +29,7 @@ PyFlink exposes a metric system that allows gathering and exposing metrics to ex
 
 ## Registering metrics
 
-You can access the metric system from a [User-defined Function]({{ site.baseurl }}/dev/table/python/python_udfs.html) by calling `function_context.get_metric_group()` in the `open` method.
+You can access the metric system from a [User-defined Function]({% link dev/python/user-guide/table/udfs/python_udfs.md %}) by calling `function_context.get_metric_group()` in the `open` method.
 The `get_metric_group()` method returns a `MetricGroup` object on which you can create and register new metrics.
 
 ### Metric types
@@ -142,7 +142,7 @@ class MyUDF(ScalarFunction):
 
 ## Scope
 
-You can refer to the Java metric document for more details on [Scope definition]({{ site.baseurl }}/monitoring/metrics.html#Scope).
+You can refer to the Java metric document for more details on [Scope definition]({% link monitoring/metrics.md %}#Scope).
 
 ### User Scope
 
@@ -169,11 +169,11 @@ function_context
 
 ### System Scope
 
-You can refer to the Java metric document for more details on [System Scope]({{ site.baseurl }}/monitoring/metrics.html#system-scope).
+You can refer to the Java metric document for more details on [System Scope]({% link monitoring/metrics.md %}#system-scope).
 
 ### List of all Variables
 
-You can refer to the Java metric document for more details on [List of all Variables]({{ site.baseurl }}/monitoring/metrics.html#list-of-all-variables).
+You can refer to the Java metric document for more details on [List of all Variables]({% link monitoring/metrics.md %}#list-of-all-variables).
 
 ### User Variables
 
@@ -197,11 +197,11 @@ function_context
 
 You can refer to the Java metric document for more details on the following sections:
 
-- [Reporter]({{ site.baseurl }}/monitoring/metrics.html#reporter).
-- [System metrics]({{ site.baseurl }}/monitoring/metrics.html#system-metrics).
-- [Latency tracking]({{ site.baseurl }}/monitoring/metrics.html#latency-tracking).
-- [REST API integration]({{ site.baseurl }}/monitoring/metrics.html#rest-api-integration).
-- [Dashboard integration]({{ site.baseurl }}/monitoring/metrics.html#dashboard-integration).
+- [Reporter]({% link monitoring/metrics.md %}#reporter).
+- [System metrics]({% link monitoring/metrics.md %}#system-metrics).
+- [Latency tracking]({% link monitoring/metrics.md %}#latency-tracking).
+- [REST API integration]({% link monitoring/metrics.md %}#rest-api-integration).
+- [Dashboard integration]({% link monitoring/metrics.md %}#dashboard-integration).
 
 
 {% top %}

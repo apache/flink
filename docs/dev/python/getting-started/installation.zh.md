@@ -1,6 +1,6 @@
 ---
 title: "环境安装"
-nav-parent_id: python_tableapi
+nav-parent_id: python_start
 nav-pos: 10
 ---
 <!--
@@ -41,6 +41,6 @@ PyFlink已经被发布到PyPi，可以通过如下方式安装PyFlink：
 $ python -m pip install apache-flink
 {% endhighlight %}
 
-您也可以从源码手动构建PyFlink，具体可以参见[开发指南]({{ site.baseurl }}/zh/flinkDev/building.html#build-pyflink).
+您也可以从源码手动构建PyFlink，具体可以参见[开发指南]({% link flinkDev/building.zh.md %}#build-pyflink).
 
 <span class="label label-info">注意</span> 从Flink 1.11版本开始, PyFlink作业支持在Windows系统上运行，因此您也可以在Windows上开发和调试PyFlink作业了。
