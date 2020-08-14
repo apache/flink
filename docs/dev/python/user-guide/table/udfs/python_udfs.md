@@ -1,6 +1,7 @@
 ---
-title: "User-defined Functions"
-nav-parent_id: python_tableapi
+title: "General User-defined Functions"
+nav-id: general_python_udf
+nav-parent_id: python_udf
 nav-pos: 20
 ---
 <!--

@@ -1,6 +1,7 @@
 ---
-title: "自定义函数（UDF）"
-nav-parent_id: python_tableapi
+title: "普通自定义函数（UDF）"
+nav-id: general_python_udf
+nav-parent_id: python_udf
 nav-pos: 20
 ---
 <!--

@@ -1,6 +1,6 @@
 ---
 title: "Installation"
-nav-parent_id: python_tableapi
+nav-parent_id: python_start
 nav-pos: 10
 ---
 <!--
@@ -41,6 +41,6 @@ PyFlink has already been deployed to PyPi and can be installed as following:
 $ python -m pip install apache-flink
 {% endhighlight %}
 
-You can also build PyFlink from source by following the [development guide]({{ site.baseurl }}/flinkDev/building.html#build-pyflink).
+You can also build PyFlink from source by following the [development guide]({% link flinkDev/building.md %}#build-pyflink).
 
 <span class="label label-info">Note</span> Starting from Flink 1.11, it's also supported to run PyFlink jobs locally on Windows and so you could develop and debug PyFlink jobs on Windows.

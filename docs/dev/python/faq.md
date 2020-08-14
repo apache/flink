@@ -1,6 +1,6 @@
 ---
-title: "Common Questions"
-nav-parent_id: python_tableapi
+title: "FAQ"
+nav-parent_id: python
 nav-pos: 140
 ---
 <!--
@@ -61,12 +61,12 @@ $ # specify the path of the python interpreter which is used to execute the pyth
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({{ site.baseurl }}/dev/table/python/dependency_management.html#usage).
+For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({% link dev/python/user-guide/table/dependency_management.md %}#usage).
 
 ## Adding Jar Files
 
 A PyFlink job may depend on jar files, i.e. connectors, Java UDFs, etc.
-You can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command-line arguments</a> directly when submitting the job.
+You can specify the dependencies with the following Python Table APIs or through [command-line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # NOTE: Only local file URLs (start with "file:") are supported.
@@ -76,7 +76,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({{ site.baseurl }}/dev/table/python/dependency_management.html##java-dependency)
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/user-guide/table/dependency_management.md %}#java-dependency)
 
 ## Adding Python Files
 You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.

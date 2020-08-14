@@ -1,7 +1,7 @@
 ---
-title: "Python Data Types"
+title: "Data Types"
 nav-parent_id: python_tableapi
-nav-pos: 15
+nav-pos: 30
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,7 +38,7 @@ A `DataType` instance declares the **logical type** which does not imply a concr
 or storage. All pre-defined data types are available in `pyflink.table.types` and can be instantiated with the utility methods
 defined in `pyflink.table.types.DataTypes`.
 
-A list of all pre-defined data types can be found [below]({{ site.baseurl }}/dev/table/types.html#list-of-data-types).
+A list of all pre-defined data types can be found [below]({% link dev/table/types.md %}#list-of-data-types).
 
 Data Type and Python Type Mapping
 ------------------

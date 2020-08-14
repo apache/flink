@@ -29,7 +29,7 @@ PyFlink支持指标系统，该指标系统允许收集指标并将其暴露给�
 
 ## 注册指标
 
-您可以通过在[用户自定义函数]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html)的`open`方法中调用`function_context.get_metric_group()`来访问指标系统。
+您可以通过在[用户自定义函数]({% link dev/python/user-guide/table/udfs/python_udfs.zh.md %})的`open`方法中调用`function_context.get_metric_group()`来访问指标系统。
 `get_metric_group()`方法返回一个`MetricGroup`对象，您可以在该对象上创建和注册新指标。
 
 ### 指标类型
@@ -143,7 +143,7 @@ class MyUDF(ScalarFunction):
 
 ## 范围（Scope）
 
-您可以参考Java指标文档以获取有关[范围定义]({{ site.baseurl }}/zh/monitoring/metrics.html#Scope)的更多详细信息。
+您可以参考Java指标文档以获取有关[范围定义]({% link monitoring/metrics.zh.md %}#Scope)的更多详细信息。
 
 ### 用户范围（User Scope）
 
@@ -171,11 +171,11 @@ function_context
 
 ### 系统范围（System Scope）
 
-您可以参考Java指标文档以获取有关[系统范围]({{ site.baseurl }}/zh/monitoring/metrics.html#system-scope)的更多详细信息。
+您可以参考Java指标文档以获取有关[系统范围]({% link monitoring/metrics.zh.md %}#system-scope)的更多详细信息。
 
 ### 所有变量列表
 
-您可以参考Java指标文档以获取有关[“所有变量列表”的]({{ site.baseurl }}/zh/monitoring/metrics.html#list-of-all-variables)更多详细信息。
+您可以参考Java指标文档以获取有关[“所有变量列表”的]({% link monitoring/metrics.zh.md %}#list-of-all-variables)更多详细信息。
 
 ### 用户变量（User Variables）
 
@@ -199,11 +199,11 @@ function_context
 
 您可以参考Java的指标文档，以获取关于以下部分的更多详细信息：
 
-*    [Reporter]({{ site.baseurl }}/zh/monitoring/metrics.html#reporter) 。
-*    [系统指标]({{ site.baseurl }}/zh/monitoring/metrics.html#system-metrics) 。
-*    [延迟跟踪]({{ site.baseurl }}/zh/monitoring/metrics.html#latency-tracking) 。
-*    [REST API集成]({{ site.baseurl }}/zh/monitoring/metrics.html#rest-api-integration) 。
-*    [仪表板集成]({{ site.baseurl }}/zh/monitoring/metrics.html#dashboard-integration) 。
+*    [Reporter]({% link monitoring/metrics.zh.md %}#reporter) 。
+*    [系统指标]({% link monitoring/metrics.zh.md %}#system-metrics) 。
+*    [延迟跟踪]({% link monitoring/metrics.zh.md %}#latency-tracking) 。
+*    [REST API集成]({% link monitoring/metrics.zh.md %}#rest-api-integration) 。
+*    [仪表板集成]({% link monitoring/metrics.zh.md %}#dashboard-integration) 。
 
 
 {% top %}
