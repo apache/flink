@@ -295,7 +295,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				lookupFunctionClass,
 				nestedProjectionSupported,
 				null,
-				null,
+				Collections.emptyList(),
 				filterableFieldsSet,
 				Long.MAX_VALUE,
 				partitions);
@@ -630,15 +630,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					if (result.size() >= limit) {
 						return result;
 					}
-					boolean isRetained = true;
-					if (filterPredicates != null && !filterPredicates.isEmpty()) {
-						for (ResolvedExpression predicate: filterPredicates) {
-							isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates(predicate, getValueGetter(value));
-							if (!isRetained) {
-								break;
-							}
-						}
-					}
+					boolean isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates(
+						filterPredicates,
+						getValueGetter(value));
 					if (isRetained) {
 						Row projectedRow;
 						if (projectedFields == null) {

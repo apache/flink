@@ -38,11 +38,11 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 /**
@@ -69,21 +69,23 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
 
 		CatalogBaseTable table = this.getTable(tablePath);
 		TableSchema schema = table.getSchema();
-		List<CatalogPartitionSpec> remainingPartitions = new ArrayList<>();
-		for (CatalogPartitionSpec partition : partitions) {
-			boolean isRetained = true;
-			Function<String, Comparable<?>> getter = getValueGetter(partition.getPartitionSpec(), schema);
-			for (Expression predicate : filters) {
-				isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates((ResolvedExpression) predicate, getter);
-				if (!isRetained) {
-					break;
+		List<ResolvedExpression> resolvedExpressions = filters.stream()
+			.map(filter -> {
+				if (filter instanceof ResolvedExpression) {
+					return (ResolvedExpression) filter;
 				}
-			}
-			if (isRetained) {
-				remainingPartitions.add(partition);
-			}
-		}
-		return remainingPartitions;
+				throw new UnsupportedOperationException(
+					String.format("TestValuesCatalog only works with resolved expressions. Get unresolved expression: %s",
+						filter));
+			})
+			.collect(Collectors.toList());
+
+		return partitions.stream()
+			.filter(
+				partition -> {
+					Function<String, Comparable<?>> getter = getValueGetter(partition.getPartitionSpec(), schema);
+					return FilterUtils.isRetainedAfterApplyingFilterPredicates(resolvedExpressions, getter); })
+			.collect(Collectors.toList());
 	}
 
 	private Function<String, Comparable<?>> getValueGetter(Map<String, String> spec, TableSchema schema) {

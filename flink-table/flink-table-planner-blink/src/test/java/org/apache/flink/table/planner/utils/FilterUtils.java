@@ -49,27 +49,40 @@ public class FilterUtils {
 		return false;
 	}
 
-	public static boolean isRetainedAfterApplyingFilterPredicates(ResolvedExpression predicate, Function<String, Comparable<?>> getter) {
-		if (predicate instanceof CallExpression) {
-			FunctionDefinition definition = ((CallExpression) predicate).getFunctionDefinition();
-			if (definition.equals(BuiltInFunctionDefinitions.OR)) {
-				// nested filter, such as (key1 > 2 or key2 > 3)
-				boolean result;
-				for (Expression expr: predicate.getChildren()) {
-					if (!(expr instanceof CallExpression && expr.getChildren().size() == 2)) {
-						throw new TableException(expr + " not supported!");
+	public static boolean isRetainedAfterApplyingFilterPredicates(
+			List<ResolvedExpression> predicates,
+			Function<String, Comparable<?>> getter) {
+		if (predicates.isEmpty()) {
+			return true;
+		}
+		for (ResolvedExpression predicate: predicates) {
+			if (predicate instanceof CallExpression) {
+				FunctionDefinition definition = ((CallExpression) predicate).getFunctionDefinition();
+				boolean result = false;
+				if (definition.equals(BuiltInFunctionDefinitions.OR)) {
+					// nested filter, such as (key1 > 2 or key2 > 3)
+					for (Expression expr: predicate.getChildren()) {
+						if (!(expr instanceof CallExpression && expr.getChildren().size() == 2)) {
+							throw new TableException(expr + " not supported!");
+						}
+						result = binaryFilterApplies((CallExpression) expr, getter);
+						if (result) {
+							break;
+						}
 					}
-					result = binaryFilterApplies((CallExpression) expr, getter);
-					if (result) {
-						return true;
-					}
+				} else if (predicate.getChildren().size() == 2) {
+					result = binaryFilterApplies((CallExpression) predicate, getter);
+				} else {
+					throw new UnsupportedOperationException(String.format("Unsupported expr: %s.", predicate));
 				}
-				return false;
-			} else if (predicate.getChildren().size() == 2) {
-				return binaryFilterApplies((CallExpression) predicate, getter);
+				if (!result) {
+					return false;
+				}
+			} else {
+				throw new UnsupportedOperationException(String.format("Unsupported expr: %s.", predicate));
 			}
 		}
-		throw new UnsupportedOperationException(predicate + " not supported!");
+		return true;
 	}
 
 	private static boolean shouldPushDownUnaryExpression(ResolvedExpression expr, Set<String> filterableFields) {

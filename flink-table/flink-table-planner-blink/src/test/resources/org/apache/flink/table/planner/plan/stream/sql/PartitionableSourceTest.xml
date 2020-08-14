@@ -25,13 +25,13 @@ limitations under the License.
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(id, 2), =(part1, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -44,13 +44,13 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(i
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(id, 2), =(part1, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -82,13 +82,13 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(i
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, +(part2, 1) AS virtualField])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -101,13 +101,13 @@ Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, +(part2, 1) AS virtualField])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -139,13 +139,13 @@ Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -158,13 +158,13 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -215,13 +215,13 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 2)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>
@@ -234,13 +234,13 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
    +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 2)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
++- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
   </TestCase>

@@ -59,24 +59,23 @@ class PartitionableSourceTest(
       val partitions = "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1"
       util.tableEnv.executeSql(String.format(ddlTemp, partitions))
     } else {
-      util.tableEnv.executeSql("drop catalog default_catalog")
       val catalog =
-        new TestValuesCatalog("default_catalog", "default_database", useCatalogFilter);
-      util.tableEnv.registerCatalog("default_catalog", catalog)
-      util.tableEnv.useCatalog("default_catalog")
+        new TestValuesCatalog("test_catalog", "test_database", useCatalogFilter)
+      util.tableEnv.registerCatalog("test_catalog", catalog)
+      util.tableEnv.useCatalog("test_catalog")
       // register table without partitions
       util.tableEnv.executeSql(String.format(ddlTemp, ""))
-      val mytablePath = ObjectPath.fromString("default_database.MyTable")
+      val mytablePath = ObjectPath.fromString("test_database.MyTable")
       // partition map
       val partitions = Seq(
         Map("part1"->"A", "part2"->"1"),
         Map("part1"->"A", "part2"->"2"),
         Map("part1"->"B", "part2"->"3"),
-        Map("part1"->"C", "part2"->"1"));
+        Map("part1"->"C", "part2"->"1"))
       partitions.foreach(partition => {
         val catalogPartitionSpec = new CatalogPartitionSpec(partition)
         val catalogPartition = new CatalogPartitionImpl(
-          new java.util.HashMap[String, String](), "");
+          new java.util.HashMap[String, String](), "")
         catalog.createPartition(mytablePath, catalogPartitionSpec, catalogPartition, true)
       })
     }
