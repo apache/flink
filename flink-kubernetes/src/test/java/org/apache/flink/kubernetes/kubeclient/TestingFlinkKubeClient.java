@@ -164,6 +164,9 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 		}
 	}
 
+	/**
+	 * Testing implementation of {@link KubernetesWatch}.
+	 */
 	public static class MockKubernetesWatch extends KubernetesWatch {
 		public MockKubernetesWatch() {
 			super(null);

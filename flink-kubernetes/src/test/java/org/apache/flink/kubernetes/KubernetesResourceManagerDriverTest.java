@@ -36,13 +36,16 @@ import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTest
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -54,8 +57,9 @@ import static org.junit.Assert.fail;
 public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTestBase<KubernetesWorkerNode> {
 
 	private static final String CLUSTER_ID = "testing-flink-cluster";
+	private static final Time POD_CREATION_INTERVAL = Time.milliseconds(50L);
 	private static final KubernetesResourceManagerConfiguration KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
-			new KubernetesResourceManagerConfiguration(CLUSTER_ID, Time.milliseconds(50L));
+			new KubernetesResourceManagerConfiguration(CLUSTER_ID, POD_CREATION_INTERVAL);
 
 	@Test
 	public void testOnPodAdded() throws Exception {
@@ -120,6 +124,35 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 				final Throwable testingError = new Throwable("testing error");
 				getPodCallbackHandler().handleFatalError(testingError);
 				assertThat(onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(testingError));
+			});
+		}};
+	}
+
+	@Test
+	public void testPodCreationInterval() throws Exception {
+		new Context() {{
+			final AtomicInteger createPodCount = new AtomicInteger(0);
+			final List<CompletableFuture<Long>> createPodTimeFutures = new ArrayList<>();
+			createPodTimeFutures.add(new CompletableFuture<>());
+			createPodTimeFutures.add(new CompletableFuture<>());
+
+			flinkKubeClientBuilder.setCreateTaskManagerPodFunction((ignore) -> {
+				int idx = createPodCount.getAndIncrement();
+				if (idx < createPodTimeFutures.size()) {
+					createPodTimeFutures.get(idx).complete(System.currentTimeMillis());
+				}
+				return FutureUtils.completedExceptionally(new Throwable("testing error"));
+			});
+
+			runTest(() -> {
+				// re-request resource on pod creation failed
+				runInMainThread(() -> getDriver().requestResource(TASK_EXECUTOR_PROCESS_SPEC)
+						.whenComplete((ignore1, ignore2) -> getDriver().requestResource(TASK_EXECUTOR_PROCESS_SPEC)));
+
+				// validate trying creating pod twice, with proper interval
+				long t1 = createPodTimeFutures.get(0).get(TIMEOUT_SEC, TimeUnit.SECONDS);
+				long t2 = createPodTimeFutures.get(1).get(TIMEOUT_SEC, TimeUnit.SECONDS);
+				assertThat((t2 - t1), greaterThanOrEqualTo(POD_CREATION_INTERVAL.toMilliseconds()));
 			});
 		}};
 	}
