@@ -170,6 +170,46 @@ class DataStream(object):
         self._j_data_stream.setBufferTimeout(timeout_millis)
         return self
 
+    def start_new_chain(self) -> 'DataStream':
+        """
+        Starts a new task chain beginning at this operator. This operator will be chained (thread
+        co-located for increased performance) to any previous tasks even if possible.
+
+        :return: The operator with chaining set.
+        """
+        self._j_data_stream.startNewChain()
+        return self
+
+    def disable_chaining(self) -> 'DataStream':
+        """
+        Turns off chaining for this operator so thread co-location will not be used as an
+        optimization.
+        Chaining can be turned off for the whole job by
+        StreamExecutionEnvironment.disableOperatorChaining() however it is not advised for
+        performance consideration.
+
+        :return: The operator with chaining disabled.
+        """
+        self._j_data_stream.disableChaining()
+        return self
+
+    def slot_sharing_group(self, slot_sharing_group: str) -> 'DataStream':
+        """
+        Sets the slot sharing group of this operation. Parallel instances of operations that are in
+        the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+
+        Operations inherit the slot sharing group of input operations if all input operations are in
+        the same slot sharing group and no slot sharing group was explicitly specified.
+
+        Initially an operation is in the default slot sharing group. An operation can be put into
+        the default group explicitly by setting the slot sharing group to 'default'.
+
+        :param slot_sharing_group: The slot sharing group name.
+        :return: This operator.
+        """
+        self._j_data_stream.slotSharingGroup(slot_sharing_group)
+        return self
+
     def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
             -> 'DataStream':
         """
@@ -714,3 +754,12 @@ class KeyedStream(DataStream):
 
     def set_buffer_timeout(self, timeout_millis: int):
         raise Exception("Set buffer timeout for KeyedStream is not supported.")
+
+    def start_new_chain(self) -> 'DataStream':
+        raise Exception("Start new chain for KeyedStream is not supported.")
+
+    def disable_chaining(self) -> 'DataStream':
+        raise Exception("Disable chaining for KeyedStream is not supported.")
+
+    def slot_sharing_group(self, slot_sharing_group: str) -> 'DataStream':
+        raise Exception("Setting slot sharing group for KeyedStream is not supported.")

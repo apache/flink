@@ -710,6 +710,7 @@ class StreamExecutionEnvironment(object):
                 j_input_format,
                 out_put_type_info.get_java_type_info()
             )
+            j_data_stream_source.forceNonParallel()
             return DataStream(j_data_stream=j_data_stream_source)
         finally:
             os.unlink(temp_file.name)

@@ -31,6 +31,7 @@ from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
+from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -396,6 +397,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
+    @unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
     def test_set_stream_env(self):
         import sys
         python_exec = sys.executable
