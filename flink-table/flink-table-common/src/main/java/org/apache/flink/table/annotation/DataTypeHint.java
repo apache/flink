@@ -67,6 +67,9 @@ import java.lang.annotation.Target;
  * class is annotated with {@code @DataTypeHint(defaultDecimalPrecision = 12, defaultDecimalScale = 2)}. Individual
  * field annotations allow to deviate from those default values.
  *
+ * <p>A data type hint on top of a table or aggregate function is similar to defining {@link FunctionHint#output()}
+ * for the output type of the function.
+ *
  * @see FunctionHint
  */
 @PublicEvolving
