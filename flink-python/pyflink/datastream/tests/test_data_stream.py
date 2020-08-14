@@ -371,9 +371,9 @@ class DataStreamTests(PyFlinkTestCase):
                         j_out_stream_edge, j_stream_graph)
                     self.assertEqual(expected_downstream_chainable, downstream_chainable)
 
-        # The map_operator_1 has the same parallelism with source operator and map_operator_2, and
-        # ship_strategy for collection source and map_operator_1 is FORWARD, so the map_operator_1
-        # can be chained with collection source and map_operator_2.
+        # The map_operator_1 has the same parallelism with map_operator_0 and map_operator_2, and
+        # ship_strategy for map_operator_0 and map_operator_1 is FORWARD, so the map_operator_1
+        # can be chained with map_operator_0 and map_operator_2.
         j_generated_stream_graph = self.env._j_stream_execution_environment\
             .getStreamGraph("test start new_chain", True)
         assert_chainable(j_generated_stream_graph, True, True)
