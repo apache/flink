@@ -1,7 +1,7 @@
 ---
-title: "Dependency Management"
+title: "依赖管理"
 nav-parent_id: python_tableapi
-nav-pos: 100
+nav-pos: 45
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,7 +24,7 @@ under the License.
 
 # Java Dependency
 
-If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command line arguments</a> directly when submitting the job.
+If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.zh.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";" and will be uploaded to the cluster.
@@ -38,7 +38,7 @@ table_env.get_config().get_configuration().set_string("pipeline.classpaths", "fi
 
 # Python Dependency
 
-If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through <a href="{{ site.baseurl }}/ops/cli.html#usage">command line arguments</a> directly when submitting the job.
+If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.zh.md %}#usage) directly when submitting the job.
 
 <table class="table table-bordered">
   <thead>

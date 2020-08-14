@@ -1,7 +1,7 @@
 ---
-title: "Python 数据类型"
+title: "数据类型"
 nav-parent_id: python_tableapi
-nav-pos: 15
+nav-pos: 30
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -36,7 +36,7 @@ Python Table API的用户可以在Python Table API中，或者定义Python用户
 `DataType`实例声明了数据的**逻辑类型**，这并不能用于推断数据在进行传输或存储时的具体物理表示形式。
 所有预定义的数据类型都位于`pyflink.table.types`中，并且可以通过类`pyflink.table.types.DataTypes`中所定义的方法创建。
 
-可以在[下面]({{ site.baseurl }}/zh/dev/table/types.html#list-of-data-types)找到所有预定义数据类型的列表。
+可以在[下面]({% link dev/table/types.zh.md %}#list-of-data-types)找到所有预定义数据类型的列表。
 
 数据类型（Data Type）和Python类型的映射关系
 ------------------
