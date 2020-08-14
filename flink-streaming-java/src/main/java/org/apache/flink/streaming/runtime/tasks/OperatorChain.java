@@ -80,8 +80,12 @@ import static org.apache.flink.util.Preconditions.checkState;
  * The {@code OperatorChain} contains all operators that are executed as one chain within a single
  * {@link StreamTask}.
  *
+ * <p>The main entry point to the chain is it's {@code mainOperator}. {@code mainOperator} is driving
+ * the execution of the {@link StreamTask}, by pulling the records from network inputs and/or source
+ * inputs and pushing produced records to the remaining chained operators.
+ *
  * @param <OUT> The type of elements accepted by the chain, i.e., the input type of the chain's
- *              head operator.
+ *              main operator.
  */
 @Internal
 public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusMaintainer {
@@ -94,10 +98,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 	/**
 	 * For iteration, {@link StreamIterationHead} and {@link StreamIterationTail} used for executing
-	 * feedback edges do not contain any operators, in which case, {@code headOperatorWrapper} and
+	 * feedback edges do not contain any operators, in which case, {@code mainOperatorWrapper} and
 	 * {@code tailOperatorWrapper} are null.
 	 */
-	@Nullable private final StreamOperatorWrapper<OUT, OP> headOperatorWrapper;
+	@Nullable private final StreamOperatorWrapper<OUT, OP> mainOperatorWrapper;
 	@Nullable private final StreamOperatorWrapper<?, ?> tailOperatorWrapper;
 
 	private final int numOperators;
@@ -164,24 +168,24 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			if (operatorFactory != null) {
 				WatermarkGaugeExposingOutput<StreamRecord<OUT>> output = getChainEntryPoint();
 
-				Tuple2<OP, Optional<ProcessingTimeService>> headOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
+				Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
 						operatorFactory,
 						containingTask,
 						configuration,
 						output,
 						operatorEventDispatcher);
 
-				OP headOperator = headOperatorAndTimeService.f0;
-				headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
-				this.headOperatorWrapper = createOperatorWrapper(headOperator, containingTask, configuration, headOperatorAndTimeService.f1);
+				OP mainOperator = mainOperatorAndTimeService.f0;
+				mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
+				this.mainOperatorWrapper = createOperatorWrapper(mainOperator, containingTask, configuration, mainOperatorAndTimeService.f1);
 
-				// add head operator to end of chain
-				allOpWrappers.add(headOperatorWrapper);
+				// add main operator to end of chain
+				allOpWrappers.add(mainOperatorWrapper);
 
 				this.tailOperatorWrapper = allOpWrappers.get(0);
 			} else {
 				checkState(allOpWrappers.size() == 0);
-				this.headOperatorWrapper = null;
+				this.mainOperatorWrapper = null;
 				this.tailOperatorWrapper = null;
 			}
 
@@ -209,14 +213,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
 			RecordWriterOutput<?>[] streamOutputs,
 			WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainEntryPoint,
-			StreamOperatorWrapper<OUT, OP> headOperatorWrapper) {
+			StreamOperatorWrapper<OUT, OP> mainOperatorWrapper) {
 
 		this.streamOutputs = checkNotNull(streamOutputs);
 		this.chainEntryPoint = checkNotNull(chainEntryPoint);
 		this.operatorEventDispatcher = null;
 
 		checkState(allOperatorWrappers != null && allOperatorWrappers.size() > 0);
-		this.headOperatorWrapper = checkNotNull(headOperatorWrapper);
+		this.mainOperatorWrapper = checkNotNull(mainOperatorWrapper);
 		this.tailOperatorWrapper = allOperatorWrappers.get(0);
 		this.numOperators = allOperatorWrappers.size();
 
@@ -269,19 +273,19 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 * Ends the head operator input specified by {@code inputId}).
+	 * Ends the main operator input specified by {@code inputId}).
 	 *
 	 * @param inputId the input ID starts from 1 which indicates the first input.
 	 */
-	public void endHeadOperatorInput(int inputId) throws Exception {
-		if (headOperatorWrapper != null) {
-			headOperatorWrapper.endOperatorInput(inputId);
+	public void endMainOperatorInput(int inputId) throws Exception {
+		if (mainOperatorWrapper != null) {
+			mainOperatorWrapper.endOperatorInput(inputId);
 		}
 	}
 
 	/**
-	 * Initialize state and open all operators in the chain from <b>tail to head</b>,
-	 * contrary to {@link StreamOperator#close()} which happens <b>head to tail</b>
+	 * Initialize state and open all operators in the chain from <b>tail to heads</b>,
+	 * contrary to {@link StreamOperator#close()} which happens <b>heads to tail</b>
 	 * (see {@link #closeOperators(StreamTaskActionExecutor)}).
 	 */
 	protected void initializeStateAndOpenOperators(StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
@@ -293,13 +297,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 * Closes all operators in a chain effect way. Closing happens from <b>head to tail</b> operator
-	 * in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to head</b>
+	 * Closes all operators in a chain effect way. Closing happens from <b>heads to tail</b> operator
+	 * in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to heads</b>
 	 * (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
 	 */
 	protected void closeOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
-		if (headOperatorWrapper != null) {
-			headOperatorWrapper.close(actionExecutor);
+		if (mainOperatorWrapper != null) {
+			mainOperatorWrapper.close(actionExecutor);
 		}
 	}
 
@@ -321,7 +325,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	public Iterable<StreamOperatorWrapper<?, ?>> getAllOperators(boolean reverse) {
 		return reverse ?
 			new StreamOperatorWrapper.ReadIterator(tailOperatorWrapper, true) :
-			new StreamOperatorWrapper.ReadIterator(headOperatorWrapper, false);
+			new StreamOperatorWrapper.ReadIterator(mainOperatorWrapper, false);
 	}
 
 	public int getNumberOfOperators() {
@@ -359,8 +363,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	@Nullable
-	public OP getHeadOperator() {
-		return (headOperatorWrapper == null) ? null : headOperatorWrapper.getStreamOperator();
+	public OP getMainOperator() {
+		return (mainOperatorWrapper == null) ? null : mainOperatorWrapper.getStreamOperator();
 	}
 
 	// ------------------------------------------------------------------------

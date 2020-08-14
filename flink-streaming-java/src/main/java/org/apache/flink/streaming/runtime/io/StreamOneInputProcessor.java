@@ -67,7 +67,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		InputStatus status = input.emitNext(output);
 
 		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endHeadOperatorInput(1);
+			operatorChain.endMainOperatorInput(1);
 		}
 
 		return status;

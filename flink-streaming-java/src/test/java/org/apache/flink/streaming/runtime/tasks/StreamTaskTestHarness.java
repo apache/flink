@@ -167,7 +167,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	@SuppressWarnings("unchecked")
 	public <OP extends StreamOperator<OUT>> OP getHeadOperator() {
-		return (OP) taskThread.task.getHeadOperator();
+		return (OP) taskThread.task.getMainOperator();
 	}
 
 	/**
