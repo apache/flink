@@ -75,7 +75,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			InputConfig[] configuredInputs,
 			IOManager ioManager,
 			StreamStatusMaintainer streamStatusMaintainer,
-			MultipleInputStreamOperator<?> streamOperator,
+			MultipleInputStreamOperator<?> mainOperator,
 			MultipleInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge[] inputWatermarkGauges,
 			OperatorChain<?, ?> operatorChain,
@@ -83,7 +83,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
-		List<Input> operatorInputs = streamOperator.getInputs();
+		List<Input> operatorInputs = mainOperator.getInputs();
 		int inputsCount = operatorInputs.size();
 
 		this.inputProcessors = new InputProcessor[inputsCount];
@@ -166,7 +166,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
 		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endHeadOperatorInput(getInputId(inputIndex));
+			operatorChain.endMainOperatorInput(getInputId(inputIndex));
 			inputSelectionHandler.nextSelection();
 		}
 	}
