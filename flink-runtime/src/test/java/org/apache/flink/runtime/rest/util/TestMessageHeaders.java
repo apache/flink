@@ -29,6 +29,12 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+/**
+ * Utility {@link MessageParameters} providing a builder to initialize MessageParameters without introducing a new class.
+ * @param <REQ> The RequestBody type.
+ * @param <RES> The ResponseBody type.
+ * @param <M> The MessageParameters type.
+ */
 public class TestMessageHeaders<REQ extends RequestBody, RES extends ResponseBody, M extends MessageParameters>
 		implements MessageHeaders<REQ, RES, M> {
 

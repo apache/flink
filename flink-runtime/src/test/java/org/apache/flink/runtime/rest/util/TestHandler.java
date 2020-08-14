@@ -30,7 +30,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
@@ -40,6 +39,13 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Utility {@link TestHandler} maintaining a queue of CompletableFuture's.
+ * @param <G> The RestfulGateway used by the handler.
+ * @param <REQ> The RequestBody type the handler is processing.
+ * @param <RES> The ResponseBody type the handler is returning.
+ * @param <M> The MessageParameters type utilized by this handler.
+ */
 public class TestHandler<G extends RestfulGateway, REQ extends RequestBody, RES extends ResponseBody, M extends MessageParameters>
 		extends AbstractRestHandler<G, REQ, RES, M> {
 
