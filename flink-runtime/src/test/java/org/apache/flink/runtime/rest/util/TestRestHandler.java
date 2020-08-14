@@ -40,20 +40,19 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Utility {@link TestHandler} maintaining a queue of CompletableFuture's.
- * @param <G> The RestfulGateway used by the handler.
+ * Utility {@link TestRestHandler} maintaining a queue of CompletableFuture's.
+ *
+ * @param <G>   The RestfulGateway used by the handler.
  * @param <REQ> The RequestBody type the handler is processing.
  * @param <RES> The ResponseBody type the handler is returning.
- * @param <M> The MessageParameters type utilized by this handler.
+ * @param <M>   The MessageParameters type utilized by this handler.
  */
-public class TestHandler<G extends RestfulGateway, REQ extends RequestBody, RES extends ResponseBody, M extends MessageParameters>
+public class TestRestHandler<G extends RestfulGateway, REQ extends RequestBody, RES extends ResponseBody, M extends MessageParameters>
 		extends AbstractRestHandler<G, REQ, RES, M> {
 
 	private final Queue<CompletableFuture<RES>> responseQueue;
 
-	public TestHandler(GatewayRetriever<G> gatewayRetriever,
-					   MessageHeaders<REQ, RES, M> messageHeaders,
-					   CompletableFuture<RES> ... responses) {
+	public TestRestHandler(GatewayRetriever<G> gatewayRetriever, MessageHeaders<REQ, RES, M> messageHeaders, CompletableFuture<RES>... responses) {
 		super(gatewayRetriever,
 				RpcUtils.INF_TIMEOUT,
 				Collections.emptyMap(),
