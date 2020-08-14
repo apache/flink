@@ -189,23 +189,24 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 						conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
 						conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
-				Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);
 				BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> builder;
-				if (userMrWriter || !bulkFactory.isPresent()) {
-					HiveBulkWriterFactory hadoopBulkFactory = new HiveBulkWriterFactory(recordWriterFactory);
-					builder = new HadoopPathBasedBulkFormatBuilder<>(
-							new Path(sd.getLocation()), hadoopBulkFactory, jobConf, assigner)
-							.withRollingPolicy(rollingPolicy)
-							.withOutputFileConfig(outputFileConfig);
+				if (userMrWriter) {
+					builder = bucketsBuilderForMRWriter(recordWriterFactory, sd, assigner, rollingPolicy, outputFileConfig);
 					LOG.info("Hive streaming sink: Use MapReduce RecordWriter writer.");
 				} else {
-					builder = StreamingFileSink.forBulkFormat(
-							new org.apache.flink.core.fs.Path(sd.getLocation()),
-							new FileSystemTableSink.ProjectionBulkFactory(bulkFactory.get(), partComputer))
-							.withBucketAssigner(assigner)
-							.withRollingPolicy(rollingPolicy)
-							.withOutputFileConfig(outputFileConfig);
-					LOG.info("Hive streaming sink: Use native parquet&orc writer.");
+					Optional<BulkWriter.Factory<RowData>> bulkFactory = createBulkWriterFactory(partitionColumns, sd);
+					if (bulkFactory.isPresent()) {
+						builder = StreamingFileSink.forBulkFormat(
+								new org.apache.flink.core.fs.Path(sd.getLocation()),
+								new FileSystemTableSink.ProjectionBulkFactory(bulkFactory.get(), partComputer))
+								.withBucketAssigner(assigner)
+								.withRollingPolicy(rollingPolicy)
+								.withOutputFileConfig(outputFileConfig);
+						LOG.info("Hive streaming sink: Use native parquet&orc writer.");
+					} else {
+						builder = bucketsBuilderForMRWriter(recordWriterFactory, sd, assigner, rollingPolicy, outputFileConfig);
+						LOG.info("Hive streaming sink: Use MapReduce RecordWriter writer because BulkWriter Factory not available.");
+					}
 				}
 				return FileSystemTableSink.createStreamingSink(
 						conf,
@@ -228,6 +229,19 @@ public class HiveTableSink implements AppendStreamTableSink, PartitionableTableS
 		} catch (IllegalAccessException | InstantiationException e) {
 			throw new FlinkHiveException("Failed to instantiate output format instance", e);
 		}
+	}
+
+	private BucketsBuilder<RowData, String, ? extends BucketsBuilder<RowData, ?, ?>> bucketsBuilderForMRWriter(
+			HiveWriterFactory recordWriterFactory,
+			StorageDescriptor sd,
+			TableBucketAssigner assigner,
+			TableRollingPolicy rollingPolicy,
+			OutputFileConfig outputFileConfig) {
+		HiveBulkWriterFactory hadoopBulkFactory = new HiveBulkWriterFactory(recordWriterFactory);
+		return new HadoopPathBasedBulkFormatBuilder<>(
+				new Path(sd.getLocation()), hadoopBulkFactory, jobConf, assigner)
+				.withRollingPolicy(rollingPolicy)
+				.withOutputFileConfig(outputFileConfig);
 	}
 
 	private Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(String[] partitionColumns,

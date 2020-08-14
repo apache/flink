@@ -61,7 +61,7 @@ public class PhysicalWriterImpl implements PhysicalWriter {
 	private static final byte[] ZEROS = new byte[64 * 1024];
 	private static final int HDFS_BUFFER_SIZE = 256 * 1024;
 
-	private final OutStream writer;
+	protected final OutStream writer;
 	private final CodedOutputStream protobufWriter;
 	private final CompressionKind compress;
 	private final Map<StreamName, BufferedStream> streams;
@@ -175,9 +175,7 @@ public class PhysicalWriterImpl implements PhysicalWriter {
 	public void writeFileMetadata(OrcProto.Metadata.Builder builder) throws IOException {
 		long startPosition = out.getPos();
 		OrcProto.Metadata metadata = builder.build();
-		metadata.writeTo(protobufWriter);
-		protobufWriter.flush();
-		writer.flush();
+		writeMetadata(metadata);
 		this.metadataLength = (int) (out.getPos() - startPosition);
 	}
 
@@ -188,9 +186,7 @@ public class PhysicalWriterImpl implements PhysicalWriter {
 		builder.setHeaderLength(headerLength);
 		long startPosition = out.getPos();
 		OrcProto.Footer footer = builder.build();
-		footer.writeTo(protobufWriter);
-		protobufWriter.flush();
-		writer.flush();
+		writeFileFooter(footer);
 		this.footerLength = (int) (out.getPos() - startPosition);
 	}
 
@@ -300,12 +296,28 @@ public class PhysicalWriterImpl implements PhysicalWriter {
 
 	private void writeStripeFooter(OrcProto.StripeFooter footer, long dataSize,
 									long indexSize, OrcProto.StripeInformation.Builder dirEntry) throws IOException {
-		footer.writeTo(protobufWriter);
-		protobufWriter.flush();
-		writer.flush();
+		writeStripeFooter(footer);
 
 		dirEntry.setOffset(stripeStart);
 		dirEntry.setFooterLength(out.getPos() - stripeStart - dataSize - indexSize);
+	}
+
+	protected void writeMetadata(OrcProto.Metadata metadata) throws IOException {
+		metadata.writeTo(protobufWriter);
+		protobufWriter.flush();
+		writer.flush();
+	}
+
+	protected void writeFileFooter(OrcProto.Footer footer) throws IOException {
+		footer.writeTo(protobufWriter);
+		protobufWriter.flush();
+		writer.flush();
+	}
+
+	protected void writeStripeFooter(OrcProto.StripeFooter footer) throws IOException {
+		footer.writeTo(protobufWriter);
+		protobufWriter.flush();
+		writer.flush();
 	}
 
 	private static void writeZeros(OutputStream output, long remaining) throws IOException {
