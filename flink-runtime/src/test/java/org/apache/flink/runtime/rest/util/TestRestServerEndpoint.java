@@ -21,14 +21,13 @@ package org.apache.flink.runtime.rest.util;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -48,6 +47,11 @@ public class TestRestServerEndpoint extends RestServerEndpoint {
 
 		public Builder withHandler(RestHandlerSpecification messageHeaders, ChannelInboundHandler handler) {
 			this.handlers.add(Tuple2.of(messageHeaders, handler));
+			return this;
+		}
+
+		public Builder withHandler(AbstractRestHandler<?, ?, ?, ?> handler) {
+			this.handlers.add(Tuple2.of(handler.getMessageHeaders(), handler));
 			return this;
 		}
 
