@@ -57,7 +57,6 @@ echo "[INFO]Preparing Flink cluster..."
 set_config_key "taskmanager.memory.process.size" "4096m"
 set_config_key "taskmanager.numberOfTaskSlots" "4"
 set_config_key "parallelism.default" "4"
-set_config_key "akka.ask.timeout" "20 s"
 start_cluster
 
 
