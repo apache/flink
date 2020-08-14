@@ -20,19 +20,18 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.ConversionException;
@@ -46,6 +45,8 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.util.TestRestHandler;
+import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -58,7 +59,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -95,7 +95,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -213,13 +212,17 @@ public class RestServerEndpointITCase extends TestLogger {
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
-		TestVersionSelectionHandler1 testVersionSelectionHandler1 = new TestVersionSelectionHandler1(
-			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+		TestRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testVersionSelectionHandler1 = new TestRestHandler<>(
+				mockGatewayRetriever,
+				TestVersionSelectionHeaders1.INSTANCE,
+				FutureUtils.completedExceptionally(new RestHandlerException("test failure 1", HttpResponseStatus.OK))
+		);
 
-		TestVersionSelectionHandler2 testVersionSelectionHandler2 = new TestVersionSelectionHandler2(
-			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+		TestRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testVersionSelectionHandler2 = new TestRestHandler<>(
+				mockGatewayRetriever,
+				TestVersionSelectionHeaders2.INSTANCE,
+				FutureUtils.completedExceptionally(new RestHandlerException("test failure 2", HttpResponseStatus.ACCEPTED))
+		);
 
 		testUploadHandler = new TestUploadHandler(
 			mockGatewayRetriever,
@@ -230,18 +233,16 @@ public class RestServerEndpointITCase extends TestLogger {
 			RpcUtils.INF_TIMEOUT,
 			temporaryFolder.getRoot());
 
-		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
-			Tuple2.of(new TestHeaders(), testHandler),
-			Tuple2.of(TestUploadHeaders.INSTANCE, testUploadHandler),
-			Tuple2.of(testVersionHandler.getMessageHeaders(), testVersionHandler),
-			Tuple2.of(testVersionSelectionHandler1.getMessageHeaders(), testVersionSelectionHandler1),
-			Tuple2.of(testVersionSelectionHandler2.getMessageHeaders(), testVersionSelectionHandler2),
-			Tuple2.of(WebContentHandlerSpecification.getInstance(), staticFileServerHandler));
-
-		serverEndpoint = new TestRestServerEndpoint(serverConfig, handlers);
+		serverEndpoint = TestRestServerEndpoint.builder(serverConfig)
+				.withHandler(new TestHeaders(), testHandler)
+				.withHandler(TestUploadHeaders.INSTANCE, testUploadHandler)
+				.withHandler(testVersionHandler)
+				.withHandler(testVersionSelectionHandler1)
+				.withHandler(testVersionSelectionHandler2)
+				.withHandler(WebContentHandlerSpecification.getInstance(), staticFileServerHandler)
+				.buildAndStart();
 		restClient = new TestRestClient(clientConfig);
 
-		serverEndpoint.start();
 		serverAddress = serverEndpoint.getServerAddress();
 	}
 
@@ -620,8 +621,8 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
-		try (RestServerEndpoint serverEndpoint1 = new TestRestServerEndpoint(serverConfig, Collections.emptyList());
-			RestServerEndpoint serverEndpoint2 = new TestRestServerEndpoint(serverConfig, Collections.emptyList())) {
+		try (RestServerEndpoint serverEndpoint1 = TestRestServerEndpoint.builder(serverConfig).build();
+			RestServerEndpoint serverEndpoint2 = TestRestServerEndpoint.builder(serverConfig).build()) {
 
 			serverEndpoint1.start();
 			serverEndpoint2.start();
@@ -640,15 +641,14 @@ public class RestServerEndpointITCase extends TestLogger {
 	public void testEndpointsMustBeUnique() throws Exception {
 		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
-		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
-			Tuple2.of(new TestHeaders(), testHandler),
-			Tuple2.of(new TestHeaders(), testUploadHandler)
-		);
-
 		assertThrows("REST handler registration",
 			FlinkRuntimeException.class,
 			() -> {
-				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint(serverConfig, handlers)) {
+				try (TestRestServerEndpoint restServerEndpoint =  TestRestServerEndpoint.builder(serverConfig)
+						.withHandler(new TestHeaders(), testHandler)
+						.withHandler(new TestHeaders(), testUploadHandler)
+						.build()
+				) {
 					restServerEndpoint.start();
 					return null;
 				}
@@ -659,15 +659,14 @@ public class RestServerEndpointITCase extends TestLogger {
 	public void testDuplicateHandlerRegistrationIsForbidden() throws Exception {
 		final RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
-		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
-			Tuple2.of(new TestHeaders(), testHandler),
-			Tuple2.of(TestUploadHeaders.INSTANCE, testHandler)
-		);
-
 		assertThrows("Duplicate REST handler",
 			FlinkRuntimeException.class,
 			() -> {
-				try (TestRestServerEndpoint restServerEndpoint =  new TestRestServerEndpoint(serverConfig, handlers)) {
+				try (TestRestServerEndpoint restServerEndpoint = TestRestServerEndpoint.builder(serverConfig)
+						.withHandler(new TestHeaders(), testHandler)
+						.withHandler(TestUploadHeaders.INSTANCE, testHandler)
+						.build()
+				) {
 					restServerEndpoint.start();
 					return null;
 				}
@@ -701,26 +700,6 @@ public class RestServerEndpointITCase extends TestLogger {
 			sb.append('a');
 		}
 		return sb.toString();
-	}
-
-	static class TestRestServerEndpoint extends RestServerEndpoint {
-
-		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
-
-		TestRestServerEndpoint(
-				RestServerEndpointConfiguration configuration,
-				List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) throws IOException {
-			super(configuration);
-			this.handlers = requireNonNull(handlers);
-		}
-
-		@Override
-		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
-			return handlers;
-		}
-
-		@Override
-		protected void startInternal() {}
 	}
 
 	private static class TestHandler extends AbstractRestHandler<RestfulGateway, TestRequest, TestResponse, TestParameters> {
@@ -1093,34 +1072,6 @@ public class RestServerEndpointITCase extends TestLogger {
 		@Override
 		public Collection<RestAPIVersion> getSupportedAPIVersions() {
 			return Collections.singleton(RestAPIVersion.V1);
-		}
-	}
-
-	private static class TestVersionSelectionHandler1 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
-
-		private TestVersionSelectionHandler1(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout) {
-			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders1.INSTANCE);
-		}
-
-		@Override
-		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			throw new RestHandlerException("test failure 1", HttpResponseStatus.OK);
-		}
-	}
-
-	private static class TestVersionSelectionHandler2 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
-
-		private TestVersionSelectionHandler2(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout) {
-			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders2.INSTANCE);
-		}
-
-		@Override
-		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			throw new RestHandlerException("test failure 2", HttpResponseStatus.ACCEPTED);
 		}
 	}
 

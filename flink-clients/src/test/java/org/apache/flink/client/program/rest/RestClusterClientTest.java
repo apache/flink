@@ -88,6 +88,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalSt
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalTriggerHeaders;
 import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
@@ -845,7 +846,10 @@ public class RestClusterClientTest extends TestLogger {
 
 	private TestRestServerEndpoint createRestServerEndpoint(
 			final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws Exception {
-		return TestRestServerEndpoint.createAndStartRestServerEndpoint(restServerEndpointConfiguration, abstractRestHandlers);
+		TestRestServerEndpoint.Builder builder = TestRestServerEndpoint.builder(restServerEndpointConfiguration);
+		Arrays.stream(abstractRestHandlers).forEach(builder::withHandler);
+
+		return builder.buildAndStart();
 	}
 
 	@FunctionalInterface
