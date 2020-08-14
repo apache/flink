@@ -21,11 +21,11 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /**
  * A {@link ResourceManagerDriver} is responsible for requesting and releasing resources from/to a particular external
@@ -39,7 +39,7 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
 	 * @param resourceEventHandler Handler that handles resource events.
 	 * @param mainThreadExecutor Rpc main thread executor.
 	 */
-	void initialize(ResourceEventHandler<WorkerType> resourceEventHandler, Executor mainThreadExecutor) throws Exception;
+	void initialize(ResourceEventHandler<WorkerType> resourceEventHandler, ScheduledExecutor mainThreadExecutor) throws Exception;
 
 	/**
 	 * Terminate the deployment specific components.

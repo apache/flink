@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -49,6 +50,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An active implementation of {@link ResourceManager}.
@@ -114,7 +117,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		try {
 			resourceManagerDriver.initialize(
 					this,
-					command -> getMainThreadExecutor().execute(command)); // always execute on the current main thread executor.
+					new GatewayMainThreadExecutor());
 		} catch (Exception e) {
 			throw new ResourceManagerException("Cannot initialize resource provider.", e);
 		}
@@ -273,6 +276,37 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 			while (requiredCount > pendingWorkerCounter.getNum(workerResourceSpec)) {
 				requestNewWorker(workerResourceSpec);
 			}
+		}
+	}
+
+	/**
+	 * Always execute on the current main thread executor.
+	 */
+	private class GatewayMainThreadExecutor implements ScheduledExecutor {
+
+		@Override
+		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			return getMainThreadExecutor().schedule(command, delay, unit);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+			return getMainThreadExecutor().schedule(callable, delay, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+			return getMainThreadExecutor().scheduleAtFixedRate(command, initialDelay, period, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+			return getMainThreadExecutor().scheduleWithFixedDelay(command, initialDelay, delay, unit);
+		}
+
+		@Override
+		public void execute(Runnable command) {
+			getMainThreadExecutor().execute(command);
 		}
 	}
 

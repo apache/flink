@@ -21,13 +21,13 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -37,14 +37,14 @@ import java.util.function.Supplier;
  */
 public class TestingResourceManagerDriver implements ResourceManagerDriver<ResourceID> {
 
-	private final BiConsumerWithException<ResourceEventHandler<ResourceID>, Executor, Exception> initializeConsumer;
+	private final BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer;
 	private final Supplier<CompletableFuture<Void>> terminateSupplier;
 	private final BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer;
 	private final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction;
 	private final Consumer<ResourceID> releaseResourceConsumer;
 
 	private TestingResourceManagerDriver(
-			final BiConsumerWithException<ResourceEventHandler<ResourceID>, Executor, Exception> initializeConsumer,
+			final BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer,
 			final Supplier<CompletableFuture<Void>> terminateSupplier,
 			final BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer,
 			final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction,
@@ -57,7 +57,7 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 	}
 
 	@Override
-	public void initialize(ResourceEventHandler<ResourceID> resourceEventHandler, Executor mainThreadExecutor) throws Exception {
+	public void initialize(ResourceEventHandler<ResourceID> resourceEventHandler, ScheduledExecutor mainThreadExecutor) throws Exception {
 		initializeConsumer.accept(resourceEventHandler, mainThreadExecutor);
 	}
 
@@ -82,7 +82,7 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 	}
 
 	public static class Builder {
-		private BiConsumerWithException<ResourceEventHandler<ResourceID>, Executor, Exception> initializeConsumer =
+		private BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer =
 				(ignore1, ignore2) -> {};
 
 		private Supplier<CompletableFuture<Void>> terminateSupplier =
@@ -97,7 +97,7 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 		private Consumer<ResourceID> releaseResourceConsumer =
 				(ignore) -> {};
 
-		public Builder setInitializeConsumer(BiConsumerWithException<ResourceEventHandler<ResourceID>, Executor, Exception> initializeConsumer) {
+		public Builder setInitializeConsumer(BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer) {
 			this.initializeConsumer = Preconditions.checkNotNull(initializeConsumer);
 			return this;
 		}
