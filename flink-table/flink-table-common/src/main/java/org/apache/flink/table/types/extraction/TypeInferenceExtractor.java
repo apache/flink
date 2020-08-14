@@ -96,8 +96,8 @@ public final class TypeInferenceExtractor {
 			function,
 			UserDefinedFunctionHelper.AGGREGATE_ACCUMULATE,
 			createParameterSignatureExtraction(1),
-			createGenericResultExtraction(AggregateFunction.class, 1),
-			createGenericResultExtraction(AggregateFunction.class, 0),
+			createGenericResultExtraction(AggregateFunction.class, 1, false),
+			createGenericResultExtraction(AggregateFunction.class, 0, true),
 			createParameterWithAccumulatorVerification());
 		return extractTypeInference(mappingExtractor);
 	}
@@ -114,7 +114,7 @@ public final class TypeInferenceExtractor {
 			UserDefinedFunctionHelper.TABLE_EVAL,
 			createParameterSignatureExtraction(0),
 			null,
-			createGenericResultExtraction(TableFunction.class, 0),
+			createGenericResultExtraction(TableFunction.class, 0, true),
 			createParameterVerification());
 		return extractTypeInference(mappingExtractor);
 	}
@@ -130,8 +130,8 @@ public final class TypeInferenceExtractor {
 			function,
 			UserDefinedFunctionHelper.TABLE_AGGREGATE_ACCUMULATE,
 			createParameterSignatureExtraction(1),
-			createGenericResultExtraction(TableAggregateFunction.class, 1),
-			createGenericResultExtraction(TableAggregateFunction.class, 0),
+			createGenericResultExtraction(TableAggregateFunction.class, 1, false),
+			createGenericResultExtraction(TableAggregateFunction.class, 0, true),
 			createParameterWithAccumulatorVerification());
 		return extractTypeInference(mappingExtractor);
 	}
@@ -148,7 +148,7 @@ public final class TypeInferenceExtractor {
 			UserDefinedFunctionHelper.ASYNC_TABLE_EVAL,
 			createParameterSignatureExtraction(1),
 			null,
-			createGenericResultExtraction(AsyncTableFunction.class, 0),
+			createGenericResultExtraction(AsyncTableFunction.class, 0, true),
 			createParameterWithArgumentVerification(CompletableFuture.class));
 		return extractTypeInference(mappingExtractor);
 	}
