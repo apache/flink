@@ -52,9 +52,6 @@ public class FilterUtils {
 	public static boolean isRetainedAfterApplyingFilterPredicates(
 			List<ResolvedExpression> predicates,
 			Function<String, Comparable<?>> getter) {
-		if (predicates.isEmpty()) {
-			return true;
-		}
 		for (ResolvedExpression predicate: predicates) {
 			if (predicate instanceof CallExpression) {
 				FunctionDefinition definition = ((CallExpression) predicate).getFunctionDefinition();
