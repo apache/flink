@@ -46,7 +46,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
 	@Override
 	public void init() {
-		StreamTaskInput<T> input = new StreamTaskSourceInput<>(headOperator);
+		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator);
 		DataOutput<T> output = new AsyncDataOutputToOutput<>(
 			operatorChain.getChainEntryPoint(),
 			getStreamStatusMaintainer());

@@ -177,6 +177,6 @@ public class SourceOperatorStreamTaskTest {
 	}
 
 	private MockSourceReader getSourceReaderFromTask(StreamTaskMailboxTestHarness<Integer> testHarness) {
-		return (MockSourceReader) ((SourceOperator) testHarness.getStreamTask().headOperator).getSourceReader();
+		return (MockSourceReader) ((SourceOperator) testHarness.getStreamTask().mainOperator).getSourceReader();
 	}
 }

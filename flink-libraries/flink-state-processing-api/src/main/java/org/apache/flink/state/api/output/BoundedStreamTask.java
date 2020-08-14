@@ -75,25 +75,25 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
 		// re-initialize the operator with the correct collector.
 		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(getUserCodeClassLoader());
-		Tuple2<OP, Optional<ProcessingTimeService>> headOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
+		Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
 				operatorFactory,
 				this,
 				configuration,
 				new CollectorWrapper<>(collector),
 				operatorChain.getOperatorEventDispatcher());
-		headOperator = headOperatorAndTimeService.f0;
-		headOperator.initializeState(createStreamTaskStateInitializer());
-		headOperator.open();
+		mainOperator = mainOperatorAndTimeService.f0;
+		mainOperator.initializeState(createStreamTaskStateInitializer());
+		mainOperator.open();
 	}
 
 	@Override
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 		if (input.hasNext()) {
 			reuse.replace(input.next());
-			headOperator.setKeyContextElement1(reuse);
-			headOperator.processElement(reuse);
+			mainOperator.setKeyContextElement1(reuse);
+			mainOperator.processElement(reuse);
 		} else {
-			headOperator.endInput();
+			mainOperator.endInput();
 			controller.allActionsCompleted();
 		}
 	}
@@ -103,8 +103,8 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
 	@Override
 	protected void cleanup() throws Exception {
-		headOperator.close();
-		headOperator.dispose();
+		mainOperator.close();
+		mainOperator.dispose();
 	}
 
 	private static class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {

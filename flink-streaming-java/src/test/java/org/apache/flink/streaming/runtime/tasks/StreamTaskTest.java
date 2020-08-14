@@ -1534,7 +1534,7 @@ public class StreamTaskTest extends TestLogger {
 			// Later it calls the `init()` method before actual `run()`, so we are overriding the operatorChain
 			// here for test purposes.
 			super.operatorChain = this.overrideOperatorChain;
-			super.headOperator = super.operatorChain.getHeadOperator();
+			super.mainOperator = super.operatorChain.getMainOperator();
 			super.inputProcessor = new EmptyInputProcessor(false);
 		}
 
@@ -1701,7 +1701,7 @@ public class StreamTaskTest extends TestLogger {
 			checkTaskThreadInfo();
 
 			// Create a time trigger to validate that it would also be invoked in the task's thread.
-			getHeadOperator().getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
+			getMainOperator().getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
 					checkTaskThreadInfo();

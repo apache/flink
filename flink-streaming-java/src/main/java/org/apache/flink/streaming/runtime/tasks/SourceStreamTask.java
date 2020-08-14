@@ -79,7 +79,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void init() {
 		// we check if the source is actually inducing the checkpoints, rather
 		// than the trigger
-		SourceFunction<?> source = headOperator.getUserFunction();
+		SourceFunction<?> source = mainOperator.getUserFunction();
 		if (source instanceof ExternallyInducedSource) {
 			externallyInducedCheckpoints = true;
 
@@ -116,7 +116,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void advanceToEndOfEventTime() throws Exception {
-		headOperator.advanceToEndOfEventTime();
+		mainOperator.advanceToEndOfEventTime();
 	}
 
 	@Override
@@ -147,8 +147,8 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	@Override
 	protected void cancelTask() {
 		try {
-			if (headOperator != null) {
-				headOperator.cancel();
+			if (mainOperator != null) {
+				mainOperator.cancel();
 			}
 		}
 		finally {
@@ -210,7 +210,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		@Override
 		public void run() {
 			try {
-				headOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+				mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
 				completionFuture.complete(null);
 			} catch (Throwable t) {
 				// Note, t can be also an InterruptedException

@@ -61,11 +61,11 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		for (int i = 0; i < inputs.length; i++) {
 			inputLists[i] = new ArrayList<>();
 			watermarkGauges[i] = new WatermarkGauge();
-			headOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
+			mainOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
 		}
 
 		MinWatermarkGauge minInputWatermarkGauge = new MinWatermarkGauge(watermarkGauges);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 		int numberOfInputs = configuration.getNumberOfNetworkInputs();
@@ -87,7 +87,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			InputConfig[] inputs,
 			WatermarkGauge[] inputWatermarkGauges) {
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
+			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null,
 			inputs.length);
 
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -104,10 +104,10 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			inputs,
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
-			headOperator,
+			mainOperator,
 			selectionHandler,
 			inputWatermarkGauges,
 			operatorChain,
-			setupNumRecordsInCounter(headOperator));
+			setupNumRecordsInCounter(mainOperator));
 	}
 }
