@@ -41,19 +41,18 @@ class DataStreamTests(PyFlinkTestCase):
 
     def test_set_parallelism(self):
         parallelism = 3
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        ds.set_parallelism(parallelism)
-        ds.add_sink(self.test_sink)
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)
+        ds.set_parallelism(parallelism).add_sink(self.test_sink)
         plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual(parallelism, plan['nodes'][0]['parallelism'])
+        self.assertEqual(parallelism, plan['nodes'][1]['parallelism'])
 
     def test_set_max_parallelism(self):
         max_parallelism = 4
         self.env.set_parallelism(8)
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)
         ds.set_parallelism(max_parallelism).add_sink(self.test_sink)
         plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual(max_parallelism, plan['nodes'][0]['parallelism'])
+        self.assertEqual(max_parallelism, plan['nodes'][1]['parallelism'])
 
     def test_force_non_parallel(self):
         self.env.set_parallelism(8)
@@ -344,19 +343,21 @@ class DataStreamTests(PyFlinkTestCase):
                 self.assertEqual(j_stream_node.getSlotSharingGroup(), slot_sharing_group_2)
 
     def test_chaining_strategy(self):
-        chained_operator_name = "map_operator_1"
-        chained_operator_name_1 = "map_operator_2"
+        chained_operator_name_0 = "map_operator_0"
+        chained_operator_name_1 = "map_operator_1"
+        chained_operator_name_2 = "map_operator_2"
 
         ds = self.env.from_collection([1, 2, 3])
-        ds.set_parallelism(2).map(lambda x: x).set_parallelism(2)\
-            .name(chained_operator_name).map(lambda x: x).set_parallelism(2)\
-            .name(chained_operator_name_1).add_sink(self.test_sink)
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2)\
+            .add_sink(self.test_sink)
 
         def assert_chainable(j_stream_graph, expected_upstream_chainable,
                              expected_downstream_chainable):
             j_stream_nodes = list(j_stream_graph.getStreamNodes().toArray())
             for j_stream_node in j_stream_nodes:
-                if j_stream_node.getOperatorName() == chained_operator_name:
+                if j_stream_node.getOperatorName() == chained_operator_name_1:
                     JStreamingJobGraphGenerator = get_gateway().jvm \
                         .org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator
 
@@ -379,9 +380,9 @@ class DataStreamTests(PyFlinkTestCase):
 
         ds = self.env.from_collection([1, 2, 3])
         # Start a new chain for map_operator_1
-        ds.set_parallelism(2).map(lambda x: x).set_parallelism(2) \
-            .name(chained_operator_name).start_new_chain()\
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1)\
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1).start_new_chain() \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
@@ -392,9 +393,9 @@ class DataStreamTests(PyFlinkTestCase):
 
         ds = self.env.from_collection([1, 2, 3])
         # Disable chaining for map_operator_1
-        ds.set_parallelism(2).map(lambda x: x).set_parallelism(2) \
-            .name(chained_operator_name).disable_chaining() \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1) \
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1).disable_chaining() \
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
