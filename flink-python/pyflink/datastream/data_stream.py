@@ -698,9 +698,6 @@ class KeyedStream(DataStream):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def connect(self, ds: 'KeyedStream') -> 'ConnectedStreams':
-        raise Exception('Connect on KeyedStream has not been supported yet.')
-
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         return self._values().filter(func)
 
@@ -799,6 +796,30 @@ class ConnectedStreams(object):
         self.stream1 = stream1
         self.stream2 = stream2
 
+    def key_by(self, key_selector1: Union[Callable, KeySelector],
+               key_selector2: Union[Callable, KeySelector],
+               key_type_info: TypeInformation = None) -> 'ConnectedStreams':
+        """
+        KeyBy operation for connected data stream. Assigns keys to the elements of
+        input1 and input2 using keySelector1 and keySelector2 with explicit type information
+        for the common key type.
+
+        :param key_selector1: The `KeySelector` used for grouping the first input.
+        :param key_selector2: The `KeySelector` used for grouping the second input.
+        :param key_type_info: The type information of the common key type.
+        :return: The partitioned `ConnectedStreams`
+        """
+
+        ds1 = self.stream1
+        ds2 = self.stream2
+        if isinstance(self.stream1, KeyedStream):
+            ds1 = self.stream1._origin_stream
+        if isinstance(self.stream2, KeyedStream):
+            ds2 = self.stream2._origin_stream
+        return ConnectedStreams(
+            ds1.key_by(key_selector1, key_type_info),
+            ds2.key_by(key_selector2, key_type_info))
+
     def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
         """
@@ -893,6 +914,10 @@ class ConnectedStreams(object):
             j_input_types1,
             j_input_types2,
             output_type_info.get_java_type_info(),
-            j_python_data_stream_function_info)
+            j_python_data_stream_function_info,
+            self._is_keyed_stream())
 
         return j_python_data_stream_function_operator, output_type_info.get_java_type_info()
+
+    def _is_keyed_stream(self):
+        return isinstance(self.stream1, KeyedStream) and isinstance(self.stream2, KeyedStream)
