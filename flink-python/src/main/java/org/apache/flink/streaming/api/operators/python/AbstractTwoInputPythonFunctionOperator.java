@@ -20,25 +20,25 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
 /**
- * Base class for all one input stream operators to execute Python functions.
+ * Base class for all two input stream operators to execute Python functions.
  */
 @Internal
-public abstract class AbstractPythonFunctionOperator<IN, OUT>
+public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 	extends AbstractPythonFunctionOperatorBase<OUT>
-	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+	implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
 
 	private static final long serialVersionUID = 1L;
 
-	public AbstractPythonFunctionOperator(Configuration config) {
+	public AbstractTwoInputPythonFunctionOperator(Configuration config) {
 		super(config);
 	}
 
 	@Override
-	public void endInput() throws Exception {
+	public void endInput(int inputId) throws Exception {
 		invokeFinishBundle();
 	}
 }
