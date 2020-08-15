@@ -24,7 +24,7 @@ from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
-    ReduceFunctionWrapper
+    ReduceFunctionWrapper, CoMapFunction
 from pyflink.java_gateway import get_gateway
 
 
@@ -359,6 +359,17 @@ class DataStream(object):
         j_united_stream = self._j_data_stream.union(j_data_stream_arr)
         return DataStream(j_data_stream=j_united_stream)
 
+    def connect(self, ds: 'DataStream') -> 'ConnectedStreams':
+        """
+        Creates a new 'ConnectedStreams' by connecting 'DataStream' outputs of (possible)
+        different types with each other. The DataStreams connected using this operator can
+        be used with CoFunctions to apply joint transformations.
+
+        :param ds: The DataStream with which this stream will be connected.
+        :return: The `ConnectedStreams`.
+        """
+        return ConnectedStreams(self, ds)
+
     def shuffle(self) -> 'DataStream':
         """
         Sets the partitioning of the DataStream so that the output elements are shuffled uniformly
@@ -687,6 +698,9 @@ class KeyedStream(DataStream):
             j_python_data_stream_scalar_function_operator
         ))
 
+    def connect(self, ds: 'KeyedStream') -> 'ConnectedStreams':
+        raise Exception('Connect on KeyedStream has not been supported yet.')
+
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         return self._values().filter(func)
 
@@ -763,3 +777,92 @@ class KeyedStream(DataStream):
 
     def slot_sharing_group(self, slot_sharing_group: str) -> 'DataStream':
         raise Exception("Setting slot sharing group for KeyedStream is not supported.")
+
+
+class ConnectedStreams(object):
+    """
+    ConnectedStreams represent two connected streams of (possibly) different data types.
+    Connected streams are useful for cases where operations on one stream directly
+    affect the operations on the other stream, usually via shared state between the streams.
+
+    An example for the use of connected streams would be to apply rules that change over time
+    onto another stream. One of the connected streams has the rules, the other stream the
+    elements to apply the rules to. The operation on the connected stream maintains the
+    current set of rules in the state. It may receive either a rule update and update the state
+    or a data element and apply the rules in the state to the element.
+
+    The connected stream can be conceptually viewed as a union stream of an Either type, that
+    holds either the first stream's type or the second stream's type.
+    """
+
+    def __init__(self, stream1: DataStream, stream2: DataStream):
+        self.stream1 = stream1
+        self.stream2 = stream2
+
+    def map(self, func: CoMapFunction, type_info: TypeInformation = None) \
+            -> 'DataStream':
+        """
+        Applies a CoMap transformation on a `ConnectedStreams` and maps the output to a common
+        type. The transformation calls a `CoMapFunction.map1` for each element of the first
+        input and `CoMapFunction.map2` for each element of the second input. Each CoMapFunction
+        call returns exactly one element.
+
+        :param func: The CoMapFunction used to jointly transform the two input DataStreams
+        :param type_info: `TypeInformation` for the result type of the function.
+        :return: The transformed `DataStream`
+        """
+        if not isinstance(func, CoMapFunction):
+            raise TypeError("The input function must be a CoMapFunction!")
+        func_name = str(func)
+
+        # get connected stream
+        j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_operator, j_output_type = self._get_connected_stream_operator(
+            func, type_info, func_name, flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP)
+        return DataStream(j_connected_stream.transform("Co-Process", j_output_type, j_operator))
+
+    def _get_connected_stream_operator(self, func: Union[Function, FunctionWrapper],
+                                       type_info: TypeInformation, func_name: str,
+                                       func_type: int):
+        gateway = get_gateway()
+        import cloudpickle
+        serialized_func = cloudpickle.dumps(func)
+
+        j_input_types1 = self.stream1._j_data_stream.getTransformation().getOutputType()
+        j_input_types2 = self.stream2._j_data_stream.getTransformation().getOutputType()
+
+        if type_info is None:
+            output_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
+        else:
+            if isinstance(type_info, list):
+                output_type_info = RowTypeInfo(type_info)
+            else:
+                output_type_info = type_info
+
+        DataStreamPythonFunction = gateway.jvm.org.apache.flink.datastream.runtime.functions \
+            .python.DataStreamPythonFunction
+        j_python_data_stream_scalar_function = DataStreamPythonFunction(
+            func_name,
+            bytearray(serialized_func),
+            _get_python_env())
+
+        DataStreamPythonFunctionInfo = gateway.jvm. \
+            org.apache.flink.datastream.runtime.functions.python \
+            .DataStreamPythonFunctionInfo
+
+        j_python_data_stream_function_info = DataStreamPythonFunctionInfo(
+            j_python_data_stream_scalar_function,
+            func_type)
+
+        j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
+        DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+            .operators.python.DataStreamTwoInputPythonStatelessFunctionOperator
+        j_python_data_stream_function_operator = DataStreamPythonFunctionOperator(
+            j_conf,
+            j_input_types1,
+            j_input_types2,
+            output_type_info.get_java_type_info(),
+            j_python_data_stream_function_info)
+
+        return j_python_data_stream_function_operator, output_type_info.get_java_type_info()
