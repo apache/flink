@@ -22,6 +22,7 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.functions import FilterFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
+from pyflink.datastream.functions import CoMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -101,6 +102,34 @@ class DataStreamTests(PyFlinkTestCase):
         self.env.execute('map_function_test')
         results = self.test_sink.get_results(False)
         expected = ['ab,2,1', 'bdc,3,2', 'cfgs,4,3', 'deeefg,6,4']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_co_map_function_without_data_types(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).map(MyCoMapFunction()).add_sink(self.test_sink)
+        self.env.execute('co_map_function_test')
+        results = self.test_sink.get_results(True)
+        expected = ['2', '3', '4', 'a', 'b', 'c']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_co_map_function_with_data_types(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).map(MyCoMapFunction(), type_info=Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('co_map_function_test')
+        results = self.test_sink.get_results(False)
+        expected = ['2', '3', '4', 'a', 'b', 'c']
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
@@ -431,3 +460,12 @@ class MyFilterFunction(FilterFunction):
 
     def filter(self, value):
         return value[0] % 2 == 0
+
+
+class MyCoMapFunction(CoMapFunction):
+
+    def map1(self, value):
+        return str(value[0] + 1)
+
+    def map2(self, value):
+        return value[0]
