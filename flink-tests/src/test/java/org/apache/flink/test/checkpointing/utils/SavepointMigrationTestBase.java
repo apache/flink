@@ -20,10 +20,8 @@ package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -130,14 +128,14 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		// Submit the job
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		JobSubmissionResult jobSubmissionResult = ClientUtils.submitJob(client, jobGraph);
+		JobID jobID = client.submitJob(jobGraph).get();
 
-		LOG.info("Submitted job {} and waiting...", jobSubmissionResult.getJobID());
+		LOG.info("Submitted job {} and waiting...", jobID);
 
 		boolean done = false;
 		while (deadLine.hasTimeLeft()) {
 			Thread.sleep(100);
-			Map<String, Object> accumulators = client.getAccumulators(jobSubmissionResult.getJobID()).get();
+			Map<String, Object> accumulators = client.getAccumulators(jobID).get();
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
@@ -165,7 +163,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 		LOG.info("Triggering savepoint.");
 
-		CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobSubmissionResult.getJobID(), null);
+		CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
 
 		String jobmanagerSavepointPath = savepointPathFuture.get(deadLine.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
@@ -193,17 +191,16 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
-		JobSubmissionResult jobSubmissionResult = ClientUtils.submitJob(client, jobGraph);
+		JobID jobID = client.submitJob(jobGraph).get();
 
 		boolean done = false;
 		while (deadLine.hasTimeLeft()) {
 
 			// try and get a job result, this will fail if the job already failed. Use this
 			// to get out of this loop
-			JobID jobId = jobSubmissionResult.getJobID();
 
 			try {
-				CompletableFuture<JobStatus> jobStatusFuture = client.getJobStatus(jobSubmissionResult.getJobID());
+				CompletableFuture<JobStatus> jobStatusFuture = client.getJobStatus(jobID);
 
 				JobStatus jobStatus = jobStatusFuture.get(5, TimeUnit.SECONDS);
 
@@ -213,7 +210,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 			}
 
 			Thread.sleep(100);
-			Map<String, Object> accumulators = client.getAccumulators(jobId).get();
+			Map<String, Object> accumulators = client.getAccumulators(jobID).get();
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {

@@ -27,7 +27,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -77,6 +76,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -143,7 +143,7 @@ public class RegionFailoverITCase extends TestLogger {
 		try {
 			JobGraph jobGraph = createJobGraph();
 			ClusterClient<?> client = cluster.getClusterClient();
-			ClientUtils.submitJobAndWaitForResult(client, jobGraph, RegionFailoverITCase.class.getClassLoader());
+			submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			verifyAfterJobExecuted();
 		} catch (Exception e) {
 			e.printStackTrace();
