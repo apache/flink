@@ -27,13 +27,13 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
  * Base class for all one input stream operators to execute Python functions.
  */
 @Internal
-public abstract class AbstractPythonFunctionOperator<IN, OUT>
+public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
 	extends AbstractPythonFunctionOperatorBase<OUT>
 	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;
 
-	public AbstractPythonFunctionOperator(Configuration config) {
+	public AbstractOneInputPythonFunctionOperator(Configuration config) {
 		super(config);
 	}
 
