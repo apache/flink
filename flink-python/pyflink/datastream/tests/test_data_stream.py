@@ -22,7 +22,7 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.functions import FilterFunction
 from pyflink.datastream.functions import KeySelector
 from pyflink.datastream.functions import MapFunction, FlatMapFunction
-from pyflink.datastream.functions import CoMapFunction
+from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -126,7 +126,7 @@ class DataStreamTests(PyFlinkTestCase):
                                        type_info=Types.ROW([Types.INT(), Types.INT()]))
         ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
                                        type_info=Types.ROW([Types.STRING(), Types.STRING()]))
-        ds1.connect(ds2).map(MyCoMapFunction(), type_info=Types.STRING()).add_sink(self.test_sink)
+        ds1.connect(ds2).map(MyCoMapFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('co_map_function_test')
         results = self.test_sink.get_results(False)
         expected = ['2', '3', '4', 'a', 'b', 'c']
@@ -176,6 +176,35 @@ class DataStreamTests(PyFlinkTestCase):
         expected = ['a,0', 'bdc,2', 'deeefg,4']
         results.sort()
         expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_co_flat_map_function_without_data_types(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).flat_map(MyCoFlatMapFunction()).add_sink(self.test_sink)
+        self.env.execute('co_flat_map_function_test')
+        results = self.test_sink.get_results(True)
+        expected = ['2', '2', '3', '3', '4', '4', 'b']
+        expected.sort()
+        results.sort()
+        self.assertEqual(expected, results)
+
+    def test_co_flat_map_function_with_data_types(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
+                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
+        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
+                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
+        ds1.connect(ds2).flat_map(MyCoFlatMapFunction(), output_type=Types.STRING())\
+            .add_sink(self.test_sink)
+        self.env.execute('co_flat_map_function_test')
+        results = self.test_sink.get_results(False)
+        expected = ['2', '2', '3', '3', '4', '4', 'b']
+        expected.sort()
+        results.sort()
         self.assertEqual(expected, results)
 
     def test_filter_without_data_types(self):
@@ -469,3 +498,14 @@ class MyCoMapFunction(CoMapFunction):
 
     def map2(self, value):
         return value[0]
+
+
+class MyCoFlatMapFunction(CoFlatMapFunction):
+
+    def flat_map1(self, value):
+        yield str(value[0] + 1)
+        yield str(value[0] + 1)
+
+    def flat_map2(self, value):
+        if value[0] == 'b':
+            yield value[0]

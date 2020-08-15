@@ -24,7 +24,7 @@ from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
-    ReduceFunctionWrapper, CoMapFunction
+    ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction
 from pyflink.java_gateway import get_gateway
 
 
@@ -799,7 +799,7 @@ class ConnectedStreams(object):
         self.stream1 = stream1
         self.stream2 = stream2
 
-    def map(self, func: CoMapFunction, type_info: TypeInformation = None) \
+    def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
         """
         Applies a CoMap transformation on a `ConnectedStreams` and maps the output to a common
@@ -819,8 +819,38 @@ class ConnectedStreams(object):
         j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_operator, j_output_type = self._get_connected_stream_operator(
-            func, type_info, func_name, flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP)
-        return DataStream(j_connected_stream.transform("Co-Process", j_output_type, j_operator))
+            func,
+            output_type,
+            func_name,
+            flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP)
+        return DataStream(j_connected_stream.transform("Co-Map", j_output_type, j_operator))
+
+    def flat_map(self, func: CoFlatMapFunction, output_type: TypeInformation = None) \
+            -> 'DataStream':
+        """
+        Applies a CoFlatMap transformation on a `ConnectedStreams` and maps the output to a
+        common type. The transformation calls a `CoFlatMapFunction.flatMap1` for each element
+        of the first input and `CoFlatMapFunction.flatMap2` for each element of the second
+        input. Each CoFlatMapFunction call returns any number of elements including none.
+
+        :param func: The CoFlatMapFunction used to jointly transform the two input DataStreams
+        :param output_type: `TypeInformation` for the result type of the function.
+        :return: The transformed `DataStream`
+        """
+
+        if not isinstance(func, CoFlatMapFunction):
+            raise TypeError("The input must be a CoFlatMapFunction!")
+        func_name = str(func)
+
+        # get connected stream
+        j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_operator, j_output_type = self._get_connected_stream_operator(
+            func,
+            output_type,
+            func_name,
+            flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_FLAT_MAP)
+        return DataStream(j_connected_stream.transform("Co-Flat Map", j_output_type, j_operator))
 
     def _get_connected_stream_operator(self, func: Union[Function, FunctionWrapper],
                                        type_info: TypeInformation, func_name: str,
