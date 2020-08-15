@@ -18,10 +18,9 @@
 
 package org.apache.flink.test.cancelling;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -97,14 +96,14 @@ public abstract class CancelingTestBase extends TestLogger {
 		final long rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration).toMilliseconds();
 
 		ClusterClient<?> client = CLUSTER.getClusterClient();
-		JobSubmissionResult jobSubmissionResult = ClientUtils.submitJob(client, jobGraph);
+		JobID jobID = client.submitJob(jobGraph).get();
 
 		Deadline submissionDeadLine = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 
-		JobStatus jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(rpcTimeout, TimeUnit.MILLISECONDS);
+		JobStatus jobStatus = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
 		while (jobStatus != JobStatus.RUNNING && submissionDeadLine.hasTimeLeft()) {
 			Thread.sleep(50);
-			jobStatus = client.getJobStatus(jobSubmissionResult.getJobID()).get(rpcTimeout, TimeUnit.MILLISECONDS);
+			jobStatus = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
 		}
 		if (jobStatus != JobStatus.RUNNING) {
 			Assert.fail("Job not in state RUNNING.");
@@ -112,17 +111,17 @@ public abstract class CancelingTestBase extends TestLogger {
 
 		Thread.sleep(msecsTillCanceling);
 
-		client.cancel(jobSubmissionResult.getJobID()).get();
+		client.cancel(jobID).get();
 
 		Deadline cancelDeadline = new FiniteDuration(maxTimeTillCanceled, TimeUnit.MILLISECONDS).fromNow();
 
-		JobStatus jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(rpcTimeout, TimeUnit.MILLISECONDS);
+		JobStatus jobStatusAfterCancel = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
 		while (jobStatusAfterCancel != JobStatus.CANCELED && cancelDeadline.hasTimeLeft()) {
 			Thread.sleep(50);
-			jobStatusAfterCancel = client.getJobStatus(jobSubmissionResult.getJobID()).get(rpcTimeout, TimeUnit.MILLISECONDS);
+			jobStatusAfterCancel = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
 		}
 		if (jobStatusAfterCancel != JobStatus.CANCELED) {
-			Assert.fail("Failed to cancel job with ID " + jobSubmissionResult.getJobID() + '.');
+			Assert.fail("Failed to cancel job with ID " + jobID + '.');
 		}
 	}
 
