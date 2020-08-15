@@ -365,3 +365,27 @@ class AvroRowSerializationSchema(SerializationSchema):
             j_serialization_schema = JAvroRowSerializationSchema(avro_schema_string)
 
         super(AvroRowSerializationSchema, self).__init__(j_serialization_schema)
+
+
+class Encoder(object):
+    """
+    A `Encoder` is used by the streaming file sink to perform the actual writing
+    of the incoming elements to the files in a bucket.
+    """
+
+    def __init__(self, j_encoder):
+        self.j_encoder = j_encoder
+
+    def get_java_encoder(self):
+        return self.j_encoder
+
+
+class SimpleStringEncoder(Encoder):
+    """
+    A simple `Encoder` that uses `toString()` on the input elements and
+    writes them to the output bucket file separated by newline.
+    """
+    def __init__(self, charset_name: str = "UTF-8"):
+        j_encoder = get_gateway().\
+            jvm.org.apache.flink.api.common.serialization.SimpleStringEncoder(charset_name)
+        super(SimpleStringEncoder, self).__init__(j_encoder)
