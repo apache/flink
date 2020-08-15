@@ -26,7 +26,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -174,7 +173,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 		JobID jobID = jobGraph.getJobID();
 
-		ClientUtils.submitJob(clusterClient, jobGraph);
+		clusterClient.submitJob(jobGraph).get();
 
 		TestingCompletedCheckpointStore.addCheckpointLatch.await();
 		TestingCompletedCheckpointStore.abortCheckpointLatch.trigger();

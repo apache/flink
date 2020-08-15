@@ -19,7 +19,6 @@
 
 package org.apache.flink.test.example.failing;
 
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
@@ -45,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Predicate;
 
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.fail;
 
 /**
@@ -127,14 +127,14 @@ public class JobSubmissionFailsITCase extends TestLogger {
 		runJobSubmissionTest(jobGraph, e -> ExceptionUtils.findThrowable(e, IOException.class).isPresent());
 	}
 
-	private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate) throws org.apache.flink.client.program.ProgramInvocationException {
+	private void runJobSubmissionTest(JobGraph jobGraph, Predicate<Exception> failurePredicate) throws Exception {
 		ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
 		try {
 			if (detached) {
-				ClientUtils.submitJob(client, jobGraph);
+				client.submitJob(jobGraph).get();
 			} else {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, JobSubmissionFailsITCase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			}
 			fail("Job submission should have thrown an exception.");
 		} catch (Exception e) {
@@ -143,7 +143,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			}
 		}
 
-		ClientUtils.submitJobAndWaitForResult(client, getWorkingJobGraph(), JobSubmissionFailsITCase.class.getClassLoader());
+		submitJobAndWaitForResult(client, getWorkingJobGraph(), getClass().getClassLoader());
 	}
 
 	@Nonnull

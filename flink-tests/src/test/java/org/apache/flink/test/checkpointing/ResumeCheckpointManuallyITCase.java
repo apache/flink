@@ -21,7 +21,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -295,7 +294,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint);
 		NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
 
-		ClientUtils.submitJob(client, initialJobGraph);
+		client.submitJob(initialJobGraph).get();
 
 		// wait until all sources have been started
 		NotifyingInfiniteTupleSource.countDownLatch.await();

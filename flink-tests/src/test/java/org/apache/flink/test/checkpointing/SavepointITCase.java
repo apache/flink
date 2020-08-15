@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -30,7 +29,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -91,6 +89,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -209,7 +208,7 @@ public class SavepointITCase extends TestLogger {
 		ClusterClient<?> client = cluster.getClusterClient();
 
 		try {
-			ClientUtils.submitJob(client, jobGraph);
+			client.submitJob(jobGraph).get();
 
 			StatefulCounter.getProgressLatch().await();
 
@@ -253,7 +252,7 @@ public class SavepointITCase extends TestLogger {
 		ClusterClient<?> client = cluster.getClusterClient();
 
 		try {
-			ClientUtils.submitJob(client, jobGraph);
+			client.submitJob(jobGraph).get();
 
 			// Await state is restored
 			StatefulCounter.getRestoreLatch().await();
@@ -337,7 +336,7 @@ public class SavepointITCase extends TestLogger {
 		final JobGraph graph = new JobGraph(vertex);
 
 		try {
-			ClientUtils.submitJob(client, graph);
+			client.submitJob(graph).get();
 
 			client.triggerSavepoint(graph.getJobID(), null).get();
 
@@ -386,7 +385,7 @@ public class SavepointITCase extends TestLogger {
 			LOG.info("Submitting job " + jobGraph.getJobID() + " in detached mode.");
 
 			try {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointITCase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			} catch (Exception e) {
 				Optional<JobExecutionException> expectedJobExecutionException = ExceptionUtils.findThrowable(e, JobExecutionException.class);
 				Optional<FileNotFoundException> expectedFileNotFoundException = ExceptionUtils.findThrowable(e, FileNotFoundException.class);
@@ -452,8 +451,7 @@ public class SavepointITCase extends TestLogger {
 
 			JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
 
-			JobSubmissionResult submissionResult = ClientUtils.submitJob(client, originalJobGraph);
-			JobID jobID = submissionResult.getJobID();
+			JobID jobID = client.submitJob(originalJobGraph).get();
 
 			// wait for the Tasks to be ready
 			assertTrue(StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
@@ -502,7 +500,7 @@ public class SavepointITCase extends TestLogger {
 					"savepoint path " + savepointPath + " in detached mode.");
 
 			// Submit the job
-			ClientUtils.submitJob(client, modifiedJobGraph);
+			client.submitJob(modifiedJobGraph).get();
 			// Await state is restored
 			assertTrue(StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
@@ -696,7 +694,7 @@ public class SavepointITCase extends TestLogger {
 
 		String savepointPath = null;
 		try {
-			ClientUtils.submitJob(client, jobGraph);
+			client.submitJob(jobGraph).get();
 			for (OneShotLatch latch : iterTestSnapshotWait) {
 				latch.await();
 			}
@@ -710,7 +708,7 @@ public class SavepointITCase extends TestLogger {
 			jobGraph = streamGraph.getJobGraph();
 			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
-			ClientUtils.submitJob(client, jobGraph);
+			client.submitJob(jobGraph).get();
 			for (OneShotLatch latch : iterTestRestoreWait) {
 				latch.await();
 			}

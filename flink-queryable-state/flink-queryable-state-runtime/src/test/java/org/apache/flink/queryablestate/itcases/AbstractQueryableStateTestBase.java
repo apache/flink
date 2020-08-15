@@ -45,9 +45,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.queryablestate.client.VoidNamespace;
@@ -57,6 +55,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -187,7 +186,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
@@ -296,16 +295,15 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		// Submit the job graph
 		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		boolean caughtException = false;
-		try {
-			ClientUtils.submitJobAndWaitForResult(clusterClient, jobGraph, AbstractQueryableStateTestBase.class.getClassLoader());
-		} catch (ProgramInvocationException e) {
-			String failureCause = ExceptionUtils.stringifyException(e);
-			assertThat(failureCause, containsString("KvState with name '" + queryName + "' has already been registered by another operator"));
-			caughtException = true;
-		}
-
-		assertTrue(caughtException);
+		clusterClient.submitJob(jobGraph)
+			.thenCompose(clusterClient::requestJobResult)
+			.thenApply(JobResult::getSerializedThrowable)
+			.thenAccept(serializedThrowable -> {
+				assertTrue(serializedThrowable.isPresent());
+				final Throwable t = serializedThrowable.get().deserializeError(getClass().getClassLoader());
+				final String failureCause = ExceptionUtils.stringifyException(t);
+				assertThat(failureCause, containsString("KvState with name '" + queryName + "' has already been registered by another operator"));
+			}).get();
 	}
 
 	/**
@@ -346,7 +344,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
 		}
 	}
@@ -380,7 +378,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		try (AutoCancellableJob closableJobGraph = new AutoCancellableJob(deadline, clusterClient, env)) {
 
-			ClientUtils.submitJob(clusterClient, closableJobGraph.getJobGraph());
+			clusterClient.submitJob(closableJobGraph.getJobGraph()).get();
 
 			CompletableFuture<JobStatus> jobStatusFuture =
 				clusterClient.getJobStatus(closableJobGraph.getJobId());
@@ -481,7 +479,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					BasicTypeInfo.INT_TYPE_INFO,
 					valueState);
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
 		}
 	}
@@ -528,7 +526,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			// Now query
 			int key = 0;
@@ -596,7 +594,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 			executeValueQuery(deadline, client, jobId, "matata", stateDesc, numElements);
 		}
 	}
@@ -640,7 +638,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final String expected = Integer.toString(numElements * (numElements + 1) / 2);
 
@@ -712,7 +710,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final long expected = numElements * (numElements + 1L) / 2L;
 
@@ -804,7 +802,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final long expected = numElements * (numElements + 1L) / 2L;
 
@@ -894,7 +892,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			final Map<Integer, Set<Long>> results = new HashMap<>();
 
@@ -979,7 +977,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final JobID jobId = autoCancellableJob.getJobId();
 			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-			ClientUtils.submitJob(clusterClient, jobGraph);
+			clusterClient.submitJob(jobGraph).get();
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;

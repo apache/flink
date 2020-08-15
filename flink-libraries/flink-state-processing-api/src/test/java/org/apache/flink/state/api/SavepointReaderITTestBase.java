@@ -19,7 +19,6 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -27,7 +26,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -172,7 +170,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 		String dirPath = getTempDirPath(new AbstractID().toHexString());
 
 		try {
-			JobSubmissionResult result = ClientUtils.submitJob(client, jobGraph);
+			JobID jobID = client.submitJob(jobGraph).get();
 
 			boolean finished = false;
 			while (deadline.hasTimeLeft()) {
@@ -193,7 +191,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
 				Assert.fail("Failed to initialize state within deadline");
 			}
 
-			CompletableFuture<String> path = client.triggerSavepoint(result.getJobID(), dirPath);
+			CompletableFuture<String> path = client.triggerSavepoint(jobID, dirPath);
 			return path.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 		} finally {
 			client.cancel(jobId).get();
