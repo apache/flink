@@ -543,15 +543,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			afterInvoke();
 		}
-		catch (Exception invokeException) {
+		catch (Throwable invokeException) {
 			failing = !canceled;
 			try {
 				cleanUpInvoke();
 			}
 			catch (Throwable cleanUpException) {
-				throw (Exception) ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
+				Throwable throwable = ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
+				ExceptionUtils.rethrowException(throwable);
 			}
-			throw invokeException;
+			ExceptionUtils.rethrowException(invokeException);
 		}
 		cleanUpInvoke();
 	}
