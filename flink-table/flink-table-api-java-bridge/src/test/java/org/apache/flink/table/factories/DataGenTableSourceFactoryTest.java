@@ -68,6 +68,7 @@ public class DataGenTableSourceFactoryTest {
 		.field("f0", DataTypes.STRING())
 		.field("f1", DataTypes.BIGINT())
 		.field("f2", DataTypes.BIGINT())
+		.field("f3", DataTypes.DECIMAL(3, 3))
 		.build();
 
 	@Test
@@ -86,6 +87,10 @@ public class DataGenTableSourceFactoryTest {
 		descriptor.putString(FIELDS + ".f2." + KIND, SEQUENCE);
 		descriptor.putLong(FIELDS + ".f2." + START, 50);
 		descriptor.putLong(FIELDS + ".f2." + END, 60);
+
+		descriptor.putString(FIELDS + ".f3." + KIND, RANDOM);
+		descriptor.putLong(FIELDS + ".f3." + MIN, 100000);
+		descriptor.putLong(FIELDS + ".f3." + MAX, 1000000);
 
 		DynamicTableSource source = createSource(
 				TEST_SCHEMA, descriptor.asMap());

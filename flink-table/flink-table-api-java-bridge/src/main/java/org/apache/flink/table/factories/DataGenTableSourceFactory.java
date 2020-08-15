@@ -45,6 +45,7 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -202,6 +203,14 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 						RandomGenerator.doubleGenerator(
 								config.get(min), config.get(max)),
 						min, max);
+			}
+			case DECIMAL: {
+				ConfigOption<Double> min = minKey.doubleType().defaultValue(Double.MIN_VALUE);
+				ConfigOption<Double> max = maxKey.doubleType().defaultValue(Double.MAX_VALUE);
+				return DataGeneratorContainer.of(
+					RandomGenerator.decimalGenerator(
+						BigDecimal.valueOf(config.get(min)), BigDecimal.valueOf(config.get(max))),
+					min, max);
 			}
 			default:
 				throw new ValidationException("Unsupported type: " + type);

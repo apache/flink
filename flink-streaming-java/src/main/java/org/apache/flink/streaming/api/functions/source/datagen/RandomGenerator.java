@@ -24,6 +24,8 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 
 import org.apache.commons.math3.random.RandomDataGenerator;
 
+import java.math.BigDecimal;
+
 /**
  * Random generator.
  */
@@ -95,6 +97,15 @@ public abstract class RandomGenerator<T> implements DataGenerator<T> {
 			@Override
 			public Double next() {
 				return random.nextUniform(min, max);
+			}
+		};
+	}
+
+	public static RandomGenerator<BigDecimal> decimalGenerator(BigDecimal min, BigDecimal max) {
+		return new RandomGenerator<BigDecimal>() {
+			@Override
+			public BigDecimal next() {
+				return BigDecimal.valueOf(random.nextUniform(min.doubleValue(), max.doubleValue()));
 			}
 		};
 	}
