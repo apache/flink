@@ -253,7 +253,7 @@ Time taken: 0.158 seconds, Fetched: 36 row(s)
 {% endhighlight %}
 
 
-#### step 5: run Flink SQL to query the Kakfa table
+#### step 5: run Flink SQL to query the Kafka table
 
 Run a simple select query from Flink SQL Client in a Flink cluster, either standalone or yarn-session.
 
