@@ -28,7 +28,7 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.util.TestHandler;
+import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestMessageHeaders;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -87,14 +87,14 @@ public class AbstractHandlerITCase extends TestLogger {
 						.setTargetRestEndpointURL("/test-handler")
 						.build();
 
-		final TestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testHandler = new TestHandler<>(
+		final TestRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testRestHandler = new TestRestHandler<>(
 				mockGatewayRetriever,
 				messageHeaders,
 				FutureUtils.completedExceptionally(new OutOfMemoryError("Metaspace"))
 		);
 
 		try (final TestRestServerEndpoint server = TestRestServerEndpoint.builder(RestServerEndpointConfiguration.fromConfiguration(REST_BASE_CONFIG))
-				.withHandler(messageHeaders, testHandler)
+				.withHandler(messageHeaders, testRestHandler)
 				.buildAndStart();
 			 final RestClient restClient = createRestClient(server.getServerAddress().getPort())
 		) {
