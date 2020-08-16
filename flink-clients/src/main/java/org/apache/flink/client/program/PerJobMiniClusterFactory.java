@@ -21,12 +21,14 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -176,7 +178,16 @@ public final class PerJobMiniClusterFactory {
 
 		@Override
 		public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
-			return getJobExecutionResult(classLoader).thenApply(JobExecutionResult::getAllAccumulatorResults);
+			return miniCluster
+				.getExecutionGraph(jobID)
+				.thenApply(AccessExecutionGraph::getAccumulatorsSerialized)
+				.thenApply(accumulators -> {
+					try {
+						return AccumulatorHelper.deserializeAndUnwrapAccumulators(accumulators, classLoader);
+					} catch (Exception e) {
+						throw new CompletionException("Cannot deserialize and unwrap accumulators properly.", e);
+					}
+				});
 		}
 
 		@Override
