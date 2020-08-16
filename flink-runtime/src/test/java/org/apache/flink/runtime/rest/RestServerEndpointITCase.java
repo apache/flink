@@ -26,6 +26,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -210,13 +212,17 @@ public class RestServerEndpointITCase extends TestLogger {
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
-		TestVersionSelectionHandler1 testVersionSelectionHandler1 = new TestVersionSelectionHandler1(
-			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+		TestRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testVersionSelectionHandler1 = new TestRestHandler<>(
+				mockGatewayRetriever,
+				TestVersionSelectionHeaders1.INSTANCE,
+				FutureUtils.completedExceptionally(new RestHandlerException("test failure 1", HttpResponseStatus.OK))
+		);
 
-		TestVersionSelectionHandler2 testVersionSelectionHandler2 = new TestVersionSelectionHandler2(
-			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+		TestRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> testVersionSelectionHandler2 = new TestRestHandler<>(
+				mockGatewayRetriever,
+				TestVersionSelectionHeaders2.INSTANCE,
+				FutureUtils.completedExceptionally(new RestHandlerException("test failure 2", HttpResponseStatus.ACCEPTED))
+		);
 
 		testUploadHandler = new TestUploadHandler(
 			mockGatewayRetriever,
@@ -1066,34 +1072,6 @@ public class RestServerEndpointITCase extends TestLogger {
 		@Override
 		public Collection<RestAPIVersion> getSupportedAPIVersions() {
 			return Collections.singleton(RestAPIVersion.V1);
-		}
-	}
-
-	private static class TestVersionSelectionHandler1 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
-
-		private TestVersionSelectionHandler1(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout) {
-			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders1.INSTANCE);
-		}
-
-		@Override
-		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			throw new RestHandlerException("test failure 1", HttpResponseStatus.OK);
-		}
-	}
-
-	private static class TestVersionSelectionHandler2 extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
-
-		private TestVersionSelectionHandler2(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout) {
-			super(leaderRetriever, timeout, Collections.emptyMap(), TestVersionSelectionHeaders2.INSTANCE);
-		}
-
-		@Override
-		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			throw new RestHandlerException("test failure 2", HttpResponseStatus.ACCEPTED);
 		}
 	}
 
