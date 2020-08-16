@@ -176,6 +176,8 @@ public class EnvironmentInformation {
 		}
 	}
 
+	//占位符模式：线程安全的延迟初始化。见《并发编程实战》p286
+	// 对比双检锁模式
 	private static final class VersionsHolder {
 		static final Versions INSTANCE = new Versions();
 	}
