@@ -22,7 +22,8 @@ from pyflink.common.serialization_schemas import JsonRowDeserializationSchema, \
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaConsumer010, FlinkKafkaProducer010, \
-    FlinkKafkaConsumer011, FlinkKafkaProducer011, FlinkKafkaConsumer, FlinkKafkaProducer
+    FlinkKafkaConsumer011, FlinkKafkaProducer011, FlinkKafkaConsumer, FlinkKafkaProducer, \
+    CassandraSink
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
     get_private_field, invoke_java_object_method
@@ -91,6 +92,37 @@ class FlinkKafkaTest(PyFlinkTestCase):
         self.assertEqual('test_group', j_producer_config.getProperty('group.id'))
         self.assertFalse(get_private_field(flink_kafka_producer.get_java_function(),
                                            'writeTimestampToKafka'))
+
+    def tearDown(self):
+        if self._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+
+class FlinkCassandraConnectorTest(PyFlinkTestCase):
+
+    def setUp(self):
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-cassandra')
+
+    def test_cassandra_sink(self):
+        type_info = Types.ROW([Types.STRING(), Types.INT()])
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=type_info)
+        cassandra_sink_builder = CassandraSink.add_sink(ds)
+        cassandra_sink = cassandra_sink_builder.set_host('localhost', 9876).set_query('query')\
+            .enable_ignore_null_fields().set_max_concurrent_requests(1000).build()
+        self.assertEqual("query",
+                         get_private_field(cassandra_sink_builder._j_cassandra_sink_builder,
+                                           'query'))
+        self.assertEqual(type_info, typeinfo._from_java_type(
+            get_private_field(cassandra_sink_builder._j_cassandra_sink_builder, 'typeInfo')))
+
+        cassandra_sink.name('cassandra_sink').set_parallelism(3)
+
+        plan = eval(self.env.get_execution_plan())
+        self.assertEqual("Sink: cassandra_sink", plan['nodes'][1]['type'])
+        self.assertEqual(3, plan['nodes'][1]['parallelism'])
 
     def tearDown(self):
         if self._cxt_clz_loader is not None:

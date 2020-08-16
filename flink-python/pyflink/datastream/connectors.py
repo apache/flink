@@ -18,6 +18,7 @@
 from typing import Dict, List, Union
 
 from pyflink.common.serialization_schemas import DeserializationSchema, SerializationSchema
+from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import SourceFunction, SinkFunction
 from pyflink.java_gateway import get_gateway
 
@@ -544,3 +545,202 @@ class FlinkKafkaProducer(SinkFunction):
         :param flush_on_checkpoint: Flag indicating the flush mode (true = flush on checkpoint)
         """
         self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
+
+
+class CassandraSink(object):
+    """
+    This class wraps different Cassandra sink implementations to provide a common interface for all
+    of them.
+    """
+    def __init__(self, j_cassandra_sink):
+        self._j_cassandra_sink = j_cassandra_sink
+
+    @staticmethod
+    def add_sink(data_stream: DataStream) -> 'CassandraSinkBuilder':
+        """
+        Writes a DataStream into a Cassandra database.
+
+        :param data_stream: input DataStream.
+        :return: CassandraSinkBuilder, to further configre the sink.
+        """
+        JCassandraSink = get_gateway().jvm\
+            .org.apache.flink.streaming.connectors.cassandra.CassandraSink
+        j_sink_builder = JCassandraSink.addSink(data_stream._j_data_stream)
+        return CassandraSink.CassandraSinkBuilder(j_cassandra_sink_builder=j_sink_builder)
+
+    def name(self, name: str) -> 'CassandraSink':
+        """
+        Set the name of this sink. This name is used by the visualization and logging during
+        runtime.
+
+        :param name: The name of the sink.
+        :return: The named sink.
+        """
+        self._j_cassandra_sink.name(name)
+        return self
+
+    def uid(self, uid: str) -> 'CassandraSink':
+        """
+        Sets an ID for this operator.
+
+        The specified ID is used to assign the same operator ID across job submissions (for example
+        when starting a job from a savepoint).
+
+        Note that this ID needs to be unique per transformation and job. Otherwise, job submission
+        will fail.
+
+        :param uid: The unique user-specified ID of this transformation.
+        :return: The operator with the specified ID.
+        """
+        self._j_cassandra_sink.uid(uid)
+        return self
+
+    def set_uid_hash(self, uid_hash: str) -> 'CassandraSink':
+        """
+        Sets an user provided hash for this operator. This will be used AS IS the create the
+        JobVertexID.
+
+        The user provided hash is an alternative to the generated hashes, that is considered when
+        identifying an operator through the default hash mechanics fails (e.g. because of changes
+        between Flink versions).
+
+        Note that this should be used as a workaround or for trouble shooting. The provided hash
+        needs to be unique per transformation and job. Otherwise, job submission will fail.
+        Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
+        chain and trying so will let your job fail.
+
+        A use case for this is in migration between Flink versions or changing the jobs in a way
+        that changes the automatically generated hashes. In this case, providing the previous hashes
+        directly through this method (e.g. obtained from old logs) can help to reestablish a lost
+        mapping from states to their target operator.
+
+        :param uid_hash: The user provided hash for this operator. This will become the JobVertexID,
+                         which is shown in the logs and web ui.
+        :return: The operator with the user provided hash.
+        """
+        self._j_cassandra_sink.setUidHash(uid_hash)
+        return self
+
+    def set_parallelism(self, parallelism: int) -> 'CassandraSink':
+        """
+        Sets the parallelism for this sink. The degree must be higher than zero.
+
+        :param parallelism: The parallelism for this sink.
+        :return: The sink with set parallelism.
+        """
+        self._j_cassandra_sink.setParallelism(parallelism)
+        return self
+
+    def disable_chaining(self) -> 'CassandraSink':
+        """
+        Turns off chaining for this operator so thread co-location will not be used as an
+        optimization.
+
+        :return: The sink with chaining disabled.
+        """
+        self._j_cassandra_sink.disableChaining()
+        return self
+
+    def slot_sharing_group(self, slot_sharing_group: str) -> 'CassandraSink':
+        """
+        Sets the slot sharing group of this operation. Parallel instances of operations that are in
+        the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+
+        Operations inherit the slot sharing group of input operations if all input operations are in
+        the same slot sharing group and no slot sharing group was explicitly specified.
+
+        Initially an operation is in the default slot sharing group. An operation can be put into
+        the default group explicitly by setting the slot sharing group to {@code "default"}.
+
+        :param slot_sharing_group: The slot sharing group name.
+        :return: The sink with the specified slot sharing group name.
+        """
+        self._j_cassandra_sink.slotSharingGroup(slot_sharing_group)
+        return self
+
+    class CassandraSinkBuilder(object):
+        """
+        Builder for a CassandraSink.
+        """
+        def __init__(self, j_cassandra_sink_builder):
+            self._j_cassandra_sink_builder = j_cassandra_sink_builder
+
+        def set_query(self, query: str) -> 'CassandraSink.CassandraSinkBuilder':
+            """
+            Sets the query that is to be executed for every record.
+
+            :param query: query to use.
+            :return: this builder.
+            """
+            self._j_cassandra_sink_builder.setQuery(query)
+            return self
+
+        def set_default_key_space(self, key_space: str) -> 'CassandraSink.CassandraSinkBuilder':
+            """
+            Sets the keyspace to be used.
+            :param key_space: keyspace to use
+            :return: this builder.
+            """
+            self._j_cassandra_sink_builder.setDefaultKeyspace(key_space)
+            return self
+
+        def set_host(self, host: str, port: int = 9042) -> 'CassandraSink.CassandraSinkBuilder':
+            """
+            Sets the cassandra host/port to connect to.
+
+            :param host: host to connect to.
+            :param port: port to connect to, set to 9042 by default.
+            :return: this builder.
+            """
+            self._j_cassandra_sink_builder.setHost(host, port)
+            return self
+
+        def enable_write_ahead_log(self) -> 'CassandraSink.CassandraSinkBuilder':
+            """
+            Enables the write-ahead log, which allows exactly-once processing for non-deterministic
+            algorithms that use idempotent updates.
+
+            :return: this builder.
+            """
+            self._j_cassandra_sink_builder.enableWriteAheadLog()
+            return self
+
+        def set_max_concurrent_requests(
+            self, max_concurrent_requests: int, duration_in_millis: int = None)\
+                -> 'CassandraSink.CassandraSinkBuilder':
+            """
+            Sets the maximum allowed number of concurrent requests for this sink.
+
+            This call has no effect if CassandraSinkBuilder.enableWriteAheadLog() is called.
+
+            :param max_concurrent_requests: maximum number of concurrent requests allowed.
+            :param duration_in_millis: timeout duration in milliseconds when acquiring a permit to
+                   execute.
+            :return: this builder.
+            """
+            if duration_in_millis is not None:
+                j_duration = get_gateway().jvm.java.time.Duration.ofMillis(duration_in_millis)
+                self._j_cassandra_sink_builder.setMaxConcurrentRequests(max_concurrent_requests,
+                                                                        j_duration)
+            else:
+                self._j_cassandra_sink_builder.setMaxConcurrentRequests(max_concurrent_requests)
+            return self
+
+        def enable_ignore_null_fields(self) -> 'CassandraSink.CassandraSinkBuilder':
+            """
+            Enables ignoring null values, treats null values as unset and avoids writing null fields
+            and creating tombstones.
+
+            This call has no effect if CassandraSinkBuilder.enableWriteAheadLog() is called.
+
+            :return: this builder
+            """
+            self._j_cassandra_sink_builder.enableIgnoreNullFields()
+            return self
+
+        def build(self) -> 'CassandraSink':
+            """
+            Finalizes the configuration of this sink.
+            :return: finalized sink.
+            """
+            return CassandraSink(j_cassandra_sink=self._j_cassandra_sink_builder.build())
