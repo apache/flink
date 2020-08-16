@@ -846,7 +846,7 @@ public class RestClusterClientTest extends TestLogger {
 
 	private TestRestServerEndpoint createRestServerEndpoint(
 			final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws Exception {
-		TestRestServerEndpoint.Builder builder = new TestRestServerEndpoint.Builder(restServerEndpointConfiguration);
+		TestRestServerEndpoint.Builder builder = TestRestServerEndpoint.builder(restServerEndpointConfiguration);
 		Arrays.stream(abstractRestHandlers).forEach(builder::withHandler);
 
 		return builder.buildAndStart();

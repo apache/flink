@@ -52,6 +52,12 @@ public class TestMessageHeaders<REQ extends RequestBody, RES extends ResponseBod
 		return new Builder<>(requestClass, responseClass, messageParameters);
 	}
 
+	/**
+	 * TestMessageHeaders.Builder is used for initializing a TestMessageHeaders instance.
+	 * @param <BREQ> The RequestBody type used by the Builder.
+	 * @param <BRES> The ResponseBody type used by the Builder.
+	 * @param <BM> The MessageParameters type used by the Builder.
+	 */
 	public static class Builder<BREQ extends RequestBody, BRES extends ResponseBody, BM extends MessageParameters> {
 
 		private Class<BREQ> requestClass;

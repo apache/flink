@@ -645,9 +645,9 @@ public class RestServerEndpointITCase extends TestLogger {
 			FlinkRuntimeException.class,
 			() -> {
 				try (TestRestServerEndpoint restServerEndpoint =  TestRestServerEndpoint.builder(serverConfig)
-					 .withHandler(new TestHeaders(), testHandler)
-					 .withHandler(new TestHeaders(), testUploadHandler)
-					 .build()
+						.withHandler(new TestHeaders(), testHandler)
+						.withHandler(new TestHeaders(), testUploadHandler)
+						.build()
 				) {
 					restServerEndpoint.start();
 					return null;

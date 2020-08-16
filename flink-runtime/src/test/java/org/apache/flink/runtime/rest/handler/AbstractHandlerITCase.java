@@ -28,8 +28,8 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestMessageHeaders;
+import org.apache.flink.runtime.rest.util.TestRestHandler;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
@@ -49,6 +49,9 @@ import java.util.concurrent.ExecutionException;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests to cover functionality provided by {@link AbstractHandler}.
+ */
 public class AbstractHandlerITCase extends TestLogger {
 
 	private static final RestfulGateway mockRestfulGateway = new TestingDispatcherGateway.Builder().build();
@@ -96,7 +99,7 @@ public class AbstractHandlerITCase extends TestLogger {
 		try (final TestRestServerEndpoint server = TestRestServerEndpoint.builder(RestServerEndpointConfiguration.fromConfiguration(REST_BASE_CONFIG))
 				.withHandler(messageHeaders, testRestHandler)
 				.buildAndStart();
-			 final RestClient restClient = createRestClient(server.getServerAddress().getPort())
+			final RestClient restClient = createRestClient(server.getServerAddress().getPort())
 		) {
 			CompletableFuture<EmptyResponseBody> response = restClient.sendRequest(
 					server.getServerAddress().getHostName(),

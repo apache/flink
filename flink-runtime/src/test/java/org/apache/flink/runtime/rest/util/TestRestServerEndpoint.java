@@ -40,6 +40,9 @@ public class TestRestServerEndpoint extends RestServerEndpoint {
 		return new Builder(configuration);
 	}
 
+	/**
+	 * TestRestServerEndpoint.Builder is a utility class for instantiating a TestRestServerEndPoint.
+	 */
 	public static class Builder {
 
 		private final RestServerEndpointConfiguration configuration;
