@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
-	<name>flink-connector-twitter</name>
+	<name>Flink : Connectors : Twitter</name>
 
 	<packaging>jar</packaging>
 

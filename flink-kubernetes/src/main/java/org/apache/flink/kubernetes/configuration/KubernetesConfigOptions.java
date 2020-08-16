@@ -102,7 +102,7 @@ public class KubernetesConfigOptions {
 	public static final ConfigOption<String> CONTAINER_START_COMMAND_TEMPLATE =
 		key("kubernetes.container-start-command-template")
 		.stringType()
-		.defaultValue("%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%")
+		.defaultValue("%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%")
 		.withDescription("Template for the kubernetes jobmanager and taskmanager container start invocation.");
 
 	public static final ConfigOption<Map<String, String>> JOB_MANAGER_LABELS =

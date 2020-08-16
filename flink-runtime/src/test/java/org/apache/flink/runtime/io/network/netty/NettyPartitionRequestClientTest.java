@@ -62,7 +62,7 @@ public class NettyPartitionRequestClientTest {
 		final PartitionRequestClient client = createPartitionRequestClient(channel, handler);
 
 		final int numExclusiveBuffers = 2;
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, numExclusiveBuffers);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
 			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
@@ -120,7 +120,7 @@ public class NettyPartitionRequestClientTest {
 		final PartitionRequestClient client = createPartitionRequestClient(channel, handler);
 
 		final int numExclusiveBuffers = 2;
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, numExclusiveBuffers);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 
@@ -154,7 +154,7 @@ public class NettyPartitionRequestClientTest {
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
 		final PartitionRequestClient client = createPartitionRequestClient(channel, handler);
 
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 

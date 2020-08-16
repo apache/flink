@@ -35,13 +35,14 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyInstantTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyLocalDateTimeTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TimestampDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.WrapperTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -79,6 +80,9 @@ import static org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive;
  * 1.See {@link TableFunctionDefinition#getResultType()}.
  * 2.See {@link AggregateFunctionDefinition#getAccumulatorTypeInfo()}.
  * 3.See {@link MapViewTypeInfo#getKeyType()}.
+ *
+ * @deprecated Use {@link InternalTypeInfo#of(LogicalType)} instead if {@link TypeInformation} is really
+ *             required. In many cases, {@link InternalSerializers#create(LogicalType)} should be sufficient.
  */
 @Deprecated
 public class TypeInfoDataTypeConverter {
@@ -167,7 +171,7 @@ public class TypeInfoDataTypeConverter {
 						fromDataTypeToTypeInfo(((CollectionDataType) dataType).getElementDataType()));
 			case ROW:
 				if (RowData.class.isAssignableFrom(dataType.getConversionClass())) {
-					return RowDataTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
+					return InternalTypeInfo.of((RowType) fromDataTypeToLogicalType(dataType));
 				} else if (Row.class == dataType.getConversionClass()) {
 					RowType logicalRowType = (RowType) logicalType;
 					return new RowTypeInfo(
@@ -181,16 +185,11 @@ public class TypeInfoDataTypeConverter {
 				}
 			case RAW:
 				if (logicalType instanceof RawType) {
-					final RawType<?> rawType = (RawType<?>) logicalType;
-					return createWrapperTypeInfo(rawType);
+					return ExternalTypeInfo.of(dataType);
 				}
 				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 			default:
 				return TypeConversions.fromDataTypeToLegacyInfo(dataType);
 		}
-	}
-
-	private static <T> WrapperTypeInfo<T> createWrapperTypeInfo(RawType<T> rawType) {
-		return new WrapperTypeInfo<>(rawType.getOriginatingClass(), rawType.getTypeSerializer());
 	}
 }

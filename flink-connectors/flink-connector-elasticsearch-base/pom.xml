@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch-base</name>
+	<name>Flink : Connectors : Elasticsearch base</name>
 
 	<packaging>jar</packaging>
 

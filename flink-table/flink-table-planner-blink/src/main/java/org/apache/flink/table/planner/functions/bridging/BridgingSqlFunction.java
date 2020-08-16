@@ -23,10 +23,13 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
@@ -116,6 +119,38 @@ public final class BridgingSqlFunction extends SqlFunction {
 			identifier,
 			definition,
 			typeInference);
+	}
+
+	/**
+	 * Creates an instance of a scalar or table function during translation.
+	 */
+	public static BridgingSqlFunction of(
+			FlinkContext context,
+			FlinkTypeFactory typeFactory,
+			@Nullable FunctionIdentifier identifier,
+			FunctionDefinition definition) {
+		final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
+		final TypeInference typeInference = definition.getTypeInference(dataTypeFactory);
+		return of(
+			dataTypeFactory,
+			typeFactory,
+			SqlKind.OTHER_FUNCTION,
+			identifier,
+			definition,
+			typeInference
+		);
+	}
+
+	/**
+	 * Creates an instance of a scalar or table function during translation.
+	 */
+	public static BridgingSqlFunction of(
+			RelOptCluster cluster,
+			@Nullable FunctionIdentifier identifier,
+			FunctionDefinition definition) {
+		final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
+		final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
+		return of(context, typeFactory, identifier, definition);
 	}
 
 	public DataTypeFactory getDataTypeFactory() {

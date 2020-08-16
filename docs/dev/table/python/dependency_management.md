@@ -29,11 +29,11 @@ If third-party Java dependencies are used, you can specify the dependencies with
 {% highlight python %}
 # Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";" and will be uploaded to the cluster.
 # NOTE: Only local file URLs (start with "file://") are supported.
-table_env.get_config().set_configuration("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 
 # Specify a list of URLs via "pipeline.classpaths". The URLs are separated by ";" and will be added to the classpath of the cluster.
 # NOTE: The Paths must specify a protocol (e.g. file://) and users should ensure that the URLs are accessible on both the client and the cluster.
-table_env.get_config().set_configuration("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
+table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
 # Python Dependency

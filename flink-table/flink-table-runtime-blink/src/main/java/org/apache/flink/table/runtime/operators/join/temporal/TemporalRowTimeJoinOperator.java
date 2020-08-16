@@ -35,7 +35,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
@@ -80,8 +80,8 @@ public class TemporalRowTimeJoinOperator
 	private static final String REGISTERED_TIMER_STATE_NAME = "timer";
 	private static final String TIMERS_STATE_NAME = "timers";
 
-	private final RowDataTypeInfo leftType;
-	private final RowDataTypeInfo rightType;
+	private final InternalTypeInfo<RowData> leftType;
+	private final InternalTypeInfo<RowData> rightType;
 	private final GeneratedJoinCondition generatedJoinCondition;
 	private final int leftTimeAttribute;
 	private final int rightTimeAttribute;
@@ -119,8 +119,8 @@ public class TemporalRowTimeJoinOperator
 	private transient JoinedRowData outRow;
 
 	public TemporalRowTimeJoinOperator(
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			int leftTimeAttribute,
 			int rightTimeAttribute,

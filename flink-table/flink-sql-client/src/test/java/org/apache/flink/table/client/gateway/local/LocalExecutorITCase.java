@@ -20,8 +20,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
@@ -32,7 +30,9 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -49,18 +49,20 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
+import org.hamcrest.Matcher;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -86,6 +88,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -176,16 +179,17 @@ public class LocalExecutorITCase extends TestLogger {
 		executor.executeSql(sessionId,
 				"CREATE TEMPORARY VIEW IF NOT EXISTS AdditionalView2 AS SELECT * FROM AdditionalView1");
 
-		List<String> actualTables = executor.listTables(sessionId);
-		List<String> expectedTables = Arrays.asList(
-				"AdditionalView1",
-				"AdditionalView2",
-				"TableNumber1",
-				"TableNumber2",
-				"TableSourceSink",
-				"TestView1",
-				"TestView2");
-		assertEquals(expectedTables, actualTables);
+		assertShowResult(
+				executor.executeSql(sessionId, "SHOW TABLES"),
+				Arrays.asList(
+						"AdditionalView1",
+						"AdditionalView2",
+						"TableNumber1",
+						"TableNumber2",
+						"TableSourceSink",
+						"TestView1",
+						"TestView2")
+		);
 
 		// Although AdditionalView2 needs AdditionalView1, dropping AdditionalView1 first does not
 		// throw.
@@ -201,15 +205,15 @@ public class LocalExecutorITCase extends TestLogger {
 		executor.executeSql(sessionId, "DROP VIEW AdditionalView1");
 		executor.executeSql(sessionId, "DROP TEMPORARY VIEW AdditionalView2");
 
-		actualTables = executor.listTables(sessionId);
-		expectedTables = Arrays.asList(
-				"TableNumber1",
-				"TableNumber2",
-				"TableSourceSink",
-				"TestView1",
-				"TestView2");
-		assertEquals(expectedTables, actualTables);
-
+		assertShowResult(
+				executor.executeSql(sessionId, "SHOW TABLES"),
+				Arrays.asList(
+						"TableNumber1",
+						"TableNumber2",
+						"TableSourceSink",
+						"TestView1",
+						"TestView2")
+		);
 		executor.closeSession(sessionId);
 	}
 
@@ -220,14 +224,13 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		final List<String> actualCatalogs = executor.listCatalogs(sessionId);
-
-		final List<String> expectedCatalogs = Arrays.asList(
-			"catalog1",
-			"default_catalog",
-			"simple-catalog");
-		assertEquals(expectedCatalogs, actualCatalogs);
-
+		assertShowResult(
+				executor.executeSql(sessionId, "SHOW CATALOGS"),
+				Arrays.asList(
+						"catalog1",
+						"default_catalog",
+						"simple-catalog")
+		);
 		executor.closeSession(sessionId);
 	}
 
@@ -238,10 +241,10 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		final List<String> actualDatabases = executor.listDatabases(sessionId);
-
-		final List<String> expectedDatabases = Collections.singletonList("default_database");
-		assertEquals(expectedDatabases, actualDatabases);
+		assertShowResult(
+				executor.executeSql(sessionId, "SHOW DATABASES"),
+				Collections.singletonList("default_database")
+		);
 
 		executor.closeSession(sessionId);
 	}
@@ -255,10 +258,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		executor.executeUpdate(sessionId, "create database db1");
 
-		final List<String> actualDatabases = executor.listDatabases(sessionId);
-		final List<String> expectedDatabases = Arrays.asList("default_database", "db1");
-		assertEquals(expectedDatabases, actualDatabases);
-
+		assertShowResult(executor.executeSql(sessionId, "SHOW DATABASES"), Arrays.asList("default_database", "db1"));
 		executor.closeSession(sessionId);
 	}
 
@@ -269,17 +269,12 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		executor.executeUpdate(sessionId, "create database db1");
+		executor.executeSql(sessionId, "create database db1");
 
-		List<String> actualDatabases = executor.listDatabases(sessionId);
-		List<String> expectedDatabases = Arrays.asList("default_database", "db1");
-		assertEquals(expectedDatabases, actualDatabases);
+		assertShowResult(executor.executeSql(sessionId, "SHOW DATABASES"), Arrays.asList("default_database", "db1"));
 
-		executor.executeUpdate(sessionId, "drop database if exists db1");
-
-		actualDatabases = executor.listDatabases(sessionId);
-		expectedDatabases = Arrays.asList("default_database");
-		assertEquals(expectedDatabases, actualDatabases);
+		executor.executeSql(sessionId, "drop database if exists db1");
+		assertShowResult(executor.executeSql(sessionId, "SHOW DATABASES"), Collections.singletonList("default_database"));
 
 		executor.closeSession(sessionId);
 	}
@@ -291,13 +286,11 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		executor.executeUpdate(sessionId, "create database db1 comment 'db1_comment' with ('k1' = 'v1')");
+		executor.executeSql(sessionId, "create database db1 comment 'db1_comment' with ('k1' = 'v1')");
 
-		executor.executeUpdate(sessionId, "alter database db1 set ('k1' = 'a', 'k2' = 'b')");
+		executor.executeSql(sessionId, "alter database db1 set ('k1' = 'a', 'k2' = 'b')");
 
-		final List<String> actualDatabases = executor.listDatabases(sessionId);
-		final List<String> expectedDatabases = Arrays.asList("default_database", "db1");
-		assertEquals(expectedDatabases, actualDatabases);
+		assertShowResult(executor.executeSql(sessionId, "SHOW DATABASES"), Arrays.asList("default_database", "db1"));
 		//todo: we should compare the new db1 properties after we support describe database in LocalExecutor.
 
 		executor.closeSession(sessionId);
@@ -306,20 +299,14 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testAlterTable() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
-		final LocalExecutor localExecutor = (LocalExecutor) executor;
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
-		executor.useCatalog(sessionId, "simple-catalog");
-		executor.useDatabase(sessionId, "default_database");
-		List<String> actualTables = executor.listTables(sessionId);
-		List<String> expectedTables = Arrays.asList("test-table");
-		assertEquals(expectedTables, actualTables);
-		executor.executeUpdate(sessionId, "alter table `test-table` rename to t1");
-		actualTables = executor.listTables(sessionId);
-		expectedTables = Arrays.asList("t1");
-		assertEquals(expectedTables, actualTables);
-		//todo: we should add alter table set test when we support create table in executor.
+		executor.executeSql(sessionId, "use catalog `simple-catalog`");
+		executor.executeSql(sessionId, "use default_database");
+		assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("test-table"));
+		executor.executeSql(sessionId, "alter table `test-table` rename to t1");
+		assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("t1"));
 		executor.closeSession(sessionId);
 	}
 
@@ -330,15 +317,15 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		final List<String> actualTables = executor.listTables(sessionId);
-
-		final List<String> expectedTables = Arrays.asList(
-			"TableNumber1",
-			"TableNumber2",
-			"TableSourceSink",
-			"TestView1",
-			"TestView2");
-		assertEquals(expectedTables, actualTables);
+		assertShowResult(
+				executor.executeSql(sessionId, "SHOW TABLES"),
+				Arrays.asList(
+						"TableNumber1",
+						"TableNumber2",
+						"TableSourceSink",
+						"TestView1",
+						"TestView2")
+		);
 		executor.closeSession(sessionId);
 	}
 
@@ -349,11 +336,10 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		final List<String> actualTables = executor.listUserDefinedFunctions(sessionId);
-
-		final List<String> expectedTables = Arrays.asList("aggregateudf", "tableudf", "scalarudf");
-		assertEquals(expectedTables, actualTables);
-
+		assertShowResult(
+				executor.executeSql(sessionId, "SHOW FUNCTIONS"),
+				hasItems("aggregateudf", "tableudf", "scalarudf")
+		);
 		executor.closeSession(sessionId);
 	}
 
@@ -440,13 +426,21 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		final TableSchema actualTableSchema = executor.getTableSchema(sessionId, "TableNumber2");
-
-		final TableSchema expectedTableSchema = new TableSchema(
-			new String[]{"IntegerField2", "StringField2", "TimestampField2"},
-			new TypeInformation[]{Types.INT, Types.STRING, Types.SQL_TIMESTAMP});
-
-		assertEquals(expectedTableSchema, actualTableSchema);
+		TableResult tableResult = executor.executeSql(sessionId, "DESCRIBE TableNumber2");
+		assertEquals(
+				tableResult.getTableSchema(),
+				TableSchema.builder().fields(
+						new String[] { "name", "type", "null", "key", "computed column", "watermark" },
+						new DataType[] { DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(),
+								DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING() }
+				).build()
+		);
+		List<Row> schemaData = Arrays.asList(
+				Row.of("IntegerField2", "INT", true, null, null, null),
+				Row.of("StringField2", "STRING", true, null, null, null),
+				Row.of("TimestampField2", "TIMESTAMP(3)", true, null, null, null)
+		);
+		assertEquals(schemaData, CollectionUtil.iteratorToList(tableResult.collect()));
 		executor.closeSession(sessionId);
 	}
 
@@ -859,8 +853,8 @@ public class LocalExecutorITCase extends TestLogger {
 			executeAndVerifySinkResult(executor, sessionId, statement2, csvOutputPath);
 
 			// Case 2: Temporary sink
-			executor.useCatalog(sessionId, "simple-catalog");
-			executor.useDatabase(sessionId, "default_database");
+			executor.executeSql(sessionId, "use catalog `simple-catalog`");
+			executor.executeSql(sessionId, "use default_database");
 			// all queries are pipelined to an in-memory sink, check it is properly registered
 			final ResultDescriptor otherCatalogDesc = executor.executeQuery(sessionId, "SELECT * FROM `test-table`");
 
@@ -900,20 +894,32 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		try {
-			assertEquals(Collections.singletonList("mydatabase"), executor.listDatabases(sessionId));
+			assertShowResult(executor.executeSql(sessionId, "SHOW DATABASES"), Collections.singletonList("mydatabase"));
 
-			executor.useCatalog(sessionId, "hivecatalog");
+			executor.executeSql(sessionId, "use catalog hivecatalog");
 
-			assertEquals(
-				Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB),
-				executor.listDatabases(sessionId));
+			assertShowResult(executor.executeSql(sessionId, "SHOW CURRENT CATALOG"), Collections.singletonList("hivecatalog"));
 
-			assertEquals(Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES),
-				executor.listTables(sessionId));
+			assertShowResult(
+					executor.executeSql(sessionId, "SHOW DATABASES"),
+					Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB)
+			);
 
-			executor.useDatabase(sessionId, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
+			assertShowResult(
+					executor.executeSql(sessionId, "SHOW TABLES"),
+					Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES)
+			);
 
-			assertEquals(Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(sessionId));
+			executor.executeSql(sessionId, "use " + DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
+
+			assertShowResult(
+					executor.executeSql(sessionId, "SHOW TABLES"),
+					Collections.singletonList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE)
+			);
+
+			assertShowResult(executor.executeSql(sessionId, "SHOW CURRENT DATABASE"),
+				Collections.singletonList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE));
+
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -927,7 +933,7 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		exception.expect(SqlExecutionException.class);
-		executor.useDatabase(sessionId, "nonexistingdb");
+		executor.executeSql(sessionId, "use nonexistingdb");
 	}
 
 	@Test
@@ -938,7 +944,7 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals("test-session", sessionId);
 
 		exception.expect(SqlExecutionException.class);
-		executor.useCatalog(sessionId, "nonexistingcatalog");
+		executor.executeSql(sessionId, "use catalog nonexistingcatalog");
 		executor.closeSession(sessionId);
 	}
 
@@ -964,13 +970,13 @@ public class LocalExecutorITCase extends TestLogger {
 		String sessionId = executor.openSession(session);
 		assertEquals("test-session", sessionId);
 
-		executor.useCatalog(sessionId, "hivecatalog");
+		executor.executeSql(sessionId, "use catalog hivecatalog");
 		String resultID = executor.executeQuery(sessionId,
 			"select * from " + DependencyTest.TestHiveCatalogFactory.TABLE_WITH_PARAMETERIZED_TYPES).getResultId();
 		retrieveTableResult(executor, sessionId, resultID);
 
 		// make sure legacy types still work
-		executor.useCatalog(sessionId, "default_catalog");
+		executor.executeSql(sessionId, "use catalog default_catalog");
 		resultID = executor.executeQuery(sessionId, "select * from TableNumber3").getResultId();
 		retrieveTableResult(executor, sessionId, resultID);
 		executor.closeSession(sessionId);
@@ -992,32 +998,62 @@ public class LocalExecutorITCase extends TestLogger {
 				")\n";
 		try {
 			// Test create table with simple name.
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 
 			// Test create table with full qualified name.
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "`simple-catalog`.`default_database`.MyTable3"));
-			executor.createTable(sessionId, String.format(ddlTemplate, "`simple-catalog`.`default_database`.MyTable4"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
-			executor.useCatalog(sessionId, "simple-catalog");
-			assertEquals(Arrays.asList("MyTable3", "MyTable4", "test-table"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "`simple-catalog`.`default_database`.MyTable3"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "`simple-catalog`.`default_database`.MyTable4"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
+			executor.executeSql(sessionId, "use catalog `simple-catalog`");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable3", "MyTable4", "test-table"));
 
 			// Test create table with db and table name.
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "`default`.MyTable5"));
-			executor.createTable(sessionId, String.format(ddlTemplate, "`default`.MyTable6"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2", "MyTable5", "MyTable6"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "`default`.MyTable5"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "`default`.MyTable6"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2", "MyTable5", "MyTable6"));
 		} finally {
 			executor.closeSession(sessionId);
 		}
 	}
 
-	@Test @Ignore // TODO: reopen when FLINK-15075 was fixed.
+	@Test
+	public void testCreateTableIfNotExists() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		final String ddlTemplate = "create table if not exists %s(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c varchar\n" +
+			") with (\n" +
+			"  'connector.type'='filesystem',\n" +
+			"  'format.type'='csv',\n" +
+			"  'connector.path'='xxx'\n" +
+			")\n";
+		try {
+			// Test create table twice.
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
 	public void testCreateTableWithComputedColumn() throws Exception {
+		// only blink planner support computed column for DDL
 		Assume.assumeTrue(planner.equals("blink"));
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", planner);
@@ -1040,18 +1076,20 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 		} finally {
 			executor.closeSession(sessionId);
 		}
 	}
 
-	@Test @Ignore // TODO: reopen when FLINK-15075 was fixed.
+	@Test
 	public void testCreateTableWithWatermark() throws Exception {
+		// only blink planner supports watermark expression for DDL
+		Assume.assumeTrue(planner.equals("blink"));
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", "file:///fakePath1");
@@ -1073,11 +1111,11 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -1089,7 +1127,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			executor.useCatalog(sessionId, "catalog1");
+			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.setSessionProperty(sessionId, "execution.type", "batch");
 			final String ddlTemplate = "create table %s(\n" +
 					"  a int,\n" +
@@ -1101,16 +1139,18 @@ public class LocalExecutorITCase extends TestLogger {
 					"  'connector.path'='xxx',\n" +
 					"  'update-mode'='append'\n" +
 					")\n";
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
 			// Change the session property to trigger `new ExecutionContext`.
 			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
 
 			// Reset the session properties.
 			executor.resetSessionProperties(sessionId);
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable3"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2", "MyTable3"), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable3"));
+			assertShowResult(
+					executor.executeSql(sessionId, "SHOW TABLES"),
+					Arrays.asList("MyTable1", "MyTable2", "MyTable3"));
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -1122,7 +1162,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			executor.useCatalog(sessionId, "catalog1");
+			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.setSessionProperty(sessionId, "execution.type", "batch");
 			final String ddlTemplate = "create table %s(\n" +
 					"  a int,\n" +
@@ -1135,57 +1175,59 @@ public class LocalExecutorITCase extends TestLogger {
 					"  'update-mode'='append'\n" +
 					")\n";
 			// Test drop table.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE MyTable1");
-			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, "DROP TABLE MyTable1");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.emptyList());
 
 			// Test drop table if exists.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE IF EXISTS MyTable1");
-			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, "DROP TABLE IF EXISTS MyTable1");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.emptyList());
 
 			// Test drop table with full qualified name.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE catalog1.`default`.MyTable1");
-			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, "DROP TABLE catalog1.`default`.MyTable1");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.emptyList());
 
 			// Test drop table with db and table name.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE `default`.MyTable1");
-			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, "DROP TABLE `default`.MyTable1");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.emptyList());
 
 			// Test drop table that does not exist.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE IF EXISTS catalog2.`default`.MyTable1");
-			assertEquals(Collections.singletonList("MyTable1"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE `default`.MyTable1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, "DROP TABLE IF EXISTS catalog2.`default`.MyTable1");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+			executor.executeSql(sessionId, "DROP TABLE `default`.MyTable1");
 
 			// Test drop table with properties changed.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
 			// Change the session property to trigger `new ExecutionContext`.
 			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE MyTable1");
-			executor.dropTable(sessionId, "DROP TABLE MyTable2");
-			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
+			executor.executeSql(sessionId, "DROP TABLE MyTable1");
+			executor.executeSql(sessionId, "DROP TABLE MyTable2");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.emptyList());
 
 			// Test drop table with properties reset.
 			// Reset the session properties.
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable1"));
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable2"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
 			executor.resetSessionProperties(sessionId);
-			executor.createTable(sessionId, String.format(ddlTemplate, "MyTable3"));
-			assertEquals(Arrays.asList("MyTable1", "MyTable2", "MyTable3"), executor.listTables(sessionId));
-			executor.dropTable(sessionId, "DROP TABLE MyTable1");
-			executor.dropTable(sessionId, "DROP TABLE MyTable2");
-			executor.dropTable(sessionId, "DROP TABLE MyTable3");
-			assertEquals(Collections.emptyList(), executor.listTables(sessionId));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable3"));
+			assertShowResult(
+					executor.executeSql(sessionId, "SHOW TABLES"),
+					Arrays.asList("MyTable1", "MyTable2", "MyTable3"));
+			executor.executeSql(sessionId, "DROP TABLE MyTable1");
+			executor.executeSql(sessionId, "DROP TABLE MyTable2");
+			executor.executeSql(sessionId, "DROP TABLE MyTable3");
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.emptyList());
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -1201,25 +1243,25 @@ public class LocalExecutorITCase extends TestLogger {
 				+ "as 'org.apache.flink.table.client.gateway.local.LocalExecutorITCase$TestScalaFunction' LANGUAGE JAVA";
 		try {
 			// Test create table with simple name.
-			executor.useCatalog(sessionId, "catalog1");
+			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.executeSql(sessionId, String.format(ddlTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(ddlTemplate, "TEMPORARY", "IF NOT EXISTS", "func2"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1", "func2"));
 
 			// Test create function with full qualified name.
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "", "", "`simple-catalog`.`default_database`.func3"));
-			executor.createTable(sessionId, String.format(ddlTemplate, "TEMPORARY", "IF NOT EXISTS", "`simple-catalog`.`default_database`.func4"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2"));
-			executor.useCatalog(sessionId, "simple-catalog");
-			assertThat(executor.listFunctions(sessionId), hasItems("func3", "func4"));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "", "", "`simple-catalog`.`default_database`.func3"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "TEMPORARY", "IF NOT EXISTS", "`simple-catalog`.`default_database`.func4"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1", "func2"));
+			executor.executeSql(sessionId, "use catalog `simple-catalog`");
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func3", "func4"));
 
 			// Test create function with db and table name.
-			executor.useCatalog(sessionId, "catalog1");
-			executor.createTable(sessionId, String.format(ddlTemplate, "TEMPORARY", "", "`default`.func5"));
-			executor.createTable(sessionId, String.format(ddlTemplate, "TEMPORARY", "", "`default`.func6"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2", "func5", "func6"));
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "TEMPORARY", "", "`default`.func5"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "TEMPORARY", "", "`default`.func6"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1", "func2", "func5", "func6"));
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -1231,7 +1273,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			executor.useCatalog(sessionId, "catalog1");
+			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.setSessionProperty(sessionId, "execution.type", "batch");
 			// arguments: [TEMPORARY|TEMPORARY SYSTEM], [IF NOT EXISTS], func_name
 			final String createTemplate = "create %s function %s %s \n"
@@ -1240,38 +1282,38 @@ public class LocalExecutorITCase extends TestLogger {
 			final String dropTemplate = "drop %s function %s %s";
 			// Test drop function.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), not(hasItems("func1")));
 
 			// Test drop function if exists.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "func1"));
-			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), not(hasItems("func1")));
 
 			// Test drop function with full qualified name.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "catalog1.`default`.func1"));
-			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), not(hasItems("func1")));
 
 			// Test drop function with db and function name.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "`default`.func1"));
-			assertThat(executor.listFunctions(sessionId), not(hasItems("func1")));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), not(hasItems("func1")));
 
 			// Test drop function that does not exist.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			try {
 				executor.executeSql(sessionId, String.format(dropTemplate, "", "IF EXISTS", "catalog2.`default`.func1"));
 				fail("unexpected");
 			} catch (Exception e) {
 				assertThat(e.getCause().getMessage(), is("Catalog catalog2 does not exist"));
 			}
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "`default`.func1"));
 
 			// Test drop function with properties changed.
@@ -1279,10 +1321,10 @@ public class LocalExecutorITCase extends TestLogger {
 			// Change the session property to trigger `new ExecutionContext`.
 			executor.setSessionProperty(sessionId, "execution.restart-strategy.failure-rate-interval", "12345");
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func2"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1", "func2"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func2"));
-			assertThat(executor.listFunctions(sessionId), not(hasItems("func1", "func2")));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), not(hasItems("func1", "func2")));
 
 			// Test drop function with properties reset.
 			// Reset the session properties.
@@ -1290,11 +1332,11 @@ public class LocalExecutorITCase extends TestLogger {
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func2"));
 			executor.resetSessionProperties(sessionId);
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func3"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1", "func2", "func3"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1", "func2", "func3"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func1"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func2"));
 			executor.executeSql(sessionId, String.format(dropTemplate, "", "", "func3"));
-			assertThat(executor.listFunctions(sessionId), not(hasItems("func1", "func2", "func3")));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), not(hasItems("func1", "func2", "func3")));
 		} finally {
 			executor.closeSession(sessionId);
 		}
@@ -1306,7 +1348,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 		try {
-			executor.useCatalog(sessionId, "catalog1");
+			executor.executeSql(sessionId, "use catalog catalog1");
 			executor.setSessionProperty(sessionId, "execution.type", "batch");
 			// arguments: [TEMPORARY|TEMPORARY SYSTEM], [IF NOT EXISTS], func_name
 			final String createTemplate = "create %s function %s %s \n"
@@ -1315,9 +1357,9 @@ public class LocalExecutorITCase extends TestLogger {
 			final String alterTemplate = "alter %s function %s %s AS %s";
 			// Test alter function.
 			executor.executeSql(sessionId, String.format(createTemplate, "", "", "func1"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 			executor.executeSql(sessionId, String.format(alterTemplate, "", "IF EXISTS", "`default`.func1", "'newClass'"));
-			assertThat(executor.listFunctions(sessionId), hasItems("func1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW FUNCTIONS"), hasItems("func1"));
 
 			// Test alter non temporary function with TEMPORARY keyword.
 			try {
@@ -1379,6 +1421,22 @@ public class LocalExecutorITCase extends TestLogger {
 		} finally {
 			executor.closeSession(sessionId);
 		}
+	}
+
+	private void assertShowResult(TableResult showResult, List<String> expected) {
+		List<String> actual = CollectionUtil.iteratorToList(showResult.collect())
+				.stream()
+				.map(r -> checkNotNull(r.getField(0)).toString())
+				.collect(Collectors.toList());
+		assertEquals(expected, actual);
+	}
+
+	private void assertShowResult(TableResult showResult, Matcher<Iterable<String>> matcher) {
+		List<String> actual = CollectionUtil.iteratorToList(showResult.collect())
+				.stream()
+				.map(r -> checkNotNull(r.getField(0)).toString())
+				.collect(Collectors.toList());
+		assertThat(actual, matcher);
 	}
 
 	private void verifySinkResult(String path) throws IOException {

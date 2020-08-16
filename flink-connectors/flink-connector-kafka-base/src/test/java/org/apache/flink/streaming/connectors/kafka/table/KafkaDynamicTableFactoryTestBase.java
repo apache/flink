@@ -87,6 +87,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 	private static final String COMPUTED_COLUMN_NAME = "computed-column";
 	private static final String COMPUTED_COLUMN_EXPRESSION = COUNT + " + 1.0";
 	private static final DataType COMPUTED_COLUMN_DATATYPE = DataTypes.DECIMAL(10, 3);
+	private static final String SEMANTIC = "exactly-once";
 
 	private static final Properties KAFKA_PROPERTIES = new Properties();
 	static {
@@ -210,7 +211,9 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				TOPIC,
 				KAFKA_PROPERTIES,
 				Optional.of(new FlinkFixedPartitioner<>()),
-				encodingFormat);
+				encodingFormat,
+				KafkaSinkSemantic.EXACTLY_ONCE
+			);
 		assertEquals(expectedSink, actualSink);
 
 		// Test sink format.
@@ -326,6 +329,29 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				Thread.currentThread().getContextClassLoader());
 	}
 
+	@Test
+	public void testInvalidSinkSemantic(){
+		ObjectIdentifier objectIdentifier = ObjectIdentifier.of(
+			"default",
+			"default",
+			"sinkTable");
+
+		final Map<String, String> modifiedOptions = getModifiedOptions(
+			getFullSourceOptions(),
+			options -> {
+				options.put("sink.semantic", "xyz");
+			});
+		final CatalogTable sinkTable = createKafkaSinkCatalogTable(modifiedOptions);
+
+		thrown.expect(ValidationException.class);
+		thrown.expect(containsCause(new ValidationException("Unsupported value 'xyz' for 'sink.semantic'. Supported values are ['at-least-once', 'exactly-once', 'none'].")));
+		FactoryUtil.createTableSink(
+			null,
+			objectIdentifier,
+			sinkTable,
+			new Configuration(),
+			Thread.currentThread().getContextClassLoader());
+	}
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
@@ -342,7 +368,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		return new CatalogTableImpl(SOURCE_SCHEMA, options, "scanTable");
 	}
 
-	private CatalogTable createKafkaSinkCatalogTable(Map<String, String> options) {
+	protected CatalogTable createKafkaSinkCatalogTable(Map<String, String> options) {
 		return new CatalogTableImpl(SINK_SCHEMA, options, "sinkTable");
 	}
 
@@ -351,14 +377,14 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 	 *
 	 * @param optionModifier Consumer to modify the options
 	 */
-	private static Map<String, String> getModifiedOptions(
+	protected static Map<String, String> getModifiedOptions(
 			Map<String, String> options,
 			Consumer<Map<String, String>> optionModifier) {
 		optionModifier.accept(options);
 		return options;
 	}
 
-	private Map<String, String> getFullSourceOptions() {
+	protected Map<String, String> getFullSourceOptions() {
 		Map<String, String> tableOptions = new HashMap<>();
 		// Kafka specific options.
 		tableOptions.put("connector", factoryIdentifier());
@@ -378,7 +404,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		return tableOptions;
 	}
 
-	private Map<String, String> getFullSinkOptions() {
+	protected Map<String, String> getFullSinkOptions() {
 		Map<String, String> tableOptions = new HashMap<>();
 		// Kafka specific options.
 		tableOptions.put("connector", factoryIdentifier());
@@ -386,6 +412,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 		tableOptions.put("properties.group.id", "dummy");
 		tableOptions.put("properties.bootstrap.servers", "dummy");
 		tableOptions.put("sink.partitioner", KafkaOptions.SINK_PARTITIONER_VALUE_FIXED);
+		tableOptions.put("sink.semantic", KafkaOptions.SINK_SEMANTIC_VALUE_EXACTLY_ONCE);
 		// Format options.
 		tableOptions.put("format", TestFormatFactory.IDENTIFIER);
 		final String formatDelimiterKey = String.format("%s.%s",
@@ -419,6 +446,7 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSinkSemantic semantic
 	);
 }

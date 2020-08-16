@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -64,9 +66,9 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +82,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.security.ExitTrappingSecurityManager.replaceGracefulExitWithHaltIfConfigured;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -136,6 +139,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			configuration,
 			executor,
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
+		JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
 
@@ -217,6 +222,12 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			Exception exception = null;
 
 			try {
+				JMXService.stopInstance();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			try {
 				blobCacheService.close();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -257,13 +268,13 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	@Override
 	public void onFatalError(Throwable exception) {
-		Throwable enrichedException = TaskManagerExceptionUtils.tryEnrichTaskManagerError(exception);
-		LOG.error("Fatal error occurred while executing the TaskManager. Shutting it down...", enrichedException);
+		TaskManagerExceptionUtils.tryEnrichTaskManagerError(exception);
+		LOG.error("Fatal error occurred while executing the TaskManager. Shutting it down...", exception);
 
 		// In case of the Metaspace OutOfMemoryError, we expect that the graceful shutdown is possible,
 		// as it does not usually require more class loading to fail again with the Metaspace OutOfMemoryError.
-		if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(enrichedException) &&
-				!ExceptionUtils.isMetaspaceOutOfMemoryError(enrichedException)) {
+		if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception) &&
+				!ExceptionUtils.isMetaspaceOutOfMemoryError(exception)) {
 			terminateJVM();
 		} else {
 			closeAsync();
@@ -312,21 +323,26 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 	public static void runTaskManagerSecurely(String[] args) {
 		try {
-			final Configuration configuration = loadConfiguration(args);
-			final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
-			FileSystem.initialize(configuration, pluginManager);
-
-			SecurityUtils.install(new SecurityConfiguration(configuration));
-
-			SecurityUtils.getInstalledContext().runSecured(() -> {
-				runTaskManager(configuration, pluginManager);
-				return null;
-			});
+			Configuration configuration = loadConfiguration(args);
+			runTaskManagerSecurely(configuration);
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 			LOG.error("TaskManager initialization failed.", strippedThrowable);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
+	}
+
+	public static void runTaskManagerSecurely(Configuration configuration) throws Exception {
+		replaceGracefulExitWithHaltIfConfigured(configuration);
+		final PluginManager pluginManager = PluginUtils.createPluginManagerFromRootFolder(configuration);
+		FileSystem.initialize(configuration, pluginManager);
+
+		SecurityUtils.install(new SecurityConfiguration(configuration));
+
+		SecurityUtils.getInstalledContext().runSecured(() -> {
+			runTaskManager(configuration, pluginManager);
+			return null;
+		});
 	}
 
 	// --------------------------------------------------------------------------------------------

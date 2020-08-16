@@ -53,17 +53,14 @@ public class TaskManagerExceptionUtils {
 	}
 
 	/**
-	 * Tries to enrich the passed exception with additional information.
+	 * Tries to enrich the passed exception or its causes with additional information.
 	 *
-	 * <p>This method improves error message for direct and metaspace {@link OutOfMemoryError}.
-	 * It adds description of possible causes and ways of resolution.
+	 * <p>This method improves error messages for direct and metaspace {@link OutOfMemoryError}.
+	 * It adds descriptions about possible causes and ways of resolution.
 	 *
-	 * @param exception exception to enrich if not {@code null}
-	 * @return the enriched exception or the original if no additional information could be added;
-	 * {@code null} if the argument was {@code null}
+	 * @param root The Throwable of which the cause tree shall be traversed.
 	 */
-	@Nullable
-	public static Throwable tryEnrichTaskManagerError(@Nullable Throwable exception) {
-		return tryEnrichOutOfMemoryError(exception, TM_METASPACE_OOM_ERROR_MESSAGE, TM_DIRECT_OOM_ERROR_MESSAGE);
+	public static void tryEnrichTaskManagerError(@Nullable Throwable root) {
+		tryEnrichOutOfMemoryError(root, TM_METASPACE_OOM_ERROR_MESSAGE, TM_DIRECT_OOM_ERROR_MESSAGE, null);
 	}
 }

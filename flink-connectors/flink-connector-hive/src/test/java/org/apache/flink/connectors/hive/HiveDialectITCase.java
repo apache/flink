@@ -180,6 +180,11 @@ public class HiveDialectITCase {
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
 		assertEquals(";", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.COLLECTION_DELIM));
 		assertEquals(":", hiveTable.getSd().getSerdeInfo().getParameters().get(serdeConstants.MAPKEY_DELIM));
+
+		int createdTimeForTableExists = hiveTable.getCreateTime();
+		tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
+		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
+		assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
 	}
 
 	@Test
@@ -431,6 +436,10 @@ public class HiveDialectITCase {
 		List<Row> databases = Lists.newArrayList(tableEnv.executeSql("show databases").collect());
 		assertEquals(1, databases.size());
 		assertEquals(DEFAULT_BUILTIN_DATABASE, databases.get(0).toString());
+		String catalogName = tableEnv.executeSql("show current catalog").collect().next().toString();
+		assertEquals(DEFAULT_BUILTIN_CATALOG, catalogName);
+		String databaseName = tableEnv.executeSql("show current database").collect().next().toString();
+		assertEquals(DEFAULT_BUILTIN_DATABASE, databaseName);
 	}
 
 	@Test
@@ -454,6 +463,51 @@ public class HiveDialectITCase {
 
 		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-05-01',country='belgium')");
 		assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
+	}
+
+	@Test
+	public void testShowPartitions() throws Exception {
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt date, country string)");
+		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
+
+		ObjectPath tablePath = new ObjectPath("default", "tbl");
+		assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
+
+		List<Row> partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		assertEquals(2, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30')").collect());
+		assertEquals(2, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (country='china')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30',country='china')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+
+		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-04-30',country='us')");
+		assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
+
+		tableEnv.executeSql("drop table tbl");
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt timestamp, country string)");
+		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30 01:02:03',country='china') partition (dt='2020-04-30 04:05:06',country='us')");
+
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
+		assertEquals(2, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+		assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 04:05:06')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 04:05:06/country=us"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30 01:02:03',country='china')").collect());
+		assertEquals(1, partitions.size());
+		assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
 	}
 
 	private static String locationPath(String locationURI) throws URISyntaxException {

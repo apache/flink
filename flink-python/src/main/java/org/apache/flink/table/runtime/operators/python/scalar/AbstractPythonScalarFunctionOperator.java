@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -59,6 +60,10 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 
 	private static final long serialVersionUID = 1L;
 
+	private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
+
+	private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1";
+
 	/**
 	 * The Python {@link ScalarFunction}s to be executed.
 	 */
@@ -93,4 +98,27 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 		return scalarFunctions[0].getPythonFunction().getPythonEnv();
 	}
 
+	/**
+	 * Gets the proto representation of the Python user-defined functions to be executed.
+	 */
+	@Override
+	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
+		// add udf proto
+		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
+			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
+		}
+		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+		return builder.build();
+	}
+
+	@Override
+	public String getFunctionUrn() {
+		return SCALAR_FUNCTION_URN;
+	}
+
+	@Override
+	public String getInputOutputCoderUrn() {
+		return SCALAR_FUNCTION_SCHEMA_CODER_URN;
+	}
 }

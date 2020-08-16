@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
@@ -45,20 +46,11 @@ import java.util.UUID;
 public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 
 	private final TableSchema tableSchema;
-	private final CollectSinkOperatorFactory<Tuple2<Boolean, Row>> factory;
-	private final CollectResultIterator<Tuple2<Boolean, Row>> iterator;
+
+	private CollectResultIterator<Tuple2<Boolean, Row>> iterator;
 
 	public StreamSelectTableSink(TableSchema tableSchema) {
 		this.tableSchema = SelectTableSinkSchemaConverter.convertTimeAttributeToRegularTimestamp(tableSchema);
-
-		TypeInformation<Tuple2<Boolean, Row>> tupleTypeInfo =
-				new TupleTypeInfo<>(Types.BOOLEAN, this.tableSchema.toRowType());
-		TypeSerializer<Tuple2<Boolean, Row>> typeSerializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
-		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
-
-		this.factory = new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
-		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
-		this.iterator = new CollectResultIterator<>(operator.getOperatorIdFuture(), typeSerializer, accumulatorName);
 	}
 
 	@Override
@@ -78,6 +70,22 @@ public class StreamSelectTableSink implements RetractStreamTableSink<Row> {
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
+		StreamExecutionEnvironment env = dataStream.getExecutionEnvironment();
+
+		TypeInformation<Tuple2<Boolean, Row>> tupleTypeInfo =
+			new TupleTypeInfo<>(Types.BOOLEAN, this.tableSchema.toRowType());
+		TypeSerializer<Tuple2<Boolean, Row>> typeSerializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
+
+		String accumulatorName = "tableResultCollect_" + UUID.randomUUID();
+		CollectSinkOperatorFactory<Tuple2<Boolean, Row>> factory =
+			new CollectSinkOperatorFactory<>(typeSerializer, accumulatorName);
+		CollectSinkOperator<Row> operator = (CollectSinkOperator<Row>) factory.getOperator();
+		this.iterator = new CollectResultIterator<>(
+			operator.getOperatorIdFuture(),
+			typeSerializer,
+			accumulatorName,
+			env.getCheckpointConfig());
+
 		CollectStreamSink<?> sink = new CollectStreamSink<>(dataStream, factory);
 		dataStream.getExecutionEnvironment().addOperator(sink.getTransformation());
 		return sink.name("Streaming select table sink");

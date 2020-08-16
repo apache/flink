@@ -1234,7 +1234,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		public void reportPayload(ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
 			validateRunsInMainThread();
-			executionDeploymentReconciler.reconcileExecutionDeployments(resourceID, payload.getExecutionDeploymentReport(), executionDeploymentTracker.getExecutionsOn(resourceID));
+			executionDeploymentReconciler.reconcileExecutionDeployments(
+				resourceID,
+				payload.getExecutionDeploymentReport(),
+				executionDeploymentTracker.getExecutionsOn(resourceID));
 			for (AccumulatorSnapshot snapshot : payload.getAccumulatorReport().getAccumulatorSnapshots()) {
 				schedulerNG.updateAccumulators(snapshot);
 			}

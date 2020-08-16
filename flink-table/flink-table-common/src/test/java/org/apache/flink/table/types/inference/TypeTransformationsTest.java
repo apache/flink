@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -31,7 +33,9 @@ import org.junit.Test;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.List;
 
+import static org.apache.flink.table.types.inference.TypeTransformations.TO_INTERNAL_CLASS;
 import static org.apache.flink.table.types.inference.TypeTransformations.legacyDecimalToDefaultDecimal;
 import static org.apache.flink.table.types.inference.TypeTransformations.legacyRawToTypeInfoRaw;
 import static org.apache.flink.table.types.inference.TypeTransformations.timeToSqlTypes;
@@ -44,12 +48,28 @@ import static org.junit.Assert.assertEquals;
 public class TypeTransformationsTest {
 
 	@Test
+	public void testToInternal() {
+		DataType dataType = DataTypes.STRUCTURED(
+			SimplePojo.class,
+			DataTypes.FIELD("name", DataTypes.STRING()),
+			DataTypes.FIELD("count", DataTypes.INT().notNull().bridgedTo(int.class)));
+
+		DataType expected = DataTypes.STRUCTURED(
+				SimplePojo.class,
+				DataTypes.FIELD("name", DataTypes.STRING().bridgedTo(StringData.class)),
+				DataTypes.FIELD("count", DataTypes.INT().notNull().bridgedTo(Integer.class)))
+			.bridgedTo(RowData.class);
+
+		assertEquals(expected, DataTypeUtils.transform(dataType, TO_INTERNAL_CLASS));
+	}
+
+	@Test
 	public void testTimeToSqlTypes() {
 		DataType dataType = DataTypes.ROW(
 			DataTypes.FIELD("a", DataTypes.STRING()),
 			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
 			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME())),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME()).bridgedTo(List.class)),
 			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
 			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
 		);
@@ -58,7 +78,7 @@ public class TypeTransformationsTest {
 			DataTypes.FIELD("a", DataTypes.STRING()),
 			DataTypes.FIELD("b", DataTypes.TIMESTAMP().bridgedTo(Timestamp.class)),
 			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().bridgedTo(Time.class))),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().bridgedTo(Time.class)).bridgedTo(List.class)),
 			DataTypes.FIELD("e", DataTypes.MAP(
 				DataTypes.DATE().bridgedTo(Date.class),
 				DataTypes.TIME(9).bridgedTo(Time.class))),
@@ -130,11 +150,30 @@ public class TypeTransformationsTest {
 		assertEquals(expected, DataTypeUtils.transform(dataType, toNullable()));
 	}
 
+	// --------------------------------------------------------------------------------------------
+
 	private static DataType createLegacyDecimal() {
 		return TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC);
 	}
 
 	private static DataType createLegacyRaw() {
 		return TypeConversions.fromLegacyInfoToDataType(Types.GENERIC(TypeTransformationsTest.class));
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Helper classes
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Simple POJO for testing.
+	 */
+	public static class SimplePojo {
+		public final String name;
+		public final int count;
+
+		public SimplePojo(String name, int count) {
+			this.name = name;
+			this.count = count;
+		}
 	}
 }

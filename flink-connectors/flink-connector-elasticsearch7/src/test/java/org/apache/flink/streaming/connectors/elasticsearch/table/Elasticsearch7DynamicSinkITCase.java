@@ -47,6 +47,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import static org.apache.flink.streaming.connectors.elasticsearch.table.TestContext.context;
@@ -200,7 +201,15 @@ public class Elasticsearch7DynamicSinkITCase {
 				12.12f,
 				(byte) 2,
 				LocalDate.ofEpochDay(12345),
-				LocalDateTime.parse("2012-12-12T12:12:12"))
+				LocalDateTime.parse("2012-12-12T12:12:12")),
+			row(
+				2L,
+				LocalTime.ofNanoOfDay(12345L * 1_000_000L),
+				"FGHIJK",
+				13.13f,
+				(byte) 4,
+				LocalDate.ofEpochDay(12345),
+				LocalDateTime.parse("2013-12-12T13:13:13"))
 		).executeInsert("esTable")
 			.getJobClient()
 			.get()
@@ -218,25 +227,75 @@ public class Elasticsearch7DynamicSinkITCase {
 				.execute()
 				.actionGet()
 				.getHits();
-			if (hits.getTotalHits().value < 1) {
+			if (hits.getTotalHits().value < 2) {
 				Thread.sleep(200);
 			}
-		} while (hits.getTotalHits().value < 1 && deadline.hasTimeLeft());
+		} while (hits.getTotalHits().value < 2 && deadline.hasTimeLeft());
 
-		if (hits.getTotalHits().value < 1) {
+		if (hits.getTotalHits().value < 2) {
 			throw new AssertionError("Could not retrieve results from Elasticsearch.");
 		}
 
-		Map<String, Object> result = hits.getAt(0).getSourceAsMap();
+		HashSet<Map<String, Object>> resultSet = new HashSet<>();
+		resultSet.add(hits.getAt(0).getSourceAsMap());
+		resultSet.add(hits.getAt(1).getSourceAsMap());
+		Map<Object, Object> expectedMap1 = new HashMap<>();
+		expectedMap1.put("a", 1);
+		expectedMap1.put("b", "00:00:12");
+		expectedMap1.put("c", "ABCDE");
+		expectedMap1.put("d", 12.12d);
+		expectedMap1.put("e", 2);
+		expectedMap1.put("f", "2003-10-20");
+		expectedMap1.put("g", "2012-12-12 12:12:12");
+		Map<Object, Object> expectedMap2 = new HashMap<>();
+		expectedMap2.put("a", 2);
+		expectedMap2.put("b", "00:00:12");
+		expectedMap2.put("c", "FGHIJK");
+		expectedMap2.put("d", 13.13d);
+		expectedMap2.put("e", 4);
+		expectedMap2.put("f", "2003-10-20");
+		expectedMap2.put("g", "2013-12-12 13:13:13");
+		HashSet<Map<Object, Object>> expectedSet = new HashSet<>();
+		expectedSet.add(expectedMap1);
+		expectedSet.add(expectedMap2);
+		assertThat(resultSet, equalTo(expectedSet));
+	}
+
+	@Test
+	public void testWritingDocumentsWithDynamicIndex() throws Exception {
+		TableEnvironment tableEnvironment = TableEnvironment.create(EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inStreamingMode()
+			.build());
+
+		String index = "dynamic-index-{b|yyyy-MM-dd}";
+		tableEnvironment.executeSql("CREATE TABLE esTable (" +
+			"a BIGINT NOT NULL,\n" +
+			"b TIMESTAMP NOT NULL,\n" +
+			"PRIMARY KEY (a) NOT ENFORCED\n" +
+			")\n" +
+			"WITH (\n" +
+			String.format("'%s'='%s',\n", "connector", "elasticsearch-7") +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index) +
+			String.format("'%s'='%s',\n", ElasticsearchOptions.HOSTS_OPTION.key(), "http://127.0.0.1:9200") +
+			String.format("'%s'='%s'\n", ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false") +
+			")");
+
+		tableEnvironment.fromValues(row(1L, LocalDateTime.parse("2012-12-12T12:12:12")))
+			.executeInsert("esTable")
+			.getJobClient()
+			.get()
+			.getJobExecutionResult(this.getClass().getClassLoader())
+			.get();
+
+		Client client = elasticsearchResource.getClient();
+		Map<String, Object> response = client.get(new GetRequest("dynamic-index-2012-12-12", "1"))
+			.actionGet()
+			.getSource();
 		Map<Object, Object> expectedMap = new HashMap<>();
 		expectedMap.put("a", 1);
-		expectedMap.put("b", "00:00:12");
-		expectedMap.put("c", "ABCDE");
-		expectedMap.put("d", 12.12d);
-		expectedMap.put("e", 2);
-		expectedMap.put("f", "2003-10-20");
-		expectedMap.put("g", "2012-12-12 12:12:12");
-		assertThat(result, equalTo(expectedMap));
+		expectedMap.put("b", "2012-12-12 12:12:12");
+		assertThat(response, equalTo(expectedMap));
 	}
 
 	private static class MockContext implements DynamicTableSink.Context {

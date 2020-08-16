@@ -18,32 +18,31 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.BooleanMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.ByteMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.DateMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.DecimalMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.DoubleMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.FloatMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.IntMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.LongMaxWithRetractAggFunction;
+import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.MaxWithRetractAccumulator;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.ShortMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.StringMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.TimeMaxWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction.TimestampMaxWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.Method;
-import java.sql.Date;
-import java.sql.Time;
 import java.util.Arrays;
 import java.util.List;
 
@@ -61,7 +60,7 @@ public final class MaxWithRetractAggFunctionTest {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Test for ByteMaxWithRetractAggFunction.
+	 * Test for {@link TinyIntType}.
 	 */
 	public static final class ByteMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Byte> {
 
@@ -82,12 +81,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Byte, MaxWithRetractAccumulator<Byte>> getAggregator() {
-			return new ByteMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.TINYINT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for ShortMaxWithRetractAggFunction.
+	 * Test for {@link SmallIntType}.
 	 */
 	public static final class ShortMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Short> {
 
@@ -108,12 +107,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Short, MaxWithRetractAccumulator<Short>> getAggregator() {
-			return new ShortMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.SMALLINT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for IntMaxWithRetractAggFunction.
+	 * Test for {@link IntType}.
 	 */
 	public static final class IntMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Integer> {
 
@@ -134,12 +133,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Integer, MaxWithRetractAccumulator<Integer>> getAggregator() {
-			return new IntMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.INT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for LongMaxWithRetractAggFunction.
+	 * Test for {@link BigIntType}.
 	 */
 	public static final class LongMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Long> {
 
@@ -160,12 +159,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Long, MaxWithRetractAccumulator<Long>> getAggregator() {
-			return new LongMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.BIGINT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for FloatMaxWithRetractAggFunction.
+	 * Test for {@link FloatType}.
 	 */
 	public static final class FloatMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Float> {
 
@@ -186,12 +185,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Float, MaxWithRetractAccumulator<Float>> getAggregator() {
-			return new FloatMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.FLOAT().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for DoubleMaxWithRetractAggFunction.
+	 * Test for {@link DoubleType}.
 	 */
 	public static final class DoubleMaxWithRetractAggFunctionTest extends NumberMaxWithRetractAggFunctionTest<Double> {
 
@@ -212,12 +211,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Double, MaxWithRetractAccumulator<Double>> getAggregator() {
-			return new DoubleMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.DOUBLE().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for BooleanMaxWithRetractAggFunction.
+	 * Test for {@link BooleanType}.
 	 */
 	public static final class BooleanMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Boolean> {
 
@@ -267,22 +266,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<Boolean, MaxWithRetractAccumulator<Boolean>> getAggregator() {
-			return new BooleanMaxWithRetractAggFunction();
-		}
-
-		@Override
-		protected Class<?> getAccClass() {
-			return MaxWithRetractAccumulator.class;
-		}
-
-		@Override
-		protected Method getRetractFunc() throws NoSuchMethodException {
-			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+			return new MaxWithRetractAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for DecimalMaxWithRetractAggFunction.
+	 * Test for {@link DecimalType}.
 	 */
 	public static final class DecimalMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<DecimalData> {
 
@@ -328,12 +317,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<DecimalData, MaxWithRetractAccumulator<DecimalData>> getAggregator() {
-			return new DecimalMaxWithRetractAggFunction(DecimalDataTypeInfo.of(precision, scale));
+			return new MaxWithRetractAggFunction<>(DataTypes.DECIMAL(precision, scale).getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for StringMaxWithRetractAggFunction.
+	 * Test for {@link VarCharType}.
 	 */
 	public static final class StringMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<StringData> {
 
@@ -377,12 +366,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<StringData, MaxWithRetractAccumulator<StringData>> getAggregator() {
-			return new StringMaxWithRetractAggFunction();
+			return new MaxWithRetractAggFunction<>(DataTypes.STRING().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for TimestampMaxWithRetractAggFunction.
+	 * Test for {@link TimestampType}.
 	 */
 	public static final class TimestampMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<TimestampData> {
 
@@ -421,12 +410,12 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<TimestampData, MaxWithRetractAccumulator<TimestampData>> getAggregator() {
-			return new TimestampMaxWithRetractAggFunction(3);
+			return new MaxWithRetractAggFunction<>(DataTypes.TIMESTAMP(3).getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for TimestampMaxWithRetractAggFunction, precision is 9.
+	 * Test for {@link TimestampType} with precision 9.
 	 */
 	public static final class Timestamp9MaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<TimestampData> {
 
@@ -467,24 +456,24 @@ public final class MaxWithRetractAggFunctionTest {
 
 		@Override
 		protected AggregateFunction<TimestampData, MaxWithRetractAccumulator<TimestampData>> getAggregator() {
-			return new TimestampMaxWithRetractAggFunction(9);
+			return new MaxWithRetractAggFunction<>(DataTypes.TIMESTAMP(9).getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for DateMaxWithRetractAggFunction.
+	 * Test for {@link DateType}.
 	 */
-	public static final class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Date> {
+	public static final class DateMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Integer> {
 
 		@Override
-		protected List<List<Date>> getInputValueSets() {
+		protected List<List<Integer>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Date(0),
-							new Date(1000),
-							new Date(100),
+							0,
+							1000,
+							100,
 							null,
-							new Date(10)
+							10
 					),
 					Arrays.asList(
 							null,
@@ -495,40 +484,40 @@ public final class MaxWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Date(1)
+							1
 					)
 			);
 		}
 
 		@Override
-		protected List<Date> getExpectedResults() {
+		protected List<Integer> getExpectedResults() {
 			return Arrays.asList(
-					new Date(1000),
+					1000,
 					null,
-					new Date(1)
+					1
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Date, MaxWithRetractAccumulator<Date>> getAggregator() {
-			return new DateMaxWithRetractAggFunction();
+		protected AggregateFunction<Integer, MaxWithRetractAccumulator<Integer>> getAggregator() {
+			return new MaxWithRetractAggFunction<>(DataTypes.DATE().getLogicalType());
 		}
 	}
 
 	/**
-	 * Test for TimeMaxWithRetractAggFunction.
+	 * Test for {@link TimeType}.
 	 */
-	public static final class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Time> {
+	public static final class TimeMaxWithRetractAggFunctionTest extends MaxWithRetractAggFunctionTestBase<Integer> {
 
 		@Override
-		protected List<List<Time>> getInputValueSets() {
+		protected List<List<Integer>> getInputValueSets() {
 			return Arrays.asList(
 					Arrays.asList(
-							new Time(0),
-							new Time(1000),
-							new Time(100),
+							0,
+							1000,
+							100,
 							null,
-							new Time(10)
+							10
 					),
 					Arrays.asList(
 							null,
@@ -539,23 +528,23 @@ public final class MaxWithRetractAggFunctionTest {
 					),
 					Arrays.asList(
 							null,
-							new Time(1)
+							1
 					)
 			);
 		}
 
 		@Override
-		protected List<Time> getExpectedResults() {
+		protected List<Integer> getExpectedResults() {
 			return Arrays.asList(
-					new Time(1000),
+					1000,
 					null,
-					new Time(1)
+					1
 			);
 		}
 
 		@Override
-		protected AggregateFunction<Time, MaxWithRetractAccumulator<Time>> getAggregator() {
-			return new TimeMaxWithRetractAggFunction();
+		protected AggregateFunction<Integer, MaxWithRetractAccumulator<Integer>> getAggregator() {
+			return new MaxWithRetractAggFunction<>(DataTypes.TIME(0).getLogicalType());
 		}
 	}
 
@@ -568,7 +557,7 @@ public final class MaxWithRetractAggFunctionTest {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * The base test class for MaxWithRetractAggFunction.
+	 * Test base for {@link MaxWithRetractAggFunction}.
 	 */
 	public abstract static class MaxWithRetractAggFunctionTestBase<T>
 		extends AggFunctionTestBase<T, MaxWithRetractAccumulator<T>> {
@@ -579,13 +568,28 @@ public final class MaxWithRetractAggFunctionTest {
 		}
 
 		@Override
+		protected Method getAccumulateFunc() throws NoSuchMethodException {
+			return getAggregator()
+				.getClass()
+				.getMethod(
+					UserDefinedFunctionHelper.AGGREGATE_ACCUMULATE,
+					getAccClass(),
+					Comparable.class);
+		}
+
+		@Override
 		protected Method getRetractFunc() throws NoSuchMethodException {
-			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class);
+			return getAggregator()
+				.getClass()
+				.getMethod(
+					UserDefinedFunctionHelper.AGGREGATE_RETRACT,
+					getAccClass(),
+					Comparable.class);
 		}
 	}
 
 	/**
-	 * Test MaxWithRetractAggFunction for number type.
+	 * Test base for {@link MaxWithRetractAggFunction} and numeric types.
 	 */
 	public abstract static class NumberMaxWithRetractAggFunctionTest<T> extends MaxWithRetractAggFunctionTestBase<T> {
 		protected abstract T getMinValue();

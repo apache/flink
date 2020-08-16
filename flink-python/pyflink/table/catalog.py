@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import warnings
+from typing import Dict, List
 
 from py4j.java_gateway import java_import
 
@@ -35,13 +36,6 @@ class Catalog(object):
 
     def __init__(self, j_catalog):
         self._j_catalog = j_catalog
-
-    @staticmethod
-    def _get(j_catalog):
-        if j_catalog.getClass().getName() == "org.apache.flink.table.catalog.hive.HiveCatalog":
-            return HiveCatalog(j_hive_catalog=j_catalog)
-        else:
-            return Catalog(j_catalog)
 
     def get_default_database(self):
         """
@@ -556,6 +550,23 @@ class CatalogDatabase(object):
         self._j_catalog_database = j_catalog_database
 
     @staticmethod
+    def create_instance(
+        properties: Dict[str, str],
+        comment: str = None
+    ) -> "CatalogDatabase":
+        """
+        Creates an instance of CatalogDatabase.
+
+        :param properties: Property of the database
+        :param comment: Comment of the database
+        """
+        assert properties is not None
+
+        gateway = get_gateway()
+        return CatalogDatabase(gateway.jvm.org.apache.flink.table.catalog.CatalogDatabaseImpl(
+            properties, comment))
+
+    @staticmethod
     def _get(j_catalog_database):
         return CatalogDatabase(j_catalog_database)
 
@@ -614,6 +625,60 @@ class CatalogBaseTable(object):
 
     def __init__(self, j_catalog_base_table):
         self._j_catalog_base_table = j_catalog_base_table
+
+    @staticmethod
+    def create_table(
+        schema: TableSchema,
+        partition_keys: List[str] = [],
+        properties: Dict[str, str] = {},
+        comment: str = None
+    ) -> "CatalogBaseTable":
+        """
+        Create an instance of CatalogBaseTable for the catalog table.
+
+        :param schema: the table schema
+        :param partition_keys: the partition keys, default empty
+        :param properties: the properties of the catalog table
+        :param comment: the comment of the catalog table
+        """
+        assert schema is not None
+        assert partition_keys is not None
+        assert properties is not None
+
+        gateway = get_gateway()
+        return CatalogBaseTable(
+            gateway.jvm.org.apache.flink.table.catalog.CatalogTableImpl(
+                schema._j_table_schema, partition_keys, properties, comment))
+
+    @staticmethod
+    def create_view(
+        original_query: str,
+        expanded_query: str,
+        schema: TableSchema,
+        properties: Dict[str, str],
+        comment: str = None
+    ) -> "CatalogBaseTable":
+        """
+        Create an instance of CatalogBaseTable for the catalog view.
+
+        :param original_query: the original text of the view definition
+        :param expanded_query: the expanded text of the original view definition, this is needed
+                               because the context such as current DB is lost after the session,
+                               in which view is defined, is gone. Expanded query text takes care
+                               of the this, as an example.
+        :param schema: the table schema
+        :param properties: the properties of the catalog view
+        :param comment: the comment of the catalog view
+        """
+        assert original_query is not None
+        assert expanded_query is not None
+        assert schema is not None
+        assert properties is not None
+
+        gateway = get_gateway()
+        return CatalogBaseTable(
+            gateway.jvm.org.apache.flink.table.catalog.CatalogViewImpl(
+                original_query, expanded_query, schema._j_table_schema, properties, comment))
 
     @staticmethod
     def _get(j_catalog_base_table):
@@ -703,6 +768,24 @@ class CatalogPartition(object):
         self._j_catalog_partition = j_catalog_partition
 
     @staticmethod
+    def create_instance(
+        properties: Dict[str, str],
+        comment: str = None
+    ) -> "CatalogPartition":
+        """
+        Creates an instance of CatalogPartition.
+
+        :param properties: Property of the partition
+        :param comment: Comment of the partition
+        """
+        assert properties is not None
+
+        gateway = get_gateway()
+        return CatalogPartition(
+            gateway.jvm.org.apache.flink.table.catalog.CatalogPartitionImpl(
+                properties, comment))
+
+    @staticmethod
     def _get(j_catalog_partition):
         return CatalogPartition(j_catalog_partition)
 
@@ -763,6 +846,34 @@ class CatalogFunction(object):
 
     def __init__(self, j_catalog_function):
         self._j_catalog_function = j_catalog_function
+
+    @staticmethod
+    def create_instance(
+        class_name: str,
+        function_language: str = 'Python'
+    ) -> "CatalogFunction":
+        """
+        Creates an instance of CatalogDatabase.
+
+        :param class_name: full qualified path of the class name
+        :param function_language: language of the function, must be one of
+                                  'Python', 'Java' or 'Scala'. (default Python)
+        """
+        assert class_name is not None
+
+        gateway = get_gateway()
+        FunctionLanguage = gateway.jvm.org.apache.flink.table.catalog.FunctionLanguage
+        if function_language.lower() == 'python':
+            function_language = FunctionLanguage.PYTHON
+        elif function_language.lower() == 'java':
+            function_language = FunctionLanguage.JAVA
+        elif function_language.lower() == 'scala':
+            function_language = FunctionLanguage.SCALA
+        else:
+            raise ValueError("function_language must be one of 'Python', 'Java' or 'Scala'")
+        return CatalogFunction(
+            gateway.jvm.org.apache.flink.table.catalog.CatalogFunctionImpl(
+                class_name, function_language))
 
     @staticmethod
     def _get(j_catalog_function):
@@ -988,11 +1099,31 @@ class HiveCatalog(Catalog):
     A catalog implementation for Hive.
     """
 
-    def __init__(self, catalog_name=None, default_database="default", hive_conf_dir=None,
-                 j_hive_catalog=None):
+    def __init__(self, catalog_name: str, default_database: str = None, hive_conf_dir: str = None):
+        assert catalog_name is not None
+
         gateway = get_gateway()
 
-        if j_hive_catalog is None:
-            j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
-                catalog_name, default_database, hive_conf_dir)
+        j_hive_catalog = gateway.jvm.org.apache.flink.table.catalog.hive.HiveCatalog(
+            catalog_name, default_database, hive_conf_dir)
         super(HiveCatalog, self).__init__(j_hive_catalog)
+
+
+class JdbcCatalog(Catalog):
+    """
+    A catalog implementation for Jdbc.
+    """
+    def __init__(self, catalog_name: str, default_database: str, username: str, pwd: str,
+                 base_url: str):
+        assert catalog_name is not None
+        assert default_database is not None
+        assert username is not None
+        assert pwd is not None
+        assert base_url is not None
+
+        from pyflink.java_gateway import get_gateway
+        gateway = get_gateway()
+
+        j_jdbc_catalog = gateway.jvm.org.apache.flink.connector.jdbc.catalog.JdbcCatalog(
+            catalog_name, default_database, username, pwd, base_url)
+        super(JdbcCatalog, self).__init__(j_jdbc_catalog)

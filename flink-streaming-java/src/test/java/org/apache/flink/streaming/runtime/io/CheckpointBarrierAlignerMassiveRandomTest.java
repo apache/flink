@@ -57,8 +57,8 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		NetworkBufferPool networkBufferPool1 = null;
 		NetworkBufferPool networkBufferPool2 = null;
 		try {
-			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE, 1);
-			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE, 1);
+			networkBufferPool1 = new NetworkBufferPool(100, PAGE_SIZE);
+			networkBufferPool2 = new NetworkBufferPool(100, PAGE_SIZE);
 			BufferPool pool1 = networkBufferPool1.createBufferPool(100, 100);
 			BufferPool pool2 = networkBufferPool2.createBufferPool(100, 100);
 

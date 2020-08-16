@@ -24,13 +24,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-本节你将学到如何写可感知时间变化的 Flink 程序，可以先看看[实时流处理]({% link concepts/timely-stream-processing.zh.md %})了解相关概念。
+在本节中，你将学习编写可感知时间变化（time-aware）的 Flink 程序。可以参阅[实时流处理]({% link concepts/timely-stream-processing.zh.md %})小节以了解实时流处理的概念。
 
-想了解如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和[处理函数]({% link dev/stream/operators/process_function.zh.md %})。
+有关如何在 Flink 程序中使用时间特性，请参阅[窗口]({% link dev/stream/operators/windows.zh.md %})和 [ProcessFunction]({% link dev/stream/operators/process_function.zh.md %}) 小节。
 
-使用*事件时间*进行流处理的先决条件是设置合适的*时间特性*，该设置定义了数据流的行为方式（例如，是否分配时间戳），以及窗口算子使用哪种时间概念，例如 `KeyedStream.timeWindow(Time.seconds(30))` 。
+使用*事件时间*处理数据之前需要在程序中设置正确的*时间语义*。此项设置会定义源数据的处理方式（例如：程序是否会对数据分配时间戳），以及程序应使用什么时间语义执行 `KeyedStream.timeWindow(Time.seconds(30))` 之类的窗口操作。
 
-你可以调用 `StreamExecutionEnvironment.setStreamTimeCharacteristic()` 设置时间特性：
+可以通过 `StreamExecutionEnvironment.setStreamTimeCharacteristic()` 设置程序的时间语义，示例如下：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -69,19 +69,16 @@ env = StreamExecutionEnvironment.get_execution_environment()
 
 env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
-# alternatively:
-# env.set_stream_time_characteristic(TimeCharacteristic.IngestionTime)
-# env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 {% endhighlight %}
 </div>
 </div>
 
-值得注意的是，为了能够使用*事件时间*作为时间特征运行此示例，程序需要使用那些能给数据直接定义事件时间并自己发出水印的源，或者程序必须在收到源发出的事件流之后注入“时间戳分配器和水印生成器”，这些功能描述了访问事件时间戳的方法，以及事件流呈现的乱序程度。
+注意：为了以*事件时间*的语义运行上述示例，程序需要满足下列其中一种条件，要么其消费的数据源直接为其数据定义了事件时间并且可以发出 watermark，要么程序必须在数据源之后显示声明*时间戳分配器和 Watermark 生成器*（*Timestamp Assigner＆Watermark Generator*）。这些函数可以定义 Flink 程序如何获取到事件时间戳以及定义事件流的乱序程度。
 
-## 接下来看什么?
+## 接下来学习的内容？
 
-* [生成水印]({% link dev/event_timestamps_watermarks.zh.md %})：描述了在写可感知事件时间的 Flink 应用程序时，如何定义时间戳分配器和水印生成器。
-* [内置水印生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 自带的水印生成器。
-* [调试窗口&事件时间]({% link monitoring/debugging_event_time.zh.md %})：描述了在可感知事件时间的 Flink 应用程序里，如何调试水印和时间戳。
+* [生成 Watermark]({% link dev/event_timestamps_watermarks.zh.md %})：展示如何编写 Flink 应用程序感知事件时间所必需的时间戳分配器和 watermark 生成器。
+* [内置 Watermark 生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 框架内置的 watermark 生成器。
+* [调试窗口和事件时间]({% link monitoring/debugging_event_time.zh.md %})：展示如何在含有事件时间语义的 Flink 应用程序中调试 watermark 和时间戳相关的问题。
 
 {% top %}

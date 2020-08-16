@@ -124,7 +124,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     if (isInternalClass(t)) {
       s"(${boxedTypeTermForType(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(t))}) $term"
     } else {
-      genToInternal(ctx, t, term)
+      genToInternalConverter(ctx, t, term)
     }
   }
 
@@ -163,7 +163,7 @@ object ScalarFunctionCallGen {
           } else {
             signatureTypes(i)
           }
-        val externalResultTerm = genToExternalIfNeeded(ctx, signatureType, operandExpr)
+        val externalResultTerm = genToExternalConverterAll(ctx, signatureType, operandExpr)
         operandExpr.copy(resultTerm = externalResultTerm)
       }
     }

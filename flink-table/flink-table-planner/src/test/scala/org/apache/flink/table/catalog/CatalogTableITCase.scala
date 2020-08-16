@@ -634,17 +634,19 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
   }
 
   @Test
-  def testUseCatalog(): Unit = {
+  def testUseCatalogAndShowCurrentCatalog(): Unit = {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
     tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
     tableEnv.sqlUpdate("use catalog cat1")
     assertEquals("cat1", tableEnv.getCurrentCatalog)
+    assertEquals("cat1", tableEnv.executeSql("show current catalog").collect().next().toString)
     tableEnv.sqlUpdate("use catalog cat2")
     assertEquals("cat2", tableEnv.getCurrentCatalog)
+    assertEquals("cat2", tableEnv.executeSql("show current catalog").collect().next().toString)
   }
 
   @Test
-  def testUseDatabase(): Unit = {
+  def testUseDatabaseShowCurrentDatabase(): Unit = {
     val catalog = new GenericInMemoryCatalog("cat1")
     tableEnv.registerCatalog("cat1", catalog)
     val catalogDB1 = new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1")
@@ -653,8 +655,10 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     catalog.createDatabase("db2", catalogDB2, true)
     tableEnv.sqlUpdate("use cat1.db1")
     assertEquals("db1", tableEnv.getCurrentDatabase)
+    assertEquals("db1", tableEnv.executeSql("show current database").collect().next().toString)
     tableEnv.sqlUpdate("use db2")
     assertEquals("db2", tableEnv.getCurrentDatabase)
+    assertEquals("db2", tableEnv.executeSql("show current database").collect().next().toString)
   }
 
   @Test

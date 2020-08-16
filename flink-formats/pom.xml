@@ -35,7 +35,7 @@ under the License.
 	</properties>
 
 	<artifactId>flink-formats</artifactId>
-	<name>flink-formats</name>
+	<name>Flink : Formats : </name>
 	<packaging>pom</packaging>
 
 	<modules>

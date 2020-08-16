@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -86,7 +86,7 @@ class BatchExecExpand(
     val config = planner.getTableConfig
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
-    val inputType = inputTransform.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
+    val inputType = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val ctx = CodeGeneratorContext(config)
@@ -102,7 +102,7 @@ class BatchExecExpand(
       inputTransform,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       inputTransform.getParallelism)
   }
 }

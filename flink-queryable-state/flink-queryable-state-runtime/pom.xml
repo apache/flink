@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-queryable-state-runtime_${scala.binary.version}</artifactId>
-	<name>flink-queryable-state-runtime</name>
+	<name>Flink : Queryable state : Runtime</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

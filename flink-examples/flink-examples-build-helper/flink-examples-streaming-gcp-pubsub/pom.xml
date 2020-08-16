@@ -29,7 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-examples-streaming-gcp-pubsub_${scala.binary.version}</artifactId>
-	<name>flink-examples-streaming-gcp-pubsub</name>
+	<name>Flink : Examples : Build Helper : Streaming Google PubSub</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

@@ -33,7 +33,7 @@ import org.apache.flink.table.data.util.DataFormatConverters.RowConverter;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -58,7 +58,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
 	private final boolean isLeftOuterJoin;
 	private final int asyncBufferCapacity;
 	private final TypeInformation<?> fetcherReturnType;
-	private final RowDataTypeInfo rightRowTypeInfo;
+	private final InternalTypeInfo<RowData> rightRowTypeInfo;
 
 	private transient AsyncFunction<RowData, Object> fetcher;
 
@@ -79,7 +79,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
 			GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher,
 			GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
 			TypeInformation<?> fetcherReturnType,
-			RowDataTypeInfo rightRowTypeInfo,
+			InternalTypeInfo<RowData> rightRowTypeInfo,
 			boolean isLeftOuterJoin,
 			int asyncBufferCapacity) {
 		this.generatedFetcher = generatedFetcher;
@@ -105,11 +105,11 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
 		if (fetcherReturnType instanceof RowTypeInfo) {
 			rowConverter = (DataFormatConverters.RowConverter) DataFormatConverters.getConverterForDataType(
 					fromLegacyInfoToDataType(fetcherReturnType));
-		} else if (fetcherReturnType instanceof RowDataTypeInfo) {
+		} else if (fetcherReturnType instanceof InternalTypeInfo) {
 			rowConverter = null;
 		} else {
 			throw new IllegalStateException("This should never happen, " +
-				"currently fetcherReturnType can only be RowDataTypeInfo or RowTypeInfo");
+				"currently fetcherReturnType can only be InternalTypeInfo<RowData> or RowTypeInfo");
 		}
 
 		// asyncBufferCapacity + 1 as the queue size in order to avoid
@@ -122,7 +122,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
 				createFetcherResultFuture(parameters),
 				rowConverter,
 				isLeftOuterJoin,
-				rightRowTypeInfo.getArity());
+				rightRowTypeInfo.toRowSize());
 			// add will throw exception immediately if the queue is full which should never happen
 			resultFutureBuffer.add(rf);
 			allResultFutures.add(rf);

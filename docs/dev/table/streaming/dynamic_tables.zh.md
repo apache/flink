@@ -128,6 +128,8 @@ DataStream 上的关系查询
 
 与前面一样，左边显示了输入表 `clicks`。查询每小时持续计算结果并更新结果表。clicks表包含四行带有时间戳(`cTime`)的数据，时间戳在 `12:00:00` 和 `12:59:59` 之间。查询从这个输入计算出两个结果行(每个 `user` 一个)，并将它们附加到结果表中。对于 `13:00:00` 和 `13:59:59` 之间的下一个窗口，`clicks` 表包含三行，这将导致另外两行被追加到结果表。随着时间的推移，更多的行被添加到 `click` 中，结果表将被更新。
 
+<a name="update-and-append-queries"></a>
+
 ### 更新和追加查询
 
 虽然这两个示例查询看起来非常相似(都计算分组计数聚合)，但它们在一个重要方面不同:
@@ -153,7 +155,7 @@ GROUP BY user;
 - **计算更新：** 有些查询需要重新计算和更新大量已输出的结果行，即使只添加或更新一条输入记录。显然，这样的查询不适合作为连续查询执行。下面的查询就是一个例子，它根据最后一次单击的时间为每个用户计算一个 `RANK`。一旦 `click` 表接收到一个新行，用户的 `lastAction` 就会更新，并必须计算一个新的排名。然而，由于两行不能具有相同的排名，所以所有较低排名的行也需要更新。
 
 {% highlight sql %}
-SELECT user, RANK() OVER (ORDER BY lastLogin)
+SELECT user, RANK() OVER (ORDER BY lastAction)
 FROM (
   SELECT user, MAX(cTime) AS lastAction FROM clicks GROUP BY user
 );

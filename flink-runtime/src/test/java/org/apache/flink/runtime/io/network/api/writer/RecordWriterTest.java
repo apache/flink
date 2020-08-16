@@ -413,7 +413,7 @@ public class RecordWriterTest {
 	@Test
 	public void testIsAvailableOrNot() throws Exception {
 		// setup
-		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
@@ -455,7 +455,7 @@ public class RecordWriterTest {
 		final int[] records = {5, 6, 7, 8};
 		final int bufferSize = states.length * Integer.BYTES;
 
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize, 1);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
 		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
 		final ResultPartition partition = new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
@@ -507,7 +507,7 @@ public class RecordWriterTest {
 	@Test
 	public void testIdleTime() throws IOException, InterruptedException {
 		// setup
-		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)

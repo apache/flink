@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
-	<name>flink-connector-kinesis</name>
+	<name>Flink : Connectors : Kinesis</name>
 	<properties>
 		<aws.sdk.version>1.11.754</aws.sdk.version>
 		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
@@ -92,6 +92,13 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>amazon-kinesis-aggregator</artifactId>
+			<version>1.0.3</version>
 			<scope>test</scope>
 		</dependency>
 

@@ -18,12 +18,8 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import java.lang.reflect.Method
-import java.util.Collections
-
-import org.apache.calcite.rex.{RexCall, RexCallBinding}
 import org.apache.flink.table.data.GenericRowData
-import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL}
+import org.apache.flink.table.functions.UserDefinedFunctionHelper.{SCALAR_EVAL, TABLE_EVAL, validateClassForRuntime}
 import org.apache.flink.table.functions.{FunctionKind, ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
@@ -33,13 +29,17 @@ import org.apache.flink.table.planner.functions.inference.OperatorBindingCallCon
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.extraction.ExtractionUtils
-import org.apache.flink.table.types.extraction.ExtractionUtils.{createMethodSignatureString, isAssignable, isInvokable, primitiveToWrapper}
+import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
 import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.utils.DataTypeUtils.{validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
+
+import org.apache.calcite.rex.{RexCall, RexCallBinding}
+
+import java.util.Collections
 
 /**
  * Generates a call to a user-defined [[ScalarFunction]] or [[TableFunction]].
@@ -260,13 +260,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
-    enrichedDataTypes.foreach(dataType => {
-      if (!dataType.getLogicalType.supportsOutputConversion(dataType.getConversionClass)) {
-        throw new CodeGenException(
-          s"Data type '$dataType' does not support an output conversion " +
-            s"to class '${dataType.getConversionClass}'.")
-      }
-    })
+    enrichedDataTypes.foreach(validateOutputDataType)
   }
 
   private def verifyFunctionAwareOutputType(
@@ -276,13 +270,18 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val enrichedType = enrichedDataType.getLogicalType
     // logically table functions wrap atomic types into ROW, however, the physical function might
     // return an atomic type
-    if (function.getDefinition.getKind == FunctionKind.TABLE && !isCompositeType(enrichedType)) {
-      Preconditions.checkState(
-        hasRoot(returnType, LogicalTypeRoot.ROW) && returnType.getChildren.size() == 1,
-        "Logical output type of function call should be a ROW wrapping an atomic type.",
-        Seq(): _*)
-      val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
-      verifyOutputType(atomicOutputType, enrichedDataType)
+    if (function.getDefinition.getKind == FunctionKind.TABLE) {
+      if (!isCompositeType(enrichedType)) {
+        Preconditions.checkState(
+          hasRoot(returnType, LogicalTypeRoot.ROW) && returnType.getChildren.size() == 1,
+          "Logical output type of function call should be a ROW wrapping an atomic type.",
+          Seq(): _*)
+        val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
+        verifyOutputType(atomicOutputType, enrichedDataType)
+      } else {
+        // null values are skipped therefore, the result top level row will always be not null
+        verifyOutputType(returnType.copy(true), enrichedDataType)
+      }
     } else {
       verifyOutputType(returnType, enrichedDataType)
     }
@@ -301,11 +300,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     }
     // the data type class can only partially verify the conversion class,
     // now is the time for the final check
-    if (!enrichedType.supportsInputConversion(enrichedDataType.getConversionClass)) {
-      throw new CodeGenException(
-        s"Data type '$enrichedDataType' does not support an input conversion " +
-          s"to class '${enrichedDataType.getConversionClass}'.")
-    }
+    validateInputDataType(enrichedDataType)
   }
 
   private def verifyFunctionAwareImplementation(
@@ -327,19 +322,13 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       argumentDataTypes: Seq[DataType],
       outputDataType: Option[DataType])
     : Unit = {
-    val methods = toScala(ExtractionUtils.collectMethods(udf.getClass, methodName))
     val argumentClasses = argumentDataTypes.map(_.getConversionClass).toArray
     val outputClass = outputDataType.map(_.getConversionClass).getOrElse(classOf[Unit])
-    // verifies regular JVM calling semantics
-    def methodMatches(method: Method): Boolean = {
-      isInvokable(method, argumentClasses: _*) &&
-        isAssignable(outputClass, method.getReturnType, true)
-    }
-    if (!methods.exists(methodMatches)) {
-      throw new CodeGenException(
-        s"Could not find an implementation method in class '${typeTerm(udf.getClass)}' for " +
-          s"function '$function' that matches the following signature: \n" +
-          s"${createMethodSignatureString(methodName, argumentClasses, outputClass)}")
-    }
+    validateClassForRuntime(
+      udf.getClass,
+      methodName,
+      argumentClasses,
+      outputClass,
+      function.toString)
   }
 }

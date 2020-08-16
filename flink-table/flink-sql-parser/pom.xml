@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
-	<name>flink-sql-parser</name>
+	<name>Flink : Table : SQL Parser </name>
 
 	<packaging>jar</packaging>
 

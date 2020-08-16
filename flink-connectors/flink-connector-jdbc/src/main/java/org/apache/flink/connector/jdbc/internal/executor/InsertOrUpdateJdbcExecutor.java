@@ -39,6 +39,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link JdbcBatchStatementExecutor} that provides upsert semantics by updating row if it exists and inserting otherwise.
  * Used in Table API.
+ *
+ * @deprecated This has been replaced with {@link TableInsertOrUpdateStatementExecutor}, will remove
+ * this once {@link org.apache.flink.connector.jdbc.table.JdbcUpsertTableSink} is removed.
  */
 @Internal
 public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {

@@ -51,6 +51,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
 import java.util.HashMap;
@@ -61,7 +62,9 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
 import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -202,6 +205,8 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 				return this::convertToTime;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return this::convertToTimestamp;
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				return this::convertToTimestampWithLocalZone;
 			case FLOAT:
 				return this::convertToFloat;
 			case DOUBLE:
@@ -303,8 +308,30 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 		return TimestampData.fromLocalDateTime(LocalDateTime.of(localDate, localTime));
 	}
 
+	private TimestampData convertToTimestampWithLocalZone(JsonNode jsonNode){
+		TemporalAccessor parsedTimestampWithLocalZone;
+		switch (timestampFormat){
+			case SQL:
+				parsedTimestampWithLocalZone = SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jsonNode.asText());
+				break;
+			case ISO_8601:
+				parsedTimestampWithLocalZone = ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT.parse(jsonNode.asText());
+				break;
+			default:
+				throw new TableException(String.format("Unsupported timestamp format '%s'. Validator should have checked that.", timestampFormat));
+		}
+		LocalTime localTime = parsedTimestampWithLocalZone.query(TemporalQueries.localTime());
+		LocalDate localDate = parsedTimestampWithLocalZone.query(TemporalQueries.localDate());
+
+		return TimestampData.fromInstant(LocalDateTime.of(localDate, localTime).toInstant(ZoneOffset.UTC));
+	}
+
 	private StringData convertToString(JsonNode jsonNode) {
-		return StringData.fromString(jsonNode.asText());
+		if (jsonNode.isContainerNode()) {
+			return StringData.fromString(jsonNode.toString());
+		} else {
+			return StringData.fromString(jsonNode.asText());
+		}
 	}
 
 	private byte[] convertToBytes(JsonNode jsonNode) {

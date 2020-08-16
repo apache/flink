@@ -166,16 +166,17 @@ Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe1
   <TestCase name="testOver">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, $1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
+LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, CAST($1):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, w0$o0 AS mycount, w0$o1 AS wAvg, w0$o2 AS countDist])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, CountAggFunction(b) AS w0$o0, WeightedAvg(a, b) AS w0$o1, CountDistinct(a) AS w0$o2])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, $4, CountAggFunction(b) AS w0$o0, weightAvgFun(a, $4) AS w0$o1, CountDistinct(a) AS w0$o2])
    +- Exchange(distribution=[hash[c]])
-      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime])
+      +- Calc(select=[a, b, c, proctime, CAST(b) AS $4])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, proctime])
 ]]>
     </Resource>
   </TestCase>

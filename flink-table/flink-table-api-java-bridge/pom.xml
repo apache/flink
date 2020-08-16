@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-	<name>flink-table-api-java-bridge</name>
+	<name>Flink : Table : API Java bridge</name>
 	<description>
 		This module contains the Table/SQL API for writing table programs
 		that interact with other Flink APIs using the Java programming language.
@@ -72,15 +72,16 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<type>test-jar</type>
 			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
 			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

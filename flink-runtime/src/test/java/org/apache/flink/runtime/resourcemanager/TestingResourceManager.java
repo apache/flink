@@ -68,6 +68,11 @@ public class TestingResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
+	protected void terminate() {
+		// noop
+	}
+
+	@Override
 	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String diagnostics) throws ResourceManagerException {
 		// noop
 	}

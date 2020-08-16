@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -84,11 +85,22 @@ public final class LogicalTypeChecks {
 	}
 
 	/**
-	 * Checks whether a (possibly nested) logical type contains the given root.
+	 * Checks whether a (possibly nested) logical type fulfills the given predicate.
 	 */
-	public static boolean hasNestedRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
-		final NestedTypeSearcher rootSearcher = new NestedTypeSearcher((t) -> hasRoot(t, typeRoot));
-		return logicalType.accept(rootSearcher).isPresent();
+	public static boolean hasNested(LogicalType logicalType, Predicate<LogicalType> predicate) {
+		final NestedTypeSearcher typeSearcher = new NestedTypeSearcher(predicate);
+		return logicalType.accept(typeSearcher).isPresent();
+	}
+
+	/**
+	 * Checks whether a (possibly nested) logical type contains {@link LegacyTypeInformationType} or
+	 * {@link TypeInformationRawType}.
+	 */
+	public static boolean hasLegacyTypes(LogicalType logicalType) {
+		return hasNested(
+			logicalType,
+			t -> t instanceof LegacyTypeInformationType
+		);
 	}
 
 	public static boolean hasFamily(LogicalType logicalType, LogicalTypeFamily family) {
@@ -190,7 +202,7 @@ public final class LogicalTypeChecks {
 	}
 
 	/**
-	 * Returns the field count of row and structured types.
+	 * Returns the field count of row and structured types. Other types return 1.
 	 */
 	public static int getFieldCount(LogicalType logicalType) {
 		return logicalType.accept(FIELD_COUNT_EXTRACTOR);
@@ -432,6 +444,15 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(DistinctType distinctType) {
 			return distinctType.getSourceType().accept(this);
+		}
+
+		@Override
+		protected Integer defaultMethod(LogicalType logicalType) {
+			// legacy
+			if (hasRoot(logicalType, LogicalTypeRoot.STRUCTURED_TYPE)) {
+				return ((LegacyTypeInformationType<?>) logicalType).getTypeInformation().getArity();
+			}
+			return 1;
 		}
 	}
 

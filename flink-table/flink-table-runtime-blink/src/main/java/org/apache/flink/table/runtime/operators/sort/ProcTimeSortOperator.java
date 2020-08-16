@@ -26,7 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +43,7 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeSortOperator.class);
 
-	private final RowDataTypeInfo inputRowType;
+	private final InternalTypeInfo<RowData> inputRowType;
 
 	private GeneratedRecordComparator gComparator;
 	private transient RecordComparator comparator;
@@ -55,7 +55,7 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 	 * @param inputRowType The data type of the input data.
 	 * @param gComparator generated comparator.
 	 */
-	public ProcTimeSortOperator(RowDataTypeInfo inputRowType, GeneratedRecordComparator gComparator) {
+	public ProcTimeSortOperator(InternalTypeInfo<RowData> inputRowType, GeneratedRecordComparator gComparator) {
 		this.inputRowType = inputRowType;
 		this.gComparator = gComparator;
 	}

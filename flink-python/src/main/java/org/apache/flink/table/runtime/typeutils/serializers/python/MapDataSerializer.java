@@ -62,7 +62,7 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	public MapDataSerializer(LogicalType keyType, LogicalType valueType
 		, TypeSerializer keyTypeSerializer, TypeSerializer valueTypeSerializer) {
-		super(keyType, valueType, null);
+		super(keyType, valueType);
 		this.keyType = keyType;
 		this.valueType = valueType;
 		this.keyTypeSerializer = keyTypeSerializer;

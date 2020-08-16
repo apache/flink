@@ -53,6 +53,10 @@ public final class ShortcutUtils {
 		return (FlinkTypeFactory) typeFactory;
 	}
 
+	public static FlinkTypeFactory unwrapTypeFactory(RelBuilder relBuilder) {
+		return unwrapTypeFactory(relBuilder.getTypeFactory());
+	}
+
 	public static FlinkContext unwrapContext(RelBuilder relBuilder) {
 		return unwrapContext(relBuilder.getCluster());
 	}

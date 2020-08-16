@@ -29,7 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-	<name>flink-streaming-scala</name>
+	<name>Flink : Streaming Scala</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -261,6 +261,7 @@ under the License.
 							Can be removed once https://github.com/siom79/japicmp/issues/176 will be fixed -->
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#iterate\$default\$3()</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.ConnectedStreams#keyBy(scala.Function1,scala.Function1,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
