@@ -27,9 +27,9 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.row.ParquetRowDataBuilder;
-import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.formats.parquet.vector.ParquetColumnarRowSplitReader;
 import org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil;
+import org.apache.flink.hadoop.serialization.SerializableHadoopConfiguration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
@@ -134,7 +134,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 		private final int[] selectedFields;
 		private final String partDefaultName;
 		private final boolean utcTimestamp;
-		private final SerializableConfiguration conf;
+		private final SerializableHadoopConfiguration conf;
 		private final long limit;
 
 		private transient ParquetColumnarRowSplitReader reader;
@@ -155,7 +155,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 			this.fullFieldNames = fullFieldNames;
 			this.fullFieldTypes = fullFieldTypes;
 			this.selectedFields = selectedFields;
-			this.conf = new SerializableConfiguration(conf);
+			this.conf = new SerializableHadoopConfiguration(conf);
 			this.utcTimestamp = utcTimestamp;
 		}
 
@@ -173,7 +173,7 @@ public class ParquetFileSystemFormatFactory implements FileSystemFormatFactory {
 			this.reader = ParquetSplitReaderUtil.genPartColumnarRowReader(
 					utcTimestamp,
 					true,
-					conf.conf(),
+					conf.get(),
 					fullFieldNames,
 					fullFieldTypes,
 					partObjects,

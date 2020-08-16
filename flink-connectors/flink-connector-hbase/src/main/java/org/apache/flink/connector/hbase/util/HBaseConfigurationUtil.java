@@ -19,20 +19,13 @@
 package org.apache.flink.connector.hbase.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.IOException;
 
 /**
  * This class helps to do serialization for hadoop Configuration and HBase-related classes.
@@ -100,65 +93,4 @@ public class HBaseConfigurationUtil {
 		return foundHBaseConfiguration;
 	}
 
-	/**
-	 * Serialize a Hadoop {@link Configuration} into byte[].
-	 */
-	public static byte[] serializeConfiguration(Configuration conf) {
-		try {
-			return serializeWritable(conf);
-		} catch (IOException e) {
-			throw new RuntimeException("Encounter an IOException when serialize the Configuration.", e);
-		}
-	}
-
-	/**
-	 * Deserialize a Hadoop {@link Configuration} from byte[].
-	 * Deserialize configs to {@code targetConfig} if it is set.
-	 */
-	public static Configuration deserializeConfiguration(byte[] serializedConfig, Configuration targetConfig) {
-		if (null == targetConfig) {
-			targetConfig = new Configuration();
-		}
-		try {
-			deserializeWritable(targetConfig, serializedConfig);
-		} catch (IOException e) {
-			throw new RuntimeException("Encounter an IOException when deserialize the Configuration.", e);
-		}
-		return targetConfig;
-	}
-
-	/**
-	 * Serialize writable byte[].
-	 *
-	 * @param <T>      the type parameter
-	 * @param writable the writable
-	 * @return the byte [ ]
-	 * @throws IOException the io exception
-	 */
-	private static <T extends Writable> byte[] serializeWritable(T writable) throws IOException {
-		Preconditions.checkArgument(writable != null);
-
-		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		DataOutputStream outputStream = new DataOutputStream(byteArrayOutputStream);
-		writable.write(outputStream);
-		return byteArrayOutputStream.toByteArray();
-	}
-
-	/**
-	 * Deserialize writable.
-	 *
-	 * @param <T>      the type parameter
-	 * @param writable the writable
-	 * @param bytes    the bytes
-	 * @throws IOException the io exception
-	 */
-	private static <T extends Writable> void deserializeWritable(T writable, byte[] bytes)
-		throws IOException {
-		Preconditions.checkArgument(writable != null);
-		Preconditions.checkArgument(bytes != null);
-
-		ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-		DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
-		writable.readFields(dataInputStream);
-	}
 }

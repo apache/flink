@@ -21,6 +21,7 @@ package org.apache.flink.connector.hbase.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
+import org.apache.flink.hadoop.serialization.SerializableHadoopConfiguration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -64,7 +65,7 @@ public class HBaseSinkFunction<T>
 	private static final Logger LOG = LoggerFactory.getLogger(HBaseSinkFunction.class);
 
 	private final String hTableName;
-	private final byte[] serializedConfig;
+	private final SerializableHadoopConfiguration serializedConfig;
 
 	private final long bufferFlushMaxSizeInBytes;
 	private final long bufferFlushMaxMutations;
@@ -96,8 +97,7 @@ public class HBaseSinkFunction<T>
 			long bufferFlushMaxMutations,
 			long bufferFlushIntervalMillis) {
 		this.hTableName = hTableName;
-		// Configuration is not serializable
-		this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(conf);
+		this.serializedConfig = new SerializableHadoopConfiguration(conf);
 		this.mutationConverter = mutationConverter;
 		this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
 		this.bufferFlushMaxMutations = bufferFlushMaxMutations;
@@ -153,7 +153,8 @@ public class HBaseSinkFunction<T>
 		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
 		// and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 		// user params from client-side have the highest priority
-		org.apache.hadoop.conf.Configuration runtimeConfig = HBaseConfigurationUtil.deserializeConfiguration(serializedConfig, HBaseConfigurationUtil.getHBaseConfiguration());
+		org.apache.hadoop.conf.Configuration runtimeConfig = this.serializedConfig.get();
+		runtimeConfig.addResource(HBaseConfigurationUtil.getHBaseConfiguration());
 
 		// do validation: check key option(s) in final runtime configuration
 		if (StringUtils.isNullOrWhitespaceOnly(runtimeConfig.get(HConstants.ZOOKEEPER_QUORUM))) {

@@ -43,7 +43,7 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.plugin.PluginConfig;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopSecurityUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -495,10 +495,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			boolean detached) throws Exception {
 
 		final UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-		if (HadoopUtils.isKerberosSecurityEnabled(currentUser)) {
+		if (HadoopSecurityUtils.isKerberosSecurityEnabled(currentUser)) {
 			boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
 
-			if (!HadoopUtils.areKerberosCredentialsValid(currentUser, useTicketCache)) {
+			if (!HadoopSecurityUtils.areKerberosCredentialsValid(currentUser, useTicketCache)) {
 				throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
 					"does not have Kerberos credentials or delegation tokens!");
 			}

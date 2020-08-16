@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security.modules;
 
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -47,7 +47,7 @@ public class HadoopModuleFactory implements SecurityModuleFactory {
 		}
 
 		try {
-			Configuration hadoopConfiguration = HadoopUtils.getHadoopConfiguration(securityConfig.getFlinkConfig());
+			Configuration hadoopConfiguration = HadoopConfigurationUtils.getHadoopConfiguration(securityConfig.getFlinkConfig());
 			return new HadoopModule(securityConfig, hadoopConfiguration);
 		} catch (LinkageError e) {
 			LOG.error("Cannot create Hadoop Security Module.", e);

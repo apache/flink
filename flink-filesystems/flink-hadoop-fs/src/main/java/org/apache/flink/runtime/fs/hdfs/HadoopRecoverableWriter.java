@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream.Committer;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 
 import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
@@ -64,7 +64,7 @@ public class HadoopRecoverableWriter implements RecoverableWriter {
 
 		// Part of functionality depends on specific versions. We check these schemes and versions eagerly for
 		// better error messages.
-		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
+		if (!HadoopConfigurationUtils.isMinHadoopVersion(2, 7)) {
 			LOG.warn("WARNING: You are running on hadoop version " + VersionInfo.getVersion() + "." +
 					" If your RollingPolicy does not roll on every checkpoint/savepoint, the StreamingFileSink will throw an exception upon recovery.");
 		}

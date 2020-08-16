@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
+import org.apache.flink.hadoop.serialization.SerializableHadoopConfiguration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
@@ -53,7 +54,7 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 	private static final long serialVersionUID = 1L;
 
 	private final String hTableName;
-	private final byte[] serializedConfig;
+	private final SerializableHadoopConfiguration serializedConfig;
 	private final HBaseTableSchema hbaseTableSchema;
 	private final String nullStringLiteral;
 
@@ -66,7 +67,7 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 			String hTableName,
 			HBaseTableSchema hbaseTableSchema,
 			String nullStringLiteral) {
-		this.serializedConfig = HBaseConfigurationUtil.serializeConfiguration(configuration);
+		this.serializedConfig = new SerializableHadoopConfiguration(configuration);
 		this.hTableName = hTableName;
 		this.hbaseTableSchema = hbaseTableSchema;
 		this.nullStringLiteral = nullStringLiteral;
@@ -92,9 +93,8 @@ public class HBaseRowDataLookupFunction extends TableFunction<RowData> {
 		// create default configuration from current runtime env (`hbase-site.xml` in classpath) first,
 		// and overwrite configuration using serialized configuration from client-side env (`hbase-site.xml` in classpath).
 		// user params from client-side have the highest priority
-		Configuration runtimeConfig = HBaseConfigurationUtil.deserializeConfiguration(
-			serializedConfig,
-			HBaseConfigurationUtil.getHBaseConfiguration());
+		Configuration runtimeConfig = this.serializedConfig.get();
+		runtimeConfig.addResource(HBaseConfigurationUtil.getHBaseConfiguration());
 
 		// do validation: check key option(s) in final runtime configuration
 		if (StringUtils.isNullOrWhitespaceOnly(runtimeConfig.get(HConstants.ZOOKEEPER_QUORUM))) {

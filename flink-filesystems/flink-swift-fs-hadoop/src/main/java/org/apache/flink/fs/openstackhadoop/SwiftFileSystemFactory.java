@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
 import org.apache.hadoop.fs.swift.snative.SwiftNativeFileSystem;
@@ -71,7 +71,7 @@ public class SwiftFileSystemFactory implements FileSystemFactory {
 			if (hadoopConfig == null) {
 				if (flinkConfig != null) {
 					LOG.debug("Loading Hadoop configuration for swift native file system");
-					hadoopConfig = HadoopUtils.getHadoopConfiguration(flinkConfig);
+					hadoopConfig = HadoopConfigurationUtils.getHadoopConfiguration(flinkConfig);
 
 					// hadoop.tmp.dir needs to be defined because it is used as buffer directory
 					if (hadoopConfig.get("hadoop.tmp.dir") == null) {

@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -87,7 +87,7 @@ public class ResourceInformationReflectorTest extends TestLogger {
 
 	@Test
 	public void testDefaultTwoResourceTypeWithYarnSupport() {
-		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
+		assumeTrue(HadoopConfigurationUtils.isMinHadoopVersion(2, 10));
 
 		final Resource resource = Resource.newInstance(100, 1);
 
@@ -98,7 +98,7 @@ public class ResourceInformationReflectorTest extends TestLogger {
 
 	@Test
 	public void testSetAndGetExtendedResourcesWithoutYarnSupport() {
-		assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 10));
+		assumeTrue(HadoopConfigurationUtils.isMaxHadoopVersion(2, 10));
 
 		final Resource resource = Resource.newInstance(100, 1);
 

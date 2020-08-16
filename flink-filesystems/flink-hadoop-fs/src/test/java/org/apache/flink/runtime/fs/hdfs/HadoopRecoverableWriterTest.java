@@ -21,7 +21,7 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.core.fs.AbstractRecoverableWriterTest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
@@ -51,7 +51,7 @@ public class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
 	@BeforeClass
 	public static void testHadoopVersion() {
-		Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+		Assume.assumeTrue(HadoopConfigurationUtils.isMinHadoopVersion(2, 7));
 	}
 
 	@BeforeClass

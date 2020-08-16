@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.security.modules;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopSecurityUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import org.apache.commons.lang3.StringUtils;
@@ -120,8 +120,8 @@ public class HadoopModule implements SecurityModule {
 
 			LOG.info("Hadoop user set to {}", loginUser);
 
-			if (HadoopUtils.isKerberosSecurityEnabled(loginUser)) {
-				boolean isCredentialsConfigured = HadoopUtils.areKerberosCredentialsValid(loginUser, securityConfig.useTicketCache());
+			if (HadoopSecurityUtils.isKerberosSecurityEnabled(loginUser)) {
+				boolean isCredentialsConfigured = HadoopSecurityUtils.areKerberosCredentialsValid(loginUser, securityConfig.useTicketCache());
 
 				LOG.info("Kerberos security is enabled and credentials are {}.", isCredentialsConfigured ? "valid" : "invalid");
 			}

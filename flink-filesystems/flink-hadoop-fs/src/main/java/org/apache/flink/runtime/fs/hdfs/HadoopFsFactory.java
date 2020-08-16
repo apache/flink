@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
 import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +82,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 				hadoopConfig = this.hadoopConfig;
 			}
 			else if (flinkConfig != null) {
-				hadoopConfig = HadoopUtils.getHadoopConfiguration(flinkConfig);
+				hadoopConfig = HadoopConfigurationUtils.getHadoopConfiguration(flinkConfig);
 				this.hadoopConfig = hadoopConfig;
 			}
 			else {

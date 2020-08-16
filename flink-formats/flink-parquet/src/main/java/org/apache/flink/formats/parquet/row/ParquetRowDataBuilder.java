@@ -21,7 +21,7 @@ package org.apache.flink.formats.parquet.row;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
-import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
+import org.apache.flink.hadoop.serialization.SerializableHadoopConfiguration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -124,7 +124,7 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, Parque
 	public static class FlinkParquetBuilder implements ParquetBuilder<RowData> {
 
 		private final RowType rowType;
-		private final SerializableConfiguration configuration;
+		private final SerializableHadoopConfiguration configuration;
 		private final boolean utcTimestamp;
 
 		public FlinkParquetBuilder(
@@ -132,13 +132,13 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, Parque
 				Configuration conf,
 				boolean utcTimestamp) {
 			this.rowType = rowType;
-			this.configuration = new SerializableConfiguration(conf);
+			this.configuration = new SerializableHadoopConfiguration(conf);
 			this.utcTimestamp = utcTimestamp;
 		}
 
 		@Override
 		public ParquetWriter<RowData> createWriter(OutputFile out) throws IOException {
-			Configuration conf = configuration.conf();
+			Configuration conf = configuration.get();
 			return new ParquetRowDataBuilder(out, rowType, utcTimestamp)
 					.withCompressionCodec(getParquetCompressionCodec(conf))
 					.withRowGroupSize(getBlockSize(conf))

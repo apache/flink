@@ -21,7 +21,7 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,7 +53,7 @@ public class HadoopConfigLoadingTest {
 	@Test
 	public void loadFromClasspathByDefault() {
 		org.apache.hadoop.conf.Configuration hadoopConf =
-				HadoopUtils.getHadoopConfiguration(new Configuration());
+				HadoopConfigurationUtils.getHadoopConfiguration(new Configuration());
 
 		assertEquals(IN_CP_CONFIG_VALUE, hadoopConf.get(IN_CP_CONFIG_KEY, null));
 	}
@@ -76,7 +76,7 @@ public class HadoopConfigLoadingTest {
 		cfg.setString(ConfigConstants.HDFS_DEFAULT_CONFIG, file1.getAbsolutePath());
 		cfg.setString(ConfigConstants.HDFS_SITE_CONFIG, file2.getAbsolutePath());
 
-		org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
+		org.apache.hadoop.conf.Configuration hadoopConf = HadoopConfigurationUtils.getHadoopConfiguration(cfg);
 
 		// contains extra entries
 		assertEquals(v1, hadoopConf.get(k1, null));
@@ -105,7 +105,7 @@ public class HadoopConfigLoadingTest {
 		final Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.PATH_HADOOP_CONFIG, confDir.getAbsolutePath());
 
-		org.apache.hadoop.conf.Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
+		org.apache.hadoop.conf.Configuration hadoopConf = HadoopConfigurationUtils.getHadoopConfiguration(cfg);
 
 		// contains extra entries
 		assertEquals(v1, hadoopConf.get(k1, null));
@@ -162,7 +162,7 @@ public class HadoopConfigLoadingTest {
 		newEnv.put("HADOOP_HOME", hadoopHome.getAbsolutePath());
 		try {
 			CommonTestUtils.setEnv(newEnv);
-			hadoopConf = HadoopUtils.getHadoopConfiguration(new Configuration());
+			hadoopConf = HadoopConfigurationUtils.getHadoopConfiguration(new Configuration());
 		}
 		finally {
 			CommonTestUtils.setEnv(originalEnv);
@@ -251,7 +251,7 @@ public class HadoopConfigLoadingTest {
 		newEnv.put("HADOOP_HOME", hadoopHome.getAbsolutePath());
 		try {
 			CommonTestUtils.setEnv(newEnv);
-			hadoopConf = HadoopUtils.getHadoopConfiguration(cfg);
+			hadoopConf = HadoopConfigurationUtils.getHadoopConfiguration(cfg);
 		}
 		finally {
 			CommonTestUtils.setEnv(originalEnv);

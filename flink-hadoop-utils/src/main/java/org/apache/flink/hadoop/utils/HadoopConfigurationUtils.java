@@ -21,38 +21,32 @@ package org.apache.flink.hadoop.utils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.HdfsConfiguration;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Collection;
 
 /**
- * Utility class for working with Hadoop-related classes. This should only be used if Hadoop
+ * Utility class for working with Hadoop configurations. This should only be used if Hadoop
  * is on the classpath.
  */
-public class HadoopUtils {
+public class HadoopConfigurationUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
-
-	static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopConfigurationUtils.class);
 
 	@SuppressWarnings("deprecation")
-	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
+	public static Configuration getHadoopConfiguration(
+		org.apache.flink.configuration.Configuration flinkConfiguration) {
 
-		// Instantiate an HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
-		// from the classpath
+		// Load the hdfs-site.xml and hdfs-default.xml
+		Configuration.addDefaultResource("hdfs-default.xml");
+		Configuration.addDefaultResource("hdfs-site.xml");
 
-		Configuration result = new HdfsConfiguration();
+		Configuration result = new Configuration();
+
 		boolean foundHadoopConfiguration = false;
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
@@ -113,44 +107,6 @@ public class HadoopUtils {
 		return result;
 	}
 
-	public static boolean isKerberosSecurityEnabled(UserGroupInformation ugi) {
-		return UserGroupInformation.isSecurityEnabled() && ugi.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS;
-	}
-
-	public static boolean areKerberosCredentialsValid(UserGroupInformation ugi, boolean useTicketCache) {
-		Preconditions.checkState(isKerberosSecurityEnabled(ugi));
-
-		// note: UGI::hasKerberosCredentials inaccurately reports false
-		// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
-		// so we check only in ticket cache scenario.
-		if (useTicketCache && !ugi.hasKerberosCredentials()) {
-			if (hasHDFSDelegationToken(ugi)) {
-				LOG.warn("Hadoop security is enabled but current login user does not have Kerberos credentials, " +
-					"use delegation token instead. Flink application will terminate after token expires.");
-				return true;
-			} else {
-				LOG.error("Hadoop security is enabled, but current login user has neither Kerberos credentials " +
-					"nor delegation tokens!");
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Indicates whether the user has an HDFS delegation token.
-	 */
-	public static boolean hasHDFSDelegationToken(UserGroupInformation ugi) {
-		Collection<Token<? extends TokenIdentifier>> usrTok = ugi.getTokens();
-		for (Token<? extends TokenIdentifier> token : usrTok) {
-			if (token.getKind().equals(HDFS_DELEGATION_TOKEN_KIND)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	/**
 	 * Checks if the Hadoop dependency is at least the given version.
 	 */
@@ -204,6 +160,7 @@ public class HadoopUtils {
 				foundHadoopConfiguration = true;
 			}
 		}
+
 		return foundHadoopConfiguration;
 	}
 

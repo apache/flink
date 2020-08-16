@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.StringUtils;
@@ -461,7 +461,7 @@ public final class Utils {
 			log.debug("Adding security tokens to TaskExecutor's container launch context.");
 
 			try (DataOutputBuffer dob = new DataOutputBuffer()) {
-				Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), HadoopUtils.getHadoopConfiguration(flinkConfig));
+				Credentials cred = Credentials.readTokenStorageFile(new File(fileLocation), HadoopConfigurationUtils.getHadoopConfiguration(flinkConfig));
 
 				// Filter out AMRMToken before setting the tokens to the TaskManager container context.
 				Credentials taskManagerCred = new Credentials();

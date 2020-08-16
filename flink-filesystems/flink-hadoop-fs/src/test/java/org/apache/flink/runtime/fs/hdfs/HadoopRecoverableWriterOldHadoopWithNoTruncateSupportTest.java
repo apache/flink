@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.hadoop.utils.HadoopUtils;
+import org.apache.flink.hadoop.utils.HadoopConfigurationUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
@@ -66,7 +66,7 @@ public class HadoopRecoverableWriterOldHadoopWithNoTruncateSupportTest {
 
 	@BeforeClass
 	public static void testHadoopVersion() {
-		Assume.assumeTrue(HadoopUtils.isMaxHadoopVersion(2, 7));
+		Assume.assumeTrue(HadoopConfigurationUtils.isMaxHadoopVersion(2, 7));
 	}
 
 	@BeforeClass
