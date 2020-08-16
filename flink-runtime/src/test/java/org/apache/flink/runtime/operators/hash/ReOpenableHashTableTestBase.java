@@ -66,8 +66,8 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
 	protected TypeComparator<Tuple2<Integer, String>> record2Comparator;
 	protected TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> recordPairComparator;
 
-	protected TypeSerializer<Tuple2<Integer, Integer>> recordBuildSideAccesssor;
-	protected TypeSerializer<Tuple2<Integer, Integer>> recordProbeSideAccesssor;
+	protected TypeSerializer<Tuple2<Integer, Integer>> recordBuildSideAccessor;
+	protected TypeSerializer<Tuple2<Integer, Integer>> recordProbeSideAccessor;
 	protected TypeComparator<Tuple2<Integer, Integer>> recordBuildSideComparator;
 	protected TypeComparator<Tuple2<Integer, Integer>> recordProbeSideComparator;
 	protected TypePairComparator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> pactRecordComparator;
@@ -81,8 +81,8 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
 		this.record2Comparator = TestData.getIntStringTupleComparator();
 		this.recordPairComparator = new GenericPairComparator(this.record1Comparator, this.record2Comparator);
 
-		this.recordBuildSideAccesssor = TestData.getIntIntTupleSerializer();
-		this.recordProbeSideAccesssor = TestData.getIntIntTupleSerializer();
+		this.recordBuildSideAccessor = TestData.getIntIntTupleSerializer();
+		this.recordProbeSideAccessor = TestData.getIntIntTupleSerializer();
 		this.recordBuildSideComparator = TestData.getIntIntTupleComparator();
 		this.recordProbeSideComparator = TestData.getIntIntTupleComparator();
 		this.pactRecordComparator = new GenericPairComparator(this.recordBuildSideComparator, this.recordProbeSideComparator);

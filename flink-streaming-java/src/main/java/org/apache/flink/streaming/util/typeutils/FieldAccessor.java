@@ -252,7 +252,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 				return innerAccessor.get(inner);
 			} catch (IllegalAccessException iaex) {
 				// The Field class is transient and when deserializing its value we also make it accessible
-				throw new RuntimeException("This should not happen since we call setAccesssible(true) in readObject."
+				throw new RuntimeException("This should not happen since we call setAccessible(true) in readObject."
 						+ " fields: " + field + " obj: " + pojo);
 			}
 		}
@@ -266,7 +266,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 				return pojo;
 			} catch (IllegalAccessException iaex) {
 				// The Field class is transient and when deserializing its value we also make it accessible
-				throw new RuntimeException("This should not happen since we call setAccesssible(true) in readObject."
+				throw new RuntimeException("This should not happen since we call setAccessible(true) in readObject."
 						+ " fields: " + field + " obj: " + pojo);
 			}
 		}

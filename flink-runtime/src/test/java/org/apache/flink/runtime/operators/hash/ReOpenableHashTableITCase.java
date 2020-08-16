@@ -61,8 +61,8 @@ public class ReOpenableHashTableITCase extends TestLogger {
 	private MemoryManager memoryManager;
 
 	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
-	private TypeSerializer<Tuple2<Integer, Integer>> recordBuildSideAccesssor;
-	private TypeSerializer<Tuple2<Integer, Integer>> recordProbeSideAccesssor;
+	private TypeSerializer<Tuple2<Integer, Integer>> recordBuildSideAccessor;
+	private TypeSerializer<Tuple2<Integer, Integer>> recordProbeSideAccessor;
 	private TypeComparator<Tuple2<Integer, Integer>> recordBuildSideComparator;
 	private TypeComparator<Tuple2<Integer, Integer>> recordProbeSideComparator;
 	private TypePairComparator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> pactRecordComparator;
@@ -70,8 +70,8 @@ public class ReOpenableHashTableITCase extends TestLogger {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Before
 	public void beforeTest() {
-		this.recordBuildSideAccesssor = TestData.getIntIntTupleSerializer();
-		this.recordProbeSideAccesssor = TestData.getIntIntTupleSerializer();
+		this.recordBuildSideAccessor = TestData.getIntIntTupleSerializer();
+		this.recordProbeSideAccessor = TestData.getIntIntTupleSerializer();
 		this.recordBuildSideComparator = TestData.getIntIntTupleComparator();
 		this.recordProbeSideComparator = TestData.getIntIntTupleComparator();
 		this.pactRecordComparator = new GenericPairComparator(this.recordBuildSideComparator, this.recordProbeSideComparator);
@@ -154,7 +154,7 @@ public class ReOpenableHashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 
 		final ReOpenableMutableHashTable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> join = new ReOpenableMutableHashTable<>(
-			this.recordBuildSideAccesssor, this.recordProbeSideAccesssor,
+			this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 			this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 			memSegments, ioManager, true);
 
