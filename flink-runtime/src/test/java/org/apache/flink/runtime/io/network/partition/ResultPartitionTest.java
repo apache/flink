@@ -403,7 +403,7 @@ public class ResultPartitionTest {
 		//setup
 		final int networkBuffersPerChannel = 2;
 		final int floatingNetworkBuffersPerGate = 8;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(20, 1, 1);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(20, 1);
 		final ResultPartition partition = new ResultPartitionBuilder()
 			.setResultPartitionType(type)
 			.setFileChannelManager(fileChannelManager)
@@ -449,7 +449,7 @@ public class ResultPartitionTest {
 	@Test
 	public void testInitializeEmptyState() throws Exception {
 		final int totalBuffers = 2;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1, 1);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1);
 		final ResultPartition partition = new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
 			.build();
@@ -480,7 +480,7 @@ public class ResultPartitionTest {
 		final int[] states = {1, 2, 3, 4};
 		final int bufferSize = states.length * Integer.BYTES;
 
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize, 1);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
 		final ChannelStateReader stateReader = new FiniteChannelStateReader(totalStates, states);
 		final ResultPartition partition = new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
@@ -540,7 +540,7 @@ public class ResultPartitionTest {
 	@Test
 	public void testReadRecoveredStateWithException() throws Exception {
 		final int totalBuffers = 2;
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1, 1);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1);
 		final ResultPartition partition = new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
 			.build();

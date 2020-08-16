@@ -97,6 +97,13 @@ under the License.
 
 		<dependency>
 			<groupId>com.amazonaws</groupId>
+			<artifactId>amazon-kinesis-aggregator</artifactId>
+			<version>1.0.3</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
 			<version>${aws.sdk.version}</version>
 		</dependency>

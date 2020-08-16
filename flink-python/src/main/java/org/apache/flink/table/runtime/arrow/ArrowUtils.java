@@ -19,12 +19,12 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.BatchTableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
@@ -34,6 +34,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.sinks.SelectTableSinkSchemaConverter;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
@@ -123,6 +124,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -617,21 +619,6 @@ public final class ArrowUtils {
 	 */
 	public static CustomIterator<byte[]> collectAsPandasDataFrame(Table table, int maxArrowBatchSize) throws Exception {
 		checkArrowUsable();
-		boolean isRetractTable = false;
-		if (isStreamingMode(table)) {
-			StreamTableEnvironment tableEnv = (StreamTableEnvironment) ((TableImpl) table).getTableEnvironment();
-			try {
-				tableEnv.toAppendStream(table, Row.class);
-			} catch (Throwable t) {
-				if (t.getMessage().contains("toAppendStream doesn't support consuming update changes") ||
-						t.getMessage().contains("Table is not an append-only table")) {
-					isRetractTable = true;
-				} else {
-					throw new RuntimeException("Failed to determine whether the given table is append only.", t);
-				}
-			}
-		}
-
 		BufferAllocator allocator = getRootAllocator().newChildAllocator("collectAsPandasDataFrame", 0, Long.MAX_VALUE);
 		RowType rowType = (RowType) table.getSchema().toRowDataType().getLogicalType();
 		VectorSchemaRoot root = VectorSchemaRoot.create(ArrowUtils.toArrowSchema(rowType), allocator);
@@ -642,10 +629,10 @@ public final class ArrowUtils {
 		ArrowWriter arrowWriter;
 		Iterator<Row> results = table.execute().collect();
 		Iterator<Row> appendOnlyResults;
-		if (isRetractTable) {
-			appendOnlyResults = filterOutRetractRows(results);
-		} else {
+		if (isAppendOnlyTable(table)) {
 			appendOnlyResults = results;
+		} else {
+			appendOnlyResults = filterOutRetractRows(results);
 		}
 
 		Iterator convertedResults;
@@ -742,8 +729,6 @@ public final class ArrowUtils {
 		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
 		if (tableEnv instanceof BatchTableEnvironment || tableEnv instanceof BatchTableEnvImpl) {
 			return false;
-		} else if (tableEnv instanceof StreamTableEnvironment) {
-			return true;
 		} else if (tableEnv instanceof TableEnvironmentImpl) {
 			java.lang.reflect.Field isStreamingModeMethod = TableEnvironmentImpl.class.getDeclaredField("isStreamingMode");
 			isStreamingModeMethod.setAccessible(true);
@@ -752,6 +737,27 @@ public final class ArrowUtils {
 			throw new RuntimeException(String.format(
 				"Could not determine the streaming mode for table environment class %s", tableEnv.getClass()));
 		}
+	}
+
+	private static boolean isAppendOnlyTable(Table table) throws Exception {
+		if (isStreamingMode(table)) {
+			TableEnvironmentImpl tableEnv = (TableEnvironmentImpl) ((TableImpl) table).getTableEnvironment();
+			try {
+				OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
+					table.getQueryOperation(),
+					TypeConversions.fromLegacyInfoToDataType(TypeExtractor.createTypeInfo(Row.class)),
+					OutputConversionModifyOperation.UpdateMode.APPEND);
+				tableEnv.getPlanner().translate(Collections.singletonList(modifyOperation));
+			} catch (Throwable t) {
+				if (t.getMessage().contains("doesn't support consuming update changes") ||
+						t.getMessage().contains("Table is not an append-only table")) {
+					return false;
+				} else {
+					throw new RuntimeException("Failed to determine whether the given table is append only.", t);
+				}
+			}
+		}
+		return true;
 	}
 
 	/**

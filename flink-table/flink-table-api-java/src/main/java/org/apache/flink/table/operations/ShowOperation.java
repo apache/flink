@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * An {@link Operation} that show one kind of objects,
- * e.g. USE CATALOGS, USE DATABASES, SHOW TABLES, SHOW FUNCTIONS.
+ * e.g. USE CATALOGS, USE DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS.
  */
 @Internal
 public interface ShowOperation extends Operation {

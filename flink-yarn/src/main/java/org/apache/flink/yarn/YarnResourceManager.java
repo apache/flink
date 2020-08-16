@@ -35,9 +35,9 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -77,7 +77,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -86,7 +85,7 @@ import java.util.stream.Collectors;
  * The yarn implementation of the resource manager. Used when the system is started
  * via the resource framework YARN.
  */
-public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
+public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerNode>
 		implements AMRMClientAsync.CallbackHandler, NMClientAsync.CallbackHandler {
 
 	private static final Priority RM_REQUEST_PRIORITY = Priority.newInstance(1);
@@ -284,27 +283,27 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	}
 
 	@Override
-	public CompletableFuture<Void> onStop() {
+	public void terminate() throws Exception {
 		// shut down all components
-		Throwable firstException = null;
+		Exception firstException = null;
 
 		if (resourceManagerClient != null) {
 			try {
 				resourceManagerClient.stop();
-			} catch (Throwable t) {
-				firstException = t;
+			} catch (Exception e) {
+				firstException = e;
 			}
 		}
 
 		if (nodeManagerClient != null) {
 			try {
 				nodeManagerClient.stop();
-			} catch (Throwable t) {
-				firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
+			} catch (Exception e) {
+				firstException = ExceptionUtils.firstOrSuppressed(e, firstException);
 			}
 		}
 
-		return getStopTerminationFutureOrCompletedExceptionally(firstException);
+		ExceptionUtils.tryRethrowException(firstException);
 	}
 
 	@Override

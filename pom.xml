@@ -147,7 +147,7 @@ under the License.
 		<minikdc.version>3.2.0</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
-		<hive.connector.orc.version>1.4.3</hive.connector.orc.version>
+		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
 		<orc.version>1.5.6</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.

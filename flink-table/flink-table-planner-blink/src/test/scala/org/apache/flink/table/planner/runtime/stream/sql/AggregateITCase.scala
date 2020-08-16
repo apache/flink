@@ -1057,13 +1057,13 @@ class AggregateITCase(
     val view1 = tEnv.sqlQuery(sql)
     tEnv.registerTable("v1", view1)
 
-    val toCompositeObj = ToCompositeObj
-    tEnv.registerFunction("toCompObj", toCompositeObj)
+    tEnv.createTemporarySystemFunction("toCompObj", ToCompositeObj)
+    tEnv.createTemporarySystemFunction("anyToString", AnyToStringFunction)
 
     val sql1 =
       s"""
          |SELECT
-         |  a, b, COLLECT(toCompObj(t.sid, 'a', 100, t.point)) as info
+         |  a, b, anyToString(COLLECT(toCompObj(t.sid, 'a', 100, t.point)))
          |from (
          | select
          |  a, b, uuid() as u, V.sid, V.point
@@ -1089,8 +1089,12 @@ class AggregateITCase(
   /** Test LISTAGG **/
   @Test
   def testListAgg(): Unit = {
-    tEnv.createTemporarySystemFunction("listagg_retract", classOf[ListAggWithRetractAggFunction])
-    tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
+    tEnv.createTemporarySystemFunction(
+      "listagg_retract",
+      classOf[ListAggWithRetractAggFunction])
+    tEnv.createTemporarySystemFunction(
+      "listagg_ws_retract",
+      classOf[ListAggWsWithRetractAggFunction])
     val sqlQuery =
       s"""
          |SELECT

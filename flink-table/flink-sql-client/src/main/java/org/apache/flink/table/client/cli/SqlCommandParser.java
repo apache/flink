@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -157,6 +158,8 @@ public final class SqlCommandParser {
 		} else if (operation instanceof ShowFunctionsOperation) {
 			cmd = SqlCommand.SHOW_FUNCTIONS;
 			operands = new String[0];
+		} else if (operation instanceof ShowPartitionsOperation) {
+			cmd = SqlCommand.SHOW_PARTITIONS;
 		} else if (operation instanceof CreateCatalogFunctionOperation ||
 				operation instanceof CreateTempSystemFunctionOperation) {
 			cmd = SqlCommand.CREATE_FUNCTION;
@@ -247,6 +250,8 @@ public final class SqlCommandParser {
 		SHOW_MODULES(
 			"SHOW\\s+MODULES",
 			NO_OPERANDS),
+
+		SHOW_PARTITIONS,
 
 		USE_CATALOG,
 

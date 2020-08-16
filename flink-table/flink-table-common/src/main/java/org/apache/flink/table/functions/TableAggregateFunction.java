@@ -30,11 +30,11 @@ import org.apache.flink.util.Collector;
 
 /**
  * Base class for a user-defined table aggregate function. A user-defined table aggregate function maps scalar
- * values of multiple rows to zero, one, or multiple rows. If an output row consists of only one field,
- * the row can be omitted and a scalar value can be emitted. It will be wrapped into an implicit row
- * by the runtime.
+ * values of multiple rows to zero, one, or multiple rows (or structured types). If an output record
+ * consists of only one field, the structured record can be omitted, and a scalar value can be emitted
+ * that will be implicitly wrapped into a row by the runtime.
  *
- * <p>Similar to an {@link AggregateFunction}, the behavior of an {@link TableAggregateFunction} is centered
+ * <p>Similar to an {@link AggregateFunction}, the behavior of a {@link TableAggregateFunction} is centered
  * around the concept of an accumulator. The accumulator is an intermediate data structure that stores
  * the aggregated values until a final aggregation result is computed.
  *
@@ -61,9 +61,10 @@ import org.apache.flink.util.Collector;
  *     <li>{@code emitValue} or {@code emitUpdateWithRetract}</li>
  * </ul>
  *
- * <p>There is another method that is optional:
+ * <p>There are a few other methods that are optional:
  * <ul>
- *     <li>retract</li>
+ *     <li>{@code retract}</li>
+ *     <li>{@code merge}</li>
  * </ul>
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
@@ -89,12 +90,29 @@ import org.apache.flink.util.Collector;
  * {@code
  * Retracts the input values from the accumulator instance. The current design assumes the
  * inputs are the values that have been previously accumulated. The method retract can be
- * overloaded with different custom types and arguments.
+ * overloaded with different custom types and arguments. This method must be implemented for
+ * bounded OVER aggregates over unbounded tables.
  *
  * param: accumulator           the accumulator which contains the current aggregated results
  * param: [user defined inputs] the input value (usually obtained from a new arrived data).
  *
  * public void retract(ACC accumulator, [user defined inputs])
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {@code
+ * Merges a group of accumulator instances into one accumulator instance. This method must be
+ * implemented for unbounded session window grouping aggregates and bounded grouping aggregates.
+ *
+ * param: accumulator the accumulator which will keep the merged aggregate results. It should
+ *                    be noted that the accumulator may contain the previous aggregated
+ *                    results. Therefore user should not replace or clean this instance in the
+ *                    custom merge method.
+ * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
+ *                    merged.
+ *
+ * public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
  * }
  * </pre>
  *
