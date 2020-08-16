@@ -18,8 +18,15 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -30,6 +37,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
@@ -40,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -92,6 +101,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	public final int numTargetKeyGroups;
 
+	private final BufferBuilder[] bufferBuilders;
+
 	// - Runtime state --------------------------------------------------------
 
 	private final AtomicBoolean isReleased = new AtomicBoolean();
@@ -104,9 +115,19 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private final FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory;
 
+	private Counter numBytesOut = new SimpleCounter();
+
+	private Counter numBuffersOut = new SimpleCounter();
+
+	protected Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
+
 	/** Used to compress buffer to reduce IO. */
 	@Nullable
 	protected final BufferCompressor bufferCompressor;
+
+	private Runnable consumableNotifier;
+
+	private boolean consumableNotified;
 
 	public ResultPartition(
 		String owningTaskName,
@@ -129,6 +150,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		this.partitionManager = checkNotNull(partitionManager);
 		this.bufferCompressor = bufferCompressor;
 		this.bufferPoolFactory = bufferPoolFactory;
+		this.bufferBuilders = new BufferBuilder[subpartitions.length];
 	}
 
 	/**
@@ -207,36 +229,157 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		checkInProduceState();
+	public void writerRecord(
+			ByteBuffer record,
+			int targetChannel,
+			boolean isBroadcastSelector) throws IOException, InterruptedException {
+		if (!isBroadcastSelector) {
+			copyToTargetChannel(record, targetChannel, false);
+		} else {
+			// For non-broadcast emit when using broadcast selector, we try to finish the current
+			// BufferBuilder first, and then request a new BufferBuilder for the target channel.
+			// If this new BufferBuilder is not full, it can be shared by all other channels via
+			// initializing reader position in created BufferConsumer.
+			finishBufferBuilder(bufferBuilders[0], 0);
 
-		return bufferPool.requestBufferBuilderBlocking(targetChannel);
+			copyToTargetChannel(record, targetChannel, false);
+
+			bufferBuilders[0] = bufferBuilders[targetChannel];
+			bufferBuilders[targetChannel] = null;
+			copyBufferConsumer(bufferBuilders[0], targetChannel);
+		}
 	}
 
 	@Override
-	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
-		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
+	public void broadcastWrite(
+			ByteBuffer record,
+			boolean isBroadcastSelector) throws IOException, InterruptedException {
+		if (isBroadcastSelector) {
+			// When broadcast selector is used, all the channels are sharing the same BufferBuilder.
+			// So the serialized record is copied only once.
+			copyToTargetChannel(record, 0, true);
+		} else {
+			for (int channel = 0; channel < subpartitions.length; ++channel) {
+				record.position(0);
+				copyToTargetChannel(record, channel, false);
+			}
+		}
+	}
+
+	@Override
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
+			for (int channel = 0; channel < subpartitions.length; channel++) {
+				finishBufferBuilder(bufferBuilders[channel], channel);
+
+				// Retain the buffer so that it can be recycled by each channel of targetPartition
+				addBufferConsumer(eventBufferConsumer.copy(), channel, isPriorityEvent);
+			}
+		}
+	}
+
+	private void copyToTargetChannel(
+			ByteBuffer serializedRecord,
+			int targetChannel,
+			boolean copyBufferConsumer) throws IOException, InterruptedException {
+		do {
+			BufferBuilder bufferBuilder = getBufferBuilder(targetChannel, copyBufferConsumer);
+			bufferBuilder.appendAndCommit(serializedRecord);
+
+			if (bufferBuilder.isFull()) {
+				finishBufferBuilder(bufferBuilder, targetChannel);
+			}
+		} while (serializedRecord.hasRemaining());
+	}
+
+	private BufferBuilder getBufferBuilder(
+			int targetChannel,
+			boolean copyBufferConsumer) throws IOException, InterruptedException {
+		BufferBuilder bufferBuilder = bufferBuilders[targetChannel];
+		if (bufferBuilder != null) {
+			return bufferBuilder;
+		}
+
+		bufferBuilder = bufferPool.requestBufferBuilder(targetChannel);
+		if (bufferBuilder == null) {
+			long start = System.currentTimeMillis();
+			bufferBuilder =  bufferPool.requestBufferBuilderBlocking(targetChannel);
+			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
+		}
+
+		addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel, false);
+		bufferBuilders[targetChannel] = bufferBuilder;
+
+		if (copyBufferConsumer) {
+			copyBufferConsumer(bufferBuilder, targetChannel);
+		}
+
 		return bufferBuilder;
 	}
 
-	@Override
-	public boolean addBufferConsumer(
-			BufferConsumer bufferConsumer,
-			int subpartitionIndex,
-			boolean isPriorityEvent) throws IOException {
-		checkNotNull(bufferConsumer);
+	private void finishBufferBuilder(BufferBuilder bufferBuilder, int targetChannel) {
+		if (bufferBuilder != null) {
+			numBytesOut.inc(bufferBuilder.finish());
+			numBuffersOut.inc();
+			bufferBuilders[targetChannel] = null;
+		}
+	}
 
-		ResultSubpartition subpartition;
+	private void copyBufferConsumer(BufferBuilder bufferBuilder, int sourceChannel) throws IOException {
+		if (bufferBuilder == null) {
+			return;
+		}
+
+		BufferConsumer bufferConsumer = bufferBuilder.getBufferConsumer();
+		int readerPosition = bufferBuilder.getCommittedBytes();
+		for (int channel = 0; channel < subpartitions.length; channel++) {
+			if (channel != sourceChannel) {
+				addBufferConsumer(bufferConsumer.copyWithReaderPosition(readerPosition), channel, false);
+			}
+		}
+	}
+
+	/**
+	 * Adds the bufferConsumer to the target channel with the given index.
+	 *
+	 * <p>To avoid problems of data re-ordering, before adding new {@link BufferConsumer}, the
+	 * previously added one of the given {@code subpartitionIndex} must be marked as finished.
+	 */
+	@VisibleForTesting
+	public void addBufferConsumer(
+			BufferConsumer bufferConsumer,
+			int targetChannel,
+			boolean isPriorityEvent) throws IOException {
 		try {
 			checkInProduceState();
-			subpartition = subpartitions[subpartitionIndex];
+			ResultSubpartition subpartition = subpartitions[targetChannel];
+			if (subpartition.add(bufferConsumer, isPriorityEvent)) {
+				notifyResultPartitionConsumable();
+			}
 		}
 		catch (Exception ex) {
 			bufferConsumer.close();
 			throw ex;
 		}
+	}
 
-		return subpartition.add(bufferConsumer, isPriorityEvent);
+	private void notifyResultPartitionConsumable() {
+		if (!consumableNotified && consumableNotifier != null) {
+			consumableNotifier.run();
+			consumableNotified = true;
+		}
+	}
+
+	@Override
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
+		numBytesOut = metrics.getNumBytesOutCounter();
+		numBuffersOut = metrics.getNumBuffersOutCounter();
+		idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
+	}
+
+	@Override
+	public void setConsumableNotifier(Runnable consumableNotifier) {
+		this.consumableNotifier = consumableNotifier;
 	}
 
 	@Override
@@ -262,8 +405,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	public void finish() throws IOException {
 		checkInProduceState();
 
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.finish();
+		for (int index = 0; index < subpartitions.length; index++) {
+			finishBufferBuilder(bufferBuilders[index], index);
+			subpartitions[index].finish();
 		}
 
 		isFinished = true;
@@ -273,9 +417,12 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		release(null);
 	}
 
-	/**
-	 * Releases the result partition.
-	 */
+	@Override
+	public boolean isFinished() {
+		return isFinished;
+	}
+
+	@Override
 	public void release(Throwable cause) {
 		if (isReleased.compareAndSet(false, true)) {
 			LOG.debug("{}: Releasing {}.", owningTaskName, this);
@@ -295,6 +442,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 					LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
 				}
 			}
+
+			partitionManager.releasePartition(partitionId, cause);
 		}
 	}
 
@@ -306,13 +455,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
-	public void fail(@Nullable Throwable throwable) {
-		partitionManager.releasePartition(partitionId, throwable);
-	}
-
-	/**
-	 * Returns the requested subpartition.
-	 */
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 		checkState(!isReleased.get(), "Partition released.");
@@ -359,6 +501,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * <p>A partition is released when each subpartition is either consumed and communication is closed by consumer
 	 * or failed. A partition is also released if task is cancelled.
 	 */
+	@Override
 	public boolean isReleased() {
 		return isReleased.get();
 	}
@@ -397,5 +540,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTimeMsPerSecond() {
+		return idleTimeMsPerSecond;
 	}
 }

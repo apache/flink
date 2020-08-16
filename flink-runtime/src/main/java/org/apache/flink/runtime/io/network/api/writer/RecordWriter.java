@@ -20,17 +20,9 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -40,23 +32,17 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An abstract record-oriented runtime result writer.
  *
  * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
- * serializing records into buffers.
- *
- * <p><strong>Important</strong>: it is necessary to call {@link #flushAll()} after
- * all records have been written with {@link #emit(IOReadableWritable)}. This
- * ensures that all produced records are written to the output stream (incl.
- * partially filled ones).
+ * records serialization.
  *
  * @param <T> the type of the record that can be emitted with this record writer
  */
@@ -70,17 +56,13 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	private final ResultPartitionWriter targetPartition;
 
+	protected boolean isBroadcastSelector;
+
 	protected final int numberOfChannels;
 
-	protected final RecordSerializer<T> serializer;
+	private final DataOutputSerializer serializer;
 
-	protected final Random rng = new XORShiftRandom();
-
-	private Counter numBytesOut = new SimpleCounter();
-
-	private Counter numBuffersOut = new SimpleCounter();
-
-	protected Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
+	private final Random rng = new XORShiftRandom();
 
 	private final boolean flushAlways;
 
@@ -98,7 +80,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		this.targetPartition = writer;
 		this.numberOfChannels = writer.getNumberOfSubpartitions();
 
-		this.serializer = new SpanningRecordSerializer<T>();
+		this.serializer = new DataOutputSerializer(64 * 1024);
 
 		checkArgument(timeout >= -1);
 		this.flushAlways = (timeout == 0);
@@ -114,68 +96,14 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		}
 	}
 
-	protected void emit(T record, int targetChannel) throws IOException, InterruptedException {
-		checkErroneous();
-
-		serializer.serializeRecord(record);
-
-		// Make sure we don't hold onto the large intermediate serialization buffer for too long
-		if (copyFromSerializerToTargetChannel(targetChannel)) {
-			serializer.prune();
-		}
-	}
-
-	/**
-	 * @param targetChannel
-	 * @return <tt>true</tt> if the intermediate serialization buffer should be pruned
-	 */
-	protected boolean copyFromSerializerToTargetChannel(int targetChannel) throws IOException, InterruptedException {
-		// We should reset the initial position of the intermediate serialization buffer before
-		// copying, so the serialization results can be copied to multiple target buffers.
-		serializer.reset();
-
-		boolean pruneTriggered = false;
-		BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
-		SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
-		while (result.isFullBuffer()) {
-			finishBufferBuilder(bufferBuilder);
-
-			// If this was a full record, we are done. Not breaking out of the loop at this point
-			// will lead to another buffer request before breaking out (that would not be a
-			// problem per se, but it can lead to stalls in the pipeline).
-			if (result.isFullRecord()) {
-				pruneTriggered = true;
-				emptyCurrentBufferBuilder(targetChannel);
-				break;
-			}
-
-			bufferBuilder = requestNewBufferBuilder(targetChannel);
-			result = serializer.copyToBufferBuilder(bufferBuilder);
-		}
-		checkState(!serializer.hasSerializedData(), "All data should be written at once");
-
-		if (flushAlways) {
-			flushTargetPartition(targetChannel);
-		}
-		return pruneTriggered;
-	}
-
 	public void broadcastEvent(AbstractEvent event) throws IOException {
 		broadcastEvent(event, false);
 	}
 
 	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
-			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
-				tryFinishCurrentBufferBuilder(targetChannel);
-
-				// Retain the buffer so that it can be recycled by each channel of targetPartition
-				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel, isPriorityEvent);
-			}
-
-			if (flushAlways) {
-				flushAll();
-			}
+		targetPartition.broadcastEvent(event, isPriorityEvent);
+		if (flushAlways) {
+			flushAll();
 		}
 	}
 
@@ -191,14 +119,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	 * Sets the metric group for this RecordWriter.
      */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
-		numBytesOut = metrics.getNumBytesOutCounter();
-		numBuffersOut = metrics.getNumBuffersOutCounter();
-		idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
-	}
-
-	protected void finishBufferBuilder(BufferBuilder bufferBuilder) {
-		numBytesOut.inc(bufferBuilder.finish());
-		numBuffersOut.inc();
+		targetPartition.setMetricGroup(metrics);
 	}
 
 	@Override
@@ -214,44 +135,52 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	/**
 	 * This is used to send LatencyMarks to a random target channel.
 	 */
-	public abstract void randomEmit(T record) throws IOException, InterruptedException;
+	public void randomEmit(T record) throws IOException, InterruptedException {
+		int targetChannel = rng.nextInt(numberOfChannels);
+		emit(record, targetChannel);
+	}
 
 	/**
 	 * This is used to broadcast streaming Watermarks in-band with records.
 	 */
-	public abstract void broadcastEmit(T record) throws IOException, InterruptedException;
+	public void broadcastEmit(T record) throws IOException, InterruptedException {
+		checkErroneous();
 
-	/**
-	 * The {@link BufferBuilder} may already exist if not filled up last time, otherwise we need
-	 * request a new one for this target channel.
-	 */
-	abstract BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
+		targetPartition.broadcastWrite(serializeRecord(record), isBroadcastSelector);
+		// Make sure we don't hold onto the large intermediate serialization buffer
+		// for too long and the serializer is cleared to serialize the next record
+		serializer.pruneBuffer();
 
-	/**
-	 * Marks the current {@link BufferBuilder} as finished if present and clears the state for next one.
-	 */
-	abstract void tryFinishCurrentBufferBuilder(int targetChannel);
+		if (flushAlways) {
+			flushAll();
+		}
+	}
 
-	/**
-	 * Marks the current {@link BufferBuilder} as empty for the target channel.
-	 */
-	abstract void emptyCurrentBufferBuilder(int targetChannel);
+	protected void emit(T record, int targetChannel) throws IOException, InterruptedException {
+		checkErroneous();
 
-	/**
-	 * Marks the current {@link BufferBuilder} as finished and releases the resources for the target channel.
-	 */
-	abstract void closeBufferBuilder(int targetChannel);
+		targetPartition.writerRecord(serializeRecord(record), targetChannel, isBroadcastSelector);
+		// Make sure we don't hold onto the large intermediate serialization buffer
+		// for too long and the serializer is cleared to serialize the next record
+		serializer.pruneBuffer();
 
-	/**
-	 * Closes the {@link BufferBuilder}s for all the channels.
-	 */
-	public abstract void clearBuffers();
+		if (flushAlways) {
+			flushTargetPartition(targetChannel);
+		}
+	}
+
+	private ByteBuffer serializeRecord(T record) throws IOException {
+		serializer.skipBytesToWrite(4);
+		record.write(serializer);
+		serializer.writeIntUnsafe(serializer.length() - 4, 0);
+
+		return serializer.wrapAsByteBuffer();
+	}
 
 	/**
 	 * Closes the writer. This stops the flushing thread (if there is one).
 	 */
 	public void close() {
-		clearBuffers();
 		// make sure we terminate the thread in any case
 		if (outputFlusher != null) {
 			outputFlusher.terminate();
@@ -287,28 +216,6 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		if (++volatileFlusherExceptionCheckSkipCount >= VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT) {
 			volatileFlusherExceptionCheckSkipCount = 0;
 		}
-	}
-
-	protected void addBufferConsumer(BufferConsumer consumer, int targetChannel) throws IOException {
-		targetPartition.addBufferConsumer(consumer, targetChannel);
-	}
-
-	/**
-	 * Requests a new {@link BufferBuilder} for the target channel and returns it.
-	 */
-	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		BufferBuilder builder = targetPartition.tryGetBufferBuilder(targetChannel);
-		if (builder == null) {
-			long start = System.currentTimeMillis();
-			builder = targetPartition.getBufferBuilder(targetChannel);
-			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
-		}
-		return builder;
-	}
-
-	@VisibleForTesting
-	public Meter getIdleTimeMsPerSecond() {
-		return idleTimeMsPerSecond;
 	}
 
 	// ------------------------------------------------------------------------

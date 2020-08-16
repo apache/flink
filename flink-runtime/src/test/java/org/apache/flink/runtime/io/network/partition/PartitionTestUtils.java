@@ -127,9 +127,9 @@ public enum PartitionTestUtils {
 	public static void writeBuffers(
 			ResultPartitionWriter partition,
 			int numberOfBuffers,
-			int bufferSize) throws IOException {
+			int bufferSize) throws Exception {
 		for (int i = 0; i < numberOfBuffers; i++) {
-			partition.addBufferConsumer(createFilledFinishedBufferConsumer(bufferSize), 0);
+			partition.writerRecord(createFilledFinishedBufferConsumer(bufferSize).build().getNioBufferReadable(), 0, false);
 		}
 		partition.finish();
 	}

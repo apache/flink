@@ -153,12 +153,8 @@ public class FileBufferReaderITCase extends TestLogger {
 			final ByteArrayType bytes = new ByteArrayType(dataSource);
 			int counter = 0;
 			while (counter++ < numRecords) {
-				try {
-					writer.emit(bytes);
-					writer.flushAll();
-				} finally {
-					writer.clearBuffers();
-				}
+				writer.emit(bytes);
+				writer.flushAll();
 			}
 		}
 	}

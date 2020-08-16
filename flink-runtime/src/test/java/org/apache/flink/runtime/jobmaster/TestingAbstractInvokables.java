@@ -49,13 +49,9 @@ public class TestingAbstractInvokables {
 		public void invoke() throws Exception {
 			final RecordWriter<IntValue> writer = new RecordWriterBuilder<IntValue>().build(getEnvironment().getWriter(0));
 
-			try {
-				writer.emit(new IntValue(42));
-				writer.emit(new IntValue(1337));
-				writer.flushAll();
-			} finally {
-				writer.clearBuffers();
-			}
+			writer.emit(new IntValue(42));
+			writer.emit(new IntValue(1337));
+			writer.flushAll();
 		}
 	}
 

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
@@ -30,7 +29,6 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link ResultPartitionWriter} that collects output on the List.
@@ -42,27 +40,6 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
 
 	public AbstractCollectingResultPartitionWriter(BufferProvider bufferProvider) {
 		this.bufferProvider = checkNotNull(bufferProvider);
-	}
-
-	@Override
-	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		return bufferProvider.requestBufferBuilderBlocking(targetChannel);
-	}
-
-	@Override
-	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
-		return bufferProvider.requestBufferBuilder(targetChannel);
-	}
-
-	@Override
-	public synchronized boolean addBufferConsumer(
-			BufferConsumer bufferConsumer,
-			int targetChannel,
-			boolean isPriorityEvent) throws IOException {
-		checkState(targetChannel < getNumberOfSubpartitions());
-		bufferConsumers.add(bufferConsumer);
-		processBufferConsumers();
-		return true;
 	}
 
 	private void processBufferConsumers() throws IOException {

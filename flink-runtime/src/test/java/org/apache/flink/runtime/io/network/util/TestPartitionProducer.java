@@ -72,7 +72,7 @@ public class TestPartitionProducer implements Callable<Boolean> {
 			BufferConsumerAndChannel consumerAndChannel;
 
 			while ((consumerAndChannel = source.getNextBufferConsumer()) != null) {
-				partition.addBufferConsumer(consumerAndChannel.getBufferConsumer(), consumerAndChannel.getTargetChannel());
+				partition.writerRecord(consumerAndChannel.getBufferConsumer().build().getNioBufferReadable(), consumerAndChannel.getTargetChannel(), false);
 
 				// Check for interrupted flag after adding data to prevent resource leaks
 				if (Thread.interrupted()) {

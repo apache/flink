@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,15 +38,15 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionManager.class);
 
-	private final Map<ResultPartitionID, ResultPartition> registeredPartitions = new HashMap<>(16);
+	private final Map<ResultPartitionID, ResultPartitionWriter> registeredPartitions = new HashMap<>(16);
 
 	private boolean isShutdown;
 
-	public void registerResultPartition(ResultPartition partition) {
+	public void registerResultPartition(ResultPartitionWriter partition) {
 		synchronized (registeredPartitions) {
 			checkState(!isShutdown, "Result partition manager already shut down.");
 
-			ResultPartition previous = registeredPartitions.put(partition.getPartitionId(), partition);
+			ResultPartitionWriter previous = registeredPartitions.put(partition.getPartitionId(), partition);
 
 			if (previous != null) {
 				throw new IllegalStateException("Result partition already registered.");
@@ -61,7 +63,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			BufferAvailabilityListener availabilityListener) throws IOException {
 
 		synchronized (registeredPartitions) {
-			final ResultPartition partition = registeredPartitions.get(partitionId);
+			final ResultPartitionWriter partition = registeredPartitions.get(partitionId);
 
 			if (partition == null) {
 				throw new PartitionNotFoundException(partitionId);
@@ -75,7 +77,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 	public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
 		synchronized (registeredPartitions) {
-			ResultPartition resultPartition = registeredPartitions.remove(partitionId);
+			ResultPartitionWriter resultPartition = registeredPartitions.remove(partitionId);
 			if (resultPartition != null) {
 				resultPartition.release(cause);
 				LOG.debug("Released partition {} produced by {}.",
@@ -90,8 +92,8 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			LOG.debug("Releasing {} partitions because of shutdown.",
 					registeredPartitions.values().size());
 
-			for (ResultPartition partition : registeredPartitions.values()) {
-				partition.release();
+			for (ResultPartitionWriter partition : registeredPartitions.values()) {
+				partition.release(null);
 			}
 
 			registeredPartitions.clear();
@@ -110,7 +112,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 		LOG.debug("Received consume notification from {}.", partition);
 
 		synchronized (registeredPartitions) {
-			final ResultPartition previous = registeredPartitions.remove(partition.getPartitionId());
+			final ResultPartitionWriter previous = registeredPartitions.remove(partition.getPartitionId());
 			// Release the partition if it was successfully removed
 			if (partition == previous) {
 				partition.release();
