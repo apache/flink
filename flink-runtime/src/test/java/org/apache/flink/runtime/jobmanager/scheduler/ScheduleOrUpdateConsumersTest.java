@@ -159,15 +159,10 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 			// Produce the first intermediate result and then the second in a serial fashion.
 			for (RecordWriter<IntValue> writer : writers) {
-				try {
-					for (int i = 0; i < numberOfTimesToSend; i++) {
-						writer.emit(subtaskIndex);
-					}
-					writer.flushAll();
+				for (int i = 0; i < numberOfTimesToSend; i++) {
+					writer.emit(subtaskIndex);
 				}
-				finally {
-					writer.clearBuffers();
-				}
+				writer.flushAll();
 			}
 		}
 	}

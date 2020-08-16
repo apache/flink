@@ -24,7 +24,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -38,6 +38,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
+
+import java.nio.ByteBuffer;
 
 /**
  * Test for consuming a pipelined result only partially.
@@ -118,10 +120,8 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
 
 			for (int i = 0; i < 8; i++) {
-				final BufferBuilder bufferBuilder = writer.getBufferBuilder(0);
-				writer.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
+				writer.writerRecord(ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE), 0, false);
 				Thread.sleep(50);
-				bufferBuilder.finish();
 			}
 		}
 	}

@@ -41,7 +41,7 @@ public class BufferBuilder {
 
 	private final SettablePositionMarker positionMarker = new SettablePositionMarker();
 
-	private boolean bufferConsumerCreated = false;
+	private BufferConsumer bufferConsumer;
 
 	public BufferBuilder(MemorySegment memorySegment, BufferRecycler recycler) {
 		this.memorySegment = checkNotNull(memorySegment);
@@ -55,13 +55,13 @@ public class BufferBuilder {
 	 * @return created matching instance of {@link BufferConsumer} to this {@link BufferBuilder}.
 	 */
 	public BufferConsumer createBufferConsumer() {
-		checkState(!bufferConsumerCreated, "Two BufferConsumer shouldn't exist for one BufferBuilder");
-		bufferConsumerCreated = true;
-		return new BufferConsumer(
+		checkState(bufferConsumer == null, "Two BufferConsumer shouldn't exist for one BufferBuilder");
+		bufferConsumer = new BufferConsumer(
 			memorySegment,
 			recycler,
 			positionMarker,
 			positionMarker.cachedPosition);
+		return bufferConsumer;
 	}
 
 	/**
@@ -133,6 +133,10 @@ public class BufferBuilder {
 
 	public int getMaxCapacity() {
 		return memorySegment.size();
+	}
+
+	public BufferConsumer getBufferConsumer() {
+		return bufferConsumer;
 	}
 
 	@VisibleForTesting

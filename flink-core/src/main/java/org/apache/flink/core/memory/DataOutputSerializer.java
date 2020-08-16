@@ -233,6 +233,13 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
 		this.position += 4;
 	}
 
+	public void writeIntUnsafe(int v, int position) {
+		if (LITTLE_ENDIAN) {
+			v = Integer.reverseBytes(v);
+		}
+		UNSAFE.putInt(this.buffer, BASE_OFFSET + position, v);
+	}
+
 	@SuppressWarnings("restriction")
 	@Override
 	public void writeLong(long v) throws IOException {

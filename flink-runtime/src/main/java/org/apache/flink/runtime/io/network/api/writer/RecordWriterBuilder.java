@@ -47,10 +47,6 @@ public class RecordWriterBuilder<T extends IOReadableWritable> {
 	}
 
 	public RecordWriter<T> build(ResultPartitionWriter writer) {
-		if (selector.isBroadcast()) {
-			return new BroadcastRecordWriter<>(writer, timeout, taskName);
-		} else {
-			return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
-		}
+		return new RecordWriter<>(writer, selector, timeout, taskName);
 	}
 }

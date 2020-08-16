@@ -373,7 +373,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			closeLocalStrategiesAndCaches();
 
 			clearReaders(inputReaders);
-			clearWriters(eventualOutputs);
 
 		}
 
@@ -1467,12 +1466,6 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 			a[i++] = val;
 		}
 		return a;
-	}
-
-	public static void clearWriters(List<RecordWriter<?>> writers) {
-		for (RecordWriter<?> writer : writers) {
-			writer.clearBuffers();
-		}
 	}
 
 	public static void clearReaders(MutableReader<?>[] readers) {

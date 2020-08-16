@@ -31,10 +31,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -45,7 +43,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -54,7 +52,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -126,7 +123,7 @@ public class ResultPartitionTest {
 				taskActions,
 				jobId,
 				notifier);
-			consumableNotifyingPartitionWriter.addBufferConsumer(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
+			consumableNotifyingPartitionWriter.writerRecord(ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE), 0, false);
 			verify(notifier, times(1))
 				.notifyPartitionConsumable(eq(jobId), eq(consumableNotifyingPartitionWriter.getPartitionId()), eq(taskActions));
 		}
@@ -139,7 +136,7 @@ public class ResultPartitionTest {
 				taskActions,
 				jobId,
 				notifier);
-			partition.addBufferConsumer(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE), 0);
+			partition.writerRecord(ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE), 0, false);
 			verify(notifier, never()).notifyPartitionConsumable(eq(jobId), eq(partition.getPartitionId()), eq(taskActions));
 		}
 	}
@@ -187,7 +184,7 @@ public class ResultPartitionTest {
 	 * @param partitionType the result partition type to set up
 	 */
 	private void testAddOnFinishedPartition(final ResultPartitionType partitionType) throws Exception {
-		BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
+		ByteBuffer serializedRecord = ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE);
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 		JobID jobId = new JobID();
 		TaskActions taskActions = new NoOpTaskActions();
@@ -200,15 +197,11 @@ public class ResultPartitionTest {
 			consumableNotifyingPartitionWriter.finish();
 			reset(notifier);
 			// partition.add() should fail
-			consumableNotifyingPartitionWriter.addBufferConsumer(bufferConsumer, 0);
+			consumableNotifyingPartitionWriter.writerRecord(serializedRecord, 0, false);
 			Assert.fail("exception expected");
 		} catch (IllegalStateException e) {
 			// expected => ignored
 		} finally {
-			if (!bufferConsumer.isRecycled()) {
-				bufferConsumer.close();
-				Assert.fail("bufferConsumer not recycled");
-			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(
 				eq(jobId),
@@ -233,28 +226,18 @@ public class ResultPartitionTest {
 	 * @param partitionType the result partition type to set up
 	 */
 	private void testAddOnReleasedPartition(final ResultPartitionType partitionType) throws Exception {
-		BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
+		ByteBuffer serializedRecord = ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE);
 		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 		JobID jobId = new JobID();
 		TaskActions taskActions = new NoOpTaskActions();
 		ResultPartition partition = partitionType == ResultPartitionType.BLOCKING ?
 			createPartition(partitionType, fileChannelManager) : createPartition(partitionType);
-		ResultPartitionWriter consumableNotifyingPartitionWriter = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-			Collections.singleton(PartitionTestUtils.createPartitionDeploymentDescriptor(partitionType)),
-			new ResultPartitionWriter[] {partition},
-			taskActions,
-			jobId,
-			notifier)[0];
 		try {
 			partition.release();
 			// partition.add() silently drops the bufferConsumer but recycles it
-			consumableNotifyingPartitionWriter.addBufferConsumer(bufferConsumer, 0);
+			partition.writerRecord(serializedRecord, 0, false);
 			assertTrue(partition.isReleased());
 		} finally {
-			if (!bufferConsumer.isRecycled()) {
-				bufferConsumer.close();
-				Assert.fail("bufferConsumer not recycled");
-			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(eq(jobId), eq(partition.getPartitionId()), eq(taskActions));
 		}
@@ -273,7 +256,7 @@ public class ResultPartitionTest {
 	/**
 	 * Tests {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int, BufferAvailabilityListener)}
 	 * would throw a {@link PartitionNotFoundException} if the registered partition was released from manager
-	 * via {@link ResultPartition#fail(Throwable)} before.
+	 * via {@link ResultPartition#release(Throwable)}} before.
 	 */
 	@Test
 	public void testCreateSubpartitionOnFailingPartition() throws Exception {
@@ -284,13 +267,13 @@ public class ResultPartitionTest {
 
 		manager.registerResultPartition(partition);
 
-		partition.fail(null);
+		partition.release(null);
 
 		verifyCreateSubpartitionViewThrowsException(manager, partition.getPartitionId());
 	}
 
 	/**
-	 * Tests {@link ResultPartition#addBufferConsumer(BufferConsumer, int)} on a working partition.
+	 * Tests {@link ResultPartition#writerRecord(ByteBuffer, int, boolean)} on a working partition.
 	 *
 	 * @param partitionType the result partition type to set up
 	 */
@@ -303,15 +286,11 @@ public class ResultPartitionTest {
 			taskActions,
 			jobId,
 			notifier);
-		BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
+		ByteBuffer serializedRecord = ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE);
 		try {
 			// partition.add() adds the bufferConsumer without recycling it (if not spilling)
-			consumableNotifyingPartitionWriter.addBufferConsumer(bufferConsumer, 0);
-			assertFalse("bufferConsumer should not be recycled (still in the queue)", bufferConsumer.isRecycled());
+			consumableNotifyingPartitionWriter.writerRecord(serializedRecord, 0, false);
 		} finally {
-			if (!bufferConsumer.isRecycled()) {
-				bufferConsumer.close();
-			}
 			// should have been notified for pipelined partitions
 			if (partitionType.isPipelined()) {
 				verify(notifier, times(1))
@@ -340,8 +319,7 @@ public class ResultPartitionTest {
 
 			// take all buffers (more than the minimum required)
 			for (int i = 0; i < numAllBuffers; ++i) {
-				BufferBuilder bufferBuilder = resultPartition.getBufferPool().requestBufferBuilderBlocking();
-				resultPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), 0);
+				resultPartition.writerRecord(ByteBuffer.allocate(BufferBuilderTestUtils.BUFFER_SIZE), 0, false);
 			}
 			resultPartition.finish();
 
@@ -367,7 +345,7 @@ public class ResultPartitionTest {
 	 * Tests {@link ResultPartition#getAvailableFuture()}.
 	 */
 	@Test
-	public void testIsAvailableOrNot() throws IOException, InterruptedException {
+	public void testIsAvailableOrNot() throws IOException {
 		final int numAllBuffers = 10;
 		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
 				.setNumNetworkBuffers(numAllBuffers).build();
@@ -380,8 +358,8 @@ public class ResultPartitionTest {
 
 			assertTrue(resultPartition.getAvailableFuture().isDone());
 
-			resultPartition.getBufferBuilder(0);
-			resultPartition.getBufferBuilder(0);
+			resultPartition.getBufferPool().requestBufferBuilder(0);
+			resultPartition.getBufferPool().requestBufferBuilder(0);
 			assertFalse(resultPartition.getAvailableFuture().isDone());
 		} finally {
 			resultPartition.release();
@@ -438,12 +416,9 @@ public class ResultPartitionTest {
 			ResultPartitionConsumableNotifier notifier) {
 		ResultPartition partition = partitionType == ResultPartitionType.BLOCKING ?
 			createPartition(partitionType, fileChannelManager) : createPartition(partitionType);
-		return ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-			Collections.singleton(PartitionTestUtils.createPartitionDeploymentDescriptor(partitionType)),
-			new ResultPartitionWriter[] {partition},
-			taskActions,
-			jobId,
-			notifier)[0];
+		partition.setConsumableNotifier(() ->
+			notifier.notifyPartitionConsumable(jobId, partition.getPartitionId(), taskActions));
+		return partition;
 	}
 
 	@Test

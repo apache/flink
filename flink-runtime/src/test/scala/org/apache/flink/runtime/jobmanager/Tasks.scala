@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
-import org.apache.flink.runtime.io.network.api.writer.{RecordWriter, RecordWriterBuilder}
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.types.IntValue
 
@@ -38,21 +38,17 @@ object Tasks {
       val writer = new RecordWriterBuilder[IntValue]().build(
         getEnvironment.getWriter(0))
 
-      try {
-        while (true) {
-          val record = reader.next()
+      while (true) {
+        val record = reader.next()
 
-          if (record == null) {
-            return
-          }
-
-          writer.emit(record)
+        if (record == null) {
+          return
         }
 
-        writer.flushAll()
-      } finally {
-        writer.clearBuffers()
+        writer.emit(record)
       }
+
+      writer.flushAll()
     }
   }
 

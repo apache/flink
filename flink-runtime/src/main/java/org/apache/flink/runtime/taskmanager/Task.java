@@ -204,7 +204,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
+	private final ResultPartitionWriter[] partitionWriters;
 
 	private final IndexedInputGate[] inputGates;
 
@@ -377,16 +377,19 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			.createShuffleIOOwnerContext(taskNameWithSubtaskAndId, executionId, metrics.getIOMetricGroup());
 
 		// produced intermediate result partitions
-		final ResultPartitionWriter[] resultPartitionWriters = shuffleEnvironment.createResultPartitionWriters(
+		partitionWriters = shuffleEnvironment.createResultPartitionWriters(
 			taskShuffleContext,
 			resultPartitionDeploymentDescriptors).toArray(new ResultPartitionWriter[] {});
 
-		this.consumableNotifyingPartitionWriters = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
-			resultPartitionDeploymentDescriptors,
-			resultPartitionWriters,
-			this,
-			jobId,
-			resultPartitionConsumableNotifier);
+		int writerIndex = 0;
+		for (ResultPartitionDeploymentDescriptor desc : resultPartitionDeploymentDescriptors) {
+			if (desc.sendScheduleOrUpdateConsumersMessage() && desc.getPartitionType().isPipelined()) {
+				ResultPartitionID partitionID = partitionWriters[writerIndex].getPartitionId();
+				partitionWriters[writerIndex].setConsumableNotifier(() ->
+					resultPartitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionID, this));
+			}
+			writerIndex++;
+		}
 
 		// consumed intermediate result partitions
 		final IndexedInputGate[] gates = shuffleEnvironment.createInputGates(
@@ -404,7 +407,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
 			//noinspection deprecation
 			((NettyShuffleEnvironment) shuffleEnvironment)
-				.registerLegacyNetworkMetrics(metrics.getIOMetricGroup(), resultPartitionWriters, gates);
+				.registerLegacyNetworkMetrics(metrics.getIOMetricGroup(), partitionWriters, gates);
 		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
@@ -483,12 +486,12 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 	@Override
 	public boolean isBackPressured() {
-		if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
+		if (invokable == null || partitionWriters.length == 0 || !isRunning()) {
 			return false;
 		}
-		final CompletableFuture<?>[] outputFutures = new CompletableFuture[consumableNotifyingPartitionWriters.length];
+		final CompletableFuture<?>[] outputFutures = new CompletableFuture[partitionWriters.length];
 		for (int i = 0; i < outputFutures.length; ++i) {
-			outputFutures[i] = consumableNotifyingPartitionWriters[i].getAvailableFuture();
+			outputFutures[i] = partitionWriters[i].getAvailableFuture();
 		}
 		return !CompletableFuture.allOf(outputFutures).isDone();
 	}
@@ -632,9 +635,9 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 			LOG.info("Registering task at network: {}.", this);
 
-			setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
+			setupPartitionsAndGates(partitionWriters, inputGates);
 
-			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+			for (ResultPartitionWriter partitionWriter : partitionWriters) {
 				taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
 			}
 
@@ -680,7 +683,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 				kvStateRegistry,
 				inputSplitProvider,
 				distributedCacheEntries,
-				consumableNotifyingPartitionWriters,
+				partitionWriters,
 				inputGates,
 				taskEventDispatcher,
 				checkpointResponder,
@@ -731,7 +734,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// ----------------------------------------------------------------
 
 			// finish the produced partitions. if this fails, we consider the execution failed.
-			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+			for (ResultPartitionWriter partitionWriter : partitionWriters) {
 				if (partitionWriter != null) {
 					partitionWriter.finish();
 				}
@@ -883,10 +886,10 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	private void releaseResources() {
 		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
 
-		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+		for (ResultPartitionWriter partitionWriter : partitionWriters) {
 			taskEventDispatcher.unregisterPartition(partitionWriter.getPartitionId());
 			if (isCanceledOrFailed()) {
-				partitionWriter.fail(getFailureCause());
+				partitionWriter.release(getFailureCause());
 			}
 		}
 
@@ -903,7 +906,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	 * release partitions and gates. Another is from task thread during task exiting.
 	 */
 	private void closeNetworkResources() {
-		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+		for (ResultPartitionWriter partitionWriter : partitionWriters) {
 			try {
 				partitionWriter.close();
 			} catch (Throwable t) {

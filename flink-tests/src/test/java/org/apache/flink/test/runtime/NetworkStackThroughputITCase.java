@@ -105,7 +105,6 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				}
 			}
 			finally {
-				writer.clearBuffers();
 				writer.flushAll();
 			}
 		}
@@ -139,7 +138,6 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			}
 			finally {
 				reader.clearBuffers();
-				writer.clearBuffers();
 				writer.flushAll();
 			}
 		}

@@ -140,15 +140,10 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
-			try {
-				for (int i = 0; i < numberOfTimesToSend; i++) {
-					writer.emit(subtaskIndex);
-				}
-				writer.flushAll();
+			for (int i = 0; i < numberOfTimesToSend; i++) {
+				writer.emit(subtaskIndex);
 			}
-			finally {
-				writer.clearBuffers();
-			}
+			writer.flushAll();
 		}
 	}
 

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -29,8 +30,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
@@ -279,14 +278,15 @@ public class StreamTaskNetworkInputTest {
 	}
 
 	private void serializeRecord(long value, BufferBuilder bufferBuilder) throws IOException {
-		RecordSerializer<SerializationDelegate<StreamElement>> serializer = new SpanningRecordSerializer<>();
+		DataOutputSerializer serializer = new DataOutputSerializer(128);
 		SerializationDelegate<StreamElement> serializationDelegate =
 			new SerializationDelegate<>(
 				new StreamElementSerializer<>(LongSerializer.INSTANCE));
 		serializationDelegate.setInstance(new StreamRecord<>(value));
-		serializer.serializeRecord(serializationDelegate);
+		serializationDelegate.write(serializer);
+		bufferBuilder.appendAndCommit(serializer.wrapAsByteBuffer());
 
-		assertFalse(serializer.copyToBufferBuilder(bufferBuilder).isFullBuffer());
+		assertFalse(bufferBuilder.isFull());
 	}
 
 	private static void assertHasNextElement(StreamTaskNetworkInput input, DataOutput output) throws Exception {

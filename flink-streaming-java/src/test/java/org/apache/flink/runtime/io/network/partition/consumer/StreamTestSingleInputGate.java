@@ -21,11 +21,11 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterTest;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -80,7 +80,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
 		for (int i = 0; i < numInputChannels; i++) {
 			final int channelIndex = i;
-			final RecordSerializer<SerializationDelegate<Object>> recordSerializer = new SpanningRecordSerializer<SerializationDelegate<Object>>();
+			final DataOutputSerializer recordSerializer = new DataOutputSerializer(128);
 			final SerializationDelegate<Object> delegate = (SerializationDelegate<Object>) (SerializationDelegate<?>)
 				new SerializationDelegate<>(new StreamElementSerializer<T>(serializer));
 
@@ -102,10 +102,10 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					Object inputElement = input.getStreamRecord();
 
 					delegate.setInstance(inputElement);
-					recordSerializer.serializeRecord(delegate);
+					RecordWriterTest.serializeRecord(recordSerializer, delegate);
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
 					BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-					recordSerializer.copyToBufferBuilder(bufferBuilder);
+					bufferBuilder.appendAndCommit(recordSerializer.wrapAsByteBuffer());
 					bufferBuilder.finish();
 
 					// Call getCurrentBuffer to ensure size is set

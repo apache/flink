@@ -233,7 +233,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				BatchTask.logAndThrowException(ex, this);
 			}
 		} finally {
-			BatchTask.clearWriters(eventualOutputs);
 			// --------------------------------------------------------------------
 			// Closing
 			// --------------------------------------------------------------------
