@@ -134,6 +134,48 @@ class DataStreamTests(PyFlinkTestCase):
         results.sort()
         self.assertEqual(expected, results)
 
+    def test_key_by_on_connect_stream(self):
+        ds1 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()])) \
+            .key_by(MyKeySelector(), key_type_info=Types.INT())
+        ds2 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+
+        class AssertKeyCoMapFunction(CoMapFunction):
+            def __init__(self):
+                self.pre1 = None
+                self.pre2 = None
+
+            def map1(self, value):
+                if value[0] == 'b':
+                    assert self.pre1 == 'a'
+                if value[0] == 'd':
+                    assert self.pre1 == 'c'
+                self.pre1 = value[0]
+                return value
+
+            def map2(self, value):
+                if value[0] == 'b':
+                    assert self.pre2 == 'a'
+                if value[0] == 'd':
+                    assert self.pre2 == 'c'
+                self.pre2 = value[0]
+                return value
+
+        ds1.connect(ds2)\
+            .key_by(MyKeySelector(), MyKeySelector(), key_type_info=Types.INT())\
+            .map(AssertKeyCoMapFunction())\
+            .add_sink(self.test_sink)
+
+        self.env.execute('key_by_test')
+        results = self.test_sink.get_results(True)
+        expected = ["<Row('e', 2)>", "<Row('a', 0)>", "<Row('b', 0)>", "<Row('c', 1)>",
+                    "<Row('d', 1)>", "<Row('e', 2)>", "<Row('a', 0)>", "<Row('b', 0)>",
+                    "<Row('c', 1)>", "<Row('d', 1)>"]
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
     def test_map_function_with_data_types_and_function_object(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))

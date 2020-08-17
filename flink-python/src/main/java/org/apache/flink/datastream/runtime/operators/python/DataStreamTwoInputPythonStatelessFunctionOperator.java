@@ -80,19 +80,29 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 
 	private transient Row reuseRow;
 
+	// True if input1 and input2 are KeyedStream
+	private boolean isKeyedStream;
+
+	private final TypeInformation<IN1> inputTypeInfo1;
+	private final TypeInformation<IN2> inputTypeInfo2;
+
 	public DataStreamTwoInputPythonStatelessFunctionOperator(
 		Configuration config,
 		TypeInformation<IN1> inputTypeInfo1,
 		TypeInformation<IN2> inputTypeInfo2,
 		TypeInformation<OUT> outputTypeInfo,
-		DataStreamPythonFunctionInfo pythonFunctionInfo) {
+		DataStreamPythonFunctionInfo pythonFunctionInfo,
+		boolean isKeyedStream) {
 		super(config);
 		this.pythonFunctionInfo = pythonFunctionInfo;
 		jobOptions = config.toMap();
 		this.outputTypeInfo = outputTypeInfo;
+		this.isKeyedStream = isKeyedStream;
+		this.inputTypeInfo1 = inputTypeInfo1;
+		this.inputTypeInfo2 = inputTypeInfo2;
 		// The row contains three field. The first field indicate left input or right input
 		// The second field contains left input and the third field contains right input.
-		runnerInputTypeInfo = new RowTypeInfo(Types.BOOLEAN, inputTypeInfo1, inputTypeInfo2);
+		runnerInputTypeInfo = initRunnerInputTypeInfo();
 	}
 
 	@Override
@@ -110,6 +120,19 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 
 		reuseRow = new Row(3);
 		this.streamRecordCollector = new StreamRecordCollector(output);
+	}
+
+	private TypeInformation<Row> initRunnerInputTypeInfo() {
+		if (isKeyedStream) {
+			// since we wrap a keyed field for python KeyedStream, we need to extract the
+			// corresponding data input type.
+			return new RowTypeInfo(
+				Types.BOOLEAN,
+				((RowTypeInfo) inputTypeInfo1).getTypeAt(1),
+				((RowTypeInfo) inputTypeInfo2).getTypeAt(1));
+		} else {
+			return new RowTypeInfo(Types.BOOLEAN, inputTypeInfo1, inputTypeInfo2);
+		}
 	}
 
 	@Override
@@ -151,11 +174,21 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 		streamRecordCollector.collect(outputTypeSerializer.deserialize(baisWrapper));
 	}
 
+	private Object getStreamRecordValue(StreamRecord<?> element) throws Exception {
+		if (isKeyedStream) {
+			// since we wrap a keyed field for python KeyedStream, we need to extract the
+			// corresponding data input.
+			return ((Row) element.getValue()).getField(1);
+		} else {
+			return element.getValue();
+		}
+	}
+
 	@Override
 	public void processElement1(StreamRecord<IN1> element) throws Exception {
 		// construct combined row.
 		reuseRow.setField(0, true);
-		reuseRow.setField(1, element.getValue());
+		reuseRow.setField(1, getStreamRecordValue(element));
 		reuseRow.setField(2, null);  // need to set null since it is a reuse row.
 		processElement();
 	}
@@ -165,7 +198,7 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 		// construct combined row.
 		reuseRow.setField(0, false);
 		reuseRow.setField(1, null); // need to set null since it is a reuse row.
-		reuseRow.setField(2, element.getValue());
+		reuseRow.setField(2, getStreamRecordValue(element));
 		processElement();
 	}
 
