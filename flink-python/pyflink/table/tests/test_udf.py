@@ -389,10 +389,10 @@ class UserDefinedFunctionTests(object):
             "map_func", udf(map_func,
                             result_type=DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())))
 
-        self.t_env.create_temporary_system_function(
+        self.t_env.register_function(
             "decimal_func", udf(decimal_func, result_type=DataTypes.DECIMAL(38, 18)))
 
-        self.t_env.create_temporary_system_function(
+        self.t_env.register_function(
             "decimal_cut_func", udf(decimal_cut_func, result_type=DataTypes.DECIMAL(38, 18)))
 
         table_sink = source_sink_utils.TestAppendSink(

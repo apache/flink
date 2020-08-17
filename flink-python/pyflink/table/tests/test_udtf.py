@@ -31,12 +31,12 @@ class UserDefinedTableFunctionTests(object):
             ['a', 'b', 'c'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 
-        self.t_env.create_temporary_system_function(
+        self.t_env.register_function(
             "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
 
-        self.t_env.create_temporary_system_function("condition_multi_emit", condition_multi_emit)
+        self.t_env.register_function("condition_multi_emit", condition_multi_emit)
 
-        self.t_env.create_temporary_system_function(
+        self.t_env.register_function(
             "multi_num", udf(MultiNum(), result_type=DataTypes.BIGINT()))
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])

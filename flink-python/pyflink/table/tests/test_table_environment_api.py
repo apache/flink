@@ -485,8 +485,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
     def execute_with_t_env(self, t_env):
         source = t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
-        source.select("func1(a, b), func2(a, b)").insert_into("sink")
-        t_env.execute("test")
+        exec_insert_table(source.select("func1(a, b), func2(a, b)"), "sink")
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
         self.assert_equals(actual, expected)

@@ -208,7 +208,7 @@ class PandasUDFITTests(object):
             "varbinary_func",
             udf(varbinary_func, result_type=DataTypes.BYTES(), udf_type="pandas"))
 
-        self.t_env.create_temporary_system_function(
+        self.t_env.register_function(
             "decimal_func",
             udf(decimal_func, result_type=DataTypes.DECIMAL(38, 18), udf_type="pandas"))
 
@@ -292,29 +292,27 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("t", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD("u", row_type)]))
 
-        t.select("tinyint_func(a),"
-                 "smallint_func(b),"
-                 "int_func(c),"
-                 "bigint_func(d),"
-                 "boolean_func(e),"
-                 "boolean_func(f),"
-                 "float_func(g),"
-                 "double_func(h),"
-                 "varchar_func(i),"
-                 "varchar_func(j),"
-                 "varbinary_func(k),"
-                 "decimal_func(l),"
-                 "decimal_func(m),"
-                 "date_func(n),"
-                 "time_func(o),"
-                 "timestamp_func(p),"
-                 "array_str_func(q),"
-                 "array_timestamp_func(r),"
-                 "array_int_func(s),"
-                 "nested_array_func(t),"
-                 "row_func(u)") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("tinyint_func(a),"
+                                   "smallint_func(b),"
+                                   "int_func(c),"
+                                   "bigint_func(d),"
+                                   "boolean_func(e),"
+                                   "boolean_func(f),"
+                                   "float_func(g),"
+                                   "double_func(h),"
+                                   "varchar_func(i),"
+                                   "varchar_func(j),"
+                                   "varbinary_func(k),"
+                                   "decimal_func(l),"
+                                   "decimal_func(m),"
+                                   "date_func(n),"
+                                   "time_func(o),"
+                                   "timestamp_func(p),"
+                                   "array_str_func(q),"
+                                   "array_timestamp_func(r),"
+                                   "array_int_func(s),"
+                                   "nested_array_func(t),"
+                                   "row_func(u)"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
