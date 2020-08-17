@@ -538,14 +538,14 @@ public class CheckpointCoordinator {
 			// This is to ensure the tasks are checkpointed after the OperatorCoordinators in case
 			// ExternallyInducedSource is used.
 			final CompletableFuture<?> masterStatesComplete = coordinatorCheckpointsComplete
-				.thenCompose(ignored -> {
+				.thenComposeAsync(ignored -> {
 					// If the code reaches here, the pending checkpoint is guaranteed to be not null.
 					// We use FutureUtils.getWithoutException() to make compiler happy with checked
 					// exceptions in the signature.
 					PendingCheckpoint checkpoint =
 						FutureUtils.getWithoutException(pendingCheckpointCompletableFuture);
 					return snapshotMasterState(checkpoint);
-				});
+				}, timer);
 
 			FutureUtils.assertNoException(
 				CompletableFuture.allOf(masterStatesComplete, coordinatorCheckpointsComplete)
