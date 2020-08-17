@@ -201,49 +201,6 @@ public interface KeyedStateStore {
 	<IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties);
 
 	/**
-	 * Gets a handle to the system's key/value folding state. This state is similar to the state
-	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
-	 * aggregates values with different types.
-	 *
-	 * <p>This state is only accessible if the function is executed on a KeyedStream.
-	 *
-	 * <pre>{@code
-	 * DataStream<MyType> stream = ...;
-	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
-	 *
-	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
-	 *
-	 *     private FoldingState<MyType, Long> state;
-	 *
-	 *     public void open(Configuration cfg) {
-	 *         state = getRuntimeContext().getReducingState(
-	 *                 new FoldingStateDescriptor<>("sum", 0L, (a, b) -> a.count() + b, Long.class));
-	 *     }
-	 *
-	 *     public Tuple2<MyType, Long> map(MyType value) {
-	 *         state.add(value);
-	 *         return new Tuple2<>(value, state.get());
-	 *     }
-	 * });
-	 *
-	 * }</pre>
-	 *
-	 * @param stateProperties The descriptor defining the properties of the stats.
-	 *
-	 * @param <T> The type of value stored in the state.
-	 *
-	 * @return The partitioned state object.
-	 *
-	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
-	 *                                       function (function is not part of a KeyedStream).
-	 *
-	 * @deprecated will be removed in a future version in favor of {@link AggregatingState}
-	 */
-	@PublicEvolving
-	@Deprecated
-	<T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties);
-
-	/**
 	 * Gets a handle to the system's key/value map state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
 	 * is composed of user-defined key-value pairs

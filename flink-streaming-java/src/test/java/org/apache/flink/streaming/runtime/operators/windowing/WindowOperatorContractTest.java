@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -2596,12 +2595,6 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 				assertEquals(
 					windowKeyedStateStore.getReducingState(windowReducingStateDesc).getClass(),
 					globalKeyedStateStore.getReducingState(globalReducingStateDesc).getClass());
-
-				FoldingStateDescriptor<String, String> windowFoldingStateDescriptor = new FoldingStateDescriptor<String, String>("windowFolding", "", (a, b) -> a, String.class);
-				FoldingStateDescriptor<String, String> globalFoldingStateDescriptor = new FoldingStateDescriptor<String, String>("globalFolding", "", (a, b) -> a, String.class);
-				assertEquals(
-					windowKeyedStateStore.getFoldingState(windowFoldingStateDescriptor).getClass(),
-					globalKeyedStateStore.getFoldingState(globalFoldingStateDescriptor).getClass());
 
 				MapStateDescriptor<String, String> windowMapStateDescriptor = new MapStateDescriptor<String, String>("windowMapState", String.class, String.class);
 				MapStateDescriptor<String, String> globalMapStateDescriptor = new MapStateDescriptor<String, String>("globalMapState", String.class, String.class);

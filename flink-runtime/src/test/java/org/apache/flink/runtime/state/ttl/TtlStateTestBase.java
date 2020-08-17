@@ -86,8 +86,7 @@ public abstract class TtlStateTestBase {
 			new TtlMapStatePerElementTestContext(),
 			new TtlMapStatePerNullElementTestContext(),
 			new TtlAggregatingStateTestContext(),
-			new TtlReducingStateTestContext(),
-			new TtlFoldingStateTestContext());
+			new TtlReducingStateTestContext());
 	}
 
 	public boolean fullSnapshot() {

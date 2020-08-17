@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -119,8 +118,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Tuple2.of(ListStateDescriptor.class, (StateFactory) RocksDBListState::create),
 			Tuple2.of(MapStateDescriptor.class, (StateFactory) RocksDBMapState::create),
 			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) RocksDBAggregatingState::create),
-			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) RocksDBReducingState::create),
-			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) RocksDBFoldingState::create)
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) RocksDBReducingState::create)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private interface StateFactory {

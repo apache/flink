@@ -21,13 +21,11 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.AppendingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -35,8 +33,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.windowing.AggregateApplyWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
@@ -177,70 +173,6 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>(WINDOW_STATE_NAME, reduceFunction, inputType.createSerializer(config));
 
 			return buildWindowOperator(stateDesc, new InternalSingleValueProcessWindowFunction<>(function));
-		}
-	}
-
-	@Deprecated
-	public <ACC, R> WindowOperator<K, T, ?, R, W> fold(
-		ACC initialValue,
-		FoldFunction<T, ACC> foldFunction,
-		WindowFunction<ACC, R, K, W> function,
-		TypeInformation<ACC> foldAccumulatorType) {
-
-		Preconditions.checkNotNull(foldAccumulatorType, "FoldFunction cannot be null");
-		Preconditions.checkNotNull(function, "WindowFunction cannot be null");
-
-		if (foldFunction instanceof RichFunction) {
-			throw new UnsupportedOperationException("FoldFunction of fold can not be a RichFunction.");
-		}
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			throw new UnsupportedOperationException("Fold cannot be used with a merging WindowAssigner.");
-		}
-
-		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
-			throw new UnsupportedOperationException("Fold cannot be used with a " +
-				windowAssigner.getClass().getSimpleName() + " assigner.");
-		}
-
-		if (evictor != null) {
-			return buildEvictingWindowOperator(new InternalIterableWindowFunction<>(new FoldApplyWindowFunction<>(initialValue, foldFunction, function, foldAccumulatorType)));
-		} else {
-			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>(WINDOW_STATE_NAME,
-				initialValue, foldFunction, foldAccumulatorType.createSerializer(config));
-			return buildWindowOperator(stateDesc, new InternalSingleValueWindowFunction<>(function));
-		}
-	}
-
-	@Deprecated
-	public <ACC, R> WindowOperator<K, T, ?, R, W> fold(
-		ACC initialValue,
-		FoldFunction<T, ACC> foldFunction,
-		ProcessWindowFunction<ACC, R, K, W> windowFunction,
-		TypeInformation<ACC> foldAccumulatorType) {
-
-		Preconditions.checkNotNull(foldAccumulatorType, "FoldFunction cannot be null");
-		Preconditions.checkNotNull(windowFunction, "ProcessWindowFunction cannot be null");
-
-		if (foldFunction instanceof RichFunction) {
-			throw new UnsupportedOperationException("FoldFunction of fold can not be a RichFunction.");
-		}
-		if (windowAssigner instanceof MergingWindowAssigner) {
-			throw new UnsupportedOperationException("Fold cannot be used with a merging WindowAssigner.");
-		}
-
-		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
-			throw new UnsupportedOperationException("Fold cannot be used with a " +
-				windowAssigner.getClass().getSimpleName() + " assigner.");
-		}
-
-		if (evictor != null) {
-			InternalIterableProcessWindowFunction<T, R, K, W> internalFunction = new InternalIterableProcessWindowFunction<>(
-				new FoldApplyProcessWindowFunction<>(initialValue, foldFunction, windowFunction, foldAccumulatorType));
-			return buildEvictingWindowOperator(internalFunction);
-		} else {
-			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>(WINDOW_STATE_NAME,
-				initialValue, foldFunction, foldAccumulatorType.createSerializer(config));
-			return buildWindowOperator(stateDesc, new InternalSingleValueProcessWindowFunction<>(windowFunction));
 		}
 	}
 

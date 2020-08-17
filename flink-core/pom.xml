@@ -189,6 +189,10 @@ under the License.
 							<exclude>org.apache.flink.api.common.ExecutionConfig#disableSysoutLogging()</exclude>
 							<exclude>org.apache.flink.api.common.ExecutionConfig#enableSysoutLogging()</exclude>
 							<exclude>org.apache.flink.api.common.ExecutionConfig#isSysoutLoggingEnabled()</exclude>
+
+							<!-- it was decided to remove the fold opperations in 1.12 -->
+							<exclude>org.apache.flink.api.common.functions.FoldFunction</exclude>
+							<exclude>org.apache.flink.api.common.functions.RichFoldFunction</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
