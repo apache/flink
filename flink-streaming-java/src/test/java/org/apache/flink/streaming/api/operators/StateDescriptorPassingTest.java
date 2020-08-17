@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -56,33 +55,6 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("serial")
 public class StateDescriptorPassingTest {
-
-	@Test
-	public void testFoldWindowState() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
-
-		DataStream<String> src = env.fromElements("abc");
-
-		SingleOutputStreamOperator<?> result = src
-				.keyBy(new KeySelector<String, String>() {
-					@Override
-					public String getKey(String value) {
-						return null;
-					}
-				})
-				.timeWindow(Time.milliseconds(1000))
-				.fold(new File("/"), new FoldFunction<String, File>() {
-
-					@Override
-					public File fold(File a, String e) {
-						return null;
-					}
-				});
-
-		validateStateDescriptorConfigured(result);
-	}
 
 	@Test
 	public void testReduceWindowState() throws Exception {
@@ -177,27 +149,6 @@ public class StateDescriptorPassingTest {
 				});
 
 		validateListStateDescriptorConfigured(result);
-	}
-
-	@Test
-	public void testFoldWindowAllState() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
-
-		DataStream<String> src = env.fromElements("abc");
-
-		SingleOutputStreamOperator<?> result = src
-				.timeWindowAll(Time.milliseconds(1000))
-				.fold(new File("/"), new FoldFunction<String, File>() {
-
-					@Override
-					public File fold(File a, String e) {
-						return null;
-					}
-				});
-
-		validateStateDescriptorConfigured(result);
 	}
 
 	@Test
