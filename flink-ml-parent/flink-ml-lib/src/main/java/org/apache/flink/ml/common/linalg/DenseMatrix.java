@@ -55,7 +55,7 @@ public class DenseMatrix implements Serializable {
 	 * Construct an m-by-n matrix of zeros.
 	 *
 	 * @param m Number of rows.
-	 * @param n Number of colums.
+	 * @param n Number of columns.
 	 */
 	public DenseMatrix(int m, int n) {
 		this(m, n, new double[m * n], false);

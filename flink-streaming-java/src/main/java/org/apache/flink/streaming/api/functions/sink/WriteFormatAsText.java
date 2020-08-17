@@ -46,7 +46,7 @@ public class WriteFormatAsText<IN> extends WriteFormat<IN> {
 				outStream.println(tupleToWrite);
 			}
 		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while writing file " + path, e);
+			throw new RuntimeException("Exception occurred while writing file " + path, e);
 		}
 	}
 }

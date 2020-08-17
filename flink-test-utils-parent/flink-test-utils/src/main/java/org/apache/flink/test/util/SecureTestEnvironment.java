@@ -150,7 +150,7 @@ public class SecureTestEnvironment {
 			populateJavaPropertyVariables();
 
 		} catch (Exception e) {
-			throw new RuntimeException("Exception occured while preparing secure environment.", e);
+			throw new RuntimeException("Exception occurred while preparing secure environment.", e);
 		}
 
 	}

@@ -257,7 +257,7 @@ possible configurations would overwhelm and obscure the important.
 			updates are blocked and flushes are forced. Defaults to 40% of heap (0.4).
 			Updates are blocked and flushes are forced until size of all memstores
 			in a region server hits hbase.regionserver.global.memstore.size.lower.limit.
-			The default value in this configuration has been intentionally left emtpy in order to
+			The default value in this configuration has been intentionally left empty in order to
 			honor the old hbase.regionserver.global.memstore.upperLimit property if present.</description>
 	</property>
 	<property>
@@ -267,7 +267,7 @@ possible configurations would overwhelm and obscure the important.
 			Defaults to 95% of hbase.regionserver.global.memstore.size (0.95).
 			A 100% value for this value causes the minimum possible flushing to occur when updates are
 			blocked due to memstore limiting.
-			The default value in this configuration has been intentionally left emtpy in order to
+			The default value in this configuration has been intentionally left empty in order to
 			honor the old hbase.regionserver.global.memstore.lowerLimit property if present.</description>
 	</property>
 	<property>

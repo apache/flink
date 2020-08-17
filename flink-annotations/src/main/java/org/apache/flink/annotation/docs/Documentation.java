@@ -136,7 +136,7 @@ public final class Documentation {
 
 	/**
 	 * Annotation used on config option fields or options class to mark them as a suffix-option; i.e., a config option
-	 * where the key is only a suffix, with the prefix being danymically provided at runtime.
+	 * where the key is only a suffix, with the prefix being dynamically provided at runtime.
 	 */
 	@Target({ElementType.FIELD, ElementType.TYPE})
 	@Retention(RetentionPolicy.RUNTIME)

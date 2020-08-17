@@ -171,7 +171,7 @@ public class MergingWindowSet<W extends Window> {
 				resultWindow = mergeResult;
 			}
 
-			// if our new window is the same as a pre-exising window, nothing to do
+			// if our new window is the same as a pre-existing window, nothing to do
 			if (mergedWindows.isEmpty()) {
 				continue;
 			}
@@ -199,7 +199,7 @@ public class MergingWindowSet<W extends Window> {
 
 			// don't merge the new window itself, it never had any state associated with it
 			// i.e. if we are only merging one pre-existing window into itself
-			// without extending the pre-exising window
+			// without extending the pre-existing window
 			if (!(mergedWindows.contains(mergeResult) && mergedWindows.size() == 1)) {
 				mergeFunction.merge(mergeResult,
 					mergedWindows,

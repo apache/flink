@@ -1360,7 +1360,7 @@ public abstract class CatalogTest {
 	}
 
 	// ------ equality check utils ------
-	// Can be overriden by sub test class
+	// Can be overridden by sub test class
 
 	protected void checkEquals(CatalogFunction f1, CatalogFunction f2) {
 		assertEquals(f1.getClassName(), f2.getClassName());

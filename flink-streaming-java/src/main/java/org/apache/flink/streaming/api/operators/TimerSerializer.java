@@ -217,7 +217,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	}
 
 	/**
-	 * Snaphot of a {@link TimerSerializer}.
+	 * Snapshot of a {@link TimerSerializer}.
 	 *
 	 * @param <K> type of key.
 	 * @param <N> type of namespace.
