@@ -38,6 +38,8 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.BulkSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.BulkSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkCheckerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
@@ -50,6 +52,7 @@ import org.apache.flink.runtime.scheduler.strategy.LazyFromSourcesSchedulingStra
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.slf4j.Logger;
 
@@ -159,14 +162,16 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			final SlotPool slotPool,
 			final Time slotRequestTimeout) {
 		final SlotSelectionStrategy slotSelectionStrategy = selectSlotSelectionStrategy(jobMasterConfiguration);
-		final BulkSlotProvider bulkSlotProvider = new BulkSlotProviderImpl(slotSelectionStrategy, slotPool);
+		final PhysicalSlotRequestBulkChecker bulkChecker = PhysicalSlotRequestBulkCheckerImpl
+			.createFromSlotPool(slotPool, SystemClock.getInstance());
+		final BulkSlotProvider bulkSlotProvider = new BulkSlotProviderImpl(slotSelectionStrategy, slotPool, bulkChecker);
 		final ExecutionSlotAllocatorFactory allocatorFactory = new OneSlotPerExecutionSlotAllocatorFactory(
 			bulkSlotProvider,
 			scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
 			slotRequestTimeout);
 		return new DefaultSchedulerComponents(
 			new PipelinedRegionSchedulingStrategy.Factory(),
-			bulkSlotProvider::start,
+			bulkChecker::start,
 			allocatorFactory);
 	}
 

@@ -23,22 +23,21 @@ import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link PhysicalSlotRequestBulk}.
+ * Tests for {@link PhysicalSlotRequestBulkWithTimestamp}.
  */
-public class PhysicalSlotRequestBulkTest extends TestLogger {
+public class PhysicalSlotRequestBulkWithTimestampTest extends TestLogger {
 
 	private final ManualClock clock = new ManualClock();
 
 	@Test
 	public void testMarkBulkUnfulfillable() {
-		final PhysicalSlotRequestBulk bulk = new PhysicalSlotRequestBulk(Collections.emptyList());
+		final PhysicalSlotRequestBulkWithTimestamp bulk = createPhysicalSlotRequestBulkWithTimestamp();
 
 		clock.advanceTime(456, TimeUnit.MILLISECONDS);
 		bulk.markUnfulfillable(clock.relativeTimeMillis());
@@ -48,7 +47,7 @@ public class PhysicalSlotRequestBulkTest extends TestLogger {
 
 	@Test
 	public void testUnfulfillableTimestampWillNotBeOverriddenByFollowingUnfulfillableTimestamp() {
-		final PhysicalSlotRequestBulk bulk = new PhysicalSlotRequestBulk(Collections.emptyList());
+		final PhysicalSlotRequestBulkWithTimestamp bulk = createPhysicalSlotRequestBulkWithTimestamp();
 
 		final long unfulfillableSince = clock.relativeTimeMillis();
 		bulk.markUnfulfillable(unfulfillableSince);
@@ -57,5 +56,9 @@ public class PhysicalSlotRequestBulkTest extends TestLogger {
 		bulk.markUnfulfillable(clock.relativeTimeMillis());
 
 		assertThat(bulk.getUnfulfillableSince(), is(unfulfillableSince));
+	}
+
+	private static PhysicalSlotRequestBulkWithTimestamp createPhysicalSlotRequestBulkWithTimestamp() {
+		return TestingPhysicalSlotRequestBulkBuilder.newBuilder().buildPhysicalSlotRequestBulkWithTimestamp();
 	}
 }
