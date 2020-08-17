@@ -198,13 +198,6 @@ public class CepRuntimeContextTest extends TestLogger {
 		}
 
 		try {
-			runtimeContext.getAllAccumulators();
-			fail("Expected getAllAccumulators to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
 			runtimeContext.getIntCounter("foobar");
 			fail("Expected getIntCounter to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {

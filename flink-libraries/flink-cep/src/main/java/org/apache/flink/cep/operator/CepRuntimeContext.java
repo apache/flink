@@ -43,7 +43,6 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -133,11 +132,6 @@ class CepRuntimeContext implements RuntimeContext {
 
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(final String name) {
-		throw new UnsupportedOperationException("Accumulators are not supported.");
-	}
-
-	@Override
-	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
 		throw new UnsupportedOperationException("Accumulators are not supported.");
 	}
 

@@ -45,7 +45,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -156,11 +155,6 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
 		return (Accumulator<V, A>) accumulators.get(name);
-	}
-
-	@Override
-	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
-		return Collections.unmodifiableMap(this.accumulators);
 	}
 
 	@Override
