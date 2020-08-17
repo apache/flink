@@ -90,7 +90,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 
 	private static final Priority RM_REQUEST_PRIORITY = Priority.newInstance(1);
 
-	/** YARN container map. Package private for unit test purposes. */
+	/** YARN container map. */
 	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
 
 	/** Environment variable name of the hostname given by the YARN.
