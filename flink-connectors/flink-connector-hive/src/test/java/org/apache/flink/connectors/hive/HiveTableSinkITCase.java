@@ -276,7 +276,8 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testPartStreamingMrWrite() throws Exception {
 		testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
-		if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
+		// doesn't support writer 2.0 orc table
+		if (!hiveCatalog.getHiveVersion().startsWith("2.0")) {
 			testStreamingWrite(true, true, "orc", this::checkSuccessFiles);
 		}
 	}
@@ -284,7 +285,8 @@ public class HiveTableSinkITCase {
 	@Test(timeout = 120000)
 	public void testNonPartStreamingMrWrite() throws Exception {
 		testStreamingWrite(false, true, "parquet", (p) -> {});
-		if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
+		// doesn't support writer 2.0 orc table
+		if (!hiveCatalog.getHiveVersion().startsWith("2.0")) {
 			testStreamingWrite(false, true, "orc", (p) -> {});
 		}
 	}
