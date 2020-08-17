@@ -15,14 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import abc
 from typing import Dict, List, Union
 
+from pyflink.common import typeinfo
 from pyflink.common.serialization_schemas import DeserializationSchema, SerializationSchema
 from pyflink.datastream.functions import SourceFunction, SinkFunction
 from pyflink.java_gateway import get_gateway
 
 
-class FlinkKafkaConsumerBase(SourceFunction):
+class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
     """
     Base class of all Flink Kafka Consumer data sources. This implements the common behavior across
     all kafka versions.
@@ -118,7 +120,7 @@ class FlinkKafkaConsumerBase(SourceFunction):
         return self
 
     def get_produced_type(self):
-        return self._j_function.getProducedType()
+        return typeinfo._from_java_type(self._j_function.getProducedType())
 
 
 class FlinkKafkaConsumer010(FlinkKafkaConsumerBase):
@@ -153,19 +155,11 @@ class FlinkKafkaConsumer010(FlinkKafkaConsumerBase):
         :param properties: The properties that are used to configure both the fetcher and the offset
                            handler.
         """
-        if not isinstance(topics, list):
-            topics = [topics]
-        gateway = get_gateway()
-        j_properties = gateway.jvm.java.util.Properties()
-        for key, value in properties.items():
-            j_properties.setProperty(key, value)
 
-        JFlinkKafkaConsumer010 = gateway.jvm \
+        JFlinkKafkaConsumer010 = get_gateway().jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010
-        j_flink_kafka_consumer_010 = \
-            JFlinkKafkaConsumer010(topics,
-                                   deserialization_schema._j_deserialization_schema,
-                                   j_properties)
+        j_flink_kafka_consumer_010 = _get_kafka_consumer(topics, properties, deserialization_schema,
+                                                         JFlinkKafkaConsumer010)
         super(FlinkKafkaConsumer010, self).__init__(
             j_flink_kafka_consumer=j_flink_kafka_consumer_010)
 
@@ -202,19 +196,10 @@ class FlinkKafkaConsumer011(FlinkKafkaConsumerBase):
         :param properties: The properties that are used to configure both the fetcher and the offset
                            handler.
         """
-        if not isinstance(topics, list):
-            topics = [topics]
-        gateway = get_gateway()
-        j_properties = gateway.jvm.java.util.Properties()
-        for key, value in properties.items():
-            j_properties.setProperty(key, value)
-
-        JFlinkKafkaConsumer011 = gateway.jvm \
+        JFlinkKafkaConsumer011 = get_gateway().jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011
-        j_flink_kafka_consumer_011 = \
-            JFlinkKafkaConsumer011(topics,
-                                   deserialization_schema._j_deserialization_schema,
-                                   j_properties)
+        j_flink_kafka_consumer_011 = _get_kafka_consumer(topics, properties, deserialization_schema,
+                                                         JFlinkKafkaConsumer011)
         super(FlinkKafkaConsumer011, self).__init__(j_flink_kafka_consumer_011)
 
 
@@ -250,24 +235,15 @@ class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
         :param properties: The properties that are used to configure both the fetcher and the offset
                            handler.
         """
-        if not isinstance(topics, list):
-            topics = [topics]
-        gateway = get_gateway()
-        j_properties = gateway.jvm.java.util.Properties()
-        for key, value in properties.items():
-            j_properties.setProperty(key, value)
 
-        JFlinkKafkaConsumer = gateway.jvm \
+        JFlinkKafkaConsumer = get_gateway().jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer
-        j_flink_kafka_consumer = \
-            JFlinkKafkaConsumer(topics,
-                                deserialization_schema._j_deserialization_schema,
-                                j_properties)
-        super(FlinkKafkaConsumer, self).__init__(
-            j_flink_kafka_consumer=j_flink_kafka_consumer)
+        j_flink_kafka_consumer = _get_kafka_consumer(topics, properties, deserialization_schema,
+                                                     JFlinkKafkaConsumer)
+        super(FlinkKafkaConsumer, self).__init__(j_flink_kafka_consumer=j_flink_kafka_consumer)
 
 
-class FlinkKafkaProducerBase(SinkFunction):
+class FlinkKafkaProducerBase(SinkFunction, abc.ABC):
     """
     Flink Sink to produce data into a Kafka topic.
 
@@ -301,6 +277,16 @@ class FlinkKafkaProducerBase(SinkFunction):
         """
         self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
 
+    def set_write_timestamp_to_kafka(self, write_timestamp_to_kafka: bool):
+        """
+        If set to true, Flink will write the (event time) timestamp attached to each record into
+        Kafka. Timestamps must be positive for Kafka to accept them.
+
+        :param write_timestamp_to_kafka: Flag indicating if Flink's internal timestamps are written
+                                         to Kafka.
+        """
+        self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
+
 
 class FlinkKafkaProducer010(FlinkKafkaProducerBase):
     """
@@ -330,16 +316,6 @@ class FlinkKafkaProducer010(FlinkKafkaProducerBase):
         j_flink_kafka_producer = JFlinkKafkaProducer010(
             topic, serialization_schema._j_serialization_schema, j_properties)
         super(FlinkKafkaProducer010, self).__init__(j_flink_kafka_producer=j_flink_kafka_producer)
-
-    def set_write_timestamp_to_kafka(self, write_timestamp_to_kafka: bool):
-        """
-        If set to true, Flink will write the (event time) timestamp attached to each record into
-        Kafka. Timestamps must be positive for Kafka to accept them.
-
-        :param write_timestamp_to_kafka: Flag indicating if Flink's internal timestamps are written
-                                         to Kafka.
-        """
-        self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
 
 
 class Semantic(object):
@@ -374,23 +350,20 @@ class Semantic(object):
     NONE = 2
 
     @staticmethod
-    def _to_j_semantic(semantic):
-        gateway = get_gateway()
-        JSemantic = gateway.jvm \
-            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic
+    def _to_j_semantic(semantic, j_semantic):
         if semantic == Semantic.EXACTLY_ONCE:
-            return JSemantic.EXACTLY_ONCE
+            return j_semantic.EXACTLY_ONCE
         elif semantic == Semantic.AT_LEAST_ONCE:
-            return JSemantic.AT_LEAST_ONCE
+            return j_semantic.AT_LEAST_ONCE
         elif semantic == Semantic.NONE:
-            return JSemantic.NONE
+            return j_semantic.NONE
         else:
             raise TypeError("Unsupported semantic: %s, supported semantics are: "
                             "Semantic.EXACTLY_ONCE, Semantic.AT_LEAST_ONCE, Semantic.NONE"
                             % semantic)
 
 
-class FlinkKafkaProducer011(SinkFunction):
+class FlinkKafkaProducer011(FlinkKafkaProducerBase):
     """
     Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.11.x. By
     default producer will use AT_LEAST_ONCE sematic. Before using EXACTLY_ONCE please refer to
@@ -398,7 +371,7 @@ class FlinkKafkaProducer011(SinkFunction):
     """
 
     def __init__(self, topic: str, serialization_schema: SerializationSchema,
-                 producer_config: Dict):
+                 producer_config: Dict, semantic: Semantic = Semantic.AT_LEAST_ONCE):
         """
         Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
 
@@ -417,58 +390,34 @@ class FlinkKafkaProducer011(SinkFunction):
 
         JFlinkKafkaProducer011 = gateway.jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011
+        JSemantic = get_gateway().jvm \
+            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic
+        j_keyed_serialization_schema = gateway.jvm\
+            .org.apache.flink.streaming.connectors.kafka.internals\
+            .KeyedSerializationSchemaWrapper(serialization_schema._j_serialization_schema)
         j_flink_kafka_producer = JFlinkKafkaProducer011(
-            topic, serialization_schema._j_serialization_schema, j_properties)
-        super(FlinkKafkaProducer011, self).__init__(sink_func=j_flink_kafka_producer)
+            topic, j_keyed_serialization_schema, j_properties, Semantic._to_j_semantic(semantic,
+                                                                                       JSemantic))
+        super(FlinkKafkaProducer011, self).__init__(j_flink_kafka_producer=j_flink_kafka_producer)
 
-    def set_write_timestamp_to_kafka(self, write_timestamp_to_kafka: bool):
+    def ignore_failures_after_transaction_timeout(self) -> 'FlinkKafkaProducer011':
         """
-        If set to true, Flink will write the (event time) timestamp attached to each record into
-        Kafka. Timestamps must be positive for Kafka to accept them.
-
-        :param write_timestamp_to_kafka: Flag indicating if Flink's internal timestamps are written
-                                         to Kafka.
-        """
-        self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
-
-    def ignore_failures_after_transaction_timeout(self):
-        """
-        Disables the propagation of exceptions thrown when committing presumable timed out Kafka
+        Disables the propagation of exceptions thrown when committing presumably timed out Kafka
         transactions during recovery of the job. If a Kafka transaction is timed out, a commit will
-        never be successful. Hence, use this feature to avoid recovery loops of the job. Exceptions
+        never be successful. Hence, use this feature to avoid recovery loops of the Job. Exceptions
         will still be logged to inform the user that data loss might have occurred.
 
-        Note that we use current time millis to track the age of a transaction. Moreover, only
-        exceptions thrown during the recovery are caught, i.e., the producer will attempt at least
-        one commit of the transaction before giving up.
+        Note that we use the System.currentTimeMillis() to track the age of a transaction. Moreover,
+        only exceptions thrown during the recovery are caught, i.e., the producer will attempt at
+        least one commit of the transaction before giving up.
+
+        :return: This FlinkKafkaProducer.
         """
-        self._j_function = self._j_function.ignoreFailuresAfterTransactionTimeout()
+        self._j_function.ignoreFailuresAfterTransactionTimeout()
         return self
 
-    def set_log_failures_only(self, log_failures_only: bool):
-        """
-        Defines whether the producer should fail on errors, or only log them. If this is set to
-        true, then exceptions will be only logged, if set to false, exceptions will be eventually
-        thrown and cause the streaming program to fail (and enter recovery).
 
-        :param log_failures_only: The flag to indicate logging-only on exceptions.
-        """
-        self._j_function.setLogFailuresOnly(log_failures_only)
-
-    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool):
-        """
-        If set to true, the Flink producer will wait for all outstanding messages in the Kafka
-        buffers to be acknowledged by the Kafka producer on a checkpoint.
-
-        This way, the producer can guarantee that messages in the Kafka buffers are part of the
-        checkpoint.
-
-        :param flush_on_checkpoint: Flag indicating the flush mode (true = flush on checkpoint)
-        """
-        self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
-
-
-class FlinkKafkaProducer(SinkFunction):
+class FlinkKafkaProducer(FlinkKafkaProducerBase):
     """
     Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.11.x. By
     default producer will use AT_LEAST_ONCE sematic. Before using EXACTLY_ONCE please refer to
@@ -476,7 +425,8 @@ class FlinkKafkaProducer(SinkFunction):
     """
 
     def __init__(self, topic: str, serialization_schema: SerializationSchema,
-                 producer_config: Dict):
+                 producer_config: Dict, kafka_producer_pool_size: int = 5,
+                 semantic: Semantic = Semantic.AT_LEAST_ONCE):
         """
         Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
 
@@ -495,52 +445,40 @@ class FlinkKafkaProducer(SinkFunction):
 
         JFlinkKafkaProducer = gateway.jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer
+        JSemantic = get_gateway().jvm \
+            .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic
+
         j_flink_kafka_producer = JFlinkKafkaProducer(
-            topic, serialization_schema._j_serialization_schema, j_properties)
-        super(FlinkKafkaProducer, self).__init__(sink_func=j_flink_kafka_producer)
+            topic, serialization_schema._j_serialization_schema, j_properties, None,
+            Semantic._to_j_semantic(semantic, JSemantic), kafka_producer_pool_size)
+        super(FlinkKafkaProducer, self).__init__(j_flink_kafka_producer=j_flink_kafka_producer)
 
-    def set_write_timestamp_to_kafka(self, write_timestamp_to_kafka: bool):
+    def ignore_failures_after_transaction_timeout(self) -> 'FlinkKafkaProducer':
         """
-        If set to true, Flink will write the (event time) timestamp attached to each record into
-        Kafka. Timestamps must be positive for Kafka to accept them.
-
-        :param write_timestamp_to_kafka: Flag indicating if Flink's internal timestamps are written
-                                         to Kafka.
-        """
-        self._j_function.setWriteTimestampToKafka(write_timestamp_to_kafka)
-
-    def ignore_failures_after_transaction_timeout(self):
-        """
-        Disables the propagation of exceptions thrown when committing presumable timed out Kafka
+        Disables the propagation of exceptions thrown when committing presumably timed out Kafka
         transactions during recovery of the job. If a Kafka transaction is timed out, a commit will
-        never be successful. Hence, use this feature to avoid recovery loops of the job. Exceptions
+        never be successful. Hence, use this feature to avoid recovery loops of the Job. Exceptions
         will still be logged to inform the user that data loss might have occurred.
 
-        Note that we use current time millis to track the age of a transaction. Moreover, only
-        exceptions thrown during the recovery are caught, i.e., the producer will attempt at least
-        one commit of the transaction before giving up.
+        Note that we use the System.currentTimeMillis() to track the age of a transaction. Moreover,
+        only exceptions thrown during the recovery are caught, i.e., the producer will attempt at
+        least one commit of the transaction before giving up.
+
+        :return: This FlinkKafkaProducer.
         """
-        self._j_function = self._j_function.ignoreFailuresAfterTransactionTimeout()
+        self._j_function.ignoreFailuresAfterTransactionTimeout()
         return self
 
-    def set_log_failures_only(self, log_failures_only: bool):
-        """
-        Defines whether the producer should fail on errors, or only log them. If this is set to
-        true, then exceptions will be only logged, if set to false, exceptions will be eventually
-        thrown and cause the streaming program to fail (and enter recovery).
 
-        :param log_failures_only: The flag to indicate logging-only on exceptions.
-        """
-        self._j_function.setLogFailuresOnly(log_failures_only)
+def _get_kafka_consumer(topics, properties, deserialization_schema, j_consumer_clz):
+    if not isinstance(topics, list):
+        topics = [topics]
+    gateway = get_gateway()
+    j_properties = gateway.jvm.java.util.Properties()
+    for key, value in properties.items():
+        j_properties.setProperty(key, value)
 
-    def set_flush_on_checkpoint(self, flush_on_checkpoint: bool):
-        """
-        If set to true, the Flink producer will wait for all outstanding messages in the Kafka
-        buffers to be acknowledged by the Kafka producer on a checkpoint.
-
-        This way, the producer can guarantee that messages in the Kafka buffers are part of the
-        checkpoint.
-
-        :param flush_on_checkpoint: Flag indicating the flush mode (true = flush on checkpoint)
-        """
-        self._j_function.setFlushOnCheckpoint(flush_on_checkpoint)
+    j_flink_kafka_consumer = j_consumer_clz(topics,
+                                            deserialization_schema._j_deserialization_schema,
+                                            j_properties)
+    return j_flink_kafka_consumer

@@ -67,7 +67,7 @@ def _load_specific_flink_module_jars(jars_relative_path):
     flink_source_root = _find_flink_source_root()
     jars_abs_path = flink_source_root + jars_relative_path
     specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
-    specific_jars = ['file://' + specific for specific in specific_jars]
+    specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
     add_jars_to_context_class_loader(specific_jars)
 
 

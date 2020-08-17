@@ -32,6 +32,10 @@ class FlinkKafkaTest(PyFlinkTestCase):
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        # Cache current ContextClassLoader, we will replace it with a temporary URLClassLoader to
+        # load specific connector jars with given module path to do dependency isolation. And We
+        # will change the ClassLoader back to the cached ContextClassLoader after the test case
+        # finished.
         self._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
 
     def test_kafka_connector_010(self):
@@ -93,5 +97,6 @@ class FlinkKafkaTest(PyFlinkTestCase):
                                            'writeTimestampToKafka'))
 
     def tearDown(self):
+        # Change the ClassLoader back to the cached ContextClassLoader after the test case finished.
         if self._cxt_clz_loader is not None:
             get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
