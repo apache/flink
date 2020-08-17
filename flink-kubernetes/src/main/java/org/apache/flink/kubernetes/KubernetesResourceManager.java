@@ -184,7 +184,7 @@ public class KubernetesResourceManager extends LegacyActiveResourceManager<Kuber
 	@Override
 	public boolean stopWorker(final KubernetesWorkerNode worker) {
 		final ResourceID resourceId = worker.getResourceID();
-		LOG.info("Stopping Worker {}.", resourceId);
+		LOG.info("Stopping Worker {}.", resourceId.getStringWithMetadata());
 		internalStopPod(resourceId.toString());
 		return true;
 	}

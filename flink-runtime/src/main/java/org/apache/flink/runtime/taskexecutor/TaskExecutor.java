@@ -1685,7 +1685,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							String.format(
 								"Slot %s on TaskExecutor %s is not allocated by job %s.",
 								allocatedSlotInfo.getSlotIndex(),
-								getResourceID(),
+								getResourceID().getStringWithMetadata(),
 								allocatedSlotReport.getJobId())));
 			}
 		}
@@ -1739,12 +1739,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						throw new CompletionException(new FlinkException("Could not upload file " + fileTag + '.', e));
 					}
 				} else {
-					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
+					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
 				}
 			}, ioExecutor);
 		} else {
-			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
+			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
 		}
 	}
