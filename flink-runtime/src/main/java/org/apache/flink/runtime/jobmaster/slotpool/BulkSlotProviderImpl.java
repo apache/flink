@@ -73,8 +73,6 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 	@Override
 	public void start(final ComponentMainThreadExecutor mainThreadExecutor) {
 		this.componentMainThreadExecutor = mainThreadExecutor;
-
-		slotPool.disableBatchSlotRequestTimeoutCheck();
 	}
 
 	@Override
@@ -166,6 +164,7 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 		if (willSlotBeOccupiedIndefinitely) {
 			return slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null);
 		} else {
+			slotPool.disableBatchSlotRequestTimeoutCheck();
 			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
 		}
 	}

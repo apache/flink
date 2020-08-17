@@ -185,8 +185,19 @@ public class BulkSlotProviderImplTest extends TestLogger {
 	}
 
 	@Test
-	public void testIndividualBatchSlotRequestTimeoutCheckIsDisabled() {
+	public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots() {
+		assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
+
+		allocateSlots(Collections.singletonList(createPhysicalSlotRequest()));
+
+		// drain the main thread tasks to ensure BulkSlotProviderImpl#requestNewSlot() to have been invoked
+		drainMainThreadExecutorTasks();
+
 		assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
+	}
+
+	private static void drainMainThreadExecutorTasks() {
+		CompletableFuture.runAsync(() -> {}, mainThreadExecutor).join();
 	}
 
 	private void addSlotToSlotPool() {
@@ -209,6 +220,6 @@ public class BulkSlotProviderImplTest extends TestLogger {
 		return new PhysicalSlotRequest(
 			new SlotRequestId(),
 			SlotProfile.noLocality(ResourceProfile.UNKNOWN),
-			true);
+			false);
 	}
 }
