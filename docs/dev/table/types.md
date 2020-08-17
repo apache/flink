@@ -281,7 +281,7 @@ The following data types are supported:
 | `MAP` | |
 | `ROW` | |
 | `RAW` | |
-| stuctured types | Only exposed in user-defined functions yet. |
+| structured types | Only exposed in user-defined functions yet. |
 </div>
 <div data-lang="Python" markdown="1">
 N/A

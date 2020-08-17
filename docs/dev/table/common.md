@@ -381,7 +381,7 @@ registered `Table` will *not* be shared.
 #### Connector Tables
 
 It is also possible to create a `TABLE` as known from relational databases from a [connector]({{ site.baseurl }}/dev/table/connect.html) declaration.
-The connector describes the external system that stores the data of a table. Storage systems such as Apacha Kafka or a regular file system can be declared here.
+The connector describes the external system that stores the data of a table. Storage systems such as Apache Kafka or a regular file system can be declared here.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

@@ -80,7 +80,7 @@ This allows not only for better unification of APIs and SQL Client but also for 
 
 Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the schema of the table, a connector, and a data format upfront for connecting to an external system.
 
-The **connector** describes the external system that stores the data of a table. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format.
+The **connector** describes the external system that stores the data of a table. Storage systems such as [Apache Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format.
 
 Some systems support different **data formats**. For example, a table that is stored in Kafka or in files can encode its rows with CSV, JSON, or Avro. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
 
@@ -1204,7 +1204,7 @@ CREATE TABLE MyUserTable (
     .version('1.4.3')                      # required: currently only support '1.4.3'
     .table_name('hbase_table_name')        # required: HBase table name
     .zookeeper_quorum('localhost:2181')    # required: HBase Zookeeper quorum configuration
-    .zookeeper_node_parent('/test')        # optional: the root dir in Zookeeper for Hbae cluster.
+    .zookeeper_node_parent('/test')        # optional: the root dir in Zookeeper for Hbase cluster.
                                            # The default value is '/hbase'
     .write_buffer_flush_max_size('10mb')   # optional: writing option, determines how many size in memory of buffered
                                            # rows to insert per round trip. This can help performance on writing to JDBC

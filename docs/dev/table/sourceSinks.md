@@ -96,7 +96,7 @@ Although it might not be apparent in the class naming, `DynamicTableSource` and 
 can also be seen as stateful factories that eventually produce concrete runtime implementation for reading/writing
 the actual data.
 
-The planner uses the source and sink instances to perform connector-specific bidirectional comunication
+The planner uses the source and sink instances to perform connector-specific bidirectional communication
 until an optimal logical plan could be found. Depending on the optionally declared ability interfaces (e.g.
 `SupportsProjectionPushDown` or `SupportsOverwrite`), the planner might apply changes to an instance and
 thus mutate the produced runtime implementation.
@@ -170,7 +170,7 @@ For regular streaming scenarios, the source can emit an unbounded stream of inse
 For change data capture (CDC) scenarios, the source can emit bounded or unbounded streams with insert,
 update, and delete rows.
 
-A table source can implement further abilitiy interfaces such as `SupportsProjectionPushDown` that might
+A table source can implement further ability interfaces such as `SupportsProjectionPushDown` that might
 mutate an instance during planning. All abilities are listed in the `org.apache.flink.table.connector.source.abilities`
 package and in the documentation of `org.apache.flink.table.connector.source.ScanTableSource`.
 
@@ -208,7 +208,7 @@ For regular streaming scenarios, the sink can solely accept insert-only rows and
 For change data capture (CDC) scenarios, the sink can write out bounded or unbounded streams with insert,
 update, and delete rows.
 
-A table sink can implement further abilitiy interfaces such as `SupportsOverwrite` that might mutate an
+A table sink can implement further ability interfaces such as `SupportsOverwrite` that might mutate an
 instance during planning. All abilities are listed in the `org.apache.flink.table.connector.sink.abilities`
 package and in the documentation of `org.apache.flink.table.connector.sink.DynamicTableSink`.
 
@@ -264,7 +264,7 @@ The table source uses a simple single-threaded `SourceFunction` to open a socket
 bytes. The raw bytes are decoded into rows by a pluggable format. The format expects a changelog flag
 as the first column.
 
-We will use most of the interfaces metioned above to enable the following DDL:
+We will use most of the interfaces mentioned above to enable the following DDL:
 
 {% highlight sql %}
 CREATE TABLE UserScores (name STRING, score INT)

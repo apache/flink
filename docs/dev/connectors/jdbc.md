@@ -41,7 +41,7 @@ To use it, add the following dependency to your project (along with your JDBC-dr
 Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
 
 Created JDBC sink provides at-least-once guarantee.
-Effectively exactly-once can be achived using upsert statements or idempotent updates.
+Effectively exactly-once can be achieved using upsert statements or idempotent updates.
 
 Example usage:
 {% highlight java %}
