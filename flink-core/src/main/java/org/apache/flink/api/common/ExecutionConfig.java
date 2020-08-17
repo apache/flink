@@ -157,13 +157,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
 	private boolean useSnapshotCompression = false;
-
-	/**
-	 * @deprecated Should no longer be used because we would not support to let task directly fail on checkpoint error.
-	 */
-	@Deprecated
-	private boolean failTaskOnCheckpointError = true;
-
 	/** The default input dependency constraint to schedule tasks. */
 	private InputDependencyConstraint defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
 
@@ -280,15 +273,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public long getLatencyTrackingInterval() {
 		return latencyTrackingInterval;
-	}
-
-	/**
-	 * @deprecated will be removed in a future version
-	 */
-	@PublicEvolving
-	@Deprecated
-	public boolean isLatencyTrackingEnabled() {
-		return isLatencyTrackingConfigured && latencyTrackingInterval > 0;
 	}
 
 	@Internal
@@ -741,30 +725,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		return codeAnalysisMode;
 	}
 
-	/**
-	 * @deprecated Ineffective. Will be removed at 2.0.
-	 */
-	@Deprecated
-	public ExecutionConfig enableSysoutLogging() {
-		return this;
-	}
-
-	/**
-	 * @deprecated Ineffective. Will be removed at 2.0.
-	 */
-	@Deprecated
-	public ExecutionConfig disableSysoutLogging() {
-		return this;
-	}
-
-	/**
-	 * @deprecated Ineffective. Will be removed at 2.0.
-	 */
-	@Deprecated
-	public boolean isSysoutLoggingEnabled() {
-		return false;
-	}
-
 	public GlobalJobParameters getGlobalJobParameters() {
 		return globalJobParameters;
 	}
@@ -956,28 +916,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.useSnapshotCompression = useSnapshotCompression;
 	}
 
-	/**
-	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
-	 * to the task, and we have not supported task to fail on checkpoint error.
-	 * Please use CheckpointConfig.getTolerableCheckpointFailureNumber() to know the behavior on checkpoint errors.
-	 */
-	@Deprecated
-	@Internal
-	public boolean isFailTaskOnCheckpointError() {
-		return failTaskOnCheckpointError;
-	}
-
-	/**
-	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
-	 * to the task, and we have not supported task to fail on checkpoint error.
-	 * Please use CheckpointConfig.setTolerableCheckpointFailureNumber(int) to determine the behavior on checkpoint errors.
-	 */
-	@Deprecated
-	@Internal
-	public void setFailTaskOnCheckpointError(boolean failTaskOnCheckpointError) {
-		this.failTaskOnCheckpointError = failTaskOnCheckpointError;
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof ExecutionConfig) {
@@ -1057,7 +995,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			", taskCancellationIntervalMillis=" + taskCancellationIntervalMillis +
 			", taskCancellationTimeoutMillis=" + taskCancellationTimeoutMillis +
 			", useSnapshotCompression=" + useSnapshotCompression +
-			", failTaskOnCheckpointError=" + failTaskOnCheckpointError +
 			", defaultInputDependencyConstraint=" + defaultInputDependencyConstraint +
 			", globalJobParameters=" + globalJobParameters +
 			", registeredTypesWithKryoSerializers=" + registeredTypesWithKryoSerializers +
