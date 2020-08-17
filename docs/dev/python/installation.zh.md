@@ -33,12 +33,31 @@ $ python --version
 # the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
+## 环境设置
+
+你的系统也许安装了好几个版本的python。你可以运行下面的`ls`命令来查看你系统中安装的python版本有哪些:
+
+{% highlight bash %}
+$ ls /usr/bin/python*
+{% endhighlight %}
+
+为了满足Python版本要求，你可以选择通过软链接的方式将python指向python3解释器:
+{% highlight bash %}
+ln -s /usr/bin/python3 python
+{% endhighlight %}
+
+除了软链接的方式，你也可以选择创建一个Python virtual env的方式。关于如何创建一个virtual env，你可以参考[准备Python虚拟环境]({{ site.baseurl }}/zh/dev/python/faq.html#preparing-python-virtual-environment)
+
 ## PyFlink 安装
 
 PyFlink已经被发布到PyPi，可以通过如下方式安装PyFlink：
 
 {% highlight bash %}
+{% if site.is_stable %}
+$ python -m pip install apache-flink {{ site.version }}
+{% else %}
 $ python -m pip install apache-flink
+{% endif %}
 {% endhighlight %}
 
 您也可以从源码手动构建PyFlink，具体可以参见[开发指南]({% link flinkDev/building.zh.md %}#build-pyflink).

@@ -33,12 +33,32 @@ $ python --version
 # the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
+## Environment Setup
+
+Your system may include multiple python versions and thus also include multiple python binary executables. You can run the following
+`ls` command to find out what python binary executables are available on your system:
+{% highlight bash %}
+$ ls /usr/bin/python*
+{% endhighlight %}
+
+For satisfying the the version of python environment, you can choose to soft link `python` to point to your python3 interpreter:
+{% highlight bash %}
+ln -s /usr/bin/python3 python
+{% endhighlight %}
+
+In addition to the way of soft link, you can also choose to create a virtual env of Python.
+For details on the creating of virtual env, you can refer to the [Preparing Python Virtual Environment]({{ site.baseurl }}/dev/python/faq.html#preparing-python-virtual-environment)
+
 ## Installation of PyFlink
 
 PyFlink has already been deployed to PyPi and can be installed as following:
 
 {% highlight bash %}
+{% if site.is_stable %}
+$ python -m pip install apache-flink {{ site.version }}
+{% else %}
 $ python -m pip install apache-flink
+{% endif %}
 {% endhighlight %}
 
 You can also build PyFlink from source by following the [development guide]({% link flinkDev/building.md %}#build-pyflink).
