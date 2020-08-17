@@ -655,8 +655,10 @@ public class CheckpointCoordinatorTestingUtils {
 			return this;
 		}
 
-		public void setCoordinatorsToCheckpoint(Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint) {
+		public CheckpointCoordinatorBuilder setCoordinatorsToCheckpoint(
+				Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint) {
 			this.coordinatorsToCheckpoint = coordinatorsToCheckpoint;
+			return this;
 		}
 
 		public CheckpointCoordinatorBuilder setCheckpointIDCounter(
