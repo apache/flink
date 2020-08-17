@@ -89,10 +89,10 @@ public class TaskManagerDetailsHandler extends AbstractResourceManagerHandler<Re
 				final TaskManagerMetricsInfo taskManagerMetricsInfo;
 
 				if (tmMetrics != null) {
-					log.debug("Create metrics info for TaskManager {}.", taskManagerResourceId);
+					log.debug("Create metrics info for TaskManager {}.", taskManagerResourceId.getStringWithMetadata());
 					taskManagerMetricsInfo = createTaskManagerMetricsInfo(tmMetrics);
 				} else {
-					log.debug("No metrics for TaskManager {}.", taskManagerResourceId);
+					log.debug("No metrics for TaskManager {}.", taskManagerResourceId.getStringWithMetadata());
 					taskManagerMetricsInfo = TaskManagerMetricsInfo.empty();
 				}
 

@@ -155,7 +155,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		final ResourceID resourceId = worker.getResourceID();
 		resourceManagerDriver.releaseResource(worker);
 
-		log.info("Stopping worker {}.", resourceId);
+		log.info("Stopping worker {}.", resourceId.getStringWithMetadata());
 
 		clearStateForWorker(resourceId);
 
@@ -165,14 +165,14 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 	@Override
 	protected void onWorkerRegistered(WorkerType worker) {
 		final ResourceID resourceId = worker.getResourceID();
-		log.info("Worker {} is registered.", resourceId);
+		log.info("Worker {} is registered.", resourceId.getStringWithMetadata());
 
 		final WorkerResourceSpec workerResourceSpec = currentAttemptUnregisteredWorkers.remove(resourceId);
 		if (workerResourceSpec != null) {
 			final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
 			log.info("Worker {} with resource spec {} was requested in current attempt." +
 							" Current pending count after registering: {}.",
-					resourceId,
+					resourceId.getStringWithMetadata(),
 					workerResourceSpec,
 					count);
 		}
@@ -188,13 +188,13 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		for (WorkerType worker : recoveredWorkers) {
 			final ResourceID resourceId = worker.getResourceID();
 			workerNodeMap.put(resourceId, worker);
-			log.info("Worker {} recovered from previous attempt.", resourceId);
+			log.info("Worker {} recovered from previous attempt.", resourceId.getStringWithMetadata());
 		}
 	}
 
 	@Override
 	public void onWorkerTerminated(ResourceID resourceId) {
-		log.info("Worker {} is terminated.", resourceId);
+		log.info("Worker {} is terminated.", resourceId.getStringWithMetadata());
 		if (clearStateForWorker(resourceId)) {
 			requestWorkerIfRequired();
 		}
@@ -233,7 +233,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 						workerNodeMap.put(resourceId, worker);
 						currentAttemptUnregisteredWorkers.put(resourceId, workerResourceSpec);
 						log.info("Requested worker {} with resource spec {}.",
-								resourceId,
+								resourceId.getStringWithMetadata(),
 								workerResourceSpec);
 					}
 					return null;
@@ -249,7 +249,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 	private boolean clearStateForWorker(ResourceID resourceId) {
 		WorkerType worker = workerNodeMap.remove(resourceId);
 		if (worker == null) {
-			log.info("Ignore unrecognized worker {}.", resourceId);
+			log.info("Ignore unrecognized worker {}.", resourceId.getStringWithMetadata());
 			return false;
 		}
 
@@ -258,7 +258,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 			final int count = pendingWorkerCounter.decreaseAndGet(workerResourceSpec);
 			log.info("Worker {} with resource spec {} was requested in current attempt and has not registered." +
 							" Current pending count after removing: {}.",
-					resourceId,
+					resourceId.getStringWithMetadata(),
 					workerResourceSpec,
 					count);
 		}

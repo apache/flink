@@ -90,7 +90,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		this.hostName = getHostName(inetAddress);
 
 		this.stringRepresentation = String.format(
-				"%s @ %s (dataPort=%d)", resourceID, fqdnHostName, dataPort);
+				"%s @ %s (dataPort=%d)", resourceID.getStringWithMetadata(), fqdnHostName, dataPort);
 	}
 
 	public static TaskManagerLocation fromUnresolvedLocation(final UnresolvedTaskManagerLocation unresolvedLocation)

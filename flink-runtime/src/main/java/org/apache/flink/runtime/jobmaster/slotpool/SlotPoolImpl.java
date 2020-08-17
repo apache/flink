@@ -798,7 +798,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		log.debug("Register new TaskExecutor {}.", resourceID);
+		log.debug("Register new TaskExecutor {}.", resourceID.getStringWithMetadata());
 		return registeredTaskManagers.add(resourceID);
 	}
 
