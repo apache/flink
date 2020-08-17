@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -68,15 +69,19 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 	private final SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory;
 
+	private final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever;
+
 	SlotSharingExecutionSlotAllocator(
 			PhysicalSlotProvider slotProvider,
 			boolean slotWillBeOccupiedIndefinitely,
 			SlotSharingStrategy slotSharingStrategy,
-			SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory) {
+			SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory,
+			Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever) {
 		this.slotProvider = slotProvider;
 		this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
 		this.slotSharingStrategy = slotSharingStrategy;
 		this.sharedSlotProfileRetrieverFactory = sharedSlotProfileRetrieverFactory;
+		this.resourceProfileRetriever = resourceProfileRetriever;
 		this.sharedSlots = new IdentityHashMap<>();
 	}
 
@@ -150,17 +155,27 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 		return sharedSlots
 			.computeIfAbsent(executionSlotSharingGroup, group -> {
 				SlotRequestId physicalSlotRequestId = new SlotRequestId();
+				ResourceProfile physicalSlotResourceProfile = getPhysicalSlotResourceProfile(group);
 				CompletableFuture<PhysicalSlot> physicalSlotFuture = sharedSlotProfileRetriever
-					.getSlotProfileFuture(group)
+					.getSlotProfileFuture(group, physicalSlotResourceProfile)
 					.thenCompose(slotProfile -> slotProvider.allocatePhysicalSlot(
 						new PhysicalSlotRequest(physicalSlotRequestId, slotProfile, slotWillBeOccupiedIndefinitely)))
 					.thenApply(PhysicalSlotRequest.Result::getPhysicalSlot);
-				return new SharedSlot(physicalSlotRequestId, group, physicalSlotFuture);
+				return new SharedSlot(physicalSlotRequestId, physicalSlotResourceProfile, group, physicalSlotFuture);
 			});
+	}
+
+	private ResourceProfile getPhysicalSlotResourceProfile(ExecutionSlotSharingGroup executionSlotSharingGroup) {
+		return executionSlotSharingGroup
+			.getExecutionVertexIds()
+			.stream()
+			.reduce(ResourceProfile.ZERO, (r, e) -> r.merge(resourceProfileRetriever.apply(e)), ResourceProfile::merge);
 	}
 
 	private class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 		private final SlotRequestId physicalSlotRequestId;
+
+		private final ResourceProfile physicalSlotResourceProfile;
 
 		private final ExecutionSlotSharingGroup executionSlotSharingGroup;
 
@@ -170,9 +185,11 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 		private SharedSlot(
 				SlotRequestId physicalSlotRequestId,
+				ResourceProfile physicalSlotResourceProfile,
 				ExecutionSlotSharingGroup executionSlotSharingGroup,
 				CompletableFuture<PhysicalSlot> slotContextFuture) {
 			this.physicalSlotRequestId = physicalSlotRequestId;
+			this.physicalSlotResourceProfile = physicalSlotResourceProfile;
 			this.executionSlotSharingGroup = executionSlotSharingGroup;
 			this.slotContextFuture = slotContextFuture.thenApply(physicalSlot -> {
 				Preconditions.checkState(

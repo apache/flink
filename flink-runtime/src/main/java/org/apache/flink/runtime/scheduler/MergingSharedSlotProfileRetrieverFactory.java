@@ -41,16 +41,12 @@ import java.util.stream.Collectors;
 class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
 	private final PreferredLocationsRetriever preferredLocationsRetriever;
 
-	private final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever;
-
 	private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
 
 	MergingSharedSlotProfileRetrieverFactory(
 			PreferredLocationsRetriever preferredLocationsRetriever,
-			Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever,
 			Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever) {
 		this.preferredLocationsRetriever = Preconditions.checkNotNull(preferredLocationsRetriever);
-		this.resourceProfileRetriever = Preconditions.checkNotNull(resourceProfileRetriever);
 		this.priorAllocationIdRetriever = Preconditions.checkNotNull(priorAllocationIdRetriever);
 	}
 
@@ -88,9 +84,6 @@ class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetri
 		/**
 		 * Computes a {@link SlotProfile} of an execution slot sharing group.
 		 *
-		 * <p>The {@link ResourceProfile} of the {@link SlotProfile} is the merged {@link ResourceProfile}s
-		 * of all executions sharing the slot.
-		 *
 		 * <p>The preferred locations of the {@link SlotProfile} is a union of the preferred locations
 		 * of all executions sharing the slot. The input locations within the bulk are ignored to avoid cyclic dependencies
 		 * within the region, e.g. in case of all-to-all pipelined connections, so that the allocations do not block each other.
@@ -102,15 +95,16 @@ class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetri
 		 * of all executions within the bulk.
 		 *
 		 * @param executionSlotSharingGroup executions sharing the slot.
+		 * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
 		 * @return a future of the {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
 		 */
 		@Override
-		public CompletableFuture<SlotProfile> getSlotProfileFuture(ExecutionSlotSharingGroup executionSlotSharingGroup) {
-			ResourceProfile totalSlotResourceProfile = ResourceProfile.ZERO;
+		public CompletableFuture<SlotProfile> getSlotProfileFuture(
+				ExecutionSlotSharingGroup executionSlotSharingGroup,
+				ResourceProfile physicalSlotResourceProfile) {
 			Collection<AllocationID> priorAllocations = new HashSet<>();
 			Collection<CompletableFuture<Collection<TaskManagerLocation>>> preferredLocationsPerExecution = new ArrayList<>();
 			for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
-				totalSlotResourceProfile = totalSlotResourceProfile.merge(resourceProfileRetriever.apply(execution));
 				priorAllocations.add(priorAllocationIdRetriever.apply(execution));
 				preferredLocationsPerExecution.add(preferredLocationsRetriever
 					.getPreferredLocations(execution, producersToIgnore));
@@ -121,7 +115,6 @@ class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetri
 				.thenApply(executionPreferredLocations ->
 					executionPreferredLocations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
 
-			ResourceProfile physicalSlotResourceProfile = totalSlotResourceProfile;
 			return preferredLocationsFuture.thenApply(
 				preferredLocations ->
 					SlotProfile.priorAllocation(

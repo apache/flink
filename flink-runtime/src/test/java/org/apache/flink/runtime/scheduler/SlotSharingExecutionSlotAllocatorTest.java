@@ -69,6 +69,8 @@ import static org.junit.Assert.fail;
  * Test suite for {@link SlotSharingExecutionSlotAllocator}.
  */
 public class SlotSharingExecutionSlotAllocatorTest {
+	private static final ResourceProfile RESOURCE_PROFILE = ResourceProfile.fromResources(3, 5);
+
 	private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
 	private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
 	private static final ExecutionVertexID EV3 = createRandomExecutionVertexId();
@@ -97,17 +99,14 @@ public class SlotSharingExecutionSlotAllocatorTest {
 		List<SlotExecutionVertexAssignment> executionVertexAssignments = context.allocateSlotsFor(EV1, EV2);
 
 		executionVertexAssignments.forEach(assignment -> assertThat(assignment.getLogicalSlotFuture().isDone(), is(false)));
-		context.getSlotProfileRetrieverFactory().completeSlotProfileFutureFor(executionSlotSharingGroup);
+		context.getSlotProfileRetrieverFactory().completeSlotProfileFutureFor(executionSlotSharingGroup, ResourceProfile.ANY);
 		executionVertexAssignments.forEach(assignment -> assertThat(assignment.getLogicalSlotFuture().isDone(), is(true)));
 	}
 
 	@Test
 	public void testSlotRequestProfile() {
-		ResourceProfile physicalsSlotResourceProfile = ResourceProfile.fromResources(3, 5);
-		AllocationContext context = AllocationContext.newBuilder().addGroup(EV1, EV2).build();
-		ExecutionSlotSharingGroup executionSlotSharingGroup =
-			context.getSlotSharingStrategy().getExecutionSlotSharingGroup(EV1);
-		context.getSlotProfileRetrieverFactory().addGroupResourceProfile(executionSlotSharingGroup, physicalsSlotResourceProfile);
+		AllocationContext context = AllocationContext.newBuilder().addGroup(EV1, EV2, EV3).build();
+		ResourceProfile physicalsSlotResourceProfile = RESOURCE_PROFILE.multiply(3);
 
 		context.allocateSlotsFor(EV1, EV2);
 
@@ -370,7 +369,8 @@ public class SlotSharingExecutionSlotAllocatorTest {
 					slotProvider,
 					slotWillBeOccupiedIndefinitely,
 					slotSharingStrategy,
-					sharedSlotProfileRetrieverFactory);
+					sharedSlotProfileRetrieverFactory,
+					executionVertexID -> RESOURCE_PROFILE);
 				return new AllocationContext(
 					slotProvider,
 					slotSharingStrategy,
@@ -480,7 +480,6 @@ public class SlotSharingExecutionSlotAllocatorTest {
 	private static class TestingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetrieverFactory {
 		private final List<Set<ExecutionVertexID>> askedBulks;
 		private final List<ExecutionSlotSharingGroup> askedGroups;
-		private final Map<ExecutionSlotSharingGroup, ResourceProfile> resourceProfiles;
 		private final Map<ExecutionSlotSharingGroup, CompletableFuture<SlotProfile>> slotProfileFutures;
 		private final boolean completeSlotProfileFutureManually;
 
@@ -488,30 +487,25 @@ public class SlotSharingExecutionSlotAllocatorTest {
 			this.completeSlotProfileFutureManually = completeSlotProfileFutureManually;
 			this.askedBulks = new ArrayList<>();
 			this.askedGroups = new ArrayList<>();
-			this.resourceProfiles = new IdentityHashMap<>();
 			this.slotProfileFutures = new IdentityHashMap<>();
 		}
 
 		@Override
 		public SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk) {
 			askedBulks.add(bulk);
-			return group -> {
+			return (group, resourceProfile) -> {
 				askedGroups.add(group);
 				CompletableFuture<SlotProfile> slotProfileFuture =
 					slotProfileFutures.computeIfAbsent(group, g -> new CompletableFuture<>());
 				if (!completeSlotProfileFutureManually) {
-					completeSlotProfileFutureFor(group);
+					completeSlotProfileFutureFor(group, resourceProfile);
 				}
 				return slotProfileFuture;
 			};
 		}
 
-		private void addGroupResourceProfile(ExecutionSlotSharingGroup group, ResourceProfile resourceProfile) {
-			resourceProfiles.put(group, resourceProfile);
-		}
-
-		private void completeSlotProfileFutureFor(ExecutionSlotSharingGroup group) {
-			slotProfileFutures.get(group).complete(SlotProfile.noLocality(resourceProfiles.getOrDefault(group, ResourceProfile.ANY)));
+		private void completeSlotProfileFutureFor(ExecutionSlotSharingGroup group, ResourceProfile resourceProfile) {
+			slotProfileFutures.get(group).complete(SlotProfile.noLocality(resourceProfile));
 		}
 
 		private List<Set<ExecutionVertexID>> getAskedBulks() {
