@@ -394,6 +394,7 @@ class PartitionerFunctionWrapper(FunctionWrapper):
     def partition(self, key: Any, num_partitions: int) -> int:
         """
         A delegated partition function to invoke user defined function.
+
         :param key: The key.
         :param num_partitions: The number of partitions to partition into.
         :return: The partition index.
