@@ -47,7 +47,7 @@ public class WriteFormatAsCsv<IN> extends WriteFormat<IN> {
 				outStream.println(strTuple.substring(1, strTuple.length() - 1));
 			}
 		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while writing file " + path, e);
+			throw new RuntimeException("Exception occurred while writing file " + path, e);
 		}
 	}
 
