@@ -86,6 +86,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -2309,10 +2310,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	/**
 	 * Test that the checkpoint still behave correctly when the task checkpoint is triggered by the
-	 * master hooks and finished before the master checkpoint.
+	 * master hooks and finished before the master checkpoint. Also make sure that the operator
+	 * coordinators are checkpointed before starting the task checkpoint.
 	 */
 	@Test
-	public void testTaskCheckpointTriggeredByMasterHooks() throws Exception {
+	public void testExternallyInducedSourceWithOperatorCoordinator() throws Exception {
 		final JobID jobId = new JobID();
 
 		// create some mock Execution vertices that receive the checkpoint trigger messages
@@ -2323,10 +2325,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2,
 			(executionAttemptID, jid, checkpointId, timestamp, checkpointOptions, advanceToEndOfEventTime) -> {});
 
-		// set up the coordinator and validate the initial state
-		CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(jobId, vertex1, vertex2);
-		AtomicReference<Long> checkpointIdRef = new AtomicReference<>();
-
 		OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
 		OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
 		TaskStateSnapshot taskOperatorSubtaskStates1 = new TaskStateSnapshot();
@@ -2335,6 +2333,27 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		OperatorSubtaskState subtaskState2 = new OperatorSubtaskState();
 		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID1, subtaskState1);
 		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID2, subtaskState2);
+
+		// Create a mock OperatorCoordinatorCheckpointContext which completes the checkpoint immediately.
+		AtomicBoolean coordCheckpointDone = new AtomicBoolean(false);
+		OperatorCoordinatorCheckpointContext coordinatorCheckpointContext =
+			new CheckpointCoordinatorTestingUtils.MockOperatorCheckpointCoordinatorContextBuilder()
+				.setOnCallingCheckpointCoordinator((checkpointId, result) -> {
+					coordCheckpointDone.set(true);
+					result.complete(new byte[0]);
+				})
+				.setOperatorID(opID1)
+				.build();
+
+		// set up the coordinator and validate the initial state
+		CheckpointCoordinator checkpointCoordinator = new CheckpointCoordinatorBuilder()
+			.setJobId(jobId)
+			.setTasks(new ExecutionVertex[]{ vertex1, vertex2 })
+			.setCheckpointCoordinatorConfiguration(CheckpointCoordinatorConfiguration.builder().setMaxConcurrentCheckpoints(Integer.MAX_VALUE).build())
+			.setTimer(manuallyTriggeredScheduledExecutor)
+			.setCoordinatorsToCheckpoint(Collections.singleton(coordinatorCheckpointContext))
+			.build();
+		AtomicReference<Long> checkpointIdRef = new AtomicReference<>();
 
 		// Add a master hook which triggers and acks the task checkpoint immediately.
 		// In this case the task checkpoints would complete before the job master checkpoint completes.
@@ -2347,6 +2366,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			@Override
 			@Nullable
 			public CompletableFuture<Integer> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {
+				assertTrue("The coordinator checkpoint should have finished.", coordCheckpointDone.get());
 				// Acknowledge the checkpoint in the master hooks so the task snapshots complete before
 				// the master state snapshot completes.
 				checkpointIdRef.set(checkpointId);
@@ -2393,7 +2413,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// trigger the first checkpoint. this should succeed
 		final CompletableFuture<CompletedCheckpoint> checkpointFuture = checkpointCoordinator.triggerCheckpoint(false);
 		manuallyTriggeredScheduledExecutor.triggerAll();
-		assertFalse(checkpointFuture.isCompletedExceptionally());
+		FutureUtils.throwIfCompletedExceptionally(checkpointFuture);
 
 		// now we should have a completed checkpoint
 		assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
