@@ -376,24 +376,6 @@ public class FunctionAnnotation {
 	}
 
 	/**
-	 * The SkipCodeAnalysis annotation declares that a function will not be analyzed by Flink's
-	 * code analysis capabilities independent of the configured {@link org.apache.flink.api.common.CodeAnalysisMode}.
-	 *
-	 * <p>If this annotation is not present the static code analyzer pre-interprets user-defined
-	 * functions in order to get implementation insights for program improvements that can be
-	 * printed to the log as hints, automatically applied, or disabled (see
-	 * {@link org.apache.flink.api.common.ExecutionConfig}).
-	 *
-	 * @deprecated The code analysis code has been removed and this annotation has no effect.
-	 */
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	@PublicEvolving
-	@Deprecated
-	public @interface SkipCodeAnalysis {
-	}
-
-	/**
 	 * Private constructor to prevent instantiation. This class is intended only as a container.
 	 */
 	private FunctionAnnotation() {}
