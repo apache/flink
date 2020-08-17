@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -233,7 +234,8 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 		log.info("Recovered {} containers from previous attempts ({}).", containersFromPreviousAttempts.size(), containersFromPreviousAttempts);
 
 		for (final Container container : containersFromPreviousAttempts) {
-			workerNodeMap.put(new ResourceID(container.getId().toString()), new YarnWorkerNode(container));
+			final ResourceID resourceID = getContainerResourceId(container);
+			workerNodeMap.put(resourceID, new YarnWorkerNode(container, resourceID));
 		}
 	}
 
@@ -448,17 +450,18 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			numAccepted, numExcess, numPending, resource);
 	}
 
-	private static ResourceID getContainerResourceId(Container container) {
-		return new ResourceID(container.getId().toString());
+	@VisibleForTesting
+	static ResourceID getContainerResourceId(Container container) {
+		return new ResourceID(container.getId().toString(), container.getNodeId().toString());
 	}
 
 	private void startTaskExecutorInContainer(Container container, WorkerResourceSpec workerResourceSpec, ResourceID resourceId) {
-		workerNodeMap.put(resourceId, new YarnWorkerNode(container));
+		workerNodeMap.put(resourceId, new YarnWorkerNode(container, resourceId));
 
 		try {
 			// Context information used to start a TaskExecutor Java process
 			ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-				resourceId.toString(),
+				resourceId,
 				container.getNodeId().getHost(),
 				TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec));
 
@@ -648,7 +651,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(
-		String containerId,
+		ResourceID containerId,
 		String host,
 		TaskExecutorProcessSpec taskExecutorProcessSpec) throws Exception {
 
@@ -664,7 +667,8 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			taskExecutorProcessSpec);
 
 		final Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
-		taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId);
+		taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId.getResourceIdString());
+		taskManagerConfig.set(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, containerId.getMetadata());
 
 		final String taskManagerDynamicProperties =
 			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);
