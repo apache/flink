@@ -19,14 +19,13 @@
 package org.apache.flink.streaming.api.scala
 
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions._
-import org.apache.flink.api.common.state.{AggregatingStateDescriptor, FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor}
+import org.apache.flink.api.common.state.{AggregatingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction, WindowFunction}
+import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor
@@ -37,8 +36,10 @@ import org.apache.flink.streaming.runtime.operators.windowing._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.rules.ExpectedException
+import org.junit.{Rule, Test}
 
 /**
   * These tests verify that the api calls on [[AllWindowedStream]] instantiate the correct
@@ -48,6 +49,12 @@ import org.junit.Test
   * that we get some output.
   */
 class AllWindowTranslationTest {
+
+  // used for accurate exception information checking.
+  val expectedException: ExpectedException = ExpectedException.none()
+
+  @Rule
+  def thrown: ExpectedException = expectedException
 
   // ------------------------------------------------------------------------
   //  rich function tests
@@ -91,64 +98,22 @@ class AllWindowTranslationTest {
     fail("exception was not thrown")
   }
 
-  /**
-    * .fold() does not support [[RichFoldFunction]], since the reduce function is used internally
-    * in a [[org.apache.flink.api.common.state.FoldingState]].
-    */
-  @Test(expected = classOf[UnsupportedOperationException])
-  def testFoldWithRichFolderFails() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
-    source
-      .windowAll(SlidingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(("", 0), new RichFoldFunction[(String, Int), (String, Int)] {
-        override def fold(accumulator: (String, Int), value: (String, Int)) = null
-      })
-
-    fail("exception was not thrown")
-  }
-
   // ------------------------------------------------------------------------
   //  merging window precondition
   // ------------------------------------------------------------------------
 
   @Test
-  def testSessionWithFoldFails() {
-    // verify that fold does not work with merging windows
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    val windowedStream = env.fromElements("Hello", "Ciao")
-      .windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)))
-
-    try
-      windowedStream.fold("", new FoldFunction[String, String]() {
-        @throws[Exception]
-        def fold(accumulator: String, value: String): String = accumulator
-      })
-
-    catch {
-      case _: UnsupportedOperationException =>
-        // expected
-        // use a catch to ensure that the exception is thrown by the fold
-        return
-    }
-
-    fail("The fold call should fail.")
-  }
-
-  @Test
   def testMergingAssignerWithNonMergingTriggerFails() {
+    expectedException.expect(classOf[UnsupportedOperationException])
+    expectedException.expectMessage(
+      "A merging window assigner cannot be used with a trigger"
+        + " that does not support merging")
     // verify that we check for trigger compatibility
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val windowedStream = env.fromElements("Hello", "Ciao")
+    env.fromElements("Hello", "Ciao")
       .windowAll(EventTimeSessionWindows.withGap(Time.seconds(5)))
-
-    try
-      windowedStream.trigger(new Trigger[String, TimeWindow]() {
+      .trigger(new Trigger[String, TimeWindow]() {
         def onElement(
                        element: String,
                        timestamp: Long,
@@ -163,15 +128,6 @@ class AllWindowTranslationTest {
 
         def clear(window: TimeWindow, ctx: Trigger.TriggerContext) {}
       })
-
-    catch {
-      case _: UnsupportedOperationException =>
-        // expected
-        // use a catch to ensure that the exception is thrown by the fold
-        return
-    }
-
-    fail("The trigger call should fail.")
   }
 
   @Test
@@ -787,354 +743,6 @@ class AllWindowTranslationTest {
   }
 
   // ------------------------------------------------------------------------
-  //  fold() translation tests
-  // ------------------------------------------------------------------------
-
-  @Test
-  def testFoldEventTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(SlidingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(("", "", 1), new DummyFolder)
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldProcessingTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(SlidingProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(("", "", 1), new DummyFolder)
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingProcessingTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldEventTimeWithScalaFunction() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(SlidingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(("", "", 1)) { (acc, _) => acc }
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-
-  @Test
-  def testFoldWithWindowFunctionEventTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(TumblingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(
-        ("", "", 1),
-        new DummyFolder,
-        new ProcessAllWindowFunction[(String, String, Int), (String, Int), TimeWindow] {
-          override def process(
-              context: Context,
-              input: Iterable[(String, String, Int)],
-              out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
-        })
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldWithWindowFunctionProcessingTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(
-        ("", "", 1),
-        new DummyFolder,
-        new AllWindowFunction[(String, String, Int), (String, Int), TimeWindow] {
-          override def apply(
-              window: TimeWindow,
-              input: Iterable[(String, String, Int)],
-              out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
-        })
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldWithProcessWindowFunctionEventTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(TumblingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(
-        ("", "", 1),
-        new DummyFolder,
-        new ProcessAllWindowFunction[(String, String, Int), (String, Int), TimeWindow] {
-          override def process(
-              context: Context,
-              input: Iterable[(String, String, Int)],
-              out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
-        })
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldWithProcessWindowFunctionProcessingTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(
-        ("", "", 1),
-        new DummyFolder,
-        new ProcessAllWindowFunction[(String, String, Int), (String, Int), TimeWindow] {
-          override def process(
-              context: Context,
-              input: Iterable[(String, String, Int)],
-              out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
-        })
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testApplyWithPreFolderEventTime() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(TumblingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .apply(
-        ("", "", 1),
-        new DummyFolder,
-        new AllWindowFunction[(String, String, Int), (String, String, Int), TimeWindow] {
-          override def apply(
-              window: TimeWindow,
-              input: Iterable[(String, String, Int)],
-              out: Collector[(String, String, Int)]): Unit =
-            input foreach {x => out.collect((x._1, x._2, x._3))}
-        })
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldWithWindowFunctionEventTimeWithScalaFunction() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(TumblingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .fold(
-        ("", "", 1),
-        { (acc: (String, String, Int), _) => acc },
-        { (_: TimeWindow, in: Iterable[(String, String, Int)], out: Collector[(String, Int)]) =>
-          in foreach { x => out.collect((x._1, x._3)) }
-        })
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  // ------------------------------------------------------------------------
   //  apply() translation tests
   // ------------------------------------------------------------------------
 
@@ -1365,40 +973,6 @@ class AllWindowTranslationTest {
   }
 
   @Test
-  def testFoldWithCustomTrigger() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(SlidingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .trigger(CountTrigger.of(1))
-      .fold(("", "", 1), new DummyFolder)
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[WindowOperator[_, _, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_]])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
   def testApplyWithCustomTrigger() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
@@ -1506,46 +1080,6 @@ class AllWindowTranslationTest {
     assertTrue(winOperator.getEvictor.isInstanceOf[CountEvictor[_]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
-
-    processElementAndEnsureOutput[String, (String, Int), (String, Int)](
-      winOperator,
-      winOperator.getKeySelector,
-      BasicTypeInfo.STRING_TYPE_INFO,
-      ("hello", 1))
-  }
-
-  @Test
-  def testFoldWithEvictor() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .windowAll(SlidingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-      .evictor(CountEvictor.of(100))
-      .fold(("", "", 1), new DummyFolder)
-
-    val transform = window1
-      .javaStream
-      .getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator = transform.getOperator
-    assertTrue(operator.isInstanceOf[EvictingWindowOperator[_, _, _, _ <: Window]])
-
-    val winOperator = operator
-      .asInstanceOf[
-      EvictingWindowOperator[String, (String, Int), (String, Int), _ <: Window]]
-
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator.getEvictor.isInstanceOf[CountEvictor[_]])
-    assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
-    assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
-
-    winOperator.setOutputType(
-      window1.javaStream.getType.asInstanceOf[TypeInformation[(String, Int)]],
-      new ExecutionConfig)
 
     processElementAndEnsureOutput[String, (String, Int), (String, Int)](
       winOperator,

@@ -20,13 +20,13 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.functions._
-import org.apache.flink.api.common.state.{FoldingStateDescriptor, ReducingStateDescriptor, ValueStateDescriptor}
+import org.apache.flink.api.common.state.{ReducingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.streaming.api.datastream.{QueryableStateStream, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
+import org.apache.flink.streaming.api.datastream.{QueryableStateStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.aggregation.{AggregationFunction, ComparableAggregator, SumAggregator}
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
 import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
@@ -316,43 +316,6 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     }
     reduce(reducer)
   }
-
-  /**
-   * Creates a new [[DataStream]] by folding the elements of this DataStream
-   * using an associative fold function and an initial value. An independent 
-   * aggregate is kept per key.
-   */
-  @deprecated("will be removed in a future version")
-  def fold[R: TypeInformation](initialValue: R, folder: FoldFunction[T,R]): 
-      DataStream[R] = {
-    if (folder == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-    
-    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    
-    asScalaStream(javaStream.fold(initialValue, folder).
-      returns(outType).asInstanceOf[JavaStream[R]])
-  }
-
-  /**
-   * Creates a new [[DataStream]] by folding the elements of this DataStream
-   * using an associative fold function and an initial value. An independent 
-   * aggregate is kept per key.
-   */
-  @deprecated("will be removed in a future version")
-  def fold[R: TypeInformation](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
-    if (fun == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-    val cleanFun = clean(fun)
-    val folder = new FoldFunction[T,R] {
-      def fold(acc: R, v: T) = {
-        cleanFun(acc, v)
-      }
-    }
-    fold(initialValue, folder)
-  }
   
   /**
    * Applies an aggregation that that gives the current maximum of the data stream at
@@ -640,31 +603,6 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     transform(
       s"Queryable state: $queryableStateName",
       new QueryableValueStateOperator(queryableStateName, stateDescriptor))(dataType)
-
-    stateDescriptor.initializeSerializerUnlessSet(executionConfig)
-
-    new QueryableStateStream(
-      queryableStateName,
-      stateDescriptor,
-      getKeyType.createSerializer(executionConfig))
-  }
-
-  /**
-    * Publishes the keyed stream as a queryable FoldingState instance.
-    *
-    * @param queryableStateName Name under which to the publish the queryable state instance
-    * @param stateDescriptor State descriptor to create state instance from
-    * @return Queryable state instance
-    */
-  @PublicEvolving
-  @deprecated("will be removed in a future version")
-  def asQueryableState[ACC](
-      queryableStateName: String,
-      stateDescriptor: FoldingStateDescriptor[T, ACC]) : QueryableStateStream[K, ACC] =  {
-
-    transform(
-      s"Queryable state: $queryableStateName",
-      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
 
     stateDescriptor.initializeSerializerUnlessSet(executionConfig)
 

@@ -19,12 +19,13 @@ package org.apache.flink.streaming.api;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -307,15 +308,15 @@ public class DataStreamTest extends TestLogger {
 
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
-				.fold(0L, new FoldFunction<Long, Long>() {
+				.reduce(new ReduceFunction<Long>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public Long fold(Long accumulator, Long value) throws Exception {
+					public Long reduce(Long value1, Long value2) throws Exception {
 						return null;
 					}
 				})
-				.name("testWindowFold")
+				.name("testWindowReduce")
 				.print();
 
 		//test functionality through the operator names in the execution plan
@@ -326,7 +327,7 @@ public class DataStreamTest extends TestLogger {
 		assertTrue(plan.contains("testMap"));
 		assertTrue(plan.contains("testMap"));
 		assertTrue(plan.contains("testCoFlatMap"));
-		assertTrue(plan.contains("testWindowFold"));
+		assertTrue(plan.contains("testWindowReduce"));
 	}
 
 	/**
@@ -334,7 +335,6 @@ public class DataStreamTest extends TestLogger {
 	 * different and correct topologies. Does the some for the {@link ConnectedStreams}.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testPartitioning() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -513,9 +513,9 @@ public class DataStreamTest extends TestLogger {
 		DataStream<Long> windowed = map
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
-				.fold(0L, new FoldFunction<Long, Long>() {
+				.reduce(new ReduceFunction<Long>() {
 					@Override
-					public Long fold(Long accumulator, Long value) throws Exception {
+					public Long reduce(Long value1, Long value2) throws Exception {
 						return null;
 					}
 				});
@@ -638,11 +638,11 @@ public class DataStreamTest extends TestLogger {
 		DataStream<Long> windowed = connected
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
-				.fold(0L, new FoldFunction<Long, Long>() {
+				.reduce(new ReduceFunction<Long>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public Long fold(Long accumulator, Long value) throws Exception {
+					public Long reduce(Long value1, Long value2) throws Exception {
 						return null;
 					}
 				});
@@ -706,13 +706,29 @@ public class DataStreamTest extends TestLogger {
 		DataStream<CustomPOJO> flatten = window
 				.windowAll(GlobalWindows.create())
 				.trigger(PurgingTrigger.of(CountTrigger.of(5)))
-				.fold(new CustomPOJO(), new FoldFunction<String, CustomPOJO>() {
+				.aggregate(new AggregateFunction<String, CustomPOJO, CustomPOJO>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public CustomPOJO fold(CustomPOJO accumulator, String value) throws Exception {
+					public CustomPOJO createAccumulator() {
 						return null;
 					}
+
+					@Override
+					public CustomPOJO add(String value, CustomPOJO accumulator) {
+						return null;
+					}
+
+					@Override
+					public CustomPOJO getResult(CustomPOJO accumulator) {
+						return null;
+					}
+
+					@Override
+					public CustomPOJO merge(CustomPOJO a, CustomPOJO b) {
+						return null;
+					}
+
 				});
 
 		assertEquals(TypeExtractor.getForClass(CustomPOJO.class), flatten.getType());
