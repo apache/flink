@@ -49,7 +49,6 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -195,11 +194,6 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 
 		@Override
 		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
-			throw new UnsupportedOperationException("Accumulators are not supported in rich async functions.");
-		}
-
-		@Override
-		public Map<String, Accumulator<?, ?>> getAllAccumulators() {
 			throw new UnsupportedOperationException("Accumulators are not supported in rich async functions.");
 		}
 
