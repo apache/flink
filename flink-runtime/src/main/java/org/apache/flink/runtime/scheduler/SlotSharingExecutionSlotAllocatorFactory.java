@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
@@ -40,17 +42,25 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
 
 	private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
 
+	private final PhysicalSlotRequestBulkChecker bulkChecker;
+
+	private final Time allocationTimeout;
+
 	SlotSharingExecutionSlotAllocatorFactory(
 			PhysicalSlotProvider slotProvider,
 			boolean slotWillBeOccupiedIndefinitely,
 			SlotSharingStrategy slotSharingStrategy,
 			Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever,
-			Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever) {
+			Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever,
+			PhysicalSlotRequestBulkChecker bulkChecker,
+			Time allocationTimeout) {
 		this.slotProvider = slotProvider;
 		this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
 		this.slotSharingStrategy = slotSharingStrategy;
 		this.resourceProfileRetriever = resourceProfileRetriever;
 		this.priorAllocationIdRetriever = priorAllocationIdRetriever;
+		this.bulkChecker = bulkChecker;
+		this.allocationTimeout = allocationTimeout;
 	}
 
 	@Override
@@ -63,6 +73,8 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
 			slotWillBeOccupiedIndefinitely,
 			slotSharingStrategy,
 			sharedSlotProfileRetrieverFactory,
+			bulkChecker,
+			allocationTimeout,
 			resourceProfileRetriever);
 	}
 }
