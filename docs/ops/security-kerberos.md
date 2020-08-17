@@ -83,7 +83,7 @@ Here is some information specific to each deployment mode.
 
 Steps to run a secure Flink cluster in standalone/cluster mode:
 
-1. Add security-related configuration options to the Flink configuration file (on all cluster nodes) (see [here](config.html#kerberos-based-security)).
+1. Add security-related configuration options to the Flink configuration file (on all cluster nodes) (see [here](config.html#auth-with-external-systems)).
 2. Ensure that the keytab file exists at the path indicated by `security.kerberos.login.keytab` on all cluster nodes.
 3. Deploy Flink cluster as normal.
 
@@ -91,7 +91,7 @@ Steps to run a secure Flink cluster in standalone/cluster mode:
 
 Steps to run a secure Flink cluster in YARN/Mesos mode:
 
-1. Add security-related configuration options to the Flink configuration file on the client (see [here](config.html#kerberos-based-security)).
+1. Add security-related configuration options to the Flink configuration file on the client (see [here](config.html#auth-with-external-systems)).
 2. Ensure that the keytab file exists at the path as indicated by `security.kerberos.login.keytab` on the client node.
 3. Deploy Flink cluster as normal.
 
@@ -107,7 +107,7 @@ The main drawback is that the cluster is necessarily short-lived since the gener
 
 Steps to run a secure Flink cluster using `kinit`:
 
-1. Add security-related configuration options to the Flink configuration file on the client (see [here](config.html#kerberos-based-security)).
+1. Add security-related configuration options to the Flink configuration file on the client (see [here](config.html#auth-with-external-systems)).
 2. Login using the `kinit` command.
 3. Deploy Flink cluster as normal.
 
