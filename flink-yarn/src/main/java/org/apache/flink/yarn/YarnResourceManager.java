@@ -341,7 +341,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 	@Override
 	public boolean stopWorker(final YarnWorkerNode workerNode) {
 		final Container container = workerNode.getContainer();
-		log.info("Stopping container {}.", container.getId());
+		log.info("Stopping container {}.", workerNode.getResourceID().getStringWithMetadata());
 		nodeManagerClient.stopContainerAsync(container.getId(), container.getNodeId());
 		resourceManagerClient.releaseAssignedContainer(container.getId());
 		workerNodeMap.remove(workerNode.getResourceID());
@@ -659,7 +659,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 				ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 
 		log.info("TaskExecutor {} will be started on {} with {}.",
-			containerId,
+			containerId.getStringWithMetadata(),
 			host,
 			taskExecutorProcessSpec);
 

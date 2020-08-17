@@ -366,7 +366,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(rpcService);
 		checkNotNull(highAvailabilityServices);
 
-		LOG.info("Starting TaskManager with ResourceID: {}", resourceID);
+		LOG.info("Starting TaskManager with ResourceID: {}", resourceID.getStringWithMetadata());
 
 		String externalAddress = rpcService.getAddress();
 
