@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
@@ -144,7 +145,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 
 		rpcService = createRpcService(configuration, highAvailabilityServices);
 
-		this.resourceId = new ResourceID(getTaskManagerResourceID(configuration, rpcService.getAddress(), rpcService.getPort()));
+		this.resourceId = getTaskManagerResourceID(configuration, rpcService.getAddress(), rpcService.getPort());
 
 		HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
@@ -480,10 +481,12 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 	}
 
 	@VisibleForTesting
-	static String getTaskManagerResourceID(Configuration config, String rpcAddress, int rpcPort) throws Exception {
-		return config.getString(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID,
+	static ResourceID getTaskManagerResourceID(Configuration config, String rpcAddress, int rpcPort) throws Exception {
+		return new ResourceID(
+			config.getString(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID,
 				StringUtils.isNullOrWhitespaceOnly(rpcAddress)
 					? InetAddress.getLocalHost().getHostName() + "-" + new AbstractID().toString().substring(0, 6)
-					: rpcAddress + ":" + rpcPort + "-" + new AbstractID().toString().substring(0, 6));
+					: rpcAddress + ":" + rpcPort + "-" + new AbstractID().toString().substring(0, 6)),
+			config.getString(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, ""));
 	}
 }

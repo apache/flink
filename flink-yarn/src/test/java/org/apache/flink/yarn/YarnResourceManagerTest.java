@@ -408,7 +408,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
-				final ResourceID taskManagerResourceId = new ResourceID(testingContainer.getId().toString());
+				final ResourceID taskManagerResourceId = YarnResourceManager.getContainerResourceId(testingContainer);
 				final ResourceProfile resourceProfile = ResourceProfile.newBuilder()
 					.setCpuCores(10.0)
 					.setTaskHeapMemoryMB(1)
