@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -645,6 +646,43 @@ public class StreamConfig implements Serializable {
 
 		public int getInputGateIndex() {
 			return inputGateIndex;
+		}
+	}
+
+	/**
+	 * A serialized representation of an input.
+	 */
+	public static class SourceInputConfig implements InputConfig {
+		private final StreamEdge inputEdge;
+
+		public SourceInputConfig(StreamEdge inputEdge) {
+			this.inputEdge = inputEdge;
+		}
+
+		public StreamEdge getInputEdge() {
+			return inputEdge;
+		}
+
+		@Override
+		public String toString() {
+			return inputEdge.toString();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			}
+			if (!(obj instanceof SourceInputConfig)) {
+				return false;
+			}
+			SourceInputConfig other = (SourceInputConfig) obj;
+			return Objects.equals(other.inputEdge, inputEdge);
+		}
+
+		@Override
+		public int hashCode() {
+			return inputEdge.hashCode();
 		}
 	}
 }

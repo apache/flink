@@ -631,7 +631,10 @@ public class MultipleInputStreamTaskTest {
 		}
 	}
 
-	private static class MapToStringMultipleInputOperator
+	/**
+	 * Test implementation of {@link MultipleInputStreamOperator}.
+	 */
+	protected static class MapToStringMultipleInputOperator
 			extends AbstractStreamOperatorV2<String> implements MultipleInputStreamOperator<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -672,6 +675,9 @@ public class MultipleInputStreamTaskTest {
 			return closeCalled;
 		}
 
+		/**
+		 * {@link Input} for {@link MapToStringMultipleInputOperator}.
+		 */
 		public class MapToStringInput<T> extends AbstractInput<T, String> {
 			public MapToStringInput(AbstractStreamOperatorV2<String> owner, int inputId) {
 				super(owner, inputId);
@@ -716,7 +722,10 @@ public class MultipleInputStreamTaskTest {
 		}
 	}
 
-	private static class MapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
+	/**
+	 * Factory for {@link MapToStringMultipleInputOperator}.
+	 */
+	protected static class MapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
 		@Override
 		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
 			return (T) new MapToStringMultipleInputOperator(parameters);
