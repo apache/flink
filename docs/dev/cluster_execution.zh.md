@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Flink 程序可以分布式运行在多机器集群上。有两种方式可以将程序发送到群集上执行：
+Flink 程序可以分布式运行在多机器集群上。有两种方式可以将程序提交到集群上执行：
 
 <a name="command-line-interface"></a>
 
