@@ -391,7 +391,7 @@ class PartitionerFunctionWrapper(FunctionWrapper):
         """
         super(PartitionerFunctionWrapper, self).__init__(func)
 
-    def partition(self, key, num_partitions):
+    def partition(self, key: Any, num_partitions: int) -> int:
         """
         A delegated partition function to invoke user defined function.
         :param key: The key.
