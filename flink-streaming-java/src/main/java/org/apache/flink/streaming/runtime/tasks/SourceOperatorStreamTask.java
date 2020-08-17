@@ -48,7 +48,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	public void init() {
 		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator);
 		DataOutput<T> output = new AsyncDataOutputToOutput<>(
-			operatorChain.getChainEntryPoint(),
+			operatorChain.getMainOperatorOutput(),
 			getStreamStatusMaintainer());
 
 		inputProcessor = new StreamOneInputProcessor<>(

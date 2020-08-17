@@ -94,7 +94,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 	private final RecordWriterOutput<?>[] streamOutputs;
 
-	private final WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainEntryPoint;
+	private final WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
 
 	/**
 	 * For iteration, {@link StreamIterationHead} and {@link StreamIterationTail} used for executing
@@ -145,7 +145,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 			// we create the chain of operators and grab the collector that leads into the chain
 			List<StreamOperatorWrapper<?, ?>> allOpWrappers = new ArrayList<>(chainedConfigs.size());
-			this.chainEntryPoint = createOutputCollector(
+			this.mainOperatorOutput = createOutputCollector(
 				containingTask,
 				configuration,
 				chainedConfigs,
@@ -155,17 +155,15 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				containingTask.getMailboxExecutorFactory());
 
 			if (operatorFactory != null) {
-				WatermarkGaugeExposingOutput<StreamRecord<OUT>> output = getChainEntryPoint();
-
 				Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
 						operatorFactory,
 						containingTask,
 						configuration,
-						output,
+						mainOperatorOutput,
 						operatorEventDispatcher);
 
 				OP mainOperator = mainOperatorAndTimeService.f0;
-				mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
+				mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, mainOperatorOutput.getWatermarkGauge());
 				this.mainOperatorWrapper = createOperatorWrapper(mainOperator, containingTask, configuration, mainOperatorAndTimeService.f1);
 
 				// add main operator to end of chain
@@ -201,11 +199,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	OperatorChain(
 			List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
 			RecordWriterOutput<?>[] streamOutputs,
-			WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainEntryPoint,
+			WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput,
 			StreamOperatorWrapper<OUT, OP> mainOperatorWrapper) {
 
 		this.streamOutputs = checkNotNull(streamOutputs);
-		this.chainEntryPoint = checkNotNull(chainEntryPoint);
+		this.mainOperatorOutput = checkNotNull(mainOperatorOutput);
 		this.operatorEventDispatcher = null;
 
 		checkState(allOperatorWrappers != null && allOperatorWrappers.size() > 0);
@@ -341,8 +339,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		return numOperators;
 	}
 
-	public WatermarkGaugeExposingOutput<StreamRecord<OUT>> getChainEntryPoint() {
-		return chainEntryPoint;
+	public WatermarkGaugeExposingOutput<StreamRecord<OUT>> getMainOperatorOutput() {
+		return mainOperatorOutput;
 	}
 
 	/**
