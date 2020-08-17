@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
+import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.function.Function;
@@ -54,13 +55,14 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
 
 	@Override
 	public ExecutionSlotAllocator createInstance(PreferredLocationsRetriever preferredLocationsRetriever) {
+		SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory = new MergingSharedSlotProfileRetrieverFactory(
+			preferredLocationsRetriever,
+			priorAllocationIdRetriever);
 		return new SlotSharingExecutionSlotAllocator(
 			slotProvider,
 			slotWillBeOccupiedIndefinitely,
 			slotSharingStrategy,
-			new MergingSharedSlotProfileRetrieverFactory(
-				preferredLocationsRetriever,
-				resourceProfileRetriever,
-				priorAllocationIdRetriever));
+			sharedSlotProfileRetrieverFactory,
+			resourceProfileRetriever);
 	}
 }
