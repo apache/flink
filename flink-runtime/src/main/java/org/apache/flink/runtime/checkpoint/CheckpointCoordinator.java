@@ -887,7 +887,8 @@ public class CheckpointCoordinator {
 					checkpointId,
 					message.getTaskExecutionId(),
 					job,
-					taskManagerLocationInfo);
+					taskManagerLocationInfo,
+					message.getReason());
 				final CheckpointException checkpointException;
 				if (message.getReason() == null) {
 					checkpointException =
