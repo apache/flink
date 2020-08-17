@@ -82,6 +82,8 @@ public class DescriptorProperties {
 
 	public static final String EXPR = "expr";
 
+	public static final String COMMENT = "comment";
+
 	public static final String PARTITION_KEYS = "partition.keys";
 
 	public static final String WATERMARK = "watermark";
@@ -214,6 +216,9 @@ public class DescriptorProperties {
 		final String[] fieldExpressions = schema.getTableColumns().stream()
 			.map(column -> column.getExpr().orElse(null))
 			.toArray(String[]::new);
+		final String[] fieldComments = schema.getTableColumns().stream()
+			.map(column -> column.getComment().orElse(null))
+			.toArray(String[]::new);
 
 		final List<List<String>> values = new ArrayList<>();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
@@ -221,12 +226,13 @@ public class DescriptorProperties {
 				Arrays.asList(
 					fieldNames[i],
 					fieldTypes[i].getLogicalType().asSerializableString(),
-					fieldExpressions[i]));
+					fieldExpressions[i],
+					fieldComments[i]));
 		}
 
 		putIndexedOptionalProperties(
 			key,
-			Arrays.asList(NAME, DATA_TYPE, EXPR),
+			Arrays.asList(NAME, DATA_TYPE, EXPR, COMMENT),
 			values);
 
 		if (!schema.getWatermarkSpecs().isEmpty()) {
