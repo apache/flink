@@ -40,7 +40,7 @@ public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSour
 
 	private final Boundedness boundedness;
 	private final int numSplits;
-	private List<MockSourceReader> createdReaders;
+	protected List<MockSourceReader> createdReaders;
 
 	public MockSource(Boundedness boundedness, int numSplits) {
 		this.boundedness = boundedness;
