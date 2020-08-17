@@ -24,24 +24,28 @@ package org.apache.flink.runtime.checkpoint;
 public enum CheckpointType {
 
 	/** A checkpoint, full or incremental. */
-	CHECKPOINT(false, false),
+	CHECKPOINT(false, false, "Checkpoint"),
 
 	/** A regular savepoint. */
-	SAVEPOINT(true, false),
+	SAVEPOINT(true, false, "Savepoint"),
 
 	/** A savepoint taken while suspending/terminating the job. */
-	SYNC_SAVEPOINT(true, true);
+	SYNC_SAVEPOINT(true, true, "Synchronous Savepoint");
 
 	private final boolean isSavepoint;
 
 	private final boolean isSynchronous;
 
+	private final String name;
+
 	CheckpointType(
 			final boolean isSavepoint,
-			final boolean isSynchronous) {
+			final boolean isSynchronous,
+			final String name) {
 
 		this.isSavepoint = isSavepoint;
 		this.isSynchronous = isSynchronous;
+		this.name = name;
 	}
 
 	public boolean isSavepoint() {
@@ -50,5 +54,9 @@ public enum CheckpointType {
 
 	public boolean isSynchronous() {
 		return isSynchronous;
+	}
+
+	public String getName() {
+		return name;
 	}
 }
