@@ -371,7 +371,8 @@ class FlinkKafkaProducer011(FlinkKafkaProducerBase):
     """
 
     def __init__(self, topic: str, serialization_schema: SerializationSchema,
-                 producer_config: Dict, semantic: Semantic = Semantic.AT_LEAST_ONCE):
+                 producer_config: Dict, kafka_producer_pool_size: int = 5,
+                 semantic: Semantic = Semantic.AT_LEAST_ONCE):
         """
         Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
 
@@ -390,14 +391,18 @@ class FlinkKafkaProducer011(FlinkKafkaProducerBase):
 
         JFlinkKafkaProducer011 = gateway.jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011
+
+        JFlinkFixedPartitioner = gateway.jvm\
+            .org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner
         JSemantic = get_gateway().jvm \
             .org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011.Semantic
         j_keyed_serialization_schema = gateway.jvm\
             .org.apache.flink.streaming.connectors.kafka.internals\
             .KeyedSerializationSchemaWrapper(serialization_schema._j_serialization_schema)
         j_flink_kafka_producer = JFlinkKafkaProducer011(
-            topic, j_keyed_serialization_schema, j_properties, Semantic._to_j_semantic(semantic,
-                                                                                       JSemantic))
+            topic, j_keyed_serialization_schema, j_properties,
+            gateway.jvm.java.util.Optional.of(JFlinkFixedPartitioner()),
+            Semantic._to_j_semantic(semantic, JSemantic), kafka_producer_pool_size)
         super(FlinkKafkaProducer011, self).__init__(j_flink_kafka_producer=j_flink_kafka_producer)
 
     def ignore_failures_after_transaction_timeout(self) -> 'FlinkKafkaProducer011':
