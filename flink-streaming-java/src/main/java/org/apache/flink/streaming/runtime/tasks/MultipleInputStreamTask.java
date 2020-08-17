@@ -55,11 +55,14 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 		InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
-		ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputs.length];
+		ArrayList[] inputLists = new ArrayList[configuration.getNumberOfNetworkInputs()];
 		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputs.length];
 
-		for (int i = 0; i < inputs.length; i++) {
+		for (int i = 0; i < inputLists.length; i++) {
 			inputLists[i] = new ArrayList<>();
+		}
+
+		for (int i = 0; i < inputs.length; i++) {
 			watermarkGauges[i] = new WatermarkGauge();
 			mainOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
 		}

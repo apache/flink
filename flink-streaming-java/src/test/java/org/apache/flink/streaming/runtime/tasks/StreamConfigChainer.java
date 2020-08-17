@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -46,13 +45,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Helper class to build StreamConfig for chain of operators.
  */
 public class StreamConfigChainer<OWNER> {
+	public static final int MAIN_NODE_ID = 0;
 	private final OWNER owner;
 	private final StreamConfig headConfig;
 	private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
 	private final long bufferTimeout;
 
 	private StreamConfig tailConfig;
-	private int chainIndex = 0;
+	private int chainIndex = MAIN_NODE_ID;
 
 	StreamConfigChainer(OperatorID headOperatorID, StreamConfig headConfig, OWNER owner) {
 		this.owner = checkNotNull(owner);
@@ -185,7 +185,7 @@ public class StreamConfigChainer<OWNER> {
 		};
 		List<StreamEdge> outEdgesInOrder = new LinkedList<>();
 		StreamNode sourceVertexDummy = new StreamNode(
-			0,
+			MAIN_NODE_ID,
 			"group",
 			null,
 			dummyOperator,
@@ -193,7 +193,7 @@ public class StreamConfigChainer<OWNER> {
 			new LinkedList<>(),
 			SourceStreamTask.class);
 		StreamNode targetVertexDummy = new StreamNode(
-			1,
+			MAIN_NODE_ID + 1,
 			"group",
 			null,
 			dummyOperator,
@@ -209,7 +209,6 @@ public class StreamConfigChainer<OWNER> {
 			new BroadcastPartitioner<>(),
 			null));
 
-		headConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
 		headConfig.setVertexID(0);
 		headConfig.setNumberOfOutputs(1);
 		headConfig.setOutEdgesInOrder(outEdgesInOrder);
