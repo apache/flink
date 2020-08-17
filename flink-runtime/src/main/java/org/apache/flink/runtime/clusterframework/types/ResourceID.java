@@ -89,6 +89,10 @@ public final class ResourceID implements ResourceIDRetrievable, Serializable {
 		return this;
 	}
 
+	public String getMetadata() {
+		return metadata;
+	}
+
 	/**
 	 * Generate a random resource id.
 	 *
