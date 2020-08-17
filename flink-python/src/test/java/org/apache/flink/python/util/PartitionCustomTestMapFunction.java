@@ -37,7 +37,12 @@ public class PartitionCustomTestMapFunction extends RichMapFunction<Row, Row> {
 
 	@Override
 	public Row map(Row value) throws Exception {
-		assert value.getField(1).equals(currentTaskIndex);
+		int expectedPartitionIndex = (Integer) (value.getField(1)) % getRuntimeContext()
+			.getNumberOfParallelSubtasks();
+		if (expectedPartitionIndex != currentTaskIndex) {
+			throw new RuntimeException(String.format("the data: Row<%s> was sent to the wrong partition[%d], " +
+				"expected partition is [%d].", value.toString(), currentTaskIndex, expectedPartitionIndex));
+		}
 		return value;
 	}
 }
