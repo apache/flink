@@ -1426,7 +1426,6 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :return: The result :class:`~pyflink.table.Table`.
         """
-        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
         # serializes to a file, and we read the file in java
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         serializer = BatchedSerializer(self._serializer)
