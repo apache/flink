@@ -33,7 +33,6 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -42,7 +41,6 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -97,17 +95,16 @@ public class TaskManagerCheckInSlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerTimeout() throws Exception {
-		Executor executor = TestingUtils.defaultExecutor();
-		canBeReleasedFuture.set(CompletableFuture.completedFuture(true));
-		try (SlotManager slotManager = SlotManagerBuilder
-			.newBuilder()
-			.setTaskManagerTimeout(Time.milliseconds(10L))
-			.build()) {
+		checkTaskManagerTimeout(0);
+	}
 
-			slotManager.start(resourceManagerId, executor, resourceManagerActions);
-			executor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
-			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
-		}
+	/**
+	 * If there is no job running, no need to keep redundant taskManagers and release the timeout taskManagers.
+	 * This may happen in session mode without jobs running.
+	 */
+	@Test
+	public void testTaskManagerTimeoutWithRedundantTaskManager() throws Exception {
+		checkTaskManagerTimeout(1);
 	}
 
 	/**
@@ -210,6 +207,19 @@ public class TaskManagerCheckInSlotManagerTest extends TestLogger {
 
 			checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, true);
 			verifyTmReleased(true);
+		}
+	}
+
+	private void checkTaskManagerTimeout(int redundantTaskManagerNum) throws Exception {
+		canBeReleasedFuture.set(CompletableFuture.completedFuture(true));
+		try (SlotManager slotManager = SlotManagerBuilder
+			.newBuilder()
+			.setTaskManagerTimeout(Time.milliseconds(10L))
+			.setRedundantTaskManagerNum(redundantTaskManagerNum)
+			.buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
+
+			slotManager.registerTaskManager(taskManagerConnection, slotReport);
+			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
 		}
 	}
 

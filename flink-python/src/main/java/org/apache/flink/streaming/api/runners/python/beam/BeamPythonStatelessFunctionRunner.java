@@ -50,8 +50,7 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
  * A {@link BeamPythonFunctionRunner} used to execute Python stateless functions.
  */
 @Internal
-public abstract class BeamPythonStatelessFunctionRunner  extends BeamPythonFunctionRunner{
-	private static final long serialVersionUID = 1L;
+public abstract class BeamPythonStatelessFunctionRunner extends BeamPythonFunctionRunner {
 	private static final String INPUT_ID = "input";
 	private static final String OUTPUT_ID = "output";
 	private static final String TRANSFORM_ID = "transform";

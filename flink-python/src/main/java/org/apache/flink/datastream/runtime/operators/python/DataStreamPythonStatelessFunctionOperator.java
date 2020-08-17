@@ -30,7 +30,7 @@ import org.apache.flink.datastream.runtime.runners.python.beam.BeamDataStreamPyt
 import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
@@ -43,27 +43,28 @@ import java.util.Map;
  * {@link DataStreamPythonStatelessFunctionOperator} is responsible for launching beam runner which will start a python
  * harness to execute user defined python function.
  */
-public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends AbstractPythonFunctionOperator<IN, OUT> {
+public class DataStreamPythonStatelessFunctionOperator<IN, OUT>
+	extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
+	protected static final String DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN =
 		"flink:transform:datastream_stateless_function:v1";
-	private static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
-	private static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
+	protected static final String DATA_STREAM_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:map_function:v1";
+	protected static final String DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN = "flink:coder:datastream:flatmap_function:v1";
 
 
 	protected final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
-	private final TypeInformation<IN> inputTypeInfo;
+	protected final TypeInformation<IN> inputTypeInfo;
 
-	private final TypeInformation<OUT> outputTypeInfo;
+	protected final TypeInformation<OUT> outputTypeInfo;
 
-	private final Map<String, String> jobOptions;
+	protected final Map<String, String> jobOptions;
 
-	private transient TypeSerializer<IN> inputTypeSerializer;
+	protected transient TypeSerializer<IN> inputTypeSerializer;
 
-	private transient TypeSerializer<OUT> outputTypeSerializer;
+	protected transient TypeSerializer<OUT> outputTypeSerializer;
 
 	protected transient ByteArrayInputStreamWithPos bais;
 
@@ -150,7 +151,7 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 		emitResults();
 	}
 
-	private FlinkFnApi.UserDefinedDataStreamFunctions getUserDefinedDataStreamFunctionsProto() {
+	protected FlinkFnApi.UserDefinedDataStreamFunctions getUserDefinedDataStreamFunctionsProto() {
 		FlinkFnApi.UserDefinedDataStreamFunctions.Builder builder = FlinkFnApi.UserDefinedDataStreamFunctions.newBuilder();
 		builder.addUdfs(getUserDefinedDataStreamFunctionProto(pythonFunctionInfo));
 		return builder.build();

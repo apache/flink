@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
@@ -47,6 +48,7 @@ import org.junit.Test;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -875,6 +877,43 @@ public class FunctionITCase extends StreamingTestBase {
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(Collections.emptyList()));
 	}
 
+	@Test
+	public void testAggregateFunction() {
+		final List<Row> sourceData = Arrays.asList(
+			Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "Bob"),
+			Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "Alice"),
+			Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), null),
+			Row.of(LocalDateTime.parse("2007-12-03T10:15:30"), "Jonathan"),
+			Row.of(LocalDateTime.parse("2007-12-03T10:15:32"), "Bob"),
+			Row.of(LocalDateTime.parse("2007-12-03T10:15:32"), "Alice")
+		);
+
+		final List<Row> sinkData = Arrays.asList(
+			Row.of("Jonathan"),
+			Row.of("Alice")
+		);
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql(
+			"CREATE TABLE SourceTable(ts TIMESTAMP(3), s STRING, WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) " +
+				"WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql(
+			"CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+		tEnv().executeSql(
+			"CREATE FUNCTION LongestStringAggregateFunction AS '" + LongestStringAggregateFunction.class.getName() + "'");
+
+		execInsertSqlAndWaitResult(
+			"INSERT INTO SinkTable " +
+			"SELECT LongestStringAggregateFunction(s) " +
+			"FROM SourceTable " +
+			"GROUP BY TUMBLE(ts, INTERVAL '1' SECOND)");
+
+		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Test functions
 	// --------------------------------------------------------------------------------------------
@@ -1106,6 +1145,33 @@ public class FunctionITCase extends StreamingTestBase {
 		@Override
 		public String toString() {
 			return name + " " + age;
+		}
+	}
+
+	/**
+	 * Function that aggregates strings and finds the longest string.
+	 */
+	@FunctionHint(accumulator = @DataTypeHint("ROW<longestString STRING>"))
+	public static class LongestStringAggregateFunction extends AggregateFunction<String, Row> {
+
+		@Override
+		public Row createAccumulator() {
+			return Row.of((String) null);
+		}
+
+		public void accumulate(Row acc, String value) {
+			if (value == null) {
+				return;
+			}
+			final String longestString = (String) acc.getField(0);
+			if (longestString == null || longestString.length() < value.length()) {
+				acc.setField(0, value);
+			}
+		}
+
+		@Override
+		public String getValue(Row acc) {
+			return (String) acc.getField(0);
 		}
 	}
 }

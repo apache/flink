@@ -46,6 +46,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -1296,6 +1297,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 				catch (Throwable t) {
 					ExceptionUtils.rethrowIfFatalError(t);
+					ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(t);
 					failGlobal(new Exception("Failed to finalize execution on master", t));
 					return;
 				}

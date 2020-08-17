@@ -56,6 +56,41 @@ class MapFunction(Function):
         pass
 
 
+class CoMapFunction(Function):
+    """
+    A CoMapFunction implements a map() transformation over two connected streams.
+
+    The same instance of the transformation function is used to transform both of
+    the connected streams. That way, the stream transformations can share state.
+
+    The basic syntax for using a CoMapFunction is as follows:
+    ::
+        >>> ds1 = ...
+        >>> ds2 = ...
+        >>> new_ds = ds1.connect(ds2).map(MyCoMapFunction())
+    """
+
+    @abc.abstractmethod
+    def map1(self, value):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        :param value: The stream element
+        :return: The resulting element
+        """
+        pass
+
+    @abc.abstractmethod
+    def map2(self, value):
+        """
+        This method is called for each element in the second of the connected streams.
+
+        :param value: The stream element
+        :return: The resulting element
+        """
+        pass
+
+
 class FlatMapFunction(Function):
     """
     Base class for flatMap functions. FLatMap functions take elements and transform them, into zero,
@@ -86,6 +121,84 @@ class FlatMapFunction(Function):
         pass
 
 
+class CoFlatMapFunction(Function):
+    """
+    A CoFlatMapFunction implements a flat-map transformation over two connected streams.
+
+    The same instance of the transformation function is used to transform both of the
+    connected streams. That way, the stream transformations can share state.
+
+    An example for the use of connected streams would be to apply rules that change over time
+    onto elements of a stream. One of the connected streams has the rules, the other stream the
+    elements to apply the rules to. The operation on the connected stream maintains the
+    current set of rules in the state. It may receive either a rule update (from the first stream)
+    and update the state, or a data element (from the second stream) and apply the rules in the
+    state to the element. The result of applying the rules would be emitted.
+
+    The basic syntax for using a CoFlatMapFunction is as follows:
+    ::
+        >>> ds1 = ...
+        >>> ds2 = ...
+
+        >>> class MyCoFlatMapFunction(CoFlatMapFunction):
+        >>>     def flat_map1(self, value):
+        >>>         for i in range(value):
+        >>>             yield i
+        >>>     def flat_map2(self, value):
+        >>>         for i in range(value):
+        >>>             yield i
+
+        >>> new_ds = ds1.connect(ds2).flat_map(MyCoFlatMapFunction())
+    """
+
+    @abc.abstractmethod
+    def flat_map1(self, value):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        :param value: The input value.
+        :return: A genertaor
+        """
+        pass
+
+    @abc.abstractmethod
+    def flat_map2(self, value):
+        """
+        This method is called for each element in the second of the connected streams.
+
+        :param value: The input value.
+        :return: A genertaor
+        """
+        pass
+
+
+class ReduceFunction(Function):
+    """
+    Base interface for Reduce functions. Reduce functions combine groups of elements to a single
+    value, by taking always two elements and combining them into one. Reduce functions may be
+    used on entire data sets, or on grouped data sets. In the latter case, each group is reduced
+    individually.
+
+    The basic syntax for using a ReduceFunction is as follows:
+    ::
+        >>> ds = ...
+        >>> new_ds = ds.key_by(lambda x: x[1]).reduce(MyReduceFunction())
+    """
+
+    @abc.abstractmethod
+    def reduce(self, value1, value2):
+        """
+        The core method of ReduceFunction, combining two values into one value of the same type.
+        The reduce function is consecutively applied to all values of a group until only a single
+        value remains.
+
+        :param value1: The first value to combine.
+        :param value2: The second value to combine.
+        :return: The combined value of both input values.
+        """
+        pass
+
+
 class KeySelector(Function):
     """
     The KeySelector allows to use deterministic objects for operations such as reduce, reduceGroup,
@@ -100,6 +213,29 @@ class KeySelector(Function):
 
         :param value: The object to get the key from.
         :return: The extracted key.
+        """
+        pass
+
+
+class FilterFunction(Function):
+    """
+    A filter function is a predicate applied individually to each record. The predicate decides
+    whether to keep the element, or to discard it.
+    The basic syntax for using a FilterFunction is as follows:
+    :
+         >>> ds = ...
+         >>> result = ds.filter(MyFilterFunction())
+    Note that the system assumes that the function does not modify the elements on which the
+    predicate is applied. Violating this assumption can lead to incorrect results.
+    """
+
+    @abc.abstractmethod
+    def filter(self, value):
+        """
+        The filter function that evaluates the predicate.
+
+        :param value: The value to be filtered.
+        :return: True for values that should be retained, false for values to be filtered out.
         """
         pass
 
@@ -159,6 +295,44 @@ class FlatMapFunctionWrapper(FunctionWrapper):
         :return: the return value of user defined flat_map function.
         """
         return self._func(value)
+
+
+class FilterFunctionWrapper(FunctionWrapper):
+    """
+        A wrapper class for FilterFunction. It's used for wrapping up user defined function in a
+        FilterFunction when user does not implement a FilterFunction but directly pass a function
+        object or a lambda function to filter() function.
+        """
+    def __init__(self, func):
+        super(FilterFunctionWrapper, self).__init__(func)
+
+    def filter(self, value):
+        return self._func(value)
+
+
+class ReduceFunctionWrapper(FunctionWrapper):
+    """
+    A wrapper class for ReduceFunction. It's used for wrapping up user defined function in a
+    ReduceFunction when user does not implement a ReduceFunction but directly pass a function
+    object or a lambda function to reduce() function.
+    """
+    def __init__(self, func):
+        """
+        The constructor of ReduceFunctionWrapper.
+
+        :param func: user defined function object.
+        """
+        super(ReduceFunctionWrapper, self).__init__(func)
+
+    def reduce(self, value1, value2):
+        """
+        A delegated reduce function to invoke user defined function.
+
+        :param value1: The first value to combine.
+        :param value2: The second value to combine.
+        :return: The combined value of both input values.
+        """
+        return self._func(value1, value2)
 
 
 class KeySelectorFunctionWrapper(FunctionWrapper):

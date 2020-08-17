@@ -70,10 +70,6 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
     new CountAccumulator
   }
 
-  def resetAccumulator(acc: CountAccumulator): Unit = {
-    acc.f0 = 0L
-  }
-
   override def getAccumulatorType: TypeInformation[CountAccumulator] = {
     new TupleTypeInfo(classOf[CountAccumulator], BasicTypeInfo.LONG_TYPE_INFO)
   }

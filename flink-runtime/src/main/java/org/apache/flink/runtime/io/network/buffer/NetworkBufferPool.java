@@ -77,15 +77,13 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	private int numTotalRequiredBuffers;
 
-	private final int numberOfSegmentsToRequest;
-
 	private final Duration requestSegmentsTimeout;
 
 	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	@VisibleForTesting
-	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, int numberOfSegmentsToRequest) {
-		this(numberOfSegmentsToAllocate, segmentSize, numberOfSegmentsToRequest, Duration.ofMillis(Integer.MAX_VALUE));
+	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
+		this(numberOfSegmentsToAllocate, segmentSize, Duration.ofMillis(Integer.MAX_VALUE));
 	}
 
 	/**
@@ -94,13 +92,9 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	public NetworkBufferPool(
 			int numberOfSegmentsToAllocate,
 			int segmentSize,
-			int numberOfSegmentsToRequest,
 			Duration requestSegmentsTimeout) {
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
-
-		checkArgument(numberOfSegmentsToRequest > 0, "The number of required buffers should be larger than 0.");
-		this.numberOfSegmentsToRequest = numberOfSegmentsToRequest;
 
 		Preconditions.checkNotNull(requestSegmentsTimeout);
 		checkArgument(requestSegmentsTimeout.toMillis() > 0,
@@ -161,13 +155,15 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	@Override
-	public List<MemorySegment> requestMemorySegments() throws IOException {
+	public List<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) throws IOException {
+		checkArgument(numberOfSegmentsToRequest > 0, "Number of buffers to request must be larger than 0.");
+
 		synchronized (factoryLock) {
 			if (isDestroyed) {
 				throw new IllegalStateException("Network buffer pool has already been destroyed.");
 			}
 
-			tryRedistributeBuffers();
+			tryRedistributeBuffers(numberOfSegmentsToRequest);
 		}
 
 		final List<MemorySegment> segments = new ArrayList<>(numberOfSegmentsToRequest);
@@ -427,7 +423,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	// Must be called from synchronized block
-	private void tryRedistributeBuffers() throws IOException {
+	private void tryRedistributeBuffers(int numberOfSegmentsToRequest) throws IOException {
 		assert Thread.holdsLock(factoryLock);
 
 		if (numTotalRequiredBuffers + numberOfSegmentsToRequest > totalNumberOfMemorySegments) {

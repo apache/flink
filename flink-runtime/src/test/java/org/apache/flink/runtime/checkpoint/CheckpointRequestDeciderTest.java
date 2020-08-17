@@ -66,7 +66,6 @@ public class CheckpointRequestDeciderTest {
 		assertEquals(Optional.of(request), decider.chooseQueuedRequestToExecute(isTriggering, 0));
 	}
 
-
 	@Test
 	public void testNonForcedEnqueueOnTooManyPending() {
 		final int maxPending = 1;
@@ -99,7 +98,6 @@ public class CheckpointRequestDeciderTest {
 				new CheckpointTriggerRequest[]{savepoint, checkpoint});
 	}
 
-
 	@Test
 	public void testNonForcedUserSubmittedPrioritized() {
 		CheckpointTriggerRequest userSubmitted = nonForcedSavepoint();
@@ -117,8 +115,6 @@ public class CheckpointRequestDeciderTest {
 			new CheckpointTriggerRequest[]{checkpoint, savepoint},
 			new CheckpointTriggerRequest[]{savepoint, checkpoint});
 	}
-
-
 
 	@Test
 	public void testQueueSizeLimit() {
@@ -169,7 +165,7 @@ public class CheckpointRequestDeciderTest {
 	private void testTiming(CheckpointTriggerRequest request, TriggerExpectation expectation) {
 		final long pause = 10;
 		final ManualClock clock = new ManualClock();
-		final CheckpointRequestDecider decider = new CheckpointRequestDecider(1, NO_OP, clock, pause, () -> 0, new Object(), Integer.MAX_VALUE);
+		final CheckpointRequestDecider decider = new CheckpointRequestDecider(1, NO_OP, clock, pause, () -> 0, Integer.MAX_VALUE);
 
 		final long lastCompletionMs = clock.relativeTimeMillis();
 		final boolean isTriggering = false;
@@ -220,7 +216,7 @@ public class CheckpointRequestDeciderTest {
 	private CheckpointRequestDecider decider(int maxQueued, int maxPending, int minPause, AtomicInteger currentPending) {
 		ManualClock clock = new ManualClock();
 		clock.advanceTime(1, TimeUnit.DAYS);
-		return new CheckpointRequestDecider(maxPending, NO_OP, clock, minPause, currentPending::get, new Object(), maxQueued);
+		return new CheckpointRequestDecider(maxPending, NO_OP, clock, minPause, currentPending::get, maxQueued);
 	}
 
 	private static final Consumer<Long> NO_OP = unused -> {

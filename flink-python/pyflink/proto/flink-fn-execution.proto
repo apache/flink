@@ -57,6 +57,9 @@ message UserDefinedDataStreamFunction {
   enum FunctionType {
     MAP = 0;
     FLAT_MAP = 1;
+    REDUCE = 2;
+    CO_MAP = 3;
+    CO_FLAT_MAP = 4;
   }
   FunctionType functionType = 1;
   bytes payload = 2;

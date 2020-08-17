@@ -84,6 +84,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase"
     "org.apache.flink.sql.parser.dql.SqlShowFunctions"
     "org.apache.flink.sql.parser.dql.SqlShowTables"
+    "org.apache.flink.sql.parser.dql.SqlShowPartitions"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
@@ -131,6 +132,7 @@
     "OVERWRITE"
     "OWNER"
     "PARTITIONED"
+    "PARTITIONS"
     "RAW"
     "RELY"
     "RENAME"
@@ -521,6 +523,7 @@
     "SqlShowFunctions()"
     "SqlAlterTable()"
     "SqlAlterView()"
+    "SqlShowPartitions()"
   ]
 
   # List of methods for parsing custom literals.

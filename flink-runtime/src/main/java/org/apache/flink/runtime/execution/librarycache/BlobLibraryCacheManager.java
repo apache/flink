@@ -148,13 +148,20 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 */
 		private final Consumer<Throwable> classLoadingExceptionHandler;
 
+		/**
+		 * Test if classloader is used outside of job.
+		 */
+		private final boolean checkClassLoaderLeak;
+
 		private DefaultClassLoaderFactory(
 				FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
 				String[] alwaysParentFirstPatterns,
-				Consumer<Throwable> classLoadingExceptionHandler) {
+				Consumer<Throwable> classLoadingExceptionHandler,
+				boolean checkClassLoaderLeak) {
 			this.classLoaderResolveOrder = classLoaderResolveOrder;
 			this.alwaysParentFirstPatterns = alwaysParentFirstPatterns;
 			this.classLoadingExceptionHandler = classLoadingExceptionHandler;
+			this.checkClassLoaderLeak = checkClassLoaderLeak;
 		}
 
 		@Override
@@ -164,18 +171,21 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				libraryURLs,
 				FlinkUserCodeClassLoaders.class.getClassLoader(),
 				alwaysParentFirstPatterns,
-				classLoadingExceptionHandler);
+				classLoadingExceptionHandler,
+				checkClassLoaderLeak);
 		}
 	}
 
 	public static ClassLoaderFactory defaultClassLoaderFactory(
 			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
 			String[] alwaysParentFirstPatterns,
-			@Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError) {
+			@Nullable FatalErrorHandler fatalErrorHandlerJvmMetaspaceOomError,
+			boolean checkClassLoaderLeak) {
 		return new DefaultClassLoaderFactory(
 			classLoaderResolveOrder,
 			alwaysParentFirstPatterns,
-			createClassLoadingExceptionHandler(fatalErrorHandlerJvmMetaspaceOomError));
+			createClassLoadingExceptionHandler(fatalErrorHandlerJvmMetaspaceOomError),
+			checkClassLoaderLeak);
 	}
 
 	private static Consumer<Throwable> createClassLoadingExceptionHandler(

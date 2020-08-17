@@ -102,6 +102,26 @@ def extract_data_stream_stateless_funcs(udfs):
         func = cloudpickle.loads(udfs[0].payload).map
     elif func_type == udf.FLAT_MAP:
         func = cloudpickle.loads(udfs[0].payload).flat_map
+    elif func_type == udf.REDUCE:
+        reduce_func = cloudpickle.loads(udfs[0].payload).reduce
+
+        def wrap_func(value):
+            return reduce_func(value[0], value[1])
+        func = wrap_func
+    elif func_type == udf.CO_MAP:
+        co_map_func = cloudpickle.loads(udfs[0].payload)
+
+        def wrap_func(value):
+            return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
+        func = wrap_func
+    elif func_type == udf.CO_FLAT_MAP:
+        co_flat_map_func = cloudpickle.loads(udfs[0].payload)
+
+        def wrap_func(value):
+            return co_flat_map_func.flat_map1(
+                value[1]) if value[0] else co_flat_map_func.flat_map2(
+                value[2])
+        func = wrap_func
     return func
 
 

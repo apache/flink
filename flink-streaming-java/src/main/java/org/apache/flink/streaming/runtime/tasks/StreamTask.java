@@ -543,7 +543,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			afterInvoke();
 		}
-		catch (Exception invokeException) {
+		catch (Throwable invokeException) {
 			failing = !canceled;
 			try {
 				cleanUpInvoke();
@@ -551,9 +551,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// TODO: investigate why Throwable instead of Exception is used here.
 			catch (Throwable cleanUpException) {
 				Throwable throwable = ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
-				throw (throwable instanceof Exception ? (Exception) throwable : new Exception(throwable));
+				ExceptionUtils.rethrowException(throwable);
 			}
-			throw invokeException;
+			ExceptionUtils.rethrowException(invokeException);
 		}
 		cleanUpInvoke();
 	}

@@ -32,9 +32,7 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryReservationException;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
@@ -46,9 +44,8 @@ import java.util.concurrent.ScheduledFuture;
  * Base class for all stream operators to execute Python functions.
  */
 @Internal
-public abstract class AbstractPythonFunctionOperator<IN, OUT>
-	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+public abstract class AbstractPythonFunctionOperatorBase<OUT>
+	extends AbstractStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -65,7 +62,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Number of processed elements in the current bundle.
 	 */
-	private transient int elementCount;
+	protected transient int elementCount;
 
 	/**
 	 * Max duration of a bundle.
@@ -85,7 +82,7 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * Callback to be executed after the current bundle was finished.
 	 */
-	private transient Runnable bundleFinishedCallback;
+	protected transient Runnable bundleFinishedCallback;
 
 	/**
 	 * The size of the reserved memory from the MemoryManager.
@@ -95,9 +92,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	/**
 	 * The python config.
 	 */
-	private final PythonConfig config;
+	private PythonConfig config;
 
-	public AbstractPythonFunctionOperator(Configuration config) {
+	public AbstractPythonFunctionOperatorBase(Configuration config) {
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}
@@ -180,11 +177,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	}
 
 	@Override
-	public void endInput() throws Exception {
-		invokeFinishBundle();
-	}
-
-	@Override
 	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
 		try {
 			invokeFinishBundle();
@@ -238,6 +230,20 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 					}
 				};
 		}
+	}
+
+	/**
+	 * Reset the {@link PythonConfig} if needed.
+	 * */
+	public void setPythonConfig(PythonConfig pythonConfig) {
+		this.config = pythonConfig;
+	}
+
+	/**
+	 * Returns the {@link PythonConfig}.
+	 * */
+	public PythonConfig getConfig() {
+		return config;
 	}
 
 	/**

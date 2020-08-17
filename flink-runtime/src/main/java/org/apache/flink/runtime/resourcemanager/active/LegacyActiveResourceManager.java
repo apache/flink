@@ -16,37 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.active;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
+import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
+import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Base class for {@link ResourceManager} implementations which contains some common variables and methods.
  */
-public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrievable>
+public abstract class LegacyActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		extends ResourceManager<WorkerType> {
 
 	/** The process environment variables. */
@@ -67,7 +62,7 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 	/** Maps from worker's resource id to its resource spec. */
 	private final Map<ResourceID, WorkerResourceSpec> allocatedNotRegisteredWorkerResourceSpecs;
 
-	public ActiveResourceManager(
+	public LegacyActiveResourceManager(
 			Configuration flinkConfig,
 			Map<String, String> env,
 			RpcService rpcService,
@@ -104,22 +99,11 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 		allocatedNotRegisteredWorkerResourceSpecs = new HashMap<>();
 	}
 
-	protected CompletableFuture<Void> getStopTerminationFutureOrCompletedExceptionally(@Nullable Throwable exception) {
-		final CompletableFuture<Void> terminationFuture = super.onStop();
-
-		if (exception != null) {
-			return FutureUtils.completedExceptionally(new FlinkException(
-				"Error while shutting down resource manager", exception));
-		} else {
-			return terminationFuture;
-		}
-	}
-
 	protected abstract Configuration loadClientConfiguration();
 
 	@Override
-	protected void onTaskManagerRegistration(WorkerRegistration<WorkerType> workerTypeWorkerRegistration) {
-		notifyAllocatedWorkerRegistered(workerTypeWorkerRegistration.getResourceID());
+	protected void onWorkerRegistered(WorkerType worker) {
+		notifyAllocatedWorkerRegistered(worker.getResourceID());
 	}
 
 	protected int getNumRequestedNotAllocatedWorkers() {
@@ -218,43 +202,6 @@ public abstract class ActiveResourceManager <WorkerType extends ResourceIDRetrie
 
 		public int getNumNotRegistered() {
 			return numNotRegistered;
-		}
-	}
-
-	/**
-	 * Utility class for counting pending workers per {@link WorkerResourceSpec}.
-	 */
-	@VisibleForTesting
-	static class PendingWorkerCounter {
-		private final Map<WorkerResourceSpec, Integer> pendingWorkerNums;
-
-		PendingWorkerCounter() {
-			pendingWorkerNums = new HashMap<>();
-		}
-
-		int getTotalNum() {
-			return pendingWorkerNums.values().stream().reduce(0, Integer::sum);
-		}
-
-		int getNum(final WorkerResourceSpec workerResourceSpec) {
-			return pendingWorkerNums.getOrDefault(Preconditions.checkNotNull(workerResourceSpec), 0);
-		}
-
-		int increaseAndGet(final WorkerResourceSpec workerResourceSpec) {
-			return pendingWorkerNums.compute(
-				Preconditions.checkNotNull(workerResourceSpec),
-				(ignored, num) -> num != null ? num + 1 : 1);
-		}
-
-		int decreaseAndGet(final WorkerResourceSpec workerResourceSpec) {
-			final Integer newValue = pendingWorkerNums.compute(
-				Preconditions.checkNotNull(workerResourceSpec),
-				(ignored, num) -> {
-					Preconditions.checkState(num != null && num > 0,
-						"Cannot decrease, no pending worker of spec %s.", workerResourceSpec);
-					return num == 1 ? null : num - 1;
-				});
-			return newValue != null ? newValue : 0;
 		}
 	}
 }
