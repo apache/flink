@@ -20,17 +20,32 @@ package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.inference.TypeStrategy;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Abstract class to provide more information for Hive {@link UDF} and {@link GenericUDF} functions.
@@ -42,6 +57,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 
 	protected Object[] constantArguments;
 	protected DataType[] argTypes;
+	protected DataType resultType = null;
 
 	protected transient UDFType function;
 	protected transient ObjectInspector returnInspector;
@@ -56,6 +72,18 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 	public void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes) {
 		this.constantArguments = constantArguments;
 		this.argTypes = argTypes;
+	}
+
+	@Override
+	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
+		if (resultType == null) {
+			try {
+				resultType = validateInputTypes(argTypes);
+			} catch (UDFArgumentException e) {
+				throw new FlinkHiveUDFException(e);
+			}
+		}
+		return resultType;
 	}
 
 	@Override
@@ -87,7 +115,8 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 	@Override
 	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
 		TypeInference.Builder builder = TypeInference.newBuilder();
-		builder.outputTypeStrategy(new ResultTypeStrategy(this));
+		builder.inputTypeStrategy(new HiveUDFInputStrategy());
+		builder.outputTypeStrategy(new HiveUDFOutputStrategy());
 		return builder.build();
 	}
 
@@ -113,4 +142,62 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 	 * Evaluation logical, args will be wrapped when is a single array.
 	 */
 	protected abstract Object evalInternal(Object[] args);
+
+	private Tuple2<Object[], DataType[]> getConstantArgAndTypes(CallContext callContext) {
+		DataType[] inputTypes = callContext.getArgumentDataTypes().toArray(new DataType[0]);
+		Object[] constantArgs = new Object[inputTypes.length];
+		for (int i = 0; i < constantArgs.length; i++) {
+			if (callContext.isArgumentLiteral(i)) {
+				constantArgs[i] = callContext.getArgumentValue(
+						i, ClassLogicalTypeConverter.getDefaultExternalClassForType(inputTypes[i].getLogicalType()))
+						.orElse(null);
+			}
+		}
+		return Tuple2.of(constantArgs, inputTypes);
+	}
+
+	/**
+	 * Validate input argument types and decide result type.
+	 */
+	protected abstract DataType validateInputTypes(DataType[] argTypes) throws UDFArgumentException;
+
+	private class HiveUDFOutputStrategy implements TypeStrategy {
+
+		@Override
+		public Optional<DataType> inferType(CallContext callContext) {
+			Tuple2<Object[], DataType[]> constantArgAndTypes = getConstantArgAndTypes(callContext);
+			return Optional.ofNullable(getHiveResultType(constantArgAndTypes.f0, constantArgAndTypes.f1));
+		}
+	}
+
+	private class HiveUDFInputStrategy implements InputTypeStrategy {
+
+		@Override
+		public ArgumentCount getArgumentCount() {
+			return ConstantArgumentCount.any();
+		}
+
+		@Override
+		public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
+			Tuple2<Object[], DataType[]> constantArgAndTypes = getConstantArgAndTypes(callContext);
+			setArgumentTypesAndConstants(constantArgAndTypes.f0, constantArgAndTypes.f1);
+			try {
+				resultType = validateInputTypes(argTypes);
+			} catch (UDFArgumentException e) {
+				if (throwOnFailure) {
+					throw new ValidationException(
+							String.format("Cannot find a suitable Hive function from %s for the input arguments",
+									hiveFunctionWrapper.getClassName()), e);
+				} else {
+					return Optional.empty();
+				}
+			}
+			return Optional.of(callContext.getArgumentDataTypes());
+		}
+
+		@Override
+		public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+			return Collections.singletonList(Signature.of(Signature.Argument.of("*")));
+		}
+	}
 }
