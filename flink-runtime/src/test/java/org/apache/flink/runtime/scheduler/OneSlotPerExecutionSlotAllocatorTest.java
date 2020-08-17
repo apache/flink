@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -255,10 +254,6 @@ public class OneSlotPerExecutionSlotAllocatorTest extends TestLogger {
 		private final List<SlotRequestId> cancelledSlotRequestIds = new ArrayList<>();
 
 		private boolean forceFailingSlotAllocation = false;
-
-		@Override
-		public void start(ComponentMainThreadExecutor mainThreadExecutor) {
-		}
 
 		@Override
 		public CompletableFuture<Collection<PhysicalSlotRequest.Result>> allocatePhysicalSlots(

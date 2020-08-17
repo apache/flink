@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
 import java.util.Collection;
@@ -29,14 +28,6 @@ import java.util.concurrent.CompletableFuture;
  * The bulk slot provider serves physical slot requests.
  */
 public interface BulkSlotProvider {
-
-	/**
-	 * Starts the slot provider by initializing the main thread executor.
-	 *
-	 * @param mainThreadExecutor the main thread executor of the job master
-	 */
-	void start(ComponentMainThreadExecutor mainThreadExecutor);
-
 	/**
 	 * Allocates a bulk of physical slots. The allocation will be completed
 	 * normally only when all the requests are fulfilled.
