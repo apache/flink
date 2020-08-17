@@ -141,18 +141,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		// from here on, we need to make sure that the output writers are shut down again on failure
 		boolean success = false;
 		try {
-			for (int i = 0; i < outEdgesInOrder.size(); i++) {
-				StreamEdge outEdge = outEdgesInOrder.get(i);
-
-				RecordWriterOutput<?> streamOutput = createStreamOutput(
-					recordWriterDelegate.getRecordWriter(i),
-					outEdge,
-					chainedConfigs.get(outEdge.getSourceId()),
-					containingTask.getEnvironment());
-
-				this.streamOutputs[i] = streamOutput;
-				streamOutputMap.put(outEdge, streamOutput);
-			}
+			createChainOutputs(outEdgesInOrder, recordWriterDelegate, chainedConfigs, containingTask, streamOutputMap);
 
 			// we create the chain of operators and grab the collector that leads into the chain
 			List<StreamOperatorWrapper<?, ?>> allOpWrappers = new ArrayList<>(chainedConfigs.size());
@@ -225,6 +214,26 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		this.numOperators = allOperatorWrappers.size();
 
 		linkOperatorWrappers(allOperatorWrappers);
+	}
+
+	private void createChainOutputs(
+			List<StreamEdge> outEdgesInOrder,
+			RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate,
+			Map<Integer, StreamConfig> chainedConfigs,
+			StreamTask<OUT, OP> containingTask,
+			Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap) {
+		for (int i = 0; i < outEdgesInOrder.size(); i++) {
+			StreamEdge outEdge = outEdgesInOrder.get(i);
+
+			RecordWriterOutput<?> streamOutput = createStreamOutput(
+				recordWriterDelegate.getRecordWriter(i),
+				outEdge,
+				chainedConfigs.get(outEdge.getSourceId()),
+				containingTask.getEnvironment());
+
+			this.streamOutputs[i] = streamOutput;
+			streamOutputMap.put(outEdge, streamOutput);
+		}
 	}
 
 	@Override
