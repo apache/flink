@@ -387,6 +387,7 @@ function check_logs_for_exceptions {
    | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
    | grep -v 'INFO.*AWSErrorCode' \
    | grep -v "RejectedExecutionException" \
+   | grep -v "CancellationException" \
    | grep -v "An exception was thrown by an exception handler" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.yarn.exceptions.YarnException" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \

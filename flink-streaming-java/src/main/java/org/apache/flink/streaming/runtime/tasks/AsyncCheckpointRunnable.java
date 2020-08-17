@@ -129,12 +129,10 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 					checkpointMetaData.getCheckpointId());
 			}
 		} catch (Exception e) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} - asynchronous part of checkpoint {} could not be completed.",
-					taskName,
-					checkpointMetaData.getCheckpointId(),
-					e);
-			}
+			LOG.info("{} - asynchronous part of checkpoint {} could not be completed.",
+				taskName,
+				checkpointMetaData.getCheckpointId(),
+				e);
 			handleExecutionException(e);
 		} finally {
 			unregisterConsumer.accept(this);
