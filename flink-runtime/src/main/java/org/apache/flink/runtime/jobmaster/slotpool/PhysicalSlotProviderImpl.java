@@ -87,9 +87,11 @@ class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 			SlotRequestId slotRequestId,
 			ResourceProfile resourceProfile,
 			boolean willSlotBeOccupiedIndefinitely) {
-		return willSlotBeOccupiedIndefinitely ?
-			slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null) :
-			slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
+		if (willSlotBeOccupiedIndefinitely) {
+			return slotPool.requestNewAllocatedSlot(slotRequestId, resourceProfile, null);
+		} else {
+			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, resourceProfile);
+		}
 	}
 
 	@Override
