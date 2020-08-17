@@ -495,7 +495,7 @@ class DataStream(object):
                 return partition, value
 
             def __repr__(self) -> str:
-                return 'PartitionCustomMapFunction'
+                return '_Flink_PartitionCustomMapFunction'
 
         original_type_info = self.get_type()
         intermediate_map_stream = self.map(PartitionCustomMapFunction(),
@@ -578,7 +578,7 @@ class DataStream(object):
                 j_python_data_stream_function_info)
             return j_python_data_stream_function_operator, j_output_type_info
         else:
-            if str(func) == 'PartitionCustomMapFunction':
+            if str(func) == '_Flink_PartitionCustomMapFunction':
                 DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
                     .operators.python.DataStreamPythonPartitionCustomFunctionOperator
             else:
