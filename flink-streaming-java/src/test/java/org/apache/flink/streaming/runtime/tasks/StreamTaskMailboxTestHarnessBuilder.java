@@ -33,8 +33,6 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -210,31 +208,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			StreamOperatorFactory<?> factory,
 			OperatorID operatorID) {
 		checkState(!setupCalled, "This harness was already setup.");
-		setupCalled = true;
-		streamConfig.setChainStart();
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
-		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
-		streamConfig.setNumberOfOutputs(1);
-		streamConfig.setTypeSerializerOut(outputSerializer);
-		streamConfig.setVertexID(0);
-
-		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
-			private static final long serialVersionUID = 1L;
-		};
-
-		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertexDummy = new StreamNode(0, "group", null, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(1, "group", null, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-
-		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
-
-		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
-		streamConfig.setNonChainedOutputs(outEdgesInOrder);
-
-		streamConfig.setStreamOperatorFactory(factory);
-		streamConfig.setOperatorID(operatorID);
-
-		return this;
+		return setupOperatorChain(operatorID, factory).finishForSingletonOperatorChain(outputSerializer);
 	}
 
 	public StreamConfigChainer<StreamTaskMailboxTestHarnessBuilder<OUT>> setupOperatorChain(StreamOperator<?> headOperator) {
