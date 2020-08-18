@@ -61,7 +61,7 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 - **Trigger Time**: The time when the checkpoint was triggered at the JobManager.
 - **Latest Acknowledgement**: The time when the latest acknowledged for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
 - **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
-- **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. This value would be the delta delta checkpointed data if incremetnal checkpoint is on.
+- **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. This value represents the delta of the checkpointed data if incremental checkpointing is on.
 - **Buffered During Alignment**: The number of bytes buffered during alignment over all acknowledged subtasks. This is only > 0 if a stream alignment takes place during checkpointing. If the checkpointing mode is `AT_LEAST_ONCE` this will always be zero as at least once mode does not require stream alignment.
 
 #### History Size Configuration
