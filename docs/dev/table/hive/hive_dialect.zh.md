@@ -34,7 +34,7 @@ Flink 目前支持两种 SQL 方言: `default` 和 `hive`。你需要先切换�
 
 ### SQL 客户端
 
-SQL 方言可以通过 `table.sql-dialect` 属性指定。因此你可以通过 `configuration` 章节中的 yaml 文件来为 SQL 客户端设置初始方言。
+SQL 方言可以通过 `table.sql-dialect` 属性指定。因此你可以通过 SQL 客户端 yaml 文件中的 `configuration` 部分来设置初始方言。
 
 {% highlight yaml %}
 
@@ -131,7 +131,7 @@ CREATE (DATABASE|SCHEMA) [IF NOT EXISTS] database_name
 ALTER (DATABASE|SCHEMA) database_name SET DBPROPERTIES (property_name=property_value, ...);
 {% endhighlight %}
 
-##### Update Ower
+##### Update Owner
 
 {% highlight sql %}
 ALTER (DATABASE|SCHEMA) database_name SET OWNER [USER|ROLE] user_or_role;
@@ -355,5 +355,5 @@ INSERT (INTO|OVERWRITE) [TABLE] table_name [PARTITION partition_spec] SELECT ...
 - Hive 方言只能用于操作 Hive 表，不能用于一般表。Hive 方言应与[HiveCatalog]({{ site.baseurl }}/zh/dev/table/hive/hive_catalog.html)一起使用。
 - 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的[Hive 版本]({{ site.baseurl }}/zh/dev/table/hive/#支持的hive版本)。例如，更新数据库位置
  只在 Hive-2.4.0 或更高版本支持。
-- Hive 和 Calcite 有不同的保留关键字集合。例如，`default` 是 Calcite 的保留关键字，却不是 Hive 的保留关键字。即使如此，在 Hive 方言中, 也必须使用反引号 ( ` ) 引用此类关键字才能将其用作标识符。
-- 由于扩大了查询的不兼容性，在 Flink 中创建的视图是不能在 Hive 中查询的。
+- Hive 和 Calcite 有不同的保留关键字集合。例如，`default` 是 Calcite 的保留关键字，却不是 Hive 的保留关键字。即使使用 Hive 方言, 也必须使用反引号 ( ` ) 引用此类关键字才能将其用作标识符。
+- 由于扩展的查询语句的不兼容性，在 Flink 中创建的视图是不能在 Hive 中查询的。
