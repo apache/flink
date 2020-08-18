@@ -89,7 +89,7 @@ public final class ReplicatingInputFormat<OT, S extends InputSplit> extends Rich
 	}
 
 	@Override
-	public S[] createInputSplits(int minNumSplits) throws IOException {
+	public S[] createInputSplits(int minNumSplits) throws Exception {
 		return this.replicatedIF.createInputSplits(minNumSplits);
 	}
 

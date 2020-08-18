@@ -18,15 +18,14 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
+
+import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * The base interface for data sources that produces records.
@@ -87,16 +86,6 @@ public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<
 	 */
 	BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException;
 
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	T[] createInputSplits(int minNumSplits) throws IOException;
-
-	@Override
-	InputSplitAssigner getInputSplitAssigner(T[] inputSplits);
-	
-	// --------------------------------------------------------------------------------------------
-	
 	/**
 	 * Opens a parallel instance of the input format to work on a split.
 	 * <p>

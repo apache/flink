@@ -40,7 +40,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -169,7 +168,7 @@ public class FileSystemLookupFunction<T extends InputSplit> extends TableFunctio
 				nextLoadTime = System.currentTimeMillis() + getCacheTTL().toMillis();
 				LOG.info("Loaded {} row(s) into lookup join cache", count);
 				return;
-			} catch (IOException e) {
+			} catch (Exception e) {
 				if (numRetry >= MAX_RETRIES) {
 					throw new FlinkRuntimeException(
 							String.format("Failed to load table into cache after %d retries", numRetry), e);
