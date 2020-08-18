@@ -59,7 +59,7 @@ Flink 程序可以分布式运行在多机器集群上。有两种方式可以�
 
 ### 示例
 
-下面演示了 `RemoteEnvironment` 的用法:
+下面演示了 `RemoteEnvironment` 的用法：
 
 {% highlight java %}
 public static void main(String[] args) throws Exception {
