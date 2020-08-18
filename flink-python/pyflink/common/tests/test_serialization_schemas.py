@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.common.serialization_schemas import JsonRowSerializationSchema, \
+from pyflink.common.serialization import JsonRowSerializationSchema, \
     JsonRowDeserializationSchema, CsvRowSerializationSchema, CsvRowDeserializationSchema, \
     SimpleStringSchema
 from pyflink.common.typeinfo import Types

@@ -17,13 +17,15 @@
 ################################################################################
 
 from pyflink.common import typeinfo
-from pyflink.common.serialization_schemas import JsonRowDeserializationSchema, \
-    JsonRowSerializationSchema
+from pyflink.common.serialization import JsonRowDeserializationSchema, \
+    JsonRowSerializationSchema, SimpleStringEncoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaConsumer010, FlinkKafkaProducer010, \
     FlinkKafkaConsumer011, FlinkKafkaProducer011, FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink,\
-    JdbcConnectionOptions, JdbcExecutionOptions
+    JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, DefaultRollingPolicy, \
+    OutputFileConfig
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
     get_private_field, invoke_java_object_method
@@ -150,3 +152,48 @@ class FlinkJdbcSinkTest(PyFlinkTestCase):
     def tearDown(self):
         if self._cxt_clz_loader is not None:
             get_gateway().jvm.Thread.currentThread().setContextClassLoader(self._cxt_clz_loader)
+
+
+class ConnectorTests(PyFlinkTestCase):
+
+    def setUp(self) -> None:
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.test_sink = DataStreamTestSinkFunction()
+
+    def test_stream_file_sink(self):
+        self.env.set_parallelism(2)
+        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds.map(
+            lambda a: a[0],
+            Types.STRING()).add_sink(
+            StreamingFileSink.for_row_format(self.tempdir, SimpleStringEncoder())
+                .with_rolling_policy(
+                    DefaultRollingPolicy.builder().with_rollover_interval(15 * 60 * 1000)
+                .with_inactivity_interval(5 * 60 * 1000)
+                .with_max_part_size(1024 * 1024 * 1024).build())
+                .with_output_file_config(
+                    OutputFileConfig.OutputFileConfigBuilder()
+                    .with_part_prefix("prefix")
+                    .with_part_suffix("suffix").build()).build())
+
+        self.env.execute("test_streaming_file_sink")
+
+        results = []
+        import os
+        for root, dirs, files in os.walk(self.tempdir, topdown=True):
+            for file in files:
+                self.assertTrue(file.startswith('.prefix'))
+                self.assertTrue('suffix' in file)
+                path = root + "/" + file
+                with open(path) as infile:
+                    for line in infile:
+                        results.append(line)
+
+        expected = ['deeefg\n', 'bdc\n', 'ab\n', 'cfgs\n']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+    def tearDown(self) -> None:
+        self.test_sink.clear()
