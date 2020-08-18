@@ -394,6 +394,20 @@ class LookupJoinTest extends TableTestBase with Serializable {
     streamUtil.verifyPlan(sql)
   }
 
+  @Test
+  def testJoinTemporalTableWithUdfEqualFilter(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name
+        |FROM
+        |  MyTable AS T JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+        |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
+      """.stripMargin
+
+    streamUtil.verifyPlan(sql)
+  }
+
   // ==========================================================================================
 
   private def expectExceptionThrown(
