@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
@@ -86,7 +86,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	public KubernetesResourceManagerDriver(
 			Configuration flinkConfig,
 			FlinkKubeClient kubeClient,
-			KubernetesResourceManagerConfiguration configuration) {
+			KubernetesResourceManagerDriverConfiguration configuration) {
 		super(flinkConfig, GlobalConfiguration.loadConfiguration());
 
 		this.clusterId = Preconditions.checkNotNull(configuration.getClusterId());
