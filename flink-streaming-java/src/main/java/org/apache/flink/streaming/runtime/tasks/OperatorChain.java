@@ -21,17 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -46,19 +41,14 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
-import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.XORShiftRandom;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +61,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -556,304 +545,5 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	@Nullable
 	StreamOperator<?> getTailOperator() {
 		return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
-	}
-
-	// ------------------------------------------------------------------------
-	//  Collectors for output chaining
-	// ------------------------------------------------------------------------
-
-	/**
-	 * An {@link Output} that measures the last emitted watermark with a {@link WatermarkGauge}.
-	 *
-	 * @param <T> The type of the elements that can be emitted.
-	 */
-	public interface WatermarkGaugeExposingOutput<T> extends Output<T> {
-		Gauge<Long> getWatermarkGauge();
-	}
-
-	static class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
-
-		protected final OneInputStreamOperator<T, ?> operator;
-		protected final Counter numRecordsIn;
-		protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
-
-		protected final StreamStatusProvider streamStatusProvider;
-
-		@Nullable
-		protected final OutputTag<T> outputTag;
-
-		public ChainingOutput(
-				OneInputStreamOperator<T, ?> operator,
-				StreamStatusProvider streamStatusProvider,
-				@Nullable OutputTag<T> outputTag) {
-			this.operator = operator;
-
-			{
-				Counter tmpNumRecordsIn;
-				try {
-					OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup();
-					tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
-				} catch (Exception e) {
-					LOG.warn("An exception occurred during the metrics setup.", e);
-					tmpNumRecordsIn = new SimpleCounter();
-				}
-				numRecordsIn = tmpNumRecordsIn;
-			}
-
-			this.streamStatusProvider = streamStatusProvider;
-			this.outputTag = outputTag;
-		}
-
-		@Override
-		public void collect(StreamRecord<T> record) {
-			if (this.outputTag != null) {
-				// we are not responsible for emitting to the main output.
-				return;
-			}
-
-			pushToOperator(record);
-		}
-
-		@Override
-		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-				// we are not responsible for emitting to the side-output specified by this
-				// OutputTag.
-				return;
-			}
-
-			pushToOperator(record);
-		}
-
-		protected <X> void pushToOperator(StreamRecord<X> record) {
-			try {
-				// we know that the given outputTag matches our OutputTag so the record
-				// must be of the type that our operator expects.
-				@SuppressWarnings("unchecked")
-				StreamRecord<T> castRecord = (StreamRecord<T>) record;
-
-				numRecordsIn.inc();
-				operator.setKeyContextElement1(castRecord);
-				operator.processElement(castRecord);
-			}
-			catch (Exception e) {
-				throw new ExceptionInChainedOperatorException(e);
-			}
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			try {
-				watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-				if (streamStatusProvider.getStreamStatus().isActive()) {
-					operator.processWatermark(mark);
-				}
-			}
-			catch (Exception e) {
-				throw new ExceptionInChainedOperatorException(e);
-			}
-		}
-
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			try {
-				operator.processLatencyMarker(latencyMarker);
-			}
-			catch (Exception e) {
-				throw new ExceptionInChainedOperatorException(e);
-			}
-		}
-
-		@Override
-		public void close() {
-			try {
-				operator.close();
-			}
-			catch (Exception e) {
-				throw new ExceptionInChainedOperatorException(e);
-			}
-		}
-
-		@Override
-		public Gauge<Long> getWatermarkGauge() {
-			return watermarkGauge;
-		}
-	}
-
-	static final class CopyingChainingOutput<T> extends ChainingOutput<T> {
-
-		private final TypeSerializer<T> serializer;
-
-		public CopyingChainingOutput(
-				OneInputStreamOperator<T, ?> operator,
-				TypeSerializer<T> serializer,
-				OutputTag<T> outputTag,
-				StreamStatusProvider streamStatusProvider) {
-			super(operator, streamStatusProvider, outputTag);
-			this.serializer = serializer;
-		}
-
-		@Override
-		public void collect(StreamRecord<T> record) {
-			if (this.outputTag != null) {
-				// we are not responsible for emitting to the main output.
-				return;
-			}
-
-			pushToOperator(record);
-		}
-
-		@Override
-		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-				// we are not responsible for emitting to the side-output specified by this
-				// OutputTag.
-				return;
-			}
-
-			pushToOperator(record);
-		}
-
-		@Override
-		protected <X> void pushToOperator(StreamRecord<X> record) {
-			try {
-				// we know that the given outputTag matches our OutputTag so the record
-				// must be of the type that our operator (and Serializer) expects.
-				@SuppressWarnings("unchecked")
-				StreamRecord<T> castRecord = (StreamRecord<T>) record;
-
-				numRecordsIn.inc();
-				StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
-				operator.setKeyContextElement1(copy);
-				operator.processElement(copy);
-			} catch (ClassCastException e) {
-				if (outputTag != null) {
-					// Enrich error message
-					ClassCastException replace = new ClassCastException(
-						String.format(
-							"%s. Failed to push OutputTag with id '%s' to operator. " +
-								"This can occur when multiple OutputTags with different types " +
-								"but identical names are being used.",
-							e.getMessage(),
-							outputTag.getId()));
-
-					throw new ExceptionInChainedOperatorException(replace);
-				} else {
-					throw new ExceptionInChainedOperatorException(e);
-				}
-			} catch (Exception e) {
-				throw new ExceptionInChainedOperatorException(e);
-			}
-
-		}
-	}
-
-	static class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
-
-		protected final Output<StreamRecord<T>>[] outputs;
-
-		private final Random random = new XORShiftRandom();
-
-		private final StreamStatusProvider streamStatusProvider;
-
-		private final WatermarkGauge watermarkGauge = new WatermarkGauge();
-
-		public BroadcastingOutputCollector(
-				Output<StreamRecord<T>>[] outputs,
-				StreamStatusProvider streamStatusProvider) {
-			this.outputs = outputs;
-			this.streamStatusProvider = streamStatusProvider;
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-			watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-			if (streamStatusProvider.getStreamStatus().isActive()) {
-				for (Output<StreamRecord<T>> output : outputs) {
-					output.emitWatermark(mark);
-				}
-			}
-		}
-
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			if (outputs.length <= 0) {
-				// ignore
-			} else if (outputs.length == 1) {
-				outputs[0].emitLatencyMarker(latencyMarker);
-			} else {
-				// randomly select an output
-				outputs[random.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
-			}
-		}
-
-		@Override
-		public Gauge<Long> getWatermarkGauge() {
-			return watermarkGauge;
-		}
-
-		@Override
-		public void collect(StreamRecord<T> record) {
-			for (Output<StreamRecord<T>> output : outputs) {
-				output.collect(record);
-			}
-		}
-
-		@Override
-		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-			for (Output<StreamRecord<T>> output : outputs) {
-				output.collect(outputTag, record);
-			}
-		}
-
-		@Override
-		public void close() {
-			for (Output<StreamRecord<T>> output : outputs) {
-				output.close();
-			}
-		}
-	}
-
-	/**
-	 * Special version of {@link BroadcastingOutputCollector} that performs a shallow copy of the
-	 * {@link StreamRecord} to ensure that multi-chaining works correctly.
-	 */
-	static final class CopyingBroadcastingOutputCollector<T> extends BroadcastingOutputCollector<T> {
-
-		public CopyingBroadcastingOutputCollector(
-				Output<StreamRecord<T>>[] outputs,
-				StreamStatusProvider streamStatusProvider) {
-			super(outputs, streamStatusProvider);
-		}
-
-		@Override
-		public void collect(StreamRecord<T> record) {
-
-			for (int i = 0; i < outputs.length - 1; i++) {
-				Output<StreamRecord<T>> output = outputs[i];
-				StreamRecord<T> shallowCopy = record.copy(record.getValue());
-				output.collect(shallowCopy);
-			}
-
-			if (outputs.length > 0) {
-				// don't copy for the last output
-				outputs[outputs.length - 1].collect(record);
-			}
-		}
-
-		@Override
-		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-			for (int i = 0; i < outputs.length - 1; i++) {
-				Output<StreamRecord<T>> output = outputs[i];
-
-				StreamRecord<X> shallowCopy = record.copy(record.getValue());
-				output.collect(outputTag, shallowCopy);
-			}
-
-			if (outputs.length > 0) {
-				// don't copy for the last output
-				outputs[outputs.length - 1].collect(outputTag, record);
-			}
-		}
 	}
 }

@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -42,7 +42,7 @@ import java.util.Set;
  * Wrapping {@link Output} that forwards to other {@link Output Outputs } based on a list of
  * {@link OutputSelector OutputSelectors}.
  */
-public class DirectedOutput<OUT> implements OperatorChain.WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
+public class DirectedOutput<OUT> implements WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
 	protected final OutputSelector<OUT>[] outputSelectors;
 
