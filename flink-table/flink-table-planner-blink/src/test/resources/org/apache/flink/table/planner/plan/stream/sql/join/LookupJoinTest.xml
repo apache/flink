@@ -662,6 +662,66 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  T.a, T.b, T.c, D.name
+FROM
+  MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6])
++- LogicalFilter(condition=[=(CONCAT(_UTF-16LE'Hello-', $6), _UTF-16LE'Hello-Jark')])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, name])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[=(CONCAT(_UTF-16LE'Hello-', name), _UTF-16LE'Hello-Jark':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, c, id, name])
+   +- Calc(select=[a, b, c])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithUdfEqualFilter[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  T.a, T.b, T.c, D.name
+FROM
+  MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
+WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6])
++- LogicalFilter(condition=[=(CONCAT(_UTF-16LE'Hello-', $6), _UTF-16LE'Hello-Jark')])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, name])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[=(CONCAT(_UTF-16LE'Hello-', name), _UTF-16LE'Hello-Jark':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, c, id, name])
+   +- Calc(select=[a, b, c])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>

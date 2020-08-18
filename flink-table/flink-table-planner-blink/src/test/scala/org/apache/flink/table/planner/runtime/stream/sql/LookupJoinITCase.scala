@@ -159,6 +159,26 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
   }
 
   @Test
+  def testJoinTemporalTableWithUdfEqualFilter(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  T.id, T.len, T.content, D.name
+        |FROM
+        |  src AS T JOIN user_table for system_time as of T.proctime AS D
+        |ON T.id = D.id
+        |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq("2,15,Hello,Jark")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testJoinTemporalTableOnConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.id = 1"
