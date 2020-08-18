@@ -62,7 +62,7 @@ public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT> extends StreamTa
 		TypeSerializer<IN1> inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
 		TypeSerializer<IN2> inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
 
-		int numberOfInputs = configuration.getNumberOfInputs();
+		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
 		ArrayList<IndexedInputGate> inputList1 = new ArrayList<>();
 		ArrayList<IndexedInputGate> inputList2 = new ArrayList<>();

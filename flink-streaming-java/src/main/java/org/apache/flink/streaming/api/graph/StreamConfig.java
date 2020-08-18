@@ -66,7 +66,7 @@ public class StreamConfig implements Serializable {
 	public static final String SERIALIZEDUDF = "serializedUDF";
 
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
-	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
+	private static final String NUMBER_OF_NETWORK_INPUTS = "numberOfNetworkInputs";
 	private static final String CHAINED_OUTPUTS = "chainedOutputs";
 	private static final String CHAINED_TASK_CONFIG = "chainedTaskConfig_";
 	private static final String IS_CHAINED_VERTEX = "isChainedSubtask";
@@ -323,12 +323,12 @@ public class StreamConfig implements Serializable {
 		return config.getLong(ITERATON_WAIT, 0);
 	}
 
-	public void setNumberOfInputs(int numberOfInputs) {
-		config.setInteger(NUMBER_OF_INPUTS, numberOfInputs);
+	public void setNumberOfNetworkInputs(int numberOfInputs) {
+		config.setInteger(NUMBER_OF_NETWORK_INPUTS, numberOfInputs);
 	}
 
-	public int getNumberOfInputs() {
-		return config.getInteger(NUMBER_OF_INPUTS, 0);
+	public int getNumberOfNetworkInputs() {
+		return config.getInteger(NUMBER_OF_NETWORK_INPUTS, 0);
 	}
 
 	public void setNumberOfOutputs(int numberOfOutputs) {
@@ -594,7 +594,7 @@ public class StreamConfig implements Serializable {
 		builder.append("\n=======================");
 		builder.append("Stream Config");
 		builder.append("=======================");
-		builder.append("\nNumber of non-chained inputs: ").append(getNumberOfInputs());
+		builder.append("\nNumber of non-chained inputs: ").append(getNumberOfNetworkInputs());
 		builder.append("\nNumber of non-chained outputs: ").append(getNumberOfOutputs());
 		builder.append("\nOutput names: ").append(getNonChainedOutputs(cl));
 		builder.append("\nPartitioning:");
