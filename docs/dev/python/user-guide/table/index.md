@@ -23,16 +23,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Python Table API allows users to develop [Table API]({{ site.baseurl }}/dev/table/tableApi.html) programs using the Python language.
+Python Table API allows users to develop [Table API]({% link dev/table/tableApi.md %}) programs using the Python language.
 Apache Flink has provided Python Table API support since 1.9.0.
 
 ## Where to go next?
 
-- [Installation]({{ site.baseurl }}/dev/table/python/installation.html): Introduction of how to set up the Python Table API execution environment.
-- [Python Data Types]({{ site.baseurl }}/dev/table/python/python_types.html): Introduction of Python data types.
-- [User-defined Functions]({{ site.baseurl }}/dev/table/python/python_udfs.html): Explanation of how to define Python user-defined functions.
-- [Vectorized User-defined Functions]({{ site.baseurl }}/dev/table/python/vectorized_python_udfs.html): Explanation of how to define vectorized Python user-defined functions.
-- [Conversions between PyFlink Table and Pandas DataFrame]({{ site.baseurl }}/dev/table/python/conversion_of_pandas.html): Explanation of how to convert between PyFlink Table and Pandas DataFrame.
-- [Dependency Management]({{ site.baseurl }}/dev/table/python/dependency_management.html): Specification of how to use third-part dependencies in a Python Table API program.
-- [Configuration]({{ site.baseurl }}/dev/table/python/python_config.html): Description of the config options available for Python Table API programs.
-- [Common Questions]({{ site.baseurl }}/dev/table/python/common_questions.html)
+- [Installation]({% link dev/python/getting-started/installation.md %}): Introduction of how to set up the Python Table API execution environment.
+- [Python Data Types]({% link dev/python/user-guide/table/python_types.md %}): Introduction of Python data types.
+- [User-defined Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %}): Explanation of how to define Python user-defined functions.
+- [Vectorized User-defined Functions]({% link dev/python/user-guide/table/udfs/vectorized_python_udfs.md %}): Explanation of how to define vectorized Python user-defined functions.
+- [Conversions between PyFlink Table and Pandas DataFrame]({% link dev/python/user-guide/table/conversion_of_pandas.md %}): Explanation of how to convert between PyFlink Table and Pandas DataFrame.
+- [Dependency Management]({% link dev/python/user-guide/table/dependency_management.md %}): Specification of how to use third-part dependencies in a Python Table API program.
+- [Configuration]({% link dev/python/user-guide/table/python_config.md %}): Description of the config options available for Python Table API programs.
+- [Common Questions]({% link dev/python/faq.md %})

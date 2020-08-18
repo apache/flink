@@ -24,7 +24,7 @@ under the License.
 
 Depending on the requirements of a Python Table API program, it might be necessary to adjust certain parameters for optimization.
 All the config options available for Java/Scala Table API program could also be used in the Python Table API program.
-You could refer to the [Table API Configuration]({{ site.baseurl }}/zh/dev/table/config.html) for more details on all the available config options for Java/Scala Table API programs.
+You could refer to the [Table API Configuration]({% link dev/table/config.zh.md %}) for more details on all the available config options for Java/Scala Table API programs.
 It has also provided examples on how to set the config options in a Table API program.
 
 ## Python Options
