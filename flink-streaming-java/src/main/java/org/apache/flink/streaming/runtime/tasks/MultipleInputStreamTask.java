@@ -68,7 +68,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-		int numberOfInputs = configuration.getNumberOfInputs();
+		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();

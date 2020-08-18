@@ -82,7 +82,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
-		int numberOfInputs = configuration.getNumberOfInputs();
+		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
 		if (numberOfInputs > 0) {
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();

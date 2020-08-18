@@ -550,7 +550,7 @@ public class StreamingJobGraphGenerator {
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
 
-		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
+		downStreamConfig.setNumberOfNetworkInputs(downStreamConfig.getNumberOfNetworkInputs() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
 
