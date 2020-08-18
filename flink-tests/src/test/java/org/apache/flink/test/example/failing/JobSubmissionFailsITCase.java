@@ -143,7 +143,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			}
 		}
 
-		submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
+		submitJobAndWaitForResult(client, getWorkingJobGraph(), getClass().getClassLoader());
 	}
 
 	@Nonnull
