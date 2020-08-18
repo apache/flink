@@ -17,7 +17,7 @@
 ################################################################################
 
 import abc
-from typing import Union
+from typing import Union, Any
 
 from py4j.java_gateway import JavaObject
 
@@ -240,6 +240,23 @@ class FilterFunction(Function):
         pass
 
 
+class Partitioner(Function):
+    """
+    Function to implement a custom partition assignment for keys.
+    """
+
+    @abc.abstractmethod
+    def partition(self, key: Any, num_partitions: int) -> int:
+        """
+        Computes the partition for the given key.
+
+        :param key: The key.
+        :param num_partitions: The number of partitions to partition into.
+        :return: The partition index.
+        """
+        pass
+
+
 class FunctionWrapper(object):
     """
     A basic wrapper class for user defined function.
@@ -358,6 +375,31 @@ class KeySelectorFunctionWrapper(FunctionWrapper):
         :return: the return value of user defined get_key function.
         """
         return self._func(value)
+
+
+class PartitionerFunctionWrapper(FunctionWrapper):
+    """
+    A wrapper class for Partitioner. It's used for wrapping up user defined function in a
+    Partitioner when user does not implement a Partitioner but directly pass a function
+    object or a lambda function to partition_custom() function.
+    """
+    def __init__(self, func):
+        """
+        The constructor of PartitionerFunctionWrapper.
+
+        :param func: user defined function object.
+        """
+        super(PartitionerFunctionWrapper, self).__init__(func)
+
+    def partition(self, key: Any, num_partitions: int) -> int:
+        """
+        A delegated partition function to invoke user defined function.
+
+        :param key: The key.
+        :param num_partitions: The number of partitions to partition into.
+        :return: The partition index.
+        """
+        return self._func(key, num_partitions)
 
 
 def _get_python_env():

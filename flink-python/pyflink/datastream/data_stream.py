@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import os
 from typing import Callable, Union
 
 from pyflink.common import typeinfo, ExecutionConfig
@@ -24,7 +24,8 @@ from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
-    ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction
+    ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction, Partitioner, \
+    PartitionerFunctionWrapper
 from pyflink.java_gateway import get_gateway
 
 
@@ -445,6 +446,77 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.broadcast())
 
+    def partition_custom(self, partitioner: Union[Callable, Partitioner],
+                         key_selector: Union[Callable, KeySelector]) -> 'DataStream':
+        """
+        Partitions a DataStream on the key returned by the selector, using a custom partitioner.
+        This method takes the key selector to get the key to partition on, and a partitioner that
+        accepts the key type.
+
+        Note that this method works only on single field keys, i.e. the selector cannet return
+        tuples of fields.
+
+        :param partitioner: The partitioner to assign partitions to keys.
+        :param key_selector: The KeySelector with which the DataStream is partitioned.
+        :return: The partitioned DataStream.
+        """
+        if callable(key_selector):
+            key_selector = KeySelectorFunctionWrapper(key_selector)
+        if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
+            raise TypeError("Parameter key_selector should be a type of KeySelector.")
+
+        if callable(partitioner):
+            partitioner = PartitionerFunctionWrapper(partitioner)
+        if not isinstance(partitioner, (Partitioner, PartitionerFunctionWrapper)):
+            raise TypeError("Parameter partitioner should be a type of Partitioner.")
+
+        gateway = get_gateway()
+        data_stream_num_partitions_env_key = gateway.jvm\
+            .org.apache.flink.datastream.runtime.operators.python\
+            .DataStreamPythonPartitionCustomFunctionOperator.DATA_STREAM_NUM_PARTITIONS
+
+        class PartitionCustomMapFunction(MapFunction):
+            """
+            A wrapper class for partition_custom map function. It indicates that it is a partition
+            custom operation that we need to apply DataStreamPythonPartitionCustomFunctionOperator
+            to run the map function.
+            """
+
+            def __init__(self):
+                self.num_partitions = None
+
+            def map(self, value):
+                return self.partition_custom_map(value)
+
+            def partition_custom_map(self, value):
+                if self.num_partitions is None:
+                    self.num_partitions = int(os.environ[data_stream_num_partitions_env_key])
+                partition = partitioner.partition(key_selector.get_key(value), self.num_partitions)
+                return partition, value
+
+            def __repr__(self) -> str:
+                return '_Flink_PartitionCustomMapFunction'
+
+        original_type_info = self.get_type()
+        intermediate_map_stream = self.map(PartitionCustomMapFunction(),
+                                           type_info=Types.ROW([Types.INT(), original_type_info]))
+        intermediate_map_stream.name(
+            gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+            .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
+
+        JPartitionCustomKeySelector = gateway.jvm\
+            .org.apache.flink.datastream.runtime.functions.python.PartitionCustomKeySelector
+        JIdParitioner = gateway.jvm\
+            .org.apache.flink.api.java.functions.IdPartitioner
+        intermediate_map_stream = DataStream(intermediate_map_stream._j_data_stream
+                                             .partitionCustom(JIdParitioner(),
+                                                              JPartitionCustomKeySelector()))
+
+        values_map_stream = intermediate_map_stream.map(lambda x: x[1], original_type_info)
+        values_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+                               .KEYED_STREAM_VALUE_OPERATOR_NAME)
+        return DataStream(values_map_stream._j_data_stream)
+
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
                                            func_type: int):
@@ -506,8 +578,13 @@ class DataStream(object):
                 j_python_data_stream_function_info)
             return j_python_data_stream_function_operator, j_output_type_info
         else:
-            DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
-                .operators.python.DataStreamPythonStatelessFunctionOperator
+            if str(func) == '_Flink_PartitionCustomMapFunction':
+                DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+                    .operators.python.DataStreamPythonPartitionCustomFunctionOperator
+            else:
+                DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+                    .operators.python.DataStreamPythonStatelessFunctionOperator
+
             j_python_data_stream_function_operator = DataStreamPythonFunctionOperator(
                 j_conf,
                 j_input_types,
@@ -727,6 +804,10 @@ class KeyedStream(DataStream):
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def broadcast(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
+
+    def partition_custom(self, partitioner: Union[Callable, Partitioner],
+                         key_selector: Union[Callable, KeySelector]) -> 'DataStream':
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def print(self, sink_identifier=None):
