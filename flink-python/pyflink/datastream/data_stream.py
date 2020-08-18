@@ -712,6 +712,36 @@ class DataStreamSink(object):
         self._j_data_stream_sink.setParallelism(parallelism)
         return self
 
+    def disable_chaining(self) -> 'DataStreamSink':
+        """
+        Turns off chaining for this operator so thread co-location will not be used as an
+        optimization.
+        Chaining can be turned off for the whole job by
+        StreamExecutionEnvironment.disableOperatorChaining() however it is not advised for
+        performance consideration.
+
+        :return: The operator with chaining disabled.
+        """
+        self._j_data_stream_sink.disableChaining()
+        return self
+
+    def slot_sharing_group(self, slot_sharing_group: str) -> 'DataStreamSink':
+        """
+        Sets the slot sharing group of this operation. Parallel instances of operations that are in
+        the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+
+        Operations inherit the slot sharing group of input operations if all input operations are in
+        the same slot sharing group and no slot sharing group was explicitly specified.
+
+        Initially an operation is in the default slot sharing group. An operation can be put into
+        the default group explicitly by setting the slot sharing group to 'default'.
+
+        :param slot_sharing_group: The slot sharing group name.
+        :return: This operator.
+        """
+        self._j_data_stream_sink.slotSharingGroup(slot_sharing_group)
+        return self
+
 
 class KeyedStream(DataStream):
     """
