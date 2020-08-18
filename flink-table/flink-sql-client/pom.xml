@@ -146,6 +146,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
