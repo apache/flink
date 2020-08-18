@@ -180,7 +180,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		}
 
 		streamConfig.setInPhysicalEdges(inPhysicalEdges);
-		streamConfig.setNumberOfInputs(inputGates.length);
+		streamConfig.setNumberOfNetworkInputs(inputGates.length);
 		streamConfig.setTypeSerializersIn(inputSerializers.toArray(new TypeSerializer[inputSerializers.size()]));
 	}
 
