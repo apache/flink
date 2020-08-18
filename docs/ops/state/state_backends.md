@@ -287,7 +287,7 @@ There are two ways to pass an OptionsFactory to the RocksDB State Backend:
 
   - Configure options factory class name in the `flink-conf.yaml` via `state.backend.rocksdb.options-factory`.
   
-  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setOptions(new MyOptionsFactory());`
+  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());`
 
 <span class="label label-info">Note</span> Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
 and options factory has a higher priority over the predefined options if ever configured or set.

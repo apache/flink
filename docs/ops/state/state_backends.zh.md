@@ -276,7 +276,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
   - 通过 `state.backend.rocksdb.options-factory` 选项将工厂实现类的名称设置到`flink-conf.yaml` 。
   
-  - 通过程序设置，例如 `RocksDBStateBackend.setOptions(new MyOptionsFactory());` 。
+  - 通过程序设置，例如 `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());` 。
   
 <span class="label label-info">注意</span> 通过程序设置的 `RocksDBOptionsFactory` 将覆盖 `flink-conf.yaml` 配置文件的设置，且 `RocksDBOptionsFactory` 设置的优先级高于预定义选项（`PredefinedOptions`）。
 
