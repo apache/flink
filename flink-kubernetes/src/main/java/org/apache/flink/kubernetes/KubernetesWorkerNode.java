@@ -34,7 +34,7 @@ public class KubernetesWorkerNode implements ResourceIDRetrievable {
 	private final ResourceID resourceID;
 
 	/**
-	 * This pattern should be updated when {@link KubernetesResourceManager#TASK_MANAGER_POD_FORMAT} changed.
+	 * This pattern should be updated when {@link KubernetesResourceManagerDriver#TASK_MANAGER_POD_FORMAT} changed.
 	 */
 	private static final Pattern TASK_MANAGER_POD_PATTERN = Pattern.compile("\\S+-taskmanager-([\\d]+)-([\\d]+)");
 

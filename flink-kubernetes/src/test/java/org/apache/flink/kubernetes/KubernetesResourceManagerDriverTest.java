@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.PodCallbackHandler;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -58,8 +58,8 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 
 	private static final String CLUSTER_ID = "testing-flink-cluster";
 	private static final Time POD_CREATION_INTERVAL = Time.milliseconds(50L);
-	private static final KubernetesResourceManagerConfiguration KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
-			new KubernetesResourceManagerConfiguration(CLUSTER_ID, POD_CREATION_INTERVAL);
+	private static final KubernetesResourceManagerDriverConfiguration KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
+			new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID, POD_CREATION_INTERVAL);
 
 	@Test
 	public void testOnPodAdded() throws Exception {
