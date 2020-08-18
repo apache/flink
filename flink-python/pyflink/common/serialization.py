@@ -15,12 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from py4j.java_gateway import java_import
+from py4j.java_gateway import java_import, JavaObject
 from pyflink.common.typeinfo import TypeInformation, WrapperTypeInfo
 
 from pyflink.util.utils import load_java_class
 
 from pyflink.java_gateway import get_gateway
+from typing import Union
 
 
 class SerializationSchema(object):
@@ -373,7 +374,10 @@ class Encoder(object):
     of the incoming elements to the files in a bucket.
     """
 
-    def __init__(self, j_encoder):
+    def __init__(self, j_encoder: Union[str, JavaObject]):
+        if isinstance(j_encoder, str):
+            j_encoder_class = get_gateway().jvm.__getattr__(j_encoder)
+            j_encoder = j_encoder_class()
         self.j_encoder = j_encoder
 
     def get_java_encoder(self):
