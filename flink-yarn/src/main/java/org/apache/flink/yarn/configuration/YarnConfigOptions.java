@@ -82,9 +82,9 @@ public class YarnConfigOptions {
 	public static final ConfigOption<String> APPLICATION_ATTEMPTS =
 		key("yarn.application-attempts")
 		.noDefaultValue()
-		.withDescription("Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart" +
-			" and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need" +
-			" to set the JM host:port manually. It is recommended to leave this option at 1.");
+		.withDescription("Number of ApplicationMaster restarts. By default, the value will be set to 1 in the non high availability case" +
+			" and 2 in the high availability case. The restart number is also limited by YARN (configured via 'yarn.resourcemanager.am.max-attempts')." +
+			" Note that that the entire Flink cluster will restart and the YARN Client will loose the connection.");
 
 	/**
 	 * The config parameter defining the attemptFailuresValidityInterval of Yarn application.
