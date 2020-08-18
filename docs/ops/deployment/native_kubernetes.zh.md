@@ -149,13 +149,6 @@ Flink 用 [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/work
 $ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
-## 日志文件
-
-默认情况下，JobManager 和 TaskManager 会把日志同时输出到console和每个 pod 中的 `/opt/flink/log` 下。
-STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodName>` 来访问它们。
-
-如果 pod 正在运行，还可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
-
 ## Flink Kubernetes Application
 
 ### 启动 Flink Application
@@ -190,6 +183,29 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
 
 {% highlight bash %}
 $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
+{% endhighlight %}
+
+
+## 日志文件
+
+默认情况下，JobManager 和 TaskManager 会把日志同时输出到console和每个 pod 中的 `/opt/flink/log` 下。
+STDOUT 和 STDERR 只会输出到console。你可以使用 `kubectl logs <PodName>` 来访问它们。
+
+如果 pod 正在运行，还可以使用 `kubectl exec -it <PodName> bash` 进入 pod 并查看日志或调试进程。
+
+## 启用插件
+
+为了使用[插件]({{ site.baseurl }}/zh/ops/plugins.html)，必须要将相应的Jar包拷贝到JobManager和TaskManager Pod里的对应目录。
+使用内置的插件就不需要再挂载额外的存储卷或者构建自定义镜像。
+例如，可以使用如下命令通过设置环境变量来给你的Flink应用启用S3插件。
+
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
 
 ## Kubernetes 概念
