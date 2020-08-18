@@ -25,8 +25,7 @@ import unittest
 from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import DataTypes, BatchTableEnvironment, CsvTableSource, CsvTableSink
-from pyflink.table.utils import exec_insert_table
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 
 
 class ExecutionEnvironmentTests(PyFlinkTestCase):

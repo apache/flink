@@ -24,9 +24,8 @@ from pyflink.ml.api.param import WithParams, ParamInfo, TypeConverters
 from pyflink.ml.lib.param.colname import HasSelectedCols, \
     HasPredictionCol, HasOutputCol
 from pyflink.table.types import DataTypes
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import MLTestCase
+from pyflink.testing.test_case_utils import MLTestCase, exec_insert_table
 
 
 class HasVectorCol(WithParams):

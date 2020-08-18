@@ -33,8 +33,7 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
-from pyflink.table.utils import exec_insert_table
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 
 
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):

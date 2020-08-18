@@ -21,9 +21,9 @@ import shutil
 import sys
 import tempfile
 
+from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment, TableConfig
-from pyflink.table.utils import exec_insert_table
 
 
 def word_count():
@@ -70,6 +70,10 @@ def word_count():
                       .group_by("word")
                       .select("word, count(1) as count"),
                       "Results")
+
+
+def exec_insert_table(table, table_path) -> JobExecutionResult:
+    return table.execute_insert(table_path).get_job_client().get_job_execution_result().result()
 
 
 if __name__ == '__main__':

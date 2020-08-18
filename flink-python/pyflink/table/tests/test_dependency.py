@@ -24,12 +24,11 @@ import uuid
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes
 from pyflink.table.udf import udf
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
                                              PyFlinkBlinkBatchTableTestCase,
                                              PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+                                             PyFlinkBatchTableTestCase, exec_insert_table)
 
 
 class DependencyTests(object):

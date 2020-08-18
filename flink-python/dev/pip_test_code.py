@@ -17,11 +17,12 @@
 ################################################################################
 # test pyflink shell environment
 from pyflink.shell import b_env, bt_env, FileSystem, OldCsv, DataTypes, Schema
-from pyflink.table.utils import exec_insert_table
 
 import tempfile
 import os
 import shutil
+
+from pyflink.testing.test_case_utils import exec_insert_table
 
 sink_path = tempfile.gettempdir() + '/batch.csv'
 if os.path.exists(sink_path):

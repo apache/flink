@@ -24,9 +24,8 @@ from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafk
                                        CustomFormatDescriptor, HBase)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+                                             PyFlinkBatchTableTestCase, exec_insert_table)
 
 
 class FileSystemDescriptorTests(PyFlinkTestCase):

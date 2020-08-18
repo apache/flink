@@ -22,11 +22,10 @@ import pytz
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBatchTableTestCase
+    PyFlinkBatchTableTestCase, exec_insert_table
 
 
 class UserDefinedFunctionTests(object):

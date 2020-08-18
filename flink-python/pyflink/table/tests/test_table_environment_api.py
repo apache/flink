@@ -35,10 +35,9 @@ from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase
+    PyFlinkBlinkBatchTableTestCase, exec_insert_table
 from pyflink.util.utils import get_j_env_configuration
 
 

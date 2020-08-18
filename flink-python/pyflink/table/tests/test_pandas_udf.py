@@ -24,10 +24,10 @@ import pytz
 from pyflink.table import DataTypes, Row
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase,\
+    exec_insert_table
 
 
 class PandasUDFTests(unittest.TestCase):

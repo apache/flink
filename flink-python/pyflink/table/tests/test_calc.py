@@ -23,9 +23,8 @@ from decimal import Decimal
 from pyflink.table import DataTypes, Row, BatchTableEnvironment, EnvironmentSettings
 from pyflink.table.tests.test_types import ExamplePoint, PythonOnlyPoint, ExamplePointUDT, \
     PythonOnlyUDT
-from pyflink.table.utils import exec_insert_table
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, exec_insert_table
 
 
 class StreamTableCalcTests(PyFlinkStreamTableTestCase):
