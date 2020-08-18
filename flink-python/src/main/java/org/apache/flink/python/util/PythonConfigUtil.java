@@ -18,6 +18,7 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonPartitionCustomFunctionOperator;
 import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonStatelessFunctionOperator;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -41,6 +42,7 @@ public class PythonConfigUtil {
 
 	public static final String KEYED_STREAM_VALUE_OPERATOR_NAME = "_keyed_stream_values_operator";
 	public static final String STREAM_KEY_BY_MAP_OPERATOR_NAME = "_stream_key_by_map_operator";
+	public static final String STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME = "_partition_custom_map_operator";
 
 	/**
 	 * A static method to get the {@link StreamExecutionEnvironment} configuration merged with python dependency
@@ -94,7 +96,8 @@ public class PythonConfigUtil {
 			downStreamEdge.setPartitioner(new ForwardPartitioner());
 		}
 
-		if (streamNode.getOperatorName().equals(STREAM_KEY_BY_MAP_OPERATOR_NAME)) {
+		if (streamNode.getOperatorName().equals(STREAM_KEY_BY_MAP_OPERATOR_NAME) ||
+		streamNode.getOperatorName().equals(STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)) {
 			StreamEdge upStreamEdge = streamNode.getInEdges().get(0);
 			StreamNode upStreamNode = streamGraph.getStreamNode(upStreamEdge.getSourceId());
 			chainStreamNode(upStreamEdge, streamNode, upStreamNode);
@@ -139,7 +142,28 @@ public class PythonConfigUtil {
 				}
 			}
 		}
+
+		setStreamPartitionCustomOperatorNumPartitions(streamNodes, streamGraph);
+
 		return streamGraph;
+	}
+
+	private static void setStreamPartitionCustomOperatorNumPartitions(
+		Collection<StreamNode> streamNodes, StreamGraph streamGraph){
+		for (StreamNode streamNode : streamNodes) {
+			StreamOperatorFactory streamOperatorFactory = streamNode.getOperatorFactory();
+			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
+				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
+				if (streamOperator instanceof DataStreamPythonPartitionCustomFunctionOperator) {
+					DataStreamPythonPartitionCustomFunctionOperator paritionCustomFunctionOperator =
+						(DataStreamPythonPartitionCustomFunctionOperator) streamOperator;
+
+					// Update the numPartitions of PartitionCustomOperator after aligned all operators.
+					paritionCustomFunctionOperator.setNumPartitions(
+						streamGraph.getStreamNode(streamNode.getOutEdges().get(0).getTargetId()).getParallelism());
+				}
+			}
+		}
 	}
 
 	/**

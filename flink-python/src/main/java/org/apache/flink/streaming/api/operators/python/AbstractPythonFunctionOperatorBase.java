@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -336,7 +337,7 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 			return new ProcessPythonEnvironmentManager(
 				dependencyInfo,
 				getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
-				System.getenv());
+				new HashMap<>(System.getenv()));
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Execution type '%s' is not supported.", pythonEnv.getExecType()));
