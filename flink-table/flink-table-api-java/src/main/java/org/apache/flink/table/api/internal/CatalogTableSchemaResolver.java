@@ -73,6 +73,7 @@ public class CatalogTableSchemaResolver {
 
 		String[] fieldNames = tableSchema.getFieldNames();
 		DataType[] fieldTypes = tableSchema.getFieldDataTypes();
+		String[] fieldComments = tableSchema.getFieldComments();
 
 		TableSchema.Builder builder = TableSchema.builder();
 		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
@@ -98,9 +99,9 @@ public class CatalogTableSchemaResolver {
 			}
 
 			if (tableColumn.isGenerated()) {
-				builder.field(fieldNames[i], fieldType, tableColumn.getExpr().get());
+				builder.fieldWithComment(fieldNames[i], fieldType, tableColumn.getExpr().get(), fieldComments[i]);
 			} else {
-				builder.field(fieldNames[i], fieldType);
+				builder.fieldWithComment(fieldNames[i], fieldType, fieldComments[i]);
 			}
 		}
 

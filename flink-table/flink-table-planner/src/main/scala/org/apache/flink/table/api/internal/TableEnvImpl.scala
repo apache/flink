@@ -822,7 +822,7 @@ abstract class TableEnvImpl(
       val columns = schema.getPrimaryKey.get.getColumns.asScala
       columns.foreach(c => fieldToPrimaryKey.put(c, s"PRI(${columns.mkString(", ")})"))
     }
-    val data = Array.ofDim[Object](schema.getFieldCount, 6)
+    val data = Array.ofDim[Object](schema.getFieldCount, 7)
     schema.getTableColumns.asScala.zipWithIndex.foreach {
       case (c, i) => {
         val logicalType = c.getType.getLogicalType
@@ -832,12 +832,13 @@ abstract class TableEnvImpl(
         data(i)(3) = fieldToPrimaryKey.getOrDefault(c.getName, null)
         data(i)(4) = c.getExpr.orElse(null)
         data(i)(5) = fieldToWatermark.getOrDefault(c.getName, null)
+        data(i)(6) = c.getComment.orElse(null)
       }
     }
     buildResult(
-      Array("name", "type", "null", "key", "computed column", "watermark"),
+      Array("name", "type", "null", "key", "computed column", "watermark", "comment"),
       Array(DataTypes.STRING, DataTypes.STRING, DataTypes.BOOLEAN, DataTypes.STRING,
-        DataTypes.STRING, DataTypes.STRING),
+        DataTypes.STRING, DataTypes.STRING, DataTypes.STRING),
       data)
   }
 
