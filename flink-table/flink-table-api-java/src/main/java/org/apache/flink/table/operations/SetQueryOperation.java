@@ -38,16 +38,19 @@ public class SetQueryOperation implements QueryOperation {
 
 	private final SetQueryOperationType type;
 	private final boolean all;
+	private final TableSchema tableSchema;
 
 	public SetQueryOperation(
 			QueryOperation leftOperation,
 			QueryOperation rightOperation,
 			SetQueryOperationType type,
-			boolean all) {
+			boolean all,
+			TableSchema tableSchema) {
 		this.leftOperation = leftOperation;
 		this.rightOperation = rightOperation;
 		this.type = type;
 		this.all = all;
+		this.tableSchema = tableSchema;
 	}
 
 	/**
@@ -66,7 +69,7 @@ public class SetQueryOperation implements QueryOperation {
 
 	@Override
 	public TableSchema getTableSchema() {
-		return leftOperation.getTableSchema();
+		return tableSchema;
 	}
 
 	@Override
