@@ -34,6 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
 import org.apache.flink.kubernetes.executors.KubernetesSessionClusterExecutor;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
@@ -89,6 +90,7 @@ public class KubernetesSessionCli {
 
 	private int run(String[] args) throws FlinkException, CliArgsException {
 		final Configuration configuration = getEffectiveConfiguration(args);
+		KubernetesClusterClientFactory.ensureClusterIdIsSet(configuration);
 
 		final ClusterClientFactory<String> kubernetesClusterClientFactory =
 			clusterClientServiceLoader.getClusterClientFactory(configuration);

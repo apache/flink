@@ -51,10 +51,7 @@ public class KubernetesClusterClientFactory extends AbstractContainerizedCluster
 	@Override
 	public KubernetesClusterDescriptor createClusterDescriptor(Configuration configuration) {
 		checkNotNull(configuration);
-		if (!configuration.contains(KubernetesConfigOptions.CLUSTER_ID)) {
-			final String clusterId = generateClusterId();
-			configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
-		}
+		ensureClusterIdIsSet(configuration);
 		return new KubernetesClusterDescriptor(configuration, KubeClientFactory.fromConfiguration(configuration));
 	}
 
@@ -65,7 +62,14 @@ public class KubernetesClusterClientFactory extends AbstractContainerizedCluster
 		return configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
 	}
 
-	private String generateClusterId() {
+	public static void ensureClusterIdIsSet(Configuration configuration) {
+		if (!configuration.contains(KubernetesConfigOptions.CLUSTER_ID)) {
+			final String clusterId = generateClusterId();
+			configuration.setString(KubernetesConfigOptions.CLUSTER_ID, clusterId);
+		}
+	}
+
+	private static String generateClusterId() {
 		final String randomID = new AbstractID().toString();
 		return (CLUSTER_ID_PREFIX + randomID).substring(0, Constants.MAXIMUM_CHARACTERS_OF_CLUSTER_ID);
 	}
