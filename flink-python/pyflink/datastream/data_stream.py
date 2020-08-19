@@ -33,6 +33,7 @@ class DataStream(object):
     """
     A DataStream represents a stream of elements of the same type. A DataStream can be transformed
     into another DataStream by applying a transformation as for example:
+
     ::
         >>> DataStream.map(MapFunctionImpl())
         >>> DataStream.filter(FilterFunctionImpl())
