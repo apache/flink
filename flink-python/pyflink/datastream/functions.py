@@ -39,6 +39,7 @@ class MapFunction(Function):
     that produce multiple result elements from a single input element can be implemented using the
     FlatMapFunction.
     The basic syntax for using a MapFunction is as follows:
+
     ::
         >>> ds = ...
         >>> new_ds = ds.map(MyMapFunction())
@@ -64,6 +65,7 @@ class CoMapFunction(Function):
     the connected streams. That way, the stream transformations can share state.
 
     The basic syntax for using a CoMapFunction is as follows:
+
     ::
         >>> ds1 = ...
         >>> ds2 = ...
@@ -93,11 +95,12 @@ class CoMapFunction(Function):
 
 class FlatMapFunction(Function):
     """
-    Base class for flatMap functions. FLatMap functions take elements and transform them, into zero,
-    one, or more elements. Typical applications can be splitting elements, or unesting lists and
+    Base class for flatMap functions. FlatMap functions take elements and transform them, into zero,
+    one, or more elements. Typical applications can be splitting elements, or unnesting lists and
     arrays. Operations that produce multiple strictly one result element per input element can also
     use the MapFunction.
     The basic syntax for using a MapFUnction is as follows:
+
     ::
         >>> ds = ...
         >>> new_ds = ds.flat_map(MyFlatMapFunction())
@@ -109,6 +112,7 @@ class FlatMapFunction(Function):
         The core mthod of the FlatMapFunction. Takes an element from the input data and transforms
         it into zero, one, or more elements.
         A basic implementation of flat map is as follows:
+
         ::
                 >>> class MyFlatMapFunction(FlatMapFunction):
                 >>>     def flat_map(self, value):
@@ -116,7 +120,7 @@ class FlatMapFunction(Function):
                 >>>             yield i
 
         :param value: The input value.
-        :return: A genertaor
+        :return: A generator
         """
         pass
 
@@ -136,6 +140,7 @@ class CoFlatMapFunction(Function):
     state to the element. The result of applying the rules would be emitted.
 
     The basic syntax for using a CoFlatMapFunction is as follows:
+
     ::
         >>> ds1 = ...
         >>> ds2 = ...
@@ -157,7 +162,7 @@ class CoFlatMapFunction(Function):
         This method is called for each element in the first of the connected streams.
 
         :param value: The input value.
-        :return: A genertaor
+        :return: A generator
         """
         pass
 
@@ -167,7 +172,7 @@ class CoFlatMapFunction(Function):
         This method is called for each element in the second of the connected streams.
 
         :param value: The input value.
-        :return: A genertaor
+        :return: A generator
         """
         pass
 
@@ -180,6 +185,7 @@ class ReduceFunction(Function):
     individually.
 
     The basic syntax for using a ReduceFunction is as follows:
+
     ::
         >>> ds = ...
         >>> new_ds = ds.key_by(lambda x: x[1]).reduce(MyReduceFunction())
@@ -221,10 +227,13 @@ class FilterFunction(Function):
     """
     A filter function is a predicate applied individually to each record. The predicate decides
     whether to keep the element, or to discard it.
+
     The basic syntax for using a FilterFunction is as follows:
-    :
+
+    ::
          >>> ds = ...
          >>> result = ds.filter(MyFilterFunction())
+
     Note that the system assumes that the function does not modify the elements on which the
     predicate is applied. Violating this assumption can lead to incorrect results.
     """
@@ -261,6 +270,7 @@ class FunctionWrapper(object):
     """
     A basic wrapper class for user defined function.
     """
+
     def __init__(self, func):
         self._func = func
 
@@ -296,6 +306,7 @@ class FlatMapFunctionWrapper(FunctionWrapper):
     FlatMapFunction when user does not implement a FlatMapFunction but directly pass a function
     object or a lambda function to flat_map() function.
     """
+
     def __init__(self, func):
         """
         The constructor of MapFunctionWrapper.
@@ -320,6 +331,7 @@ class FilterFunctionWrapper(FunctionWrapper):
         FilterFunction when user does not implement a FilterFunction but directly pass a function
         object or a lambda function to filter() function.
         """
+
     def __init__(self, func):
         super(FilterFunctionWrapper, self).__init__(func)
 
@@ -333,6 +345,7 @@ class ReduceFunctionWrapper(FunctionWrapper):
     ReduceFunction when user does not implement a ReduceFunction but directly pass a function
     object or a lambda function to reduce() function.
     """
+
     def __init__(self, func):
         """
         The constructor of ReduceFunctionWrapper.
@@ -383,6 +396,7 @@ class PartitionerFunctionWrapper(FunctionWrapper):
     Partitioner when user does not implement a Partitioner but directly pass a function
     object or a lambda function to partition_custom() function.
     """
+
     def __init__(self, func):
         """
         The constructor of PartitionerFunctionWrapper.
