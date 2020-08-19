@@ -33,6 +33,7 @@ class DataStream(object):
     """
     A DataStream represents a stream of elements of the same type. A DataStream can be transformed
     into another DataStream by applying a transformation as for example:
+
     ::
         >>> DataStream.map(MapFunctionImpl())
         >>> DataStream.filter(FilterFunctionImpl())
@@ -211,7 +212,7 @@ class DataStream(object):
         self._j_data_stream.slotSharingGroup(slot_sharing_group)
         return self
 
-    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
+    def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
             -> 'DataStream':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
@@ -223,7 +224,7 @@ class DataStream(object):
         as pickle primitive byte array.
 
         :param func: The MapFunction that is called for each element of the DataStream.
-        :param type_info: The type information of the MapFunction output data.
+        :param output_type: The type information of the MapFunction output data.
         :return: The transformed DataStream.
         """
         if not isinstance(func, MapFunction):
@@ -235,7 +236,7 @@ class DataStream(object):
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, j_output_type_info = \
             self._get_java_python_function_operator(func,
-                                                    type_info,
+                                                    output_type,
                                                     func_name,
                                                     flink_fn_execution_pb2
                                                     .UserDefinedDataStreamFunction.MAP)
@@ -245,8 +246,8 @@ class DataStream(object):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None) \
-            -> 'DataStream':
+    def flat_map(self, func: Union[Callable, FlatMapFunction],
+                 result_type: TypeInformation = None) -> 'DataStream':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
         for each element of the DataStream. Each FlatMapFunction call can return any number of
@@ -254,7 +255,7 @@ class DataStream(object):
         other features provided by the RichFUnction.
 
         :param func: The FlatMapFunction that is called for each element of the DataStream.
-        :param type_info: The type information of output data.
+        :param result_type: The type information of output data.
         :return: The transformed DataStream.
         """
         if not isinstance(func, FlatMapFunction):
@@ -266,7 +267,7 @@ class DataStream(object):
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, j_output_type_info = \
             self._get_java_python_function_operator(func,
-                                                    type_info,
+                                                    result_type,
                                                     func_name,
                                                     flink_fn_execution_pb2
                                                     .UserDefinedDataStreamFunction.FLAT_MAP)
@@ -301,7 +302,7 @@ class DataStream(object):
             is_key_pickled_byte_array = True
 
         intermediate_map_stream = self.map(lambda x: (key_selector.get_key(x), x),
-                                           type_info=Types.ROW([key_type_info, output_type_info]))
+                                           output_type=Types.ROW([key_type_info, output_type_info]))
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
                                      .STREAM_KEY_BY_MAP_OPERATOR_NAME)
         generated_key_stream = KeyedStream(intermediate_map_stream._j_data_stream
@@ -336,7 +337,7 @@ class DataStream(object):
 
         j_input_type = self._j_data_stream.getTransformation().getOutputType()
         type_info = typeinfo._from_java_type(j_input_type)
-        j_data_stream = self.flat_map(FilterFlatMap(func), type_info=type_info)._j_data_stream
+        j_data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)._j_data_stream
         filtered_stream = DataStream(j_data_stream)
         filtered_stream.name("Filter")
         return filtered_stream
@@ -499,7 +500,7 @@ class DataStream(object):
 
         original_type_info = self.get_type()
         intermediate_map_stream = self.map(PartitionCustomMapFunction(),
-                                           type_info=Types.ROW([Types.INT(), original_type_info]))
+                                           output_type=Types.ROW([Types.INT(), original_type_info]))
         intermediate_map_stream.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
             .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
@@ -633,8 +634,9 @@ class DataStream(object):
                     value = str(value)
                 return value
 
-            transformed_data_stream = DataStream(self.map(python_obj_to_str_map_func,
-                                                          type_info=Types.STRING())._j_data_stream)
+            transformed_data_stream = DataStream(
+                self.map(python_obj_to_str_map_func,
+                         output_type=Types.STRING())._j_data_stream)
             return transformed_data_stream
         else:
             return self
@@ -763,13 +765,13 @@ class KeyedStream(DataStream):
         self._original_data_type_info = None
         self._origin_stream = origin_stream
 
-    def map(self, func: Union[Callable, MapFunction], type_info: TypeInformation = None) \
+    def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
             -> 'DataStream':
-        return self._values().map(func, type_info)
+        return self._values().map(func, output_type)
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None)\
+    def flat_map(self, func: Union[Callable, FlatMapFunction], result_type: TypeInformation = None)\
             -> 'DataStream':
-        return self._values().flat_map(func, type_info)
+        return self._values().flat_map(func, result_type)
 
     def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
         """
@@ -848,7 +850,7 @@ class KeyedStream(DataStream):
         Since python KeyedStream is in the format of Row(key_value, original_data), it is used for
         getting the original_data.
         """
-        transformed_stream = super().map(lambda x: x[1], type_info=self._original_data_type_info)
+        transformed_stream = super().map(lambda x: x[1], output_type=self._original_data_type_info)
         transformed_stream.name(get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
                                 .KEYED_STREAM_VALUE_OPERATOR_NAME)
         return DataStream(transformed_stream._j_data_stream)
@@ -940,7 +942,7 @@ class ConnectedStreams(object):
         call returns exactly one element.
 
         :param func: The CoMapFunction used to jointly transform the two input DataStreams
-        :param type_info: `TypeInformation` for the result type of the function.
+        :param output_type: `TypeInformation` for the result type of the function.
         :return: The transformed `DataStream`
         """
         if not isinstance(func, CoMapFunction):

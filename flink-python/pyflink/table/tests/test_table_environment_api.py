@@ -37,7 +37,7 @@ from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase
+    PyFlinkBlinkBatchTableTestCase, exec_insert_table
 from pyflink.util.utils import get_j_env_configuration
 
 
@@ -117,7 +117,7 @@ class TableEnvironmentTest(object):
 
 class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
 
-    def test_register_table_source_scan(self):
+    def test_register_table_source_from_path(self):
         t_env = self.t_env
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -125,7 +125,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         csv_source = self.prepare_csv_source(source_path, [], field_types, field_names)
         t_env.register_table_source("Source", csv_source)
 
-        result = t_env.scan("Source")
+        result = t_env.from_path("Source")
         self.assertEqual(
             'CatalogTable: (identifier: [`default_catalog`.`default_database`.`Source`]'
             ', fields: [a, b, c])',
@@ -139,8 +139,8 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             "Sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).insert_into("Sinks")
-        self.t_env.execute("test")
+        exec_insert_table(t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]), "Sinks")
+
         actual = source_sink_utils.results()
 
         expected = ['1,Hi,Hello']
@@ -245,8 +245,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             "Sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        t_env.insert_into("Sinks", t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]))
-        self.t_env.execute("test")
+        exec_insert_table(t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]), "Sinks")
 
         actual = source_sink_utils.results()
         expected = ['1,Hi,Hello']
@@ -380,13 +379,11 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         t_env.register_table_sink(
             "sink",
             CsvTableSink(field_names, field_types, sink_path))
-        source = t_env.scan("source")
+        source = t_env.from_path("source")
 
         result = source.alias("a, b, c").select("1 + a, b, c")
 
-        result.insert_into("sink")
-
-        t_env.execute("blink_test")
+        exec_insert_table(result, "sink")
 
         results = []
         with open(sink_path, 'r') as f:
@@ -487,8 +484,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
     def execute_with_t_env(self, t_env):
         source = t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
-        source.select("func1(a, b), func2(a, b)").insert_into("sink")
-        t_env.execute("test")
+        exec_insert_table(source.select("func1(a, b), func2(a, b)"), "sink")
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
         self.assert_equals(actual, expected)
@@ -525,10 +521,7 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
     def execute_with_table_execute_insert(self, t_env):
         source = t_env.from_elements([(1, "Hi"), (2, "Hello")], ["a", "b"])
         result = source.select("func1(a, b), func2(a, b)")
-        result.execute_insert("sink") \
-            .get_job_client() \
-            .get_job_execution_result() \
-            .result()
+        exec_insert_table(result, "sink")
         actual = source_sink_utils.results()
         expected = ['1 and Hi,1 or Hi', '2 and Hello,2 or Hello']
         self.assert_equals(actual, expected)
@@ -686,13 +679,11 @@ class BatchTableEnvironmentTests(TableEnvironmentTest, PyFlinkBatchTableTestCase
         t_env.register_table_sink(
             "sink",
             CsvTableSink(field_names, field_types, sink_path))
-        source = t_env.scan("source")
+        source = t_env.from_path("source")
 
         result = source.alias("a, b, c").select("1 + a, b, c")
 
-        result.insert_into("sink")
-
-        t_env.execute("blink_test")
+        exec_insert_table(result, "sink")
 
         results = []
         for root, dirs, files in os.walk(sink_path):

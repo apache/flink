@@ -16,16 +16,16 @@
 # limitations under the License.
 ################################################################################
 import datetime
+import unittest
 
 import pytz
-import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBatchTableTestCase
+    PyFlinkBatchTableTestCase, exec_insert_table
 
 
 class UserDefinedFunctionTests(object):
@@ -34,18 +34,18 @@ class UserDefinedFunctionTests(object):
         # test metric disabled.
         self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'false')
         # test lambda function
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
         # test Python ScalarFunction
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         # test Python function
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         # test callable function
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one_callable", udf(CallablePlus(), result_type=DataTypes.BIGINT()))
 
         def partial_func(col, param):
@@ -53,7 +53,7 @@ class UserDefinedFunctionTests(object):
 
         # test partial function
         import functools
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one_partial",
             udf(functools.partial(partial_func, param=1), result_type=DataTypes.BIGINT()))
 
@@ -64,20 +64,20 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.where("add_one(b) <= 3") \
-            .select("add_one(a), subtract_one(b), add(a, c), add_one_callable(a), "
-                    "add_one_partial(a), a") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(
+            t.where("add_one(b) <= 3").select(
+                "add_one(a), subtract_one(b), add(a, c), add_one_callable(a), "
+                "add_one_partial(a), a"),
+            "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,1,4,2,2,1", "4,0,12,4,4,3"])
 
     def test_chaining_scalar_function(self):
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c'],
@@ -85,9 +85,7 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])
-        t.select("add(add_one(a), subtract_one(b)), c, 1") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("add(add_one(a), subtract_one(b)), c, 1"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1,1", "7,2,1", "4,3,1"])
 
@@ -95,15 +93,15 @@ class UserDefinedFunctionTests(object):
         t1 = self.t_env.from_elements([(2, "Hi")], ['a', 'b'])
         t2 = self.t_env.from_elements([(2, "Flink")], ['c', 'd'])
 
-        self.t_env.register_function("f", udf(lambda i: i, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("f", udf(lambda i: i,
+                                                             result_type=DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd'],
             [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        t1.join(t2).where("f(a) = c").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t1.join(t2).where("f(a) = c"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,Hi,2,Flink"])
 
@@ -111,15 +109,15 @@ class UserDefinedFunctionTests(object):
         t1 = self.t_env.from_elements([(1, "Hi"), (2, "Hi")], ['a', 'b'])
         t2 = self.t_env.from_elements([(2, "Flink")], ['c', 'd'])
 
-        self.t_env.register_function("f", udf(lambda i: i, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("f", udf(lambda i: i,
+                                                             result_type=DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd'],
             [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        t1.join(t2).where("f(a) = f(c)").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t1.join(t2).where("f(a) = f(c)"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,Hi,2,Flink"])
 
@@ -175,11 +173,11 @@ class UserDefinedFunctionTests(object):
 
             return p
 
-        self.t_env.register_function("udf_with_constant_params",
-                                     udf(udf_with_constant_params,
-                                         result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("udf_with_constant_params",
+                                                    udf(udf_with_constant_params,
+                                                        result_type=DataTypes.BIGINT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "udf_with_all_constant_params", udf(lambda i, j: i + j,
                                                 result_type=DataTypes.BIGINT()))
 
@@ -212,7 +210,7 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual, ["3,8", "3,9", "3,10"])
 
     def test_overwrite_builtin_function(self):
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "plus", udf(lambda i, j: i + j - 1,
                         result_type=DataTypes.BIGINT()))
 
@@ -220,29 +218,27 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.select("plus(a, b)").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("plus(a, b)"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2", "6", "3"])
 
     def test_open(self):
         self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract", udf(Subtract(), result_type=DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 4)], ['a', 'b'])
-        t.select("a, subtract(b)").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("a, subtract(b)"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,1", "2,4", "3,3"])
 
     def test_udf_without_arguments(self):
-        self.t_env.register_function("one", udf(
+        self.t_env.create_temporary_system_function("one", udf(
             lambda: 1, result_type=DataTypes.BIGINT(), deterministic=True))
-        self.t_env.register_function("two", udf(
+        self.t_env.create_temporary_system_function("two", udf(
             lambda: 2, result_type=DataTypes.BIGINT(), deterministic=False))
 
         table_sink = source_sink_utils.TestAppendSink(['a', 'b'],
@@ -250,8 +246,7 @@ class UserDefinedFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("one(), two()").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("one(), two()"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "1,2", "1,2"])
 
@@ -347,49 +342,49 @@ class UserDefinedFunctionTests(object):
                 'decimal_param is wrong value %s !' % decimal_param
             return decimal_param
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "boolean_func", udf(boolean_func, result_type=DataTypes.BOOLEAN()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "tinyint_func", udf(tinyint_func, result_type=DataTypes.TINYINT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "smallint_func", udf(smallint_func, result_type=DataTypes.SMALLINT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "int_func", udf(int_func, result_type=DataTypes.INT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "bigint_func", udf(bigint_func, result_type=DataTypes.BIGINT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "bigint_func_none", udf(bigint_func_none, result_type=DataTypes.BIGINT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "float_func", udf(float_func, result_type=DataTypes.FLOAT()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "double_func", udf(double_func, result_type=DataTypes.DOUBLE()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "bytes_func", udf(bytes_func, result_type=DataTypes.BYTES()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "str_func", udf(str_func, result_type=DataTypes.STRING()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "date_func", udf(date_func, result_type=DataTypes.DATE()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "time_func", udf(time_func, result_type=DataTypes.TIME()))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "timestamp_func", udf(timestamp_func, result_type=DataTypes.TIMESTAMP(3)))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_func", udf(array_func, result_type=DataTypes.ARRAY(DataTypes.BIGINT())))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "map_func", udf(map_func,
                             result_type=DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING())))
 
@@ -438,17 +433,15 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("p", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18))]))
 
-        t.select("bigint_func(a), bigint_func_none(b),"
-                 "tinyint_func(c), boolean_func(d),"
-                 "smallint_func(e),int_func(f),"
-                 "float_func(g),double_func(h),"
-                 "bytes_func(i),str_func(j),"
-                 "date_func(k),time_func(l),"
-                 "timestamp_func(m),array_func(n),"
-                 "map_func(o),decimal_func(p),"
-                 "decimal_cut_func(q)") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("bigint_func(a), bigint_func_none(b),"
+                                   "tinyint_func(c), boolean_func(d),"
+                                   "smallint_func(e),int_func(f),"
+                                   "float_func(g),double_func(h),"
+                                   "bytes_func(i),str_func(j),"
+                                   "date_func(k),time_func(l),"
+                                   "timestamp_func(m),array_func(n),"
+                                   "map_func(o),decimal_func(p),"
+                                   "decimal_cut_func(q)"), "Results")
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
         self.assert_equals(actual,
@@ -486,11 +479,11 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 class PyFlinkBatchUserDefinedFunctionTests(PyFlinkBatchTableTestCase):
 
     def test_chaining_scalar_function(self):
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         t = self.t_env.from_elements([(1, 2, 1), (2, 5, 2), (3, 1, 3)], ['a', 'b', 'c'])\
             .select("add(add_one(a), subtract_one(b)), c, 1")
@@ -562,7 +555,7 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                 TypeError,
                 msg="Invalid function: not a function or callable (__call__ is not defined)"):
             # test non-callable function
-            self.t_env.register_function(
+            self.t_env.create_temporary_system_function(
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
     def test_data_types_only_supported_in_blink_planner(self):
@@ -575,7 +568,7 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                 'local_zoned_timestamp_param is wrong value %s !' % local_zoned_timestamp_param
             return local_zoned_timestamp_param
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "local_zoned_timestamp_func",
             udf(local_zoned_timestamp_func,
                 result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)))
@@ -588,9 +581,8 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             [(local_datetime,)],
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
-        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))"),
+                          "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1970-01-01T00:00:00.123Z"])
 
