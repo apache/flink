@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.JoinType
@@ -51,6 +52,21 @@ class SetOperatorsITCase extends BatchTestBase {
 
     val results = executeQuery(unionDs)
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUnionAllWithCommonType(): Unit = {
+    val table1 = tEnv.fromValues(row(12, ""))
+    val table2 = tEnv.fromValues(row(new JBigDecimal("1234.123"), "ABC"))
+
+    val unionTable = table1.unionAll(table2)
+
+    assert(unionTable.getSchema.getFieldDataTypes()(0) == DataTypes.DECIMAL(13, 3).notNull())
+    assert(unionTable.getSchema.getFieldDataTypes()(1) == DataTypes.VARCHAR(3).notNull())
+
+    val results = executeQuery(unionTable)
+    val expected = "12.000,\n" + "1234.123,ABC\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
