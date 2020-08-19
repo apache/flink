@@ -145,6 +145,22 @@ public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobMa
 				defaultOffHeap.toHumanReadableString()))));
 	}
 
+	@Test
+	public void testDeriveFromRequiredFineGrainedOptions() {
+		MemorySize jvmHeap = MemorySize.ofMebiBytes(150);
+		MemorySize offHeap = MemorySize.ofMebiBytes(50);
+		MemorySize totalFlinkMemory = MemorySize.ofMebiBytes(200);
+		MemorySize expectedOffHeap = MemorySize.ofMebiBytes(50);
+
+		Configuration conf = new Configuration();
+		conf.set(JobManagerOptions.TOTAL_FLINK_MEMORY, totalFlinkMemory);
+		conf.set(JobManagerOptions.OFF_HEAP_MEMORY, offHeap);
+		conf.set(JobManagerOptions.JVM_HEAP_MEMORY, jvmHeap);
+
+		JobManagerProcessSpec jobManagerProcessSpec = JobManagerProcessUtils.processSpecFromConfig(conf);
+		assertThat(jobManagerProcessSpec.getJvmDirectMemorySize(), is(expectedOffHeap));
+	}
+
 	@Override
 	protected JobManagerProcessSpec processSpecFromConfig(Configuration config) {
 		return JobManagerProcessUtils.processSpecFromConfig(config);
