@@ -193,7 +193,7 @@ class DataStreamTests(PyFlinkTestCase):
     def test_flat_map_function(self):
         ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.flat_map(MyFlatMapFunction(), type_info=Types.ROW([Types.STRING(), Types.INT()]))\
+        ds.flat_map(MyFlatMapFunction(), result_type=Types.ROW([Types.STRING(), Types.INT()]))\
             .add_sink(self.test_sink)
 
         self.env.execute('flat_map_test')
@@ -212,7 +212,7 @@ class DataStreamTests(PyFlinkTestCase):
             if value[1] % 2 == 0:
                 yield value
 
-        ds.flat_map(flat_map, type_info=Types.ROW([Types.STRING(), Types.INT()]))\
+        ds.flat_map(flat_map, result_type=Types.ROW([Types.STRING(), Types.INT()]))\
             .add_sink(self.test_sink)
         self.env.execute('flat_map_test')
         results = self.test_sink.get_results(False)
