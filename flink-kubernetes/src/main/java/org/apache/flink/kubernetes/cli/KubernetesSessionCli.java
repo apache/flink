@@ -28,8 +28,6 @@ import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -99,35 +97,26 @@ public class KubernetesSessionCli {
 			kubernetesClusterClientFactory.createClusterDescriptor(configuration);
 
 		try {
-			final ClusterClientProvider<String> clusterClientProvider;
-			String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
+			final String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
 			final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
 
 			boolean connectToExistingCluster = false;
 			try (final FlinkKubeClient kubeClient = KubeClientFactory.fromConfiguration(configuration)) {
-				connectToExistingCluster = clusterId != null && kubeClient.getRestService(clusterId).isPresent();
+				connectToExistingCluster = kubeClient.getRestService(clusterId).isPresent();
 			} catch (Exception e) {
 				LOG.info("Could not properly shutdown cluster client.", e);
 			}
 
 			// Retrieve or create a session cluster.
 			if (connectToExistingCluster) {
-				clusterClientProvider = kubernetesClusterDescriptor.retrieve(clusterId);
+				kubernetesClusterDescriptor.retrieve(clusterId);
 			} else {
-				clusterClientProvider = kubernetesClusterDescriptor
+				kubernetesClusterDescriptor
 						.deploySessionCluster(
 								kubernetesClusterClientFactory.getClusterSpecification(configuration));
 			}
 
 			if (!detached) {
-				if (!connectToExistingCluster) {
-					try (ClusterClient<String> clusterClient = clusterClientProvider.getClusterClient()) {
-						clusterId = clusterClient.getClusterId();
-					} catch (Exception e) {
-						LOG.info("Could not properly shutdown cluster client.", e);
-					}
-				}
-
 				Tuple2<Boolean, Boolean> continueRepl = new Tuple2<>(true, false);
 				try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 					while (continueRepl.f0) {
