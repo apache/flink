@@ -670,12 +670,24 @@ public final class LogicalTypeMerging {
 	private static LogicalType createStringType(LogicalTypeRoot typeRoot, int length) {
 		switch (typeRoot) {
 			case CHAR:
+				if (length == 0) {
+					return CharType.ofEmptyLiteral();
+				}
 				return new CharType(length);
 			case VARCHAR:
+				if (length == 0) {
+					return VarCharType.ofEmptyLiteral();
+				}
 				return new VarCharType(length);
 			case BINARY:
+				if (length == 0) {
+					return BinaryType.ofEmptyLiteral();
+				}
 				return new BinaryType(length);
 			case VARBINARY:
+				if (length == 0) {
+					return VarBinaryType.ofEmptyLiteral();
+				}
 				return new VarBinaryType(length);
 			default:
 				throw new IllegalArgumentException();
