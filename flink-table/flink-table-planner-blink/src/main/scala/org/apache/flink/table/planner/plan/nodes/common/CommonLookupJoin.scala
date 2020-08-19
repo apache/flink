@@ -601,6 +601,7 @@ abstract class CommonLookupJoin(
       val (inputRef, literal) = (left, right) match {
         case (literal: RexLiteral, ref: RexInputRef) => (ref, literal)
         case (ref: RexInputRef, literal: RexLiteral) => (ref, literal)
+        case _ => return // non-constant condition
       }
       val dataType = FlinkTypeFactory.toLogicalType(inputRef.getType)
       constantFieldMap.put(inputRef.getIndex, ConstantLookupKey(dataType, literal))
