@@ -765,7 +765,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionNotExistException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
 		checkNotNull(tablePath, "Table path cannot be null");
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 
@@ -777,15 +777,11 @@ public class HiveCatalog extends AbstractCatalog {
 			// partition spec can be partial
 			List<String> partialVals = HiveReflectionUtils.getPvals(hiveShim, hiveTable.getPartitionKeys(),
 				partitionSpec.getPartitionSpec());
-			if (partialVals.size() == 1 && StringUtils.isNullOrWhitespaceOnly(partialVals.get(0))) {
-				// listing partitions with an invalid spec
-				throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
-			} else {
-				return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), partialVals,
-					(short) -1).stream().map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
-			}
-		} catch (PartitionNotExistException e) {
-			throw new PartitionNotExistException(getName(), tablePath, partitionSpec, e);
+			checkValidPartitionSpec(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath);
+			return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), partialVals,
+				(short) -1).stream().map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
+		} catch (PartitionSpecInvalidException e) {
+			throw new PartitionSpecInvalidException(getName(), getFieldNames(hiveTable.getPartitionKeys()), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list partitions of table %s", tablePath), e);
@@ -1001,6 +997,23 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 
 		return values;
+	}
+
+	/**
+	 * Check whether a list of partition values are valid based on the given list of partition keys.
+	 *
+	 * @param partitionSpec a partition spec.
+	 * @param partitionKeys a list of partition keys.
+	 * @param tablePath path of the table to which the partition belongs.
+	 * @throws PartitionSpecInvalidException thrown if any key in partitionSpec doesn't exist in partitionKeys.
+	 */
+	private void checkValidPartitionSpec(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
+		throws PartitionSpecInvalidException {
+		for (String key : partitionSpec.getPartitionSpec().keySet()) {
+			if (!partitionKeys.contains(key)) {
+				throw new PartitionSpecInvalidException(getName(), partitionKeys, tablePath, partitionSpec);
+			}
+		}
 	}
 
 	private Partition getHivePartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)

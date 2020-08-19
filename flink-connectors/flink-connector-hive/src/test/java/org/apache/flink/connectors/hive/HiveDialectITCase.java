@@ -468,35 +468,13 @@ public class HiveDialectITCase {
 
 	@Test
 	public void testShowPartitions() throws Exception {
-		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (country string)");
-		tableEnv.executeSql("alter table tbl add partition (country='china') partition (country='us')");
+		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt date, country string)");
+		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
 
 		ObjectPath tablePath = new ObjectPath("default", "tbl");
 		assertEquals(2, hiveCatalog.listPartitions(tablePath).size());
 
 		List<Row> partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
-		assertEquals(2, partitions.size());
-		assertTrue(partitions.toString().contains("country=china"));
-		assertTrue(partitions.toString().contains("country=us"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (country='china')").collect());
-		assertEquals(1, partitions.size());
-		assertTrue(partitions.toString().contains("country=china"));
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (country='japan')").collect());
-		assertEquals(0, partitions.size());
-		try {
-			Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (city='china')").collect());
-		} catch (TableException e) {
-			assertEquals(String.format("Could not execute SHOW PARTITIONS %s.%s PARTITION (city=china)", hiveCatalog.getName(), tablePath), e.getMessage());
-		}
-
-		tableEnv.executeSql("alter table tbl drop partition (country='china'),partition (country='us')");
-		assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
-
-		tableEnv.executeSql("drop table tbl");
-		tableEnv.executeSql("create table tbl (x int,y binary) partitioned by (dt date, country string)");
-		tableEnv.executeSql("alter table tbl add partition (dt='2020-04-30',country='china') partition (dt='2020-04-30',country='us')");
-
-		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl").collect());
 		assertEquals(2, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=us"));
@@ -510,6 +488,13 @@ public class HiveDialectITCase {
 		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30',country='china')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-05-01',country='japan')").collect());
+		assertEquals(0, partitions.size());
+		try {
+			Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (de='2020-04-30',city='china')").collect());
+		} catch (TableException e) {
+			assertEquals(String.format("Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)", hiveCatalog.getName(), tablePath), e.getMessage());
+		}
 
 		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-04-30',country='us')");
 		assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
