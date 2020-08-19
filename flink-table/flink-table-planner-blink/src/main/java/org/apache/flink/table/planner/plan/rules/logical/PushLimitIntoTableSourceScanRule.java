@@ -86,8 +86,8 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 	}
 
 	private TableSourceTable applyLimit(
-		long limit,
-		FlinkPreparingTableBase relOptTable) {
+			long limit,
+			FlinkPreparingTableBase relOptTable) {
 		TableSourceTable oldTableSourceTable = relOptTable.unwrap(TableSourceTable.class);
 		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
 		((SupportsLimitPushDown) newTableSource).applyLimit(limit);
