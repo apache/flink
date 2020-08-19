@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program.rest;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.DefaultCLI;
@@ -30,10 +31,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -59,6 +62,7 @@ import org.apache.flink.runtime.rest.messages.JobAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
 import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -66,6 +70,8 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
+import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
@@ -112,6 +118,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -119,6 +126,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -455,6 +463,123 @@ public class RestClusterClientTest extends TestLogger {
 			} finally {
 				restClusterClient.close();
 			}
+		}
+	}
+
+	private class TestJobExecutionResultHandler extends TestHandler<EmptyRequestBody, JobExecutionResultResponseBody, JobMessageParameters> {
+
+		private final Iterator<Object> jobExecutionResults;
+
+		private Object lastJobExecutionResult;
+
+		private TestJobExecutionResultHandler(
+			final Object... jobExecutionResults) {
+			super(JobExecutionResultHeaders.getInstance());
+			checkArgument(Arrays.stream(jobExecutionResults)
+				.allMatch(object -> object instanceof JobExecutionResultResponseBody
+					|| object instanceof RestHandlerException));
+			this.jobExecutionResults = Arrays.asList(jobExecutionResults).iterator();
+		}
+
+		@Override
+		protected CompletableFuture<JobExecutionResultResponseBody> handleRequest(
+			@Nonnull HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+			@Nonnull DispatcherGateway gateway) {
+			if (jobExecutionResults.hasNext()) {
+				lastJobExecutionResult = jobExecutionResults.next();
+			}
+			checkState(lastJobExecutionResult != null);
+			if (lastJobExecutionResult instanceof JobExecutionResultResponseBody) {
+				return CompletableFuture.completedFuture((JobExecutionResultResponseBody) lastJobExecutionResult);
+			} else if (lastJobExecutionResult instanceof RestHandlerException) {
+				return FutureUtils.completedExceptionally((RestHandlerException) lastJobExecutionResult);
+			} else {
+				throw new AssertionError();
+			}
+		}
+	}
+
+	@Test
+	public void testSubmitJobAndWaitForExecutionResult() throws Exception {
+		final TestJobExecutionResultHandler testJobExecutionResultHandler =
+			new TestJobExecutionResultHandler(
+				new RestHandlerException("should trigger retry", HttpResponseStatus.SERVICE_UNAVAILABLE),
+				JobExecutionResultResponseBody.inProgress(),
+				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
+					.jobId(jobId)
+					.netRuntime(Long.MAX_VALUE)
+					.accumulatorResults(Collections.singletonMap("testName", new SerializedValue<>(OptionalFailure.of(1.0))))
+					.build()),
+				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.FAILED)
+					.jobId(jobId)
+					.netRuntime(Long.MAX_VALUE)
+					.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
+					.build()));
+
+		// fail first HTTP polling attempt, which should not be a problem because of the retries
+		final AtomicBoolean firstPollFailed = new AtomicBoolean();
+		failHttpRequest = (messageHeaders, messageParameters, requestBody) ->
+			messageHeaders instanceof JobExecutionResultHeaders && !firstPollFailed.getAndSet(true);
+
+		try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(
+			testJobExecutionResultHandler,
+			new TestJobSubmitHandler())) {
+
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+				final JobExecutionResult jobExecutionResult = restClusterClient.submitJob(jobGraph)
+					.thenCompose(restClusterClient::requestJobResult)
+					.get()
+					.toJobExecutionResult(ClassLoader.getSystemClassLoader());
+				assertThat(jobExecutionResult.getJobID(), equalTo(jobId));
+				assertThat(jobExecutionResult.getNetRuntime(), equalTo(Long.MAX_VALUE));
+				assertThat(
+					jobExecutionResult.getAllAccumulatorResults(),
+					equalTo(Collections.singletonMap("testName", 1.0)));
+
+				try {
+					restClusterClient.submitJob(jobGraph)
+						.thenCompose(restClusterClient::requestJobResult)
+						.get()
+						.toJobExecutionResult(ClassLoader.getSystemClassLoader());
+					fail("Expected exception not thrown.");
+				} catch (final Exception e) {
+					final Optional<RuntimeException> cause = ExceptionUtils.findThrowable(e, RuntimeException.class);
+					assertThat(cause.isPresent(), is(true));
+					assertThat(cause.get().getMessage(), equalTo("expected"));
+				}
+			}
+		}
+	}
+
+	@Test
+	public void testJobSubmissionFailureThrowsProgramInvocationException() throws Exception {
+		try (final TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(new SubmissionFailingHandler())) {
+			try (RestClusterClient<?> restClusterClient = createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+				restClusterClient.submitJob(jobGraph)
+					.thenCompose(restClusterClient::requestJobResult)
+					.get()
+					.toJobExecutionResult(ClassLoader.getSystemClassLoader());
+			} catch (final Exception e) {
+				assertTrue(ExceptionUtils.findThrowableWithMessage(e, "RestHandlerException: expected").isPresent());
+				return;
+			}
+			fail("Should failed with exception");
+		}
+	}
+
+	private final class SubmissionFailingHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
+
+		private SubmissionFailingHandler() {
+			super(JobSubmitHeaders.getInstance());
+		}
+
+		@Override
+		protected CompletableFuture<JobSubmitResponseBody> handleRequest(
+			@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request,
+			@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			throw new RestHandlerException("expected", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
