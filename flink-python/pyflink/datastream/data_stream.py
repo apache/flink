@@ -246,8 +246,8 @@ class DataStream(object):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None) \
-            -> 'DataStream':
+    def flat_map(self, func: Union[Callable, FlatMapFunction],
+                 result_type: TypeInformation = None) -> 'DataStream':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
         for each element of the DataStream. Each FlatMapFunction call can return any number of
@@ -255,7 +255,7 @@ class DataStream(object):
         other features provided by the RichFUnction.
 
         :param func: The FlatMapFunction that is called for each element of the DataStream.
-        :param type_info: The type information of output data.
+        :param result_type: The type information of output data.
         :return: The transformed DataStream.
         """
         if not isinstance(func, FlatMapFunction):
@@ -267,7 +267,7 @@ class DataStream(object):
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_scalar_function_operator, j_output_type_info = \
             self._get_java_python_function_operator(func,
-                                                    type_info,
+                                                    result_type,
                                                     func_name,
                                                     flink_fn_execution_pb2
                                                     .UserDefinedDataStreamFunction.FLAT_MAP)
@@ -337,7 +337,7 @@ class DataStream(object):
 
         j_input_type = self._j_data_stream.getTransformation().getOutputType()
         type_info = typeinfo._from_java_type(j_input_type)
-        j_data_stream = self.flat_map(FilterFlatMap(func), type_info=type_info)._j_data_stream
+        j_data_stream = self.flat_map(FilterFlatMap(func), result_type=type_info)._j_data_stream
         filtered_stream = DataStream(j_data_stream)
         filtered_stream.name("Filter")
         return filtered_stream
@@ -769,9 +769,9 @@ class KeyedStream(DataStream):
             -> 'DataStream':
         return self._values().map(func, output_type)
 
-    def flat_map(self, func: Union[Callable, FlatMapFunction], type_info: TypeInformation = None)\
+    def flat_map(self, func: Union[Callable, FlatMapFunction], result_type: TypeInformation = None)\
             -> 'DataStream':
-        return self._values().flat_map(func, type_info)
+        return self._values().flat_map(func, result_type)
 
     def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
         """
