@@ -156,6 +156,12 @@ public class LogicalCommonTypeTest {
 					new CharType(2)
 				},
 
+				// CHAR types of length 0
+				{
+					Arrays.asList(CharType.ofEmptyLiteral(), CharType.ofEmptyLiteral()),
+					CharType.ofEmptyLiteral()
+				},
+
 				// CHAR types of different length
 				{
 					Arrays.asList(new CharType(2), new CharType(4)),
