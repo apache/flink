@@ -22,15 +22,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+In Apache Flink's Python DataStream API, a data type describes the type of a value in the DataStream ecosystem. 
+It can be used to declare input and output types of operations and informs the system how to serailize elements. 
+
 * This will be replaced by the TOC
 {:toc}
 
 
-## Why need Data Types
-
-In Python DataStream, a data type describes the type of a value in the DataStream ecosystem. 
-It can be used to declare input and/or output types of operations. 
-Similar to Python, you don't require to specify types for the parameters of a Function in Python DataStream. 
+## Pickle Serialization
 If the type has not been declared, data would be serialized or deserialized using Pickle. 
 For example, the program below specifies no data types.
 
@@ -59,9 +58,8 @@ However, types need to be specified when:
 
 ### Passing Python records to Java operations
 
-Since Java operators or functions can not identify Python data, types need to be provided to help to convert Python data to Java data for processing.
-For example, types need to be provided if you want to output data from the map into the StreamingFileSink. 
-The StreamingFileSink is actually implemented by Java for the runtime part. 
+Since Java operators or functions can not identify Python data, types need to be provided to help to convert Python types to Java types for processing.
+For example, types need to be provided if you want to output data using the StreamingFileSink which is implemented in Java.
 
 {% highlight python %}
 from pyflink.common.serialization import SimpleStringEncoder
@@ -90,8 +88,8 @@ if __name__ == '__main__':
 
 ### Improve serialization and deserialization performance
 
-Even though data can be serialized and deserialized through Pickle, the performance should be better if types are provided. 
-This is because PyFlink can use more efficient serializers and deserializers to serialize and deserialize data.
+Even though data can be serialized and deserialized through Pickle, performance will be better if types are provided.
+Explicit types allow PyFlink to use efficient serializers when moving records through the pipeline.
 
 ## Supported Data Types
 

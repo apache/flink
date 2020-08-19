@@ -3,7 +3,6 @@ title: "DataStream API"
 nav-id: python_datastream_api
 nav-parent_id: python_user_guide
 nav-pos: 30
-nav-show_overview: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,10 +22,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-Python DataStream API allows users to develop [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) programs using the Python language.
-Apache Flink has provided Python DataStream API support since 1.12.0.
-
-## Where to go next?
-
-- [Data Types]({{ site.baseurl }}/dev/python/user-guide/datastream/data_types.html): Lists the supported data types in Python DataStream API.
