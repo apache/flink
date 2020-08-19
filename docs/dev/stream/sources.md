@@ -215,7 +215,7 @@ val stream = env.fromSource(
 ## The Split Reader API
 
 The core SourceReader API is fully asynchronous and requires implementations to manage asynchronous split reading manually.
-However, in practice, most sources use perform blocking operations, like blocking *poll()* calls on clients (for example the `KafkaConsumer`), or blocking I/O operations on distributed file systems (HDFS, S3, ...). To make this compatible with the asynchronous Source API, these blocking (synchronous) operations need to happen in separate threads, which hand over the data to the asynchronous part of the reader.
+However, in practice, most sources perform blocking operations, like blocking *poll()* calls on clients (for example the `KafkaConsumer`), or blocking I/O operations on distributed file systems (HDFS, S3, ...). To make this compatible with the asynchronous Source API, these blocking (synchronous) operations need to happen in separate threads, which hand over the data to the asynchronous part of the reader.
 
 The [SplitReader](https://github.com/apache/flink/blob/master/flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java) is the high-level API for simple synchronous reading/polling-based source implementations, like file reading, Kafka, etc.
 
@@ -252,7 +252,7 @@ As an example, as illustrated below, a `SplitFetcherManager` may have a fixed nu
 <div style="text-align: center">
   <img width="70%" src="{{ site.baseurl }}/fig/source_reader.svg" alt="One fetcher per split threading model." />
 </div>
-The following code snippet implements the this threading model.
+The following code snippet implements this threading model.
 <div data-lang="java" markdown="1">
 {% highlight java %}
 /**
