@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading data from and writing data to Kafka topics with exactly-once guaruntees.
+Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading data from and writing data to Kafka topics with exactly-once guarantees.
 
 * This will be replaced by the TOC
 {:toc}

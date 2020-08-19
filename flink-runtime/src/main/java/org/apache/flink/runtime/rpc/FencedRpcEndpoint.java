@@ -126,7 +126,7 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
 	 * Run the given callable in the main thread of the RpcEndpoint without checking the fencing
 	 * token. This allows to run operations outside of the fencing token scope.
 	 *
-	 * @param callable to run in the main thread of the rpc endpoint without checkint the fencing token.
+	 * @param callable to run in the main thread of the rpc endpoint without checking the fencing token.
 	 * @param timeout for the operation.
 	 * @return Future containing the callable result.
 	 */

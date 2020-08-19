@@ -17,7 +17,7 @@
 ################################################################################
 
 import abc
-from typing import Union
+from typing import Union, Any
 
 from py4j.java_gateway import JavaObject
 
@@ -39,6 +39,7 @@ class MapFunction(Function):
     that produce multiple result elements from a single input element can be implemented using the
     FlatMapFunction.
     The basic syntax for using a MapFunction is as follows:
+
     ::
         >>> ds = ...
         >>> new_ds = ds.map(MyMapFunction())
@@ -56,13 +57,50 @@ class MapFunction(Function):
         pass
 
 
+class CoMapFunction(Function):
+    """
+    A CoMapFunction implements a map() transformation over two connected streams.
+
+    The same instance of the transformation function is used to transform both of
+    the connected streams. That way, the stream transformations can share state.
+
+    The basic syntax for using a CoMapFunction is as follows:
+
+    ::
+        >>> ds1 = ...
+        >>> ds2 = ...
+        >>> new_ds = ds1.connect(ds2).map(MyCoMapFunction())
+    """
+
+    @abc.abstractmethod
+    def map1(self, value):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        :param value: The stream element
+        :return: The resulting element
+        """
+        pass
+
+    @abc.abstractmethod
+    def map2(self, value):
+        """
+        This method is called for each element in the second of the connected streams.
+
+        :param value: The stream element
+        :return: The resulting element
+        """
+        pass
+
+
 class FlatMapFunction(Function):
     """
-    Base class for flatMap functions. FLatMap functions take elements and transform them, into zero,
-    one, or more elements. Typical applications can be splitting elements, or unesting lists and
+    Base class for flatMap functions. FlatMap functions take elements and transform them, into zero,
+    one, or more elements. Typical applications can be splitting elements, or unnesting lists and
     arrays. Operations that produce multiple strictly one result element per input element can also
     use the MapFunction.
     The basic syntax for using a MapFUnction is as follows:
+
     ::
         >>> ds = ...
         >>> new_ds = ds.flat_map(MyFlatMapFunction())
@@ -74,6 +112,7 @@ class FlatMapFunction(Function):
         The core mthod of the FlatMapFunction. Takes an element from the input data and transforms
         it into zero, one, or more elements.
         A basic implementation of flat map is as follows:
+
         ::
                 >>> class MyFlatMapFunction(FlatMapFunction):
                 >>>     def flat_map(self, value):
@@ -81,7 +120,59 @@ class FlatMapFunction(Function):
                 >>>             yield i
 
         :param value: The input value.
-        :return: A genertaor
+        :return: A generator
+        """
+        pass
+
+
+class CoFlatMapFunction(Function):
+    """
+    A CoFlatMapFunction implements a flat-map transformation over two connected streams.
+
+    The same instance of the transformation function is used to transform both of the
+    connected streams. That way, the stream transformations can share state.
+
+    An example for the use of connected streams would be to apply rules that change over time
+    onto elements of a stream. One of the connected streams has the rules, the other stream the
+    elements to apply the rules to. The operation on the connected stream maintains the
+    current set of rules in the state. It may receive either a rule update (from the first stream)
+    and update the state, or a data element (from the second stream) and apply the rules in the
+    state to the element. The result of applying the rules would be emitted.
+
+    The basic syntax for using a CoFlatMapFunction is as follows:
+
+    ::
+        >>> ds1 = ...
+        >>> ds2 = ...
+
+        >>> class MyCoFlatMapFunction(CoFlatMapFunction):
+        >>>     def flat_map1(self, value):
+        >>>         for i in range(value):
+        >>>             yield i
+        >>>     def flat_map2(self, value):
+        >>>         for i in range(value):
+        >>>             yield i
+
+        >>> new_ds = ds1.connect(ds2).flat_map(MyCoFlatMapFunction())
+    """
+
+    @abc.abstractmethod
+    def flat_map1(self, value):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        :param value: The input value.
+        :return: A generator
+        """
+        pass
+
+    @abc.abstractmethod
+    def flat_map2(self, value):
+        """
+        This method is called for each element in the second of the connected streams.
+
+        :param value: The input value.
+        :return: A generator
         """
         pass
 
@@ -94,6 +185,7 @@ class ReduceFunction(Function):
     individually.
 
     The basic syntax for using a ReduceFunction is as follows:
+
     ::
         >>> ds = ...
         >>> new_ds = ds.key_by(lambda x: x[1]).reduce(MyReduceFunction())
@@ -135,10 +227,13 @@ class FilterFunction(Function):
     """
     A filter function is a predicate applied individually to each record. The predicate decides
     whether to keep the element, or to discard it.
+
     The basic syntax for using a FilterFunction is as follows:
-    :
+
+    ::
          >>> ds = ...
          >>> result = ds.filter(MyFilterFunction())
+
     Note that the system assumes that the function does not modify the elements on which the
     predicate is applied. Violating this assumption can lead to incorrect results.
     """
@@ -154,10 +249,28 @@ class FilterFunction(Function):
         pass
 
 
+class Partitioner(Function):
+    """
+    Function to implement a custom partition assignment for keys.
+    """
+
+    @abc.abstractmethod
+    def partition(self, key: Any, num_partitions: int) -> int:
+        """
+        Computes the partition for the given key.
+
+        :param key: The key.
+        :param num_partitions: The number of partitions to partition into.
+        :return: The partition index.
+        """
+        pass
+
+
 class FunctionWrapper(object):
     """
     A basic wrapper class for user defined function.
     """
+
     def __init__(self, func):
         self._func = func
 
@@ -193,6 +306,7 @@ class FlatMapFunctionWrapper(FunctionWrapper):
     FlatMapFunction when user does not implement a FlatMapFunction but directly pass a function
     object or a lambda function to flat_map() function.
     """
+
     def __init__(self, func):
         """
         The constructor of MapFunctionWrapper.
@@ -217,6 +331,7 @@ class FilterFunctionWrapper(FunctionWrapper):
         FilterFunction when user does not implement a FilterFunction but directly pass a function
         object or a lambda function to filter() function.
         """
+
     def __init__(self, func):
         super(FilterFunctionWrapper, self).__init__(func)
 
@@ -230,6 +345,7 @@ class ReduceFunctionWrapper(FunctionWrapper):
     ReduceFunction when user does not implement a ReduceFunction but directly pass a function
     object or a lambda function to reduce() function.
     """
+
     def __init__(self, func):
         """
         The constructor of ReduceFunctionWrapper.
@@ -272,6 +388,32 @@ class KeySelectorFunctionWrapper(FunctionWrapper):
         :return: the return value of user defined get_key function.
         """
         return self._func(value)
+
+
+class PartitionerFunctionWrapper(FunctionWrapper):
+    """
+    A wrapper class for Partitioner. It's used for wrapping up user defined function in a
+    Partitioner when user does not implement a Partitioner but directly pass a function
+    object or a lambda function to partition_custom() function.
+    """
+
+    def __init__(self, func):
+        """
+        The constructor of PartitionerFunctionWrapper.
+
+        :param func: user defined function object.
+        """
+        super(PartitionerFunctionWrapper, self).__init__(func)
+
+    def partition(self, key: Any, num_partitions: int) -> int:
+        """
+        A delegated partition function to invoke user defined function.
+
+        :param key: The key.
+        :param num_partitions: The number of partitions to partition into.
+        :return: The partition index.
+        """
+        return self._func(key, num_partitions)
 
 
 def _get_python_env():

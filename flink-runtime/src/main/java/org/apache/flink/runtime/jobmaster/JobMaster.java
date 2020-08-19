@@ -465,7 +465,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<Acknowledge> disconnectTaskManager(final ResourceID resourceID, final Exception cause) {
-		log.debug("Disconnect TaskExecutor {} because: {}", resourceID, cause.getMessage());
+		log.debug("Disconnect TaskExecutor {} because: {}", resourceID.getStringWithMetadata(), cause.getMessage());
 
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 		slotPool.releaseTaskManager(resourceID, cause);
@@ -604,7 +604,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void releaseEmptyTaskManager(ResourceID resourceId) {
-		disconnectTaskManager(resourceId, new FlinkException(String.format("No more slots registered at JobMaster %s.", resourceId)));
+		disconnectTaskManager(resourceId, new FlinkException(String.format("No more slots registered at JobMaster %s.", resourceId.getStringWithMetadata())));
 	}
 
 	@Override
@@ -1085,9 +1085,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		final ResourceID resourceManagerResourceID = establishedResourceManagerConnection.getResourceManagerResourceID();
 
 		if (log.isDebugEnabled()) {
-			log.debug("Close ResourceManager connection {}.", resourceManagerResourceID, cause);
+			log.debug("Close ResourceManager connection {}.", resourceManagerResourceID.getStringWithMetadata(), cause);
 		} else {
-			log.info("Close ResourceManager connection {}: {}.", resourceManagerResourceID, cause.getMessage());
+			log.info("Close ResourceManager connection {}: {}.", resourceManagerResourceID.getStringWithMetadata(), cause.getMessage());
 		}
 
 		resourceManagerHeartbeatManager.unmonitorTarget(resourceManagerResourceID);
@@ -1228,7 +1228,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			validateRunsInMainThread();
 			disconnectTaskManager(
 				resourceID,
-				new TimeoutException("Heartbeat of TaskManager with id " + resourceID + " timed out."));
+				new TimeoutException("Heartbeat of TaskManager with id " + resourceID.getStringWithMetadata() + " timed out."));
 		}
 
 		@Override
@@ -1255,12 +1255,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceId) {
 			validateRunsInMainThread();
-			log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId);
+			log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId.getStringWithMetadata());
 
 			if (establishedResourceManagerConnection != null && establishedResourceManagerConnection.getResourceManagerResourceID().equals(resourceId)) {
 				reconnectToResourceManager(
 					new JobMasterException(
-						String.format("The heartbeat of ResourceManager with id %s timed out.", resourceId)));
+						String.format("The heartbeat of ResourceManager with id %s timed out.", resourceId.getStringWithMetadata())));
 			}
 		}
 

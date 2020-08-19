@@ -20,23 +20,30 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
+import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule
 import org.apache.calcite.tools.RuleSets
+
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Test for [[PushPartitionIntoLegacyTableSourceScanRule]].
   */
 @RunWith(classOf[Parameterized])
 class PushPartitionIntoLegacyTableSourceScanRuleTest(
-    sourceFetchPartitions: Boolean) extends TableTestBase {
-  private val util = batchTestUtil()
+    val sourceFetchPartitions: Boolean,
+    val useCatalogFilter: Boolean) extends TableTestBase {
+  protected val util: BatchTableTestUtil = batchTestUtil()
 
+  @throws(classOf[Exception])
   @Before
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
@@ -163,12 +170,15 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
     util.addFunction("MyUdf", Func1)
     util.verifyPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
-
 }
 
 object PushPartitionIntoLegacyTableSourceScanRuleTest {
-  @Parameterized.Parameters(name = "{0}")
-  def parameters(): java.util.Collection[Boolean] = {
-    java.util.Arrays.asList(true, false)
+  @Parameterized.Parameters(name = "sourceFetchPartitions={0}, useCatalogFilter={1}")
+  def parameters(): util.Collection[Array[Any]] = {
+    Seq[Array[Any]](
+      Array(true, false),
+      Array(false, false),
+      Array(false, true)
+    )
   }
 }

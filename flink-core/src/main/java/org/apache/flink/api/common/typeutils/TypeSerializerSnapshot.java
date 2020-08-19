@@ -39,7 +39,7 @@ import static org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot
  *
  *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are available,
  *   they need to be checked whether or not they are compatible to read the data written by the previous serializer.
- *   This is performed by providing the new serializer to the correspondibng serializer configuration
+ *   This is performed by providing the new serializer to the corresponding serializer configuration
  *   snapshots in checkpoints.</li>
  *
  *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the case that new

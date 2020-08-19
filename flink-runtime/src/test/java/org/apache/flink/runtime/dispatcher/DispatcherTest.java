@@ -436,7 +436,7 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link Dispatcher} fails fatally if the recoverd jobs cannot be started.
+	 * Tests that the {@link Dispatcher} fails fatally if the recovered jobs cannot be started.
 	 * See FLINK-9097.
 	 */
 	@Test

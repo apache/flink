@@ -30,7 +30,7 @@ import org.apache.flink.datastream.runtime.runners.python.beam.BeamDataStreamPyt
 import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
@@ -43,7 +43,8 @@ import java.util.Map;
  * {@link DataStreamPythonStatelessFunctionOperator} is responsible for launching beam runner which will start a python
  * harness to execute user defined python function.
  */
-public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends AbstractPythonFunctionOperator<IN, OUT> {
+public class DataStreamPythonStatelessFunctionOperator<IN, OUT>
+	extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
