@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 
 
 class ShellExampleTests(PyFlinkTestCase):
@@ -50,9 +50,7 @@ class ShellExampleTests(PyFlinkTestCase):
                          .field("c", DataTypes.STRING()))\
             .create_temporary_table("batch_sink")
 
-        t.select("a + 1, b, c").insert_into("batch_sink")
-
-        bt_env.execute("batch_job")
+        exec_insert_table(t.select("a + 1, b, c"), "batch_sink")
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:
@@ -86,9 +84,7 @@ class ShellExampleTests(PyFlinkTestCase):
                          .field("c", DataTypes.STRING()))\
             .create_temporary_table("stream_sink")
 
-        t.select("a + 1, b, c").insert_into("stream_sink")
-
-        st_env.execute("stream_job")
+        exec_insert_table(t.select("a + 1, b, c"), "stream_sink")
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:

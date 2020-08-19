@@ -28,6 +28,7 @@ from abc import abstractmethod
 from py4j.java_gateway import JavaObject
 from py4j.protocol import Py4JJavaError
 
+from pyflink.common import JobExecutionResult
 from pyflink.table import TableConfig
 from pyflink.table.sources import CsvTableSource
 from pyflink.dataset.execution_environment import ExecutionEnvironment
@@ -61,6 +62,10 @@ def get_private_field(java_obj, field_name):
                 return field.get(java_obj)
             except Py4JJavaError:
                 pass
+
+
+def exec_insert_table(table, table_path) -> JobExecutionResult:
+    return table.execute_insert(table_path).get_job_client().get_job_execution_result().result()
 
 
 def _load_specific_flink_module_jars(jars_relative_path):

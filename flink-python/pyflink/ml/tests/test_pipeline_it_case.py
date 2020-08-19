@@ -16,17 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.table.types import DataTypes
-from pyflink.testing.test_case_utils import MLTestCase
-
+from pyflink import keyword
+from pyflink.java_gateway import get_gateway
 from pyflink.ml.api import JavaTransformer, Transformer, Estimator, Model, \
     MLEnvironmentFactory, Pipeline
 from pyflink.ml.api.param import WithParams, ParamInfo, TypeConverters
-from pyflink.ml.lib.param.colname import HasSelectedCols,\
+from pyflink.ml.lib.param.colname import HasSelectedCols, \
     HasPredictionCol, HasOutputCol
-from pyflink import keyword
+from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
-from pyflink.java_gateway import get_gateway
+from pyflink.testing.test_case_utils import MLTestCase, exec_insert_table
 
 
 class HasVectorCol(WithParams):
@@ -103,8 +102,7 @@ class PythonModel(Model):
         """
         table_sink = source_sink_utils.TestRetractSink(["max_sum"], [DataTypes.BIGINT()])
         table_env.register_table_sink("Model_Results", table_sink)
-        self._model_data_table.insert_into("Model_Results")
-        table_env.execute("load model")
+        exec_insert_table(self._model_data_table, "Model_Results")
         actual = source_sink_utils.results()
         self.max_sum = actual.apply(0)
 
@@ -128,12 +126,7 @@ class PythonPipelineTest(MLTestCase):
 
         source_table = t_env.from_elements([(1, 2, 3, 4), (4, 3, 2, 1)], ['a', 'b', 'c', 'd'])
         transformer = WrapperTransformer(selected_cols=["a", "b"])
-        transformer\
-            .transform(t_env, source_table)\
-            .insert_into("TransformerResults")
-
-        # execute
-        t_env.execute('JavaPipelineITCase')
+        exec_insert_table(transformer.transform(t_env, source_table), "TransformerResults")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,2", "4,3"])
 
@@ -158,12 +151,8 @@ class PythonPipelineTest(MLTestCase):
 
         # pipeline
         pipeline = Pipeline().append_stage(transformer).append_stage(estimator)
-        pipeline\
-            .fit(t_env, train_table)\
-            .transform(t_env, serving_table)\
-            .insert_into('PredictResults')
-        # execute
-        t_env.execute('PipelineITCase')
+        exec_insert_table(pipeline.fit(t_env, train_table).transform(t_env, serving_table),
+                          'PredictResults')
 
         actual = source_sink_utils.results()
         # the first input is false since 0 + 0 is smaller than the max_sum 14.
@@ -190,12 +179,8 @@ class PythonPipelineTest(MLTestCase):
 
         source_table = t_env.from_elements([(1, 2, 3, 4), (4, 3, 2, 1)], ['a', 'b', 'c', 'd'])
         transformer = p.get_stages()[0]
-        transformer\
-            .transform(t_env, source_table)\
-            .insert_into("TestJsonResults")
+        exec_insert_table(transformer.transform(t_env, source_table), "TestJsonResults")
 
-        # execute
-        t_env.execute('JavaPipelineITCase')
         actual = source_sink_utils.results()
 
         self.assert_equals(actual, ["1,2", "4,3"])

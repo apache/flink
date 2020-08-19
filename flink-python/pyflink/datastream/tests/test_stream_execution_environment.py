@@ -33,7 +33,7 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 
 
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
@@ -197,7 +197,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.register_table_sink(
             "Results",
             CsvTableSink(field_names, field_types, tmp_csv))
-        t_env.scan("Orders").insert_into("Results")
+        exec_insert_table(t_env.from_path("Orders"), "Results")
 
         plan = self.env.get_execution_plan()
 
@@ -212,8 +212,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             'Results',
             CsvTableSink(field_names, field_types,
                          os.path.join('{}/{}.csv'.format(tmp_dir, round(time.time())))))
-        t_env.insert_into('Results', t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']))
-        execution_result = t_env.execute('test_stream_execute')
+        execution_result = exec_insert_table(
+            t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']),
+            'Results')
         self.assertIsNotNone(execution_result.get_job_id())
         self.assertIsNotNone(execution_result.get_net_runtime())
         self.assertEqual(len(execution_result.get_all_accumulator_results()), 0)

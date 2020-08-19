@@ -62,7 +62,7 @@ def word_count():
             'connector.path' = '{}'
         )
         """.format(result_path)
-    t_env.sql_update(sink_ddl)
+    t_env.execute_sql(sink_ddl)
 
     elements = [(word, 1) for word in content.split(" ")]
     t_env.from_elements(elements, ["word", "count"]) \

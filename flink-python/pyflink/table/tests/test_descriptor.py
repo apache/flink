@@ -26,7 +26,7 @@ from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafk
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase,
+                                             PyFlinkBatchTableTestCase, exec_insert_table,
                                              _load_specific_flink_module_jars)
 
 
@@ -1178,10 +1178,7 @@ class AbstractTableDescriptorTests(object):
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
              .create_temporary_table("sink")
-        t_env.scan("source") \
-             .select("a + 1, b, c") \
-             .insert_into("sink")
-        self.t_env.execute("test")
+        exec_insert_table(t_env.from_path("source").select("a + 1, b, c"), "sink")
 
         with open(sink_path, 'r') as f:
             lines = f.read()
