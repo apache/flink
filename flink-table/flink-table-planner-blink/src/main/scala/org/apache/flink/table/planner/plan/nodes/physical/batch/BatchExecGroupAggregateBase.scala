@@ -61,7 +61,7 @@ abstract class BatchExecGroupAggregateBase(
   with BatchPhysicalRel {
 
   if (grouping.isEmpty && auxGrouping.nonEmpty) {
-    throw new TableException("auxGrouping should be empty if grouping is emtpy.")
+    throw new TableException("auxGrouping should be empty if grouping is empty.")
   }
 
   override def deriveRowType(): RelDataType = outputRowType

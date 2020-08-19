@@ -56,7 +56,7 @@ public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Ser
 	 * Creates a {@link BulkProcessor.Builder} for creating the bulk processor.
 	 *
 	 * @param client the Elasticsearch client.
-	 * @param listener the bulk processor listender.
+	 * @param listener the bulk processor listener.
 	 * @return the bulk processor builder.
 	 */
 	BulkProcessor.Builder createBulkProcessorBuilder(C client, BulkProcessor.Listener listener);

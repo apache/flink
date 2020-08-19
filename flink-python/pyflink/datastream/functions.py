@@ -17,7 +17,7 @@
 ################################################################################
 
 import abc
-from typing import Union
+from typing import Union, Any
 
 from py4j.java_gateway import JavaObject
 
@@ -63,7 +63,7 @@ class CoMapFunction(Function):
     The same instance of the transformation function is used to transform both of
     the connected streams. That way, the stream transformations can share state.
 
-    The basic syntax for using a MapFunction is as follows:
+    The basic syntax for using a CoMapFunction is as follows:
     ::
         >>> ds1 = ...
         >>> ds2 = ...
@@ -114,6 +114,57 @@ class FlatMapFunction(Function):
                 >>>     def flat_map(self, value):
                 >>>         for i in range(value):
                 >>>             yield i
+
+        :param value: The input value.
+        :return: A genertaor
+        """
+        pass
+
+
+class CoFlatMapFunction(Function):
+    """
+    A CoFlatMapFunction implements a flat-map transformation over two connected streams.
+
+    The same instance of the transformation function is used to transform both of the
+    connected streams. That way, the stream transformations can share state.
+
+    An example for the use of connected streams would be to apply rules that change over time
+    onto elements of a stream. One of the connected streams has the rules, the other stream the
+    elements to apply the rules to. The operation on the connected stream maintains the
+    current set of rules in the state. It may receive either a rule update (from the first stream)
+    and update the state, or a data element (from the second stream) and apply the rules in the
+    state to the element. The result of applying the rules would be emitted.
+
+    The basic syntax for using a CoFlatMapFunction is as follows:
+    ::
+        >>> ds1 = ...
+        >>> ds2 = ...
+
+        >>> class MyCoFlatMapFunction(CoFlatMapFunction):
+        >>>     def flat_map1(self, value):
+        >>>         for i in range(value):
+        >>>             yield i
+        >>>     def flat_map2(self, value):
+        >>>         for i in range(value):
+        >>>             yield i
+
+        >>> new_ds = ds1.connect(ds2).flat_map(MyCoFlatMapFunction())
+    """
+
+    @abc.abstractmethod
+    def flat_map1(self, value):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        :param value: The input value.
+        :return: A genertaor
+        """
+        pass
+
+    @abc.abstractmethod
+    def flat_map2(self, value):
+        """
+        This method is called for each element in the second of the connected streams.
 
         :param value: The input value.
         :return: A genertaor
@@ -185,6 +236,23 @@ class FilterFunction(Function):
 
         :param value: The value to be filtered.
         :return: True for values that should be retained, false for values to be filtered out.
+        """
+        pass
+
+
+class Partitioner(Function):
+    """
+    Function to implement a custom partition assignment for keys.
+    """
+
+    @abc.abstractmethod
+    def partition(self, key: Any, num_partitions: int) -> int:
+        """
+        Computes the partition for the given key.
+
+        :param key: The key.
+        :param num_partitions: The number of partitions to partition into.
+        :return: The partition index.
         """
         pass
 
@@ -307,6 +375,31 @@ class KeySelectorFunctionWrapper(FunctionWrapper):
         :return: the return value of user defined get_key function.
         """
         return self._func(value)
+
+
+class PartitionerFunctionWrapper(FunctionWrapper):
+    """
+    A wrapper class for Partitioner. It's used for wrapping up user defined function in a
+    Partitioner when user does not implement a Partitioner but directly pass a function
+    object or a lambda function to partition_custom() function.
+    """
+    def __init__(self, func):
+        """
+        The constructor of PartitionerFunctionWrapper.
+
+        :param func: user defined function object.
+        """
+        super(PartitionerFunctionWrapper, self).__init__(func)
+
+    def partition(self, key: Any, num_partitions: int) -> int:
+        """
+        A delegated partition function to invoke user defined function.
+
+        :param key: The key.
+        :param num_partitions: The number of partitions to partition into.
+        :return: The partition index.
+        """
+        return self._func(key, num_partitions)
 
 
 def _get_python_env():

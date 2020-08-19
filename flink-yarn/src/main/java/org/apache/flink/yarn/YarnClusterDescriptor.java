@@ -173,7 +173,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		getLocalFlinkDistPath(flinkConfiguration).ifPresent(this::setLocalJarPath);
-		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_DIRECTORIES).ifPresent(this::addShipFiles);
+		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_FILES).ifPresent(this::addShipFiles);
 		decodeFilesToShipToCluster(flinkConfiguration, YarnConfigOptions.SHIP_ARCHIVES).ifPresent(this::addShipArchives);
 
 		this.yarnQueue = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_QUEUE);
@@ -1147,7 +1147,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			yarnClient.killApplication(yarnApplication.getNewApplicationResponse().getApplicationId());
 		} catch (Exception e) {
 			// we only log a debug message here because the "killApplication" call is a best-effort
-			// call (we don't know if the application has been deployed when the error occured).
+			// call (we don't know if the application has been deployed when the error occurred).
 			LOG.debug("Error while killing YARN application", e);
 		}
 	}

@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import os
 from typing import Callable, Union
 
 from pyflink.common import typeinfo, ExecutionConfig
@@ -24,7 +24,8 @@ from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
-    ReduceFunctionWrapper, CoMapFunction
+    ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction, Partitioner, \
+    PartitionerFunctionWrapper
 from pyflink.java_gateway import get_gateway
 
 
@@ -445,6 +446,77 @@ class DataStream(object):
         """
         return DataStream(self._j_data_stream.broadcast())
 
+    def partition_custom(self, partitioner: Union[Callable, Partitioner],
+                         key_selector: Union[Callable, KeySelector]) -> 'DataStream':
+        """
+        Partitions a DataStream on the key returned by the selector, using a custom partitioner.
+        This method takes the key selector to get the key to partition on, and a partitioner that
+        accepts the key type.
+
+        Note that this method works only on single field keys, i.e. the selector cannet return
+        tuples of fields.
+
+        :param partitioner: The partitioner to assign partitions to keys.
+        :param key_selector: The KeySelector with which the DataStream is partitioned.
+        :return: The partitioned DataStream.
+        """
+        if callable(key_selector):
+            key_selector = KeySelectorFunctionWrapper(key_selector)
+        if not isinstance(key_selector, (KeySelector, KeySelectorFunctionWrapper)):
+            raise TypeError("Parameter key_selector should be a type of KeySelector.")
+
+        if callable(partitioner):
+            partitioner = PartitionerFunctionWrapper(partitioner)
+        if not isinstance(partitioner, (Partitioner, PartitionerFunctionWrapper)):
+            raise TypeError("Parameter partitioner should be a type of Partitioner.")
+
+        gateway = get_gateway()
+        data_stream_num_partitions_env_key = gateway.jvm\
+            .org.apache.flink.datastream.runtime.operators.python\
+            .DataStreamPythonPartitionCustomFunctionOperator.DATA_STREAM_NUM_PARTITIONS
+
+        class PartitionCustomMapFunction(MapFunction):
+            """
+            A wrapper class for partition_custom map function. It indicates that it is a partition
+            custom operation that we need to apply DataStreamPythonPartitionCustomFunctionOperator
+            to run the map function.
+            """
+
+            def __init__(self):
+                self.num_partitions = None
+
+            def map(self, value):
+                return self.partition_custom_map(value)
+
+            def partition_custom_map(self, value):
+                if self.num_partitions is None:
+                    self.num_partitions = int(os.environ[data_stream_num_partitions_env_key])
+                partition = partitioner.partition(key_selector.get_key(value), self.num_partitions)
+                return partition, value
+
+            def __repr__(self) -> str:
+                return '_Flink_PartitionCustomMapFunction'
+
+        original_type_info = self.get_type()
+        intermediate_map_stream = self.map(PartitionCustomMapFunction(),
+                                           type_info=Types.ROW([Types.INT(), original_type_info]))
+        intermediate_map_stream.name(
+            gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+            .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
+
+        JPartitionCustomKeySelector = gateway.jvm\
+            .org.apache.flink.datastream.runtime.functions.python.PartitionCustomKeySelector
+        JIdParitioner = gateway.jvm\
+            .org.apache.flink.api.java.functions.IdPartitioner
+        intermediate_map_stream = DataStream(intermediate_map_stream._j_data_stream
+                                             .partitionCustom(JIdParitioner(),
+                                                              JPartitionCustomKeySelector()))
+
+        values_map_stream = intermediate_map_stream.map(lambda x: x[1], original_type_info)
+        values_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+                               .KEYED_STREAM_VALUE_OPERATOR_NAME)
+        return DataStream(values_map_stream._j_data_stream)
+
     def _get_java_python_function_operator(self, func: Union[Function, FunctionWrapper],
                                            type_info: TypeInformation, func_name: str,
                                            func_type: int):
@@ -506,8 +578,13 @@ class DataStream(object):
                 j_python_data_stream_function_info)
             return j_python_data_stream_function_operator, j_output_type_info
         else:
-            DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
-                .operators.python.DataStreamPythonStatelessFunctionOperator
+            if str(func) == '_Flink_PartitionCustomMapFunction':
+                DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+                    .operators.python.DataStreamPythonPartitionCustomFunctionOperator
+            else:
+                DataStreamPythonFunctionOperator = gateway.jvm.org.apache.flink.datastream.runtime \
+                    .operators.python.DataStreamPythonStatelessFunctionOperator
+
             j_python_data_stream_function_operator = DataStreamPythonFunctionOperator(
                 j_conf,
                 j_input_types,
@@ -635,6 +712,36 @@ class DataStreamSink(object):
         self._j_data_stream_sink.setParallelism(parallelism)
         return self
 
+    def disable_chaining(self) -> 'DataStreamSink':
+        """
+        Turns off chaining for this operator so thread co-location will not be used as an
+        optimization.
+        Chaining can be turned off for the whole job by
+        StreamExecutionEnvironment.disableOperatorChaining() however it is not advised for
+        performance consideration.
+
+        :return: The operator with chaining disabled.
+        """
+        self._j_data_stream_sink.disableChaining()
+        return self
+
+    def slot_sharing_group(self, slot_sharing_group: str) -> 'DataStreamSink':
+        """
+        Sets the slot sharing group of this operation. Parallel instances of operations that are in
+        the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+
+        Operations inherit the slot sharing group of input operations if all input operations are in
+        the same slot sharing group and no slot sharing group was explicitly specified.
+
+        Initially an operation is in the default slot sharing group. An operation can be put into
+        the default group explicitly by setting the slot sharing group to 'default'.
+
+        :param slot_sharing_group: The slot sharing group name.
+        :return: This operator.
+        """
+        self._j_data_stream_sink.slotSharingGroup(slot_sharing_group)
+        return self
+
 
 class KeyedStream(DataStream):
     """
@@ -698,9 +805,6 @@ class KeyedStream(DataStream):
             j_python_data_stream_scalar_function_operator
         ))
 
-    def connect(self, ds: 'KeyedStream') -> 'ConnectedStreams':
-        raise Exception('Connect on KeyedStream has not been supported yet.')
-
     def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
         return self._values().filter(func)
 
@@ -730,6 +834,10 @@ class KeyedStream(DataStream):
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def broadcast(self) -> 'DataStream':
+        raise Exception('Cannot override partitioning for KeyedStream.')
+
+    def partition_custom(self, partitioner: Union[Callable, Partitioner],
+                         key_selector: Union[Callable, KeySelector]) -> 'DataStream':
         raise Exception('Cannot override partitioning for KeyedStream.')
 
     def print(self, sink_identifier=None):
@@ -799,7 +907,31 @@ class ConnectedStreams(object):
         self.stream1 = stream1
         self.stream2 = stream2
 
-    def map(self, func: CoMapFunction, type_info: TypeInformation = None) \
+    def key_by(self, key_selector1: Union[Callable, KeySelector],
+               key_selector2: Union[Callable, KeySelector],
+               key_type_info: TypeInformation = None) -> 'ConnectedStreams':
+        """
+        KeyBy operation for connected data stream. Assigns keys to the elements of
+        input1 and input2 using keySelector1 and keySelector2 with explicit type information
+        for the common key type.
+
+        :param key_selector1: The `KeySelector` used for grouping the first input.
+        :param key_selector2: The `KeySelector` used for grouping the second input.
+        :param key_type_info: The type information of the common key type.
+        :return: The partitioned `ConnectedStreams`
+        """
+
+        ds1 = self.stream1
+        ds2 = self.stream2
+        if isinstance(self.stream1, KeyedStream):
+            ds1 = self.stream1._origin_stream
+        if isinstance(self.stream2, KeyedStream):
+            ds2 = self.stream2._origin_stream
+        return ConnectedStreams(
+            ds1.key_by(key_selector1, key_type_info),
+            ds2.key_by(key_selector2, key_type_info))
+
+    def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
         """
         Applies a CoMap transformation on a `ConnectedStreams` and maps the output to a common
@@ -819,8 +951,38 @@ class ConnectedStreams(object):
         j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_operator, j_output_type = self._get_connected_stream_operator(
-            func, type_info, func_name, flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP)
-        return DataStream(j_connected_stream.transform("Co-Process", j_output_type, j_operator))
+            func,
+            output_type,
+            func_name,
+            flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP)
+        return DataStream(j_connected_stream.transform("Co-Map", j_output_type, j_operator))
+
+    def flat_map(self, func: CoFlatMapFunction, output_type: TypeInformation = None) \
+            -> 'DataStream':
+        """
+        Applies a CoFlatMap transformation on a `ConnectedStreams` and maps the output to a
+        common type. The transformation calls a `CoFlatMapFunction.flatMap1` for each element
+        of the first input and `CoFlatMapFunction.flatMap2` for each element of the second
+        input. Each CoFlatMapFunction call returns any number of elements including none.
+
+        :param func: The CoFlatMapFunction used to jointly transform the two input DataStreams
+        :param output_type: `TypeInformation` for the result type of the function.
+        :return: The transformed `DataStream`
+        """
+
+        if not isinstance(func, CoFlatMapFunction):
+            raise TypeError("The input must be a CoFlatMapFunction!")
+        func_name = str(func)
+
+        # get connected stream
+        j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_operator, j_output_type = self._get_connected_stream_operator(
+            func,
+            output_type,
+            func_name,
+            flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_FLAT_MAP)
+        return DataStream(j_connected_stream.transform("Co-Flat Map", j_output_type, j_operator))
 
     def _get_connected_stream_operator(self, func: Union[Function, FunctionWrapper],
                                        type_info: TypeInformation, func_name: str,
@@ -863,6 +1025,10 @@ class ConnectedStreams(object):
             j_input_types1,
             j_input_types2,
             output_type_info.get_java_type_info(),
-            j_python_data_stream_function_info)
+            j_python_data_stream_function_info,
+            self._is_keyed_stream())
 
         return j_python_data_stream_function_operator, output_type_info.get_java_type_info()
+
+    def _is_keyed_stream(self):
+        return isinstance(self.stream1, KeyedStream) and isinstance(self.stream2, KeyedStream)

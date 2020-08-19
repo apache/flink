@@ -66,7 +66,7 @@ class AggSqlFunction(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
     createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
     createOperandTypeChecker(displayName, aggregateFunction, externalAccType),
-    // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
+    // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,

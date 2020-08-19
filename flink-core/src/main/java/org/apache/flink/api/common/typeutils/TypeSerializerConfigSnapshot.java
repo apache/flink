@@ -62,7 +62,7 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	 * Set the user code class loader.
 	 * Only relevant if this configuration instance was deserialized from binary form.
 	 *
-	 * <p>This method is not part of the public user-facing API, and cannot be overriden.
+	 * <p>This method is not part of the public user-facing API, and cannot be overridden.
 	 *
 	 * @param userCodeClassLoader user code class loader.
 	 */

@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The provider serves physical slot requests.
  */
-interface PhysicalSlotProvider {
+public interface PhysicalSlotProvider {
 
 	/**
 	 * Submit a request to allocate a physical slot.
