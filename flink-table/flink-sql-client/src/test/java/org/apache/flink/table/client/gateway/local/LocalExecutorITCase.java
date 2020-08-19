@@ -430,15 +430,15 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals(
 				tableResult.getTableSchema(),
 				TableSchema.builder().fields(
-						new String[] { "name", "type", "null", "key", "computed column", "watermark" },
+						new String[] { "name", "type", "null", "key", "computed column", "watermark" ,"comment"},
 						new DataType[] { DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(),
-								DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING() }
+								DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()}
 				).build()
 		);
 		List<Row> schemaData = Arrays.asList(
-				Row.of("IntegerField2", "INT", true, null, null, null),
-				Row.of("StringField2", "STRING", true, null, null, null),
-				Row.of("TimestampField2", "TIMESTAMP(3)", true, null, null, null)
+				Row.of("IntegerField2", "INT", true, null, null, null, null),
+				Row.of("StringField2", "STRING", true, null, null, null, null),
+				Row.of("TimestampField2", "TIMESTAMP(3)", true, null, null, null, null)
 		);
 		assertEquals(schemaData, CollectionUtil.iteratorToList(tableResult.collect()));
 		executor.closeSession(sessionId);

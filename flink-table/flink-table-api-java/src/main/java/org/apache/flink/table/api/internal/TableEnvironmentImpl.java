@@ -1118,12 +1118,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 						logicalType.isNullable(),
 						fieldToPrimaryKey.getOrDefault(c.getName(), null),
 						c.getExpr().orElse(null),
-						fieldToWatermark.getOrDefault(c.getName(), null)};
+						fieldToWatermark.getOrDefault(c.getName(), null),
+						c.getComment().orElse(null)};
 				}).toArray(Object[][]::new);
 
 		return buildResult(
-			new String[]{"name", "type", "null", "key", "computed column", "watermark"},
-			new DataType[]{DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
+			new String[]{"name", "type", "null", "key", "computed column", "watermark", "comment"},
+			new DataType[]{DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
 			rows);
 	}
 
