@@ -29,7 +29,7 @@ under the License.
 
 ## 打印日志信息
 
-你可以利用Python的Logging模块来打印Python UDF里面的日志信息。例如
+Python UDF可以通过标准的Python logging模块记录上下文和调试信息。
 
 {% highlight python %}
 

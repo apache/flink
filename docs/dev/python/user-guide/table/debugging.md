@@ -29,7 +29,7 @@ This page describes how to debug in PyFlink.
 
 ## Logging Infos
 
-You can take use of Logging module of Python to print infos in Python UDF. e.g.
+Python UDFs can log contextual and debug information via standard Python logging modules. 
 
 {% highlight python %}
 
@@ -45,8 +45,8 @@ def add(i, j):
 
 ## Watching Logs
 
-If you set the environment variable `FLINK_HOME`, logs will be placed in the log directory under `FLINK_HOME`.
-Otherwise, logs will be placed in the directory of PyFlink module. You can execute following command to find
+If the environment variable `FLINK_HOME` is set, logs will be written in the log directory under `FLINK_HOME`.
+Otherwise, logs will be placed in the directory of the PyFlink module. You can execute the following command to find
 the log directory of PyFlink module:
 
 {% highlight shell %}
