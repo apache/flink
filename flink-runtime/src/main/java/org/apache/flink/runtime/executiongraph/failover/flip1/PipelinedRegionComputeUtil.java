@@ -48,6 +48,14 @@ public final class PipelinedRegionComputeUtil {
 			return Collections.singleton(buildOneRegionForAllVertices(topology));
 		}
 
+		final Map<V, Set<V>> vertexToRegion = buildRawRegions(topology);
+
+		return uniqueRegions(vertexToRegion);
+	}
+
+	private static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>> Map<V, Set<V>> buildRawRegions(
+			final BaseTopology<?, ?, V, R> topology) {
+
 		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
 		// iterate all the vertices which are topologically sorted
@@ -70,28 +78,35 @@ public final class PipelinedRegionComputeUtil {
 					// check if it is the same as the producer region, if so skip the merge
 					// this check can significantly reduce compute complexity in All-to-All PIPELINED edge case
 					if (currentRegion != producerRegion) {
-						// merge current region and producer region
-						// merge the smaller region into the larger one to reduce the cost
-						final Set<V> smallerSet;
-						final Set<V> largerSet;
-						if (currentRegion.size() < producerRegion.size()) {
-							smallerSet = currentRegion;
-							largerSet = producerRegion;
-						} else {
-							smallerSet = producerRegion;
-							largerSet = currentRegion;
-						}
-						for (V v : smallerSet) {
-							vertexToRegion.put(v, largerSet);
-						}
-						largerSet.addAll(smallerSet);
-						currentRegion = largerSet;
+						currentRegion = mergeRegions(currentRegion, producerRegion, vertexToRegion);
 					}
 				}
 			}
 		}
 
-		return uniqueRegions(vertexToRegion);
+		return vertexToRegion;
+	}
+
+	private static <V extends Vertex<?, ?, V, ?>> Set<V> mergeRegions(
+			final Set<V> region1,
+			final Set<V> region2,
+			final Map<V, Set<V>> vertexToRegion) {
+
+		// merge the smaller region into the larger one to reduce the cost
+		final Set<V> smallerSet;
+		final Set<V> largerSet;
+		if (region1.size() < region2.size()) {
+			smallerSet = region1;
+			largerSet = region2;
+		} else {
+			smallerSet = region2;
+			largerSet = region1;
+		}
+		for (V v : smallerSet) {
+			vertexToRegion.put(v, largerSet);
+		}
+		largerSet.addAll(smallerSet);
+		return largerSet;
 	}
 
 	private static <V extends Vertex<?, ?, V, ?>> Set<V> buildOneRegionForAllVertices(
