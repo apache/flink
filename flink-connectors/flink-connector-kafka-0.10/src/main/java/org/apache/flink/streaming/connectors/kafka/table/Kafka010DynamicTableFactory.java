@@ -29,10 +29,14 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_SEMANTIC;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -47,7 +51,8 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 	@Override
 	protected KafkaDynamicSourceBase createKafkaTableSource(
 			DataType producedDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -56,7 +61,8 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 
 		return new Kafka010DynamicSource(
 			producedDataType,
-			topic,
+			topics,
+			topicPattern,
 			properties,
 			decodingFormat,
 			startupMode,

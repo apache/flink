@@ -32,15 +32,20 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * A version-agnostic Kafka {@link ScanTableSource}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
+ * override {@link #createKafkaConsumer(List, Properties, DeserializationSchema)}} and
+ *  {@link #createKafkaConsumer(Pattern, Properties, DeserializationSchema)}}.
  */
 @Internal
 public abstract class KafkaDynamicSourceBase implements ScanTableSource {
@@ -61,8 +66,11 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	// Kafka-specific attributes
 	// --------------------------------------------------------------------------------------------
 
-	/** The Kafka topic to consume. */
-	protected final String topic;
+	/** The Kafka topics to consume. */
+	protected final List<String> topics;
+
+	/** The Kafka topic pattern to consume. */
+	protected final Pattern topicPattern;
 
 	/** Properties for the Kafka consumer. */
 	protected final Properties properties;
@@ -81,9 +89,9 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
-	 *
 	 * @param outputDataType         Source produced data type
-	 * @param topic                  Kafka topic to consume.
+	 * @param topics                 Kafka topics to consume.
+	 * @param topicPattern           Kafka topic pattern to consume.
 	 * @param properties             Properties for the Kafka consumer.
 	 * @param decodingFormat         Decoding format for decoding records from Kafka.
 	 * @param startupMode            Startup mode for the contained consumer.
@@ -94,7 +102,8 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	 */
 	protected KafkaDynamicSourceBase(
 			DataType outputDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -102,7 +111,11 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 			long startupTimestampMillis) {
 		this.outputDataType = Preconditions.checkNotNull(
 				outputDataType, "Produced data type must not be null.");
-		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
+		Preconditions.checkArgument((topics != null && topicPattern == null) ||
+				(topics == null && topicPattern != null),
+			"Either Topic or Topic Pattern must be set for source.");
+		this.topics = topics;
+		this.topicPattern = topicPattern;
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.decodingFormat = Preconditions.checkNotNull(
 			decodingFormat, "Decoding format must not be null.");
@@ -122,8 +135,7 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 		DeserializationSchema<RowData> deserializationSchema =
 				this.decodingFormat.createRuntimeDecoder(runtimeProviderContext, this.outputDataType);
 		// Version-specific Kafka consumer
-		FlinkKafkaConsumerBase<RowData> kafkaConsumer =
-				getKafkaConsumer(topic, properties, deserializationSchema);
+		FlinkKafkaConsumerBase<RowData> kafkaConsumer = getKafkaConsumer(deserializationSchema);
 		return SourceFunctionProvider.of(kafkaConsumer, false);
 	}
 
@@ -137,7 +149,8 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 		}
 		final KafkaDynamicSourceBase that = (KafkaDynamicSourceBase) o;
 		return Objects.equals(outputDataType, that.outputDataType) &&
-			Objects.equals(topic, that.topic) &&
+			Objects.equals(topics, that.topics) &&
+			Objects.equals(topicPattern, topicPattern) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(decodingFormat, that.decodingFormat) &&
 			startupMode == that.startupMode &&
@@ -149,7 +162,8 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	public int hashCode() {
 		return Objects.hash(
 			outputDataType,
-			topic,
+			topics,
+			topicPattern,
 			properties,
 			decodingFormat,
 			startupMode,
@@ -164,13 +178,26 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 	/**
 	 * Creates a version-specific Kafka consumer.
 	 *
-	 * @param topic                 Kafka topic to consume.
+	 * @param topics                Kafka topic to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
 	 * @return The version-specific Kafka consumer
 	 */
 	protected abstract FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
-			String topic,
+			List<String> topics,
+			Properties properties,
+			DeserializationSchema<RowData> deserializationSchema);
+
+	/**
+	 * Creates a version-specific Kafka consumer.
+	 *
+	 * @param topicPattern          afka topic to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema to use for Kafka records.
+	 * @return The version-specific Kafka consumer
+	 */
+	protected abstract FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
+			Pattern topicPattern,
 			Properties properties,
 			DeserializationSchema<RowData> deserializationSchema);
 
@@ -180,18 +207,15 @@ public abstract class KafkaDynamicSourceBase implements ScanTableSource {
 
 	/**
 	 * Returns a version-specific Kafka consumer with the start position configured.
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
+
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
 	 * @return The version-specific Kafka consumer
 	 */
-	protected FlinkKafkaConsumerBase<RowData> getKafkaConsumer(
-			String topic,
-			Properties properties,
-			DeserializationSchema<RowData> deserializationSchema) {
-		FlinkKafkaConsumerBase<RowData> kafkaConsumer =
-				createKafkaConsumer(topic, properties, deserializationSchema);
+	protected FlinkKafkaConsumerBase<RowData> getKafkaConsumer(DeserializationSchema<RowData> deserializationSchema) {
+		FlinkKafkaConsumerBase<RowData> kafkaConsumer = topics != null ?
+			createKafkaConsumer(topics, properties, deserializationSchema) :
+			createKafkaConsumer(topicPattern, properties, deserializationSchema);
+
 		switch (startupMode) {
 			case EARLIEST:
 				kafkaConsumer.setStartFromEarliest();

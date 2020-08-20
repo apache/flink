@@ -33,9 +33,13 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * Test for {@link Kafka011TableSource} and {@link Kafka011TableSink} created
@@ -60,7 +64,8 @@ public class Kafka011DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 	@Override
 	protected KafkaDynamicSourceBase getExpectedScanSource(
 			DataType producedDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -68,7 +73,8 @@ public class Kafka011DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			long startupTimestamp) {
 		return new Kafka011DynamicSource(
 				producedDataType,
-				topic,
+				topics,
+				topicPattern,
 				properties,
 				decodingFormat,
 				startupMode,

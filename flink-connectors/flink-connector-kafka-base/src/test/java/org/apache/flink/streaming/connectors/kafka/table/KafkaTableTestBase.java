@@ -22,6 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -36,7 +37,10 @@ import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -208,6 +212,90 @@ public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 		// ------------- cleanup -------------------
 
 		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testKafkaTableWithMultipleTopics() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// ---------- create source and sink tables -------------------
+		String tableTemp = "create table %s (\n" +
+			"  currency string\n" +
+			") with (\n" +
+			"  'connector' = '%s',\n" +
+			"  'topic' = '%s',\n" +
+			"  'properties.bootstrap.servers' = '%s',\n" +
+			"  'properties.group.id' = '%s',\n" +
+			"  'scan.startup.mode' = 'earliest-offset',\n" +
+			"  %s\n" +
+			")";
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+		List<String> currencies = Arrays.asList("Euro", "Dollar", "Yen", "Dummy");
+		List<String> topics = currencies.stream()
+			.map(currency -> String.format("%s_%s", currency, format))
+			.collect(Collectors.toList());
+		// Because kafka connector currently doesn't support write data into multiple topic together,
+		// we have to create multiple sink tables.
+		IntStream.range(0, 4).forEach(index -> {
+			createTestTopic(topics.get(index), 1, 1);
+			tEnv.executeSql(String.format(
+				tableTemp,
+				currencies.get(index).toLowerCase(),
+				factoryIdentifier(),
+				topics.get(index),
+				bootstraps,
+				groupId,
+				formatOptions()
+			));
+		});
+		// create source table
+		tEnv.executeSql(
+			String.format(
+				tableTemp,
+				"currencies_topic_list",
+				factoryIdentifier(),
+				String.join(";", topics),
+				bootstraps,
+				groupId,
+				formatOptions()));
+
+		// ---------- Prepare data in Kafka topics -------------------
+		String insertTemp = "INSERT INTO %s\n" +
+			"SELECT currency\n" +
+			" FROM (VALUES ('%s'))\n" +
+			" AS orders (currency)";
+		currencies.forEach(
+			currency -> TableEnvUtil.execInsertSqlAndWaitResult(
+				tEnv,
+				String.format(insertTemp, currency.toLowerCase(), currency)));
+
+		// ------------- test the topic-list kafka source -------------------
+		DataStream<RowData> result = tEnv.toAppendStream(tEnv.sqlQuery("SELECT currency FROM currencies_topic_list"), RowData.class);
+		TestingSinkFunction sink = new TestingSinkFunction(4); // expect to receive 4 records
+		result.addSink(sink);
+
+		try {
+			env.execute("Job_3");
+		} catch (Throwable e) {
+			// we have to use a specific exception to indicate the job is finished,
+			// because the registered Kafka source is infinite.
+			if (!isCausedByJobFinished(e)) {
+				// re-throw
+				throw e;
+			}
+		}
+		List<String> expected = Arrays.asList(
+			"+I(Dollar)",
+			"+I(Dummy)",
+			"+I(Euro)",
+			"+I(Yen)");
+		TestingSinkFunction.rows.sort(Comparator.naturalOrder());
+		assertEquals(expected, TestingSinkFunction.rows);
+
+		// ------------- cleanup -------------------
+		topics.forEach(KafkaTestBase::deleteTestTopic);
 	}
 
 	private String formatOptions() {
