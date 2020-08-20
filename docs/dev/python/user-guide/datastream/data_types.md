@@ -30,6 +30,7 @@ It can be used to declare input and output types of operations and informs the s
 
 
 ## Pickle Serialization
+
 If the type has not been declared, data would be serialized or deserialized using Pickle. 
 For example, the program below specifies no data types.
 
