@@ -30,8 +30,12 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.10.
@@ -43,7 +47,8 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 	 * Creates a Kafka 0.10 {@link StreamTableSource}.
 	 *
 	 * @param outputDataType         Source output data type
-	 * @param topic                  Kafka topic to consume
+	 * @param topics                 Kafka topics to consume
+	 * @param topicPattern           Kafka topic pattern to consume
 	 * @param properties             Properties for the Kafka consumer
 	 * @param decodingFormat         Decoding format for decoding records from Kafka
 	 * @param startupMode            Startup mode for the contained consumer
@@ -54,7 +59,8 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 	 */
 	public Kafka010DynamicSource(
 			DataType outputDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -63,7 +69,8 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 
 		super(
 			outputDataType,
-			topic,
+			topics,
+			topicPattern,
 			properties,
 			decodingFormat,
 			startupMode,
@@ -73,17 +80,26 @@ public class Kafka010DynamicSource extends KafkaDynamicSourceBase {
 
 	@Override
 	protected FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
-			String topic,
+			List<String> topics,
 			Properties properties,
 			DeserializationSchema<RowData> deserializationSchema) {
-		return new FlinkKafkaConsumer010<>(topic, deserializationSchema, properties);
+		return new FlinkKafkaConsumer010<>(topics, deserializationSchema, properties);
+	}
+
+	@Override
+	protected FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
+			Pattern topicPattern,
+			Properties properties,
+			DeserializationSchema<RowData> deserializationSchema) {
+		return new FlinkKafkaConsumer010<>(topicPattern, deserializationSchema, properties);
 	}
 
 	@Override
 	public DynamicTableSource copy() {
 		return new Kafka010DynamicSource(
 				this.outputDataType,
-				this.topic,
+				this.topics,
+				this.topicPattern,
 				this.properties,
 				this.decodingFormat,
 				this.startupMode,
