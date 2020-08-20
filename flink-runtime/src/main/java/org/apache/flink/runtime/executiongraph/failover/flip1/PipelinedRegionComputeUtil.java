@@ -45,7 +45,7 @@ public final class PipelinedRegionComputeUtil {
 		// currently we let a job with co-location constraints fail as one region
 		// putting co-located vertices in the same region with each other can be a future improvement
 		if (topology.containsCoLocationConstraints()) {
-			return uniqueRegions(buildOneRegionForAllVertices(topology));
+			return Collections.singleton(buildOneRegionForAllVertices(topology));
 		}
 
 		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
@@ -94,20 +94,17 @@ public final class PipelinedRegionComputeUtil {
 		return uniqueRegions(vertexToRegion);
 	}
 
-	private static <V extends Vertex<?, ?, V, ?>> Map<V, Set<V>> buildOneRegionForAllVertices(
+	private static <V extends Vertex<?, ?, V, ?>> Set<V> buildOneRegionForAllVertices(
 			final BaseTopology<?, ?, V, ?> topology) {
 
 		LOG.warn("Cannot decompose the topology into individual failover regions due to use of " +
 			"Co-Location constraints (iterations). Job will fail over as one holistic unit.");
 
-		final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
-
-		final Set<V> allVertices = new HashSet<>();
+		final Set<V> allVertices = Collections.newSetFromMap(new IdentityHashMap<>());
 		for (V vertex : topology.getVertices()) {
 			allVertices.add(vertex);
-			vertexToRegion.put(vertex, allVertices);
 		}
-		return vertexToRegion;
+		return allVertices;
 	}
 
 	private static <V extends Vertex<?, ?, V, ?>> Set<Set<V>> uniqueRegions(final Map<V, Set<V>> vertexToRegion) {
