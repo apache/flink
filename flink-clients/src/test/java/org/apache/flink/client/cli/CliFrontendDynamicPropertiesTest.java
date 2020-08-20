@@ -24,34 +24,29 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 import org.apache.flink.util.ChildFirstClassLoader;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.net.URL;
 import java.util.Collections;
-import java.util.List;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
 
 /**
  * Tests for the RUN command with Dynamic Properties.
  */
-public class CliFrontendDynamicPropertiesTest {
-
-	private CliFrontend frontend;
+public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
 
 	private Options testOptions;
+	private GenericCLI cliUnderTest;
+	private Configuration configuration;
 
 	@Rule
 	public TemporaryFolder tmp = new TemporaryFolder();
@@ -67,17 +62,13 @@ public class CliFrontendDynamicPropertiesTest {
 	}
 
 	@Before
-	public void setup() throws Exception {
+	public void setup() {
 		testOptions = new Options();
+		configuration = new Configuration();
 
-		final Configuration configuration = new Configuration();
-		final GenericCLI cliUnderTest = new GenericCLI(
+		cliUnderTest = new GenericCLI(
 			configuration,
 			tmp.getRoot().getAbsolutePath());
-
-		frontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(cliUnderTest));
 
 		cliUnderTest.addGeneralOptions(testOptions);
 	}
@@ -92,24 +83,8 @@ public class CliFrontendDynamicPropertiesTest {
 			getTestJarPath(), "-a", "--debug", "true", "arg1", "arg2"
 		};
 
-		CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
-
-		ProgramOptions programOptions = ProgramOptions.create(commandLine);
-
-		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
-
-		final List<URL> jobJars = frontend.getJobJarAndDependencies(programOptions);
-		CustomCommandLine activeCommandLine = frontend
-			.validateAndGetActiveCommandLine(checkNotNull(commandLine));
-
-		final Configuration effectiveConfiguration = frontend.getEffectiveConfiguration(
-			activeCommandLine, commandLine, programOptions, jobJars);
-
-		PackagedProgram program = frontend.buildProgram(programOptions, effectiveConfiguration);
-
-		Assert.assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
-		Assert.assertEquals(ParentFirstClassLoader.class.getName(),
-			program.getUserCodeClassLoader().getClass().getName());
+		verifyCliFrontend(configuration, args, cliUnderTest,
+			ParentFirstClassLoader.class.getName());
 	}
 
 	@Test
@@ -121,17 +96,7 @@ public class CliFrontendDynamicPropertiesTest {
 			getTestJarPath(), "-a", "--debug", "true", "arg1", "arg2"
 		};
 
-		CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
-
-		ProgramOptions programOptions = ProgramOptions.create(commandLine);
-
-		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
-
-		PackagedProgram program = frontend.buildProgram(programOptions);
-
-		Assert.assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
-		Assert.assertEquals(ChildFirstClassLoader.class.getName(),
-			program.getUserCodeClassLoader().getClass().getName());
+		verifyCliFrontend(configuration, args, cliUnderTest, ChildFirstClassLoader.class.getName());
 	}
 
 	@Test
@@ -144,23 +109,40 @@ public class CliFrontendDynamicPropertiesTest {
 			getTestJarPath(), "-a", "--debug", "true", "arg1", "arg2"
 		};
 
-		CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
+		verifyCliFrontend(configuration, args, cliUnderTest, ChildFirstClassLoader.class.getName());
+	}
 
-		ProgramOptions programOptions = ProgramOptions.create(commandLine);
+	// --------------------------------------------------------------------------------------------
 
-		assertEquals(getTestJarPath(), programOptions.getJarFilePath());
+	public static void verifyCliFrontend(
+		Configuration configuration,
+		String[] parameters,
+		GenericCLI cliUnderTest,
+		String userCodeClassLoaderClassName) throws Exception {
+		TestingCliFrontend testFrontend =
+			new TestingCliFrontend(configuration, cliUnderTest, userCodeClassLoaderClassName);
+		testFrontend.run(parameters); // verifies the expected values (see below)
+	}
 
-		final List<URL> jobJars = frontend.getJobJarAndDependencies(programOptions);
-		CustomCommandLine activeCommandLine = frontend
-			.validateAndGetActiveCommandLine(checkNotNull(commandLine));
+	private static final class TestingCliFrontend extends CliFrontend {
 
-		final Configuration effectiveConfiguration = frontend.getEffectiveConfiguration(
-			activeCommandLine, commandLine, programOptions, jobJars);
+		private final String userCodeClassLoaderClassName;
 
-		PackagedProgram program = frontend.buildProgram(programOptions, effectiveConfiguration);
+		private TestingCliFrontend(
+			Configuration configuration,
+			GenericCLI cliUnderTest,
+			String userCodeClassLoaderClassName) {
+			super(
+				configuration,
+				Collections.singletonList(cliUnderTest));
+			this.userCodeClassLoaderClassName = userCodeClassLoaderClassName;
+		}
 
-		Assert.assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
-		Assert.assertEquals(ChildFirstClassLoader.class.getName(),
-			program.getUserCodeClassLoader().getClass().getName());
+		@Override
+		protected void executeProgram(Configuration configuration, PackagedProgram program) {
+			assertEquals(TEST_JAR_MAIN_CLASS, program.getMainClassName());
+			assertEquals(userCodeClassLoaderClassName,
+				program.getUserCodeClassLoader().getClass().getName());
+		}
 	}
 }
