@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.s3.aws.version>1.11.754</fs.s3.aws.version>
+		<fs.s3.aws.version>1.11.788</fs.s3.aws.version>
 	</properties>
 
 	<dependencies>
