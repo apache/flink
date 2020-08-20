@@ -98,7 +98,7 @@ class DataStreamTests(PyFlinkTestCase):
             result = (value[0], len(value[0]), value[1])
             return result
 
-        ds.map(map_func, type_info=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
+        ds.map(map_func, output_type=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
             .add_sink(self.test_sink)
         self.env.execute('map_function_test')
         results = self.test_sink.get_results(False)
@@ -181,7 +181,7 @@ class DataStreamTests(PyFlinkTestCase):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
 
-        ds.map(MyMapFunction(), type_info=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
+        ds.map(MyMapFunction(), output_type=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
             .add_sink(self.test_sink)
         self.env.execute('map_function_test')
         results = self.test_sink.get_results(False)
@@ -193,7 +193,7 @@ class DataStreamTests(PyFlinkTestCase):
     def test_flat_map_function(self):
         ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.flat_map(MyFlatMapFunction(), type_info=Types.ROW([Types.STRING(), Types.INT()]))\
+        ds.flat_map(MyFlatMapFunction(), result_type=Types.ROW([Types.STRING(), Types.INT()]))\
             .add_sink(self.test_sink)
 
         self.env.execute('flat_map_test')
@@ -212,7 +212,7 @@ class DataStreamTests(PyFlinkTestCase):
             if value[1] % 2 == 0:
                 yield value
 
-        ds.flat_map(flat_map, type_info=Types.ROW([Types.STRING(), Types.INT()]))\
+        ds.flat_map(flat_map, result_type=Types.ROW([Types.STRING(), Types.INT()]))\
             .add_sink(self.test_sink)
         self.env.execute('flat_map_test')
         results = self.test_sink.get_results(False)
@@ -416,8 +416,8 @@ class DataStreamTests(PyFlinkTestCase):
             assert expected_num_partitions, num_partitions
             return key % num_partitions
 
-        partitioned_stream = ds.map(lambda x: x, type_info=Types.ROW([Types.STRING(),
-                                                                      Types.INT()]))\
+        partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
+                                                                        Types.INT()]))\
             .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
 
         JPartitionCustomTestMapFunction = get_gateway().jvm\

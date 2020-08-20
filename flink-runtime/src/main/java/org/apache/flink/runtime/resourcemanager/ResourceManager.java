@@ -398,7 +398,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 						return registerTaskExecutorInternal(taskExecutorGateway, taskExecutorRegistration);
 					}
 				} else {
-					log.debug("Ignoring outdated TaskExecutorGateway connection for {}.", resourceId);
+					log.debug("Ignoring outdated TaskExecutorGateway connection for {}.", resourceId.getStringWithMetadata());
 					return new RegistrationResponse.Decline("Decline outdated task executor registration.");
 				}
 			},
@@ -502,7 +502,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			}
 		} else {
 			log.debug("Could not find registration for resource id {}. Discarding the slot available" +
-				"message {}.", resourceId, slotId);
+				"message {}.", resourceId.getStringWithMetadata(), slotId);
 		}
 	}
 
@@ -623,12 +623,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByType(ResourceID taskManagerId, FileType fileType, Time timeout) {
-		log.debug("Request {} file upload from TaskExecutor {}.", fileType, taskManagerId);
+		log.debug("Request {} file upload from TaskExecutor {}.", fileType, taskManagerId.getStringWithMetadata());
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Request upload of file {} from unregistered TaskExecutor {}.", fileType, taskManagerId);
+			log.debug("Request upload of file {} from unregistered TaskExecutor {}.", fileType, taskManagerId.getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestFileUploadByType(fileType, timeout);
@@ -637,12 +637,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerFileUploadByName(ResourceID taskManagerId, String fileName, Time timeout) {
-		log.debug("Request upload of file {} from TaskExecutor {}.", fileName, taskManagerId);
+		log.debug("Request upload of file {} from TaskExecutor {}.", fileName, taskManagerId.getStringWithMetadata());
 
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Request upload of file {} from unregistered TaskExecutor {}.", fileName, taskManagerId);
+			log.debug("Request upload of file {} from unregistered TaskExecutor {}.", fileName, taskManagerId.getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestFileUploadByName(fileName, timeout);
@@ -653,7 +653,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public CompletableFuture<Collection<LogInfo>> requestTaskManagerLogList(ResourceID taskManagerId, Time timeout) {
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 		if (taskExecutor == null) {
-			log.debug("Requested log list from unregistered TaskExecutor {}.", taskManagerId);
+			log.debug("Requested log list from unregistered TaskExecutor {}.", taskManagerId.getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestLogList(timeout);
@@ -675,7 +675,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		final WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(taskManagerId);
 
 		if (taskExecutor == null) {
-			log.debug("Requested thread dump from unregistered TaskExecutor {}.", taskManagerId);
+			log.debug("Requested thread dump from unregistered TaskExecutor {}.", taskManagerId.getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new UnknownTaskExecutorException(taskManagerId));
 		} else {
 			return taskExecutor.getTaskExecutorGateway().requestThreadDump(timeout);
@@ -762,12 +762,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
 		if (oldRegistration != null) {
 			// TODO :: suggest old taskExecutor to stop itself
-			log.debug("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId);
+			log.debug("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId.getStringWithMetadata());
 
 			// remove old task manager registration from slot manager
 			slotManager.unregisterTaskManager(
 				oldRegistration.getInstanceID(),
-				new ResourceManagerException(String.format("TaskExecutor %s re-connected to the ResourceManager.", taskExecutorResourceId)));
+				new ResourceManagerException(String.format("TaskExecutor %s re-connected to the ResourceManager.", taskExecutorResourceId.getStringWithMetadata())));
 		}
 
 		final WorkerType newWorker = workerStarted(taskExecutorResourceId);
@@ -775,7 +775,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		String taskExecutorAddress = taskExecutorRegistration.getTaskExecutorAddress();
 		if (newWorker == null) {
 			log.warn("Discard registration from TaskExecutor {} at ({}) because the framework did " +
-				"not recognize it", taskExecutorResourceId, taskExecutorAddress);
+				"not recognize it", taskExecutorResourceId.getStringWithMetadata(), taskExecutorAddress);
 			return new RegistrationResponse.Decline("unrecognized TaskExecutor");
 		} else {
 			WorkerRegistration<WorkerType> registration = new WorkerRegistration<>(
@@ -784,7 +784,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				taskExecutorRegistration.getDataPort(),
 				taskExecutorRegistration.getHardwareDescription());
 
-			log.info("Registering TaskManager with ResourceID {} ({}) at ResourceManager", taskExecutorResourceId, taskExecutorAddress);
+			log.info("Registering TaskManager with ResourceID {} ({}) at ResourceManager", taskExecutorResourceId.getStringWithMetadata(), taskExecutorAddress);
 			taskExecutors.put(taskExecutorResourceId, registration);
 
 			taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
@@ -870,7 +870,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
 
 		if (workerRegistration != null) {
-			log.info("Closing TaskExecutor connection {} because: {}", resourceID, cause.getMessage());
+			log.info("Closing TaskExecutor connection {} because: {}", resourceID.getStringWithMetadata(), cause.getMessage());
 
 			// TODO :: suggest failed task executor to stop itself
 			slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);
@@ -880,7 +880,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} else {
 			log.debug(
 				"No open TaskExecutor connection {}. Ignoring close TaskExecutor connection. Closing reason was: {}",
-				resourceID,
+				resourceID.getStringWithMetadata(),
 				cause.getMessage());
 		}
 	}
@@ -926,7 +926,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			if (stopWorker(worker)) {
 				closeTaskManagerConnection(worker.getResourceID(), cause);
 			} else {
-				log.debug("Worker {} could not be stopped.", worker.getResourceID());
+				log.debug("Worker {} could not be stopped.", worker.getResourceID().getStringWithMetadata());
 			}
 		} else {
 			// unregister in order to clean up potential left over state
@@ -1216,11 +1216,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
 			validateRunsInMainThread();
-			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
+			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID.getStringWithMetadata());
 
 			closeTaskManagerConnection(
 				resourceID,
-				new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
+				new TimeoutException("The heartbeat of TaskManager with id " + resourceID.getStringWithMetadata() + "  timed out."));
 		}
 
 		@Override
@@ -1229,7 +1229,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			final WorkerRegistration<WorkerType> workerRegistration = taskExecutors.get(resourceID);
 
 			if (workerRegistration == null) {
-				log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID);
+				log.debug("Received slot report from TaskManager {} which is no longer registered.", resourceID.getStringWithMetadata());
 			} else {
 				InstanceID instanceId = workerRegistration.getInstanceID();
 
@@ -1257,7 +1257,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				if (jobManagerRegistration != null) {
 					closeJobManagerConnection(
 						jobManagerRegistration.getJobID(),
-						new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
+						new TimeoutException("The heartbeat of JobManager with id " + resourceID.getStringWithMetadata() + " timed out."));
 				}
 			}
 		}
