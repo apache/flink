@@ -23,20 +23,26 @@ under the License.
 -->
 
 典型的 Hive 作业是周期性地调度执行，所以会有很大的延迟。
+
 Flink 支持流式的写入、读取和关联 Hive 表。
 
-* 这将会被 TOC 替换
+* This will be replaced by the TOC
 {:toc}
 
 有三种类型的流：  
+
 - 写入流式数据到 Hive 表。  
 - 以流的形式增量读取 Hive 表。
 - 以时态表 [Temporal Table]({{ site.baseurl }}/zh/dev/table/streaming/temporal_tables.html#temporal-table) 的方式实现流表关联 Hive 表。
 
 ## 流式写
+
 Hive 支持基于 [Filesystem Streaming Sink]({{ site.baseurl }}/zh/dev/table/connectors/filesystem.html#streaming-sink) 的流式写入。  
-Hive Streaming Sink 复用 Filesystem Streaming Sink 将 Hadoop OutputFormat/RecordWriter 集成到流式写入。Hadoop RecordWriters 是批量编码格式，批量格式在每个检查点滚动文件。
- 默认情况下，现在只有重命名提交者(committer) ，这意味着 S3 文件系统不支持精确一次语义，如果您想在 S3 文件系统中使用 Hive streaming sink，可以将下面的参数配置为 false，以便在 ‘TableConfig’ 中使用 Flink native sink(仅适用于 parquet 和 orc 格式)(请注意，这些参数会影响作业的所有 sink)：
+
+Hive Streaming Sink 复用 Filesystem Streaming Sink 将 Hadoop OutputFormat/RecordWriter 集成到流式写入。  
+Hadoop RecordWriters 是批量编码格式，批量格式在每个检查点滚动文件。
+
+默认情况下，现在只有重命名提交者(committer)，这意味着 S3 文件系统不支持精确一次语义，如果您想在 S3 文件系统中使用 Hive streaming sink，可以将下面的参数配置为 false，以便在 ‘TableConfig’ 中使用 Flink native sink(仅适用于 parquet 和 orc 格式)(请注意，这些参数会影响作业的所有 sink)：
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -58,8 +64,8 @@ Hive Streaming Sink 复用 Filesystem Streaming Sink 将 Hadoop OutputFormat/Rec
 
 下面展示了如何使用 streaming sink 编写一个流查询，将 Kafka 中的数据写入带有分区提交的 Hive 表，并运行一个批查询读取返回的数据。
 
+{% highlight sql %}
 
-```
 SET table.sql-dialect=hive;
 CREATE TABLE hive_table (
   user_id STRING,
@@ -84,15 +90,18 @@ INSERT INTO TABLE hive_table SELECT user_id, order_amount, DATE_FORMAT(log_ts, '
 
 -- batch sql, select with partition pruning
 SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
-```
 
+{% endhighlight %}
 
 ## 流式读
+
 为了提高 Hive 读取的实时性能，Flink 支持实时的 Hive 表流，如下所示:  
+
 - 分区表，监控分区的生成，并以增量方式读取新分区。  
 - 非分区表，监控目录中新文件的生成，并以增量方式读取新文件。
 
 你甚至可以使用10分钟级别的分区策略，并使用 Flink 的 Hive 流式读和 Hive 流式写，从而大大提高 Hive 数据仓库的实时性能，达到准实时分钟级别。
+
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -131,16 +140,19 @@ SELECT * FROM hive_table WHERE dt='2020-05-20' and hr='12';
 </table>
   
 注意:
+
 - 监控策略是扫描位置路径中的所有目录/文件。如果分区太多，就会出现性能问题。
 - 对于非分区的流式读取需要将每个文件原子性地放入目标目录。
 - 对已分区的流式读取要求每个分区都应该原子性地添加到 Hive metastore 视图中。这意味着添加到现有分区的新数据将不会被使用。
 - 流式阅读不支持 Flink DDL 中的水印语法，因此不能用于窗口操作。
+
 下面展示了如何以增量方式读取 Hive 表。
 
-```
-SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'='true', 'streaming-source.consume-start-offset'='2020-05-20') */;
-```
+{% highlight sql %}
 
+SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'='true', 'streaming-source.consume-start-offset'='2020-05-20') */;
+
+{% endhighlight %}
 
 # Hive表作为 Temporal Table
 
@@ -168,7 +180,7 @@ SELECT * FROM hive_table /*+ OPTIONS('streaming-source.enable'='true', 'streamin
 </table>
 
 
-注意:
+**注意**:
 1. 每个连接子任务都需要保留自己的 Hive 表缓存，请确保 Hive 表可以放入 TM 任务槽的内存中。
 2. 你应当为 lookup.join.cache.ttl 设置一个相对较大的值，如果你的 Hive 表需要频繁地更新和重新加载，那么可能会出现性能问题。
 3. 目前，只要缓存需要刷新，我们就加载整个 Hive 表，没有办法区分新数据和旧数据。
