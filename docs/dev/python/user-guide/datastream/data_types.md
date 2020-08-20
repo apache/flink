@@ -1,7 +1,7 @@
 ---
 title: "Data Types"
 nav-parent_id: python_datastream_api
-nav-pos: 10
+nav-pos: 20
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
