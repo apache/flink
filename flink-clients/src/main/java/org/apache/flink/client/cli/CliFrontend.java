@@ -240,13 +240,16 @@ public class CliFrontend {
 	 * Get all provided libraries needed to run the program from the ProgramOptions.
 	 */
 	@VisibleForTesting
-	List<URL> getJobJarAndDependencies(ProgramOptions programOptions) throws FileNotFoundException, ProgramInvocationException {
+	List<URL> getJobJarAndDependencies(ProgramOptions programOptions) throws CliArgsException {
 		String entryPointClass = programOptions.getEntryPointClassName();
 		String jarFilePath = programOptions.getJarFilePath();
 
-		File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
-
-		return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass);
+		try {
+			File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
+			return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass);
+		} catch (FileNotFoundException | ProgramInvocationException e) {
+			throw new CliArgsException("Could not get job jar and dependencies from JAR file: " + e.getMessage(), e);
+		}
 	}
 
 	private PackagedProgram getPackagedProgram(
