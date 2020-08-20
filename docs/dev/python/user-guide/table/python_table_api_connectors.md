@@ -23,16 +23,16 @@ under the License.
 -->
 
 
+This page describes how to use connectors in PyFlink and highlights the different parts between using connectors in PyFlink vs Java/Scala. 
+
 * This will be replaced by the TOC
 {:toc}
 
-This page describes how to use connectors in PyFlink. The main purpose of this page is to highlight the different parts between using connectors in PyFlink and Java/Scala. Below, we will guide you how to use connectors through an explicit example in which Kafka and Json format are used.
-
-<span class="label label-info">Note</span> For the common parts of using connectors between PyFlink and Java/Scala, you can refer to the [Java/Scala document]({{ site.baseurl }}/dev/table/connectors/index.html) for more details. 
+<span class="label label-info">Note</span>For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({{ site.baseurl }}/dev/table/connectors/index.html). 
 
 ## Download connector and format jars
 
-Suppose you are using Kafka connector and Json format, you need first download the [Kafka]({{ site.baseurl }}/dev/table/connectors/kafka.html) and [Json](https://repo.maven.apache.org/maven2/org/apache/flink/flink-json/) jars. Once the connector and format jars are downloaded to local, specify them with the [Dependency Management]({{ site.baseurl }}/dev/python/user-guide/table/dependency_management.html) APIs.
+For both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/dev/python/user-guide/table/dependency_management.html).
 
 {% highlight python %}
 
@@ -42,7 +42,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 
 ## How to use connectors
 
-In the Table API of PyFlink, DDL is recommended to define source and sink. You can use the `execute_sql()` method on `TableEnvironment` to register source and sink with DDL. After that, you can select from the source table and insert into the sink table.
+In PyFink's Table API, DDL is the recommended way to define sources and sinks, executed via the `execute_sql()` method on the `TableEnvironment`. This makes the table available for use by the application.
 
 {% highlight python %}
 
@@ -144,7 +144,7 @@ A few basic data sources and sinks are built into Flink and are always available
 
 ### from/to Pandas
 
-It supports to convert between PyFlink Table and Pandas DataFrame.
+PyFlink Tables support conversion to and from Pandas DataFrame.
 
 {% highlight python %}
 
@@ -190,5 +190,5 @@ The above query returns a Table like:
 
 ## User-defined sources & sinks
 
-In some cases, you may want to defined your own sources and sinks. Currently, Python sources and sinks are not supported. However, you can write Java/Scala TableFactory and use your own sources and sinks in DDL. More details can be found in the [Java/Scala document]({{ site.baseurl }}/dev/table/sourceSinks.html).
+In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala but you can define a TableFactory to support their use via DDL. More details can be found in the [Java/Scala document]({{ site.baseurl }}/dev/table/sourceSinks.html).
 
