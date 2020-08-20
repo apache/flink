@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This walkthrough will quickly get you started building a pure Python Flink project.
+This walkthrough will quickly get you started building a pure Python Flink Table API project.
 
 Please refer to the Python Table API [installation guide]({% link dev/python/installation.md %}) on how to set up the Python execution environments.
 
