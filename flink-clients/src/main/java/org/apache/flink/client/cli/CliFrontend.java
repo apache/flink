@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
@@ -238,14 +239,14 @@ public class CliFrontend {
 	/**
 	 * Get all provided libraries needed to run the program from the ProgramOptions.
 	 */
-	public List<URL> getJobJarAndDependencies(ProgramOptions programOptions) throws FileNotFoundException, ProgramInvocationException {
+	@VisibleForTesting
+	List<URL> getJobJarAndDependencies(ProgramOptions programOptions) throws FileNotFoundException, ProgramInvocationException {
 		String entryPointClass = programOptions.getEntryPointClassName();
 		String jarFilePath = programOptions.getJarFilePath();
 
 		File jarFile = jarFilePath != null ? getJarFile(jarFilePath) : null;
 
-		return PackagedProgram
-			.getJobJarAndDependencies(jarFile != null ? jarFile : null, entryPointClass);
+		return PackagedProgram.getJobJarAndDependencies(jarFile, entryPointClass);
 	}
 
 	private PackagedProgram getPackagedProgram(
@@ -261,7 +262,8 @@ public class CliFrontend {
 		return program;
 	}
 
-	public  <T> Configuration getEffectiveConfiguration(
+	@VisibleForTesting
+	<T> Configuration getEffectiveConfiguration(
 			final CustomCommandLine activeCustomCommandLine,
 			final CommandLine commandLine,
 			final ProgramOptions programOptions,

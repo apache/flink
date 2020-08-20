@@ -220,7 +220,24 @@ public class PackagedProgram {
 	 * Returns all provided libraries needed to run the program.
 	 */
 	public List<URL> getJobJarAndDependencies() {
-		return getJobJarAndDependencies(jarFile, extractedTempLibraries, isPython);
+		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+
+		if (jarFile != null) {
+			libs.add(jarFile);
+		}
+		for (File tmpLib : extractedTempLibraries) {
+			try {
+				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
+			} catch (MalformedURLException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+
+		if (isPython) {
+			libs.add(PackagedProgramUtils.getPythonJar());
+		}
+
+		return libs;
 	}
 
 	/**
@@ -245,30 +262,6 @@ public class PackagedProgram {
 		}
 
 		if (isPython(entryPointClassName)) {
-			libs.add(PackagedProgramUtils.getPythonJar());
-		}
-
-		return libs;
-	}
-
-	/**
-	 * Returns all provided libraries needed to run the program.
-	 */
-	public static List<URL> getJobJarAndDependencies(URL jarFileUrl, List<File> extractedTempLibraries, boolean isPython) {
-		List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
-
-		if (jarFileUrl != null) {
-			libs.add(jarFileUrl);
-		}
-		for (File tmpLib : extractedTempLibraries) {
-			try {
-				libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
-			} catch (MalformedURLException e) {
-				throw new RuntimeException("URL is invalid. This should not happen.", e);
-			}
-		}
-
-		if (isPython) {
 			libs.add(PackagedProgramUtils.getPythonJar());
 		}
 
