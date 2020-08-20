@@ -76,20 +76,33 @@ public class StreamEdge implements Serializable {
 
 	private final ShuffleMode shuffleMode;
 
-	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
-			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
-		this(sourceVertex,
-				targetVertex,
-				typeNumber,
-				selectedNames,
-				outputPartitioner,
-				outputTag,
-				ShuffleMode.UNDEFINED);
+	public StreamEdge(
+		StreamNode sourceVertex,
+		StreamNode targetVertex,
+		int typeNumber,
+		List<String> selectedNames,
+		StreamPartitioner<?> outputPartitioner,
+		OutputTag outputTag) {
+
+		this(
+			sourceVertex,
+			targetVertex,
+			typeNumber,
+			selectedNames,
+			outputPartitioner,
+			outputTag,
+			ShuffleMode.UNDEFINED);
 	}
 
-	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
-			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag,
-			ShuffleMode shuffleMode) {
+	public StreamEdge(
+		StreamNode sourceVertex,
+		StreamNode targetVertex,
+		int typeNumber,
+		List<String> selectedNames,
+		StreamPartitioner<?> outputPartitioner,
+		OutputTag outputTag,
+		ShuffleMode shuffleMode) {
+
 		this.sourceId = sourceVertex.getId();
 		this.targetId = targetVertex.getId();
 		this.typeNumber = typeNumber;
@@ -99,9 +112,7 @@ public class StreamEdge implements Serializable {
 		this.sourceOperatorName = sourceVertex.getOperatorName();
 		this.targetOperatorName = targetVertex.getOperatorName();
 		this.shuffleMode = checkNotNull(shuffleMode);
-
-		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
-				+ "_" + outputPartitioner;
+		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames + "_" + outputPartitioner;
 	}
 
 	public int getSourceId() {
