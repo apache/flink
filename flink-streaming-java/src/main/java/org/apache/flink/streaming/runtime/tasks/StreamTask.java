@@ -1024,13 +1024,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) throws FlinkException {
 		try {
 			mainMailboxExecutor.execute(
-				() -> {
-					try {
-						operatorChain.dispatchOperatorEvent(operator, event);
-					} catch (Throwable t) {
-						mailboxProcessor.reportThrowable(t);
-					}
-				},
+				() -> operatorChain.dispatchOperatorEvent(operator, event),
 				"dispatch operator event");
 		}
 		catch (RejectedExecutionException e) {
