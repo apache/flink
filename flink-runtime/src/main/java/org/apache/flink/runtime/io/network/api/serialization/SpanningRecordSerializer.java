@@ -108,12 +108,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	@Override
-	public void prune() {
-		serializationBuffer.pruneBuffer();
-		dataBuffer = serializationBuffer.wrapAsByteBuffer();
-	}
-
-	@Override
 	public boolean hasSerializedData() {
 		return dataBuffer.hasRemaining();
 	}

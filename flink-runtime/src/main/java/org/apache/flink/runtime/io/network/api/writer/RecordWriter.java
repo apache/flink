@@ -120,9 +120,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		serializer.serializeRecord(record);
 
 		// Make sure we don't hold onto the large intermediate serialization buffer for too long
-		if (copyFromSerializerToTargetChannel(targetChannel)) {
-			serializer.prune();
-		}
+		copyFromSerializerToTargetChannel(targetChannel);
 	}
 
 	/**
