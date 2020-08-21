@@ -340,7 +340,8 @@ abstract class PlannerBase(
       objectIdentifier: ObjectIdentifier,
       dynamicOptions: JMap[String, String])
     : Option[(CatalogTable, Any)] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    val lookupResult = JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    lookupResult
       .map(_.getTable) match {
       case Some(table: ConnectorCatalogTable[_, _]) =>
         JavaScalaConversionUtil.toScala(table.getTableSink) match {
@@ -355,13 +356,15 @@ abstract class PlannerBase(
         } else {
           table
         }
-        if (isLegacyConnectorOptions(objectIdentifier, table)) {
+        val isTemporary = lookupResult.get.isTemporary
+        if (isLegacyConnectorOptions(objectIdentifier, table, isTemporary)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orElse(null),
             objectIdentifier,
             tableToFind,
             getTableConfig.getConfiguration,
-            isStreamingMode)
+            isStreamingMode,
+            isTemporary)
           Option(table, tableSink)
         } else {
           val tableSink = FactoryUtil.createTableSink(
@@ -369,7 +372,8 @@ abstract class PlannerBase(
             objectIdentifier,
             tableToFind,
             getTableConfig.getConfiguration,
-            Thread.currentThread().getContextClassLoader)
+            Thread.currentThread().getContextClassLoader,
+            isTemporary)
           Option(table, tableSink)
         }
 
@@ -382,7 +386,8 @@ abstract class PlannerBase(
    */
   private def isLegacyConnectorOptions(
       objectIdentifier: ObjectIdentifier,
-      catalogTable: CatalogTable) = {
+      catalogTable: CatalogTable,
+      isTemporary: Boolean) = {
     // normalize option keys
     val properties = new DescriptorProperties(true)
     properties.putProperties(catalogTable.getOptions)
@@ -398,7 +403,8 @@ abstract class PlannerBase(
           objectIdentifier,
           catalogTable,
           getTableConfig.getConfiguration,
-          isStreamingMode)
+          isStreamingMode,
+          isTemporary)
         // success, then we will use the legacy factories
         true
       } catch {

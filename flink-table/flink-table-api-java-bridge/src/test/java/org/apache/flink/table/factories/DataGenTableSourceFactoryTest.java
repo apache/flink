@@ -330,7 +330,8 @@ public class DataGenTableSourceFactoryTest {
 				ObjectIdentifier.of("", "", ""),
 				new CatalogTableImpl(schema, options, ""),
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	private static class TestContext implements SourceFunction.SourceContext<RowData> {

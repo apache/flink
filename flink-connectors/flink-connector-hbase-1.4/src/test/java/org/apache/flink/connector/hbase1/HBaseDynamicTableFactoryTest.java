@@ -334,7 +334,8 @@ public class HBaseDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(schema, options, "mock source"),
 			new Configuration(),
-			HBase1DynamicTableFactory.class.getClassLoader());
+			HBase1DynamicTableFactory.class.getClassLoader(),
+			false);
 	}
 
 	private static DynamicTableSink createTableSink(TableSchema schema, Map<String, String> options) {
@@ -343,7 +344,8 @@ public class HBaseDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(schema, options, "mock sink"),
 			new Configuration(),
-			HBase1DynamicTableFactory.class.getClassLoader());
+			HBase1DynamicTableFactory.class.getClassLoader(),
+			false);
 	}
 
 }
