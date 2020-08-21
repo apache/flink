@@ -293,13 +293,6 @@ public class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public int releaseMemory() {
-		// The pipelined subpartition does not react to memory release requests.
-		// The buffers will be recycled by the consuming task.
-		return 0;
-	}
-
-	@Override
 	public boolean isReleased() {
 		return isReleased;
 	}

@@ -242,13 +242,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		}
 	}
 
-	// ------------------------------ legacy ----------------------------------
-
-	@Override
-	public int releaseMemory() throws IOException {
-		return 0;
-	}
-
 	// ---------------------------- statistics --------------------------------
 
 	@Override
