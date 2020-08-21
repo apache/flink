@@ -49,6 +49,7 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -202,7 +203,8 @@ public class CEPOperatorTest extends TestLogger {
     public void testKeyedCEPOperatorCheckpointingWithRocksDB() throws Exception {
 
         String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-        RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+        RocksDBStateBackend rocksDBStateBackend =
+                new RocksDBStateBackend(new MemoryStateBackend(), TernaryBoolean.FALSE);
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
@@ -414,7 +416,8 @@ public class CEPOperatorTest extends TestLogger {
     public void testKeyedCEPOperatorNFAUpdateWithRocksDB() throws Exception {
 
         String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-        RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+        RocksDBStateBackend rocksDBStateBackend =
+                new RocksDBStateBackend(new MemoryStateBackend(), TernaryBoolean.FALSE);
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
