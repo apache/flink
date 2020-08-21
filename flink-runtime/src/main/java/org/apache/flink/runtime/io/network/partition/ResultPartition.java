@@ -341,16 +341,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 */
 	@Override
 	public void releaseMemory(int toRelease) throws IOException {
-		checkArgument(toRelease > 0);
-
-		for (ResultSubpartition subpartition : subpartitions) {
-			toRelease -= subpartition.releaseMemory();
-
-			// Only release as much memory as needed
-			if (toRelease <= 0) {
-				break;
-			}
-		}
+		// default behavior is nothing to release
 	}
 
 	/**
