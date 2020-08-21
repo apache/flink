@@ -31,13 +31,13 @@ under the License.
   由于你当前正在查看的是文档最新的 SNAPSHOT 版本，因此相关内容会被隐藏。请通过左侧菜单底部的版本选择将文档切换到最新的 release 版本。
 </p>
 {% else %}
-请按照以下几个步骤下载最新的稳定版本并开始使用。
+请按照以下几个步骤下载最新的稳定版本开始使用。
 
 <a name="step-1-download"></a>
 
 ## 步骤 1：下载
 
-为了能够运行 Flink，唯一的要求就是安装有效的 __Java 8 或者 Java 11__。你可以通过运行以下命令来检查 Java 的正确安装。
+为了运行Flink，只需提前安装好 __Java 8 或者 Java 11__。你可以通过以下命令来检查 Java 是否已经安装正确。
 
 {% highlight bash %}
 java -version
@@ -67,7 +67,7 @@ Starting taskexecutor daemon on host.
 
 ## 步骤 3：提交作业（Job）
 
-Flink 的 Releases 附带了许多的示例作业。你可以将这些应用程序之一快速部署到正在运行的集群。
+Flink 的 Releases 附带了许多的示例作业。你可以任意选择一个，快速部署到已运行的集群上。
 
 {% highlight bash %}
 $ ./bin/flink run examples/streaming/WordCount.jar
@@ -80,7 +80,7 @@ $ tail log/flink-*-taskexecutor-*.out
   (be,2)
 {% endhighlight %}
 
-另外，你可以查看 Flink 的 [Web UI](http://localhost:8080) 来监视集群的状态和正在运行的作业。
+另外，你可以通过 Flink 的 [Web UI](http://localhost:8080) 来监视集群的状态和正在运行的作业。
 
 <a name="step-4-stop-the-cluster"></a>
 
