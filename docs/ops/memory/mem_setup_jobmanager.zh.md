@@ -93,13 +93,13 @@ Flink 需要多少 *JVM 堆内存*，很大程度上取决于运行的作业数�
 如果遇到 JobManager 进程抛出 “OutOfMemoryError: Direct buffer memory” 的异常，可以尝试调大这项配置。
 请参考[常见问题](mem_trouble.html#outofmemoryerror-direct-buffer-memory)。
 
-一下情况可能用到堆外内存：
+以下情况可能用到堆外内存：
 * Flink 框架依赖（例如 Akka 的网络通信）
 * 在作业提交时（例如一些特殊的批处理 Source）及 Checkpoint 完成的回调函数中执行的用户代码
 
 <span class="label label-info">提示</span>
 如果同时配置了 [Flink 总内存](mem_setup.html#configure-total-memory)和 [JVM 堆内存](#configure-jvm-heap)，且没有配置*堆外内存*，那么*堆外内存*的大小将会是 [Flink 总内存](mem_setup.html#configure-total-memory)减去[JVM 堆内存](#configure-jvm-heap)。
-这种情况下，*对外内存*的默认大小将不会生效。
+这种情况下，*堆外内存*的默认大小将不会生效。
 
 <a name="local-execution" />
 
