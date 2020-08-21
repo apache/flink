@@ -476,6 +476,15 @@ public abstract class MetadataV2V3SerializerBase {
             byte[] internalData = byteStreamStateHandle.getData();
             dos.writeInt(internalData.length);
             dos.write(byteStreamStateHandle.getData());
+        } else if (stateHandle instanceof KeyGroupsStateHandle) {
+            KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) stateHandle;
+            dos.writeByte(KEY_GROUPS_HANDLE);
+            dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getStartKeyGroup());
+            dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
+            for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
+                dos.writeLong(keyGroupsStateHandle.getOffsetForKeyGroup(keyGroup));
+            }
+            serializeStreamStateHandle(keyGroupsStateHandle.getDelegateStateHandle(), dos);
         } else {
             throw new IOException(
                     "Unknown implementation of StreamStateHandle: " + stateHandle.getClass());
@@ -508,6 +517,20 @@ public abstract class MetadataV2V3SerializerBase {
             long size = dis.readLong();
             Path statePath = new Path(context.getExclusiveDirPath(), relativePath);
             return new RelativeFileStateHandle(statePath, relativePath, size);
+        } else if (KEY_GROUPS_HANDLE == type) {
+
+            int startKeyGroup = dis.readInt();
+            int numKeyGroups = dis.readInt();
+            KeyGroupRange keyGroupRange =
+                    KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+            long[] offsets = new long[numKeyGroups];
+            for (int i = 0; i < numKeyGroups; ++i) {
+                offsets[i] = dis.readLong();
+            }
+            KeyGroupRangeOffsets keyGroupRangeOffsets =
+                    new KeyGroupRangeOffsets(keyGroupRange, offsets);
+            StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
+            return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
         } else {
             throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
         }
