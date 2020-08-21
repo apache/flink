@@ -217,7 +217,8 @@ run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-script
 run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
 
 if [[ `uname -i` != 'aarch64' ]]; then
-    run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
+    run_test "PyFlink Table end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink_table.sh" "skip_check_exceptions"
+    run_test "PyFlink DataStream end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink_datastream.sh" "skip_check_exceptions"
 fi
 
 ################################################################################
