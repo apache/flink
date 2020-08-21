@@ -772,16 +772,14 @@ public class HiveCatalog extends AbstractCatalog {
 		Table hiveTable = getHiveTable(tablePath);
 
 		ensurePartitionedTable(tablePath, hiveTable);
+		checkValidPartitionSpec(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath);
 
 		try {
 			// partition spec can be partial
 			List<String> partialVals = HiveReflectionUtils.getPvals(hiveShim, hiveTable.getPartitionKeys(),
 				partitionSpec.getPartitionSpec());
-			checkValidPartitionSpec(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath);
 			return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), partialVals,
 				(short) -1).stream().map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
-		} catch (PartitionSpecInvalidException e) {
-			throw new PartitionSpecInvalidException(getName(), getFieldNames(hiveTable.getPartitionKeys()), tablePath, partitionSpec, e);
 		} catch (TException e) {
 			throw new CatalogException(
 				String.format("Failed to list partitions of table %s", tablePath), e);
