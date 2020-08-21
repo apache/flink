@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -487,6 +488,13 @@ public class HiveDialectITCase {
 		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-04-30',country='china')").collect());
 		assertEquals(1, partitions.size());
 		assertTrue(partitions.toString().contains("dt=2020-04-30/country=china"));
+		partitions = Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (dt='2020-05-01',country='japan')").collect());
+		assertEquals(0, partitions.size());
+		try {
+			Lists.newArrayList(tableEnv.executeSql("show partitions tbl partition (de='2020-04-30',city='china')").collect());
+		} catch (TableException e) {
+			assertEquals(String.format("Could not execute SHOW PARTITIONS %s.%s PARTITION (de=2020-04-30, city=china)", hiveCatalog.getName(), tablePath), e.getMessage());
+		}
 
 		tableEnv.executeSql("alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-04-30',country='us')");
 		assertEquals(0, hiveCatalog.listPartitions(tablePath).size());
