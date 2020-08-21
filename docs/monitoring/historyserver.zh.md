@@ -24,7 +24,7 @@ under the License.
 
 Flink 提供了 history server，可以在相应的 Flink 集群关闭之后查询已完成作业的统计信息。
 
-此外，它暴露了一套 REST API，该 API 接受 HTTP 请求并以 JSON 数据进行响应。
+此外，它暴露了一套 REST API，该 API 接受 HTTP 请求并以 JSON 数据格式进行响应。
 
 * This will be replaced by the TOC
 {:toc}
