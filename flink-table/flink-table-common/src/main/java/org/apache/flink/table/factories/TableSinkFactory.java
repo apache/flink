@@ -107,6 +107,11 @@ public interface TableSinkFactory<T> extends TableFactory {
 		 * See {@link Source#getBoundedness}.
 		 */
 		boolean isBounded();
+
+		/**
+		 * Whether the table is temporary.
+		 */
+		boolean isTemporary();
 	}
 
 }

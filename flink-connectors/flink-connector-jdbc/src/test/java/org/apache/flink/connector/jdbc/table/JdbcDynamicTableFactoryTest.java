@@ -296,7 +296,8 @@ public class JdbcDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock source"),
 			new Configuration(),
-			JdbcDynamicTableFactoryTest.class.getClassLoader());
+			JdbcDynamicTableFactoryTest.class.getClassLoader(),
+			false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -305,6 +306,7 @@ public class JdbcDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock sink"),
 			new Configuration(),
-			JdbcDynamicTableFactoryTest.class.getClassLoader());
+			JdbcDynamicTableFactoryTest.class.getClassLoader(),
+			false);
 	}
 }

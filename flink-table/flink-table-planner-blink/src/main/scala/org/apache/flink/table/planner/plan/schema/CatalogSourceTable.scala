@@ -137,7 +137,8 @@ class CatalogSourceTable[T](
       schemaTable.getTableIdentifier,
       newCatalogTable,
       conf,
-      Thread.currentThread.getContextClassLoader)
+      Thread.currentThread.getContextClassLoader,
+      schemaTable.isTemporary)
 
     validateTableSource(tableSource)
 

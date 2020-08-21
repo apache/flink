@@ -195,7 +195,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 				// actual TableConfig here. And currently the empty config do not affect the logic.
 				ReadableConfig config = new Configuration();
 				TableSourceFactory.Context context =
-					new TableSourceFactoryContextImpl(tableIdentifier, (CatalogTable) lookupResult.getTable(), config);
+					new TableSourceFactoryContextImpl(tableIdentifier, (CatalogTable) lookupResult.getTable(), config, lookupResult.isTemporary());
 				TableSource<?> source = TableFactoryUtil.findAndCreateTableSource(context);
 				if (source instanceof StreamTableSource) {
 					if (!isStreamingMode && !((StreamTableSource<?>) source).isBounded()) {

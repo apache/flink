@@ -163,7 +163,8 @@ public class RegistryAvroFormatFactoryTest {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				RegistryAvroFormatFactoryTest.class.getClassLoader());
+				RegistryAvroFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 
 	private DynamicTableSink createTableSink(Map<String, String> options) {
@@ -172,6 +173,7 @@ public class RegistryAvroFormatFactoryTest {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				RegistryAvroFormatFactoryTest.class.getClassLoader());
+				RegistryAvroFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 }

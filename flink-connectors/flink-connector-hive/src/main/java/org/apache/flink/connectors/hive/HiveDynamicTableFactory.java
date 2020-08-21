@@ -73,7 +73,8 @@ public class HiveDynamicTableFactory implements
 				context.getObjectIdentifier(),
 				removeIsGenericFlag(context.getCatalogTable()),
 				context.getConfiguration(),
-				context.getClassLoader());
+				context.getClassLoader(),
+				false);
 	}
 
 	@Override
@@ -83,6 +84,7 @@ public class HiveDynamicTableFactory implements
 				context.getObjectIdentifier(),
 				removeIsGenericFlag(context.getCatalogTable()),
 				context.getConfiguration(),
-				context.getClassLoader());
+				context.getClassLoader(),
+				false);
 	}
 }
