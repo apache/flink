@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -505,7 +506,7 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 			final List<Integer> newArgList;
 			final SqlAggFunction aggregation;
 			if (!aggCall.isDistinct()) {
-				aggregation = SqlStdOperatorTable.MIN;
+				aggregation = FlinkSqlOperatorTable.FIRST_VALUE;
 				newArgList = ImmutableIntList.of(x++);
 				newFilterArg = filters.get(aggregate.getGroupSet());
 				switch (aggCall.getAggregation().getKind()) {

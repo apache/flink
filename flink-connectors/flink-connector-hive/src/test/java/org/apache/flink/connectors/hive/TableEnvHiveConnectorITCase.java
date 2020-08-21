@@ -34,6 +34,8 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.ArrayUtils;
@@ -87,6 +89,31 @@ public class TableEnvHiveConnectorITCase {
 		hiveCatalog = HiveTestUtils.createHiveCatalog(hiveConf);
 		hiveCatalog.open();
 		hmsClient = HiveMetastoreClientFactory.create(hiveConf, HiveShimLoader.getHiveVersion());
+	}
+
+	@Test
+	public void testPercentileWithDistinct() {
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule());
+		tableEnv.loadModule("core", CoreModule.INSTANCE);
+
+		try {
+			tableEnv.executeSql("create database db1");
+			tableEnv.executeSql("create table db1.src(x int,y int)");
+			HiveTestUtils.createTextTableInserter(hiveShell, "db1", "src")
+					.addRow(new Object[]{1, 1})
+					.addRow(new Object[]{1, 1})
+					.addRow(new Object[]{1, 2})
+					.addRow(new Object[]{1, 3})
+					.addRow(new Object[]{1, 4})
+					.commit();
+			List<Row> results = Lists.newArrayList(tableEnv.executeSql(
+					"select count(distinct y),`percentile`(y,`array`(0.5,1)) from db1.src group by x").collect());
+			assertEquals("[4,[2.0, 4.0]]", results.toString());
+		} finally {
+			tableEnv.executeSql("drop database db1 cascade");
+		}
 	}
 
 	@Test
