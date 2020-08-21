@@ -69,5 +69,10 @@ public interface DynamicTableFactory extends Factory {
 		 * <p>The class loader is in particular useful for discovering further (nested) factories.
 		 */
 		ClassLoader getClassLoader();
+
+		/**
+		 * Whether the table is temporary.
+		 */
+		boolean isTemporary();
 	}
 }

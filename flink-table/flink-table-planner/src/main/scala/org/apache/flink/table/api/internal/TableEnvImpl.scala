@@ -1073,7 +1073,8 @@ abstract class TableEnvImpl(
   }
 
   protected def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    val lookupResult = JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+    lookupResult
       .map(_.getTable) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
 
@@ -1085,7 +1086,8 @@ abstract class TableEnvImpl(
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
         val context = new TableSinkFactoryContextImpl(
-          objectIdentifier, catalogTable, config.getConfiguration, true)
+          objectIdentifier, catalogTable, config.getConfiguration, true,
+          lookupResult.get.isTemporary)
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(catalog.get(), context)
           if (sink.isPresent) {

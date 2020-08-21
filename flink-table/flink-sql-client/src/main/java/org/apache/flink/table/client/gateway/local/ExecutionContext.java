@@ -395,7 +395,7 @@ public class ExecutionContext<ClusterID> {
 							tableEnv.getCurrentDatabase(),
 							name),
 					CatalogTableImpl.fromProperties(sourceProperties),
-					tableEnv.getConfig().getConfiguration()));
+					tableEnv.getConfig().getConfiguration(), true));
 		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
 				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
@@ -415,7 +415,7 @@ public class ExecutionContext<ClusterID> {
 							name),
 					CatalogTableImpl.fromProperties(sinkProperties),
 					tableEnv.getConfig().getConfiguration(),
-					!environment.getExecution().inStreamingMode()));
+					!environment.getExecution().inStreamingMode(), true));
 		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);

@@ -148,7 +148,8 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				DebeziumJsonFormatFactoryTest.class.getClassLoader());
+				DebeziumJsonFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -157,6 +158,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				DebeziumJsonFormatFactoryTest.class.getClassLoader());
+				DebeziumJsonFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 }

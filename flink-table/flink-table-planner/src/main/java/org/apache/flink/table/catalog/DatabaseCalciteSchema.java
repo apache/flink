@@ -108,7 +108,8 @@ class DatabaseCalciteSchema implements Schema {
 					identifier,
 					(CatalogTable) table,
 					resolvedSchema,
-					tableFactory);
+					tableFactory,
+					lookupResult.isTemporary());
 			} else if (table instanceof CatalogView) {
 				return convertCatalogView(
 					identifier.getObjectName(),
@@ -147,10 +148,11 @@ class DatabaseCalciteSchema implements Schema {
 			ObjectIdentifier identifier,
 			CatalogTable table,
 			TableSchema resolvedSchema,
-			@Nullable TableFactory tableFactory) {
+			@Nullable TableFactory tableFactory,
+			boolean isTemporary) {
 		final TableSource<?> tableSource;
 		final TableSourceFactory.Context context = new TableSourceFactoryContextImpl(
-				identifier, table, tableConfig.getConfiguration());
+				identifier, table, tableConfig.getConfiguration(), isTemporary);
 		if (tableFactory != null) {
 			if (tableFactory instanceof TableSourceFactory) {
 				tableSource = ((TableSourceFactory<?>) tableFactory).createTableSource(context);

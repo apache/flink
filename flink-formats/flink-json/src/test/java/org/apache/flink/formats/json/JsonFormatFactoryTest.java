@@ -183,7 +183,8 @@ public class JsonFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "Mock scan table"),
 				new Configuration(),
-				JsonFormatFactoryTest.class.getClassLoader());
+				JsonFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -192,6 +193,7 @@ public class JsonFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "Mock sink table"),
 				new Configuration(),
-				JsonFormatFactoryTest.class.getClassLoader());
+				JsonFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 }

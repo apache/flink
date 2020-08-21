@@ -60,11 +60,13 @@ public class TableFactoryUtil {
 			Catalog catalog,
 			ObjectIdentifier objectIdentifier,
 			CatalogTable catalogTable,
-			ReadableConfig configuration) {
+			ReadableConfig configuration,
+			boolean isTemporary) {
 		TableSourceFactory.Context context = new TableSourceFactoryContextImpl(
 			objectIdentifier,
 			catalogTable,
-			configuration);
+			configuration,
+			isTemporary);
 		Optional<TableFactory> factoryOptional = catalog.getTableFactory();
 		if (factoryOptional.isPresent()) {
 			TableFactory factory = factoryOptional.get();
@@ -104,12 +106,14 @@ public class TableFactoryUtil {
 			ObjectIdentifier objectIdentifier,
 			CatalogTable catalogTable,
 			ReadableConfig configuration,
-			boolean isStreamingMode) {
+			boolean isStreamingMode,
+			boolean isTemporary) {
 		TableSinkFactory.Context context = new TableSinkFactoryContextImpl(
 			objectIdentifier,
 			catalogTable,
 			configuration,
-			!isStreamingMode);
+			!isStreamingMode,
+			isTemporary);
 		if (catalog == null) {
 			return findAndCreateTableSink(context);
 		} else {

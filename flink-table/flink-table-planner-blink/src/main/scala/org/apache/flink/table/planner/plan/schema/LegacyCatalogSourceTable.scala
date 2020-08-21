@@ -181,9 +181,7 @@ class LegacyCatalogSourceTable[T](
       catalogTable
     }
     val context = new TableSourceFactoryContextImpl(
-      schemaTable.getTableIdentifier,
-      tableToFind,
-      conf)
+      schemaTable.getTableIdentifier, tableToFind, conf, schemaTable.isTemporary)
     val tableSource = if (tableFactoryOpt.isPresent) {
       tableFactoryOpt.get() match {
         case tableSourceFactory: TableSourceFactory[_] =>

@@ -149,7 +149,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				catalogTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 
 		// Test scan source equals
 		final KafkaDynamicSourceBase expectedKafkaSource = getExpectedScanSource(
@@ -189,7 +190,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			objectIdentifier,
 			catalogTable,
 			new Configuration(),
-			Thread.currentThread().getContextClassLoader());
+			Thread.currentThread().getContextClassLoader(),
+			false);
 
 		// Test commitOnCheckpoints flag should be false when do not set consumer group.
 		assertThat(tableSource, instanceOf(KafkaDynamicSourceBase.class));
@@ -230,7 +232,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			objectIdentifier,
 			catalogTable,
 			new Configuration(),
-			Thread.currentThread().getContextClassLoader());
+			Thread.currentThread().getContextClassLoader(),
+			false);
 
 		// Test scan source equals
 		final KafkaDynamicSourceBase expectedKafkaSource = getExpectedScanSource(
@@ -271,7 +274,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				sinkTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 
 		final DynamicTableSink expectedSink = getExpectedSink(
 				consumedDataType,
@@ -321,7 +325,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				catalogTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	@Test
@@ -345,7 +350,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			objectIdentifier,
 			catalogTable,
 			new Configuration(),
-			Thread.currentThread().getContextClassLoader());
+			Thread.currentThread().getContextClassLoader(),
+			false);
 	}
 
 	@Test
@@ -369,7 +375,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				catalogTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	@Test
@@ -393,7 +400,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				catalogTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	@Test
@@ -417,7 +425,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				sinkTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	@Test
@@ -441,7 +450,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 			objectIdentifier,
 			sinkTable,
 			new Configuration(),
-			Thread.currentThread().getContextClassLoader());
+			Thread.currentThread().getContextClassLoader(),
+			false);
 	}
 
 	@Test
@@ -467,7 +477,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				sinkTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 		} catch (Throwable t) {
 			assertEquals(String.format(errorMessageTemp, "'topic'", String.format("[%s]", String.join(", ", TOPIC_LIST))),
 				t.getCause().getMessage());
@@ -486,7 +497,8 @@ public abstract class KafkaDynamicTableFactoryTestBase extends TestLogger {
 				objectIdentifier,
 				sinkTable,
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 		} catch (Throwable t) {
 			assertEquals(String.format(errorMessageTemp, "'topic-pattern'", TOPIC_REGEX), t.getCause().getMessage());
 		}

@@ -154,7 +154,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(SCHEMA, options, "mock source"),
 			new Configuration(),
-			CanalJsonFormatFactoryTest.class.getClassLoader());
+			CanalJsonFormatFactoryTest.class.getClassLoader(),
+			false);
 
 		assert source instanceof TestDynamicTableFactory.DynamicTableSourceMock;
 		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
@@ -170,7 +171,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(SCHEMA, options, "mock sink"),
 			new Configuration(),
-			CanalJsonFormatFactoryTest.class.getClassLoader());
+			CanalJsonFormatFactoryTest.class.getClassLoader(),
+			false);
 
 		assert sink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
 		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =

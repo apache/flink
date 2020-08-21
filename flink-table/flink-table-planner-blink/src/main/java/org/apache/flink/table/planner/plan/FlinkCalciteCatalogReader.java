@@ -232,7 +232,8 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 					schemaTable.getCatalog(),
 					schemaTable.getTableIdentifier(),
 					catalogTable,
-					new Configuration());
+					new Configuration(),
+					schemaTable.isTemporary());
 				// success, then we will use the legacy factories
 				return true;
 			} catch (Throwable e) {

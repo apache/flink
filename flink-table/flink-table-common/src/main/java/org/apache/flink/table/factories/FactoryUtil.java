@@ -108,12 +108,14 @@ public final class FactoryUtil {
 			ObjectIdentifier objectIdentifier,
 			CatalogTable catalogTable,
 			ReadableConfig configuration,
-			ClassLoader classLoader) {
+			ClassLoader classLoader,
+			boolean isTemporary) {
 		final DefaultDynamicTableContext context = new DefaultDynamicTableContext(
 			objectIdentifier,
 			catalogTable,
 			configuration,
-			classLoader);
+			classLoader,
+			isTemporary);
 		try {
 			final DynamicTableSourceFactory factory = getDynamicTableFactory(
 				DynamicTableSourceFactory.class,
@@ -147,12 +149,14 @@ public final class FactoryUtil {
 			ObjectIdentifier objectIdentifier,
 			CatalogTable catalogTable,
 			ReadableConfig configuration,
-			ClassLoader classLoader) {
+			ClassLoader classLoader,
+			boolean isTemporary) {
 		final DefaultDynamicTableContext context = new DefaultDynamicTableContext(
 			objectIdentifier,
 			catalogTable,
 			configuration,
-			classLoader);
+			classLoader,
+			isTemporary);
 		try {
 			final DynamicTableSinkFactory factory = getDynamicTableFactory(
 				DynamicTableSinkFactory.class,
@@ -209,8 +213,8 @@ public final class FactoryUtil {
 	 * Discovers a factory using the given factory base class and identifier.
 	 *
 	 * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)}
-	 * {@link #createTableSource(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader)},
-	 * and {@link #createTableSink(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader)}
+	 * {@link #createTableSource(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader, boolean)},
+	 * and {@link #createTableSink(Catalog, ObjectIdentifier, CatalogTable, ReadableConfig, ClassLoader, boolean)}
 	 * are not applicable.
 	 */
 	@SuppressWarnings("unchecked")
@@ -603,16 +607,19 @@ public final class FactoryUtil {
 		private final CatalogTable catalogTable;
 		private final ReadableConfig configuration;
 		private final ClassLoader classLoader;
+		private final boolean isTemporary;
 
 		DefaultDynamicTableContext(
 				ObjectIdentifier objectIdentifier,
 				CatalogTable catalogTable,
 				ReadableConfig configuration,
-				ClassLoader classLoader) {
+				ClassLoader classLoader,
+				boolean isTemporary) {
 			this.objectIdentifier = objectIdentifier;
 			this.catalogTable = catalogTable;
 			this.configuration = configuration;
 			this.classLoader = classLoader;
+			this.isTemporary = isTemporary;
 		}
 
 		@Override
@@ -633,6 +640,11 @@ public final class FactoryUtil {
 		@Override
 		public ClassLoader getClassLoader() {
 			return classLoader;
+		}
+
+		@Override
+		public boolean isTemporary() {
+			return isTemporary;
 		}
 	}
 
