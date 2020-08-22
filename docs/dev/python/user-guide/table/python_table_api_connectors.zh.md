@@ -23,7 +23,7 @@ under the License.
 -->
 
 
-This page describes how to use connectors in PyFlink and highlights the different parts between using connectors in PyFlink vs Java/Scala. 
+This page describes how to use connectors in PyFlink and highlights the details to be aware of when using Flink connectors in Python programs.
 
 * This will be replaced by the TOC
 {:toc}
@@ -32,7 +32,7 @@ This page describes how to use connectors in PyFlink and highlights the differen
 
 ## Download connector and format jars
 
-For both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html).
+Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/dev/python/user-guide/table/dependency_management.html).
 
 {% highlight python %}
 
@@ -76,12 +76,12 @@ sink_ddl = """
 t_env.execute_sql(source_ddl)
 t_env.execute_sql(sink_ddl)
 
-t_env.sql_query("select a from source_table") \
+t_env.sql_query("SELECT a FROM source_table") \
     .insert_into("sink_table")
     
 {% endhighlight %}
 
-Below is a complete example of how to use the Kafka and Json format in PyFlink.
+Below is a complete example of how to use a Kafka source/sink and the JSON format in PyFlink.
 
 {% highlight python %}
 
@@ -127,7 +127,7 @@ def log_processing():
     t_env.execute_sql(source_ddl)
     t_env.execute_sql(sink_ddl)
 
-    t_env.sql_query("select a from source_table") \
+    t_env.sql_query("SELECT a FROM source_table") \
         .insert_into("sink_table")
 
     t_env.execute("payment_demo")
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
 ## Predefined Sources and Sinks
 
-A few basic data sources and sinks are built into Flink and are always available. The predefined data sources include reading from Pandas DataFrame, or ingesting data from collections. The predefined data sinks support writing to Pandas DataFrame.
+Some data sources and sinks are built into Flink and are available out-of-the-box. These predefined data sources include reading from Pandas DataFrame, or ingesting data from collections. The predefined data sinks support writing to Pandas DataFrame.
 
 ### from/to Pandas
 
@@ -161,7 +161,7 @@ pdf = table.to_pandas()
 
 ### from_elements()
 
-`from_elements()` is used to creates a table from a collection of elements. The elements types must be acceptable atomic types or acceptable composite types. 
+`from_elements()` is used to create a table from a collection of elements. The element types must be acceptable atomic types or acceptable composite types.
 
 {% highlight python %}
 
@@ -170,7 +170,7 @@ table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 # use the second parameter to specify custom field names
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
 
-# use the second parameter to specify custom table schema
+# use the second parameter to specify a custom table schema
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
                                        DataTypes.FIELD("b", DataTypes.STRING())]))
@@ -190,5 +190,5 @@ The above query returns a Table like:
 
 ## User-defined sources & sinks
 
-In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala but you can define a TableFactory to support their use via DDL. More details can be found in the [Java/Scala document]({{ site.baseurl }}/zh/dev/table/sourceSinks.html).
+In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala, but you can define a `TableFactory` to support their use via DDL. More details can be found in the [Java/Scala documentation]({{ site.baseurl }}/zh/dev/table/sourceSinks.html).
 
