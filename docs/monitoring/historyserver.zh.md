@@ -44,7 +44,7 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 默认情况下，此服务器绑定到 `localhost` 并监听 `8082` 端口。
 
-当前，你只能将 HistoryServer 作为独立的进程运行。
+目前，只能将 HistoryServer 作为独立的进程运行。
 
 <a name="configuration"></a>
 
@@ -73,7 +73,7 @@ historyserver.archive.fs.dir: hdfs:///completed-jobs
 historyserver.archive.fs.refresh-interval: 10000
 {% endhighlight %}
 
-所包含的归档被下载并缓存在本地文件系统中。本地目录通过 `historyserver.web.tmpdir` 配置。
+所包含的存档被下载缓存在本地文件系统中。本地目录通过 `historyserver.web.tmpdir` 配置。
 
 请查看配置页面以获取[配置选项的完整列表]({% link ops/config.zh.md %}#history-server)。
 
@@ -81,9 +81,7 @@ historyserver.archive.fs.refresh-interval: 10000
 
 ## 可用的请求
 
-以下是可用并带有示例 JSON 响应的请求列表。所有请求都是示例表格 http://hostname:8082/jobs，我们在下面仅列出了URL 的路径部分。
-所有请求均为样本格式 `http://hostname:8082/jobs`，下面我们只列出了 URLs 的*路径*部分。
-
+以下是可用且带有示例 JSON 响应的请求列表。所有请求格式样例均为 `http://hostname:8082/jobs`，下面我们仅列出了 URLs 的 *path* 部分。
 尖括号中的值是变量，例如 `http://hostname:port/jobs/<jobid>/exceptions` 将必须请求如 `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`。
 
   - `/config`
