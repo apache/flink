@@ -93,7 +93,7 @@ public class AvroSplittableInputFormatTest {
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
 
 		Address addr = new Address();
-		addr.setNum(new Integer(TEST_NUM));
+		addr.setNum(TEST_NUM);
 		addr.setStreet(TEST_STREET);
 		addr.setCity(TEST_CITY);
 		addr.setState(TEST_STATE);
@@ -149,7 +149,7 @@ public class AvroSplittableInputFormatTest {
 			user.setTypeEnum(TEST_ENUM_COLOR);
 			user.setTypeMap(longMap);
 			Address address = new Address();
-			address.setNum(new Integer(TEST_NUM));
+			address.setNum(TEST_NUM);
 			address.setStreet(TEST_STREET);
 			address.setCity(TEST_CITY);
 			address.setState(TEST_STATE);
