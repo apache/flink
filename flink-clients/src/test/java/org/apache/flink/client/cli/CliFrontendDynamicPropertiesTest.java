@@ -65,6 +65,7 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
 	public void setup() {
 		testOptions = new Options();
 		configuration = new Configuration();
+		configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
 
 		cliUnderTest = new GenericCLI(
 			configuration,
