@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -28,9 +29,17 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_SEMANTIC;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Factory for creating configured instances of {@link Kafka010DynamicSource}.
@@ -42,7 +51,8 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 	@Override
 	protected KafkaDynamicSourceBase createKafkaTableSource(
 			DataType producedDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -51,7 +61,8 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 
 		return new Kafka010DynamicSource(
 			producedDataType,
-			topic,
+			topics,
+			topicPattern,
 			properties,
 			decodingFormat,
 			startupMode,
@@ -65,8 +76,11 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSinkSemantic semantic) {
 
+		// Kafka 0.10 doesn't support exactly once guarantee, thus it should be the default at-least-once
+		checkArgument(semantic.equals(KafkaSinkSemantic.AT_LEAST_ONCE));
 		return new Kafka010DynamicSink(
 			consumedDataType,
 			topic,
@@ -78,5 +92,13 @@ public class Kafka010DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
+	}
+
+	@Override
+	public Set<ConfigOption<?>> optionalOptions() {
+		final Set<ConfigOption<?>> options = super.optionalOptions();
+		// Connector kafka-0.10 only supports "at-least-once"
+		options.remove(SINK_SEMANTIC);
+		return options;
 	}
 }

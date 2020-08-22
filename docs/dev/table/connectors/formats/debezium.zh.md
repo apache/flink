@@ -29,7 +29,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-[Debezium](https://debezium.io/) Debezium 是一个 CDC（Changelog Data Capture，变更数据捕获）的工具，可以把来自 MySQL、PostgreSQL、Oracle、Microsoft SQL Server 和许多其他数据库的更改实时流式传输到 Kafka 中。 Debezium 为变更日志提供了统一的格式结构，并支持使用 JSON 和 Apache Avro 序列化消息。
+[Debezium](https://debezium.io/) 是一个 CDC（Changelog Data Capture，变更数据捕获）的工具，可以把来自 MySQL、PostgreSQL、Oracle、Microsoft SQL Server 和许多其他数据库的更改实时流式传输到 Kafka 中。 Debezium 为变更日志提供了统一的格式结构，并支持使用 JSON 和 Apache Avro 序列化消息。
 
 Flink 支持将 Debezium JSON 消息解析为 INSERT / UPDATE / DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常的有用，例如
  - 将增量数据从数据库同步到其他系统
@@ -197,6 +197,18 @@ Format 参数
     </tr>
     </tbody>
 </table>
+
+注意事项
+----------------
+
+### 消费 Debezium Postgres Connector 产生的数据
+
+如果你正在使用 [Debezium PostgreSQL Connector](https://debezium.io/documentation/reference/1.2/connectors/postgresql.html) 捕获变更到 Kafka，请确保被监控表的 [REPLICA IDENTITY](https://www.postgresql.org/docs/current/sql-altertable.html#SQL-CREATETABLE-REPLICA-IDENTITY) 已经被配置成 `FULL` 了，默认值是 `DEFAULT`。
+否则，Flink SQL 将无法正确解析 Debezium 数据。
+
+当配置为 `FULL` 时，更新和删除事件将完整包含所有列的之前的值。当为其他配置时，更新和删除事件的 "before" 字段将只包含 primary key 字段的值，或者为 null（没有 primary key）。
+你可以通过运行 `ALTER TABLE <your-table-name> REPLICA IDENTITY FULL` 来更改 `REPLICA IDENTITY` 的配置。
+请阅读 [Debezium 关于 PostgreSQL REPLICA IDENTITY 的文档](https://debezium.io/documentation/reference/1.2/connectors/postgresql.html#postgresql-replica-identity) 了解更多。
 
 数据类型映射
 ----------------

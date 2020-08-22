@@ -31,13 +31,13 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-rabbitmq_${scala.binary.version}</artifactId>
-	<name>flink-connector-rabbitmq</name>
+	<name>Flink : Connectors : RabbitMQ</name>
 
 	<packaging>jar</packaging>
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<rabbitmq.version>4.2.0</rabbitmq.version>
+		<rabbitmq.version>5.9.0</rabbitmq.version>
 	</properties>
 
 	<dependencies>

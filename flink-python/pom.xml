@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-python_${scala.binary.version}</artifactId>
-	<name>flink-python</name>
+	<name>Flink : Python</name>
 
 	<packaging>jar</packaging>
 
@@ -448,6 +448,22 @@ under the License.
 							</includes>
 							<outputDirectory>
 								${project.build.directory}/javaDDL
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>data-stream-test</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/DataStreamTestCollectSink.class</include>
+								<include>**/MyCustomSourceFunction.class</include>
+								<include>**/PartitionCustomTestMapFunction.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/data-stream-test
 							</outputDirectory>
 						</configuration>
 					</execution>

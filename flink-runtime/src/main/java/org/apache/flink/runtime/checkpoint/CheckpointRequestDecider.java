@@ -25,8 +25,6 @@ import org.apache.flink.util.clock.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.util.Comparator;
 import java.util.NavigableSet;
 import java.util.Optional;
@@ -40,6 +38,19 @@ import static java.lang.System.identityHashCode;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.TOO_MANY_CHECKPOINT_REQUESTS;
 
+/**
+ * Decides whether a {@link CheckpointCoordinator.CheckpointTriggerRequest checkpoint request} should be executed,
+ * dropped or postponed.
+ * Dropped requests are failed immediately.
+ * Postponed requests are enqueued into a queue and can be dequeued later.
+ * <p>
+ * Decision is made according to:<ul>
+ * <li>checkpoint properties (e.g. isForce, isPeriodic)</li>
+ * <li>checkpointing configuration (e.g. max concurrent checkpoints, min pause)</li>
+ * <li>current state (other queued requests, pending checkpoints, last checkpoint completion time)</li>
+ * </ul>
+ * </p>
+ */
 @SuppressWarnings("ConstantConditions")
 class CheckpointRequestDecider {
 	private static final Logger LOG = LoggerFactory.getLogger(CheckpointRequestDecider.class);
@@ -51,8 +62,6 @@ class CheckpointRequestDecider {
 	private final Clock clock;
 	private final long minPauseBetweenCheckpoints;
 	private final Supplier<Integer> pendingCheckpointsSizeSupplier;
-	private final Object lock;
-	@GuardedBy("lock")
 	private final NavigableSet<CheckpointTriggerRequest> queuedRequests = new TreeSet<>(checkpointTriggerRequestsComparator());
 	private final int maxQueuedRequests;
 
@@ -61,15 +70,13 @@ class CheckpointRequestDecider {
 			Consumer<Long> rescheduleTrigger,
 			Clock clock,
 			long minPauseBetweenCheckpoints,
-			Supplier<Integer> pendingCheckpointsSizeSupplier,
-			Object lock) {
+			Supplier<Integer> pendingCheckpointsSizeSupplier) {
 		this(
 			maxConcurrentCheckpointAttempts,
 			rescheduleTrigger,
 			clock,
 			minPauseBetweenCheckpoints,
 			pendingCheckpointsSizeSupplier,
-			lock,
 			DEFAULT_MAX_QUEUED_REQUESTS
 		);
 	}
@@ -80,7 +87,6 @@ class CheckpointRequestDecider {
 			Clock clock,
 			long minPauseBetweenCheckpoints,
 			Supplier<Integer> pendingCheckpointsSizeSupplier,
-			Object lock,
 			int maxQueuedRequests) {
 		Preconditions.checkArgument(maxConcurrentCheckpointAttempts > 0);
 		Preconditions.checkArgument(maxQueuedRequests > 0);
@@ -89,30 +95,23 @@ class CheckpointRequestDecider {
 		this.clock = clock;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.pendingCheckpointsSizeSupplier = pendingCheckpointsSizeSupplier;
-		this.lock = lock;
 		this.maxQueuedRequests = maxQueuedRequests;
 	}
 
+	/**
+	 * Submit a new checkpoint request and decide whether it or some other request can be executed.
+	 * @return request that should be executed
+	 */
 	Optional<CheckpointTriggerRequest> chooseRequestToExecute(CheckpointTriggerRequest newRequest, boolean isTriggering, long lastCompletionMs) {
-		synchronized (lock) {
-			if (queuedRequests.size() >= maxQueuedRequests && !queuedRequests.last().isPeriodic) {
-				// there are only non-periodic (ie user-submitted) requests enqueued - retain them and drop the new one
-				newRequest.completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
-				return Optional.empty();
-			} else {
-				queuedRequests.add(newRequest);
-				if (queuedRequests.size() > maxQueuedRequests) {
-					queuedRequests.pollLast().completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
-				}
-				Optional<CheckpointTriggerRequest> request = chooseRequestToExecute(isTriggering, lastCompletionMs);
-				request.ifPresent(CheckpointRequestDecider::logInQueueTime);
-				return request;
+		if (queuedRequests.size() >= maxQueuedRequests && !queuedRequests.last().isPeriodic) {
+			// there are only non-periodic (ie user-submitted) requests enqueued - retain them and drop the new one
+			newRequest.completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
+			return Optional.empty();
+		} else {
+			queuedRequests.add(newRequest);
+			if (queuedRequests.size() > maxQueuedRequests) {
+				queuedRequests.pollLast().completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
 			}
-		}
-	}
-
-	Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute(boolean isTriggering, long lastCompletionMs) {
-		synchronized (lock) {
 			Optional<CheckpointTriggerRequest> request = chooseRequestToExecute(isTriggering, lastCompletionMs);
 			request.ifPresent(CheckpointRequestDecider::logInQueueTime);
 			return request;
@@ -120,12 +119,21 @@ class CheckpointRequestDecider {
 	}
 
 	/**
+	 * Choose one of the queued requests to execute, if any.
+	 * @return request that should be executed
+	 */
+	Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute(boolean isTriggering, long lastCompletionMs) {
+		Optional<CheckpointTriggerRequest> request = chooseRequestToExecute(isTriggering, lastCompletionMs);
+		request.ifPresent(CheckpointRequestDecider::logInQueueTime);
+		return request;
+	}
+
+	/**
 	 * Choose the next {@link CheckpointTriggerRequest request} to execute based on the provided candidate and the
 	 * current state. Acquires a lock and may update the state.
-	 * @return request to execute, if any.
+	 * @return request that should be executed
 	 */
 	private Optional<CheckpointTriggerRequest> chooseRequestToExecute(boolean isTriggering, long lastCompletionMs) {
-		Preconditions.checkState(Thread.holdsLock(lock));
 		if (isTriggering || queuedRequests.isEmpty()) {
 			return Optional.empty();
 		}
@@ -136,25 +144,17 @@ class CheckpointRequestDecider {
 				.map(unused -> queuedRequests.pollFirst());
 		}
 
-		long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
-		if (nextTriggerDelayMillis > 0) {
-			return onTooEarly(nextTriggerDelayMillis);
+		CheckpointTriggerRequest first = queuedRequests.first();
+		if (!first.isForce() && first.isPeriodic) {
+			long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
+			if (nextTriggerDelayMillis > 0) {
+				queuedRequests.pollFirst().completeExceptionally(new CheckpointException(MINIMUM_TIME_BETWEEN_CHECKPOINTS));
+				rescheduleTrigger.accept(nextTriggerDelayMillis);
+				return Optional.empty();
+			}
 		}
 
 		return Optional.of(queuedRequests.pollFirst());
-	}
-
-	private Optional<CheckpointTriggerRequest> onTooEarly(long nextTriggerDelayMillis) {
-		CheckpointTriggerRequest first = queuedRequests.first();
-		if (first.isForce()) {
-			return Optional.of(queuedRequests.pollFirst());
-		} else if (first.isPeriodic) {
-			queuedRequests.pollFirst().completeExceptionally(new CheckpointException(MINIMUM_TIME_BETWEEN_CHECKPOINTS));
-			rescheduleTrigger.accept(nextTriggerDelayMillis);
-			return Optional.empty();
-		} else {
-			return Optional.empty();
-		}
 	}
 
 	private long nextTriggerDelayMillis(long lastCheckpointCompletionRelativeTime) {
@@ -164,22 +164,17 @@ class CheckpointRequestDecider {
 	@VisibleForTesting
 	@Deprecated
 	PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {
-		synchronized (lock) {
-			return new PriorityQueue<>(queuedRequests);
-		}
+		return new PriorityQueue<>(queuedRequests);
 	}
 
 	void abortAll(CheckpointException exception) {
-		Preconditions.checkState(Thread.holdsLock(lock));
 		while (!queuedRequests.isEmpty()) {
 			queuedRequests.pollFirst().completeExceptionally(exception);
 		}
 	}
 
 	int getNumQueuedRequests() {
-		synchronized (lock) {
-			return queuedRequests.size();
-		}
+		return queuedRequests.size();
 	}
 
 	private static Comparator<CheckpointTriggerRequest> checkpointTriggerRequestsComparator() {

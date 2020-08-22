@@ -50,12 +50,11 @@ class Table(object):
         >>> t_env = StreamTableEnvironment.create(env)
         >>> ...
         >>> t_env.register_table_source("source", ...)
-        >>> t = t_env.scan("source")
+        >>> t = t_env.from_path("source")
         >>> t.select(...)
         >>> ...
         >>> t_env.register_table_sink("result", ...)
-        >>> t.insert_into("result")
-        >>> t_env.execute("table_job")
+        >>> t.execute_insert("result")
 
     Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,
     :func:`~pyflink.table.Table.where` and :func:`~pyflink.table.Table.group_by`
@@ -287,7 +286,8 @@ class Table(object):
         Example:
         ::
 
-            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> t_env.create_java_temporary_system_function("split",
+           ...     "java.table.function.class.name")
             >>> tab.join_lateral("split(text, ' ') as (b)", "a = b")
 
         :param table_function_call: An expression representing a table function call.
@@ -314,7 +314,8 @@ class Table(object):
         Example:
         ::
 
-            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> t_env.create_java_temporary_system_function("split",
+            ...     "java.table.function.class.name")
             >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
 
         :param table_function_call: An expression representing a table function call.
@@ -478,6 +479,9 @@ class Table(object):
 
             >>> tab.order_by("name.desc")
 
+        For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
+        fetch operation.
+
         :param fields: Order fields expression string.
         :type fields: str
         :return: The result table.
@@ -487,11 +491,11 @@ class Table(object):
 
     def offset(self, offset):
         """
-        Limits a sorted result from an offset position.
-        Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
-        thus must be preceded by it.
-        :func:`~pyflink.table.Table.offset` can be combined with a subsequent
-        :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
+        Limits a (possibly sorted) result from an offset position.
+
+        This method can be combined with a preceding :func:`~pyflink.table.Table.order_by` call for
+        a deterministic order and a subsequent :func:`~pyflink.table.Table.fetch` call to return n
+        rows after skipping the first o rows.
 
         Example:
         ::
@@ -500,6 +504,8 @@ class Table(object):
             >>> tab.order_by("name.desc").offset(3)
             # skips the first 10 rows and returns the next 5 rows.
             >>> tab.order_by("name.desc").offset(10).fetch(5)
+
+        For unbounded tables, this operation requires a subsequent fetch operation.
 
         :param offset: Number of records to skip.
         :type offset: int
@@ -510,11 +516,11 @@ class Table(object):
 
     def fetch(self, fetch):
         """
-        Limits a sorted result to the first n rows.
-        Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
-        thus must be preceded by it.
-        :func:`~pyflink.table.Table.offset` can be combined with a preceding
-        :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
+        Limits a (possibly sorted) result to the first n rows.
+
+        This method can be combined with a preceding :func:`~pyflink.table.Table.order_by` call for
+        a deterministic order and :func:`~pyflink.table.Table.offset` call to return n rows after
+        skipping the first o rows.
 
         Example:
 
@@ -702,7 +708,9 @@ class Table(object):
 
     def to_pandas(self):
         """
-        Converts the table to a pandas DataFrame.
+        Converts the table to a pandas DataFrame. It will collect the content of the table to
+        the client side and so please make sure that the content of the table could fit in memory
+        before calling this method.
 
         Example:
         ::

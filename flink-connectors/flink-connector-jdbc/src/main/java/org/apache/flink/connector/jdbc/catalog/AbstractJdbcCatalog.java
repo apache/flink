@@ -215,7 +215,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws TableNotExistException, TableNotPartitionedException, CatalogException {
+	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
 		return Collections.emptyList();
 	}
 
@@ -226,12 +226,12 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
 	@Override
 	public CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws PartitionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
 	}
 
 	@Override
 	public boolean partitionExists(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException {
-		throw new UnsupportedOperationException();
+		return false;
 	}
 
 	@Override
@@ -258,12 +258,12 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 
 	@Override
 	public CatalogFunction getFunction(ObjectPath functionPath) throws FunctionNotExistException, CatalogException {
-		throw new UnsupportedOperationException();
+		throw new FunctionNotExistException(getName(), functionPath);
 	}
 
 	@Override
 	public boolean functionExists(ObjectPath functionPath) throws CatalogException {
-		throw new UnsupportedOperationException();
+		return false;
 	}
 
 	@Override

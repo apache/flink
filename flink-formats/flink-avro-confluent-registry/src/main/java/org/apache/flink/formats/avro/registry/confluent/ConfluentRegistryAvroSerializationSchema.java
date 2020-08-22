@@ -22,7 +22,6 @@ import org.apache.flink.formats.avro.AvroSerializationSchema;
 import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.SchemaCoder;
 
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecord;
@@ -91,26 +90,5 @@ public class ConfluentRegistryAvroSerializationSchema<T> extends RegistryAvroSer
 			schema,
 			new CachedSchemaCoderProvider(subject, schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY)
 		);
-	}
-
-	private static class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
-
-		private static final long serialVersionUID = 4023134423033312666L;
-		private final String subject;
-		private final String url;
-		private final int identityMapCapacity;
-
-		CachedSchemaCoderProvider(String subject, String url, int identityMapCapacity) {
-			this.subject = subject;
-			this.url = url;
-			this.identityMapCapacity = identityMapCapacity;
-		}
-
-		@Override
-		public SchemaCoder get() {
-			return new ConfluentSchemaRegistryCoder(subject, new CachedSchemaRegistryClient(
-				url,
-				identityMapCapacity));
-		}
 	}
 }

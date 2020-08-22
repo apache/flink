@@ -28,7 +28,7 @@ from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
                                              PyFlinkBlinkBatchTableTestCase,
                                              PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+                                             PyFlinkBatchTableTestCase, exec_insert_table)
 
 
 class DependencyTests(object):
@@ -45,14 +45,13 @@ class DependencyTests(object):
             from test_dependency_manage_lib import add_two
             return add_two(i)
 
-        self.t_env.register_function("add_two", udf(plus_two, DataTypes.BIGINT(),
+        self.t_env.create_temporary_system_function("add_two", udf(plus_two, DataTypes.BIGINT(),
                                                     DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add_two(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("add_two(a), a"), "Results")
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
@@ -77,7 +76,7 @@ class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
             from test_dependency_manage_lib import add_two
             return add_two(i)
 
-        self.t_env.register_function("add_two", udf(plus_two, DataTypes.BIGINT(),
+        self.t_env.create_temporary_system_function("add_two", udf(plus_two, DataTypes.BIGINT(),
                                                     DataTypes.BIGINT()))
 
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])\
@@ -106,15 +105,14 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
                 os.environ['_PYTHON_REQUIREMENTS_INSTALL_DIR'])
             return i
 
-        self.t_env.register_function("check_requirements",
-                                     udf(check_requirements, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("check_requirements",
+                                                    udf(check_requirements, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("check_requirements(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("check_requirements(a), a"), "Results")
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,1", "2,2", "3,3"])
@@ -153,15 +151,14 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             from python_package1 import plus
             return plus(i, 1)
 
-        self.t_env.register_function("add_one",
-                                     udf(add_one, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("add_one",
+                                                    udf(add_one, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add_one(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("add_one(a), a"), "Results")
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["2,1", "3,2", "4,3"])
@@ -180,15 +177,14 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
-        self.t_env.register_function("add_from_file",
-                                     udf(add_from_file, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("add_from_file",
+                                                    udf(add_from_file, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add_from_file(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("add_from_file(a), a"), "Results")
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["3,1", "4,2", "5,3"])
@@ -206,9 +202,9 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             assert os.environ["python"] == python_exec_link_path
             return i
 
-        self.t_env.register_function("check_python_exec",
-                                     udf(check_python_exec, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("check_python_exec",
+                                                    udf(check_python_exec, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
 
         def check_pyflink_gateway_disabled(i):
             try:
@@ -221,16 +217,17 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
                 raise Exception("The gateway server is not disabled!")
             return i
 
-        self.t_env.register_function("check_pyflink_gateway_disabled",
-                                     udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
-                                         DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function(
+            "check_pyflink_gateway_disabled",
+            udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
+                DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)").insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)"),
+                          "Results")
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,1", "2,2", "3,3"])

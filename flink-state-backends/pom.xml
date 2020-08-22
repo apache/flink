@@ -32,7 +32,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-state-backends</artifactId>
-	<name>flink-state-backends</name>
+	<name>Flink : State backends : </name>
 
 	<packaging>pom</packaging>
 

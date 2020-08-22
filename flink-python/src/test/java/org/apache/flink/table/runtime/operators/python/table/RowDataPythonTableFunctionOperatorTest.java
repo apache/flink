@@ -18,27 +18,23 @@
 
 package org.apache.flink.table.runtime.operators.python.table;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
+import org.apache.flink.table.runtime.utils.PythonTestUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.Collection;
-import java.util.Map;
+import java.util.HashMap;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /**
@@ -47,11 +43,11 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 public class RowDataPythonTableFunctionOperatorTest
 	extends PythonTableFunctionOperatorTestBase<RowData, RowData, RowData> {
 
-	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new TypeInformation[]{
-		Types.STRING,
-		Types.STRING,
-		Types.LONG,
-		Types.LONG
+	private final RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(new LogicalType[]{
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.STRING().getLogicalType(),
+		DataTypes.BIGINT().getLogicalType(),
+		DataTypes.BIGINT().getLogicalType()
 	});
 
 	@Override
@@ -95,24 +91,17 @@ public class RowDataPythonTableFunctionOperatorTest
 		}
 
 		@Override
-		public PythonFunctionRunner<RowData> createPythonFunctionRunner(
-			FnDataReceiver<byte[]> resultReceiver,
-			PythonEnvironmentManager pythonEnvironmentManager,
-			Map<String, String> jobOptions) {
-			return new PassThroughPythonTableFunctionRunner<RowData>(resultReceiver) {
-				@Override
-				public RowData copy(RowData element) {
-					RowData row = binaryrow(element.getLong(0));
-					row.setRowKind(element.getRowKind());
-					return row;
-				}
-
-				@Override
-				@SuppressWarnings("unchecked")
-				public TypeSerializer<RowData> getInputTypeSerializer() {
-					return PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
-				}
-			};
+		public PythonFunctionRunner createPythonFunctionRunner() {
+			return new PassThroughPythonTableFunctionRunner(
+				getRuntimeContext().getTaskName(),
+				PythonTestUtils.createTestEnvironmentManager(),
+				userDefinedFunctionInputType,
+				userDefinedFunctionOutputType,
+				getFunctionUrn(),
+				getUserDefinedFunctionsProto(),
+				getInputOutputCoderUrn(),
+				new HashMap<>(),
+				PythonTestUtils.createMockFlinkMetricContainer());
 		}
 	}
 }

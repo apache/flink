@@ -15,27 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state;
 
-
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 /**
  * This interface must be implemented by functions/operations that want to receive
  * a commit notification once a checkpoint has been completely acknowledged by all
  * participants.
  */
-@PublicEvolving
+@Public
 public interface CheckpointListener {
 
 	/**
 	 * This method is called as a notification once a distributed checkpoint has been completed.
-	 * 
-	 * Note that any exception during this method will not cause the checkpoint to
+	 *
+	 * <p>Note that any exception during this method will not cause the checkpoint to
 	 * fail any more.
-	 * 
+	 *
 	 * @param checkpointId The ID of the checkpoint that has been completed.
-	 * @throws Exception
+	 * @throws Exception This method can propagate exceptions, which leads to a failure/recovery for
+	 *                   the task. Not that this will NOT lead to the checkpoint being revoked.
 	 */
 	void notifyCheckpointComplete(long checkpointId) throws Exception;
 
@@ -43,7 +44,8 @@ public interface CheckpointListener {
 	 * This method is called as a notification once a distributed checkpoint has been aborted.
 	 *
 	 * @param checkpointId The ID of the checkpoint that has been aborted.
-	 * @throws Exception
+	 * @throws Exception This method can propagate exceptions, which leads to a failure/recovery for
+	 *                   the task.
 	 */
-	void notifyCheckpointAborted(long checkpointId) throws Exception;
+	default void notifyCheckpointAborted(long checkpointId) throws Exception {}
 }

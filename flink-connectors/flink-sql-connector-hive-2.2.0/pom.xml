@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-sql-connector-hive-2.2.0_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-hive-2.2.0</name>
+	<name>Flink : Connectors : SQL : Hive 2.2.0</name>
 
 	<packaging>jar</packaging>
 
@@ -65,7 +65,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
-			<version>${hive.connector.orc.version}</version>
+			<version>${hive-2.2.0-orc-version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>

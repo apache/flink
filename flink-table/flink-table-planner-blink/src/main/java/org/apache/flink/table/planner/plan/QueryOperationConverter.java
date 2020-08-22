@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
@@ -82,7 +81,6 @@ import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -99,7 +97,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
@@ -290,17 +287,10 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					typeFactory);
 			}
 
-			DataTypeFactory dataTypeFactory = ShortcutUtils.unwrapContext(relBuilder.getCluster())
-				.getCatalogManager()
-				.getDataTypeFactory();
-
 			final BridgingSqlFunction sqlFunction = BridgingSqlFunction.of(
-					dataTypeFactory,
-					typeFactory,
-					SqlKind.OTHER_FUNCTION,
+					relBuilder.getCluster(),
 					calculatedTable.getFunctionIdentifier().orElse(null),
-					calculatedTable.getFunctionDefinition(),
-					calculatedTable.getFunctionDefinition().getTypeInference(dataTypeFactory));
+					calculatedTable.getFunctionDefinition());
 
 			return relBuilder.functionScan(
 				sqlFunction,
@@ -660,7 +650,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			public AggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter, String name,
 					boolean isDistinct) {
 				this.relBuilder = relBuilder;
-				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor(relBuilder);
 				this.expressionConverter = expressionConverter;
 				this.name = name;
 				this.isDistinct = isDistinct;
@@ -714,7 +704,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			public TableAggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter) {
 				this.relBuilder = relBuilder;
-				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor(relBuilder);
 				this.expressionConverter = expressionConverter;
 			}
 

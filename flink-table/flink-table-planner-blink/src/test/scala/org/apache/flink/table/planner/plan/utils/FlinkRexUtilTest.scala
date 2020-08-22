@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 
-import org.apache.calcite.rex.{RexBuilder, RexUtil}
+import org.apache.calcite.rex.RexUtil
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.junit.Assert.{assertEquals, assertFalse}
@@ -29,7 +29,7 @@ import java.math.BigDecimal
 
 class FlinkRexUtilTest {
   private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
-  private val rexBuilder = new RexBuilder(typeFactory)
+  private val rexBuilder = new FlinkRexBuilder(typeFactory)
   private val varcharType = typeFactory.createSqlType(VARCHAR)
   private val intType = typeFactory.createSqlType(INTEGER)
 

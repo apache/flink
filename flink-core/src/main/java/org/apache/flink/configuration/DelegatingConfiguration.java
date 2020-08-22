@@ -310,11 +310,13 @@ public final class DelegatingConfiguration extends Configuration {
 	@Override
 	public Map<String, String> toMap() {
 		Map<String, String> map = backingConfig.toMap();
-		Map<String, String> prefixed = new HashMap<>(map.size());
+		Map<String, String> prefixed = new HashMap<>();
 		for (Map.Entry<String, String> entry : map.entrySet()) {
-			prefixed.put(prefix + entry.getKey(), entry.getValue());
+			if (entry.getKey().startsWith(prefix)) {
+				String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+				prefixed.put(keyWithoutPrefix, entry.getValue());
+			}
 		}
-
 		return prefixed;
 	}
 

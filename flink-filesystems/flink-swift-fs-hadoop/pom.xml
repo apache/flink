@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-swift-fs-hadoop</artifactId>
-	<name>flink-swift-fs-hadoop</name>
+	<name>Flink : FileSystems : Swift FS Hadoop</name>
 
 	<packaging>jar</packaging>
 

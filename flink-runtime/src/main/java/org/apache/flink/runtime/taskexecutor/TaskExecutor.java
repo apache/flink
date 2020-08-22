@@ -231,7 +231,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private FileCache fileCache;
 
 	/** The heartbeat manager for job manager in the task manager. */
-	private final HeartbeatManager<AllocatedSlotReport, AccumulatorReport> jobManagerHeartbeatManager;
+	private final HeartbeatManager<AllocatedSlotReport, TaskExecutorToJobManagerHeartbeatPayload> jobManagerHeartbeatManager;
 
 	/** The heartbeat manager for resource manager in the task manager. */
 	private final HeartbeatManager<Void, TaskExecutorHeartbeatPayload> resourceManagerHeartbeatManager;
@@ -315,7 +315,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			log);
 	}
 
-	private HeartbeatManager<AllocatedSlotReport, AccumulatorReport> createJobManagerHeartbeatManager(HeartbeatServices heartbeatServices, ResourceID resourceId) {
+	private HeartbeatManager<AllocatedSlotReport, TaskExecutorToJobManagerHeartbeatPayload> createJobManagerHeartbeatManager(HeartbeatServices heartbeatServices, ResourceID resourceId) {
 		return heartbeatServices.createHeartbeatManager(
 			resourceId,
 			new JobManagerHeartbeatListener(),
@@ -643,7 +643,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			taskMetricGroup.gauge(MetricNames.IS_BACKPRESSURED, task::isBackPressured);
 
-			log.info("Received task {}.", task.getTaskInfo().getTaskNameWithSubtasks());
+			log.info("Received task {} ({}), deploy into slot with allocation id {}.",
+				task.getTaskInfo().getTaskNameWithSubtasks(), tdd.getExecutionAttemptId(), tdd.getAllocationId());
 
 			boolean taskAdded;
 
@@ -1060,7 +1061,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 		if (task == null) {
 			return FutureUtils.completedExceptionally(new TaskNotRunningException(
-				"Task " + executionAttemptID.toHexString() + " not running on TaskManager"));
+				"Task " + executionAttemptID + " not running on TaskManager"));
 		}
 
 		try {
@@ -1379,14 +1380,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			jobMasterGateway);
 
 		// monitor the job manager as heartbeat target
-		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<AccumulatorReport>() {
+		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<TaskExecutorToJobManagerHeartbeatPayload>() {
 			@Override
-			public void receiveHeartbeat(ResourceID resourceID, AccumulatorReport payload) {
+			public void receiveHeartbeat(ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
 				jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);
 			}
 
 			@Override
-			public void requestHeartbeat(ResourceID resourceID, AccumulatorReport payload) {
+			public void requestHeartbeat(ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
 				// request heartbeat will never be called on the task manager side
 			}
 		});
@@ -1684,7 +1685,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							String.format(
 								"Slot %s on TaskExecutor %s is not allocated by job %s.",
 								allocatedSlotInfo.getSlotIndex(),
-								getResourceID(),
+								getResourceID().getStringWithMetadata(),
 								allocatedSlotReport.getJobId())));
 			}
 		}
@@ -1738,12 +1739,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						throw new CompletionException(new FlinkException("Could not upload file " + fileTag + '.', e));
 					}
 				} else {
-					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
+					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
 				}
 			}, ioExecutor);
 		} else {
-			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
+			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
 		}
 	}
@@ -1941,7 +1942,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private class JobManagerHeartbeatListener implements HeartbeatListener<AllocatedSlotReport, AccumulatorReport> {
+	private class JobManagerHeartbeatListener implements HeartbeatListener<AllocatedSlotReport, TaskExecutorToJobManagerHeartbeatPayload> {
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
@@ -1970,22 +1971,26 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		@Override
-		public AccumulatorReport retrievePayload(ResourceID resourceID) {
+		public TaskExecutorToJobManagerHeartbeatPayload retrievePayload(ResourceID resourceID) {
 			validateRunsInMainThread();
 			return jobTable.getConnection(resourceID).map(
 				jobManagerConnection -> {
 					JobID jobId = jobManagerConnection.getJobId();
 
+					Set<ExecutionAttemptID> deployedExecutions = new HashSet<>();
 					List<AccumulatorSnapshot> accumulatorSnapshots = new ArrayList<>(16);
 					Iterator<Task> allTasks = taskSlotTable.getTasks(jobId);
 
 					while (allTasks.hasNext()) {
 						Task task = allTasks.next();
+						deployedExecutions.add(task.getExecutionId());
 						accumulatorSnapshots.add(task.getAccumulatorRegistry().getSnapshot());
 					}
-					return new AccumulatorReport(accumulatorSnapshots);
+					return new TaskExecutorToJobManagerHeartbeatPayload(
+						new AccumulatorReport(accumulatorSnapshots),
+						new ExecutionDeploymentReport(deployedExecutions));
 				}
-			).orElseGet(() -> new AccumulatorReport(Collections.emptyList()));
+			).orElseGet(TaskExecutorToJobManagerHeartbeatPayload::empty);
 		}
 	}
 

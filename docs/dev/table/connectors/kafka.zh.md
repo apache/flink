@@ -44,9 +44,9 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 
 | Kafka Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
-| 0.11.x              | `flink-connector-kafka-0.11{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
-| 0.10.x              | `flink-connector-kafka-0.10{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
+| universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
+| 0.11.x              | `flink-connector-kafka-0.11{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
+| 0.10.x              | `flink-connector-kafka-0.10{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/kafka.html) {% endif %} |
 
 The Kafka connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({% link dev/project-configuration.zh.md %}).
@@ -100,10 +100,17 @@ Connector Options
     </tr>
     <tr>
       <td><h5>topic</h5></td>
-      <td>required</td>
+      <td>required for sink, optional for source(use 'topic-pattern' instead if not set)</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Topic name from which the table is read.</td>
+      <td>Topic name(s) to read data from when the table is used as source. It also supports topic list for source by separating topic by semicolon like <code>'topic-1;topic-2'</code>. Note, only one of "topic-pattern" and "topic" can be specified for sources. When the table is used as sink, the topic name is the topic to write data to. Note topic list is not supported for sinks.</td>
+    </tr>
+    <tr>
+      <td><h5>topic-pattern</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The regular expression for a pattern of topic names to read from. All topics with names that match the specified regular expression will be subscribed by the consumer when the job starts running. Note, only one of "topic-pattern" and "topic" can be specified for sources.</td>
     </tr>
     <tr>
       <td><h5>properties.bootstrap.servers</h5></td>
@@ -153,6 +160,13 @@ Connector Options
       <td>Start from the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> startup mode.</td>
     </tr>
     <tr>
+      <td><h5>scan.topic-partition-discovery.interval</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>Interval for consumer to discover dynamically created Kafka topics and partitions periodically.</td>
+    </tr>
+    <tr>
       <td><h5>sink.partitioner</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
@@ -165,11 +179,29 @@ Connector Options
       </ul>
       </td>
     </tr>
+    <tr>
+      <td><h5>sink.semantic</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">at-least-once</td>
+      <td>String</td>
+      <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. <code>'kafka-0.10'</code> doesn't support this option.
+      See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
+    </tr>
     </tbody>
 </table>
 
 Features
 ----------------
+### Topic and Partition Discovery
+
+The config option `topic` and `topic-pattern` specifies the topics or topic pattern to consume for source. The config option `topic` can accept topic list using semicolon separator like 'topic-1;topic-2'.
+The config option `topic-pattern`  will use regular expression to discover the matched topic. For example, if the `topic-pattern` is `test-topic-[0-9]`, then all topics with names that match the specified regular expression (starting with `test-topic-` and ending with a single digit)) will be subscribed by the consumer when the job starts running.
+
+To allow the consumer to discover dynamically created topics after the job started running, set a non-negative value for `scan.topic-partition-discovery.interval`. This allows the consumer to discover partitions of new topics with names that also match the specified pattern.
+
+Please refer to [Kafka DataStream Connector documentation]({% link dev/connectors/kafka.zh.md %}#kafka-consumers-topic-and-partition-discovery) for more about topic and partition discovery.
+
+Notice that topic list and topic pattern only work in source. In sink, Flink currently only supports single topic.
 
 ### Start Reading Position
 
@@ -206,6 +238,19 @@ However, it will cause a lot of network connections between all the Flink instan
 ### Consistency guarantees
 
 By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.zh.md %}#enabling-and-configuring-checkpointing).
+
+With Flink's checkpointing enabled, the `kafka` and `kafka-0.11` connectors can provide exactly-once delivery guarantees.
+
+Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.semantic` option:
+
+ * `NONE`: Flink will not guarantee anything. Produced records can be lost or they can be duplicated.
+ * `AT_LEAST_ONCE` (default setting): This guarantees that no records will be lost (although they can be duplicated).
+ * `EXACTLY_ONCE`: Kafka transactions will be used to provide exactly-once semantic. Whenever you write
+ to Kafka using transactions, do not forget about setting desired `isolation.level` (`read_committed`
+ or `read_uncommitted` - the latter one is the default value) for any application consuming records
+ from Kafka.
+
+Please refer to [Kafka documentation]({% link dev/connectors/kafka.zh.md %}#kafka-producers-and-fault-tolerance) for more caveats about delivery guarantees.
 
 Data Type Mapping
 ----------------

@@ -150,19 +150,19 @@ public class JavaUserDefinedAggFunctions {
 
 		// overloaded accumulate method
 		// dummy to test constants
-		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight, int x, String string) {
+		public void accumulate(WeightedAvgAccum accumulator, Long iValue, Integer iWeight, Integer x, String string) {
 			accumulator.sum += (iValue + Integer.parseInt(string)) * iWeight;
 			accumulator.count += iWeight;
 		}
 
 		// overloaded accumulate method
-		public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight) {
+		public void accumulate(WeightedAvgAccum accumulator, Long iValue, Long iWeight) {
 			accumulator.sum += iValue * iWeight;
 			accumulator.count += iWeight;
 		}
 
 		//Overloaded accumulate method
-		public void accumulate(WeightedAvgAccum accumulator, int iValue, int iWeight) {
+		public void accumulate(WeightedAvgAccum accumulator, Integer iValue, Integer iWeight) {
 			accumulator.sum += iValue * iWeight;
 			accumulator.count += iWeight;
 		}

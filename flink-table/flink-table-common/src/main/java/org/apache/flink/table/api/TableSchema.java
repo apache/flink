@@ -421,9 +421,9 @@ public class TableSchema {
 			LogicalType watermarkOutputType = watermark.getWatermarkExprOutputType().getLogicalType();
 			if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
 				throw new ValidationException(String.format(
-					"Watermark strategy '%s' must be of type TIMESTAMP but is of type '%s'.",
+					"Watermark strategy %s must be of type TIMESTAMP but is of type '%s'.",
 					watermark.getWatermarkExpr(),
-					watermarkOutputType.asSerializableString()));
+					watermarkOutputType.asSummaryString()));
 			}
 		}
 	}

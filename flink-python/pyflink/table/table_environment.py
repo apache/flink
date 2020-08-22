@@ -24,6 +24,9 @@ from typing import Union, List, Tuple
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common.typeinfo import TypeInformation
+from pyflink.datastream.data_stream import DataStream
+
 from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
@@ -118,6 +121,7 @@ class TableEnvironment(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source), self)
 
     def register_catalog(self, catalog_name, catalog):
@@ -144,7 +148,7 @@ class TableEnvironment(object):
         """
         catalog = self._j_tenv.getCatalog(catalog_name)
         if catalog.isPresent():
-            return Catalog._get(catalog.get())
+            return Catalog(catalog.get())
         else:
             return None
 
@@ -221,10 +225,9 @@ class TableEnvironment(object):
         ::
 
             >>> table_env.create_temporary_system_function(
-            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
             >>> table_env.create_temporary_system_function("add", add)
@@ -233,7 +236,7 @@ class TableEnvironment(object):
             ...     def eval(self, i):
             ...         return i - 1
             >>> table_env.create_temporary_system_function(
-            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         :param name: The name under which the function will be registered globally.
         :param function: The function class containing the implementation. The function must have a
@@ -356,10 +359,9 @@ class TableEnvironment(object):
         ::
 
             >>> table_env.create_temporary_function(
-            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
             >>> table_env.create_temporary_function("add", add)
@@ -368,7 +370,7 @@ class TableEnvironment(object):
             ...     def eval(self, i):
             ...         return i - 1
             >>> table_env.create_temporary_function(
-            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         :param path: The path under which the function will be registered.
                      See also the :class:`~pyflink.table.TableEnvironment` class description for
@@ -568,7 +570,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
                   use :func:`create_statement_set` for multiple sinks.
         """
-        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink,"
+        warnings.warn("Deprecated in 1.11. Use Table#execute_insert for single sink,"
                       "use create_statement_set for multiple sinks.", DeprecationWarning)
         self._j_tenv.insertInto(target_path, table._j_table)
 
@@ -1006,15 +1008,17 @@ class TableEnvironment(object):
         """
         self._j_tenv.useDatabase(database_name)
 
-    @abstractmethod
-    def get_config(self):
+    def get_config(self) -> TableConfig:
         """
         Returns the table config to define the runtime behavior of the Table API.
 
         :return: Current table config.
-        :rtype: pyflink.table.TableConfig
         """
-        pass
+        if not hasattr(self, "table_config"):
+            table_config = TableConfig()
+            table_config._j_table_config = self._j_tenv.getConfig()
+            setattr(self, "table_config", table_config)
+        return getattr(self, "table_config")
 
     @abstractmethod
     def connect(self, connector_descriptor):
@@ -1099,10 +1103,9 @@ class TableEnvironment(object):
         ::
 
             >>> table_env.register_function(
-            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
 
-            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
-            ...      result_type=DataTypes.BIGINT())
+            >>> @udf(result_type=DataTypes.BIGINT())
             ... def add(i, j):
             ...     return i + j
             >>> table_env.register_function("add", add)
@@ -1111,7 +1114,7 @@ class TableEnvironment(object):
             ...     def eval(self, i):
             ...         return i - 1
             >>> table_env.register_function(
-            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         :param name: The name under which the function is registered.
         :type name: str
@@ -1423,7 +1426,6 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :return: The result :class:`~pyflink.table.Table`.
         """
-
         # serializes to a file, and we read the file in java
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         serializer = BatchedSerializer(self._serializer)
@@ -1572,7 +1574,7 @@ class TableEnvironment(object):
     def _is_aggregate_function(java_function):
         java_function_class = java_function.getClass()
         j_aggregate_function_class = get_java_class(
-            get_gateway().jvm.org.apache.flink.table.functions.UserDefinedAggregateFunction)
+            get_gateway().jvm.org.apache.flink.table.functions.ImperativeAggregateFunction)
         return j_aggregate_function_class.isAssignableFrom(java_function_class)
 
     def _register_table_function(self, name, table_function):
@@ -1616,17 +1618,6 @@ class StreamTableEnvironment(TableEnvironment):
             return self._j_tenv.getPlanner().getExecEnv()
         else:
             return self._j_tenv.getPlanner().getExecutionEnvironment()
-
-    def get_config(self):
-        """
-        Returns the table config to define the runtime behavior of the Table API.
-
-        :return: Current table config.
-        :rtype: pyflink.table.TableConfig
-        """
-        table_config = TableConfig()
-        table_config._j_table_config = self._j_tenv.getConfig()
-        return table_config
 
     def connect(self, connector_descriptor):
         """
@@ -1739,6 +1730,69 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
 
+    def from_data_stream(self, data_stream: DataStream, fields: List[str] = None) -> Table:
+        """
+        Converts the given DataStream into a Table with specified field names.
+
+        There are two modes for mapping original fields to the fields of the Table:
+            1. Reference input fields by name:
+            All fields in the schema definition are referenced by name (and possibly renamed using
+            and alias (as). Moreover, we can define proctime and rowtime attributes at arbitrary
+            positions using arbitrary names (except those that exist in the result schema). In this
+            mode, fields can be reordered and projected out. This mode can be used for any input
+            type.
+            2. Reference input fields by position:
+            In this mode, fields are simply renamed. Event-time attributes can replace the field on
+            their position in the input data (if it is of correct type) or be appended at the end.
+            Proctime attributes must be appended at the end. This mode can only be used if the input
+            type has a defined field order (tuple, case class, Row) and none of the fields
+            references a field of the input type.
+
+        :param data_stream: The datastream to be converted.
+        :param fields: The fields expressions to map original fields of the DataStream to the fields
+                       of the Table
+        :return: The converted Table.
+        """
+        if fields is not None:
+            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream, fields)
+        else:
+            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream)
+        return Table(j_table=j_table, t_env=self._j_tenv)
+
+    def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
+        """
+        Converts the given Table into a DataStream of a specified type. The Table must only have
+        insert (append) changes. If the Table is also modified by update or delete changes, the
+        conversion will fail.
+
+        The fields of the Table are mapped to DataStream as follows: Row and Tuple types: Fields are
+        mapped by position, field types must match.
+
+        :param table: The Table to convert.
+        :param type_info: The TypeInformation that specifies the type of the DataStream.
+        :return: The converted DataStream.
+        """
+        j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
+        return DataStream(j_data_stream=j_data_stream)
+
+    def to_retract_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
+        """
+        Converts the given Table into a DataStream of add and retract messages. The message will be
+        encoded as Tuple. The first field is a boolean flag, the second field holds the record of
+        the specified type.
+
+        A true flag indicates an add message, a false flag indicates a retract message.
+
+        The fields of the Table are mapped to DataStream as follows: Row and Tuple types: Fields are
+        mapped by position, field types must match.
+
+        :param table: The Table to convert.
+        :param type_info: The TypeInformation of the requested record type.
+        :return: The converted DataStream.
+        """
+        j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
+        return DataStream(j_data_stream=j_data_stream)
+
 
 class BatchTableEnvironment(TableEnvironment):
 
@@ -1751,17 +1805,6 @@ class BatchTableEnvironment(TableEnvironment):
             return self._j_tenv.getPlanner().getExecEnv()
         else:
             return self._j_tenv.execEnv()
-
-    def get_config(self):
-        """
-        Returns the table config to define the runtime behavior of the Table API.
-
-        :return: Current table config.
-        :rtype: pyflink.table.TableConfig
-        """
-        table_config = TableConfig()
-        table_config._j_table_config = self._j_tenv.getConfig()
-        return table_config
 
     def connect(self, connector_descriptor):
         """

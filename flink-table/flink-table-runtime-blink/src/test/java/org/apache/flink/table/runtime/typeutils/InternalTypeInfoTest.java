@@ -18,23 +18,31 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.DataTypes;
+
+import java.nio.ByteBuffer;
+import java.time.DayOfWeek;
 
 /**
- * Test for {@link StringDataTypeInfo}, {@link DecimalDataTypeInfo}.
+ * Test for {@link InternalTypeInfo}.
  */
-public class InternalTypeInfoTest extends TypeInformationTestBase<TypeInformation<?>> {
+public class InternalTypeInfoTest extends TypeInformationTestBase<InternalTypeInfo<?>> {
 
 	@Override
-	protected TypeInformation[] getTestData() {
-		return new TypeInformation[] {
-			StringDataTypeInfo.INSTANCE,
-			new DecimalDataTypeInfo(5, 2),
-			new TimestampDataTypeInfo(0),
-			new TimestampDataTypeInfo(3),
-			new TimestampDataTypeInfo(6),
-			new TimestampDataTypeInfo(9)
+	protected InternalTypeInfo<?>[] getTestData() {
+		return new InternalTypeInfo<?>[] {
+				InternalTypeInfo.of(
+					DataTypes.INT()
+						.getLogicalType()),
+				InternalTypeInfo.of(
+					DataTypes.RAW(DayOfWeek.class, new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()))
+						.getLogicalType()),
+				InternalTypeInfo.of(
+					DataTypes.RAW(ByteBuffer.class, new KryoSerializer<>(ByteBuffer.class, new ExecutionConfig()))
+						.getLogicalType()),
 		};
 	}
 }

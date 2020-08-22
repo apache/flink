@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-core</artifactId>
-	<name>flink-metrics-core</name>
+	<name>Flink : Metrics : Core</name>
 
 	<packaging>jar</packaging>
 

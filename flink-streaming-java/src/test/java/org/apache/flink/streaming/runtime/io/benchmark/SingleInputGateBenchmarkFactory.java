@@ -85,6 +85,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		}
 	}
@@ -149,6 +150,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				ConnectionManager connectionManager,
 				int initialBackOff,
 				int maxBackoff,
+				int networkBuffersPerChannel,
 				InputChannelMetrics metrics) {
 			super(
 				inputGate,
@@ -158,6 +160,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
 				connectionManager,
 				initialBackOff,
 				maxBackoff,
+				networkBuffersPerChannel,
 				metrics.getNumBytesInRemoteCounter(),
 				metrics.getNumBuffersInRemoteCounter());
 		}

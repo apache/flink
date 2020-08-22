@@ -26,7 +26,8 @@ from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase,\
+    exec_insert_table
 
 
 class PandasUDFTests(unittest.TestCase):
@@ -34,21 +35,21 @@ class PandasUDFTests(unittest.TestCase):
     def test_non_exist_udf_type(self):
         with self.assertRaisesRegex(ValueError,
                                     'The udf_type must be one of \'general, pandas\''):
-            udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT(), udf_type="non-exist")
+            udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), udf_type="non-exist")
 
 
 class PandasUDFITTests(object):
 
     def test_basic_functionality(self):
         # pandas UDF
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one",
-            udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT(), udf_type="pandas"))
+            udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), udf_type="pandas"))
 
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         # general Python UDF
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
@@ -57,10 +58,10 @@ class PandasUDFITTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t.where("add_one(b) <= 3") \
-            .select("a, b + 1, add(a + 1, subtract_one(c)) + 2, add(add_one(a), 1L)") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(
+            t.where("add_one(b) <= 3").select("a, b + 1, add(a + 1, subtract_one(c)) + 2, "
+                                              "add(add_one(a), 1L)"),
+            "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,3,6,3", "3,2,14,5"])
 
@@ -171,88 +172,83 @@ class PandasUDFITTests(object):
                 'row_param of wrong type %s !' % type(row_param[0])
             return row_param
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "tinyint_func",
-            udf(tinyint_func, [DataTypes.TINYINT()], DataTypes.TINYINT(), udf_type="pandas"))
+            udf(tinyint_func, result_type=DataTypes.TINYINT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "smallint_func",
-            udf(smallint_func, [DataTypes.SMALLINT()], DataTypes.SMALLINT(), udf_type="pandas"))
+            udf(smallint_func, result_type=DataTypes.SMALLINT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "int_func",
-            udf(int_func, [DataTypes.INT()], DataTypes.INT(), udf_type="pandas"))
+            udf(int_func, result_type=DataTypes.INT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "bigint_func",
-            udf(bigint_func, [DataTypes.BIGINT()], DataTypes.BIGINT(), udf_type="pandas"))
+            udf(bigint_func, result_type=DataTypes.BIGINT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "boolean_func",
-            udf(boolean_func, [DataTypes.BOOLEAN()], DataTypes.BOOLEAN(), udf_type="pandas"))
+            udf(boolean_func, result_type=DataTypes.BOOLEAN(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "float_func",
-            udf(float_func, [DataTypes.FLOAT()], DataTypes.FLOAT(), udf_type="pandas"))
+            udf(float_func, result_type=DataTypes.FLOAT(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "double_func",
-            udf(double_func, [DataTypes.DOUBLE()], DataTypes.DOUBLE(), udf_type="pandas"))
+            udf(double_func, result_type=DataTypes.DOUBLE(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "varchar_func",
-            udf(varchar_func, [DataTypes.STRING()], DataTypes.STRING(), udf_type="pandas"))
+            udf(varchar_func, result_type=DataTypes.STRING(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "varbinary_func",
-            udf(varbinary_func, [DataTypes.BYTES()], DataTypes.BYTES(), udf_type="pandas"))
+            udf(varbinary_func, result_type=DataTypes.BYTES(), udf_type="pandas"))
 
         self.t_env.register_function(
             "decimal_func",
-            udf(decimal_func, [DataTypes.DECIMAL(38, 18)], DataTypes.DECIMAL(38, 18),
-                udf_type="pandas"))
+            udf(decimal_func, result_type=DataTypes.DECIMAL(38, 18), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "date_func",
-            udf(date_func, [DataTypes.DATE()], DataTypes.DATE(), udf_type="pandas"))
+            udf(date_func, result_type=DataTypes.DATE(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "time_func",
-            udf(time_func, [DataTypes.TIME()],   DataTypes.TIME(), udf_type="pandas"))
+            udf(time_func, result_type=DataTypes.TIME(), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "timestamp_func",
-            udf(timestamp_func, [DataTypes.TIMESTAMP(3)], DataTypes.TIMESTAMP(3),
-                udf_type="pandas"))
+            udf(timestamp_func, result_type=DataTypes.TIMESTAMP(3), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_str_func",
-            udf(array_func, [DataTypes.ARRAY(DataTypes.STRING())],
-                DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
+            udf(array_func, result_type=DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_timestamp_func",
-            udf(array_func, [DataTypes.ARRAY(DataTypes.TIMESTAMP(3))],
-                DataTypes.ARRAY(DataTypes.TIMESTAMP(3)), udf_type="pandas"))
+            udf(array_func, result_type=DataTypes.ARRAY(DataTypes.TIMESTAMP(3)), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "array_int_func",
-            udf(array_func, [DataTypes.ARRAY(DataTypes.INT())],
-                DataTypes.ARRAY(DataTypes.INT()), udf_type="pandas"))
+            udf(array_func, result_type=DataTypes.ARRAY(DataTypes.INT()), udf_type="pandas"))
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "nested_array_func",
-            udf(nested_array_func, [DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))],
-                DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
+            udf(nested_array_func,
+                result_type=DataTypes.ARRAY(DataTypes.STRING()), udf_type="pandas"))
 
         row_type = DataTypes.ROW(
             [DataTypes.FIELD("f1", DataTypes.INT()),
              DataTypes.FIELD("f2", DataTypes.STRING()),
              DataTypes.FIELD("f3", DataTypes.TIMESTAMP(3)),
              DataTypes.FIELD("f4", DataTypes.ARRAY(DataTypes.INT()))])
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "row_func",
-            udf(row_func, [row_type], row_type, udf_type="pandas"))
+            udf(row_func, result_type=row_type, udf_type="pandas"))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
@@ -296,29 +292,27 @@ class PandasUDFITTests(object):
                  DataTypes.FIELD("t", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD("u", row_type)]))
 
-        t.select("tinyint_func(a),"
-                 "smallint_func(b),"
-                 "int_func(c),"
-                 "bigint_func(d),"
-                 "boolean_func(e),"
-                 "boolean_func(f),"
-                 "float_func(g),"
-                 "double_func(h),"
-                 "varchar_func(i),"
-                 "varchar_func(j),"
-                 "varbinary_func(k),"
-                 "decimal_func(l),"
-                 "decimal_func(m),"
-                 "date_func(n),"
-                 "time_func(o),"
-                 "timestamp_func(p),"
-                 "array_str_func(q),"
-                 "array_timestamp_func(r),"
-                 "array_int_func(s),"
-                 "nested_array_func(t),"
-                 "row_func(u)") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("tinyint_func(a),"
+                                   "smallint_func(b),"
+                                   "int_func(c),"
+                                   "bigint_func(d),"
+                                   "boolean_func(e),"
+                                   "boolean_func(f),"
+                                   "float_func(g),"
+                                   "double_func(h),"
+                                   "varchar_func(i),"
+                                   "varchar_func(j),"
+                                   "varbinary_func(k),"
+                                   "decimal_func(l),"
+                                   "decimal_func(m),"
+                                   "date_func(n),"
+                                   "time_func(o),"
+                                   "timestamp_func(p),"
+                                   "array_str_func(q),"
+                                   "array_timestamp_func(r),"
+                                   "array_int_func(s),"
+                                   "nested_array_func(t),"
+                                   "row_func(u)"), "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,32767,-2147483648,1,true,false,1.0,1.0,hello,中文,"
@@ -347,11 +341,10 @@ class BlinkPandasUDFITTests(object):
                 (local_zoned_timestamp_param[0], local_datetime)
             return local_zoned_timestamp_param
 
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "local_zoned_timestamp_func",
             udf(local_zoned_timestamp_func,
-                [DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)],
-                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
+                result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3),
                 udf_type="pandas"))
 
         table_sink = source_sink_utils.TestAppendSink(
@@ -362,9 +355,8 @@ class BlinkPandasUDFITTests(object):
             [(local_datetime,)],
             DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
 
-        t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))") \
-            .insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(t.select("local_zoned_timestamp_func(local_zoned_timestamp_func(a))"),
+                          "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1970-01-02T00:00:00.123Z"])
 
@@ -377,15 +369,15 @@ class StreamPandasUDFITTests(PandasUDFITTests,
 class BatchPandasUDFITTests(PyFlinkBatchTableTestCase):
 
     def test_basic_functionality(self):
-        self.t_env.register_function(
+        self.t_env.create_temporary_system_function(
             "add_one",
-            udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT(), udf_type="pandas"))
+            udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), udf_type="pandas"))
 
-        self.t_env.register_function("add", add)
+        self.t_env.create_temporary_system_function("add", add)
 
         # general Python UDF
-        self.t_env.register_function(
-            "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function(
+            "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t = t.where("add_one(b) <= 3") \
@@ -406,8 +398,7 @@ class BlinkStreamPandasUDFITTests(PandasUDFITTests,
     pass
 
 
-@udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT(),
-     udf_type='pandas')
+@udf(result_type=DataTypes.BIGINT(), udf_type='pandas')
 def add(i, j):
     return i + j
 

@@ -26,6 +26,7 @@ import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy
 import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
@@ -197,6 +198,11 @@ public final class InputTypeStrategies {
 	 * Strategy that checks if an argument is a literal or NULL.
 	 */
 	public static final LiteralArgumentTypeStrategy LITERAL_OR_NULL = new LiteralArgumentTypeStrategy(true);
+
+	/**
+	 * Strategy that checks that the argument has a composite type.
+	 */
+	public static final ArgumentTypeStrategy COMPOSITE = new CompositeArgumentTypeStrategy();
 
 	/**
 	 * Strategy for an argument that corresponds to an explicitly defined type casting.

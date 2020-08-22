@@ -116,7 +116,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 				.setTableName(LOOKUP_TABLE)
 				.build())
 			.setSchema(TableSchema.builder().fields(
-				new String[]{"id1", "id2", "comment1", "comment2"},
+				new String[]{"id1", "comment1", "comment2", "id2"},
 				new DataType[]{DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()})
 				.build());
 		if (useCache) {
@@ -126,8 +126,9 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 		tEnv.registerFunction("jdbcLookup",
 			builder.build().getLookupFunction(t.getSchema().getFieldNames()));
 
+		// do not use the first N fields as lookup keys for better coverage
 		String sqlQuery = "SELECT id1, id2, comment1, comment2 FROM T, " +
-			"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
+			"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, comment1, comment2, l_id2)";
 		return tEnv.executeSql(sqlQuery).collect();
 	}
 
@@ -147,15 +148,16 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
 		tEnv.executeSql(
 			String.format("create table lookup (" +
 				"  id1 INT," +
-				"  id2 VARCHAR," +
 				"  comment1 VARCHAR," +
-				"  comment2 VARCHAR" +
+				"  comment2 VARCHAR," +
+				"  id2 VARCHAR" +
 				") with(" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
 				"  'table-name'='" + LOOKUP_TABLE + "'" +
 				"  %s)", useCache ? cacheConfig : ""));
 
+		// do not use the first N fields as lookup keys for better coverage
 		String sqlQuery = "SELECT source.id1, source.id2, L.comment1, L.comment2 FROM T AS source " +
 			"JOIN lookup for system_time as of source.proctime AS L " +
 			"ON source.id1 = L.id1 and source.id2 = L.id2";

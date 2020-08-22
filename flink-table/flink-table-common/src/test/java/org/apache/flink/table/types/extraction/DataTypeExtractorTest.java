@@ -26,6 +26,8 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
@@ -305,6 +307,16 @@ public class DataTypeExtractorTest {
 					"Could not extract a data type from 'java.util.HashMap<java.lang.Integer, java.lang.String>'. " +
 						"Interpreting it as a structured type was also not successful."),
 
+			TestSpec
+				.forGeneric(
+					"ARRAY type with List conversion class",
+					TableFunction.class, 0, TableFunctionWithList.class)
+				.expectDataType(
+					DataTypes.ARRAY(
+						DataTypes.ARRAY(DataTypes.STRING()).bridgedTo(List.class)
+					).bridgedTo(List.class)
+				),
+
 			// simple structured type without RAW type
 			TestSpec
 				.forType(SimplePojo.class)
@@ -421,7 +433,53 @@ public class DataTypeExtractorTest {
 					"Structured type with self reference that is avoided using RAW",
 					PojoWithRawSelfReference.class)
 				.lookupExpects(PojoWithRawSelfReference.class)
-				.expectDataType(getPojoWithRawSelfReferenceDataType())
+				.expectDataType(getPojoWithRawSelfReferenceDataType()),
+
+			TestSpec
+				.forType(
+					"Data view with default extraction",
+					AccumulatorWithDefaultDataView.class)
+				.lookupExpects(Object.class)
+				.expectDataType(
+					DataTypes.STRUCTURED(
+						AccumulatorWithDefaultDataView.class,
+						DataTypes.FIELD(
+							"listView",
+							ListView.newListViewDataType(DataTypes.RAW(new GenericTypeInfo<>(Object.class))))
+					)
+				),
+
+			TestSpec
+				.forType(
+					"Data view with custom extraction for list view",
+					AccumulatorWithCustomListView.class)
+				.expectDataType(
+					DataTypes.STRUCTURED(
+						AccumulatorWithCustomListView.class,
+						DataTypes.FIELD(
+							"listView",
+							ListView.newListViewDataType(DataTypes.STRING()))
+					)
+				),
+
+			TestSpec
+				.forType(
+					"Data view with custom extraction for map view",
+					AccumulatorWithCustomMapView.class)
+				.expectDataType(
+					DataTypes.STRUCTURED(
+						AccumulatorWithCustomMapView.class,
+						DataTypes.FIELD(
+							"mapView",
+							MapView.newMapViewDataType(DataTypes.INT(), DataTypes.STRING()))
+					)
+				),
+
+			TestSpec
+				.forType(
+					"Invalid data view",
+					AccumulatorWithInvalidView.class)
+				.expectErrorMessage("Annotated list views should have a logical type of ARRAY.")
 		);
 	}
 
@@ -744,6 +802,12 @@ public class DataTypeExtractorTest {
 
 	// --------------------------------------------------------------------------------------------
 
+	private static class TableFunctionWithList extends TableFunction<List<List<String>>> {
+
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Complex POJO with raw types.
 	 */
@@ -1037,5 +1101,39 @@ public class DataTypeExtractorTest {
 		public Integer integer;
 		@DataTypeHint(value = "RAW", bridgedTo = PojoWithRawSelfReference.class)
 		public PojoWithRawSelfReference reference;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Accumulator with default extraction for data view.
+	 */
+	public static class AccumulatorWithDefaultDataView {
+		@DataTypeHint(allowRawGlobally = HintFlag.TRUE)
+		public ListView<Object> listView;
+	}
+
+	/**
+	 * Accumulator with custom extraction for list view.
+	 */
+	public static class AccumulatorWithCustomListView {
+		@DataTypeHint("ARRAY<STRING>")
+		public ListView<?> listView;
+	}
+
+	/**
+	 * Accumulator with custom extraction for map view.
+	 */
+	public static class AccumulatorWithCustomMapView {
+		@DataTypeHint("MAP<INT, STRING>")
+		public MapView<?, ?> mapView;
+	}
+
+	/**
+	 * Accumulator with invalid list view.
+	 */
+	public static class AccumulatorWithInvalidView {
+		@DataTypeHint("INT")
+		public ListView<?> listView;
 	}
 }

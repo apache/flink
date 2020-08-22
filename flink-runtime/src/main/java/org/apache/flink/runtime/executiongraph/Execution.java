@@ -216,7 +216,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		this.executor = checkNotNull(executor);
 		this.vertex = checkNotNull(vertex);
-		this.attemptId = new ExecutionAttemptID();
+		this.attemptId = new ExecutionAttemptID(vertex.getID(), attemptNumber);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 
 		this.globalModVersion = globalModVersion;
@@ -728,10 +728,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				return;
 			}
 
-			if (LOG.isInfoEnabled()) {
-				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getTaskNameWithSubtaskIndex(),
-						attemptNumber, getAssignedResourceLocation()));
-			}
+			LOG.info("Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}", vertex.getTaskNameWithSubtaskIndex(),
+				attemptNumber, vertex.getCurrentExecutionAttempt().getAttemptId(), getAssignedResourceLocation(), slot.getAllocationId());
 
 			final TaskDeploymentDescriptor deployment = TaskDeploymentDescriptorFactory
 				.fromExecutionVertex(vertex, attemptNumber)
@@ -749,14 +747,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
+			getVertex().notifyPendingDeployment(this);
 			// We run the submission in the future executor so that the serialization of large TDDs does not block
 			// the main thread and sync back to the main thread once submission is completed.
 			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
 				.thenCompose(Function.identity())
 				.whenCompleteAsync(
 					(ack, failure) -> {
-						// only respond to the failure case
-						if (failure != null) {
+						if (failure == null) {
+							vertex.notifyCompletedDeployment(this);
+						} else {
 							if (failure instanceof TimeoutException) {
 								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 

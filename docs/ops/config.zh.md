@@ -154,7 +154,7 @@ The JobManager ensures consistency during recovery across TaskManagers. For the 
 These configuration values control the way that TaskManagers and JobManagers use memory.
 
 Flink tries to shield users as much as possible from the complexity of configuring the JVM for data-intensive processing.
-In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performane tuning and fixing memory related errors.
+In most cases, users should only need to set the values `taskmanager.memory.process.size` or `taskmanager.memory.flink.size` (depending on how the setup), and possibly adjusting the ratio of JVM heap and Managed Memory via `taskmanager.memory.managed.fraction`. The other options below can be used for performance tuning and fixing memory related errors.
 
 For a detailed explanation of how these options interact,
 see the documentation on [TaskManager]({% link ops/memory/mem_setup_tm.zh.md %}) and
@@ -253,7 +253,7 @@ The metrics here are scoped to the operators and then further broken down by col
   <strong>Note:</strong> Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
 </div>
 
-{% include generated/rocks_db_native_metric_configuration.html %}
+{% include generated/rocksdb_native_metric_configuration.html %}
 
 ----
 ----
@@ -297,6 +297,10 @@ Please refer to the [Debugging Classloading Docs]({{site.baseurl}}/monitoring/de
 
 {% include generated/expert_class_loading_section.html %}
 
+### Advanced Options for the debugging
+
+{% include generated/expert_debugging_and_tuning_section.html %}
+
 ### Advanced State Backends Options
 
 {% include generated/expert_state_backends_section.html %}
@@ -310,15 +314,19 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 **RocksDB Configurable Options**
 
 These options give fine-grained control over the behavior and resoures of ColumnFamilies.
-With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setOptions(PptionsFactory)`.
+With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
-{% include generated/rocks_db_configurable_configuration.html %}
+{% include generated/rocksdb_configurable_configuration.html %}
 
 ### Advanced Fault Tolerance Options
 
 *These parameters can help with problems related to failover and to components erroneously considering each other as failed.*
 
 {% include generated/expert_fault_tolerance_section.html %}
+
+### Advanced Cluster Options
+
+{% include generated/expert_cluster_section.html %}
 
 ### Advanced Scheduling Options
 

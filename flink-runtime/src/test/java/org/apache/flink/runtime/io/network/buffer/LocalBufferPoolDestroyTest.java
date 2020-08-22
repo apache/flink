@@ -48,7 +48,7 @@ public class LocalBufferPoolDestroyTest {
 		LocalBufferPool localBufferPool = null;
 
 		try {
-			networkBufferPool = new NetworkBufferPool(1, 4096, 1);
+			networkBufferPool = new NetworkBufferPool(1, 4096);
 			localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 			// Drain buffer pool

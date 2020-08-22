@@ -31,6 +31,7 @@ import org.apache.flink.table.api.dataview.ListView;
  * @param <T> element type
  */
 @Internal
+@Deprecated
 public class ListViewTypeInfo<T> extends TypeInformation<ListView<T>> {
 
 	private static final long serialVersionUID = 6468505781419989441L;

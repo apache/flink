@@ -31,11 +31,11 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
+import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
 /**
  * {@link ResourceManagerFactory} implementation which creates a {@link KubernetesResourceManager}.
  */
-public class KubernetesResourceManagerFactory extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
+public class KubernetesResourceManagerFactory extends LegacyActiveResourceManagerFactory<KubernetesWorkerNode> {
 
 	private static final KubernetesResourceManagerFactory INSTANCE = new KubernetesResourceManagerFactory();
 

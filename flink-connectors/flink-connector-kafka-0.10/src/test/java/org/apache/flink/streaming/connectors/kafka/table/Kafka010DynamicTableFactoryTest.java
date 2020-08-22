@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 import org.apache.flink.streaming.connectors.kafka.Kafka010TableSink;
@@ -28,14 +29,25 @@ import org.apache.flink.streaming.connectors.kafka.Kafka010TableSourceSinkFactor
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.ExceptionUtils;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
@@ -60,7 +72,8 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 	@Override
 	protected KafkaDynamicSourceBase getExpectedScanSource(
 			DataType producedDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -68,7 +81,8 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			long startupTimestamp) {
 		return new Kafka010DynamicSource(
 				producedDataType,
-				topic,
+				topics,
+				topicPattern,
 				properties,
 				decodingFormat,
 				startupMode,
@@ -82,12 +96,52 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSinkSemantic semantic) {
+		// we only support "at-least-once" for kafka 0.10 sink.
+		// if users use `sink.semantic` for kafka 0.10, an exception should be thrown
 		return new Kafka010DynamicSink(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
 				encodingFormat);
+	}
+
+	@Override
+	protected Map<String, String> getFullSinkOptions(){
+		Map<String, String> options = super.getFullSinkOptions();
+		// remove 'sink.semantic' as kafka 0.10 doesn't support it
+		options.remove("sink.semantic");
+		return options;
+	}
+
+	@Override
+	public void testInvalidSinkSemantic() {
+		ObjectIdentifier objectIdentifier = ObjectIdentifier.of(
+			"default",
+			"default",
+			"sinkTable");
+
+		final Map<String, String> modifiedOptions = getModifiedOptions(
+			getFullSinkOptions(),
+			options -> {
+				options.put("sink.semantic", "exactly-once");
+			});
+		final CatalogTable sinkTable = createKafkaSinkCatalogTable(modifiedOptions);
+
+		try {
+			FactoryUtil.createTableSink(
+				null,
+				objectIdentifier,
+				sinkTable,
+				new Configuration(),
+				Thread.currentThread().getContextClassLoader());
+			fail("Connector 'kafka-0.10' doesn't support 'sink.semantic'");
+		} catch (Exception e) {
+			assertTrue(ExceptionUtils
+				.findThrowableWithMessage(e, "Unsupported options:\n\nsink.semantic")
+				.isPresent());
+		}
 	}
 }

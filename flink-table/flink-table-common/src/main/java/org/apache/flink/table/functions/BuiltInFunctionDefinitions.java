@@ -1082,13 +1082,28 @@ public final class BuiltInFunctionDefinitions {
 		new BuiltInFunctionDefinition.Builder()
 			.name("flatten")
 			.kind(OTHER)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(sequence(InputTypeStrategies.COMPOSITE))
+			.outputTypeStrategy(callContext -> {
+				throw new UnsupportedOperationException("FLATTEN should be resolved to GET expressions");
+			})
 			.build();
 	public static final BuiltInFunctionDefinition GET =
 		new BuiltInFunctionDefinition.Builder()
 			.name("get")
 			.kind(OTHER)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.inputTypeStrategy(
+				sequence(
+					InputTypeStrategies.COMPOSITE,
+					and(
+						InputTypeStrategies.LITERAL,
+						or(
+							logical(LogicalTypeRoot.INTEGER),
+							logical(LogicalTypeFamily.CHARACTER_STRING)
+						)
+					)
+				)
+			)
+			.outputTypeStrategy(TypeStrategies.GET)
 			.build();
 
 	// window properties

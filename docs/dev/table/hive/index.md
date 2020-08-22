@@ -101,20 +101,12 @@ There are two ways to add Hive dependencies. First is to use Flink's bundled Hiv
 
 The following tables list all available bundled hive jars. You can pick one to the `/lib/` directory in Flink distribution.
 
-{% if site.is_stable %}
-
 | Metastore version | Maven dependency             | SQL Client JAR         |
 | :---------------- | :--------------------------- | :----------------------|
-| 1.0.0 - 1.2.2     | `flink-connector-hive-1.2.2` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-1.2.2{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-1.2.2{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| 2.0.0 - 2.2.0     | `flink-connector-hive-2.2.0` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-2.2.0{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-2.2.0{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| 2.3.0 - 2.3.6     | `flink-connector-hive-2.3.6` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-2.3.6{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| 3.0.0 - 3.1.2     | `flink-connector-hive-3.1.2` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.2{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-3.1.2{{site.scala_version_suffix}}-{{site.version}}.jar) |
-
-{% else %}
-
-These tables are only available for stable releases.
-
-{% endif %}
+| 1.0.0 - 1.2.2     | `flink-sql-connector-hive-1.2.2` | {% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-1.2.2{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-1.2.2{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
+| 2.0.0 - 2.2.0     | `flink-sql-connector-hive-2.2.0` | {% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.2.0{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-2.2.0{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
+| 2.3.0 - 2.3.6     | `flink-sql-connector-hive-2.3.6` | {% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.6{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-2.3.6{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
+| 3.0.0 - 3.1.2     | `flink-sql-connector-hive-3.1.2` | {% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.2{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hive-3.1.2{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %} |
 
 #### User defined dependencies
 
@@ -259,10 +251,6 @@ Please find the required dependencies for different Hive major versions below.
 </div>
 </div>
 
-If you use the hive version of HDP or CDH, you need to refer to the dependency in the previous section and select a similar version.
-
-And you need to specify selected and supported "hive-version" in yaml, HiveCatalog and HiveModule.
-
 ### Program maven
 
 If you are building your own program, you need the following dependencies in your mvn file.
@@ -305,10 +293,13 @@ the hive configuration file to their local environment first.
 Please note while HiveCatalog doesn't require a particular planner, reading/writing Hive tables only works with blink planner.
 Therefore it's highly recommended that you use blink planner when connecting to your Hive warehouse.
 
-Take Hive version 2.3.4 for example:
+`HiveCatalog` is capable of automatically detecting the Hive version in use. It's recommended **NOT** to specify the Hive
+version, unless the automatic detection fails.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">
+Following is an example of how to connect to Hive:
+
 {% highlight java %}
 
 EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
@@ -317,9 +308,8 @@ TableEnvironment tableEnv = TableEnvironment.create(settings);
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
 String hiveConfDir     = "/opt/hive-conf"; // a local path
-String version         = "2.3.4";
 
-HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
+HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir);
 tableEnv.registerCatalog("myhive", hive);
 
 // set the HiveCatalog as the current catalog of the session
@@ -327,6 +317,8 @@ tableEnv.useCatalog("myhive");
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
+Take Hive version 2.3.4 for example:
+
 {% highlight scala %}
 
 val settings = EnvironmentSettings.newInstance().inBatchMode().build()
@@ -335,13 +327,31 @@ val tableEnv = TableEnvironment.create(settings)
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
 val hiveConfDir     = "/opt/hive-conf" // a local path
-val version         = "2.3.4"
 
-val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
+val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir)
 tableEnv.registerCatalog("myhive", hive)
 
 // set the HiveCatalog as the current catalog of the session
 tableEnv.useCatalog("myhive")
+{% endhighlight %}
+</div>
+<div data-lang="Python" markdown="1">
+{% highlight python %}
+from pyflink.table import *
+from pyflink.table.catalog import HiveCatalog
+
+settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+t_env = BatchTableEnvironment.create(environment_settings=settings)
+
+catalog_name = "myhive"
+default_database = "mydatabase"
+hive_conf_dir = "/opt/hive-conf"  # a local path
+
+hive_catalog = HiveCatalog(catalog_name, default_database, hive_conf_dir)
+t_env.register_catalog("myhive", hive_catalog)
+
+# set the HiveCatalog as the current catalog of the session
+tableEnv.use_catalog("myhive")
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">

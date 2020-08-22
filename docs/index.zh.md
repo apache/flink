@@ -34,6 +34,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 
 如果您有兴趣使用 Flink, 可以试试我们的教程:
 
+* [Local Installation]({% link try-flink/local_installation.zh.md %})
 * [DataStream API 进行欺诈检测]({% link try-flink/datastream_api.zh.md %})
 * [Table API 构建实时报表]({% link try-flink/table_api.zh.md %})
 * [Python API 教程]({% link try-flink/python_table_api.zh.md %})
@@ -81,7 +82,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 
 release notes 包含了 Flink 版本之间的重大更新。请在你升级 Flink 之前仔细阅读相应的 release notes。
 
-请阅读 release notes [Flink 1.10]({% link release-notes/flink-1.10.zh.md %}), [Flink 1.9]({% link release-notes/flink-1.9.zh.md %}), [Flink 1.8]({% link release-notes/flink-1.8.zh.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.zh.md %}).
+请阅读 release notes [Flink 1.11]({% link release-notes/flink-1.11.zh.md %}), [Flink 1.10]({% link release-notes/flink-1.10.zh.md %}), [Flink 1.9]({% link release-notes/flink-1.9.zh.md %}), [Flink 1.8]({% link release-notes/flink-1.8.zh.md %}), or [Flink 1.7]({% link release-notes/flink-1.7.zh.md %}).
 
 </div>
 </div>

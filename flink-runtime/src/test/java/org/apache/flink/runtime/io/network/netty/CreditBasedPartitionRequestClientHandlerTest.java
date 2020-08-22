@@ -154,7 +154,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testReceiveBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate);
 		try {
@@ -191,7 +191,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		String compressionCodec = "LZ4";
 		BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
 		BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
-		NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize, 2);
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
 		SingleInputGate inputGate = new SingleInputGateBuilder()
 			.setBufferDecompressor(decompressor)
 			.setSegmentProvider(networkBufferPool)
@@ -313,7 +313,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate(2, networkBufferPool);
 		final RemoteInputChannel[] inputChannels = new RemoteInputChannel[2];
 		inputChannels[0] = createRemoteInputChannel(inputGate, client);
@@ -424,7 +424,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		final PartitionRequestClient client = new NettyPartitionRequestClient(
 			channel, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 		try {
@@ -493,7 +493,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		// Setup
 		final int bufferSize = 1024;
 		final String expectedMessage = "test exception on buffer";
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize, 2);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
 		final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		final RemoteInputChannel inputChannel = new TestRemoteInputChannelForError(inputGate, expectedMessage);
 		final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
@@ -535,7 +535,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
 		int bufferSize = 1024;
 
-		NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize, 2);
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
 		SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
 		RemoteInputChannel inputChannel = new InputChannelBuilder()
 			.buildRemoteChannel(inputGate);
@@ -635,6 +635,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 				new TestingConnectionManager(),
 				0,
 				100,
+				2,
 				new SimpleCounter(),
 				new SimpleCounter());
 			this.expectedMessage = expectedMessage;

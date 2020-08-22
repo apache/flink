@@ -21,8 +21,7 @@ package org.apache.flink.table.planner.plan.batch.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortMergeJoinRule
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED
 import org.apache.flink.table.planner.plan.utils.OperatorType
@@ -205,9 +204,13 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnAggregateWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-    util.addFunction("MyLast", new LongLastValueAggFunction)
+    // FirstValueAggFunction and LastValueAggFunction are not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.INT().getLogicalType))
+    util.addTemporarySystemFunction(
+      "MyLast",
+      new FirstValueAggFunction(DataTypes.BIGINT().getLogicalType))
 
     val sqlQuery =
       """
@@ -333,8 +336,10 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction is deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
+    // FirstValueAggFunction is not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.STRING().getLogicalType))
 
     val sqlQuery =
       """

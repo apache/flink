@@ -170,7 +170,7 @@ public class Types {
 	public static final TypeInformation<LocalDateTime> LOCAL_DATE_TIME = LocalTimeTypeInfo.LOCAL_DATE_TIME;
 
 	/**
-	 * Returns type infomation for {@link java.time.Instant}. Supports a null value.
+	 * Returns type information for {@link java.time.Instant}. Supports a null value.
 	 */
 	public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
 

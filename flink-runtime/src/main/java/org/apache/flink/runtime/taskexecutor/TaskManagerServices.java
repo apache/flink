@@ -292,7 +292,8 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getNumberOfSlots(),
 			taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
-			taskManagerServicesConfiguration.getPageSize());
+			taskManagerServicesConfiguration.getPageSize(),
+			ioExecutor);
 
 		final JobTable jobTable = DefaultJobTable.create();
 
@@ -313,12 +314,15 @@ public class TaskManagerServices {
 
 		final boolean failOnJvmMetaspaceOomError =
 			taskManagerServicesConfiguration.getConfiguration().getBoolean(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
+		final boolean checkClassLoaderLeak =
+			taskManagerServicesConfiguration.getConfiguration().getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
 		final LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
 			permanentBlobService,
 			BlobLibraryCacheManager.defaultClassLoaderFactory(
 				taskManagerServicesConfiguration.getClassLoaderResolveOrder(),
 				taskManagerServicesConfiguration.getAlwaysParentFirstLoaderPatterns(),
-				failOnJvmMetaspaceOomError ? fatalErrorHandler : null));
+				failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
+				checkClassLoaderLeak));
 
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
@@ -340,7 +344,8 @@ public class TaskManagerServices {
 			final int numberOfSlots,
 			final TaskExecutorResourceSpec taskExecutorResourceSpec,
 			final long timerServiceShutdownTimeout,
-			final int pageSize) {
+			final int pageSize,
+			final Executor memoryVerificationExecutor) {
 		final TimerService<AllocationID> timerService = new TimerService<>(
 			new ScheduledThreadPoolExecutor(1),
 			timerServiceShutdownTimeout);
@@ -349,7 +354,8 @@ public class TaskManagerServices {
 			TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(taskExecutorResourceSpec),
 			TaskExecutorResourceUtils.generateDefaultSlotResourceProfile(taskExecutorResourceSpec, numberOfSlots),
 			pageSize,
-			timerService);
+			timerService,
+			memoryVerificationExecutor);
 	}
 
 	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(

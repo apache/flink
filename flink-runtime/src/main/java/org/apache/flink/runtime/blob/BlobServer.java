@@ -637,20 +637,9 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		}
 
 		File incomingFile = createTemporaryFilename();
-		MessageDigest md = BlobUtils.createMessageDigest();
 		BlobKey blobKey = null;
-		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
-			// read stream
-			byte[] buf = new byte[BUFFER_SIZE];
-			while (true) {
-				final int bytesRead = inputStream.read(buf);
-				if (bytesRead == -1) {
-					// done
-					break;
-				}
-				fos.write(buf, 0, bytesRead);
-				md.update(buf, 0, bytesRead);
-			}
+		try {
+			MessageDigest md = writeStreamToFileAndCreateDigest(inputStream, incomingFile);
 
 			// persist file
 			blobKey = moveTempFileToStore(incomingFile, jobId, md.digest(), blobType);
@@ -662,6 +651,24 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
 					incomingFile, blobKey, jobId);
 			}
+		}
+	}
+
+	private static MessageDigest writeStreamToFileAndCreateDigest(InputStream inputStream, File file) throws IOException {
+		try (FileOutputStream fos = new FileOutputStream(file)) {
+			MessageDigest md = BlobUtils.createMessageDigest();
+			// read stream
+			byte[] buf = new byte[BUFFER_SIZE];
+			while (true) {
+				final int bytesRead = inputStream.read(buf);
+				if (bytesRead == -1) {
+					// done
+					break;
+				}
+				fos.write(buf, 0, bytesRead);
+				md.update(buf, 0, bytesRead);
+			}
+			return md;
 		}
 	}
 

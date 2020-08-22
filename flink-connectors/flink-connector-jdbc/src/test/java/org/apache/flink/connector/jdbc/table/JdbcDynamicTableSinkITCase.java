@@ -29,6 +29,9 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
+import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
@@ -36,6 +39,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -59,6 +63,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 	public static final String OUTPUT_TABLE2 = "dynamicSinkForAppend";
 	public static final String OUTPUT_TABLE3 = "dynamicSinkForBatch";
 	public static final String OUTPUT_TABLE4 = "REAL_TABLE";
+	public static final String USER_TABLE = "USER_TABLE";
 
 	@Before
 	public void before() throws ClassNotFoundException, SQLException {
@@ -85,11 +90,20 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				"SCORE BIGINT NOT NULL DEFAULT 0)");
 
 			stat.executeUpdate("CREATE TABLE " + OUTPUT_TABLE4 + " (real_data REAL)");
+
+			stat.executeUpdate("CREATE TABLE " + USER_TABLE + " (" +
+				"user_id VARCHAR(20) NOT NULL," +
+				"user_name VARCHAR(20) NOT NULL," +
+				"email VARCHAR(255)," +
+				"balance DECIMAL(18,2)," +
+				"balance2 DECIMAL(18,2)," +
+				"PRIMARY KEY (user_id))");
 		}
 	}
 
 	@After
 	public void clearOutputTable() throws Exception {
+		TestValuesTableFactory.clearAllData();
 		Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());
 		try (
 			Connection conn = DriverManager.getConnection(DB_URL);
@@ -98,6 +112,7 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			stat.execute("DROP TABLE " + OUTPUT_TABLE2);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE3);
 			stat.execute("DROP TABLE " + OUTPUT_TABLE4);
+			stat.execute("DROP TABLE " + USER_TABLE);
 		}
 	}
 
@@ -185,7 +200,9 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 				") WITH (" +
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
-				"  'table-name'='" + OUTPUT_TABLE1 + "'" +
+				"  'table-name'='" + OUTPUT_TABLE1 + "'," +
+				"  'sink.buffer-flush.max-rows' = '2'," +
+				"  'sink.buffer-flush.interval' = '0'" +
 				")");
 
 		TableResult tableResult = tEnv.executeSql("INSERT INTO upsertSink \n" +
@@ -272,5 +289,44 @@ public class JdbcDynamicTableSinkITCase extends AbstractTestBase {
 			Row.of("Kim", 42),
 			Row.of("Bob", 1)
 		}, DB_URL, OUTPUT_TABLE3, new String[]{"NAME", "SCORE"});
+	}
+
+	@Test
+	public void testReadingFromChangelogSource() throws SQLException {
+		TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+		String dataId = TestValuesTableFactory.registerData(TestData.userChangelog());
+		tEnv.executeSql("CREATE TABLE user_logs (\n" +
+				"  user_id STRING,\n" +
+				"  user_name STRING,\n" +
+				"  email STRING,\n" +
+				"  balance DECIMAL(18,2),\n" +
+				"  balance2 AS balance * 2\n" +
+				") WITH (\n" +
+				" 'connector' = 'values',\n" +
+				" 'data-id' = '" + dataId + "',\n" +
+				" 'changelog-mode' = 'I,UA,UB,D'\n" +
+				")");
+		tEnv.executeSql("CREATE TABLE user_sink (\n" +
+			"  user_id STRING PRIMARY KEY NOT ENFORCED,\n" +
+			"  user_name STRING,\n" +
+			"  email STRING,\n" +
+			"  balance DECIMAL(18,2),\n" +
+			"  balance2 DECIMAL(18,2)\n" +
+			") WITH (\n" +
+			"  'connector' = 'jdbc'," +
+			"  'url'='" + DB_URL + "'," +
+			"  'table-name' = '" + USER_TABLE + "'," +
+			"  'sink.buffer-flush.max-rows' = '2'," +
+			"  'sink.buffer-flush.interval' = '0'" + // disable async flush
+			")");
+		TableEnvUtil.execInsertSqlAndWaitResult(
+			tEnv,
+			"INSERT INTO user_sink SELECT * FROM user_logs");
+
+		check(new Row[] {
+			Row.of("user1", "Tom", "tom123@gmail.com", new BigDecimal("8.10"), new BigDecimal("16.20")),
+			Row.of("user3", "Bailey", "bailey@qq.com", new BigDecimal("9.99"), new BigDecimal("19.98")),
+			Row.of("user4", "Tina", "tina@gmail.com", new BigDecimal("11.30"), new BigDecimal("22.60"))
+		}, DB_URL, USER_TABLE, new String[]{"user_id", "user_name", "email", "balance", "balance2"});
 	}
 }

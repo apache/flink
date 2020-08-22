@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-sql-parser-hive</artifactId>
-	<name>flink-sql-parser-hive</name>
+	<name>Flink : Table : SQL Parser Hive</name>
 
 	<packaging>jar</packaging>
 

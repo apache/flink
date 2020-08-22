@@ -31,13 +31,20 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
+
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.AT_LEAST_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.EXACTLY_ONCE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.NONE;
 
 /** Option utils for Kafka table source sink. */
 public class KafkaOptions {
@@ -47,11 +54,20 @@ public class KafkaOptions {
 	// Kafka specific options
 	// --------------------------------------------------------------------------------------------
 
-	public static final ConfigOption<String> TOPIC = ConfigOptions
+	public static final ConfigOption<List<String>> TOPIC = ConfigOptions
 			.key("topic")
 			.stringType()
+			.asList()
 			.noDefaultValue()
-			.withDescription("Required topic name from which the table is read");
+			.withDescription("Topic names from which the table is read. Either 'topic' or 'topic-pattern' must be set for source. " +
+				"Option 'topic' is required for sink.");
+
+	public static final ConfigOption<String> TOPIC_PATTERN = ConfigOptions
+		.key("topic-pattern")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Optional topic pattern from which the table is read for source. Either 'topic' or 'topic-pattern' must be set.");
+
 
 	public static final ConfigOption<String> PROPS_BOOTSTRAP_SERVERS = ConfigOptions
 			.key("properties.bootstrap.servers")
@@ -89,6 +105,12 @@ public class KafkaOptions {
 			.noDefaultValue()
 			.withDescription("Optional timestamp used in case of \"timestamp\" startup mode");
 
+	public static final ConfigOption<Duration> SCAN_TOPIC_PARTITION_DISCOVERY = ConfigOptions
+			.key("scan.topic-partition-discovery.interval")
+			.durationType()
+			.noDefaultValue()
+			.withDescription("Optional interval for consumer to discover dynamically created Kafka partitions periodically.");
+
 	// --------------------------------------------------------------------------------------------
 	// Sink specific options
 	// --------------------------------------------------------------------------------------------
@@ -102,6 +124,11 @@ public class KafkaOptions {
 					+ "\"fixed\": (each Flink partition ends up in at most one Kafka partition),\n"
 					+ "\"round-robin\": (a Flink partition is distributed to Kafka partitions round-robin)\n"
 					+ "\"custom class name\": (use a custom FlinkKafkaPartitioner subclass)");
+
+	public static final ConfigOption<String> SINK_SEMANTIC = ConfigOptions.key("sink.semantic")
+			.stringType()
+			.defaultValue("at-least-once")
+			.withDescription("Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
 
 	// --------------------------------------------------------------------------------------------
 	// Option enumerations
@@ -129,6 +156,17 @@ public class KafkaOptions {
 			SINK_PARTITIONER_VALUE_FIXED,
 			SINK_PARTITIONER_VALUE_ROUND_ROBIN));
 
+	// Sink semantic
+	public static final String SINK_SEMANTIC_VALUE_EXACTLY_ONCE = "exactly-once";
+	public static final String SINK_SEMANTIC_VALUE_AT_LEAST_ONCE = "at-least-once";
+	public static final String SINK_SEMANTIC_VALUE_NONE = "none";
+
+	private static final Set<String> SINK_SEMANTIC_ENUMS = new HashSet<>(Arrays.asList(
+		SINK_SEMANTIC_VALUE_AT_LEAST_ONCE,
+		SINK_SEMANTIC_VALUE_EXACTLY_ONCE,
+		SINK_SEMANTIC_VALUE_NONE
+	));
+
 	// Prefix for Kafka specific properties.
 	public static final String PROPERTIES_PREFIX = "properties.";
 
@@ -140,9 +178,43 @@ public class KafkaOptions {
 	// Validation
 	// --------------------------------------------------------------------------------------------
 
-	public static void validateTableOptions(ReadableConfig tableOptions) {
+	public static void validateTableSourceOptions(ReadableConfig tableOptions) {
+		validateSourceTopic(tableOptions);
 		validateScanStartupMode(tableOptions);
+	}
+
+	public static void validateTableSinkOptions(ReadableConfig tableOptions) {
+		validateSinkTopic(tableOptions);
 		validateSinkPartitioner(tableOptions);
+		validateSinkSemantic(tableOptions);
+	}
+
+	public static void validateSourceTopic(ReadableConfig tableOptions) {
+		Optional<List<String>> topic = tableOptions.getOptional(TOPIC);
+		Optional<String> pattern = tableOptions.getOptional(TOPIC_PATTERN);
+
+		if (topic.isPresent() && pattern.isPresent()) {
+			throw new ValidationException("Option 'topic' and 'topic-pattern' shouldn't be set together.");
+		}
+
+		if (!topic.isPresent() && !pattern.isPresent()) {
+			throw new ValidationException("Either 'topic' or 'topic-pattern' must be set.");
+		}
+	}
+
+	public static void validateSinkTopic(ReadableConfig tableOptions) {
+		String errorMessageTemp = "Flink Kafka sink currently only supports single topic, but got %s: %s.";
+		if (!isSingleTopic(tableOptions)) {
+			if (tableOptions.getOptional(TOPIC_PATTERN).isPresent()) {
+				throw new ValidationException(String.format(
+					errorMessageTemp, "'topic-pattern'", tableOptions.get(TOPIC_PATTERN)
+				));
+			} else {
+				throw new ValidationException(String.format(
+					errorMessageTemp, "'topic'", tableOptions.get(TOPIC)
+				));
+			}
+		}
 	}
 
 	private static void validateScanStartupMode(ReadableConfig tableOptions) {
@@ -172,6 +244,9 @@ public class KafkaOptions {
 									SCAN_STARTUP_SPECIFIC_OFFSETS.key(),
 									SCAN_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS));
 						}
+						if (!isSingleTopic(tableOptions)){
+							throw new ValidationException("Currently Kafka source only supports specific offset for single topic.");
+						}
 						String specificOffsets = tableOptions.get(SCAN_STARTUP_SPECIFIC_OFFSETS);
 						parseSpecificOffsets(specificOffsets, SCAN_STARTUP_SPECIFIC_OFFSETS.key());
 			}
@@ -191,13 +266,47 @@ public class KafkaOptions {
 				});
 	}
 
+	private static void validateSinkSemantic(ReadableConfig tableOptions) {
+		tableOptions.getOptional(SINK_SEMANTIC).ifPresent(semantic -> {
+			if (!SINK_SEMANTIC_ENUMS.contains(semantic)){
+				throw new ValidationException(
+					String.format("Unsupported value '%s' for '%s'. Supported values are ['at-least-once', 'exactly-once', 'none'].",
+						semantic, SINK_SEMANTIC.key()));
+			}
+		});
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------------------------------------------
 
-	public static StartupOptions getStartupOptions(
-			ReadableConfig tableOptions,
-			String topic) {
+	public static KafkaSinkSemantic getSinkSemantic(ReadableConfig tableOptions){
+		switch (tableOptions.get(SINK_SEMANTIC)){
+			case SINK_SEMANTIC_VALUE_EXACTLY_ONCE:
+				return EXACTLY_ONCE;
+			case SINK_SEMANTIC_VALUE_AT_LEAST_ONCE:
+				return AT_LEAST_ONCE;
+			case SINK_SEMANTIC_VALUE_NONE:
+				return NONE;
+			default:
+				throw new TableException("Validator should have checked that");
+		}
+	}
+
+	public static List<String> getSourceTopics(ReadableConfig tableOptions) {
+		return tableOptions.getOptional(TOPIC).orElse(null);
+	}
+
+	public static Pattern getSourceTopicPattern(ReadableConfig tableOptions) {
+		return tableOptions.getOptional(TOPIC_PATTERN).map(Pattern::compile).orElse(null);
+	}
+
+	private static boolean isSingleTopic(ReadableConfig tableOptions) {
+		// Option 'topic-pattern' is regarded as multi-topics.
+		return tableOptions.getOptional(TOPIC).map(t -> t.size() == 1).orElse(false);
+	}
+
+	public static StartupOptions getStartupOptions(ReadableConfig tableOptions) {
 		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
 		final StartupMode startupMode = tableOptions.getOptional(SCAN_STARTUP_MODE)
 				.map(modeString -> {
@@ -212,7 +321,9 @@ public class KafkaOptions {
 						return StartupMode.GROUP_OFFSETS;
 
 					case SCAN_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
-						buildSpecificOffsets(tableOptions, topic, specificOffsets);
+						// It will be refactored after support specific offset for multiple topics in FLINK-18602.
+						// We have already checked tableOptions.get(TOPIC) contains one topic in validateScanStartupMode().
+						buildSpecificOffsets(tableOptions, tableOptions.get(TOPIC).get(0), specificOffsets);
 						return StartupMode.SPECIFIC_OFFSETS;
 
 					case SCAN_STARTUP_MODE_VALUE_TIMESTAMP:

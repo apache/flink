@@ -26,7 +26,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -59,6 +58,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /**
  * Tests the availability of accumulator results during runtime.
@@ -145,7 +146,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		final CheckedThread submissionThread = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			}
 		};
 

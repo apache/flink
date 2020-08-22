@@ -30,7 +30,7 @@ import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 
 /**
- * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
+ * Base class for a user-defined scalar function. A user-defined scalar function maps zero, one,
  * or multiple scalar values to a new scalar value.
  *
  * <p>The behavior of a {@link ScalarFunction} can be defined by implementing a custom evaluation

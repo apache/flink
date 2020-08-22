@@ -94,6 +94,8 @@ FsStateBackend 适用场景:
 
 建议同时将 [managed memory](../memory/mem_setup_tm.html#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
 
+<a name="the-rocksdbstatebackend" />
+
 ### RocksDBStateBackend
 
 *RocksDBStateBackend* 需要配置一个文件系统的 URL （类型、地址、路径），例如："hdfs://namenode:40010/flink/checkpoints" 或 "file:///data/flink/checkpoints"。
@@ -278,7 +280,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
   - 通过 `state.backend.rocksdb.options-factory` 选项将工厂实现类的名称设置到`flink-conf.yaml` 。
   
-  - 通过程序设置，例如 `RocksDBStateBackend.setOptions(new MyOptionsFactory());` 。
+  - 通过程序设置，例如 `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());` 。
   
 <span class="label label-info">注意</span> 通过程序设置的 `RocksDBOptionsFactory` 将覆盖 `flink-conf.yaml` 配置文件的设置，且 `RocksDBOptionsFactory` 设置的优先级高于预定义选项（`PredefinedOptions`）。
 

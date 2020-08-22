@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -81,6 +82,7 @@ public class ExecutionGraphBuilder {
 	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
 	 * graph exists, then the JobGraph will become attach to a new empty execution graph.
 	 */
+	@VisibleForTesting
 	public static ExecutionGraph buildGraph(
 			@Nullable ExecutionGraph prior,
 			JobGraph jobGraph,
@@ -119,7 +121,9 @@ public class ExecutionGraphBuilder {
 			log,
 			shuffleMaster,
 			partitionTracker,
-			failoverStrategy);
+			failoverStrategy,
+			NoOpExecutionDeploymentListener.get(),
+			(execution, newState) -> {});
 	}
 
 	public static ExecutionGraph buildGraph(
@@ -139,7 +143,9 @@ public class ExecutionGraphBuilder {
 		Logger log,
 		ShuffleMaster<?> shuffleMaster,
 		JobMasterPartitionTracker partitionTracker,
-		FailoverStrategy.Factory failoverStrategyFactory) throws JobExecutionException, JobException {
+		FailoverStrategy.Factory failoverStrategyFactory,
+		ExecutionDeploymentListener executionDeploymentListener,
+		ExecutionStateUpdateListener executionStateUpdateListener) throws JobExecutionException, JobException {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
 
@@ -179,7 +185,9 @@ public class ExecutionGraphBuilder {
 					partitionReleaseStrategyFactory,
 					shuffleMaster,
 					partitionTracker,
-					jobGraph.getScheduleMode());
+					jobGraph.getScheduleMode(),
+					executionDeploymentListener,
+					executionStateUpdateListener);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

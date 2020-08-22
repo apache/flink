@@ -36,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 	private final ConnectionID connectionId;
 	private final ConnectionManager connectionManager;
+	private final int networkBuffersPerChannel;
 
 	private boolean exclusiveBuffersAssigned;
 
@@ -47,11 +48,13 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 			ConnectionManager connectionManager,
 			int initialBackOff,
 			int maxBackoff,
+			int networkBuffersPerChannel,
 			InputChannelMetrics metrics) {
 		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInRemoteCounter(), metrics.getNumBuffersInRemoteCounter());
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
 	}
 
 	@Override
@@ -64,6 +67,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
+			networkBuffersPerChannel,
 			numBytesIn,
 			numBuffersIn);
 		remoteInputChannel.assignExclusiveSegments();
@@ -73,7 +77,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 	void assignExclusiveSegments() throws IOException {
 		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
 
-		bufferManager.requestExclusiveBuffers();
+		bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
 		exclusiveBuffersAssigned = true;
 	}
 }

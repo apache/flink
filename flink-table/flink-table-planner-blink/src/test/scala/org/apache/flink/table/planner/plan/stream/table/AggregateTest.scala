@@ -48,7 +48,7 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = table
       .groupBy('c)
-      .select(weightedAvg.distinct('a, 'b), weightedAvg('a, 'b))
+      .select(call(weightedAvg, 'a, 'b).distinct(), call(weightedAvg, 'a, 'b))
 
     util.verifyPlan(resultTable)
   }

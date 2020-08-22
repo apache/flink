@@ -74,7 +74,7 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 	 * Implementation notes:
 	 *
 	 * <p>Use aggregator to replace SumEdgeStats when aggregators are rewritten to use
-	 * a hash-combineable hashable-reduce.
+	 * a hash-combinable hashable-reduce.
 	 *
 	 * <p>Use distinct to replace ReduceEdgeStats when the combiner can be disabled
 	 * with a sorted-reduce forced.

@@ -30,7 +30,7 @@ under the License.
 	<artifactId>flink-parent</artifactId>
 	<version>1.12-SNAPSHOT</version>
 
-	<name>flink</name>
+	<name>Flink : </name>
 	<packaging>pom</packaging>
 	<url>https://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>
@@ -106,14 +106,14 @@ under the License.
 		<flink.shaded.version>11.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
-		<java.version>1.8</java.version>
+		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.15</slf4j.version>
 		<log4j.version>2.12.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
-		<maven.compiler.source>${java.version}</maven.compiler.source>
-		<maven.compiler.target>${java.version}</maven.compiler.target>
+		<maven.compiler.source>${target.java.version}</maven.compiler.source>
+		<maven.compiler.target>${target.java.version}</maven.compiler.target>
 		<scala.macros.version>2.1.0</scala.macros.version>
 		<!-- Default scala versions, must be overwritten by build profiles, so we set something
 		invalid here -->
@@ -147,14 +147,14 @@ under the License.
 		<minikdc.version>3.2.0</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
-		<hive.connector.orc.version>1.4.3</hive.connector.orc.version>
+		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
 		<orc.version>1.5.6</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.10.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.11.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 	</properties>
 
@@ -935,7 +935,7 @@ under the License.
 		<profile>
 			<id>java11</id>
 			<activation>
-				<jdk>11</jdk>
+				<jdk>[11,)</jdk>
 			</activation>
 
 			<build>
@@ -1242,7 +1242,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<java.version>1.8</java.version>
+				<target.java.version>1.8</target.java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -1604,7 +1604,7 @@ under the License.
 									<version>[3.1.1,)</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
-									<version>${java.version}</version>
+									<version>${target.java.version}</version>
 								</requireJavaVersion>
 							</rules>
 						</configuration>
@@ -1750,8 +1750,8 @@ under the License.
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.8.0</version>
 					<configuration>
-						<source>${java.version}</source>
-						<target>${java.version}</target>
+						<source>${target.java.version}</source>
+						<target>${target.java.version}</target>
 						<!-- The semantics of this option are reversed, see MCOMPILER-209. -->
 						<useIncrementalCompilation>false</useIncrementalCompilation>
 						<compilerArgs>
@@ -1932,7 +1932,7 @@ under the License.
 					<configuration>
 						<args>
 							<arg>-nobootcp</arg>
-							<arg>-target:jvm-${java.version}</arg>
+							<arg>-target:jvm-${target.java.version}</arg>
 						</args>
 						<jvmArgs>
 							<arg>-Xss2m</arg>

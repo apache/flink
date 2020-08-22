@@ -1629,11 +1629,11 @@ public class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	@Experimental
-	public <OUT> DataStreamSource<OUT> continuousSource(
+	public <OUT> DataStreamSource<OUT> fromSource(
 			Source<OUT, ?, ?> source,
 			WatermarkStrategy<OUT> timestampsAndWatermarks,
 			String sourceName) {
-		return continuousSource(source, timestampsAndWatermarks, sourceName, null);
+		return fromSource(source, timestampsAndWatermarks, sourceName, null);
 	}
 
 	/**
@@ -1650,7 +1650,7 @@ public class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	@Experimental
-	public <OUT> DataStreamSource<OUT> continuousSource(
+	public <OUT> DataStreamSource<OUT> fromSource(
 			Source<OUT, ?, ?> source,
 			WatermarkStrategy<OUT> timestampsAndWatermarks,
 			String sourceName,
@@ -2170,7 +2170,7 @@ public class StreamExecutionEnvironment {
 			Class<?> baseSourceClass,
 			TypeInformation<OUT> typeInfo) {
 		TypeInformation<OUT> resolvedTypeInfo = typeInfo;
-		if (source instanceof ResultTypeQueryable) {
+		if (resolvedTypeInfo == null && source instanceof ResultTypeQueryable) {
 			resolvedTypeInfo = ((ResultTypeQueryable<OUT>) source).getProducedType();
 		}
 		if (resolvedTypeInfo == null) {

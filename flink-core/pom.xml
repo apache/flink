@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-core</artifactId>
-	<name>flink-core</name>
+	<name>Flink : Core</name>
 
 	<packaging>jar</packaging>
 

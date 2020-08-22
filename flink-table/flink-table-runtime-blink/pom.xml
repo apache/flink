@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
-	<name>flink-table-runtime-blink</name>
+	<name>Flink : Table : Runtime Blink</name>
 	<description>
 		This module contains classes that are required by a task manager for
 		execution of table programs. The content of this module is work-in-progress.

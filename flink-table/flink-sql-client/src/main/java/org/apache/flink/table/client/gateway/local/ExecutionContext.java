@@ -106,9 +106,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -139,7 +141,7 @@ public class ExecutionContext<ClusterID> {
 
 	private final Environment environment;
 	private final SessionContext originalSessionContext;
-	private final ClassLoader classLoader;
+	private final URLClassLoader classLoader;
 
 	private final Configuration flinkConfig;
 	private final ClusterClientFactory<ClusterID> clusterClientFactory;
@@ -305,6 +307,11 @@ public class ExecutionContext<ClusterID> {
 	/** Close resources associated with this ExecutionContext, e.g. catalogs. */
 	public void close() {
 		wrapClassLoader(() -> getCatalogs().values().forEach(Catalog::close));
+		try {
+			classLoader.close();
+		} catch (IOException e) {
+			LOG.debug("Error while closing class loader.", e);
+		}
 	}
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -424,7 +431,8 @@ public class ExecutionContext<ClusterID> {
 			Executor executor,
 			CatalogManager catalogManager,
 			ModuleManager moduleManager,
-			FunctionCatalog functionCatalog) {
+			FunctionCatalog functionCatalog,
+			ClassLoader userClassLoader) {
 
 		final Map<String, String> plannerProperties = settings.toPlannerProperties();
 		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
@@ -438,7 +446,8 @@ public class ExecutionContext<ClusterID> {
 			env,
 			planner,
 			executor,
-			settings.isStreamingMode());
+			settings.isStreamingMode(),
+			userClassLoader);
 	}
 
 	private static Executor lookupExecutor(
@@ -599,7 +608,8 @@ public class ExecutionContext<ClusterID> {
 					executor,
 					catalogManager,
 					moduleManager,
-					functionCatalog);
+					functionCatalog,
+					classLoader);
 		} else if (environment.getExecution().isBatchPlanner()) {
 			streamExecEnv = null;
 			execEnv = ExecutionEnvironment.getExecutionEnvironment();

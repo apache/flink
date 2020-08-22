@@ -49,7 +49,7 @@ as those of an overall Flink-Hive integration.
 
 ## How to use HiveCatalog
 
-Once configured properly, `HiveCatalog` should just work out of box. Users can create Flink meta-objects with DDL, and shoud
+Once configured properly, `HiveCatalog` should just work out of box. Users can create Flink meta-objects with DDL, and should
 see them immediately afterwards.
 
 `HiveCatalog` can be used to handle two kinds of tables: Hive-compatible tables and generic tables. Hive-compatible tables
@@ -253,7 +253,7 @@ Time taken: 0.158 seconds, Fetched: 36 row(s)
 {% endhighlight %}
 
 
-#### step 5: run Flink SQL to query the Kakfa table
+#### step 5: run Flink SQL to query the Kafka table
 
 Run a simple select query from Flink SQL Client in a Flink cluster, either standalone or yarn-session.
 

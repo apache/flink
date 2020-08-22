@@ -1,5 +1,5 @@
 ---
-title: "HBase SQL Connector"
+title: "HBase SQL 连接器"
 nav-title: HBase
 nav-parent_id: sql-connectors
 nav-pos: 6
@@ -31,29 +31,29 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The HBase connector allows for reading from and writing to an HBase cluster. This document describes how to setup the HBase Connector to run SQL queries against HBase.
+HBase 连接器支持读取和写入 HBase 集群。本文档介绍如何使用 HBase 连接器基于 HBase 进行 SQL 查询。
 
-HBase always works in upsert mode for exchange changelog messages with the external system using a primary key defined on the DDL. The primary key must be defined on the HBase rowkey field (rowkey field must be declared). If the PRIMARY KEY clause is not declared, the HBase connector will take rowkey as the primary key by default.
+HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键与外部系统交换更新操作消息。但是主键只能基于 HBase 的 rowkey 字段定义。如果没有声明主键，HBase 连接器默认取 rowkey 作为主键。
 
-Dependencies
+依赖
 ------------
 
-In order to setup the HBase connector, the following table provide dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
+安装 HBase 连接器的依赖条件如下表，包括自动构建工具（比如 Maven 或者 SBT）和 SQL 客户端：
 
-| HBase Version       | Maven dependency                                          | SQL Client JAR         |
+| HBase 版本          | Maven 依赖                                          | SQL 客户端 JAR        |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
-| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
+| 1.4.x               | `flink-connector-hbase{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-hbase{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} 只适用于 [稳定发布版]({{ site.stable_baseurl }}/zh/dev/table/connectors/hbase.html) {% endif %}|
 
 
-How to create an HBase table
+如何使用 HBase 表
 ----------------
 
-All the column families in HBase table must be declared as ROW type, the field name maps to the column family name, and the nested field names map to the column qualifier names. There is no need to declare all the families and qualifiers in the schema, users can declare what’s used in the query. Except the ROW type fields, the single atomic type field (e.g. STRING, BIGINT) will be recognized as HBase rowkey. The rowkey field can be arbitrary name, but should be quoted using backticks if it is a reserved keyword.
+所有 HBase 表的列簇必须定义为 ROW 类型，字段名对应列簇名（column family），嵌套的字段名对应列限定符名（column qualifier）。用户只需在表结构中声明查询中使用的的列簇和列限定符。除了 ROW 类型的列，剩下的原子数据类型字段（比如，STRING, BIGINT）将被识别为 HBase 的 rowkey，一张表中只能声明一个 rowkey。rowkey 字段的名字可以是任意的，如果是保留关键字，需要用反引号。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
 {% highlight sql %}
--- register the HBase table 'mytable' in Flink SQL
+-- 在 Flink SQL 中注册 HBase 表 "mytable"
 CREATE TABLE hTable (
  rowkey INT,
  family1 ROW<q1 INT>,
@@ -66,15 +66,15 @@ CREATE TABLE hTable (
  'zookeeper.quorum' = 'localhost:2181'
 );
 
--- use ROW(...) construction function construct column families and write data into the HBase table.
--- assuming the schema of "T" is [rowkey, f1q1, f2q2, f2q3, f3q4, f3q5, f3q6]
+-- 用 ROW(...) 构造函数构造列簇，并往 HBase 表写数据。
+-- 假设 "T" 的表结构是 [rowkey, f1q1, f2q2, f2q3, f3q4, f3q5, f3q6]
 INSERT INTO hTable
 SELECT rowkey, ROW(f1q1), ROW(f2q2, f2q3), ROW(f3q4, f3q5, f3q6) FROM T;
 
--- scan data from the HBase table
+-- 从 HBase 表扫描数据
 SELECT rowkey, family1, family3.q4, family3.q6 FROM hTable;
 
--- temporal join the HBase table as a dimension table
+-- temporal join HBase 表，将 HBase 表作为维表
 SELECT * FROM myTopic
 LEFT JOIN hTable FOR SYSTEM_TIME AS OF myTopic.proctime
 ON myTopic.key = hTable.rowkey;
@@ -82,84 +82,77 @@ ON myTopic.key = hTable.rowkey;
 </div>
 </div>
 
-Connector Options
+连接器参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认参数</th>
+        <th class="text-center" style="width: 10%">数据类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>connector</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be <code>'hbase-1.4'</code>.</td>
+      <td>指定使用的连接器，这里写“hbase-1.4”。</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The name of HBase table to connect.</td>
+      <td>连接的 HBase 表名。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.quorum</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The HBase Zookeeper quorum.</td>
+      <td>HBase Zookeeper quorum 信息。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.znode.parent</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">/hbase</td>
       <td>String</td>
-      <td>The root dir in Zookeeper for HBase cluster.</td>
+      <td>HBase 集群的 Zookeeper 根目录。</td>
     </tr>
     <tr>
       <td><h5>null-string-literal</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">null</td>
       <td>String</td>
-      <td>Representation for null values for string fields. HBase source and sink encodes/decodes empty bytes as null values for all types except string type.</td>
+      <td>当字符串值为 <code>null</code> 时的存储形式，默认存成 "null" 字符串。HBase 的 source 和 sink 的编解码将所有数据类型（除字符串外）将 <code>null</code> 值以空字节来存储。</td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.max-size</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">2mb</td>
       <td>MemorySize</td>
-      <td>Writing option, maximum size in memory of buffered rows for each writing request.
-      This can improve performance for writing data to HBase database, but may increase the latency.
-      Can be set to <code>'0'</code> to disable it.
+      <td>写入的参数选项。每次写入请求缓存行的最大大小。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。
       </td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.max-rows</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">1000</td>
       <td>Integer</td>
-      <td>Writing option, maximum number of rows to buffer for each writing request.
-      This can improve performance for writing data to HBase database, but may increase the latency.
-      Can be set to <code>'0'</code> to disable it.
+      <td>写入的参数选项。 每次写入请求缓存的最大行数。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。
       </td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">1s</td>
       <td>Duration</td>
-      <td>Writing option, the interval to flush any buffered rows.
-      This can improve performance for writing data to HBase database, but may increase the latency.
-      Can be set to <code>'0'</code> to disable it. Note, both <code>'sink.buffer-flush.max-size'</code> and <code>'sink.buffer-flush.max-rows'</code>
-      can be set to <code>'0'</code> with the flush interval set allowing for complete async processing of buffered actions.
+      <td>写入的参数选项。刷写缓存行的间隔。它能提升写入 HBase 数据库的性能，但是也可能增加延迟。设置为 "0" 关闭此选项。注意："sink.buffer-flush.max-size" 和 "sink.buffer-flush.max-rows" 同时设置为 "0"，刷写选项整个异步处理缓存行为。
       </td>
     </tr>
     </tbody>
@@ -167,22 +160,22 @@ Connector Options
 
 
 
-Data Type Mapping
+数据类型映射表
 ----------------
 
-HBase stores all data as byte arrays. The data needs to be serialized and deserialized during read and write operation
+HBase 以字节数组存储所有数据。在读和写过程中要序列化和反序列化数据。
 
-When serializing and de-serializing, Flink HBase connector uses utility class `org.apache.hadoop.hbase.util.Bytes` provided by HBase (Hadoop) to convert Flink Data Types to and from byte arrays.
+Flink 的 HBase 连接器利用 HBase（Hadoop) 的工具类 `org.apache.hadoop.hbase.util.Bytes` 进行字节数组和 Flink 数据类型转换。
 
-Flink HBase connector encodes `null` values to empty bytes, and decode empty bytes to `null` values for all data types except string type. For string type, the null literal is determined by `null-string-literal` option.
+Flink 的 HBase 连接器将所有数据类型（除字符串外）`null` 值编码成空字节。对于字符串类型，`null` 值的字面值由`null-string-literal`选项值决定。
 
-The data type mappings are as follows:
+数据类型映射表如下：
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Flink SQL type</th>
-        <th class="text-left">HBase conversion</th>
+        <th class="text-left">Flink 数据类型</th>
+        <th class="text-left">HBase 转换</th>
       </tr>
     </thead>
     <tbody>
@@ -206,7 +199,7 @@ boolean toBoolean(byte[] b)
     </tr>
     <tr>
       <td><code>BINARY / VARBINARY</code></td>
-      <td>Returns <code>byte[]</code> as is.</td>
+      <td>返回 <code>byte[]</code>。</td>
     </tr>
     <tr>
       <td><code>DECIMAL</code></td>
@@ -273,27 +266,27 @@ double toDouble(byte[] bytes)
     </tr>
     <tr>
       <td><code>DATE</code></td>
-      <td>Stores the number of days since epoch as int value.</td>
+      <td>从 1970-01-01 00:00:00 UTC 开始的天数，int 值。</td>
     </tr>
     <tr>
       <td><code>TIME</code></td>
-      <td>Stores the number of milliseconds of the day as int value.</td>
+      <td>从 1970-01-01 00:00:00 UTC 开始天的毫秒数，int 值。</td>
     </tr>
     <tr>
       <td><code>TIMESTAMP</code></td>
-      <td>Stores the milliseconds since epoch as long value.</td>
+      <td>从 1970-01-01 00:00:00 UTC 开始的毫秒数，long 值。</td>
     </tr>
     <tr>
       <td><code>ARRAY</code></td>
-      <td>Not supported</td>
+      <td>不支持</td>
     </tr>
     <tr>
       <td><code>MAP / MULTISET</code></td>
-      <td>Not supported</td>
+      <td>不支持</td>
     </tr>
     <tr>
       <td><code>ROW</code></td>
-      <td>Not supported</td>
+      <td>不支持</td>
     </tr>
     </tbody>
 </table>

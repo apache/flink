@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.typeutils.serializers.python;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -46,7 +45,7 @@ public class RowDataSerializerTest extends SerializerTestBase<RowData> {
 							new BigIntType(),
 							new BigIntType()
 						};
-						RowDataSerializer serializer = new RowDataSerializer(new ExecutionConfig(), fieldTypes);
+						RowDataSerializer serializer = new RowDataSerializer(fieldTypes);
 						return deepEqualsRowData(
 							(RowData) o1,
 							(RowData) o2,

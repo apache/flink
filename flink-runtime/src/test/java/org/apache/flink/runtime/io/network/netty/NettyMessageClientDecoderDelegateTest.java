@@ -80,16 +80,14 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 	@Before
 	public void setup() throws IOException, InterruptedException {
 		CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
-		networkBufferPool = new NetworkBufferPool(
-			NUMBER_OF_BUFFER_RESPONSES,
-			BUFFER_SIZE,
-			NUMBER_OF_BUFFER_RESPONSES);
+		networkBufferPool = new NetworkBufferPool(NUMBER_OF_BUFFER_RESPONSES, BUFFER_SIZE);
 		channel = new EmbeddedChannel(new NettyMessageClientDecoderDelegate(handler));
 
 		inputGate = createSingleInputGate(1, networkBufferPool);
 		RemoteInputChannel inputChannel = createRemoteInputChannel(
 			inputGate,
-			new TestingPartitionRequestClient());
+			new TestingPartitionRequestClient(),
+			NUMBER_OF_BUFFER_RESPONSES);
 		inputGate.setInputChannels(inputChannel);
 		inputGate.assignExclusiveSegments();
 		inputChannel.requestSubpartition(0);

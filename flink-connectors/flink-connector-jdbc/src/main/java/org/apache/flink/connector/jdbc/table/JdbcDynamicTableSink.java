@@ -32,7 +32,6 @@ import org.apache.flink.types.RowKind;
 
 import java.util.Objects;
 
-import static org.apache.flink.connector.jdbc.table.JdbcRowDataOutputFormat.DynamicOutputFormatBuilder;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -79,7 +78,7 @@ public class JdbcDynamicTableSink implements DynamicTableSink {
 	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
 		final TypeInformation<RowData> rowDataTypeInformation = (TypeInformation<RowData>) context
 			.createTypeInformation(tableSchema.toRowDataType());
-		final DynamicOutputFormatBuilder builder = JdbcRowDataOutputFormat.dynamicOutputFormatBuilder();
+		final JdbcDynamicOutputFormatBuilder builder = new JdbcDynamicOutputFormatBuilder();
 
 		builder.setJdbcOptions(jdbcOptions);
 		builder.setJdbcDmlOptions(dmlOptions);

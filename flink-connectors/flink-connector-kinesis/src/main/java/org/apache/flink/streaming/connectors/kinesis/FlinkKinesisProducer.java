@@ -95,7 +95,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	private transient KinesisProducer producer;
 
 	/* Backpressuring waits for this latch, triggered by record callback */
-	private transient TimeoutLatch backpressureLatch;
+	private transient volatile TimeoutLatch backpressureLatch;
 
 	/* Callback handling failures */
 	private transient FutureCallback<UserRecordResult> callback;

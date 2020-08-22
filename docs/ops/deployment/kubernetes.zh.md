@@ -81,6 +81,10 @@ You can then access the Flink UI via different ways:
 
         {% highlight bash %}./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar{% endhighlight %}
 
+You can also access the queryable state of TaskManager if you create a `NodePort` service for it:
+  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service on taskmanager. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
+  2. Run `kubectl get svc flink-taskmanager-query-state` to know the `node-port` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({% link dev/stream/state/queryable_state.zh.md %}#querying-state) to submit the state queries.
+
 In order to terminate the Flink cluster, delete the specific [Session](#deploy-session-cluster) or [Job](#deploy-job-cluster) cluster components
 and use `kubectl` to terminate the common components:
 
@@ -89,6 +93,8 @@ and use `kubectl` to terminate the common components:
     kubectl delete -f flink-configuration-configmap.yaml
     # if created then also the rest service
     kubectl delete -f jobmanager-rest-service.yaml
+    # if created then also the queryable state service
+    kubectl delete -f taskmanager-query-state-service.yaml
 ```
 
 ### Deploy Session Cluster
@@ -175,13 +181,23 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.server.ports: 6125
+    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
-  log4j.properties: |+
+  log4j-console.properties: |+
+    # This affects logging for both user code and Flink
     rootLogger.level = INFO
-    rootLogger.appenderRef.file.ref = MainAppender
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
+
+    # Uncomment this if you want to _only_ change Flink's logging
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
     logger.akka.name = akka
     logger.akka.level = INFO
     logger.kafka.name= org.apache.kafka
@@ -190,14 +206,30 @@ data:
     logger.hadoop.level = INFO
     logger.zookeeper.name = org.apache.zookeeper
     logger.zookeeper.level = INFO
-    appender.main.name = MainAppender
-    appender.main.type = File
-    appender.main.append = false
-    appender.main.fileName = ${sys:log.file}
-    appender.main.layout.type = PatternLayout
-    appender.main.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos to the console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos in the given rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
     logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
-    logger.netty.level = ERROR
+    logger.netty.level = OFF
 {% endhighlight %}
 
 `jobmanager-service.yaml`
@@ -213,8 +245,6 @@ spec:
     port: 6123
   - name: blob-server
     port: 6124
-  - name: query-state
-    port: 6125
   - name: webui
     port: 8081
   selector:
@@ -234,10 +264,28 @@ spec:
   - name: rest
     port: 8081
     targetPort: 8081
-    nodePort: 8081
+    nodePort: 30081
   selector:
     app: flink
     component: jobmanager
+{% endhighlight %}
+
+`taskmanager-query-state-service.yaml`. Optional service, that exposes the TaskManager port to access the queryable state as a public Kubernetes node's port.
+{% highlight yaml %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-taskmanager-query-state
+spec:
+  type: NodePort
+  ports:
+  - name: query-state
+    port: 6125
+    targetPort: 6125
+    nodePort: 30025
+  selector:
+    app: flink
+    component: taskmanager
 {% endhighlight %}
 
 ### Session cluster resource definitions
@@ -262,15 +310,13 @@ spec:
     spec:
       containers:
       - name: jobmanager
-        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %}
+        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
         args: ["jobmanager"]
         ports:
         - containerPort: 6123
           name: rpc
         - containerPort: 6124
           name: blob-server
-        - containerPort: 6125
-          name: query-state
         - containerPort: 8081
           name: webui
         livenessProbe:
@@ -290,8 +336,8 @@ spec:
           items:
           - key: flink-conf.yaml
             path: flink-conf.yaml
-          - key: log4j.properties
-            path: log4j.properties
+          - key: log4j-console.properties
+            path: log4j-console.properties
 {% endhighlight %}
 
 `taskmanager-session-deployment.yaml`
@@ -314,11 +360,13 @@ spec:
     spec:
       containers:
       - name: taskmanager
-        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %}
+        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
         args: ["taskmanager"]
         ports:
         - containerPort: 6122
           name: rpc
+        - containerPort: 6125
+          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -336,8 +384,8 @@ spec:
           items:
           - key: flink-conf.yaml
             path: flink-conf.yaml
-          - key: log4j.properties
-            path: log4j.properties
+          - key: log4j-console.properties
+            path: log4j-console.properties
 {% endhighlight %}
 
 ### Job cluster resource definitions
@@ -349,11 +397,6 @@ kind: Job
 metadata:
   name: flink-jobmanager
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: flink
-      component: jobmanager
   template:
     metadata:
       labels:
@@ -363,16 +406,14 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: jobmanager
-          image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %}
+          image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
           env:
-          args: ["standalone-job", "--job-classname", "com.job.ClassName", ["--job-id", "<job id>",] ["--fromSavepoint", "/path/to/savepoint", ["--allowNonRestoredState",]] [job arguments]]
+          args: ["standalone-job", "--job-classname", "com.job.ClassName", <optional arguments>, <job arguments>] # optional arguments: ["--job-id", "<job id>", "--fromSavepoint", "/path/to/savepoint", "--allowNonRestoredState"]
           ports:
             - containerPort: 6123
               name: rpc
             - containerPort: 6124
               name: blob-server
-            - containerPort: 6125
-              name: query-state
             - containerPort: 8081
               name: webui
           livenessProbe:
@@ -394,8 +435,8 @@ spec:
             items:
               - key: flink-conf.yaml
                 path: flink-conf.yaml
-              - key: log4j.properties
-                path: log4j.properties
+              - key: log4j-console.properties
+                path: log4j-console.properties
         - name: job-artifacts-volume
           hostPath:
             path: /host/path/to/job/artifacts
@@ -421,12 +462,14 @@ spec:
     spec:
       containers:
       - name: taskmanager
-        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest{% endif %}
+        image: flink:{% if site.is_stable %}{{site.version}}-scala{{site.scala_version_suffix}}{% else %}latest # The 'latest' tag contains the latest released version of Flink for a specific Scala version. Do not use the 'latest' tag in production as it will break your setup automatically when a new version is released.{% endif %}
         env:
         args: ["taskmanager"]
         ports:
         - containerPort: 6122
           name: rpc
+        - containerPort: 6125
+          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -446,8 +489,8 @@ spec:
           items:
           - key: flink-conf.yaml
             path: flink-conf.yaml
-          - key: log4j.properties
-            path: log4j.properties
+          - key: log4j-console.properties
+            path: log4j-console.properties
       - name: job-artifacts-volume
         hostPath:
           path: /host/path/to/job/artifacts

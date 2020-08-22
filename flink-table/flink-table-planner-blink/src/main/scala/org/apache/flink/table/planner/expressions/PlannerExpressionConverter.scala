@@ -142,17 +142,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case fd: FunctionDefinition =>
         fd match {
 
-          case FLATTEN =>
-            assert(args.size == 1)
-            Flattening(args.head)
-
-          case GET =>
-            assert(args.size == 2)
-            val expr = GetCompositeField(args.head, getValue(args.last))
-            //it configures underlying state
-            expr.validateInput()
-            expr
-
           case IN =>
             assert(args.size > 1)
             In(args.head, args.drop(1))

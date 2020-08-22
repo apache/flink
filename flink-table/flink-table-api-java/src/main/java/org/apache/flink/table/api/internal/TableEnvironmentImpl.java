@@ -71,7 +71,9 @@ import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
@@ -86,8 +88,11 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
+import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -164,6 +169,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 	protected final Planner planner;
 	protected final Parser parser;
 	private final boolean isStreamingMode;
+	private final ClassLoader userClassLoader;
 	private static final String UNSUPPORTED_QUERY_IN_SQL_UPDATE_MSG =
 			"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
 			"INSERT, CREATE TABLE, DROP TABLE, ALTER TABLE, USE CATALOG, USE [CATALOG.]DATABASE, " +
@@ -173,7 +179,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, " +
-			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, " +
+			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS" +
 			"CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE.";
 
 	/**
@@ -197,7 +203,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			Executor executor,
 			FunctionCatalog functionCatalog,
 			Planner planner,
-			boolean isStreamingMode) {
+			boolean isStreamingMode,
+			ClassLoader userClassLoader) {
 		this.catalogManager = catalogManager;
 		this.catalogManager.setCatalogTableSchemaResolver(
 				new CatalogTableSchemaResolver(planner.getParser(), isStreamingMode));
@@ -210,6 +217,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		this.planner = planner;
 		this.parser = planner.getParser();
 		this.isStreamingMode = isStreamingMode;
+		this.userClassLoader = userClassLoader;
 		this.operationTreeBuilder = OperationTreeBuilder.create(
 			tableConfig,
 			functionCatalog.asLookup(parser::parseIdentifier),
@@ -272,7 +280,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			executor,
 			functionCatalog,
 			planner,
-			settings.isStreamingMode()
+			settings.isStreamingMode(),
+			classLoader
 		);
 	}
 
@@ -979,15 +988,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 		} else if (operation instanceof AlterCatalogFunctionOperation) {
 			return alterCatalogFunction((AlterCatalogFunctionOperation) operation);
 		} else if (operation instanceof CreateCatalogOperation) {
-			CreateCatalogOperation createCatalogOperation = (CreateCatalogOperation) operation;
-			String exMsg = getDDLOpExecuteErrorMsg(createCatalogOperation.asSummaryString());
-			try {
-				catalogManager.registerCatalog(
-						createCatalogOperation.getCatalogName(), createCatalogOperation.getCatalog());
-				return TableResultImpl.TABLE_RESULT_OK;
-			} catch (CatalogException e) {
-				throw new ValidationException(exMsg, e);
-			}
+			return createCatalog((CreateCatalogOperation) operation);
 		} else if (operation instanceof DropCatalogOperation) {
 			DropCatalogOperation dropCatalogOperation = (DropCatalogOperation) operation;
 			String exMsg = getDDLOpExecuteErrorMsg(dropCatalogOperation.asSummaryString());
@@ -1009,14 +1010,40 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof ShowCatalogsOperation) {
 			return buildShowResult("catalog name", listCatalogs());
+		} else if (operation instanceof ShowCurrentCatalogOperation){
+			return buildShowResult("current catalog name", new String[]{catalogManager.getCurrentCatalog()});
 		} else if (operation instanceof ShowDatabasesOperation) {
 			return buildShowResult("database name", listDatabases());
+		} else if (operation instanceof ShowCurrentDatabaseOperation) {
+			return buildShowResult("current database name", new String[]{catalogManager.getCurrentDatabase()});
 		} else if (operation instanceof ShowTablesOperation) {
 			return buildShowResult("table name", listTables());
 		} else if (operation instanceof ShowFunctionsOperation) {
 			return buildShowResult("function name", listFunctions());
 		} else if (operation instanceof ShowViewsOperation) {
 			return buildShowResult("view name", listViews());
+		} else if (operation instanceof ShowPartitionsOperation) {
+			String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+			try {
+				ShowPartitionsOperation showPartitionsOperation = (ShowPartitionsOperation) operation;
+				Catalog catalog = getCatalogOrThrowException(showPartitionsOperation.getTableIdentifier().getCatalogName());
+				ObjectPath tablePath = showPartitionsOperation.getTableIdentifier().toObjectPath();
+				CatalogPartitionSpec partitionSpec = showPartitionsOperation.getPartitionSpec();
+				List<CatalogPartitionSpec> partitionSpecs = partitionSpec == null ? catalog.listPartitions(tablePath) : catalog.listPartitions(tablePath, partitionSpec);
+				List<String> partitionNames = new ArrayList<>(partitionSpecs.size());
+				for (CatalogPartitionSpec spec: partitionSpecs) {
+					List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
+					for (Map.Entry<String, String> partitionKV: spec.getPartitionSpec().entrySet()) {
+						partitionKVs.add(partitionKV.getKey() + "=" + partitionKV.getValue());
+					}
+					partitionNames.add(String.join("/", partitionKVs));
+				}
+				return buildShowResult("partition name", partitionNames.toArray(new String[0]));
+			} catch (TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof ExplainOperation) {
 			String explanation = planner.explain(Collections.singletonList(((ExplainOperation) operation).getChild()));
 			return TableResultImpl.builder()
@@ -1040,6 +1067,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			return executeInternal((QueryOperation) operation);
 		} else {
 			throw new TableException(UNSUPPORTED_QUERY_IN_EXECUTE_SQL_MSG);
+		}
+	}
+
+	private TableResult createCatalog(CreateCatalogOperation operation) {
+		String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+		try {
+			String catalogName = operation.getCatalogName();
+			Map<String, String> properties = operation.getProperties();
+			final CatalogFactory factory = TableFactoryService.find(
+				CatalogFactory.class,
+				properties,
+				userClassLoader);
+
+			Catalog catalog = factory.createCatalog(catalogName, properties);
+			catalogManager.registerCatalog(catalogName, catalog);
+			return TableResultImpl.TABLE_RESULT_OK;
+		} catch (CatalogException e) {
+			throw new ValidationException(exMsg, e);
 		}
 	}
 

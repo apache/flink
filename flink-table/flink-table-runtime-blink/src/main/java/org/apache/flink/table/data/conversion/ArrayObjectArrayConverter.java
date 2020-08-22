@@ -34,6 +34,8 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 
+import static org.apache.commons.lang3.ClassUtils.primitiveToWrapper;
+
 /**
  * Converter for {@link ArrayType} of nested primitive or object arrays external types.
  */
@@ -115,7 +117,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 		for (int pos = 0; pos < length; pos++) {
 			writeElement(pos, external[pos]);
 		}
-		return completeWriter();
+		return completeWriter().copy();
 	}
 
 	private E[] toJavaArray(ArrayData internal) {
@@ -168,7 +170,7 @@ public class ArrayObjectArrayConverter<E> implements DataStructureConverter<Arra
 	public static <E> ArrayObjectArrayConverter<E> createForElement(DataType elementDataType) {
 		final LogicalType elementType = elementDataType.getLogicalType();
 		return new ArrayObjectArrayConverter<>(
-			(Class<E>) elementDataType.getConversionClass(),
+			(Class<E>) primitiveToWrapper(elementDataType.getConversionClass()),
 			BinaryArrayData.calculateFixLengthPartSize(elementType),
 			BinaryArrayWriter.createNullSetter(elementType),
 			BinaryWriter.createValueSetter(elementType),

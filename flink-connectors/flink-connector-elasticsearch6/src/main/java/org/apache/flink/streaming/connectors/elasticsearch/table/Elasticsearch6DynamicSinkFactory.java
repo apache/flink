@@ -31,6 +31,7 @@ import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.utils.TableSchemaUtils;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Set;
 import java.util.function.Supplier;
@@ -52,6 +53,8 @@ import static org.apache.flink.streaming.connectors.elasticsearch.table.Elastics
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.HOSTS_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.INDEX_OPTION;
 import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.KEY_DELIMITER_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.PASSWORD_OPTION;
+import static org.apache.flink.streaming.connectors.elasticsearch.table.ElasticsearchOptions.USERNAME_OPTION;
 
 /**
  * A {@link DynamicTableSinkFactory} for discovering {@link Elasticsearch6DynamicSink}.
@@ -75,7 +78,9 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 		BULK_FLUSH_BACKOFF_DELAY_OPTION,
 		CONNECTION_MAX_RETRY_TIMEOUT_OPTION,
 		CONNECTION_PATH_PREFIX,
-		FORMAT_OPTION
+		FORMAT_OPTION,
+		PASSWORD_OPTION,
+		USERNAME_OPTION
 	).collect(Collectors.toSet());
 
 	@Override
@@ -113,7 +118,7 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 		validate(
 			maxActions == -1 || maxActions >= 1,
 			() -> String.format(
-				"'%s' must be at least 1 character. Got: %s",
+				"'%s' must be at least 1. Got: %s",
 				BULK_FLUSH_MAX_ACTIONS_OPTION.key(),
 				maxActions)
 		);
@@ -133,6 +138,17 @@ public class Elasticsearch6DynamicSinkFactory implements DynamicTableSinkFactory
 				BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(),
 				config.getBulkFlushBackoffRetries().get())
 		);
+		if (config.getUsername().isPresent() && !StringUtils.isNullOrWhitespaceOnly(config.getUsername().get())) {
+			validate(
+				config.getPassword().isPresent() && !StringUtils.isNullOrWhitespaceOnly(config.getPassword().get()),
+				() -> String.format(
+					"'%s' and '%s' must be set at the same time. Got: username '%s' and password '%s'",
+					USERNAME_OPTION.key(),
+					PASSWORD_OPTION.key(),
+					config.getUsername().get(),
+					config.getPassword().orElse("")
+				));
+		}
 	}
 
 	private static void validate(boolean condition, Supplier<String> message) {

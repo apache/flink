@@ -1,5 +1,5 @@
 ---
-title: "Print SQL Connector"
+title: "Print SQL 连接器"
 nav-title: Print
 nav-parent_id: sql-connectors
 nav-pos: 11
@@ -28,54 +28,54 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The Print connector allows for writing every row to the standard output or standard error stream.
+Print 连接器允许将每一行写入标准输出流或者标准错误流。
 
-It is designed for:
+设计目的：
 
-- Easy test for streaming job.
-- Very useful in production debugging.
+- 简单的流作业测试。
+- 对生产调试带来极大便利。
 
-Four possible format options:
+四种 format 选项：
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 40%">Print</th>
-        <th class="text-center" style="width: 30%">Condition1</th>
-        <th class="text-center" style="width: 30%">Condition2</th>
+        <th class="text-left" style="width: 40%">打印内容</th>
+        <th class="text-center" style="width: 30%">条件 1</th>
+        <th class="text-center" style="width: 30%">条件 2</th>
       </tr>
     </thead>
     <tbody>
     <tr>
-      <td><h5>PRINT_IDENTIFIER:taskId> output</h5></td>
-      <td>PRINT_IDENTIFIER provided</td>
+      <td><h5>标识符:任务 ID> 输出数据</h5></td>
+      <td>需要提供前缀打印标识符</td>
       <td>parallelism > 1</td>
     </tr>
     <tr>
-      <td><h5>PRINT_IDENTIFIER> output</h5></td>
-      <td>PRINT_IDENTIFIER provided</td>
+      <td><h5>标识符> 输出数据</h5></td>
+      <td>需要提供前缀打印标识符</td>
       <td>parallelism == 1</td>
     </tr>
     <tr>
-      <td><h5>taskId> output</h5></td>
-      <td>no PRINT_IDENTIFIER provided</td>
+      <td><h5>任务 ID> 输出数据</h5></td>
+      <td>不需要提供前缀打印标识符</td>
       <td>parallelism > 1</td>
     </tr>
     <tr>
-      <td><h5>output</h5></td>
-      <td>no PRINT_IDENTIFIER provided</td>
+      <td><h5>输出数据</h5></td>
+      <td>不需要提供前缀打印标识符</td>
       <td>parallelism == 1</td>
     </tr>
     </tbody>
 </table>
 
-The output string format is "$row_kind(f0,f1,f2...)", row_kind is the short string of [RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html), example is: "+I(1,1)".
+输出字符串格式为 "$row_kind(f0,f1,f2...)"，row_kind是一个 [RowKind]({{ site.baseurl }}/api/java/org/apache/flink/types/RowKind.html) 类型的短字符串，例如："+I(1,1)"。
 
-The Print connector is built-in.
+Print 连接器是内置的。
 
-<span class="label label-danger">Attention</span> Print sinks print records in runtime tasks, you need to observe the task log.
+<span class="label label-danger">注意</span> 在任务运行时使用 Print Sinks 打印记录，你需要注意观察任务日志。
 
-How to create a Print table
+如何创建一张基于 Print 的表
 ----------------
 
 <div class="codetabs" markdown="1">
@@ -93,7 +93,7 @@ CREATE TABLE print_table (
 </div>
 </div>
 
-Alternatively, it may be based on  an existing schema using the [LIKE Clause]({% link dev/table/sql/create.zh.md %}#create-table).
+或者，也可以通过 [LIKE子句]({% link dev/table/sql/create.zh.md %}#create-table) 基于已有表的结构去创建新表。
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -104,40 +104,40 @@ LIKE source_table (EXCLUDING ALL)
 </div>
 </div>
 
-Connector Options
+连接器参数
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">参数</th>
+        <th class="text-center" style="width: 10%">是否必选</th>
+        <th class="text-center" style="width: 10%">默认参数</th>
+        <th class="text-center" style="width: 10%">数据类型</th>
+        <th class="text-center" style="width: 45%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>connector</h5></td>
-      <td>required</td>
+      <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be 'print'.</td>
+      <td>指定要使用的连接器，此处应为 'print'</td>
     </tr>
     <tr>
       <td><h5>print-identifier</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Message that identify print and is prefixed to the output of the value.</td>
+      <td>配置一个标识符作为输出数据的前缀。</td>
     </tr>
     <tr>
       <td><h5>standard-error</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>True, if the format should print to standard error instead of standard out.</td>
+      <td>如果 format 需要打印为标准错误而不是标准输出，则为 True 。</td>
     </tr>
     </tbody>
 </table>

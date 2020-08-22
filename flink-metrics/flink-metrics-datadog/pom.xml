@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-datadog</artifactId>
-	<name>flink-metrics-datadog</name>
+	<name>Flink : Metrics : Datadog</name>
 
 	<dependencies>
 		<dependency>
@@ -63,6 +63,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 	</dependencies>
 

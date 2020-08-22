@@ -889,6 +889,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlOperator OR = SqlStdOperatorTable.OR;
 	public static final SqlOperator PLUS = SqlStdOperatorTable.PLUS;
 	public static final SqlOperator DATETIME_PLUS = SqlStdOperatorTable.DATETIME_PLUS;
+	public static final SqlOperator PERCENT_REMAINDER = SqlStdOperatorTable.PERCENT_REMAINDER;
 
 	// POSTFIX OPERATORS
 	public static final SqlOperator DESC = SqlStdOperatorTable.DESC;

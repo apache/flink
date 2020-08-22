@@ -45,10 +45,12 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -69,6 +71,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -194,6 +198,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final ShuffleMaster<?> shuffleMaster,
 		final JobMasterPartitionTracker partitionTracker,
 		final ExecutionVertexVersioner executionVertexVersioner,
+		final ExecutionDeploymentTracker executionDeploymentTracker,
 		final boolean legacyScheduling) throws Exception {
 
 		this.log = checkNotNull(log);
@@ -226,7 +231,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 		this.legacyScheduling = legacyScheduling;
 
-		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
+		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker), checkNotNull(executionDeploymentTracker));
+
 		this.schedulingTopology = executionGraph.getSchedulingTopology();
 
 		final StateLocationRetriever stateLocationRetriever =
@@ -240,9 +246,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 	private ExecutionGraph createAndRestoreExecutionGraph(
 		JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
 		ShuffleMaster<?> shuffleMaster,
-		JobMasterPartitionTracker partitionTracker) throws Exception {
+		JobMasterPartitionTracker partitionTracker,
+		ExecutionDeploymentTracker executionDeploymentTracker) throws Exception {
 
-		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup, shuffleMaster, partitionTracker);
+		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup, shuffleMaster, partitionTracker, executionDeploymentTracker);
 
 		final CheckpointCoordinator checkpointCoordinator = newExecutionGraph.getCheckpointCoordinator();
 
@@ -263,7 +270,15 @@ public abstract class SchedulerBase implements SchedulerNG {
 	private ExecutionGraph createExecutionGraph(
 		JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
 		ShuffleMaster<?> shuffleMaster,
-		final JobMasterPartitionTracker partitionTracker) throws JobExecutionException, JobException {
+		final JobMasterPartitionTracker partitionTracker,
+		ExecutionDeploymentTracker executionDeploymentTracker) throws JobExecutionException, JobException {
+
+		ExecutionDeploymentListener executionDeploymentListener = new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
+		ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {
+			if (newState.isTerminal()) {
+				executionDeploymentTracker.stopTrackingDeploymentOf(execution);
+			}
+		};
 
 		final FailoverStrategy.Factory failoverStrategy = legacyScheduling ?
 			FailoverStrategyLoader.loadFailoverStrategy(jobMasterConfiguration, log) :
@@ -286,7 +301,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 			log,
 			shuffleMaster,
 			partitionTracker,
-			failoverStrategy);
+			failoverStrategy,
+			executionDeploymentListener,
+			executionStateUpdateListener);
 	}
 
 	/**

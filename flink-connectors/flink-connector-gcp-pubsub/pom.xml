@@ -31,17 +31,21 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-gcp-pubsub_${scala.binary.version}</artifactId>
-	<name>flink-connector-gcp-pubsub</name>
+	<name>Flink : Connectors : Google PubSub</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<google-cloud-libraries-bom.version>8.1.0</google-cloud-libraries-bom.version>
+	</properties>
 
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<!-- This is the way we get a consistent set of versions of the Google tools -->
 				<groupId>com.google.cloud</groupId>
-				<artifactId>google-cloud-bom</artifactId>
-				<version>0.80.0-alpha</version>
+				<artifactId>libraries-bom</artifactId>
+				<version>${google-cloud-libraries-bom.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -58,16 +62,20 @@ under the License.
 
 		<dependency>
 			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-core</artifactId>
+			<!-- Version is pulled from google-cloud-bom (loaded via the libraries-bom) -->
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-pubsub</artifactId>
-			<!-- Version is pulled from google-cloud-bom -->
-			<exclusions>
-				<!-- Exclude an old version of guava that is being pulled
-                in by a transitive dependency of google-api-client -->
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava-jdk5</artifactId>
-				</exclusion>
-			</exclusions>
+			<!-- Version is pulled from google-cloud-bom (loaded via the libraries-bom) -->
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.api.grpc</groupId>
+			<artifactId>grpc-google-cloud-pubsub-v1</artifactId>
+			<!-- Version is pulled from google-cloud-bom (loaded via the libraries-bom) -->
 		</dependency>
 
 		<dependency>

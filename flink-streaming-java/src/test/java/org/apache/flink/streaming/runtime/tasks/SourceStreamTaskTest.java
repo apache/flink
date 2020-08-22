@@ -26,10 +26,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -55,9 +59,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -68,8 +74,10 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -100,6 +108,38 @@ public class SourceStreamTaskTest {
 
 		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
 		Assert.assertEquals(10, resultElements.size());
+	}
+
+	@Test(timeout = 60_000)
+	public void testStartDelayMetric() throws Exception {
+		long sleepTime = 42;
+		StreamTaskMailboxTestHarnessBuilder<String> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+
+		final Map<String, Metric> metrics = new ConcurrentHashMap<>();
+		final TaskMetricGroup taskMetricGroup = new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+
+		StreamTaskMailboxTestHarness<String> harness = builder
+			.setupOutputForSingletonOperatorChain(
+				new StreamSource<>(
+					new CancelTestSource(
+						BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+						"Hello")))
+			.setTaskMetricGroup(taskMetricGroup)
+			.build();
+
+		Future<Boolean> triggerFuture = harness.streamTask.triggerCheckpointAsync(
+			new CheckpointMetaData(1L, System.currentTimeMillis()),
+			CheckpointOptions.forCheckpointWithDefaultLocation(),
+			false);
+
+		assertFalse(triggerFuture.isDone());
+		Thread.sleep(sleepTime);
+		while (!triggerFuture.isDone()) {
+			harness.streamTask.runMailboxStep();
+		}
+		Gauge<Long> checkpointStartDelayGauge = (Gauge<Long>) metrics.get(MetricNames.CHECKPOINT_START_DELAY_TIME);
+		assertThat(checkpointStartDelayGauge.getValue(), greaterThanOrEqualTo(sleepTime * 1_000_000));
 	}
 
 	/**
@@ -466,6 +506,24 @@ public class SourceStreamTaskTest {
 		testHarness.waitForTaskCompletion();
 	}
 
+	@Test
+	public void testWaitsForSourceThreadOnCancel() throws Exception {
+		StreamTaskTestHarness<String> harness = new StreamTaskTestHarness<>(SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+
+		harness.setupOutputForSingletonOperatorChain();
+		harness.getStreamConfig().setStreamOperator(new StreamSource<>(new NonStoppingSource()));
+
+		harness.invoke();
+		NonStoppingSource.waitForStart();
+
+		harness.getTask().cancel();
+		harness.waitForTaskCompletion(500, true); // allow task to exit prematurely
+		assertTrue(harness.taskThread.isAlive());
+
+		NonStoppingSource.forceCancel();
+		harness.waitForTaskCompletion(Long.MAX_VALUE, true);
+	}
+
 	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, ListCheckpointed<Serializable> {
 		private static final long serialVersionUID = 1;
 
@@ -569,6 +627,37 @@ public class SourceStreamTaskTest {
 				Thread.sleep(checkpointInterval);
 			}
 			return true;
+		}
+	}
+
+	private static class NonStoppingSource implements SourceFunction<String> {
+		private static final long serialVersionUID = 1L;
+		private static boolean running = true;
+		private static CompletableFuture<Void> startFuture = new CompletableFuture<>();
+
+		@Override
+		public void run(SourceContext<String> ctx) throws Exception {
+			startFuture.complete(null);
+			while (running) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					// ignore
+				}
+			}
+		}
+
+		@Override
+		public void cancel() {
+			// do nothing - ignore usual cancellation
+		}
+
+		static void forceCancel() {
+			running = false;
+		}
+
+		static void waitForStart() {
+			startFuture.join();
 		}
 	}
 

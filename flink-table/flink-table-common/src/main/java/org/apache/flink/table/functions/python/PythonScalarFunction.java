@@ -91,7 +91,11 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 
 	@Override
 	public TypeInformation[] getParameterTypes(Class[] signature) {
-		return inputTypes;
+		if (inputTypes != null) {
+			return inputTypes;
+		} else {
+			return super.getParameterTypes(signature);
+		}
 	}
 
 	@Override
@@ -101,11 +105,14 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
 
 	@Override
 	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		final List<DataType> argumentDataTypes = Stream.of(inputTypes)
-			.map(TypeConversions::fromLegacyInfoToDataType)
-			.collect(Collectors.toList());
-		return TypeInference.newBuilder()
-			.typedArguments(argumentDataTypes)
+		TypeInference.Builder builder = TypeInference.newBuilder();
+		if (inputTypes != null) {
+			final List<DataType> argumentDataTypes = Stream.of(inputTypes)
+				.map(TypeConversions::fromLegacyInfoToDataType)
+				.collect(Collectors.toList());
+			builder.typedArguments(argumentDataTypes);
+		}
+		return builder
 			.outputTypeStrategy(TypeStrategies.explicit(TypeConversions.fromLegacyInfoToDataType(resultType)))
 			.build();
 	}

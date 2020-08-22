@@ -142,7 +142,7 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage(
-			"'sink.bulk-flush.max-actions' must be at least 1 character. Got: -2");
+			"'sink.bulk-flush.max-actions' must be at least 1. Got: -2");
 		sinkFactory.createDynamicTableSink(
 			context()
 				.withSchema(TableSchema.builder()
@@ -201,6 +201,27 @@ public class Elasticsearch6DynamicSinkFactoryTest {
 				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
 				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
 				.withOption(ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "1s")
+				.build()
+		);
+	}
+
+	@Test
+	public void validateWrongCredential() {
+		Elasticsearch6DynamicSinkFactory sinkFactory = new Elasticsearch6DynamicSinkFactory();
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage(
+			"'username' and 'password' must be set at the same time. Got: username 'username' and password ''");
+		sinkFactory.createDynamicTableSink(
+			context()
+				.withSchema(TableSchema.builder()
+					.field("a", DataTypes.TIME())
+					.build())
+				.withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+				.withOption(ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+				.withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+				.withOption(ElasticsearchOptions.USERNAME_OPTION.key(), "username")
+				.withOption(ElasticsearchOptions.PASSWORD_OPTION.key(), "")
 				.build()
 		);
 	}

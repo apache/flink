@@ -2,7 +2,6 @@
 title: "SQL 客户端"
 nav-parent_id: tableapi
 nav-pos: 90
-is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -28,8 +27,6 @@ Flink 的 Table & SQL API 可以处理 SQL 语言编写的查询语句，但是�
 *SQL 客户端* 的目的是提供一种简单的方式来编写、调试和提交表程序到 Flink 集群上，而无需写一行 Java 或 Scala 代码。*SQL 客户端命令行界面（CLI）* 能够在命令行中检索和可视化分布式应用中实时产生的结果。
 
 <a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
-
-<span class="label label-danger">注意</span> SQL 客户端正处于早期开发阶段。虽然还没准备好用于生产，但是它对于原型设计和玩转 Flink SQL 还是很实用的工具。将来，社区计划通过提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future)的来扩展它的功能。
 
 * This will be replaced by the TOC
 {:toc}
@@ -472,7 +469,7 @@ SQL 客户端允许用户创建用户自定义的函数来进行 SQL 查询。�
 
 为提供 Java/Scala 的自定义函数，你首先需要实现和编译函数类，该函数继承自 `ScalarFunction`、 `AggregateFunction` 或 `TableFunction`（见[自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)）。一个或多个函数可以打包到 SQL 客户端的 JAR 依赖中。
 
-为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({{ site.baseurl }}/zh/dev/table/python/python_udfs.html))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{ site.baseurl }}/zh/ops/cli.html#usage)）配置中特别指定（见 [Python 配置]({{ site.baseurl }}/zh/dev/table/python/python_config.html)）。
+为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({% link dev/python/user-guide/table/udfs/python_udfs.zh.md %}))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{ site.baseurl }}/zh/ops/cli.html#usage)）配置中特别指定（见 [Python 配置]({% link dev/python/user-guide/table/python_config.zh.md %})）。
 
 所有函数在被调用之前，必须在环境配置文件中提前声明。`functions` 列表中每个函数类都必须指定
 
@@ -731,6 +728,6 @@ tables:
 局限与未来
 --------------------
 
-当前的 SQL 客户端仍处于非常早期的开发阶段，作为更大的 Flink 改进提案 24（[FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client)）的一部分，将来可能会发生变化。如果你发现了 bug 可以随时创建 issue，或者如果（如邮件列表、Pull requests中）发现有用的特性，欢迎积极参与讨论。
+当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
 
 {% top %}

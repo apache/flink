@@ -21,7 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -227,8 +226,7 @@ public class ClientTest extends TestLogger {
 		jobGraph.addJars(Collections.emptyList());
 		jobGraph.setClasspaths(Collections.emptyList());
 
-		JobSubmissionResult result = ClientUtils.submitJob(clusterClient, jobGraph);
-		assertNotNull(result);
+		assertNotNull(clusterClient.submitJob(jobGraph).get());
 	}
 
 	/**
@@ -430,7 +428,7 @@ public class ClientTest extends TestLogger {
 						jobGraph.addJars(accessor.getJars());
 						jobGraph.setClasspaths(accessor.getClasspaths());
 
-						final JobID jobID = ClientUtils.submitJob(clusterClient, jobGraph).getJobID();
+						final JobID jobID = clusterClient.submitJob(jobGraph).get();
 						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
 					};
 				}

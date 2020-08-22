@@ -24,15 +24,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink provides a set of table formats that can be used with table connectors. A table format is a storage format defines how to map binary data onto table columns.
+Flink 提供了一套与表连接器（table connector）一起使用的表格式（table format）。表格式是一种存储格式，定义了如何把二进制数据映射到表的列上。
 
-Flink supports the following formats:
+Flink 支持以下格式：
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left">Formats</th>
-        <th class="text-left">Supported Connectors</th>
+        <th class="text-left">格式</th>
+        <th class="text-left">支持的连接器</th>
       </tr>
     </thead>
     <tbody>

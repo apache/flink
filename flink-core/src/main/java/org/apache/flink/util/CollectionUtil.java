@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -97,6 +98,20 @@ public final class CollectionUtil {
 
 		final ArrayList<E> list = new ArrayList<>();
 		iterable.iterator().forEachRemaining(list::add);
+		return list;
+	}
+
+	/**
+	 * Collects the elements in the Iterator in a List. If the iterator argument is null,
+	 * this method returns an empty list.
+	 */
+	public static <E> List<E> iteratorToList(@Nullable Iterator<E> iterator) {
+		if (iterator == null) {
+			return Collections.emptyList();
+		}
+
+		final ArrayList<E> list = new ArrayList<>();
+		iterator.forEachRemaining(list::add);
 		return list;
 	}
 }

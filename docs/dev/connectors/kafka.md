@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading data from and writing data to Kafka topics with exactly-once guaruntees.
+Flink provides an [Apache Kafka](https://kafka.apache.org) connector for reading data from and writing data to Kafka topics with exactly-once guarantees.
 
 * This will be replaced by the TOC
 {:toc}
@@ -101,7 +101,7 @@ DataStream<String> stream = env
 val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
-stream = env
+val stream = env
     .addSource(new FlinkKafkaConsumer[String]("topic", new SimpleStringSchema(), properties))
 {% endhighlight %}
 </div>
@@ -203,7 +203,8 @@ All versions of the Flink Kafka Consumer have the above explicit configuration m
  found for a partition, the `auto.offset.reset` setting in the properties will be used.
  * `setStartFromEarliest()` / `setStartFromLatest()`: Start from the earliest / latest
  record. Under these modes, committed offsets in Kafka will be ignored and
- not used as starting positions.
+ not used as starting positions. If offsets become out of range for a partition,
+ the `auto.offset.reset` setting in the properties will be used.
  * `setStartFromTimestamp(long)`: Start from the specified timestamp. For each partition, the record
  whose timestamp is larger than or equal to the specified timestamp will be used as the start position.
  If a partition's latest record is earlier than the timestamp, the partition will simply be read

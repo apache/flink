@@ -30,13 +30,14 @@ under the License.
 	</parent>
 
 	<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>
-	<name>flink-runtime-web</name>
+	<name>Flink : Runtime web</name>
 
 	<packaging>jar</packaging>
 
 	<properties>
 		<test.parameterProgram.name>parameter-program</test.parameterProgram.name>
 		<test.ParameterProgramNoManifest.name>parameter-program-without-manifest</test.ParameterProgramNoManifest.name>
+		<test.ParameterProgramWithEagerSink.name>parameter-program-with-eager-sink</test.ParameterProgramWithEagerSink.name>
 	</properties>
 
 	<dependencies>
@@ -196,6 +197,25 @@ under the License.
 					</execution>
 					<execution>
 						<!-- Used for JarHandler tests -->
+						<id>test-parameter-program-jar-with-eager-sink</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>org/apache/flink/runtime/webmonitor/handlers/utils/EagerSinkProgram.java</include>
+							</includes>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.runtime.webmonitor.handlers.utils.EagerSinkProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>${test.ParameterProgramWithEagerSink.name}</finalName>
+						</configuration>
+					</execution>
+					<execution>
+						<!-- Used for JarHandler tests -->
 						<id>test-parameter-program-jar-without-manifest</id>
 						<phase>process-test-classes</phase>
 						<goals>
@@ -279,6 +299,7 @@ under the License.
 						<targetDir>${project.build.directory}</targetDir>
 						<parameterJarName>${test.parameterProgram.name}</parameterJarName>
 						<parameterJarWithoutManifestName>${test.ParameterProgramNoManifest.name}</parameterJarWithoutManifestName>
+						<parameterJarWithEagerSinkName>${test.ParameterProgramWithEagerSink.name}</parameterJarWithEagerSinkName>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

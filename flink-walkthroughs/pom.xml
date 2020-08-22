@@ -30,12 +30,10 @@ under the License.
 	<artifactId>flink-walkthroughs</artifactId>
 	<packaging>pom</packaging>
 
-	<name>flink-walkthroughs</name>
+	<name>Flink : Walkthrough : </name>
 
 	<modules>
 		<module>flink-walkthrough-common</module>
-		<module>flink-walkthrough-table-java</module>
-		<module>flink-walkthrough-table-scala</module>
 		<module>flink-walkthrough-datastream-java</module>
 		<module>flink-walkthrough-datastream-scala</module>
 	</modules>

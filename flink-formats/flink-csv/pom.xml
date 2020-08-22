@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-csv</artifactId>
-	<name>flink-csv</name>
+	<name>Flink : Formats : Csv</name>
 
 	<packaging>jar</packaging>
 

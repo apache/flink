@@ -90,6 +90,7 @@ object FlinkBatchRuleSets {
 
   private val LIMIT_RULES: RuleSet = RuleSets.ofList(
     //push down localLimit
+    PushLimitIntoTableSourceScanRule.INSTANCE,
     PushLimitIntoLegacyTableSourceScanRule.INSTANCE)
 
   /**
@@ -165,9 +166,12 @@ object FlinkBatchRuleSets {
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
+    PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the table scan
-    PushPartitionIntoLegacyTableSourceScanRule.INSTANCE
+    PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
+    // push partition into the dynamic table scan
+    PushPartitionIntoTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -247,6 +251,7 @@ object FlinkBatchRuleSets {
     // scan optimization
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
+    PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
 
     // reorder sort and projection

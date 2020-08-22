@@ -131,6 +131,40 @@ val stream = env
 </div>
 </div>
 
+#### Quality of Service (QoS) / Consumer Prefetch
+
+The RabbitMQ Source provides a simple way to set the `basicQos` on the source's channel through the `RMQConnectionConfig`.
+Since there is one connection/ channel per-parallel source, this prefetch count will effectively be multiplied by the
+source's parallelism for how many total unacknowledged messages can be sent to the job at one time.
+If more complex configuration is required, `RMQSource#setupChannel(Connection)` can be overridden and manually configured.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+    .setPrefetchCount(30_000)
+    ...
+    .build();
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val connectionConfig = new RMQConnectionConfig.Builder()
+    .setPrefetchCount(30000)
+    ...
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+The prefetch count is unset by default, meaning the RabbitMQ server will send unlimited messages. In production, it
+is best to set this value. For high volume queues and checkpointing enabled, some tuning may be required to reduce
+wasted cycles, as messages are only acknowledged on checkpoints if enabled.
+
+More about QoS and prefetch can be found [here](https://www.rabbitmq.com/confirms.html#channel-qos-prefetch)
+and more about the options available in AMQP 0-9-1 [here](https://www.rabbitmq.com/consumer-prefetch.html).
+
 ### RabbitMQ Sink
 This connector provides a `RMQSink` class for sending messages to a RabbitMQ
 queue. Below is a code example for setting up a RabbitMQ sink.

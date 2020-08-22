@@ -28,9 +28,13 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * Factory for creating configured instances of {@link Kafka011DynamicSource}.
@@ -41,7 +45,8 @@ public class Kafka011DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 	@Override
 	protected KafkaDynamicSourceBase createKafkaTableSource(
 			DataType producedDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -49,7 +54,8 @@ public class Kafka011DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			long startupTimestampMillis) {
 		return new Kafka011DynamicSource(
 				producedDataType,
-				topic,
+				topics,
+				topicPattern,
 				properties,
 				decodingFormat,
 				startupMode,
@@ -63,13 +69,15 @@ public class Kafka011DynamicTableFactory extends KafkaDynamicTableFactoryBase {
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
-			EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
+			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
+			KafkaSinkSemantic semantic) {
 		return new Kafka011DynamicSink(
 				consumedDataType,
 				topic,
 				properties,
 				partitioner,
-				encodingFormat);
+				encodingFormat,
+				semantic);
 	}
 
 	@Override

@@ -37,8 +37,8 @@ import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
@@ -148,9 +148,18 @@ public class DataFormatConvertersTest {
 	}
 
 	private static void test(TypeInformation typeInfo, Object value) {
+		test(typeInfo, value, null);
+	}
+
+	private static void test(TypeInformation typeInfo, Object value, Object anotherValue) {
 		DataFormatConverter converter = getConverter(typeInfo);
+		final Object innerValue = converter.toInternal(value);
+		if (anotherValue != null) {
+			converter.toInternal(anotherValue);
+		}
+
 		Assert.assertTrue(Arrays.deepEquals(
-				new Object[] {converter.toExternal(converter.toInternal(value))}, new Object[] {value}));
+			new Object[] {converter.toExternal(innerValue)}, new Object[]{value}));
 	}
 
 	private static DataFormatConverter getConverter(DataType dataType) {
@@ -171,9 +180,9 @@ public class DataFormatConvertersTest {
 		}
 		test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
 		test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
-		test(new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+		test(InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
 				GenericRowData.of(StringData.fromString("hehe"), 111));
-		test(new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRowData.of(null, null));
+		test(InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRowData.of(null, null));
 
 		test(new DecimalDataTypeInfo(10, 5), null);
 		test(new DecimalDataTypeInfo(10, 5), DecimalDataUtils.castFrom(5.555, 10, 5));
@@ -193,6 +202,7 @@ public class DataFormatConvertersTest {
 		test(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO, new Double[] {null, null});
 		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {null, null});
 		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"});
+		test(ObjectArrayTypeInfo.getInfoFor(Types.STRING), new String[] {"haha", "hehe"}, new String[] {"aa", "bb"});
 		test(new MapTypeInfo<>(Types.STRING, Types.INT), null);
 
 		HashMap<String, Integer> map = new HashMap<>();

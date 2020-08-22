@@ -20,13 +20,16 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
-import org.apache.flink.table.planner.codegen.calls.{BridgingSqlFunctionCallGen, FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
+import org.apache.flink.table.planner.codegen.calls._
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -35,14 +38,13 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.TimestampString
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import scala.collection.JavaConversions._
 
@@ -116,10 +118,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ => Array[Int]()
     }
   }
-  
-  private def fieldIndices(t: LogicalType): Array[Int] = t match {
-    case rt: RowType => (0 until rt.getFieldCount).toArray
-    case _ => Array(0)
+
+  private def fieldIndices(t: LogicalType): Array[Int] = {
+    if (isCompositeType(t)) {
+      (0 until getFieldCount(t)).toArray
+    } else {
+      Array(0)
+    }
   }
  
   /**
@@ -719,16 +724,19 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         generateMap(ctx, resultType, operands)
 
       case ITEM =>
-        operands.head.resultType match {
-          case t: LogicalType if TypeCheckUtils.isArray(t) =>
+        operands.head.resultType.getTypeRoot match {
+          case LogicalTypeRoot.ARRAY =>
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
             generateArrayElementAt(ctx, array, index)
 
-          case t: LogicalType if TypeCheckUtils.isMap(t) =>
+          case LogicalTypeRoot.MAP =>
             val key = operands(1)
             generateMapGet(ctx, operands.head, key)
+
+          case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
+            generateDot(ctx, operands)
 
           case _ => throw new CodeGenException("Expect an array or a map.")
         }

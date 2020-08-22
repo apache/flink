@@ -50,6 +50,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for {@link JarDeleteHandler}.
@@ -105,7 +106,9 @@ public class JarDeleteHandlerTest extends TestLogger {
 			final RestHandlerException restHandlerException = (RestHandlerException) throwable;
 			assertThat(restHandlerException.getMessage(), containsString("File doesnotexist.jar does not exist in"));
 			assertThat(restHandlerException.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
+			return;
 		}
+		fail("The test should have failed by now.");
 	}
 
 	@Test

@@ -81,6 +81,11 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
+	protected void terminate() {
+		// noop
+	}
+
+	@Override
 	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String diagnostics) {
 	}
 
@@ -101,8 +106,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	protected void startServicesOnLeadership() {
-		super.startServicesOnLeadership();
+	protected void onLeadership() {
 		startStartupPeriod();
 	}
 

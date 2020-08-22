@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.AllocationIdsExposingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -46,7 +46,6 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -60,8 +59,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -162,26 +159,6 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 		}
 	}
 
-	private static final class AllocationIdsResourceManagerGateway extends TestingResourceManagerGateway {
-		private final BlockingQueue<AllocationID> allocationIds;
-
-		private AllocationIdsResourceManagerGateway() {
-			this.allocationIds = new ArrayBlockingQueue<>(10);
-			setRequestSlotConsumer(
-				slotRequest -> allocationIds.offer(slotRequest.getAllocationId())
-			);
-		}
-
-		AllocationID takeAllocationId() {
-			try {
-				return allocationIds.take();
-			} catch (InterruptedException e) {
-				ExceptionUtils.rethrow(e);
-				return null;
-			}
-		}
-	}
-
 	private static class TestSetup implements AutoCloseable {
 
 		private final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -242,7 +219,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 				TaskExecutorGateway taskExecutorGateway,
 				SettableLeaderRetrievalService rmLeaderRetrievalService) throws ExecutionException, InterruptedException {
 
-			final AllocationIdsResourceManagerGateway resourceManagerGateway = new AllocationIdsResourceManagerGateway();
+			final AllocationIdsExposingResourceManagerGateway resourceManagerGateway = new AllocationIdsExposingResourceManagerGateway();
 			rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
 			rmLeaderRetrievalService.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
 

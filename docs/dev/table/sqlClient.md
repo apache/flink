@@ -2,7 +2,6 @@
 title: "SQL Client"
 nav-parent_id: tableapi
 nav-pos: 90
-is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,8 +28,6 @@ Flink’s Table & SQL API makes it possible to work with queries written in the 
 The *SQL Client* aims to provide an easy way of writing, debugging, and submitting table programs to a Flink cluster without a single line of Java or Scala code. The *SQL Client CLI* allows for retrieving and visualizing real-time results from the running distributed application on the command line.
 
 <a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
-
-<span class="label label-danger">Attention</span> The SQL Client is in an early development phase. Even though the application is not production-ready yet, it can be a quite useful tool for prototyping and playing around with Flink SQL. In the future, the community plans to extend its functionality by providing a REST-based [SQL Client Gateway](sqlClient.html#limitations--future).
 
 * This will be replaced by the TOC
 {:toc}
@@ -472,7 +469,7 @@ The SQL Client allows users to create custom, user-defined functions to be used 
 
 In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
 
-In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({{ site.baseurl }}/dev/table/python/python_udfs.html)). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({{ site.baseurl }}/dev/table/python/python_config.html)) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
+In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({% link dev/python/user-guide/table/udfs/python_udfs.md %})). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({% link dev/python/user-guide/table/python_config.md %})) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
@@ -727,6 +724,6 @@ As shown in the example, definitions of table sources, views, and temporal table
 Limitations & Future
 --------------------
 
-The current SQL Client implementation is in a very early development stage and might change in the future as part of the bigger Flink Improvement Proposal 24 ([FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client)). Feel free to join the discussion and open issue about bugs and features that you find useful.
+The current SQL Client only supports embedded mode. In the future, the community plans to extend its functionality by providing a REST-based SQL Client Gateway, see more in [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) and [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway).
 
 {% top %}

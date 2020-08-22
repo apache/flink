@@ -18,204 +18,105 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
-import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
+import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
 /**
- * built-in FirstValue aggregate function.
+ * Built-in FIRST_VALUE aggregate function.
  */
-public abstract class FirstValueAggFunction<T> extends AggregateFunction<T, GenericRowData> {
+@Internal
+public final class FirstValueAggFunction<T> extends InternalAggregateFunction<T, RowData> {
+
+	private transient DataType valueDataType;
+
+	public FirstValueAggFunction(LogicalType valueType) {
+		this.valueDataType = toInternalDataType(valueType);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Planning
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public DataType[] getInputDataTypes() {
+		return new DataType[]{valueDataType};
+	}
+
+	@Override
+	public DataType getAccumulatorDataType() {
+		return DataTypes.ROW(
+			DataTypes.FIELD("firstValue", valueDataType.nullable()),
+			DataTypes.FIELD("firstOrder", DataTypes.BIGINT())).bridgedTo(RowData.class);
+	}
+
+	@Override
+	public DataType getOutputDataType() {
+		return valueDataType;
+	}
 
 	@Override
 	public boolean isDeterministic() {
 		return false;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Runtime
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public GenericRowData createAccumulator() {
-		// The accumulator schema:
-		// firstValue: T
-		// firstOrder: Long
+	public RowData createAccumulator() {
 		GenericRowData acc = new GenericRowData(2);
 		acc.setField(0, null);
 		acc.setField(1, Long.MAX_VALUE);
 		return acc;
 	}
 
-	public void accumulate(GenericRowData acc, Object value) {
+	public void accumulate(RowData rowData, Object value) {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null && acc.getLong(1) == Long.MAX_VALUE) {
 			acc.setField(0, value);
 			acc.setField(1, System.currentTimeMillis());
 		}
 	}
 
-	public void accumulate(GenericRowData acc, Object value, Long order) {
+	public void accumulate(RowData rowData, Object value, Long order) {
+		GenericRowData acc = (GenericRowData) rowData;
 		if (value != null && acc.getLong(1) > order) {
 			acc.setField(0, value);
 			acc.setField(1, order);
 		}
 	}
 
-	public void resetAccumulator(GenericRowData acc) {
+	public void accumulate(RowData rowData, StringData value) {
+		if (value != null) {
+			accumulate(rowData, (Object) ((BinaryStringData) value).copy());
+		}
+	}
+
+	public void accumulate(RowData rowData, StringData value, Long order) {
+		if (value != null) {
+			accumulate(rowData, (Object) ((BinaryStringData) value).copy(), order);
+		}
+	}
+
+	public void resetAccumulator(RowData rowData) {
+		GenericRowData acc = (GenericRowData) rowData;
 		acc.setField(0, null);
 		acc.setField(1, Long.MAX_VALUE);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public T getValue(GenericRowData acc) {
-		return (T) acc.getField(0);
-	}
-
-	@Override
-	public TypeInformation<GenericRowData> getAccumulatorType() {
-		LogicalType[] fieldTypes = new LogicalType[] {
-				fromTypeInfoToLogicalType(getResultType()),
-				new BigIntType()
-		};
-
-		String[] fieldNames = new String[] {
-				"value",
-				"time"
-		};
-
-		return (TypeInformation) new RowDataTypeInfo(fieldTypes, fieldNames);
-	}
-
-	/**
-	 * Built-in Byte FirstValue aggregate function.
-	 */
-	public static class ByteFirstValueAggFunction extends FirstValueAggFunction<Byte> {
-
-		@Override
-		public TypeInformation<Byte> getResultType() {
-			return Types.BYTE;
-		}
-	}
-
-	/**
-	 * Built-in Short FirstValue aggregate function.
-	 */
-	public static class ShortFirstValueAggFunction extends FirstValueAggFunction<Short> {
-
-		@Override
-		public TypeInformation<Short> getResultType() {
-			return Types.SHORT;
-		}
-	}
-
-	/**
-	 * Built-in Int FirstValue aggregate function.
-	 */
-	public static class IntFirstValueAggFunction extends FirstValueAggFunction<Integer> {
-
-		@Override
-		public TypeInformation<Integer> getResultType() {
-			return Types.INT;
-		}
-	}
-
-	/**
-	 * Built-in Long FirstValue aggregate function.
-	 */
-	public static class LongFirstValueAggFunction extends FirstValueAggFunction<Long> {
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
-		}
-	}
-
-	/**
-	 * Built-in Float FirstValue aggregate function.
-	 */
-	public static class FloatFirstValueAggFunction extends FirstValueAggFunction<Float> {
-
-		@Override
-		public TypeInformation<Float> getResultType() {
-			return Types.FLOAT;
-		}
-	}
-
-	/**
-	 * Built-in Double FirstValue aggregate function.
-	 */
-	public static class DoubleFirstValueAggFunction extends FirstValueAggFunction<Double> {
-
-		@Override
-		public TypeInformation<Double> getResultType() {
-			return Types.DOUBLE;
-		}
-	}
-
-	/**
-	 * Built-in Boolean FirstValue aggregate function.
-	 */
-	public static class BooleanFirstValueAggFunction extends FirstValueAggFunction<Boolean> {
-
-		@Override
-		public TypeInformation<Boolean> getResultType() {
-			return Types.BOOLEAN;
-		}
-	}
-
-	/**
-	 * Built-in DecimalData FirstValue aggregate function.
-	 */
-	public static class DecimalFirstValueAggFunction extends FirstValueAggFunction<DecimalData> {
-
-		private DecimalDataTypeInfo decimalTypeInfo;
-
-		public DecimalFirstValueAggFunction(DecimalDataTypeInfo decimalTypeInfo) {
-			this.decimalTypeInfo = decimalTypeInfo;
-		}
-
-		public void accumulate(GenericRowData acc, DecimalData value) {
-			super.accumulate(acc, value);
-		}
-
-		public void accumulate(GenericRowData acc, DecimalData value, Long order) {
-			super.accumulate(acc, value, order);
-		}
-
-		@Override
-		public TypeInformation<DecimalData> getResultType() {
-			return decimalTypeInfo;
-		}
-	}
-
-	/**
-	 * Built-in String FirstValue aggregate function.
-	 */
-	public static class StringFirstValueAggFunction extends FirstValueAggFunction<StringData> {
-
-		@Override
-		public TypeInformation<StringData> getResultType() {
-			return StringDataTypeInfo.INSTANCE;
-		}
-
-		public void accumulate(GenericRowData acc, StringData value) {
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy());
-			}
-		}
-
-		public void accumulate(GenericRowData acc, StringData value, Long order) {
-			// just ignore nulls values and orders
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy(), order);
-			}
-		}
+	public T getValue(RowData acc) {
+		GenericRowData genericAcc = (GenericRowData) acc;
+		return (T) genericAcc.getField(0);
 	}
 }
