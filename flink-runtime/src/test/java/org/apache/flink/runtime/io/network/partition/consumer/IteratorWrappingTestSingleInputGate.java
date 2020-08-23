@@ -90,9 +90,11 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 				} else {
 					inputChannel.setReleased();
 
-					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
-						false,
-						0));
+					return Optional.of(
+						new BufferAndAvailability(
+							EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+							false,
+							0));
 				}
 			}
 		};

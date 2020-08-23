@@ -725,7 +725,7 @@ public class CheckpointBarrierUnalignerTest {
 		for (BufferOrEvent bufferOrEvent : sequence) {
 			if (bufferOrEvent.isEvent()) {
 				bufferOrEvent = new BufferOrEvent(
-					EventSerializer.toBuffer(bufferOrEvent.getEvent()),
+					EventSerializer.toBuffer(bufferOrEvent.getEvent(), bufferOrEvent.getEvent() instanceof CheckpointBarrier),
 					bufferOrEvent.getChannelInfo(),
 					bufferOrEvent.moreAvailable());
 			}

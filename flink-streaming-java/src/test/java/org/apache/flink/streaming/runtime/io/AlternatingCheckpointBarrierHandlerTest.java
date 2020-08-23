@@ -265,10 +265,12 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	}
 
 	private Buffer barrier(long barrierId, CheckpointType checkpointType, long barrierTimestamp) throws IOException {
-		return toBuffer(new CheckpointBarrier(
-			barrierId,
-			barrierTimestamp,
-			new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault(), true, true)));
+		return toBuffer(
+			new CheckpointBarrier(
+				barrierId,
+				barrierTimestamp,
+				new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault(), true, true)),
+			true);
 	}
 
 	private static class TestInvokable extends AbstractInvokable {

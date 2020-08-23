@@ -851,12 +851,12 @@ public class SingleInputGateTest extends InputGateTestBase {
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}));
 
 		remoteInputChannel1.onBuffer(createBuffer(1), 0, 0);
-		remoteInputChannel2.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(0, 0, options)), 0, 0);
+		remoteInputChannel2.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(0, 0, options), true), 0, 0);
 		remoteInputChannel1.spillInflightBuffers(0, ChannelStateWriter.NO_OP);
 		remoteInputChannel2.spillInflightBuffers(0, ChannelStateWriter.NO_OP);
 		remoteInputChannel1.onBuffer(createBuffer(11), 1, 0);
 		remoteInputChannel2.onBuffer(createBuffer(12), 1, 0);
-		remoteInputChannel1.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(1, 0, options)), 2, 0);
+		remoteInputChannel1.onBuffer(EventSerializer.toBuffer(new CheckpointBarrier(1, 0, options), true), 2, 0);
 		remoteInputChannel1.spillInflightBuffers(1, ChannelStateWriter.NO_OP);
 		remoteInputChannel2.spillInflightBuffers(1, ChannelStateWriter.NO_OP);
 		remoteInputChannel1.onBuffer(createBuffer(21), 3, 0);
@@ -981,7 +981,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 					inputChannel.onBuffer(buffers.get(i), i, 0);
 				}
 				// add checkpoint barrier
-				inputChannel.onBuffer(EventSerializer.toBuffer(barrier), buffers.size(), 0);
+				inputChannel.onBuffer(EventSerializer.toBuffer(barrier, true), buffers.size(), 0);
 				// one additional buffer which won't be added to inflight buffer queue
 				inputChannel.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(1024), buffers.size() + 1, 0);
 			} catch (IOException e) {
