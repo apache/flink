@@ -195,7 +195,7 @@ public class InputGateFairnessTest {
 			for (int p = 0; p < buffersPerChannel; p++) {
 				channel.onBuffer(mockBuffer, p, -1);
 			}
-			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
+			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), buffersPerChannel, -1);
 		}
 
 		gate.setInputChannels(channels);

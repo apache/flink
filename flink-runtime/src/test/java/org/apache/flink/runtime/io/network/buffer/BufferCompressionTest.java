@@ -160,12 +160,12 @@ public class BufferCompressionTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testCompressEvent() throws IOException {
-		compress(compressor, EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), compressToOriginalBuffer);
+		compress(compressor, EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), compressToOriginalBuffer);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testDecompressEvent() throws IOException {
-		decompress(decompressor, EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), decompressToOriginalBuffer);
+		decompress(decompressor, EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), decompressToOriginalBuffer);
 	}
 
 	@Test

@@ -69,7 +69,7 @@ public class EventSerializerTest {
 	@Test
 	public void testToBufferConsumer() throws IOException {
 		for (AbstractEvent evt : events) {
-			BufferConsumer bufferConsumer = EventSerializer.toBufferConsumer(evt);
+			BufferConsumer bufferConsumer = EventSerializer.toBufferConsumer(evt, false);
 
 			assertFalse(bufferConsumer.isBuffer());
 			assertTrue(bufferConsumer.isFinished());
@@ -87,7 +87,7 @@ public class EventSerializerTest {
 	@Test
 	public void testToBuffer() throws IOException {
 		for (AbstractEvent evt : events) {
-			Buffer buffer = EventSerializer.toBuffer(evt);
+			Buffer buffer = EventSerializer.toBuffer(evt, false);
 
 			assertFalse(buffer.isBuffer());
 			assertTrue(buffer.readableBytes() > 0);
@@ -108,8 +108,7 @@ public class EventSerializerTest {
 	 */
 	@Test
 	public void testIsEventPeakOnly() throws Exception {
-		final Buffer serializedEvent =
-			EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
+		final Buffer serializedEvent = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false);
 		try {
 			final ClassLoader cl = getClass().getClassLoader();
 			assertTrue(
@@ -160,14 +159,21 @@ public class EventSerializerTest {
 	 * @param event the event to encode
 	 * @param eventClass the event class to check against
 	 *
-	 * @return whether {@link EventSerializer#isEvent(ByteBuffer, Class)}
+	 * @return whether {@link EventSerializer#isEvent(Buffer, Class)}
 	 * 		thinks the encoded buffer matches the class
 	 */
 	private boolean checkIsEvent(
 			AbstractEvent event,
 			Class<?> eventClass) throws IOException {
 
-		final Buffer serializedEvent = EventSerializer.toBuffer(event);
+		final boolean unprioritizedIsEvent = isEvent(event, eventClass, false);
+		final boolean prioritizedIsEvent = isEvent(event, eventClass, true);
+		assertEquals(unprioritizedIsEvent, prioritizedIsEvent);
+		return unprioritizedIsEvent;
+	}
+
+	private boolean isEvent(AbstractEvent event, Class<?> eventClass, boolean hasPriority) throws IOException {
+		final Buffer serializedEvent = EventSerializer.toBuffer(event, hasPriority);
 		try {
 			return EventSerializer.isEvent(serializedEvent, eventClass);
 		} finally {

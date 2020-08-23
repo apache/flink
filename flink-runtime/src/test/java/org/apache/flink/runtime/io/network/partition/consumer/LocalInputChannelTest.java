@@ -33,7 +33,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -73,8 +72,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
-import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
-import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.getDataType;
+import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
@@ -469,7 +467,7 @@ public class LocalInputChannelTest {
 		inputGate.registerBufferReceivedListener(listener);
 		LocalInputChannel channel = InputChannelBuilder.newBuilder().buildLocalChannel(inputGate);
 		CheckpointBarrier barrier = new CheckpointBarrier(123L, 123L, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()));
-		channel.notifyPriorityEvent(new BufferConsumer(toBuffer(barrier).getMemorySegment(), FreeingBufferRecycler.INSTANCE, getDataType(barrier)));
+		channel.notifyPriorityEvent(toBufferConsumer(barrier, true));
 		channel.checkError();
 		assertTrue(listener.notifiedOnBarriers.isEmpty());
 	}

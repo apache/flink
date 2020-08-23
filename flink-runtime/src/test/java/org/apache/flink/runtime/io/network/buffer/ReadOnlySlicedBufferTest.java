@@ -61,7 +61,7 @@ public class ReadOnlySlicedBufferTest {
 	public void testForwardsIsBuffer() throws IOException {
 		assertEquals(buffer.isBuffer(), buffer.readOnlySlice().isBuffer());
 		assertEquals(buffer.isBuffer(), buffer.readOnlySlice(1, 2).isBuffer());
-		Buffer eventBuffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
+		Buffer eventBuffer = EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false);
 		assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice().isBuffer());
 		assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice(1, 2).isBuffer());
 	}

@@ -1225,7 +1225,7 @@ public class RemoteInputChannelTest {
 		SingleInputGate inputGate = new SingleInputGateBuilder().build();
 		inputGate.registerBufferReceivedListener(listener);
 		RemoteInputChannel channel = InputChannelTestUtils.createRemoteInputChannel(inputGate, 0);
-		channel.onBuffer(toBuffer(new CheckpointBarrier(123L, 123L, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()))), 0, 0);
+		channel.onBuffer(toBuffer(new CheckpointBarrier(123L, 123L, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault())), false), 0, 0);
 		channel.checkError();
 		assertTrue(listener.notifiedOnBarriers.isEmpty());
 	}

@@ -162,13 +162,13 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		broadcastEvent(event, false);
 	}
 
-	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
+	public void broadcastEvent(AbstractEvent event, boolean hasPriority) throws IOException {
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event, hasPriority)) {
 			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);
 
 				// Retain the buffer so that it can be recycled by each channel of targetPartition
-				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel, isPriorityEvent);
+				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel);
 			}
 
 			if (flushAlways) {
