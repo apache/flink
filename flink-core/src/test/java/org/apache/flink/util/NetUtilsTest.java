@@ -121,15 +121,27 @@ public class NetUtilsTest extends TestLogger {
 
 	@Test
 	public void testFreePortRangeUtility() {
+		Iterator<Integer> portsIter;
+		Set<Integer> ports;
+
 		// inspired by Hadoop's example for "yarn.app.mapreduce.am.job.client.port-range"
 		String rangeDefinition = "50000-50050, 50100-50200,51234 "; // this also contains some whitespaces
-		Iterator<Integer> portsIter = NetUtils.getPortRangeFromString(rangeDefinition);
-		Set<Integer> ports = new HashSet<>();
+		portsIter = NetUtils.getPortRangeFromString(rangeDefinition);
+		ports = new HashSet<>();
 		while (portsIter.hasNext()) {
 			Assert.assertTrue("Duplicate element", ports.add(portsIter.next()));
 		}
-
 		Assert.assertEquals(51 + 101 + 1, ports.size());
+
+		// test random port assignment should match NetUtils.DEFAULT_RANDOMIZE_PORT_RANGE
+		String randomDef = "0";
+		portsIter = NetUtils.getPortRangeFromString(randomDef);
+		ports = new HashSet<>();
+		while (portsIter.hasNext()) {
+			Assert.assertTrue("Duplicate element", ports.add(portsIter.next()));
+		}
+		Assert.assertEquals(65000-10000+1, ports.size());
+
 		// check first range
 		Assert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
 		// check second range and last point

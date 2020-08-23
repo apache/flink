@@ -34,9 +34,12 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Random;
 
 /**
  * Utility for various network related tasks (such as finding free ports).
@@ -48,6 +51,8 @@ public class NetUtils {
 
 	/** The wildcard address to listen on all interfaces (either 0.0.0.0 or ::). */
 	private static final String WILDCARD_ADDRESS = new InetSocketAddress(0).getAddress().getHostAddress();
+
+	private static final String[] DEFAULT_RANDOMIZE_PORT_RANGE = new String[]{"10000-65000"};
 
 	/**
 	 * Turn a fully qualified domain name (fqdn) into a hostname. If the fqdn has multiple subparts
@@ -339,11 +344,18 @@ public class NetUtils {
 	 * @throws NumberFormatException If an invalid string is passed.
 	 */
 	public static Iterator<Integer> getPortRangeFromString(String rangeDefinition) throws NumberFormatException {
-		final String[] ranges = rangeDefinition.trim().split(",");
+		final String[] rawRanges = rangeDefinition.trim().split(",");
+		if (rawRanges.length == 1 && "0".equals(rawRanges[0])) {
+			return getPortIteratorFromRawRange(DEFAULT_RANDOMIZE_PORT_RANGE);
+		} else {
+			return getPortIteratorFromRawRange(rawRanges);
+		}
+	}
 
+	static Iterator<Integer> getPortIteratorFromRawRange(String[] rawRanges) {
 		UnionIterator<Integer> iterators = new UnionIterator<>();
 
-		for (String rawRange: ranges) {
+		for (String rawRange: rawRanges) {
 			Iterator<Integer> rangeIterator;
 			String range = rawRange.trim();
 			int dashIdx = range.indexOf('-');
@@ -367,23 +379,7 @@ public class NetUtils {
 					throw new IllegalConfigurationException("Invalid port configuration. Port must be between 0" +
 						"and 65535, but was " + end + ".");
 				}
-				rangeIterator = new Iterator<Integer>() {
-					int i = start;
-					@Override
-					public boolean hasNext() {
-						return i <= end;
-					}
-
-					@Override
-					public Integer next() {
-						return i++;
-					}
-
-					@Override
-					public void remove() {
-						throw new UnsupportedOperationException("Remove not supported");
-					}
-				};
+				rangeIterator = new PortRangeIterator(start, end);
 			}
 			iterators.add(rangeIterator);
 		}
@@ -449,5 +445,42 @@ public class NetUtils {
 	 */
 	public static boolean isValidHostPort(int port) {
 		return 0 <= port && port <= 65535;
+	}
+
+	private static class PortRangeIterator implements Iterator<Integer> {
+		private final int start;
+		private final int end;
+		private final int seed;
+		private int shift;
+		private int multiple;
+		public PortRangeIterator(int start, int end) {
+			this.start = start;
+			this.end = end;
+			this.seed = new Random().nextInt(end - start);
+			this.shift = 0;
+			this.multiple = 0;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return shift < seed;
+		}
+
+		@Override
+		public Integer next() {
+			int port = start + shift + multiple * seed;
+			if (shift + (multiple + 1) * seed > end - start) {
+				shift ++;
+				multiple = 0;
+			} else {
+				multiple ++;
+			}
+			return port;
+		}
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException("Remove not supported");
+		}
 	}
 }
