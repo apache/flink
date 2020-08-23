@@ -27,24 +27,24 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Handling Application Parameters
+处理应用程序参数
 -------------------------------
-Almost all Flink applications, both batch and streaming, rely on external configuration parameters.
-They are used to specify input and output sources (like paths or addresses), system parameters (parallelism, runtime configuration), and application specific parameters (typically used within user functions).
+大部分Flink的应用，包括批处理、流处理在内，都依赖于外部的配置参数。
+都习惯于指定进和出的数据源（比如：路径或者地址），系统配置（比如：并行度、运行参数配置），特定应用程序参数（通常是与用户功能有关的使用）。
 
-Flink provides a simple utility called `ParameterTool` to provide some basic tooling for solving these problems.
-Please note that you don't have to use the `ParameterTool` described here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/) and
-[argparse4j](http://argparse4j.sourceforge.net/) also work well with Flink.
-
-
-### Getting your configuration values into the `ParameterTool`
-
-The `ParameterTool` provides a set of predefined static methods for reading the configuration. The tool is internally expecting a `Map<String, String>`, so it's very easy to integrate it with your own configuration style.
+Flink提供了一个简单工具，名为`ParameterTool`，为解决这些问题提供了一些基本工具。
+请注意你不一定要用此处描述的`ParameterTool`，其它的框架比如 [Commons CLI](https://commons.apache.org/proper/commons-cli/) 和
+[argparse4j](http://argparse4j.sourceforge.net/) 在Flink中一样使用的很好。
 
 
-#### From `.properties` files
+### 将你应用的参数放入 `ParameterTool`
 
-The following method will read a [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) file and provide the key/value pairs:
+The `ParameterTool` 提供一组预定义的静态方法用来读取配置。这个工具内置了令人期待的`Map<String, String>`, 所有它非常容易和你使用的参数配置风格进行集成。
+
+
+#### 来自 `.properties` files
+ 
+以下方法将读取一个[Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) 文件，同时提供 key/value pairs:
 {% highlight java %}
 String propertiesFilePath = "/home/sam/flink/myjob.properties";
 ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFilePath);
@@ -57,7 +57,7 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputSt
 {% endhighlight %}
 
 
-#### From the command line arguments
+#### 来自命令行参数
 
 This allows getting arguments like `--input hdfs:///mydata --elements 42` from the command line.
 {% highlight java %}
@@ -67,7 +67,7 @@ public static void main(String[] args) {
 {% endhighlight %}
 
 
-#### From system properties
+#### 来自系统配置
 
 When starting a JVM, you can pass system properties to it: `-Dinput=hdfs:///mydata`. You can also initialize the `ParameterTool` from these system properties:
 
@@ -76,9 +76,9 @@ ParameterTool parameter = ParameterTool.fromSystemProperties();
 {% endhighlight %}
 
 
-### Using the parameters in your Flink program
+### 在你的Flink程序中使用参数
 
-Now that we've got the parameters from somewhere (see above) we can use them in various ways.
+现在我们可以从上述方法中获取的参数以各种方式进行应用。
 
 **Directly from the `ParameterTool`**
 
