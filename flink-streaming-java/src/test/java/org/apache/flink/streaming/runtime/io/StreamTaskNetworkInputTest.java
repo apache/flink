@@ -143,7 +143,7 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput<Long> input2 = createInput(unaligner, inputGate2);
 
 		CheckpointBarrier barrier = new CheckpointBarrier(0, 0L, CheckpointOptions.forCheckpointWithDefaultLocation());
-		channel1.onBuffer(EventSerializer.toBuffer(barrier), 0, 0);
+		channel1.onBuffer(EventSerializer.toBuffer(barrier, true), 0, 0);
 		channel1.onBuffer(BufferBuilderTestUtils.buildSomeBuffer(1), 1, 0);
 
 		// all records on inputGate2 are now in-flight
@@ -157,7 +157,7 @@ public class StreamTaskNetworkInputTest {
 		CompletableFuture<Void> completableFuture2 = input2.prepareSnapshot(channelStateWriter, 0);
 
 		// finish unaligned checkpoint on input side
-		channel2.onBuffer(EventSerializer.toBuffer(barrier), 2, 0);
+		channel2.onBuffer(EventSerializer.toBuffer(barrier, true), 2, 0);
 
 		// futures should be completed
 		completableFuture1.join();

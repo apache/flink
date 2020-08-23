@@ -127,7 +127,7 @@ public abstract class RecoveredInputChannel extends InputChannel {
 	}
 
 	private void finishReadRecoveredState() throws IOException {
-		onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE));
+		onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE, false));
 		bufferManager.releaseFloatingBuffers();
 		LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
 	}

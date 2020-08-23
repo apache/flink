@@ -135,7 +135,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 
 	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true, false);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), true, false);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 

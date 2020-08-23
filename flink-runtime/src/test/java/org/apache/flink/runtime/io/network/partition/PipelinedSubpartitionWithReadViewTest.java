@@ -320,7 +320,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertEquals(1, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
 
-		BufferConsumer eventBuffer = EventSerializer.toBufferConsumer(EndOfSuperstepEvent.INSTANCE);
+		BufferConsumer eventBuffer = EventSerializer.toBufferConsumer(EndOfSuperstepEvent.INSTANCE, false);
 		subpartition.add(eventBuffer);
 		assertEquals(1, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
@@ -334,7 +334,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
 			true,
 			true);
-		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
 		subpartition.add(barrierBuffer, true);
 		assertEquals(2, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());

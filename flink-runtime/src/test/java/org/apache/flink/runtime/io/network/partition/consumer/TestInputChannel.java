@@ -94,7 +94,8 @@ public class TestInputChannel extends InputChannel {
 		addBufferAndAvailability(
 			() -> {
 				setReleased();
-				return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
+				return Optional.of(new BufferAndAvailability(
+					EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
 					false,
 					0));
 			}
