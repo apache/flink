@@ -112,6 +112,7 @@ public class EnvironmentInformation {
 		return new RevisionInformation(getGitCommitIdAbbrev(), getGitCommitTimeString());
 	}
 
+	// 一个用占位类模式初始化的单例
 	private static final class Versions {
 		private static final Instant DEFAULT_TIME_INSTANT = Instant.EPOCH;
 		private static final String DEFAULT_TIME_STRING = "1970-01-01T00:00:00+0000";

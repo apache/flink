@@ -39,7 +39,8 @@ import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State.OPEN;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.State.QUIESCED;
 
-/**
+/** fixme ReentrantLock的标准使用方式：在finally中释放锁
+ * 
  * Implementation of {@link TaskMailbox} in a {@link java.util.concurrent.BlockingQueue} fashion and tailored towards
  * our use case with multiple writers and single reader.
  */

@@ -38,9 +38,7 @@ public class ResourceGuard implements AutoCloseable, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The object that serves as lock for count and the closed-flag.
-	 */
+	// 添加队列锁：for count 和 closed-flag；
 	private final SerializableObject lock;
 
 	/**
@@ -88,7 +86,9 @@ public class ResourceGuard implements AutoCloseable, Serializable {
 
 			--leaseCount;
 
+			// 如果满足 wait 的条件谓词，则调用notifyAll
 			if (closed && leaseCount == 0) {
+				// 调用之前先获取lock上的锁
 				lock.notifyAll();
 			}
 		}
@@ -99,6 +99,7 @@ public class ResourceGuard implements AutoCloseable, Serializable {
 
 			closed = true;
 
+			// fixme 和while一起使用，每次被唤醒都检测谓词条件，防止被过早唤醒，见《并发编程实战》p246
 			while (leaseCount > 0) {
 				lock.wait();
 			}
@@ -120,8 +121,8 @@ public class ResourceGuard implements AutoCloseable, Serializable {
 			closed = true;
 
 			while (leaseCount > 0) {
-
 				try {
+					// fixme 和while一起使用，每次被唤醒都检测谓词条件，防止被过早唤醒，见《并发编程实战》p246
 					lock.wait();
 				} catch (InterruptedException e) {
 					interrupted = true;

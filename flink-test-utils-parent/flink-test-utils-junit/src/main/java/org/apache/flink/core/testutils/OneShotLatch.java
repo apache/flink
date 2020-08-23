@@ -41,6 +41,7 @@ public final class OneShotLatch {
 	/**
 	 * Fires the latch. Code that is blocked on {@link #await()} will now return.
 	 */
+	// 触发latch，并触发所有等待的线程
 	public void trigger() {
 		synchronized (lock) {
 			triggered = true;
@@ -56,6 +57,8 @@ public final class OneShotLatch {
 	 */
 	public void await() throws InterruptedException {
 		synchronized (lock) {
+			// 如果没有触发，则当前线程加入到等待集合，并wait()
+			// 被唤醒后、从等待线程移除、并检测等待谓词，并重新执行以上逻辑
 			while (!triggered) {
 				Thread thread = Thread.currentThread();
 				try {
@@ -91,17 +94,22 @@ public final class OneShotLatch {
 			throw new NullPointerException("timeUnit");
 		}
 
+		// 不指定时间、一直阻塞
 		if (timeout == 0) {
 			await();
 		} else {
+			// 超时的目标时间
 			final long deadline = System.nanoTime() + timeUnit.toNanos(timeout);
 			long millisToWait;
 
 			synchronized (lock) {
+				// 如果没有trigger、并且当前剩余等待时间毫秒数大于0，则等待剩余时间
 				while (!triggered && (millisToWait = (deadline - System.nanoTime()) / 1_000_000) > 0) {
+					// fixme wait(millisToWait)：等待指定时间后、该线程被唤醒、去争取锁
 					lock.wait(millisToWait);
 				}
 
+				//如果是因为时间原因被唤醒、但是线程并没有trigger、则超时异常
 				if (!triggered) {
 					throw new TimeoutException();
 				}
@@ -110,7 +118,7 @@ public final class OneShotLatch {
 	}
 
 	/**
-	 * Checks if the latch was triggered.
+	 * 检查latch是否别触发，即trigger是否为true
 	 *
 	 * @return True, if the latch was triggered, false if not.
 	 */
@@ -118,15 +126,14 @@ public final class OneShotLatch {
 		return triggered;
 	}
 
+	// 获取等待线程的大小
 	public int getWaitersCount() {
 		synchronized (lock) {
 			return waitersSet.size();
 		}
 	}
 
-	/**
-	 * Resets the latch so that {@link #isTriggered()} returns false.
-	 */
+	// 重置trigger的状态、返回false
 	public void reset() {
 		synchronized (lock) {
 			triggered = false;
