@@ -23,8 +23,10 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
+import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContext;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -90,8 +92,8 @@ public class HiveModuleTest {
 			DataTypes.STRING()
 		};
 
-		udf.setArgumentTypesAndConstants(new Object[0], inputType);
-		udf.getHiveResultType(new Object[0], inputType);
+		CallContext callContext = new HiveUDFCallContext(new Object[0], inputType);
+		udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
 		udf.open(null);
 

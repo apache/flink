@@ -120,7 +120,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 	}
 
 	@Override
-	protected DataType validateInputTypes(DataType[] argTypes) throws UDFArgumentException {
+	protected DataType inferReturnType() throws UDFArgumentException {
 		List<TypeInfo> argTypeInfo = new ArrayList<>();
 		for (DataType argType : argTypes) {
 			argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));

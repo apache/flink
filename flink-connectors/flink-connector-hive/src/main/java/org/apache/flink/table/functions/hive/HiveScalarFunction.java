@@ -19,8 +19,6 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionContext;
@@ -28,7 +26,6 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.hive.util.HiveFunctionUtil;
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
@@ -51,13 +48,12 @@ import java.util.Optional;
  * Abstract class to provide more information for Hive {@link UDF} and {@link GenericUDF} functions.
  */
 @Internal
-public abstract class HiveScalarFunction<UDFType> extends ScalarFunction implements HiveFunction {
+public abstract class HiveScalarFunction<UDFType> extends ScalarFunction {
 
 	protected final HiveFunctionWrapper<UDFType> hiveFunctionWrapper;
 
 	protected Object[] constantArguments;
 	protected DataType[] argTypes;
-	protected DataType resultType = null;
 
 	protected transient UDFType function;
 	protected transient ObjectInspector returnInspector;
@@ -66,24 +62,6 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 
 	HiveScalarFunction(HiveFunctionWrapper<UDFType> hiveFunctionWrapper) {
 		this.hiveFunctionWrapper = hiveFunctionWrapper;
-	}
-
-	@Override
-	public void setArgumentTypesAndConstants(Object[] constantArguments, DataType[] argTypes) {
-		this.constantArguments = constantArguments;
-		this.argTypes = argTypes;
-	}
-
-	@Override
-	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
-		if (resultType == null) {
-			try {
-				resultType = validateInputTypes(argTypes);
-			} catch (UDFArgumentException e) {
-				throw new FlinkHiveUDFException(e);
-			}
-		}
-		return resultType;
 	}
 
 	@Override
@@ -97,12 +75,6 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 		} catch (ClassNotFoundException e) {
 			throw new FlinkHiveUDFException(e);
 		}
-	}
-
-	@Override
-	public TypeInformation getResultType(Class[] signature) {
-		return TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(
-			getHiveResultType(this.constantArguments, this.argTypes));
 	}
 
 	@Override
@@ -143,7 +115,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 	 */
 	protected abstract Object evalInternal(Object[] args);
 
-	private Tuple2<Object[], DataType[]> getConstantArgAndTypes(CallContext callContext) {
+	private void setArguments(CallContext callContext) {
 		DataType[] inputTypes = callContext.getArgumentDataTypes().toArray(new DataType[0]);
 		Object[] constantArgs = new Object[inputTypes.length];
 		for (int i = 0; i < constantArgs.length; i++) {
@@ -153,20 +125,25 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 						.orElse(null);
 			}
 		}
-		return Tuple2.of(constantArgs, inputTypes);
+		this.constantArguments = constantArgs;
+		this.argTypes = inputTypes;
 	}
 
 	/**
-	 * Validate input argument types and decide result type.
+	 * Infer return type of this function call.
 	 */
-	protected abstract DataType validateInputTypes(DataType[] argTypes) throws UDFArgumentException;
+	protected abstract DataType inferReturnType() throws UDFArgumentException;
 
 	private class HiveUDFOutputStrategy implements TypeStrategy {
 
 		@Override
 		public Optional<DataType> inferType(CallContext callContext) {
-			Tuple2<Object[], DataType[]> constantArgAndTypes = getConstantArgAndTypes(callContext);
-			return Optional.ofNullable(getHiveResultType(constantArgAndTypes.f0, constantArgAndTypes.f1));
+			setArguments(callContext);
+			try {
+				return Optional.of(inferReturnType());
+			} catch (UDFArgumentException e) {
+				throw new FlinkHiveUDFException(e);
+			}
 		}
 	}
 
@@ -179,10 +156,9 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 
 		@Override
 		public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-			Tuple2<Object[], DataType[]> constantArgAndTypes = getConstantArgAndTypes(callContext);
-			setArgumentTypesAndConstants(constantArgAndTypes.f0, constantArgAndTypes.f1);
+			setArguments(callContext);
 			try {
-				resultType = validateInputTypes(argTypes);
+				inferReturnType();
 			} catch (UDFArgumentException e) {
 				if (throwOnFailure) {
 					throw new ValidationException(

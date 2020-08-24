@@ -95,7 +95,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 	}
 
 	@Override
-	protected DataType validateInputTypes(DataType[] argTypes) throws UDFArgumentException {
+	protected DataType inferReturnType() throws UDFArgumentException {
 		LOG.info("Getting result type of HiveGenericUDF from {}", hiveFunctionWrapper.getClassName());
 		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 
