@@ -22,16 +22,16 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
 
-from isolated_functions import m_flat_map, calc_add_one
+from functions import m_flat_map, add_one
 
 
-def my_data_stream_job():
+def python_data_stream_example():
     env = StreamExecutionEnvironment.get_execution_environment()
 
     source_type_info = Types.ROW([Types.STRING(), Types.INT()])
     json_row_deserialization_schema = JsonRowDeserializationSchema.builder()\
         .type_info(source_type_info).build()
-    source_topic = 'test-data-stream-source'
+    source_topic = 'test-python-data-stream-source'
     consumer_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-source'}
     kafka_consumer_1 = FlinkKafkaConsumer(source_topic, json_row_deserialization_schema,
                                           consumer_props)
@@ -39,13 +39,13 @@ def my_data_stream_job():
     source_stream_1 = env.add_source(kafka_consumer_1).name('kafka source 1')
     mapped_type_info = Types.ROW([Types.STRING(), Types.INT(), Types.INT()])
 
-    keyed_stream = source_stream_1.map(calc_add_one, output_type=mapped_type_info) \
+    keyed_stream = source_stream_1.map(add_one, output_type=mapped_type_info) \
         .key_by(lambda x: x[2])
 
     flat_mapped_stream = keyed_stream.flat_map(m_flat_map, result_type=mapped_type_info)
     flat_mapped_stream.name("flat-map").set_parallelism(3)
 
-    sink_topic = 'test-data-stream-sink'
+    sink_topic = 'test-python-data-stream-sink'
     producer_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-1'}
     json_row_serialization_schema = JsonRowSerializationSchema.builder()\
         .with_type_info(mapped_type_info).build()
@@ -56,4 +56,4 @@ def my_data_stream_job():
 
 
 if __name__ == '__main__':
-    my_data_stream_job()
+    python_data_stream_example()

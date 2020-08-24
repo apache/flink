@@ -26,8 +26,8 @@ KAFKA_SQL_VERSION="universal"
 SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
 KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
 
-function create_data_stream_kafka_source_1 {
-    topicName="test-data-stream-source"
+function create_data_stream_kafka_source_sink {
+    topicName="test-python-data-stream-source"
 
     echo "Sending messages to Kafka..."
 
@@ -36,6 +36,8 @@ function create_data_stream_kafka_source_1 {
     send_messages_to_kafka '{"f0": "abc", "f1": 3}' $topicName
     send_messages_to_kafka '{"f0": "abcd", "f1": 4}' $topicName
     send_messages_to_kafka '{"f0": "abcde", "f1": 5}' $topicName
+
+    create_kafka_topic 1 1 test-python-data-stream-sink
 }
 
 function sort_msg {
@@ -50,6 +52,7 @@ function sort_msg {
 }
 
 function test_clean_up {
+    stop_cluster
     stop_kafka_cluster
 }
 
@@ -115,9 +118,7 @@ setup_kafka_dist
 
 start_kafka_cluster
 
-create_kafka_topic 1 1 test-data-stream-sink
-
-create_data_stream_kafka_source_1
+create_data_stream_kafka_source_sink
 
 FLINK_PYTHON_TEST_DIR=`cd "${CURRENT_DIR}/../flink-python-test" && pwd -P`
 REQUIREMENTS_PATH="${TEST_DATA_DIR}/requirements.txt"
@@ -140,7 +141,7 @@ echo "${JOB_ID}"
 JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
 
 echo "Reading kafka messages..."
-READ_MSG=$(read_messages_from_kafka 20 test-data-stream-sink pyflink-e2e-test)
+READ_MSG=$(read_messages_from_kafka 20 test-python-data-stream-sink pyflink-e2e-test)
 
 # We use env.execute_async() to submit the job, cancel it after fetched results.
 cancel_job "${JOB_ID}"

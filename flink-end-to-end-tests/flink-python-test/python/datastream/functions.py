@@ -19,12 +19,12 @@
 from pyflink.datastream.functions import CoMapFunction
 
 
-def calc_str_len(value):
+def str_len(value):
     return value[0], len(value[0]), value[1]
 
 
-def calc_add_one(value):
-    return value[0], value[1]+1, value[1]
+def add_one(value):
+    return value[0], value[1] + 1, value[1]
 
 
 def m_flat_map(value):
@@ -34,7 +34,7 @@ def m_flat_map(value):
 
 class MyCoMapFunction(CoMapFunction):
     def map1(self, value):
-        return calc_str_len(value)
+        return str_len(value)
 
     def map2(self, value):
-        return calc_add_one(value)
+        return add_one(value)
