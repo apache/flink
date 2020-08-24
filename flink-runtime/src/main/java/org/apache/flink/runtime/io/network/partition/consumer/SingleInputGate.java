@@ -159,7 +159,6 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private final BitSet channelsWithEndOfPartitionEvents;
 
-	/** Sequence number to verify that priority event is still at the head of the channel when notification arrives. */
 	@GuardedBy("inputChannelsWithData")
 	private int[] lastPrioritySequenceNumber;
 
@@ -599,6 +598,14 @@ public class SingleInputGate extends IndexedInputGate {
 	@Override
 	public boolean isFinished() {
 		return hasReceivedAllEndOfPartitionEvents;
+	}
+
+	@Override
+	public String toString() {
+		return "SingleInputGate{" +
+			"owningTaskName='" + owningTaskName + '\'' +
+			", gateIndex=" + gateIndex +
+			'}';
 	}
 
 	// ------------------------------------------------------------------------

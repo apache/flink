@@ -192,9 +192,8 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 		if (next == null) {
 			if (isReleased.get()) {
 				throw new CancelTaskException("Queried for a buffer after channel has been released.");
-			} else {
-				throw new IllegalStateException("There should always have queued buffers for unreleased channel.");
 			}
+			return Optional.empty();
 		}
 
 		numBytesIn.inc(next.buffer.getSize());

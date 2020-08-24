@@ -60,6 +60,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			getCheckpointCoordinator(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
+			mainMailboxExecutor,
 			inputGates1,
 			inputGates2);
 		checkState(checkpointedInputGates.length == 2);
