@@ -40,7 +40,11 @@ function codeTabs() {
     "python": "img/python-sm.png",
     "java": "img/java-sm.png"
   };
-  var codeTabParam = getUrlParameter("code_tab") == null ? null : getUrlParameter("code_tab").toLowerCase();
+  var codeTabParam = null;
+  if (typeof window.defaultCodeTab !== "undefined" && window.defaultCodeTab !== "") {
+    codeTabParam = window.defaultCodeTab
+  }
+  codeTabParam = getUrlParameter("code_tab") == null ? codeTabParam : getUrlParameter("code_tab").toLowerCase();
   // Processing duplicated tabs, e.g. if the data-lang="Java/Scala",
   // it will be copied to 2 elements, the "data-lang" value of them would be "Java" and "Scala".
   function splitDataLang() {
