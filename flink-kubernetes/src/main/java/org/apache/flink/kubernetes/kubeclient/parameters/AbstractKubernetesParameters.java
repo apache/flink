@@ -177,4 +177,13 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
 
 		return Optional.empty();
 	}
+
+	public Map<String, String> getSecretNamesToMountPaths() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.KUBERNETES_SECRETS).orElse(Collections.emptyMap());
+	}
+
+	@Override
+	public List<Map<String, String>> getEnvironmentsFromSecrets() {
+		return flinkConfig.getOptional(KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF).orElse(Collections.emptyList());
+	}
 }
