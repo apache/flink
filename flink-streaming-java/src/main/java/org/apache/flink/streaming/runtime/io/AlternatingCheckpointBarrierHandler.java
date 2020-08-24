@@ -56,7 +56,7 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException {
 		if (receivedBarrier.getId() < lastSeenBarrierId) {
 			return;
 		}
@@ -74,12 +74,12 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
+	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		activeHandler.processCancellationBarrier(cancelBarrier);
 	}
 
 	@Override
-	public void processEndOfPartition() throws Exception {
+	public void processEndOfPartition() throws IOException {
 		alignedHandler.processEndOfPartition();
 		unalignedHandler.processEndOfPartition();
 	}

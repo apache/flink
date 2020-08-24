@@ -106,7 +106,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	 * <p>Note this is also suitable for the trigger case of local input channel.
 	 */
 	@Override
-	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception {
+	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException {
 		long barrierId = receivedBarrier.getId();
 		if (currentConsumedCheckpointId > barrierId || (currentConsumedCheckpointId == barrierId && !isCheckpointPending())) {
 			// ignore old and cancelled barriers
@@ -134,7 +134,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception {
+	public void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException {
 		final long cancelledId = cancelBarrier.getCheckpointId();
 		boolean shouldAbort = threadSafeUnaligner.setCancelledCheckpointId(cancelledId);
 		if (shouldAbort) {
@@ -150,7 +150,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void processEndOfPartition() throws Exception {
+	public void processEndOfPartition() throws IOException {
 		threadSafeUnaligner.onChannelClosed();
 		resetPendingCheckpoint(-1L);
 	}
