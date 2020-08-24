@@ -33,7 +33,8 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -428,8 +429,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private void prepareInflightDataSnapshot(long checkpointId) throws IOException {
 		ResultPartitionWriter[] writers = env.getAllWriters();
 		for (ResultPartitionWriter writer : writers) {
+			final CheckpointedResultPartition checkpointedPartition = checkCheckpointedResultPartition(writer);
 			for (int i = 0; i < writer.getNumberOfSubpartitions(); i++) {
-				ResultSubpartition subpartition = writer.getSubpartition(i);
+				CheckpointedResultSubpartition subpartition = checkpointedPartition.getCheckpointedSubpartition(i);
 				channelStateWriter.addOutputData(
 					checkpointId,
 					subpartition.getSubpartitionInfo(),
@@ -446,6 +448,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 					channelStateWriter.finishInput(checkpointId);
 				}
 			});
+	}
+
+	private static CheckpointedResultPartition checkCheckpointedResultPartition(ResultPartitionWriter partition) {
+		if (partition instanceof CheckpointedResultPartition) {
+			return (CheckpointedResultPartition) partition;
+		} else {
+			throw new IllegalStateException(
+					"Cannot take a checkpoint of a partition type that is not checkpointed: " + partition);
+		}
 	}
 
 	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {

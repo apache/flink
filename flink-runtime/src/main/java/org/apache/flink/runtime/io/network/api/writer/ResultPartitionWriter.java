@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -43,12 +42,6 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
 	 */
 	void setup() throws IOException;
-
-	/**
-	 * Reads the previous output states with the given reader for unaligned checkpoint.
-	 * It should be done before task processing the inputs.
-	 */
-	void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException;
 
 	ResultPartitionID getPartitionId();
 
