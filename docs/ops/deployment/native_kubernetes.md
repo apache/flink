@@ -152,26 +152,6 @@ When the deployment is deleted, all other resources will be deleted automaticall
 $ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
-## Log Files
-
-By default, the JobManager and TaskManager only store logs under `/opt/flink/log` in each pod.
-If you want to use `kubectl logs <PodName>` to view the logs, you must perform the following:
-
-1. Add a new appender to the log4j.properties in the Flink client.
-2. Add the following 'appenderRef' the rootLogger in log4j.properties `rootLogger.appenderRef.console.ref = ConsoleAppender`.
-3. Remove the redirect args by adding config option `-Dkubernetes.container-start-command-template="%java% %classpath% %jvmmem% %jvmopts% %logging% %class% %args%"`.
-4. Stop and start your session again. Now you could use `kubectl logs` to view your logs.
-
-{% highlight bash %}
-# Log all infos to the console
-appender.console.name = ConsoleAppender
-appender.console.type = CONSOLE
-appender.console.layout.type = PatternLayout
-appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
-{% endhighlight %}
-
-If the pod is running, you can use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
-
 ## Flink Kubernetes Application
 
 ### Start Flink Application
@@ -206,6 +186,29 @@ As always, Jobs may stop when manually canceled or, in the case of bounded Jobs,
 
 {% highlight bash %}
 $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
+{% endhighlight %}
+
+
+## Log Files
+
+By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
+The STDOUT and STDERR will only be redirected to the console. You can access them via `kubectl logs <PodName>`.
+
+If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
+
+## Using plugins
+
+In order to use [plugins]({{ site.baseurl }}/ops/plugins.html), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
+You can use the built-in plugins without mounting a volume or building a custom Docker image.
+For example, use the following command to pass the environment variable to enable the S3 plugin for your Flink application.
+
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
 
 ## Kubernetes concepts

@@ -317,8 +317,7 @@ public class CheckpointCoordinator {
 			this::rescheduleTrigger,
 			this.clock,
 			this.minPauseBetweenCheckpoints,
-			this.pendingCheckpoints::size,
-			this.lock);
+			this.pendingCheckpoints::size);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -498,9 +497,7 @@ public class CheckpointCoordinator {
 		}
 
 		CheckpointTriggerRequest request = new CheckpointTriggerRequest(props, externalSavepointLocation, isPeriodic, advanceToEndOfTime);
-		requestDecider
-			.chooseRequestToExecute(request, isTriggering, lastCheckpointCompletionRelativeTime)
-			.ifPresent(this::startTriggeringCheckpoint);
+		chooseRequestToExecute(request).ifPresent(this::startTriggeringCheckpoint);
 		return request.onCompletionPromise;
 	}
 
@@ -833,7 +830,19 @@ public class CheckpointCoordinator {
 	}
 
 	private void executeQueuedRequest() {
-		requestDecider.chooseQueuedRequestToExecute(isTriggering, lastCheckpointCompletionRelativeTime).ifPresent(this::startTriggeringCheckpoint);
+		chooseQueuedRequestToExecute().ifPresent(this::startTriggeringCheckpoint);
+	}
+
+	private Optional<CheckpointTriggerRequest> chooseQueuedRequestToExecute() {
+		synchronized (lock) {
+			return requestDecider.chooseQueuedRequestToExecute(isTriggering, lastCheckpointCompletionRelativeTime);
+		}
+	}
+
+	private Optional<CheckpointTriggerRequest> chooseRequestToExecute(CheckpointTriggerRequest request) {
+		synchronized (lock) {
+			return requestDecider.chooseRequestToExecute(request, isTriggering, lastCheckpointCompletionRelativeTime);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -878,7 +887,8 @@ public class CheckpointCoordinator {
 					checkpointId,
 					message.getTaskExecutionId(),
 					job,
-					taskManagerLocationInfo);
+					taskManagerLocationInfo,
+					message.getReason());
 				final CheckpointException checkpointException;
 				if (message.getReason() == null) {
 					checkpointException =
@@ -1412,7 +1422,9 @@ public class CheckpointCoordinator {
 	@Deprecated
 	@VisibleForTesting
 	PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {
-		return requestDecider.getTriggerRequestQueue();
+		synchronized (lock) {
+			return requestDecider.getTriggerRequestQueue();
+		}
 	}
 
 	public boolean isTriggering() {
@@ -1548,7 +1560,9 @@ public class CheckpointCoordinator {
 	}
 
 	int getNumQueuedRequests() {
-		return requestDecider.getNumQueuedRequests();
+		synchronized (lock) {
+			return requestDecider.getNumQueuedRequests();
+		}
 	}
 
 	// ------------------------------------------------------------------------

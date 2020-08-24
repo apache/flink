@@ -459,6 +459,8 @@ under the License.
 						<configuration>
 							<includes>
 								<include>**/DataStreamTestCollectSink.class</include>
+								<include>**/MyCustomSourceFunction.class</include>
+								<include>**/PartitionCustomTestMapFunction.class</include>
 							</includes>
 							<outputDirectory>
 								${project.build.directory}/data-stream-test

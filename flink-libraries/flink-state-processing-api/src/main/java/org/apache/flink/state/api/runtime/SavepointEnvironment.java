@@ -49,6 +49,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -95,7 +96,7 @@ public class SavepointEnvironment implements Environment {
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
 		this.jobID = new JobID();
 		this.vertexID = new JobVertexID();
-		this.attemptID = new ExecutionAttemptID();
+		this.attemptID = new ExecutionAttemptID(new ExecutionVertexID(vertexID, 0), 0);
 		this.ctx = Preconditions.checkNotNull(ctx);
 		this.configuration = Preconditions.checkNotNull(configuration);
 

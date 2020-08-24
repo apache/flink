@@ -48,7 +48,7 @@ public class ElasticsearchOptions {
 			.stringType()
 			.asList()
 			.noDefaultValue()
-			.withDescription("Elasticseatch hosts to connect to.");
+			.withDescription("Elasticsearch hosts to connect to.");
 	public static final ConfigOption<String> INDEX_OPTION =
 		ConfigOptions.key("index")
 			.stringType()

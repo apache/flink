@@ -20,6 +20,7 @@ import os
 from abc import ABC
 
 import pytz
+from apache_beam.typehints import typehints
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 
@@ -36,6 +37,8 @@ __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
 FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1"
+FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:map_function:v1"
+FLINK_FLAT_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:flatmap_function:v1"
 
 
 class BaseCoder(ABC):
@@ -108,7 +111,71 @@ class FlattenRowCoder(BaseCoder):
         return hash(self._field_coders)
 
 
+class DataStreamStatelessMapCoder(BaseCoder):
+    """
+    Coder for a DataStream Map Function input/output data.
+    """
+
+    def __init__(self, field_coders):
+        self._field_coders = field_coders
+
+    def get_impl(self):
+        return coder_impl.DataStreamStatelessMapCoderImpl(self._field_coders.get_impl())
+
+    @staticmethod
+    def from_type_info_proto(type_info_proto):
+        return DataStreamStatelessMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+
+    def __repr__(self):
+        return 'DataStreamStatelessMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
+
+
+class DataStreamStatelessFlatMapCoder(BaseCoder):
+    """
+    Coder for a DataStream FlatMap Function input/output data.
+    """
+
+    def __init__(self, field_codes):
+        self._field_coders = field_codes
+
+    def get_impl(self):
+        return coder_impl.DataStreamStatelessFlatMapCoderImpl(
+            DataStreamStatelessMapCoder(self._field_coders).get_impl())
+
+    @staticmethod
+    def from_type_info_proto(type_info_proto):
+        return DataStreamStatelessFlatMapCoder(from_type_info_proto(type_info_proto.field[0].type))
+
+    def __repr__(self):
+        return 'DataStreamStatelessFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
+
+
 class FieldCoder(ABC):
+
     def get_impl(self):
         pass
 
@@ -272,6 +339,15 @@ class DecimalCoder(FieldCoder):
         return coder_impl.DecimalCoderImpl(self.precision, self.scale)
 
 
+class BigDecimalCoder(FieldCoder):
+    """
+    Coder for Basic Decimal that no need to have precision and scale specified.
+    """
+
+    def get_impl(self):
+        return coder_impl.BigDecimalCoderImpl()
+
+
 class BinaryCoder(FieldCoder):
     """
     Coder for Byte Array.
@@ -333,6 +409,27 @@ class LocalZonedTimestampCoder(FieldCoder):
         return coder_impl.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
 
 
+class PickledBytesCoder(FieldCoder):
+
+    def get_impl(self):
+        return coder_impl.PickledBytesCoderImpl()
+
+
+class TupleCoder(FieldCoder):
+
+    def __init__(self, field_coders):
+        self._field_coders = field_coders
+
+    def get_impl(self):
+        return coder_impl.TupleCoderImpl([c.get_impl() for c in self._field_coders])
+
+    def to_type_hint(self):
+        return typehints.Tuple
+
+    def __repr__(self):
+        return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+
 type_name = flink_fn_execution_pb2.Schema
 _type_name_mappings = {
     type_name.TINYINT: TinyIntCoder(),
@@ -378,4 +475,42 @@ def from_proto(field_type):
         return DecimalCoder(field_type.decimal_info.precision,
                             field_type.decimal_info.scale)
     else:
+        raise ValueError("field_type %s is not supported." % field_type)
+
+
+# for data stream type information.
+type_info_name = flink_fn_execution_pb2.TypeInfo
+_type_info_name_mappings = {
+    type_info_name.STRING: CharCoder(),
+    type_info_name.BYTE: TinyIntCoder(),
+    type_info_name.BOOLEAN: BooleanCoder(),
+    type_info_name.SHORT: SmallIntCoder(),
+    type_info_name.INT: IntCoder(),
+    type_info_name.LONG: BigIntCoder(),
+    type_info_name.FLOAT: FloatCoder(),
+    type_info_name.DOUBLE: DoubleCoder(),
+    type_info_name.CHAR: CharCoder(),
+    type_info_name.BIG_INT: BigIntCoder(),
+    type_info_name.BIG_DEC: BigDecimalCoder(),
+    type_info_name.SQL_DATE: DateCoder(),
+    type_info_name.SQL_TIME: TimeCoder(),
+    type_info_name.SQL_TIMESTAMP: TimeCoder(),
+    type_info_name.PICKLED_BYTES: PickledBytesCoder()
+}
+
+
+def from_type_info_proto(field_type):
+    field_type_name = field_type.type_name
+    try:
+        return _type_info_name_mappings[field_type_name]
+    except KeyError:
+        if field_type_name == type_info_name.ROW:
+            return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field])
+
+        if field_type_name == type_info_name.ARRAY:
+            return ArrayCoder([from_type_info_proto(field_type.collection_element_type)])
+
+        if field_type_name == type_info_name.TUPLE:
+            return TupleCoder([from_type_info_proto(f.type)
+                               for f in field_type.tuple_type_info.field])
         raise ValueError("field_type %s is not supported." % field_type)

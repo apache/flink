@@ -23,7 +23,7 @@ from pandas.util.testing import assert_frame_equal
 from pyflink.table.types import DataTypes, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase
+    PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase, exec_insert_table
 
 
 class PandasConversionTestBase(object):
@@ -37,7 +37,7 @@ class PandasConversionTestBase(object):
                      datetime.datetime(1970, 1, 1, 0, 0, 0, 123000), ['hello', '中文'],
                      Row(a=1, b='hello', c=datetime.datetime(1970, 1, 1, 0, 0, 0, 123000),
                          d=[1, 2])),
-                    (2, 2, 2, 2, False, 2.1, 2.2, 'world', bytearray(b"bbb"),
+                    (1, 2, 2, 2, False, 2.1, 2.2, 'world', bytearray(b"bbb"),
                      decimal.Decimal('1000000000000000000.02'), datetime.date(2014, 9, 13),
                      datetime.time(hour=1, minute=0, second=1),
                      datetime.datetime(1970, 1, 1, 0, 0, 0, 123000), ['hello', '中文'],
@@ -118,13 +118,12 @@ class PandasConversionITTests(PandasConversionTestBase):
         table = self.t_env.from_pandas(self.pdf, self.data_type, 5)
         self.assertEqual(self.data_type, table.get_schema().to_row_data_type())
 
-        table = table.filter("f1 < 2")
+        table = table.filter("f2 < 2")
         table_sink = source_sink_utils.TestAppendSink(
             self.data_type.field_names(),
             self.data_type.field_types())
         self.t_env.register_table_sink("Results", table_sink)
-        table.insert_into("Results")
-        self.t_env.execute("test")
+        exec_insert_table(table, "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual,
                            ["1,1,1,1,true,1.1,1.2,hello,[97, 97, 97],"
@@ -142,6 +141,16 @@ class PandasConversionITTests(PandasConversionTestBase):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         pdf = table.filter("f1 < 0").to_pandas()
         self.assertTrue(pdf.empty)
+
+    def test_to_pandas_for_retract_table(self):
+        table = self.t_env.from_pandas(self.pdf, self.data_type)
+        result_pdf = table.group_by("f1").select("max(f2) as f2").to_pandas()
+        import pandas as pd
+        import numpy as np
+        assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int16([2])}))
+
+        result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
+        assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
 
 
 class StreamPandasConversionTests(PandasConversionITTests,

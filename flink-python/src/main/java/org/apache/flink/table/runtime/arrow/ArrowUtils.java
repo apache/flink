@@ -19,10 +19,13 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
+import org.apache.flink.table.api.internal.BatchTableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -31,6 +34,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.sinks.SelectTableSinkSchemaConverter;
 import org.apache.flink.table.runtime.arrow.readers.ArrayFieldReader;
@@ -120,7 +124,11 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.LinkedHashMultiset;
 
 import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.BufferAllocator;
@@ -620,13 +628,20 @@ public final class ArrowUtils {
 
 		ArrowWriter arrowWriter;
 		Iterator<Row> results = table.execute().collect();
+		Iterator<Row> appendOnlyResults;
+		if (isAppendOnlyTable(table)) {
+			appendOnlyResults = results;
+		} else {
+			appendOnlyResults = filterOutRetractRows(results);
+		}
+
 		Iterator convertedResults;
 		if (isBlinkPlanner(table)) {
 			arrowWriter = createRowDataArrowWriter(root, rowType);
 			convertedResults = new Iterator<RowData>() {
 				@Override
 				public boolean hasNext() {
-					return results.hasNext();
+					return appendOnlyResults.hasNext();
 				}
 
 				@Override
@@ -637,12 +652,12 @@ public final class ArrowUtils {
 						SelectTableSinkSchemaConverter.changeDefaultConversionClass(table.getSchema());
 					DataFormatConverters.DataFormatConverter converter =
 						DataFormatConverters.getConverterForDataType(convertedTableSchema.toRowDataType());
-					return (RowData) converter.toInternal(results.next());
+					return (RowData) converter.toInternal(appendOnlyResults.next());
 				}
 			};
 		} else {
 			arrowWriter = createRowArrowWriter(root, rowType);
-			convertedResults = results;
+			convertedResults = appendOnlyResults;
 		}
 
 		return new CustomIterator<byte[]>() {
@@ -679,6 +694,24 @@ public final class ArrowUtils {
 		};
 	}
 
+	private static Iterator<Row> filterOutRetractRows(Iterator<Row> data) {
+		LinkedHashMultiset<Row> result = LinkedHashMultiset.create();
+		while (data.hasNext()) {
+			Row element = data.next();
+			if (element.getKind() == RowKind.INSERT || element.getKind() == RowKind.UPDATE_AFTER) {
+				element.setKind(RowKind.INSERT);
+				result.add(element);
+			} else {
+				element.setKind(RowKind.INSERT);
+				if (!result.remove(element)) {
+					throw new RuntimeException(
+						String.format("Could not remove element '%s', should never happen.", element));
+				}
+			}
+		}
+		return result.iterator();
+	}
+
 	private static boolean isBlinkPlanner(Table table) {
 		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
 		if (tableEnv instanceof TableEnvImpl) {
@@ -688,8 +721,43 @@ public final class ArrowUtils {
 			return planner instanceof PlannerBase;
 		} else {
 			throw new RuntimeException(String.format(
-				"Could not determine the planner type for table environment class %s", tableEnv.getClass()));
+				"Could not determine the planner type for table environment class %s.", tableEnv.getClass()));
 		}
+	}
+
+	private static boolean isStreamingMode(Table table) throws Exception {
+		TableEnvironment tableEnv = ((TableImpl) table).getTableEnvironment();
+		if (tableEnv instanceof BatchTableEnvironment || tableEnv instanceof BatchTableEnvImpl) {
+			return false;
+		} else if (tableEnv instanceof TableEnvironmentImpl) {
+			java.lang.reflect.Field isStreamingModeMethod = TableEnvironmentImpl.class.getDeclaredField("isStreamingMode");
+			isStreamingModeMethod.setAccessible(true);
+			return (boolean) isStreamingModeMethod.get(tableEnv);
+		} else {
+			throw new RuntimeException(String.format(
+				"Could not determine the streaming mode for table environment class %s", tableEnv.getClass()));
+		}
+	}
+
+	private static boolean isAppendOnlyTable(Table table) throws Exception {
+		if (isStreamingMode(table)) {
+			TableEnvironmentImpl tableEnv = (TableEnvironmentImpl) ((TableImpl) table).getTableEnvironment();
+			try {
+				OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
+					table.getQueryOperation(),
+					TypeConversions.fromLegacyInfoToDataType(TypeExtractor.createTypeInfo(Row.class)),
+					OutputConversionModifyOperation.UpdateMode.APPEND);
+				tableEnv.getPlanner().translate(Collections.singletonList(modifyOperation));
+			} catch (Throwable t) {
+				if (t.getMessage().contains("doesn't support consuming update changes") ||
+						t.getMessage().contains("Table is not an append-only table")) {
+					return false;
+				} else {
+					throw new RuntimeException("Failed to determine whether the given table is append only.", t);
+				}
+			}
+		}
+		return true;
 	}
 
 	/**

@@ -101,7 +101,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		/**
 		 * Sets the maximum number of actions to buffer for each bulk request.
 		 *
-		 * @param numMaxActions the maxinum number of actions to buffer per bulk request.
+		 * @param numMaxActions the maximum number of actions to buffer per bulk request.
 		 */
 		public void setBulkFlushMaxActions(int numMaxActions) {
 			Preconditions.checkArgument(

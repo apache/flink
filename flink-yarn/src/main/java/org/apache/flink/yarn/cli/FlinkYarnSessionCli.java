@@ -39,6 +39,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -272,23 +273,25 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		return new Path(userPath);
 	}
 
-	private void encodeDirsToShipToCluster(final Configuration configuration, final CommandLine cmd) {
+	private void encodeFilesToShipToCluster(final Configuration configuration, final CommandLine cmd) throws ConfigurationException {
 		checkNotNull(cmd);
 		checkNotNull(configuration);
 
 		if (cmd.hasOption(shipPath.getOpt())) {
+			String[] shipFiles = cmd.getOptionValues(this.shipPath.getOpt());
+
+			for (String path : shipFiles) {
+				final File shipFile = new File(path);
+				if (!shipFile.exists()) {
+					throw new ConfigurationException("Ship file " + path + " does not exist");
+				}
+			}
+
 			ConfigUtils.encodeArrayToConfig(
 					configuration,
-					YarnConfigOptions.SHIP_DIRECTORIES,
-					cmd.getOptionValues(this.shipPath.getOpt()),
-					(String path) -> {
-						final File shipDir = new File(path);
-						if (shipDir.isDirectory()) {
-							return path;
-						}
-						LOG.warn("Ship directory {} is not a directory. Ignoring it.", shipDir.getAbsolutePath());
-						return null;
-					});
+					YarnConfigOptions.SHIP_FILES,
+					shipFiles,
+					f -> f);
 		}
 	}
 
@@ -392,7 +395,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		return null;
 	}
 
-	private void applyDescriptorOptionToConfig(final CommandLine commandLine, final Configuration configuration) {
+	private void applyDescriptorOptionToConfig(final CommandLine commandLine, final Configuration configuration) throws ConfigurationException {
 		checkNotNull(commandLine);
 		checkNotNull(configuration);
 
@@ -401,7 +404,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			configuration.setString(YarnConfigOptions.FLINK_DIST_JAR, localJarPath.toString());
 		}
 
-		encodeDirsToShipToCluster(configuration, commandLine);
+		encodeFilesToShipToCluster(configuration, commandLine);
 
 		if (commandLine.hasOption(queue.getOpt())) {
 			final String queueName = commandLine.getOptionValue(queue.getOpt());

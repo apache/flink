@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.rest.FileUploadHandler;
 import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
@@ -117,13 +118,10 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 		FileUploads uploadedFiles = null;
 		try {
-			synchronized (this) {
-				if (terminationFuture != null) {
-					log.debug("The handler instance for {} had already been closed.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
-					ctx.channel().close();
-					return;
-				}
-				inFlightRequestTracker.registerRequest();
+			if (!inFlightRequestTracker.registerRequest()) {
+				log.debug("The handler instance for {} had already been closed.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
+				ctx.channel().close();
+				return;
 			}
 
 			if (!(httpRequest instanceof FullHttpRequest)) {
@@ -211,6 +209,8 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	}
 
 	private CompletableFuture<Void> handleException(Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+		ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(throwable);
+
 		FlinkHttpObjectAggregator flinkHttpObjectAggregator = ctx.pipeline().get(FlinkHttpObjectAggregator.class);
 		if (flinkHttpObjectAggregator == null) {
 			log.warn("The connection was unexpectedly closed by the client.");

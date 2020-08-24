@@ -41,6 +41,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.DualKeyLinkedMap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -797,7 +798,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
-		log.debug("Register new TaskExecutor {}.", resourceID);
+		log.debug("Register new TaskExecutor {}.", resourceID.getStringWithMetadata());
 		return registeredTaskManagers.add(resourceID);
 	}
 

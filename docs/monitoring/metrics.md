@@ -404,7 +404,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
   @transient private var meter: Meter = _
 
   override def open(config: Configuration): Unit = {
-    com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter()
+    val dropwizardMeter: com.codahale.metrics.Meter = new com.codahale.metrics.Meter()
   
     meter = getRuntimeContext()
       .getMetricGroup()

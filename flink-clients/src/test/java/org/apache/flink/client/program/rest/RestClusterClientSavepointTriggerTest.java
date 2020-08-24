@@ -47,6 +47,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMess
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
+import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
@@ -237,10 +238,10 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 	private static RestServerEndpoint createRestServerEndpoint(
 			final FunctionWithException<SavepointTriggerRequestBody, TriggerId, RestHandlerException> triggerHandlerLogic,
 			final FunctionWithException<TriggerId, SavepointInfo, RestHandlerException> savepointHandlerLogic) throws Exception {
-		return TestRestServerEndpoint.createAndStartRestServerEndpoint(
-			restServerEndpointConfiguration,
-			new TestSavepointTriggerHandler(triggerHandlerLogic),
-			new TestSavepointHandler(savepointHandlerLogic));
+		return TestRestServerEndpoint.builder(restServerEndpointConfiguration)
+				.withHandler(new TestSavepointTriggerHandler(triggerHandlerLogic))
+				.withHandler(new TestSavepointHandler(savepointHandlerLogic))
+				.buildAndStart();
 	}
 
 	private static final class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, TriggerResponse, SavepointTriggerMessageParameters> {

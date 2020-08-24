@@ -18,6 +18,7 @@
 
 import datetime
 import decimal
+import pickle
 import struct
 from typing import Any
 from typing import Generator
@@ -186,6 +187,67 @@ class ArrayCoderImpl(StreamCoderImpl):
         return 'ArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
+class PickledBytesCoderImpl(StreamCoderImpl):
+
+    def __init__(self):
+        self.field_coder = BinaryCoderImpl()
+
+    def encode_to_stream(self, value, out_stream, nested):
+        coded_data = pickle.dumps(value)
+        self.field_coder.encode_to_stream(coded_data, out_stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        return self._decode_one_value_from_stream(in_stream, nested)
+
+    def _decode_one_value_from_stream(self, in_stream: create_InputStream, nested):
+        real_data = self.field_coder.decode_from_stream(in_stream, nested)
+        value = pickle.loads(real_data)
+        return value
+
+    def __repr__(self) -> str:
+        return 'PickledBytesCoderImpl[%s]' % str(self.field_coder)
+
+
+class DataStreamStatelessMapCoderImpl(StreamCoderImpl):
+
+    def __init__(self, field_coder):
+        self._field_coder = field_coder
+        self.data_out_stream = create_OutputStream()
+
+    def encode_to_stream(self, iter_value, stream,
+                         nested):  # type: (Any, create_OutputStream, bool) -> None
+        data_out_stream = self.data_out_stream
+        for value in iter_value:
+            self._field_coder.encode_to_stream(value, data_out_stream, nested)
+            stream.write_var_int64(data_out_stream.size())
+            stream.write(data_out_stream.get())
+            data_out_stream._clear()
+
+    def decode_from_stream(self, stream, nested):  # type: (create_InputStream, bool) -> Any
+        while stream.size() > 0:
+            stream.read_var_int64()
+            yield self._field_coder.decode_from_stream(stream, nested)
+
+    def __repr__(self):
+        return 'DataStreamStatelessMapCoderImpl[%s]' % repr(self._field_coder)
+
+
+class DataStreamStatelessFlatMapCoderImpl(StreamCoderImpl):
+    def __init__(self, field_coder):
+        self._field_coder = field_coder
+
+    def encode_to_stream(self, iter_value, stream,
+                         nested):  # type: (Any, create_OutputStream, bool) -> None
+        for value in iter_value:
+            self._field_coder.encode_to_stream(value, stream, nested)
+
+    def decode_from_stream(self, stream, nested):
+        return self._field_coder.decode_from_stream(stream, nested)
+
+    def __str__(self) -> str:
+        return 'DataStreamStatelessFlatMapCoderImpl[%s]' % repr(self._field_coder)
+
+
 class MapCoderImpl(StreamCoderImpl):
 
     def __init__(self, key_coder, value_coder):
@@ -303,6 +365,38 @@ class DecimalCoderImpl(StreamCoderImpl):
         value = decimal.Decimal(in_stream.read(size).decode("utf-8")).quantize(self.scale_format)
         decimal.setcontext(user_context)
         return value
+
+
+class BigDecimalCoderImpl(StreamCoderImpl):
+
+    def encode_to_stream(self, value, stream, nested):
+        bytes_value = str(value).encode("utf-8")
+        stream.write_bigendian_int32(len(bytes_value))
+        stream.write(bytes_value, False)
+
+    def decode_from_stream(self, stream, nested):
+        size = stream.read_bigendian_int32()
+        value = decimal.Decimal(stream.read(size).decode("utf-8"))
+        return value
+
+
+class TupleCoderImpl(StreamCoderImpl):
+    def __init__(self, field_coders):
+        self._field_coders = field_coders
+        self._field_count = len(field_coders)
+
+    def encode_to_stream(self, value, out_stream, nested):
+        field_coders = self._field_coders
+        for i in range(self._field_count):
+            field_coders[i].encode_to_stream(value[i], out_stream, nested)
+
+    def decode_from_stream(self, stream, nested):
+        decoded_list = [field_coder.decode_from_stream(stream, nested)
+                        for field_coder in self._field_coders]
+        return (*decoded_list,)
+
+    def __repr__(self) -> str:
+        return 'TupleCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
 class BinaryCoderImpl(StreamCoderImpl):

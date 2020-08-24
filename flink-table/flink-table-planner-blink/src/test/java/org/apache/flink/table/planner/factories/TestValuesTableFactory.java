@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
@@ -40,19 +41,14 @@ import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncTableFunction;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingOutputFormat;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AppendingSinkFunction;
@@ -60,13 +56,13 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Async
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.KeyedUpsertingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.RetractingSinkFunction;
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
+import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -79,14 +75,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import scala.collection.Seq;
 
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -243,6 +240,15 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
+	/**
+	 * Parse partition list from Options with the format as "key1:val1,key2:val2;key1:val3,key2:val4".
+	 */
+	private static final ConfigOption<List<String>> PARTITION_LIST = ConfigOptions
+		.key("partition-list")
+		.stringType()
+		.asList()
+		.defaultValues();
+
 	@Override
 	public String factoryIdentifier() {
 		return IDENTIFIER;
@@ -261,26 +267,38 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
-
 		Set<String> filterableFieldsSet = new HashSet<>();
-		filterableFields.ifPresent(elements -> filterableFieldsSet.addAll(elements));
+		filterableFields.ifPresent(filterableFieldsSet::addAll);
 
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
+			List<Map<String, String>> partitions = parsePartitionList(helper.getOptions().get(PARTITION_LIST));
 			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+			// pushing project into scan will prune schema and we have to get the mapping between partition and row
+			Map<Map<String, String>, Collection<Row>> partition2Rows;
+			if (!partitions.isEmpty()) {
+				partition2Rows = mapPartitionToRow(physicalSchema, data, partitions);
+			} else {
+				// put all data into one partition
+				partitions = Collections.emptyList();
+				partition2Rows = new HashMap<>();
+				partition2Rows.put(Collections.emptyMap(), data);
+			}
+
 			return new TestValuesTableSource(
 				physicalSchema,
 				changelogMode,
 				isBounded,
 				runtimeSource,
-				data,
+				partition2Rows,
 				isAsync,
 				lookupFunctionClass,
 				nestedProjectionSupported,
 				null,
-				null,
+				Collections.emptyList(),
 				filterableFieldsSet,
-				Long.MAX_VALUE);
+				Long.MAX_VALUE,
+				partitions);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -288,7 +306,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					DynamicTableSource.class,
 					Thread.currentThread().getContextClassLoader());
 			} catch (FlinkException e) {
-				throw new RuntimeException("Can't instantiate class " + sourceClass, e);
+				throw new TableException("Can't instantiate class " + sourceClass, e);
 			}
 		}
 	}
@@ -328,7 +346,60 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			RUNTIME_SINK,
 			SINK_EXPECTED_MESSAGES_NUM,
 			NESTED_PROJECTION_SUPPORTED,
-			FILTERABLE_FIELDS));
+			FILTERABLE_FIELDS,
+			PARTITION_LIST));
+	}
+
+	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
+		return stringPartitions.stream().map(
+			partition -> {
+				Map<String, String> spec = new HashMap<>();
+				Arrays.stream(partition.split(",")).forEach(pair -> {
+					String[] split = pair.split(":");
+					spec.put(split[0].trim(), split[1].trim());
+				});
+				return spec;
+			}).collect(Collectors.toList());
+	}
+
+	private static Map<Map<String, String>, Collection<Row>> mapPartitionToRow(
+			TableSchema schema,
+			Collection<Row> rows,
+			List<Map<String, String>> partitions) {
+		Map<Map<String, String>, Collection<Row>> map = new HashMap<>();
+		for (Map<String, String> partition: partitions) {
+			map.put(partition, new ArrayList<>());
+		}
+		String[] fieldnames = schema.getFieldNames();
+		for (Row row: rows) {
+			for (Map<String, String> partition: partitions) {
+				boolean match = true;
+				for (Map.Entry<String, String> entry: partition.entrySet()) {
+					int index = Arrays.asList(fieldnames).indexOf(entry.getKey());
+					if (index < 0) {
+						throw new IllegalArgumentException(
+							String.format("Illegal partition list: partition key %s is not found in schema.", entry.getKey()));
+					}
+					if (entry.getValue() != null) {
+						if (row.getField(index) == null) {
+							match = false;
+						} else {
+							match = entry.getValue().equals(Objects.requireNonNull(row.getField(index)).toString());
+						}
+					} else {
+						match = row.getField(index) == null;
+					}
+					if (!match) {
+						break;
+					}
+				}
+				if (match) {
+					map.get(partition).add(row);
+					break;
+				}
+			}
+		}
+		return map;
 	}
 
 	private ChangelogMode parseChangelogMode(String string) {
@@ -365,13 +436,14 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		LookupTableSource,
 		SupportsProjectionPushDown,
 		SupportsFilterPushDown,
-		SupportsLimitPushDown {
+		SupportsLimitPushDown,
+		SupportsPartitionPushDown{
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private final Collection<Row> data;
+		private Map<Map<String, String>, Collection<Row>> data;
 		private final boolean isAsync;
 		private final @Nullable String lookupFunctionClass;
 		private final boolean nestedProjectionSupported;
@@ -379,20 +451,22 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
 		private long limit;
+		private List<Map<String, String>> allPartitions;
 
 		private TestValuesTableSource(
 				TableSchema physicalSchema,
 				ChangelogMode changelogMode,
 				boolean bounded,
 				String runtimeSource,
-				Collection<Row> data,
+				Map<Map<String, String>, Collection<Row>> data,
 				boolean isAsync,
 				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
 				int[] projectedFields,
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
-				long limit) {
+				long limit,
+				List<Map<String, String>> allPartitions) {
 			this.physicalSchema = physicalSchema;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
@@ -405,6 +479,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
 			this.limit = limit;
+			this.allPartitions = allPartitions;
 		}
 
 		@Override
@@ -428,7 +503,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 						new FromElementsFunction<>(serializer, values),
 						bounded);
 				} catch (IOException e) {
-					throw new RuntimeException(e);
+					throw new TableException("Fail to init source function", e);
 				}
 			} else if (runtimeSource.equals("InputFormat")) {
 				return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
@@ -459,7 +534,14 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				.mapToInt(k -> k[0])
 				.toArray();
 			Map<Row, List<Row>> mapping = new HashMap<>();
-			data.forEach(record -> {
+			Collection<Row> rows;
+			if (allPartitions.equals(Collections.EMPTY_LIST)) {
+				rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
+			} else {
+				rows = new ArrayList<>();
+				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
+			}
+			rows.forEach(record -> {
 				Row key = Row.of(Arrays.stream(lookupIndices)
 					.mapToObj(record::getField)
 					.toArray());
@@ -495,7 +577,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			List<ResolvedExpression> acceptedFilters = new ArrayList<>();
 			List<ResolvedExpression> remainingFilters = new ArrayList<>();
 			for (ResolvedExpression expr : filters) {
-				if (shouldPushDown(expr)) {
+				if (FilterUtils.shouldPushDown(expr, filterableFields)) {
 					acceptedFilters.add(expr);
 				} else {
 					remainingFilters.add(expr);
@@ -505,105 +587,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return Result.of(acceptedFilters, remainingFilters);
 		}
 
-		private boolean shouldPushDown(Expression expr) {
-			if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
-				return shouldPushDownUnaryExpression(((CallExpression) expr).getResolvedChildren().get(0))
-					&& shouldPushDownUnaryExpression(((CallExpression) expr).getResolvedChildren().get(1));
-			}
-			return false;
-		}
-
-		private boolean shouldPushDownUnaryExpression(ResolvedExpression expr) {
-			// validate that type is comparable
-			if (!isComparable(expr.getOutputDataType().getConversionClass())) {
-				return false;
-			}
-			if (expr instanceof FieldReferenceExpression) {
-				if (filterableFields.contains(((FieldReferenceExpression) expr).getName())) {
-					return true;
-				}
-			}
-
-			if (expr instanceof ValueLiteralExpression) {
-				return true;
-			}
-
-			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
-					|| ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
-					return shouldPushDownUnaryExpression(expr.getResolvedChildren().get(0));
-				}
-			}
-			// other resolved expressions return false
-			return false;
-		}
-
-		private boolean isRetainedAfterApplyingFilterPredicates(Row row) {
-			if (filterPredicates == null) {
-				return true;
-			}
-			for (ResolvedExpression expr : filterPredicates) {
-				if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
-					if (!binaryFilterApplies((CallExpression) expr, row)) {
-						return false;
-					}
-				} else {
-					throw new RuntimeException(expr + " not supported!");
-				}
-			}
-			return true;
-		}
-
-		private boolean binaryFilterApplies(CallExpression binExpr, Row row) {
-			List<Expression> children = binExpr.getChildren();
-			Preconditions.checkArgument(children.size() == 2);
-			Comparable lhsValue = getValue(children.get(0), row);
-			Comparable rhsValue = getValue(children.get(1), row);
-			FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) > 0;
-			} else if (BuiltInFunctionDefinitions.LESS_THAN.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) < 0;
-			} else if (BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) >= 0;
-			} else if (BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) <= 0;
-			} else if (BuiltInFunctionDefinitions.EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) == 0;
-			} else if (BuiltInFunctionDefinitions.NOT_EQUALS.equals(functionDefinition)) {
-				return lhsValue.compareTo(rhsValue) != 0;
-			} else {
-				return false;
-			}
-		}
-
-		private boolean isComparable(Class<?> clazz) {
-			return Comparable.class.isAssignableFrom(clazz);
-		}
-
-		private Comparable<?> getValue(Expression expr, Row row) {
-			if (expr instanceof ValueLiteralExpression) {
-				Optional value = ((ValueLiteralExpression) expr).getValueAs(((ValueLiteralExpression) expr).getOutputDataType().getConversionClass());
-				return (Comparable<?>) value.orElse(null);
-			}
-
-			if (expr instanceof FieldReferenceExpression) {
-				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(((FieldReferenceExpression) expr).getName());
+		private Function<String, Comparable<?>> getValueGetter(Row row) {
+			return fieldName -> {
+				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(fieldName);
 				return (Comparable<?>) row.getField(idx);
-			}
-
-			if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
-				Object child = getValue(expr.getChildren().get(0), row);
-				FunctionDefinition functionDefinition = ((CallExpression) expr).getFunctionDefinition();
-				if (functionDefinition.equals(UPPER)) {
-					return child.toString().toUpperCase();
-				} else if (functionDefinition.equals(LOWER)) {
-					return child.toString().toLowerCase();
-				} else {
-					throw new RuntimeException(expr + " not supported!");
-				}
-			}
-			throw new RuntimeException(expr + " not supported!");
+			};
 		}
 
 		@Override
@@ -620,7 +608,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				projectedFields,
 				filterPredicates,
 				filterableFields,
-				limit);
+				limit,
+				allPartitions);
 		}
 
 		@Override
@@ -629,33 +618,71 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		private Collection<RowData> convertToRowData(
-				Collection<Row> data,
+				Map<Map<String, String>, Collection<Row>> data,
 				int[] projectedFields,
 				DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
-			for (Row value : data) {
-				if (result.size() >= limit) {
-					return result;
-				}
-				if (isRetainedAfterApplyingFilterPredicates(value)) {
-					Row projectedRow;
-					if (projectedFields == null) {
-						projectedRow = value;
-					} else {
-						Object[] newValues = new Object[projectedFields.length];
-						for (int i = 0; i < projectedFields.length; ++i) {
-							newValues[i] = value.getField(projectedFields[i]);
-						}
-						projectedRow = Row.of(newValues);
+			List<Map<String, String>> keys = allPartitions.isEmpty() ?
+				Collections.singletonList(Collections.emptyMap()) :
+				allPartitions;
+			for (Map<String, String> partition: keys) {
+				for (Row value : data.get(partition)) {
+					if (result.size() >= limit) {
+						return result;
 					}
-					RowData rowData = (RowData) converter.toInternal(projectedRow);
-					if (rowData != null) {
-						rowData.setRowKind(value.getKind());
-						result.add(rowData);
+					boolean isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates(
+						filterPredicates,
+						getValueGetter(value));
+					if (isRetained) {
+						Row projectedRow;
+						if (projectedFields == null) {
+							projectedRow = value;
+						} else {
+							Object[] newValues = new Object[projectedFields.length];
+							for (int i = 0; i < projectedFields.length; ++i) {
+								newValues[i] = value.getField(projectedFields[i]);
+							}
+							projectedRow = Row.of(newValues);
+						}
+						RowData rowData = (RowData) converter.toInternal(projectedRow);
+						if (rowData != null) {
+							rowData.setRowKind(value.getKind());
+							result.add(rowData);
+						}
 					}
 				}
 			}
 			return result;
+		}
+
+		@Override
+		public Optional<List<Map<String, String>>> listPartitions() {
+			if (allPartitions.isEmpty()) {
+				throw new UnsupportedOperationException("Please use catalog to read partitions");
+			}
+			return Optional.of(allPartitions);
+		}
+
+		@Override
+		public void applyPartitions(List<Map<String, String>> remainingPartitions) {
+			// remainingPartition is non-nullable.
+			if (allPartitions.isEmpty()) {
+				// read partitions from catalog
+				if (!remainingPartitions.isEmpty()) {
+					// map data into partitions
+					this.allPartitions = remainingPartitions;
+					this.data = mapPartitionToRow(physicalSchema, data.get(Collections.EMPTY_MAP), remainingPartitions);
+				} else {
+					// we will read data from Collections.emptyList() if allPartitions is empty.
+					// therefore, we should clear all data manually.
+					this.data.put(Collections.emptyMap(), Collections.emptyList());
+				}
+			} else {
+				this.allPartitions = remainingPartitions;
+				if (remainingPartitions.isEmpty()) {
+					this.data.put(Collections.emptyMap(), Collections.emptyList());
+				}
+			}
 		}
 
 		@Override
@@ -820,5 +847,4 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return "TestValues";
 		}
 	}
-
 }

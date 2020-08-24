@@ -216,7 +216,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		this.executor = checkNotNull(executor);
 		this.vertex = checkNotNull(vertex);
-		this.attemptId = new ExecutionAttemptID();
+		this.attemptId = new ExecutionAttemptID(vertex.getID(), attemptNumber);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 
 		this.globalModVersion = globalModVersion;

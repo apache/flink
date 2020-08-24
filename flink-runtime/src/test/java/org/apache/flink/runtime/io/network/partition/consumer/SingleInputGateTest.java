@@ -955,6 +955,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.setChannelIndex(0)
 			.setupFromNettyShuffleEnvironment(network)
 			.setConnectionManager(new TestingConnectionManager())
+			.setNetworkBuffersPerChannel(0)
 			.buildRemoteChannel(inputGate);
 
 		List<Buffer> inflightBuffers = new ArrayList<>();

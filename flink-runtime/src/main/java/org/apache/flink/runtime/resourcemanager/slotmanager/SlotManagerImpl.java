@@ -437,7 +437,7 @@ public class SlotManagerImpl implements SlotManager {
 	public boolean registerTaskManager(final TaskExecutorConnection taskExecutorConnection, SlotReport initialSlotReport) {
 		checkInit();
 
-		LOG.debug("Registering TaskManager {} under {} at the SlotManager.", taskExecutorConnection.getResourceID(), taskExecutorConnection.getInstanceID());
+		LOG.debug("Registering TaskManager {} under {} at the SlotManager.", taskExecutorConnection.getResourceID().getStringWithMetadata(), taskExecutorConnection.getInstanceID());
 
 		// we identify task managers by their instance id
 		if (taskManagerRegistrations.containsKey(taskExecutorConnection.getInstanceID())) {
@@ -1255,7 +1255,10 @@ public class SlotManagerImpl implements SlotManager {
 			}
 
 			int slotsDiff = redundantTaskManagerNum * numSlotsPerWorker - freeSlots.size();
-			if (slotsDiff > 0) {
+			if (freeSlots.size() == slots.size()) {
+				// No need to keep redundant taskManagers if no job is running.
+				releaseTaskExecutors(timedOutTaskManagers, timedOutTaskManagers.size());
+			} else if (slotsDiff > 0) {
 				// Keep enough redundant taskManagers from time to time.
 				int requiredTaskManagers = MathUtils.divideRoundUp(slotsDiff, numSlotsPerWorker);
 				allocateRedundantTaskManagers(requiredTaskManagers);

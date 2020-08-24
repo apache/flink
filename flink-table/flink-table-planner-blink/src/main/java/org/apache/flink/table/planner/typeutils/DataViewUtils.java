@@ -104,6 +104,31 @@ public final class DataViewUtils {
 		return DataTypeUtils.transform(accumulatorDataType, DataViewsTransformation.INSTANCE);
 	}
 
+	/**
+	 * Creates a special {@link DataType} for DISTINCT aggregates.
+	 */
+	public static DataType createDistinctViewDataType(DataType keyDataType, int filterArgs, int filterArgsLimit) {
+		final DataType valueDataType;
+		if (filterArgs <= filterArgsLimit) {
+			valueDataType = DataTypes.BIGINT().notNull();
+		} else {
+			valueDataType = DataTypes.ARRAY(DataTypes.BIGINT().notNull()).bridgedTo(long[].class);
+		}
+		return MapView.newMapViewDataType(keyDataType, valueDataType);
+	}
+
+	/**
+	 * Creates a special {@link DistinctViewSpec} for DISTINCT aggregates.
+	 */
+	public static DistinctViewSpec createDistinctViewSpec(int index, DataType distinctViewDataType) {
+		return new DistinctViewSpec(
+			"distinctAcc_" + index,
+			distinctViewDataType
+		);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
 	private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
 		return hasRoot(t, LogicalTypeRoot.STRUCTURED_TYPE) &&
 			((StructuredType) t).getImplementationClass().map(viewClass::isAssignableFrom).orElse(false);
@@ -245,6 +270,24 @@ public final class DataViewUtils {
 
 		public boolean containsNullKey() {
 			return containsNullKey;
+		}
+	}
+
+	/**
+	 * Specification for a special {@link MapView} for deduplication.
+	 */
+	public static class DistinctViewSpec extends MapViewSpec {
+
+		// stores the entire view data type for off-heap operations
+		private final DataType distinctViewDataType;
+
+		public DistinctViewSpec(String stateId, DataType distinctViewDataType) {
+			super(stateId, -1, distinctViewDataType.getChildren().get(0), true); // handles null keys
+			this.distinctViewDataType = distinctViewDataType;
+		}
+
+		public DataType getDistinctViewDataType() {
+			return distinctViewDataType;
 		}
 	}
 

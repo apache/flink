@@ -20,11 +20,13 @@ import datetime
 import cloudpickle
 from typing import Any, Tuple, Dict, List
 
+from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
 
 _func_num = 0
 _constant_num = 0
@@ -83,6 +85,44 @@ def _extract_input(args) -> Tuple[str, Dict, List]:
             args_str.append(constant_value_name)
             local_variable_dict[constant_value_name] = parsed_constant_value
     return ",".join(args_str), local_variable_dict, local_funcs
+
+
+def extract_data_stream_stateless_funcs(udfs):
+    """
+    Extracts user-defined-function from the proto representation of a
+    :class:`Function`.
+
+    :param udfs: the proto representation of the Python
+    :class:`Function`
+    """
+    func_type = udfs[0].functionType
+    udf = flink_fn_execution_pb2.UserDefinedDataStreamFunction
+    func = None
+    if func_type == udf.MAP:
+        func = cloudpickle.loads(udfs[0].payload).map
+    elif func_type == udf.FLAT_MAP:
+        func = cloudpickle.loads(udfs[0].payload).flat_map
+    elif func_type == udf.REDUCE:
+        reduce_func = cloudpickle.loads(udfs[0].payload).reduce
+
+        def wrap_func(value):
+            return reduce_func(value[0], value[1])
+        func = wrap_func
+    elif func_type == udf.CO_MAP:
+        co_map_func = cloudpickle.loads(udfs[0].payload)
+
+        def wrap_func(value):
+            return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
+        func = wrap_func
+    elif func_type == udf.CO_FLAT_MAP:
+        co_flat_map_func = cloudpickle.loads(udfs[0].payload)
+
+        def wrap_func(value):
+            return co_flat_map_func.flat_map1(
+                value[1]) if value[0] else co_flat_map_func.flat_map2(
+                value[2])
+        func = wrap_func
+    return func
 
 
 def _parse_constant_value(constant_value) -> Tuple[str, Any]:
