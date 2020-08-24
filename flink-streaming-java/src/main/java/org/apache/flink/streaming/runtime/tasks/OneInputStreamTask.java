@@ -107,7 +107,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			getCheckpointCoordinator(),
 			inputGates,
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			getTaskNameWithSubtaskAndId());
+			getTaskNameWithSubtaskAndId(),
+			mainMailboxExecutor);
 	}
 
 	private DataOutput<IN> createDataOutput() {
