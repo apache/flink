@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ExternalResourceOptions;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.util.List;
@@ -220,6 +222,27 @@ public class KubernetesConfigOptions {
 
 	/** Defines the configuration key of that external resource in Kubernetes. This is used as a suffix in an actual config. */
 	public static final String EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX = "kubernetes.config-key";
+
+	public static final ConfigOption<Map<String, String>> KUBERNETES_SECRETS =
+		key("kubernetes.secrets")
+			.mapType()
+			.noDefaultValue()
+			.withDescription(
+				Description.builder()
+					.text("The user-specified secrets that will be mounted into Flink container. The value should be in " +
+						"the form of %s.", TextElement.code("foo:/opt/secrets-foo,bar:/opt/secrets-bar"))
+					.build());
+
+	public static final ConfigOption<List<Map<String, String>>> KUBERNETES_ENV_SECRET_KEY_REF =
+		key("kubernetes.env.secretKeyRef")
+			.mapType()
+			.asList()
+			.noDefaultValue()
+			.withDescription(
+				Description.builder()
+					.text("The user-specified secrets to set env variables in Flink container. The value should be in " +
+						"the form of %s.", TextElement.code("env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key"))
+					.build());
 
 	/**
 	 * If configured, Flink will add "resources.limits.&gt;config-key&lt;" and "resources.requests.&gt;config-key&lt;" to the main
