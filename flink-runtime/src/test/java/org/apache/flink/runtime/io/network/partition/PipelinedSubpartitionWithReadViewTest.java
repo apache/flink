@@ -336,8 +336,8 @@ public class PipelinedSubpartitionWithReadViewTest {
 			true);
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
 		subpartition.add(barrierBuffer);
-		assertEquals(2, availablityListener.getNumNotifications());
-		assertEquals(0, availablityListener.getNumPriorityEvents());
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
 
 		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
 		assertEquals(Arrays.asList(1, 2, 4), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
@@ -348,6 +348,32 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertNextBuffer(readView, 2, true, 0, true, true);
 		assertNextEvent(readView, eventBuffer.getWrittenBytes(), EndOfSuperstepEvent.class, false, 0, false, true);
 		assertNextBuffer(readView, 4, false, 0, false, true);
+		assertNoNextBuffer(readView);
+	}
+
+	@Test
+	public void testAvailabilityAfterPriority() throws Exception {
+		CheckpointOptions options = new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
+			true,
+			true);
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+		subpartition.add(barrierBuffer);
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(1));
+		assertEquals(2, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(2));
+		assertEquals(2, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		assertNextEvent(readView, barrierBuffer.getWrittenBytes(), CheckpointBarrier.class, true, 1, false, true);
+		assertNextBuffer(readView, 1, false, 0, false, true);
+		assertNextBuffer(readView, 2, false, 0, false, true);
 		assertNoNextBuffer(readView);
 	}
 

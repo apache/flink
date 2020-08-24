@@ -143,6 +143,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 		checkNotNull(bufferConsumer);
 
 		final boolean notifyDataAvailable;
+		int prioritySequenceNumber = -1;
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
 				bufferConsumer.close();
@@ -150,14 +151,19 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 			}
 
 			// Add the bufferConsumer and update the stats
-			final boolean insertAsHead = addBuffer(bufferConsumer);
+			if (addBuffer(bufferConsumer)) {
+				prioritySequenceNumber = sequenceNumber;
+			}
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
-			notifyDataAvailable = insertAsHead || finish || shouldNotifyDataAvailable();
+			notifyDataAvailable = finish || shouldNotifyDataAvailable();
 
 			isFinished |= finish;
 		}
 
+		if (prioritySequenceNumber != -1) {
+			notifyPriorityEvent(prioritySequenceNumber);
+		}
 		if (notifyDataAvailable) {
 			notifyDataAvailable();
 		}
@@ -308,7 +314,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	}
 
 	@Override
-	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) {
 		synchronized (buffers) {
 			checkState(!isReleased);
 			checkState(readView == null,
@@ -467,6 +473,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	private void notifyDataAvailable() {
 		if (readView != null) {
 			readView.notifyDataAvailable();
+		}
+	}
+
+	private void notifyPriorityEvent(int prioritySequenceNumber) {
+		if (readView != null) {
+			readView.notifyPriorityEvent(prioritySequenceNumber);
 		}
 	}
 
