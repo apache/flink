@@ -101,6 +101,7 @@ public class SourceOperatorTest {
 		finally {
 			operator.close();
 		}
+		assertTrue(mockSourceReader.isClosed());
 	}
 
 	@Test
