@@ -387,12 +387,12 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 		// Test
 		inputChannels[0].readBuffer();
-		inputChannels[0].readBuffer(false);
+		inputChannels[0].readEndOfPartitionEvent();
 
 		inputGate.notifyChannelNonEmpty(inputChannels[0]);
 
 		verifyBufferOrEvent(inputGate, true, 0, true);
-		verifyBufferOrEvent(inputGate, true, 0, false);
+		verifyBufferOrEvent(inputGate, false, 0, false);
 	}
 
 	@Test

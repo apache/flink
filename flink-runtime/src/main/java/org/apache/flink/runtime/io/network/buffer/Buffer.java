@@ -245,34 +245,41 @@ public interface Buffer {
 	 */
 	enum DataType {
 		/**
+		 * Flag value indicating that there is no buffer.
+		 */
+		NONE(false, false, false, false),
+
+		/**
 		 * DATA_BUFFER indicates that this buffer represents a non-event data buffer.
 		 */
-		DATA_BUFFER(true, false, false),
+		DATA_BUFFER(true, false, false, false),
 
 		/**
 		 * EVENT_BUFFER indicates that this buffer represents serialized data of an event.
 		 * Note that this type can be further divided into more fine-grained event types
 		 * like {@link #ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER} and etc.
 		 */
-		EVENT_BUFFER(false, false, false),
+		EVENT_BUFFER(false, true, false, false),
 
 		/**
 		 * Same as EVENT_BUFFER, but the event has been prioritized (e.g. it skipped buffers).
 		 */
-		PRIORITIZED_EVENT_BUFFER(false, false, true),
+		PRIORITIZED_EVENT_BUFFER(false, true, false, true),
 
 		/**
 		 * ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER indicates that this buffer represents a
 		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode.
 		 */
-		ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true, false);
+		ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true, true, false);
 
 		private final boolean isBuffer;
+		private final boolean isEvent;
 		private final boolean isBlockingUpstream;
 		private final boolean hasPriority;
 
-		DataType(boolean isBuffer, boolean isBlockingUpstream, boolean hasPriority) {
+		DataType(boolean isBuffer, boolean isEvent, boolean isBlockingUpstream, boolean hasPriority) {
 			this.isBuffer = isBuffer;
+			this.isEvent = isEvent;
 			this.isBlockingUpstream = isBlockingUpstream;
 			this.hasPriority = hasPriority;
 		}
@@ -282,7 +289,7 @@ public interface Buffer {
 		}
 
 		public boolean isEvent() {
-			return !isBuffer;
+			return isEvent;
 		}
 
 		public boolean hasPriority() {

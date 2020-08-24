@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -86,14 +87,15 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 					hasData = inputIterator.next(reuse) != null;
 
 					// Call getCurrentBuffer to ensure size is set
-					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), true, 0));
+					final Buffer.DataType nextDataType = hasData ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), nextDataType, 0));
 				} else {
 					inputChannel.setReleased();
 
 					return Optional.of(
 						new BufferAndAvailability(
 							EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
-							false,
+							Buffer.DataType.NONE,
 							0));
 				}
 			}

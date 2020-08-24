@@ -312,12 +312,12 @@ public abstract class InputChannel {
 	public static final class BufferAndAvailability {
 
 		private final Buffer buffer;
-		private final boolean moreAvailable;
+		private final Buffer.DataType nextDataType;
 		private final int buffersInBacklog;
 
-		public BufferAndAvailability(Buffer buffer, boolean moreAvailable, int buffersInBacklog) {
+		public BufferAndAvailability(Buffer buffer, Buffer.DataType nextDataType, int buffersInBacklog) {
 			this.buffer = checkNotNull(buffer);
-			this.moreAvailable = moreAvailable;
+			this.nextDataType = checkNotNull(nextDataType);
 			this.buffersInBacklog = buffersInBacklog;
 		}
 
@@ -326,11 +326,28 @@ public abstract class InputChannel {
 		}
 
 		public boolean moreAvailable() {
-			return moreAvailable;
+			return nextDataType != Buffer.DataType.NONE;
+		}
+
+		public boolean morePriorityEvents() {
+			return nextDataType.hasPriority();
 		}
 
 		public int buffersInBacklog() {
 			return buffersInBacklog;
+		}
+
+		public boolean hasPriority() {
+			return buffer.getDataType().hasPriority();
+		}
+
+		@Override
+		public String toString() {
+			return "BufferAndAvailability{" +
+				"buffer=" + buffer +
+				", nextDataType=" + nextDataType +
+				", buffersInBacklog=" + buffersInBacklog +
+				'}';
 		}
 	}
 }

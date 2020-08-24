@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -90,14 +91,17 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			final BufferAndAvailabilityProvider answer = () -> {
 				ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
 				InputValue<Object> input;
-				boolean moreAvailable;
+				Buffer.DataType nextType;
 				synchronized (inputQueue) {
 					input = inputQueue.poll();
-					moreAvailable = !inputQueue.isEmpty();
+					nextType = !inputQueue.isEmpty() ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.NONE;
 				}
 				if (input != null && input.isStreamEnd()) {
 					inputChannels[channelIndex].setReleased();
-					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), moreAvailable, 0));
+					return Optional.of(new BufferAndAvailability(
+						EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+						nextType,
+						0));
 				} else if (input != null && input.isStreamRecord()) {
 					Object inputElement = input.getStreamRecord();
 
@@ -109,14 +113,14 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					bufferBuilder.finish();
 
 					// Call getCurrentBuffer to ensure size is set
-					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), moreAvailable, 0));
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), nextType, 0));
 				} else if (input != null && input.isEvent()) {
 					AbstractEvent event = input.getEvent();
 					if (event instanceof EndOfPartitionEvent) {
 						inputChannels[channelIndex].setReleased();
 					}
 
-					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event, false), moreAvailable, 0));
+					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event, false), nextType, 0));
 				} else {
 					return Optional.empty();
 				}
