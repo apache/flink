@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -46,13 +47,15 @@ public class InputProcessorUtil {
 			SubtaskCheckpointCoordinator checkpointCoordinator,
 			IndexedInputGate[] inputGates,
 			TaskIOMetricGroup taskIOMetricGroup,
-			String taskName) {
+			String taskName,
+			MailboxExecutor mailboxExecutor) {
 		CheckpointedInputGate[] checkpointedInputGates = createCheckpointedMultipleInputGate(
 			toNotifyOnCheckpoint,
 			config,
 			checkpointCoordinator,
 			taskIOMetricGroup,
 			taskName,
+			mailboxExecutor,
 			Arrays.asList(inputGates));
 		return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
 	}
@@ -67,6 +70,7 @@ public class InputProcessorUtil {
 			SubtaskCheckpointCoordinator checkpointCoordinator,
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
+			MailboxExecutor mailboxExecutor,
 			List<IndexedInputGate>... inputGates) {
 
 		IndexedInputGate[] sortedInputGates = Arrays.stream(inputGates)
@@ -84,14 +88,9 @@ public class InputProcessorUtil {
 		InputGate[] unionedInputGates = Arrays.stream(inputGates)
 			.map(InputGateUtil::createInputGate)
 			.toArray(InputGate[]::new);
-		barrierHandler.getBufferReceivedListener().ifPresent(listener -> {
-			for (final InputGate inputGate : unionedInputGates) {
-				inputGate.registerBufferReceivedListener(listener);
-			}
-		});
 
 		return Arrays.stream(unionedInputGates)
-			.map(unionedInputGate -> new CheckpointedInputGate(unionedInputGate, barrierHandler))
+			.map(unionedInputGate -> new CheckpointedInputGate(unionedInputGate, barrierHandler, mailboxExecutor))
 			.toArray(CheckpointedInputGate[]::new);
 	}
 

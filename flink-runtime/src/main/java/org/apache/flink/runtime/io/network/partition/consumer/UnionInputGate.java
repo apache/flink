@@ -296,6 +296,13 @@ public class UnionInputGate extends InputGate {
 	public void close() throws IOException {
 	}
 
+	@Override
+	public String toString() {
+		return "UnionInputGate{" +
+			"inputGates=" + inputGatesByGateIndex.values() +
+			'}';
+	}
+
 	private void queueInputGate(IndexedInputGate inputGate, boolean priority) {
 		checkNotNull(inputGate);
 

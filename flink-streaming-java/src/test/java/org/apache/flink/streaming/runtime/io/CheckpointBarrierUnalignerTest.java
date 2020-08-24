@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.CheckpointBarrierUnaligner.ThreadSafeUnaligner;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
@@ -712,7 +713,7 @@ public class CheckpointBarrierUnalignerTest {
 			toNotify,
 			gate);
 		barrierHandler.getBufferReceivedListener().ifPresent(gate::registerBufferReceivedListener);
-		return new CheckpointedInputGate(gate, barrierHandler);
+		return new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
 	}
 
 	private void assertInflightData(BufferOrEvent... expected) {

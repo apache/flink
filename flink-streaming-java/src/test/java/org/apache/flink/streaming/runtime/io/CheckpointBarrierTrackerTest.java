@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
 import org.junit.After;
 import org.junit.Test;
@@ -272,9 +273,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -320,9 +319,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -346,9 +343,7 @@ public class CheckpointBarrierTrackerTest {
 		inputGate = createBarrierTracker(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 	}
 
@@ -366,7 +361,8 @@ public class CheckpointBarrierTrackerTest {
 		MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
 		return new CheckpointedInputGate(
 			gate,
-			new CheckpointBarrierTracker(gate.getNumberOfInputChannels(), toNotifyOnCheckpoint));
+			new CheckpointBarrierTracker(gate.getNumberOfInputChannels(), toNotifyOnCheckpoint),
+			new SyncMailboxExecutor());
 	}
 
 	private static BufferOrEvent createBarrier(long id, int channel) {

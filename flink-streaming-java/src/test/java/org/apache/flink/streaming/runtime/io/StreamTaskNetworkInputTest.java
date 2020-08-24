@@ -38,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleIn
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -135,7 +136,8 @@ public class StreamTaskNetworkInputTest {
 					TestSubtaskCheckpointCoordinator.INSTANCE,
 					"test",
 					new DummyCheckpointInvokable(),
-					inputGate.getInputGate())),
+					inputGate.getInputGate()),
+				new SyncMailboxExecutor()),
 			inSerializer,
 			new StatusWatermarkValve(numInputChannels, output),
 			0,
@@ -178,7 +180,8 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+				new SyncMailboxExecutor()),
 			inSerializer,
 			new StatusWatermarkValve(1, output),
 			0,
@@ -206,7 +209,8 @@ public class StreamTaskNetworkInputTest {
 		return new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
-				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable())),
+				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
+				new SyncMailboxExecutor()),
 			LongSerializer.INSTANCE,
 			ioManager,
 			new StatusWatermarkValve(1, output),

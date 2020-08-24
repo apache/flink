@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -207,7 +208,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		TestInputChannel slow = new TestInputChannel(gate, 1, false, true);
 		gate.setInputChannels(fast, slow);
 		AlternatingCheckpointBarrierHandler barrierHandler = barrierHandler(gate, target);
-		CheckpointedInputGate checkpointedGate = new CheckpointedInputGate(gate, barrierHandler  /* offset */);
+		CheckpointedInputGate checkpointedGate = new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
 
 		sendBarrier(barrierId, checkpointType, fast, checkpointedGate);
 
@@ -296,7 +297,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			channels[i] = new TestInputChannel(gate, i, false, true);
 		}
 		gate.setInputChannels(channels);
-		return new CheckpointedInputGate(gate, barrierHandler(gate, target));
+		return new CheckpointedInputGate(gate, barrierHandler(gate, target), new SyncMailboxExecutor());
 	}
 
 }
