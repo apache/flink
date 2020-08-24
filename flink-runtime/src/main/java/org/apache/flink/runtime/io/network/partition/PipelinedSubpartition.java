@@ -286,9 +286,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 			// will be 2 or more.
 			return new BufferAndBacklog(
 				buffer,
-				isDataAvailableUnsafe(),
 				getBuffersInBacklog(),
-				isEventAvailableUnsafe());
+				isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE);
 		}
 	}
 
@@ -335,7 +334,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 				return isDataAvailableUnsafe();
 			}
 
-			return isEventAvailableUnsafe();
+			final Buffer.DataType dataType = getNextBufferTypeUnsafe();
+			return dataType.isEvent();
 		}
 	}
 
@@ -345,10 +345,11 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 		return !isBlockedByCheckpoint && (flushRequested || getNumberOfFinishedBuffers() > 0);
 	}
 
-	private boolean isEventAvailableUnsafe() {
+	private Buffer.DataType getNextBufferTypeUnsafe() {
 		assert Thread.holdsLock(buffers);
 
-		return !isBlockedByCheckpoint && !buffers.isEmpty() && !buffers.peek().isBuffer();
+		final BufferConsumer first = buffers.peek();
+		return first != null ? first.getDataType() : Buffer.DataType.NONE;
 	}
 
 	// ------------------------------------------------------------------------

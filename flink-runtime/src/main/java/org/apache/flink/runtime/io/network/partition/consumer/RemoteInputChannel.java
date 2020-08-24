@@ -174,11 +174,11 @@ public class RemoteInputChannel extends InputChannel {
 		checkPartitionRequestQueueInitialized();
 
 		final Buffer next;
-		final boolean moreAvailable;
+		final Buffer.DataType nextDataType;
 
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
-			moreAvailable = !receivedBuffers.isEmpty();
+			nextDataType = receivedBuffers.peek() != null ? receivedBuffers.peek().getDataType() : Buffer.DataType.NONE;
 		}
 
 		if (next == null) {
@@ -191,7 +191,7 @@ public class RemoteInputChannel extends InputChannel {
 
 		numBytesIn.inc(next.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next, moreAvailable, 0));
+		return Optional.of(new BufferAndAvailability(next, nextDataType, 0));
 	}
 
 	@Override
