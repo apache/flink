@@ -30,7 +30,6 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -144,11 +143,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			writeAndCloseBufferConsumer(currentBuffer);
 			currentBuffer = null;
 		}
-	}
-
-	@Override
-	public List<Buffer> requestInflightBufferSnapshot() {
-		throw new UnsupportedOperationException("The batch job does not support unaligned checkpoint.");
 	}
 
 	private void writeAndCloseBufferConsumer(BufferConsumer bufferConsumer) throws IOException {

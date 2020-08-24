@@ -42,6 +42,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -494,7 +495,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		ResultPartitionWriter[] writers = getEnvironment().getAllWriters();
 		if (writers != null) {
 			for (ResultPartitionWriter writer : writers) {
-				writer.readRecoveredState(reader);
+				if (writer instanceof CheckpointedResultPartition) {
+					((CheckpointedResultPartition) writer).readRecoveredState(reader);
+				} else {
+					throw new IllegalStateException(
+							"Cannot restore state to a non-checkpointable partition type: " + writer);
+				}
 			}
 		}
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -149,14 +148,6 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 
 		this.bufferPool = bufferPool;
 		partitionManager.registerResultPartition(this);
-	}
-
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.readRecoveredState(stateReader);
-		}
-		LOG.debug("{}: Finished reading recovered state.", this);
 	}
 
 	public String getOwningTaskName() {

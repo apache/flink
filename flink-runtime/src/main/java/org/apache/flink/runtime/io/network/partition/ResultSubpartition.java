@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import java.io.IOException;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -77,9 +75,6 @@ public abstract class ResultSubpartition {
 		parent.onConsumedSubpartition(getSubPartitionIndex());
 	}
 
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-	}
-
 	/**
 	 * Adds the given buffer.
 	 *
@@ -116,8 +111,6 @@ public abstract class ResultSubpartition {
 	public boolean add(BufferConsumer bufferConsumer) throws IOException {
 		return add(bufferConsumer, false);
 	}
-
-	public abstract List<Buffer> requestInflightBufferSnapshot();
 
 	public abstract void flush();
 
