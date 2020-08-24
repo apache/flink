@@ -102,7 +102,7 @@ public class BufferOrEvent {
 
 	@Override
 	public String toString() {
-		return String.format("BufferOrEvent [%s, channelInfo = %d, size = %d]",
+		return String.format("BufferOrEvent [%s, channelInfo = %s, size = %d]",
 				isBuffer() ? buffer : event, channelInfo, size);
 	}
 
