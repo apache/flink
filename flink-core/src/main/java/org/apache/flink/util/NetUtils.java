@@ -34,9 +34,7 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Random;
@@ -470,10 +468,10 @@ public class NetUtils {
 		public Integer next() {
 			int port = start + shift + multiple * seed;
 			if (shift + (multiple + 1) * seed > end - start) {
-				shift ++;
+				shift++;
 				multiple = 0;
 			} else {
-				multiple ++;
+				multiple++;
 			}
 			return port;
 		}

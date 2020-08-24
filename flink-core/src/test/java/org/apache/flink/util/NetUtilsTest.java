@@ -140,7 +140,7 @@ public class NetUtilsTest extends TestLogger {
 		while (portsIter.hasNext()) {
 			Assert.assertTrue("Duplicate element", ports.add(portsIter.next()));
 		}
-		Assert.assertEquals(65000-10000+1, ports.size());
+		Assert.assertEquals(65000 - 10000 + 1, ports.size());
 
 		// check first range
 		Assert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
