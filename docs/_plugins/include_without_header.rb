@@ -26,7 +26,7 @@ module Jekyll
       end
 
       def render(context)
-        source = File.expand_path(context.registers[:site].config['source']).freeze
+        source = File.expand_path(context.registers[:site].config['source'])
         path = File.join(source, @file)
         content = File.read(path)
         content = content.split(/<!--[^>]*LICENSE-2.0[^>]*-->/, 2)[1]
