@@ -135,12 +135,12 @@ public abstract class RecoveredInputChannel extends InputChannel {
 	@Nullable
 	private BufferAndAvailability getNextRecoveredStateBuffer() throws IOException {
 		final Buffer next;
-		final boolean moreAvailable;
+		final Buffer.DataType nextDataType;
 
 		synchronized (receivedBuffers) {
 			checkState(!isReleased, "Trying to read from released RecoveredInputChannel");
 			next = receivedBuffers.poll();
-			moreAvailable = !receivedBuffers.isEmpty();
+			nextDataType = peekDataTypeUnsafe();
 		}
 
 		if (next == null) {
@@ -149,7 +149,7 @@ public abstract class RecoveredInputChannel extends InputChannel {
 			stateConsumedFuture.complete(null);
 			return null;
 		} else {
-			return new BufferAndAvailability(next, moreAvailable, 0);
+			return new BufferAndAvailability(next, nextDataType, 0);
 		}
 	}
 
@@ -167,6 +167,13 @@ public abstract class RecoveredInputChannel extends InputChannel {
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkError();
 		return Optional.ofNullable(getNextRecoveredStateBuffer());
+	}
+
+	private Buffer.DataType peekDataTypeUnsafe() {
+		assert Thread.holdsLock(receivedBuffers);
+
+		final Buffer first = receivedBuffers.peek();
+		return first != null ? first.getDataType() : Buffer.DataType.NONE;
 	}
 
 	@Override

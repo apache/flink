@@ -23,6 +23,8 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -128,15 +130,13 @@ public abstract class ResultSubpartition {
 	public static final class BufferAndBacklog {
 
 		private final Buffer buffer;
-		private final boolean isDataAvailable;
 		private final int buffersInBacklog;
-		private final boolean isEventAvailable;
+		private final Buffer.DataType nextDataType;
 
-		public BufferAndBacklog(Buffer buffer, boolean isDataAvailable, int buffersInBacklog, boolean isEventAvailable) {
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, Buffer.DataType nextDataType) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
-			this.isDataAvailable = isDataAvailable;
-			this.isEventAvailable = isEventAvailable;
+			this.nextDataType = checkNotNull(nextDataType);
 		}
 
 		public Buffer buffer() {
@@ -144,7 +144,7 @@ public abstract class ResultSubpartition {
 		}
 
 		public boolean isDataAvailable() {
-			return isDataAvailable;
+			return nextDataType != Buffer.DataType.NONE;
 		}
 
 		public int buffersInBacklog() {
@@ -152,15 +152,18 @@ public abstract class ResultSubpartition {
 		}
 
 		public boolean isEventAvailable() {
-			return isEventAvailable;
+			return nextDataType.isEvent();
 		}
 
-		public static BufferAndBacklog fromBufferAndLookahead(Buffer current, Buffer lookahead, int backlog) {
+		public Buffer.DataType getNextDataType() {
+			return nextDataType;
+		}
+
+		public static BufferAndBacklog fromBufferAndLookahead(Buffer current, @Nullable Buffer lookahead, int backlog) {
 			return new BufferAndBacklog(
-					current,
-					lookahead != null,
-					backlog,
-					lookahead != null && !lookahead.isBuffer());
+				current,
+				backlog,
+				lookahead != null ? lookahead.getDataType() : Buffer.DataType.NONE);
 		}
 	}
 
