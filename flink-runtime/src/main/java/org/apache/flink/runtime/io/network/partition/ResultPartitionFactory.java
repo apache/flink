@@ -58,8 +58,6 @@ public class ResultPartitionFactory {
 
 	private final int networkBufferSize;
 
-	private final boolean forcePartitionReleaseOnConsumption;
-
 	private final boolean blockingShuffleCompressionEnabled;
 
 	private final String compressionCodec;
@@ -74,7 +72,6 @@ public class ResultPartitionFactory {
 		int networkBuffersPerChannel,
 		int floatingNetworkBuffersPerGate,
 		int networkBufferSize,
-		boolean forcePartitionReleaseOnConsumption,
 		boolean blockingShuffleCompressionEnabled,
 		String compressionCodec,
 		int maxBuffersPerChannel) {
@@ -86,7 +83,6 @@ public class ResultPartitionFactory {
 		this.bufferPoolFactory = bufferPoolFactory;
 		this.blockingSubpartitionType = blockingSubpartitionType;
 		this.networkBufferSize = networkBufferSize;
-		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = compressionCodec;
 		this.maxBuffersPerChannel = maxBuffersPerChannel;
@@ -121,7 +117,7 @@ public class ResultPartitionFactory {
 		}
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
-		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
+		ResultPartition partition = !type.isBlocking()
 			? new ReleaseOnConsumptionResultPartition(
 				taskNameWithSubtaskAndId,
 				partitionIndex,

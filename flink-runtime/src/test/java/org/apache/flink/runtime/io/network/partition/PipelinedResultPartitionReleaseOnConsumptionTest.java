@@ -25,16 +25,16 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link ReleaseOnConsumptionResultPartitionTest}.
+ * Tests for the {@link PipelinedResultPartitionReleaseOnConsumptionTest}.
  */
-public class ReleaseOnConsumptionResultPartitionTest extends TestLogger {
+public class PipelinedResultPartitionReleaseOnConsumptionTest extends TestLogger {
 
 	@Test
 	public void testConsumptionBasedPartitionRelease() {
 		final ResultPartitionManager manager = new ResultPartitionManager();
 		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionType(ResultPartitionType.PIPELINED)
 			.setNumberOfSubpartitions(2)
-			.isReleasedOnConsumption(true)
 			.setResultPartitionManager(manager)
 			.build();
 
@@ -51,8 +51,8 @@ public class ReleaseOnConsumptionResultPartitionTest extends TestLogger {
 	public void testMultipleReleaseCallsAreIdempotent() {
 		final ResultPartitionManager manager = new ResultPartitionManager();
 		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionType(ResultPartitionType.PIPELINED)
 			.setNumberOfSubpartitions(2)
-			.isReleasedOnConsumption(true)
 			.setResultPartitionManager(manager)
 			.build();
 		manager.registerResultPartition(partition);
@@ -67,8 +67,8 @@ public class ReleaseOnConsumptionResultPartitionTest extends TestLogger {
 	public void testReleaseAfterIdempotentCalls() {
 		final ResultPartitionManager manager = new ResultPartitionManager();
 		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionType(ResultPartitionType.PIPELINED)
 			.setNumberOfSubpartitions(2)
-			.isReleasedOnConsumption(true)
 			.setResultPartitionManager(manager)
 			.build();
 		manager.registerResultPartition(partition);
