@@ -229,7 +229,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 	private BoundedBlockingSubpartition createSubpartition() throws IOException {
 		return type.create(
 				0,
-				PartitionTestUtils.createPartition(
+					(BoundedBlockingResultPartition) PartitionTestUtils.createPartition(
 					ResultPartitionType.BLOCKING,
 					fileChannelManager,
 					compressionEnabled,

@@ -117,18 +117,10 @@ public class ResultPartitionFactory {
 		}
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
-		ResultPartition partition = !type.isBlocking()
-			? new ReleaseOnConsumptionResultPartition(
-				taskNameWithSubtaskAndId,
-				partitionIndex,
-				id,
-				type,
-				subpartitions,
-				maxParallelism,
-				partitionManager,
-				bufferCompressor,
-				bufferPoolFactory)
-			: new ResultPartition(
+
+		final ResultPartition partition;
+		if (type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED) {
+			final PipelinedResultPartition pipelinedPartition = new PipelinedResultPartition(
 				taskNameWithSubtaskAndId,
 				partitionIndex,
 				id,
@@ -139,36 +131,45 @@ public class ResultPartitionFactory {
 				bufferCompressor,
 				bufferPoolFactory);
 
-		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
+			for (int i = 0; i < subpartitions.length; i++) {
+				subpartitions[i] = new PipelinedSubpartition(i, pipelinedPartition);
+			}
+
+			partition = pipelinedPartition;
+		}
+		else if (type == ResultPartitionType.BLOCKING || type == ResultPartitionType.BLOCKING_PERSISTENT) {
+			final BoundedBlockingResultPartition blockingPartition = new BoundedBlockingResultPartition(
+				taskNameWithSubtaskAndId,
+				partitionIndex,
+				id,
+				type,
+				subpartitions,
+				maxParallelism,
+				partitionManager,
+				bufferCompressor,
+				bufferPoolFactory);
+
+			initializeBoundedBlockingPartitions(
+				subpartitions,
+				blockingPartition,
+				blockingSubpartitionType,
+				networkBufferSize,
+				channelManager);
+
+			partition = blockingPartition;
+		}
+		else {
+			throw new IllegalArgumentException("Unrecognized ResultPartitionType: " + type);
+		}
 
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
 		return partition;
 	}
 
-	private void createSubpartitions(
-			ResultPartition partition,
-			ResultPartitionType type,
-			BoundedBlockingSubpartitionType blockingSubpartitionType,
-			ResultSubpartition[] subpartitions) {
-		// Create the subpartitions.
-		if (type.isBlocking()) {
-			initializeBoundedBlockingPartitions(
-				subpartitions,
-				partition,
-				blockingSubpartitionType,
-				networkBufferSize,
-				channelManager);
-		} else {
-			for (int i = 0; i < subpartitions.length; i++) {
-				subpartitions[i] = new PipelinedSubpartition(i, partition);
-			}
-		}
-	}
-
 	private static void initializeBoundedBlockingPartitions(
 			ResultSubpartition[] subpartitions,
-			ResultPartition parent,
+			BoundedBlockingResultPartition parent,
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			int networkBufferSize,
 			FileChannelManager channelManager) {

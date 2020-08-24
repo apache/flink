@@ -33,7 +33,7 @@ public enum BoundedBlockingSubpartitionType {
 	FILE {
 
 		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
+		public BoundedBlockingSubpartition create(int index, BoundedBlockingResultPartition parent, File tempFile, int readBufferSize) throws IOException {
 			return BoundedBlockingSubpartition.createWithFileChannel(index, parent, tempFile, readBufferSize);
 		}
 	},
@@ -46,7 +46,7 @@ public enum BoundedBlockingSubpartitionType {
 	MMAP {
 
 		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
+		public BoundedBlockingSubpartition create(int index, BoundedBlockingResultPartition parent, File tempFile, int readBufferSize) throws IOException {
 			return BoundedBlockingSubpartition.createWithMemoryMappedFile(index, parent, tempFile);
 		}
 	},
@@ -61,7 +61,7 @@ public enum BoundedBlockingSubpartitionType {
 	FILE_MMAP {
 
 		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
+		public BoundedBlockingSubpartition create(int index, BoundedBlockingResultPartition parent, File tempFile, int readBufferSize) throws IOException {
 			return BoundedBlockingSubpartition.createWithFileAndMemoryMappedReader(index, parent, tempFile);
 		}
 	},
@@ -74,7 +74,7 @@ public enum BoundedBlockingSubpartitionType {
 	AUTO {
 
 		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
+		public BoundedBlockingSubpartition create(int index, BoundedBlockingResultPartition parent, File tempFile, int readBufferSize) throws IOException {
 			return ResultPartitionFactory.getBoundedBlockingType().create(index, parent, tempFile, readBufferSize);
 		}
 	};
@@ -84,5 +84,5 @@ public enum BoundedBlockingSubpartitionType {
 	/**
 	 * Creates BoundedBlockingSubpartition of this type.
 	 */
-	public abstract BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException;
+	public abstract BoundedBlockingSubpartition create(int index, BoundedBlockingResultPartition parent, File tempFile, int readBufferSize) throws IOException;
 }
