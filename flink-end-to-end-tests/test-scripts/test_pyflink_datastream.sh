@@ -26,8 +26,9 @@ KAFKA_SQL_VERSION="universal"
 SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
 KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
 
-function create_data_stream_kafka_source_sink {
+function create_data_stream_kafka_source {
     topicName="test-python-data-stream-source"
+    create_kafka_topic 1 1 $topicName
 
     echo "Sending messages to Kafka..."
 
@@ -36,8 +37,6 @@ function create_data_stream_kafka_source_sink {
     send_messages_to_kafka '{"f0": "abc", "f1": 3}' $topicName
     send_messages_to_kafka '{"f0": "abcd", "f1": 4}' $topicName
     send_messages_to_kafka '{"f0": "abcde", "f1": 5}' $topicName
-
-    create_kafka_topic 1 1 test-python-data-stream-sink
 }
 
 function sort_msg {
@@ -118,7 +117,9 @@ setup_kafka_dist
 
 start_kafka_cluster
 
-create_data_stream_kafka_source_sink
+create_data_stream_kafka_source
+
+create_kafka_topic 1 1 test-python-data-stream-sink
 
 FLINK_PYTHON_TEST_DIR=`cd "${CURRENT_DIR}/../flink-python-test" && pwd -P`
 REQUIREMENTS_PATH="${TEST_DATA_DIR}/requirements.txt"
