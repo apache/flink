@@ -146,11 +146,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 		}
 	}
 
-	@Override
-	public List<Buffer> requestInflightBufferSnapshot() {
-		throw new UnsupportedOperationException("The batch job does not support unaligned checkpoint.");
-	}
-
 	private void writeAndCloseBufferConsumer(BufferConsumer bufferConsumer) throws IOException {
 		try {
 			final Buffer buffer = bufferConsumer.build();
