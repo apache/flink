@@ -69,11 +69,11 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	public void close() throws IOException {
 	}
 
-	public abstract void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception;
+	public abstract void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException;
 
-	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
+	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException;
 
-	public abstract void processEndOfPartition() throws Exception;
+	public abstract void processEndOfPartition() throws IOException;
 
 	public abstract long getLatestCheckpointId();
 
