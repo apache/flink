@@ -40,8 +40,9 @@ function codeTabs() {
     "python": "img/python-sm.png",
     "java": "img/java-sm.png"
   };
+  var codeTabParam = null;
   if (typeof window.defaultCodeTab !== "undefined" && window.defaultCodeTab !== "") {
-    var codeTabParam = window.defaultCodeTab
+    codeTabParam = window.defaultCodeTab
   }
   codeTabParam = getUrlParameter("code_tab") == null ? codeTabParam : getUrlParameter("code_tab").toLowerCase();
   // Processing duplicated tabs, e.g. if the data-lang="Java/Scala",
