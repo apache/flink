@@ -49,6 +49,7 @@ public class MiniDispatcher extends Dispatcher {
 	private static final Logger LOG = LoggerFactory.getLogger(MiniDispatcher.class);
 
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
+	private boolean jobCancelled = false;
 
 	public MiniDispatcher(
 			RpcService rpcService,
@@ -91,35 +92,28 @@ public class MiniDispatcher extends Dispatcher {
 				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
 						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
 
-				LOG.debug("Shutting down per-job cluster because someone retrieved the job result.");
+				LOG.debug("Shutting down cluster because someone retrieved the job result.");
 				shutDownFuture.complete(status);
 			});
 		} else {
-			LOG.debug("Not shutting down per-job cluster after someone retrieved the job result.");
+			LOG.debug("Not shutting down cluster after someone retrieved the job result.");
 		}
 
 		return jobResultFuture;
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelJob(
-			JobID jobId, Time timeout) {
-		CompletableFuture<Acknowledge> cancelFuture = super.cancelJob(jobId, timeout);
-
-		cancelFuture.thenAccept((ignored) -> {
-			LOG.debug("Shutting down per-job cluster because the job was canceled.");
-			shutDownFuture.complete(ApplicationStatus.CANCELED);
-		});
-
-		return cancelFuture;
+	public CompletableFuture<Acknowledge> cancelJob(JobID jobId, Time timeout) {
+		jobCancelled = true;
+		return super.cancelJob(jobId, timeout);
 	}
 
 	@Override
 	protected void jobReachedGloballyTerminalState(ArchivedExecutionGraph archivedExecutionGraph) {
 		super.jobReachedGloballyTerminalState(archivedExecutionGraph);
 
-		if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
-			// shut down since we don't have to wait for the execution result retrieval
+		if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
+			// shut down if job is cancelled or we don't have to wait for the execution result retrieval
 			shutDownFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
 		}
 	}
