@@ -89,7 +89,7 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 
 	protected final ResultPartitionManager partitionManager;
 
-	public final int numTargetKeyGroups;
+	private final int numTargetKeyGroups;
 
 	// - Runtime state --------------------------------------------------------
 
