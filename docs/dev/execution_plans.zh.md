@@ -51,7 +51,7 @@ println(env.getExecutionPlan())
 </div>
 </div>
 
-按照下列步骤来可视化执行计划：
+可以通过如下步骤可视化执行计划：
 
 1. 使用你的浏览器**打开**[可视化工具网站](https://flink.apache.org/visualizer/)，
 2. 将 JSON 字符串拷贝并**粘贴**到文本框中，
