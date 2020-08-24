@@ -31,16 +31,7 @@ module Jekyll
         content = File.read(path)
         content = content.split(/<!--[^>]*LICENSE-2.0[^>]*-->/, 2)[1]
         partial = Liquid::Template.parse(content)
-
-        context.stack do
-          begin
-            partial.render!(context)
-          rescue Liquid::Error => e
-            e.template_name = path
-            e.markup_context = "included " if e.markup_context.nil?
-            raise e
-          end
-        end
+        partial.render!(context)
       end
     end
   end
