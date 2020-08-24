@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-有关从 Flink 1.3 之前的旧版本进行迁移的信息，请参阅[旧的迁移指南](https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/migration.html)。
+有关从 Flink 1.3 之前版本迁移的信息，请参阅[旧版本迁移指南](https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/migration.html)。
 
 <a name="migrating-from-flink-13-to-flink-17"></a>
 
@@ -35,8 +35,8 @@ under the License.
 
 ### Serializer snapshots 的 API 变更
 
-这主要与为其状态实现自定义 `TypeSerializer`s 的用户相关。
+这主要和用户为其状态实现的自定义 `TypeSerializer` 有关。
 
-现在已弃用旧的 `TypeSerializerConfigSnapshot` 抽象，并在将来完全删除，以使用新的 `TypeSerializerSnapshot`。有关如何迁移的详细信息和指南，请参阅[从 Flink 1.7 之前弃用的 serializer snapshot APIs 迁移]({% link dev/stream/state/custom_serialization.zh.md %}#migrating-from-deprecated-serializer-snapshot-apis-before-flink-17).
+目前旧接口 `TypeSerializerConfigSnapshot` 已弃用，请使用新的 `TypeSerializerSnapshot` 接口取而代之。有关如何迁移的详细信息和指南，请参阅[如何从 Flink 1.7 之前的 serializer snapshot 接口进行迁移]({% link dev/stream/state/custom_serialization.zh.md %}#migrating-from-deprecated-serializer-snapshot-apis-before-flink-17).
 
 {% top %}
