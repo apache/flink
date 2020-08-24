@@ -33,8 +33,10 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link ResultPartitionFactory}.
@@ -72,18 +74,26 @@ public class ResultPartitionFactoryTest extends TestLogger {
 	@Test
 	public void testConsumptionOnReleaseForPipelined() {
 		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.PIPELINED);
-		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
+
+		resultPartition.onConsumedSubpartition(0);
+
+		assertTrue(resultPartition.isReleased());
 	}
 
 	@Test
 	public void testNoConsumptionOnReleaseForBlocking() {
 		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
-		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
+
+		resultPartition.onConsumedSubpartition(0);
+
+		assertFalse(resultPartition.isReleased());
 	}
 
 	private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
-		ResultPartitionFactory factory = new ResultPartitionFactory(
-			new ResultPartitionManager(),
+		final ResultPartitionManager manager = new ResultPartitionManager();
+
+		final ResultPartitionFactory factory = new ResultPartitionFactory(
+			manager,
 			fileChannelManager,
 			new NetworkBufferPool(1, SEGMENT_SIZE),
 			BoundedBlockingSubpartitionType.AUTO,
@@ -104,6 +114,12 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			true
 		);
 
-		return factory.create("test", 0, descriptor);
+		// guard our test assumptions
+		assertEquals(1, descriptor.getNumberOfSubpartitions());
+
+		final ResultPartition partition =  factory.create("test", 0, descriptor);
+		manager.registerResultPartition(partition);
+
+		return partition;
 	}
 }
