@@ -72,7 +72,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>State management</h2>
  */
-public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
+public abstract class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 
