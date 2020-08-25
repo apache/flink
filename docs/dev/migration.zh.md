@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-有关从 Flink 1.3 之前版本迁移的信息，请参阅[旧版本迁移指南](https://ci.apache.org/projects/flink/flink-docs-release-1.10/dev/migration.html)。
+有关从 Flink 1.3 之前版本迁移的信息，请参阅[旧版本迁移指南](https://ci.apache.org/projects/flink/flink-docs-release-1.10/zh/dev/migration.html)。
 
 <a name="migrating-from-flink-13-to-flink-17"></a>
 
