@@ -323,7 +323,7 @@ public class HiveSimpleUDFTest {
 
 		@Override
 		public boolean isArgumentLiteral(int pos) {
-			return pos > 0 && pos < constantArgs.length && constantArgs[pos] != null;
+			return pos >= 0 && pos < constantArgs.length && constantArgs[pos] != null;
 		}
 
 		@Override
