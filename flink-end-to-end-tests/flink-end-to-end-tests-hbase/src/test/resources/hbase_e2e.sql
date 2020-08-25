@@ -19,7 +19,7 @@ CREATE TABLE MyHBaseSource (
   family1 ROW<f1c1 STRING>,
   family2 ROW<f2c1 STRING, f2c2 STRING>
 ) WITH (
-  'connector' = 'hbase-1.4',
+  'connector' = '$HBASE_CONNECTOR',
   'table-name' = 'source',
   'zookeeper.quorum' = 'localhost:2181',
   'zookeeper.znode.parent' = '/hbase'
@@ -30,7 +30,7 @@ CREATE TABLE MyHBaseSink (
   family1 ROW<f1c1 STRING>,
   family2 ROW<f2c1 STRING, f2c2 STRING>
 ) WITH (
-  'connector' = 'hbase-1.4',
+  'connector' = '$HBASE_CONNECTOR',
   'table-name' = 'sink',
   'zookeeper.quorum' = 'localhost:2181',
   'zookeeper.znode.parent' = '/hbase',
