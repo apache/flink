@@ -52,6 +52,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -211,9 +212,9 @@ public final class Utils {
 				// ----
 				// Intended call: HBaseConfiguration.addHbaseResources(conf);
 				Class
-						.forName("org.apache.hadoop.hbase.HBaseConfiguration")
-						.getMethod("addHbaseResources", Configuration.class)
-						.invoke(null, conf);
+					.forName("org.apache.hadoop.hbase.HBaseConfiguration")
+					.getMethod("addHbaseResources", Configuration.class)
+					.invoke(null, conf);
 				// ----
 
 				LOG.info("HBase security setting: {}", conf.get("hbase.security.authentication"));
@@ -223,14 +224,38 @@ public final class Utils {
 					return;
 				}
 
-				LOG.info("Obtaining Kerberos security token for HBase");
-				// ----
-				// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(conf);
-				Token<?> token = (Token<?>) Class
+				Token<?> token;
+				try {
+					LOG.info("Obtaining Kerberos security token for HBase");
+					// ----
+					// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(conf);
+					token = (Token<?>) Class
 						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
 						.getMethod("obtainToken", Configuration.class)
 						.invoke(null, conf);
-				// ----
+					// ----
+				} catch (NoSuchMethodException e){
+					// for HBase 2
+
+					// ----
+					// Intended call: ConnectionFactory connectionFactory = ConnectionFactory.createConnection(conf);
+					Closeable connectionFactory = (Closeable) Class
+						.forName("org.apache.hadoop.hbase.client.ConnectionFactory")
+						.getMethod("createConnection", Configuration.class)
+						.invoke(null, conf);
+					// ----
+					Class<?> connectionClass = Class.forName("org.apache.hadoop.hbase.client.Connection");
+					// ----
+					// Intended call: Token<AuthenticationTokenIdentifier> token = TokenUtil.obtainToken(connectionFactory);
+					token = (Token<?>) Class
+						.forName("org.apache.hadoop.hbase.security.token.TokenUtil")
+						.getMethod("obtainToken", connectionClass)
+						.invoke(null, connectionFactory);
+					// ----
+					if (null != connectionFactory){
+						connectionFactory.close();
+					}
+				}
 
 				if (token == null) {
 					LOG.error("No Kerberos security token for HBase available");
@@ -240,11 +265,11 @@ public final class Utils {
 				credentials.addToken(token.getService(), token);
 				LOG.info("Added HBase Kerberos security token to credentials.");
 			} catch (ClassNotFoundException
-					| NoSuchMethodException
-					| IllegalAccessException
-					| InvocationTargetException e) {
+				| NoSuchMethodException
+				| IllegalAccessException
+				| InvocationTargetException e) {
 				LOG.info("HBase is not available (not packaged with this application): {} : \"{}\".",
-						e.getClass().getSimpleName(), e.getMessage());
+					e.getClass().getSimpleName(), e.getMessage());
 			}
 		}
 	}
