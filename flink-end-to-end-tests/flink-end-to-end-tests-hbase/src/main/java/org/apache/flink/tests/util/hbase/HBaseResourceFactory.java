@@ -30,8 +30,9 @@ public interface HBaseResourceFactory {
 	 * Returns a {@link HBaseResource} instance. If the instance could not be instantiated (for example, because a
 	 * mandatory parameter was missing), then an empty {@link Optional} should be returned.
 	 *
+	 * @param version The hbase version
 	 * @return HBaseResource instance
 	 * @throws Exception if the instance could not be instantiated
 	 */
-	HBaseResource create() throws Exception;
+	HBaseResource create(String version) throws Exception;
 }

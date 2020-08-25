@@ -49,7 +49,13 @@ under the License.
 		<!--using hbase shade jar to execute end-to-end test-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-hbase_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-connector-hbase-1.4_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-connector-hbase-2.2_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -186,9 +192,17 @@ under the License.
 								</artifactItem>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-sql-connector-hbase_${scala.binary.version}</artifactId>
+									<artifactId>flink-sql-connector-hbase-1.4_${scala.binary.version}</artifactId>
 									<version>${project.version}</version>
-									<destFileName>sql-hbase.jar</destFileName>
+									<destFileName>sql-hbase-1.4.jar</destFileName>
+									<type>jar</type>
+									<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-sql-connector-hbase-2.2_${scala.binary.version}</artifactId>
+									<version>${project.version}</version>
+									<destFileName>sql-hbase-2.2.jar</destFileName>
 									<type>jar</type>
 									<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 								</artifactItem>
