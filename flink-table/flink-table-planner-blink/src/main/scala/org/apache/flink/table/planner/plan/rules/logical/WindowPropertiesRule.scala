@@ -45,7 +45,7 @@ class WindowPropertiesRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val project: LogicalProject = call.rel(0)
-    // project includes at least on group auxiliary function
+    // project includes at least one group auxiliary function
     project.getProjects.exists(WindowPropertiesRules.hasGroupAuxiliaries)
   }
 
