@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
@@ -243,6 +244,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				taskExecutorResourceID,
 				dataPort,
 				hardwareDescription,
+				new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 				ResourceProfile.ZERO,
 				ResourceProfile.ZERO);
 
@@ -353,6 +355,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				taskExecutorResourceID,
 				dataPort,
 				hardwareDescription,
+				new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 				ResourceProfile.ZERO,
 				ResourceProfile.ZERO),
 			TIMEOUT);
