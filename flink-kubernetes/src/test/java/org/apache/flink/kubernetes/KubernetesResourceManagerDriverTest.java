@@ -163,11 +163,11 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 	private class Context extends ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context {
 		private final KubernetesPod previousAttemptPod = new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1");
 
-		final CompletableFuture<PodCallbackHandler> setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
-		final CompletableFuture<Void> closeKubernetesWatchFuture = new CompletableFuture<>();
-		final CompletableFuture<String> stopAndCleanupClusterFuture =  new CompletableFuture<>();
-		final CompletableFuture<KubernetesPod> createTaskManagerPodFuture = new CompletableFuture<>();
-		final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
+		private final CompletableFuture<PodCallbackHandler> setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
+		private final CompletableFuture<Void> closeKubernetesWatchFuture = new CompletableFuture<>();
+		private final CompletableFuture<String> stopAndCleanupClusterFuture =  new CompletableFuture<>();
+		private final CompletableFuture<KubernetesPod> createTaskManagerPodFuture = new CompletableFuture<>();
+		private final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
 
 		final TestingFlinkKubeClient.Builder flinkKubeClientBuilder = TestingFlinkKubeClient.builder()
 				.setWatchPodsAndDoCallbackFunction((ignore, handler) -> {
@@ -185,8 +185,8 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 					getPodCallbackHandler().onAdded(Collections.singletonList(pod));
 					return FutureUtils.completedVoidFuture();
 				})
-				.setStopPodFunction((podname) -> {
-					stopPodFuture.complete(podname);
+				.setStopPodFunction((podName) -> {
+					stopPodFuture.complete(podName);
 					return FutureUtils.completedVoidFuture();
 				});
 
