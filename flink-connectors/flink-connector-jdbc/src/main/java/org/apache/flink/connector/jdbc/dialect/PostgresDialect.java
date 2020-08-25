@@ -40,7 +40,7 @@ public class PostgresDialect extends AbstractDialect {
 	private static final int MAX_TIMESTAMP_PRECISION = 6;
 	private static final int MIN_TIMESTAMP_PRECISION = 1;
 
-	// Define MAX/MIN precision of TIMESTAMP type according to PostgreSQL docs:
+	// Define MAX/MIN precision of DECIMAL type according to PostgreSQL docs:
 	// https://www.postgresql.org/docs/12/datatype-numeric.html#DATATYPE-NUMERIC-DECIMAL
 	private static final int MAX_DECIMAL_PRECISION = 1000;
 	private static final int MIN_DECIMAL_PRECISION = 1;
