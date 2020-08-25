@@ -574,8 +574,6 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
 		TestingAppendSink sink = new TestingAppendSink();
 		tEnv.toAppendStream(src, Row.class).addSink(sink);
-		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
-		out.print(); // add print to see streaming reading
 		final JobClient jobClient = env.executeAsync();
 
 		Runnable runnable = () -> {
