@@ -25,7 +25,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.net.URISyntaxException;
 import java.util.Random;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorage.decodePathFromReference;
@@ -73,8 +72,7 @@ public class FsStorageLocationReferenceTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static Path randomPath(Random rnd) {
-		int retries = 5;
-		for (int i = 0; i < retries; i++) {
+		while (true) {
 			try {
 				final StringBuilder path = new StringBuilder();
 
@@ -82,6 +80,7 @@ public class FsStorageLocationReferenceTest extends TestLogger {
 				path.append(StringUtils.getRandomString(rnd, 1, 5, 'a', 'z'));
 				path.append("://");
 				path.append(StringUtils.getRandomString(rnd, 10, 20)); // authority
+				path.append(":");
 				path.append(rnd.nextInt(50000) + 1); // port
 
 				for (int j = rnd.nextInt(5) + 1; j > 0; j--) {
@@ -90,14 +89,9 @@ public class FsStorageLocationReferenceTest extends TestLogger {
 				}
 
 				return new Path(path.toString());
-			} catch (IllegalArgumentException e) {
-				Throwable cause = e.getCause();
-				if (!(cause instanceof URISyntaxException) || !cause.getMessage().contains("Illegal character in hostname at index")) {
-					throw e;
-				}
+			} catch (Throwable t) {
 				// ignore the exception and retry
 			}
 		}
-		throw new RuntimeException("Failed to generate a valid path after retrying 5 times");
 	}
 }
