@@ -61,12 +61,13 @@ public interface HBaseResource extends ExternalResource {
 	/**
 	 * Returns the configured HBaseResource implementation, or a {@link LocalStandaloneHBaseResource} if none is configured.
 	 *
+	 * @param version The hbase version
 	 * @return configured HbaseResource, or {@link LocalStandaloneHBaseResource} if none is configured
 	 */
-	static HBaseResource get() {
+	static HBaseResource get(String version) {
 		return FactoryUtils.loadAndInvokeFactory(
 			HBaseResourceFactory.class,
-			HBaseResourceFactory::create,
+			factory -> factory.create(version),
 			LocalStandaloneHBaseResourceFactory::new);
 	}
 }
