@@ -4109,6 +4109,42 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "id" : {
             "type" : "any"
           },
+          "memoryConfiguration" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:taskexecutor:TaskExecutorMemoryConfiguration",
+            "properties" : {
+              "frameworkHeap" : {
+                "type" : "integer"
+              },
+              "frameworkOffHeap" : {
+                "type" : "integer"
+              },
+              "jvmMetaspace" : {
+                "type" : "integer"
+              },
+              "jvmOverhead" : {
+                "type" : "integer"
+              },
+              "managedMemory" : {
+                "type" : "integer"
+              },
+              "networkMemory" : {
+                "type" : "integer"
+              },
+              "taskHeap" : {
+                "type" : "integer"
+              },
+              "taskOffHeap" : {
+                "type" : "integer"
+              },
+              "totalFlinkMemory" : {
+                "type" : "integer"
+              },
+              "totalProcessMemory" : {
+                "type" : "integer"
+              }
+            }
+          },
           "path" : {
             "type" : "string"
           },
@@ -4279,6 +4315,42 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "id" : {
       "type" : "any"
+    },
+    "memoryConfiguration" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:taskexecutor:TaskExecutorMemoryConfiguration",
+      "properties" : {
+        "frameworkHeap" : {
+          "type" : "integer"
+        },
+        "frameworkOffHeap" : {
+          "type" : "integer"
+        },
+        "jvmMetaspace" : {
+          "type" : "integer"
+        },
+        "jvmOverhead" : {
+          "type" : "integer"
+        },
+        "managedMemory" : {
+          "type" : "integer"
+        },
+        "networkMemory" : {
+          "type" : "integer"
+        },
+        "taskHeap" : {
+          "type" : "integer"
+        },
+        "taskOffHeap" : {
+          "type" : "integer"
+        },
+        "totalFlinkMemory" : {
+          "type" : "integer"
+        },
+        "totalProcessMemory" : {
+          "type" : "integer"
+        }
+      }
     },
     "metrics" : {
       "type" : "object",

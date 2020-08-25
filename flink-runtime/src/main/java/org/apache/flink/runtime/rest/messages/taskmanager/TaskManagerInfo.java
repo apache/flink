@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDSerializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -59,6 +60,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_HARDWARE = "hardware";
 
+	public static final String FIELD_NAME_MEMORY = "memoryConfiguration";
+
 	private static final long serialVersionUID = 1L;
 
 	@JsonProperty(FIELD_NAME_RESOURCE_ID)
@@ -89,6 +92,9 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 	@JsonProperty(FIELD_NAME_HARDWARE)
 	private final HardwareDescription hardwareDescription;
 
+	@JsonProperty(FIELD_NAME_MEMORY)
+	private final TaskExecutorMemoryConfiguration memoryConfiguration;
+
 	@JsonCreator
 	public TaskManagerInfo(
 			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
@@ -99,7 +105,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
 			@JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
 			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
-			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription) {
+			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+			@JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration) {
 		this.resourceId = Preconditions.checkNotNull(resourceId);
 		this.address = Preconditions.checkNotNull(address);
 		this.dataPort = dataPort;
@@ -109,6 +116,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		this.totalResource = totalResource;
 		this.freeResource = freeResource;
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+		this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
 	}
 
 	public TaskManagerInfo(
@@ -120,7 +128,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			int numberAvailableSlots,
 			ResourceProfile totalResource,
 			ResourceProfile freeResource,
-			HardwareDescription hardwareDescription) {
+			HardwareDescription hardwareDescription,
+			TaskExecutorMemoryConfiguration memoryConfiguration) {
 		this(resourceId,
 			address,
 			dataPort,
@@ -129,7 +138,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			numberAvailableSlots,
 			ResourceProfileInfo.fromResrouceProfile(totalResource),
 			ResourceProfileInfo.fromResrouceProfile(freeResource),
-			hardwareDescription);
+			hardwareDescription,
+			memoryConfiguration);
 	}
 
 	public ResourceID getResourceId() {
@@ -168,6 +178,10 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		return hardwareDescription;
 	}
 
+	public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+		return memoryConfiguration;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -185,7 +199,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			Objects.equals(freeResource, that.freeResource) &&
 			Objects.equals(resourceId, that.resourceId) &&
 			Objects.equals(address, that.address) &&
-			Objects.equals(hardwareDescription, that.hardwareDescription);
+			Objects.equals(hardwareDescription, that.hardwareDescription) &&
+			Objects.equals(memoryConfiguration, that.memoryConfiguration);
 	}
 
 	@Override
@@ -199,6 +214,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			numberAvailableSlots,
 			totalResource,
 			freeResource,
-			hardwareDescription);
+			hardwareDescription,
+			memoryConfiguration);
 	}
 }
