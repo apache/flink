@@ -551,7 +551,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
 					slotManager.getRegisteredResourceOf(taskExecutor.getInstanceID()),
 					slotManager.getFreeResourceOf(taskExecutor.getInstanceID()),
-					taskExecutor.getHardwareDescription()));
+					taskExecutor.getHardwareDescription(),
+					taskExecutor.getMemoryConfiguration()));
 		}
 
 		return CompletableFuture.completedFuture(taskManagerInfos);
@@ -575,7 +576,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				slotManager.getNumberFreeSlotsOf(instanceId),
 				slotManager.getRegisteredResourceOf(instanceId),
 				slotManager.getFreeResourceOf(instanceId),
-				taskExecutor.getHardwareDescription());
+				taskExecutor.getHardwareDescription(),
+				taskExecutor.getMemoryConfiguration());
 
 			return CompletableFuture.completedFuture(taskManagerInfo);
 		}
@@ -782,7 +784,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				taskExecutorGateway,
 				newWorker,
 				taskExecutorRegistration.getDataPort(),
-				taskExecutorRegistration.getHardwareDescription());
+				taskExecutorRegistration.getHardwareDescription(),
+				taskExecutorRegistration.getMemoryConfiguration());
 
 			log.info("Registering TaskManager with ResourceID {} ({}) at ResourceManager", taskExecutorResourceId.getStringWithMetadata(), taskExecutorAddress);
 			taskExecutors.put(taskExecutorResourceId, registration);

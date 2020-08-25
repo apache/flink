@@ -63,6 +63,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
@@ -637,6 +638,7 @@ public class KubernetesResourceManagerTest extends KubernetesTestBase {
 				resourceID,
 				1234,
 				new HardwareDescription(1, 2L, 3L, 4L),
+				new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 				registerSlotProfile,
 				registerSlotProfile);
 			CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway

@@ -2723,6 +2723,54 @@
                     "type" : "integer"
                   }
                 }
+              },
+              "memoryConfiguration" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:taskexecutor:TaskExecutorMemoryConfiguration",
+                "properties" : {
+                  "frameworkHeap" : {
+                    "type" : "integer"
+                  },
+                  "taskHeap" : {
+                    "type" : "integer"
+                  },
+                  "frameworkOffHeap" : {
+                    "type" : "integer"
+                  },
+                  "taskOffHeap" : {
+                    "type" : "integer"
+                  },
+                  "networkMin" : {
+                    "type" : "integer"
+                  },
+                  "networkMax" : {
+                    "type" : "integer"
+                  },
+                  "networkFraction" : {
+                    "type" : "number"
+                  },
+                  "managedTotal" : {
+                    "type" : "integer"
+                  },
+                  "managedFraction" : {
+                    "type" : "number"
+                  },
+                  "metaspaceMax" : {
+                    "type" : "integer"
+                  },
+                  "overheadMin" : {
+                    "type" : "integer"
+                  },
+                  "overheadMax" : {
+                    "type" : "integer"
+                  },
+                  "overheadFraction" : {
+                    "type" : "number"
+                  },
+                  "memoryTotal" : {
+                    "type" : "integer"
+                  }
+                }
               }
             }
           }
@@ -2838,6 +2886,54 @@
               "type" : "integer"
             },
             "managedMemory" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "memoryConfiguration" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:taskexecutor:TaskExecutorMemoryConfiguration",
+          "properties" : {
+            "frameworkHeap" : {
+              "type" : "integer"
+            },
+            "taskHeap" : {
+              "type" : "integer"
+            },
+            "frameworkOffHeap" : {
+              "type" : "integer"
+            },
+            "taskOffHeap" : {
+              "type" : "integer"
+            },
+            "networkMin" : {
+              "type" : "integer"
+            },
+            "networkMax" : {
+              "type" : "integer"
+            },
+            "networkFraction" : {
+              "type" : "number"
+            },
+            "managedTotal" : {
+              "type" : "integer"
+            },
+            "managedFraction" : {
+              "type" : "number"
+            },
+            "metaspaceMax" : {
+              "type" : "integer"
+            },
+            "overheadMin" : {
+              "type" : "integer"
+            },
+            "overheadMax" : {
+              "type" : "integer"
+            },
+            "overheadFraction" : {
+              "type" : "number"
+            },
+            "memoryTotal" : {
               "type" : "integer"
             }
           }

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntime
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
@@ -427,6 +428,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 					resourceID,
 					1234,
 					new HardwareDescription(1, 2L, 3L, 4L),
+					TaskExecutorMemoryConfiguration.create(flinkConfig),
 					ResourceProfile.ZERO,
 					ResourceProfile.ZERO);
 
