@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -27,6 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
@@ -102,6 +105,10 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 	/** Used to compress buffer to reduce IO. */
 	@Nullable
 	protected final BufferCompressor bufferCompressor;
+
+	protected Counter numBytesOut = new SimpleCounter();
+
+	protected Counter numBuffersOut = new SimpleCounter();
 
 	public ResultPartition(
 		String owningTaskName,
@@ -202,13 +209,15 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 		isFinished = true;
 	}
 
+	@Override
+	public boolean isFinished() {
+		return isFinished;
+	}
+
 	public void release() {
 		release(null);
 	}
 
-	/**
-	 * Releases the result partition.
-	 */
 	public void release(Throwable cause) {
 		if (isReleased.compareAndSet(false, true)) {
 			LOG.debug("{}: Releasing {}.", owningTaskName, this);
@@ -246,6 +255,12 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 	@Override
 	public int getNumTargetKeyGroups() {
 		return numTargetKeyGroups;
+	}
+
+	@Override
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
+		numBytesOut = metrics.getNumBytesOutCounter();
+		numBuffersOut = metrics.getNumBuffersOutCounter();
 	}
 
 	/**

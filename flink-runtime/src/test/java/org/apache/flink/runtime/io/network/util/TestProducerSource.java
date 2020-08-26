@@ -29,19 +29,19 @@ public interface TestProducerSource {
 	 *
 	 * <p> The channel index specifies the subpartition add the data to.
 	 */
-	BufferConsumerAndChannel getNextBufferConsumer() throws Exception;
+	BufferAndChannel getNextBuffer() throws Exception;
 
-	class BufferConsumerAndChannel {
-		private final BufferConsumer bufferConsumer;
+	class BufferAndChannel {
+		private final byte[] buffer;
 		private final int targetChannel;
 
-		public BufferConsumerAndChannel(BufferConsumer bufferConsumer, int targetChannel) {
-			this.bufferConsumer = checkNotNull(bufferConsumer);
+		public BufferAndChannel(byte[] buffer, int targetChannel) {
+			this.buffer = checkNotNull(buffer);
 			this.targetChannel = targetChannel;
 		}
 
-		public BufferConsumer getBufferConsumer() {
-			return bufferConsumer;
+		public byte[] getBuffer() {
+			return buffer;
 		}
 
 		public int getTargetChannel() {

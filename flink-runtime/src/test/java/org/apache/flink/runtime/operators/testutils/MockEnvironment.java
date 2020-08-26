@@ -202,7 +202,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	public void addOutput(final List<Record> outputList) {
 		try {
-			outputs.add(new RecordCollectingResultPartitionWriter(outputList, new TestPooledBufferProvider(Integer.MAX_VALUE)));
+			outputs.add(new RecordCollectingResultPartitionWriter(outputList));
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
