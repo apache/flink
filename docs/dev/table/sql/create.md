@@ -89,9 +89,9 @@ table_env = TableEnvironment.create(settings)
 
 # SQL query with a registered table
 # register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.sql_update("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 # run a SQL query on the Table and retrieve the result as a new Table
-result = tableEnv.sqlQuery(
+result = tableEnv.sql_query(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 # SQL update with a registered table

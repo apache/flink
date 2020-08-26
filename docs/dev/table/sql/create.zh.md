@@ -89,9 +89,9 @@ table_env = TableEnvironment.create(settings)
 
 # 对已经已经注册的表进行 SQL 查询
 # 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.sql_update("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 # 在表上执行 SQL 查询，并把得到的结果作为一个新的表
-result = tableEnv.sqlQuery(
+result = tableEnv.sql_query(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 # SQL 对已注册的表进行 update 操作
