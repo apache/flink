@@ -80,7 +80,7 @@ $ tail log/flink-*-taskexecutor-*.out
   (be,2)
 {% endhighlight %}
 
-Additionally, you can check Flink's [Web UI](http://localhost:8080) to monitor the status of the Cluster and running Job.
+Additionally, you can check Flink's [Web UI](http://localhost:8081) to monitor the status of the Cluster and running Job.
 
 ## Step 4: Stop the Cluster
 
