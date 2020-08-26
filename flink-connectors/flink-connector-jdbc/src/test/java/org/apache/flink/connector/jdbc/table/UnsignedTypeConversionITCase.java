@@ -28,11 +28,10 @@ import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import ch.vorburger.mariadb4j.DB;
 import ch.vorburger.mariadb4j.DBConfigurationBuilder;
-import ch.vorburger.mariadb4j.junit.MariaDB4jRule;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -42,6 +41,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -60,25 +60,52 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 	private static final String TABLE_NAME = "unsigned_test";
 
 	private StreamTableEnvironment tEnv;
+	private DB db;
 	private String dbUrl;
 	private Connection connection;
 
-	@ClassRule
-	public static MariaDB4jRule db4jRule = new MariaDB4jRule(
-		DBConfigurationBuilder.newBuilder().build(),
-		DEFAULT_DB_NAME,
-		null);
-
 	@Before
-	public void setUp() throws SQLException, ClassNotFoundException {
+	public void setUp() throws SQLException, IllegalStateException {
+		//dbUrl: jdbc:mysql://localhost:3306/test
+		prepareMariaDB();
+		createMysqlTable();
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		tEnv = StreamTableEnvironment.create(env);
-		//dbUrl: jdbc:mysql://localhost:3306/test
-		dbUrl = db4jRule.getURL();
-		connection = DriverManager.getConnection(dbUrl);
-		createMysqlTable();
 		createFlinkTable();
 		prepareData();
+	}
+
+	private void prepareMariaDB() throws IllegalStateException {
+		boolean initDbSuccess = false;
+		int i = 0;
+		//retry
+		while (i < 3) {
+			try {
+				db = DB.newEmbeddedDB(DBConfigurationBuilder.newBuilder().build());
+				db.start();
+				dbUrl = db.getConfiguration().getURL(DEFAULT_DB_NAME);
+				connection = DriverManager.getConnection(dbUrl);
+				try (Statement statement = connection.createStatement()) {
+					statement.execute("CREATE DATABASE IF NOT EXISTS `" + DEFAULT_DB_NAME + "`;");
+					ResultSet resultSet = statement.executeQuery("SELECT SCHEMA_NAME FROM " +
+						"INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '" + DEFAULT_DB_NAME + "';");
+					if (resultSet.next()) {
+						String dbName = resultSet.getString(1);
+						initDbSuccess = DEFAULT_DB_NAME.equalsIgnoreCase(dbName);
+					}
+				}
+			} catch (Exception e) {
+				log.info("Initialize DB fail caused by {}", e);
+			}
+			if (initDbSuccess) {
+				break;
+			}
+			i++;
+		}
+		if (!initDbSuccess) {
+			throw new IllegalStateException("Initialize MySQL database instance failed after 3 attempts," +
+				" please open an issue.");
+		}
 	}
 
 	@Test
@@ -178,7 +205,6 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 
 	@After
 	public void cleanup() throws Exception {
-		PreparedStatement preparedStatement = connection.prepareStatement(String.format("drop table %s", TABLE_NAME));
-		preparedStatement.execute();
+		db.stop();
 	}
 }
