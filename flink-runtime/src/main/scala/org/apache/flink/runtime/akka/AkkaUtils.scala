@@ -625,24 +625,16 @@ object AkkaUtils {
   def getLogLevel: String = {
     if (LOG.isTraceEnabled) {
       "TRACE"
+    } else if (LOG.isDebugEnabled) {
+      "DEBUG"
+    } else if (LOG.isInfoEnabled) {
+      "INFO"
+    } else if (LOG.isWarnEnabled) {
+      "WARNING"
+    } else if (LOG.isErrorEnabled) {
+      "ERROR"
     } else {
-      if (LOG.isDebugEnabled) {
-        "DEBUG"
-      } else {
-        if (LOG.isInfoEnabled) {
-          "INFO"
-        } else {
-          if (LOG.isWarnEnabled) {
-            "WARNING"
-          } else {
-            if (LOG.isErrorEnabled) {
-              "ERROR"
-            } else {
-              "OFF"
-            }
-          }
-        }
-      }
+      "OFF"
     }
   }
 
