@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 
 /**
@@ -31,6 +32,17 @@ public interface SourceReaderContext {
 	 * @return The metric group this source belongs to.
 	 */
 	MetricGroup metricGroup();
+
+	/**
+	 * Gets the configuration with which Flink was started.
+	 */
+	Configuration getConfiguration();
+
+	/**
+	 * Gets the hostname of the machine where this reader is executed. This can be used
+	 * to request splits local to the machine, if needed.
+	 */
+	String getLocalHostName();
 
 	/**
 	 * Send a source event to the source coordinator.
