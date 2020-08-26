@@ -47,7 +47,9 @@ import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link KubernetesResourceManagerDriver}.
@@ -193,7 +195,12 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 		private TestingFlinkKubeClient flinkKubeClient;
 
 		PodCallbackHandler getPodCallbackHandler() {
-			return (KubernetesResourceManagerDriver) getDriver();
+			try {
+				return setWatchPodsAndDoCallbackFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+			} catch (Exception e) {
+				fail("Cannot get PodCallbackHandler, cause: " + e.getMessage());
+			}
+			return null;
 		}
 
 		@Override
@@ -216,7 +223,7 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 
 		@Override
 		protected void validateInitialization() throws Exception {
-			assertThat(setWatchPodsAndDoCallbackFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(getDriver()));
+			assertNotNull(getPodCallbackHandler());
 		}
 
 		@Override

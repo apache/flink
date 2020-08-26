@@ -55,8 +55,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Implementation of {@link ResourceManagerDriver} for Kubernetes deployment.
  */
-public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriver<KubernetesWorkerNode>
-	implements FlinkKubeClient.PodCallbackHandler {
+public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriver<KubernetesWorkerNode> {
 
 	/** The taskmanager pod name pattern is {clusterId}-{taskmanager}-{attemptId}-{podIndex}. */
 	private static final String TASK_MANAGER_POD_FORMAT = "%s-taskmanager-%d-%d";
@@ -107,7 +106,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 		podsWatch = kubeClient.watchPodsAndDoCallback(
 				KubernetesUtils.getTaskManagerLabels(clusterId),
-				this);
+				new PodCallbackHandlerImpl());
 	}
 
 	@Override
@@ -134,7 +133,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	@Override
 	public void deregisterApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics) {
-		log.info("Deregistering flink kubernetes cluster, clusterId: {}, diagnostics: {}",
+		log.info("Deregistering Flink Kubernetes cluster, clusterId: {}, diagnostics: {}",
 				clusterId,
 				optionalDiagnostics == null ? "" : optionalDiagnostics);
 		kubeClient.stopAndCleanupCluster(clusterId);
@@ -187,49 +186,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 		log.info("Stopping TaskManager pod {}.", podName);
 
-		removePod(podName);
-	}
-
-	// ------------------------------------------------------------------------
-	//  FlinkKubeClient.PodCallbackHandler
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void onAdded(List<KubernetesPod> pods) {
-		getMainThreadExecutor().execute(() -> {
-			for (KubernetesPod pod : pods) {
-				final String podName = pod.getName();
-				final CompletableFuture<KubernetesWorkerNode> requestResourceFuture = requestResourceFutures.remove(podName);
-
-				if (requestResourceFuture == null) {
-					log.debug("Ignore TaskManager pod that is already added: {}", podName);
-					continue;
-				}
-
-				log.info("Received new TaskManager pod: {}", podName);
-				requestResourceFuture.complete(new KubernetesWorkerNode(new ResourceID(podName)));
-			}
-		});
-	}
-
-	@Override
-	public void onModified(List<KubernetesPod> pods) {
-		terminatedPodsInMainThread(pods);
-	}
-
-	@Override
-	public void onDeleted(List<KubernetesPod> pods) {
-		terminatedPodsInMainThread(pods);
-	}
-
-	@Override
-	public void onError(List<KubernetesPod> pods) {
-		terminatedPodsInMainThread(pods);
-	}
-
-	@Override
-	public void handleFatalError(Throwable throwable) {
-		getMainThreadExecutor().execute(() -> getResourceEventHandler().onError(throwable));
+		stopPod(podName);
 	}
 
 	// ------------------------------------------------------------------------
@@ -308,18 +265,62 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 					}
 
 					getResourceEventHandler().onWorkerTerminated(new ResourceID(podName));
-					removePod(podName);
+					stopPod(podName);
 				}
 			}
 		});
 	}
 
-	private void removePod(String podName) {
+	private void stopPod(String podName) {
 		kubeClient.stopPod(podName)
 				.whenComplete((ignore, throwable) -> {
 					if (throwable != null) {
 						log.warn("Could not remove TaskManager pod {}, exception: {}", podName, throwable);
 					}
 				});
+	}
+
+	// ------------------------------------------------------------------------
+	//  FlinkKubeClient.PodCallbackHandler
+	// ------------------------------------------------------------------------
+
+	private class PodCallbackHandlerImpl implements FlinkKubeClient.PodCallbackHandler {
+		@Override
+		public void onAdded(List<KubernetesPod> pods) {
+			getMainThreadExecutor().execute(() -> {
+				for (KubernetesPod pod : pods) {
+					final String podName = pod.getName();
+					final CompletableFuture<KubernetesWorkerNode> requestResourceFuture = requestResourceFutures.remove(podName);
+
+					if (requestResourceFuture == null) {
+						log.debug("Ignore TaskManager pod that is already added: {}", podName);
+						continue;
+					}
+
+					log.info("Received new TaskManager pod: {}", podName);
+					requestResourceFuture.complete(new KubernetesWorkerNode(new ResourceID(podName)));
+				}
+			});
+		}
+
+		@Override
+		public void onModified(List<KubernetesPod> pods) {
+			terminatedPodsInMainThread(pods);
+		}
+
+		@Override
+		public void onDeleted(List<KubernetesPod> pods) {
+			terminatedPodsInMainThread(pods);
+		}
+
+		@Override
+		public void onError(List<KubernetesPod> pods) {
+			terminatedPodsInMainThread(pods);
+		}
+
+		@Override
+		public void handleFatalError(Throwable throwable) {
+			getResourceEventHandler().onError(throwable);
+		}
 	}
 }
