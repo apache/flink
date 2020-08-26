@@ -38,8 +38,26 @@ CMD_EXIT="/tmp/watchdog.exit"
 # Utility functions
 # ============================================= 
 
+max_of() {
+  local max number
+
+  max="$1"
+
+  for number in "${@:2}"; do
+    if ((number > max)); then
+      max="$number"
+    fi
+  done
+
+  printf '%d\n' "$max"
+}
+
+# Returns the highest modification time out of $CMD_OUT (which is the command output file)
+# and any file(s) named "mvn-*.log" (which are logging files created by Flink's tests)
 mod_time () {
-	echo `stat -c "%Y" $CMD_OUT`
+	CMD_OUT_MOD_TIME=`stat -c "%Y" $CMD_OUT`
+	ADDITIONAL_FILES_MOD_TIMES=`stat -c "%Y" $WATCHDOG_ADDITIONAL_MONITORING_FILES 2> /dev/null`
+	echo `max_of $CMD_OUT_MOD_TIME $ADDITIONAL_FILES_MOD_TIMES`
 }
 
 the_time() {

@@ -30,7 +30,7 @@ fi
 source "${HERE}/stage.sh"
 source "${HERE}/maven-utils.sh"
 source "${HERE}/controller_utils.sh"
-source "${HERE}/watchdog.sh"
+
 STAGE=$1
 
 # =============================================================================
@@ -68,6 +68,10 @@ export JAVA_TOOL_OPTIONS="-XX:+HeapDumpOnOutOfMemoryError"
 
 # some tests provide additional logs if they find this variable
 export IS_CI=true
+
+export WATCHDOG_ADDITIONAL_MONITORING_FILES="$DEBUG_FILES_OUTPUT_DIR/mvn-*.log"
+
+source "${HERE}/watchdog.sh"
 
 # =============================================================================
 # Step 1: Rebuild jars and install Flink to local maven repository
