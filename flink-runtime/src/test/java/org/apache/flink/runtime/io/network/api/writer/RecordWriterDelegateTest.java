@@ -20,28 +20,25 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
+import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -51,16 +48,17 @@ import static org.junit.Assert.assertTrue;
  */
 public class RecordWriterDelegateTest extends TestLogger {
 
+	private static final int recordSize = 8;
+
 	private static final int numberOfBuffers = 10;
 
 	private static final int memorySegmentSize = 128;
-
-	private static final int numberOfSegmentsToRequest = 2;
 
 	private NetworkBufferPool globalPool;
 
 	@Before
 	public void setup() {
+		assertEquals("Illegal memory segment size,", 0, memorySegmentSize % recordSize);
 		globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize);
 	}
 
@@ -103,11 +101,11 @@ public class RecordWriterDelegateTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testSingleRecordWriterBroadcastEvent() throws Exception {
 		// setup
-		final ArrayDeque<BufferConsumer>[] queues = new ArrayDeque[] { new ArrayDeque(), new ArrayDeque() };
-		final RecordWriter recordWriter = createRecordWriter(queues);
+		final ResultPartition partition = RecordWriterTest.createResultPartition(memorySegmentSize, 2);
+		final RecordWriter recordWriter = new RecordWriterBuilder<>().build(partition);
 		final RecordWriterDelegate writerDelegate = new SingleRecordWriter(recordWriter);
 
-		verifyBroadcastEvent(writerDelegate, queues, 1);
+		verifyBroadcastEvent(writerDelegate, Collections.singletonList(partition));
 	}
 
 	@Test
@@ -116,14 +114,16 @@ public class RecordWriterDelegateTest extends TestLogger {
 		// setup
 		final int numRecordWriters = 2;
 		final List<RecordWriter> recordWriters = new ArrayList<>(numRecordWriters);
-		final ArrayDeque<BufferConsumer>[] queues = new ArrayDeque[] { new ArrayDeque(), new ArrayDeque() };
+		final List<ResultPartition> partitions = new ArrayList<>(numRecordWriters);
 
 		for (int i = 0; i < numRecordWriters; i++) {
-			recordWriters.add(createRecordWriter(queues));
+			final ResultPartition partition = RecordWriterTest.createResultPartition(memorySegmentSize, 2);
+			partitions.add(partition);
+			recordWriters.add(new RecordWriterBuilder<>().build(partition));
 		}
 		final RecordWriterDelegate writerDelegate = new MultipleRecordWriters(recordWriters);
 
-		verifyBroadcastEvent(writerDelegate, queues, numRecordWriters);
+		verifyBroadcastEvent(writerDelegate, partitions);
 	}
 
 	private RecordWriter createRecordWriter(NetworkBufferPool globalPool) throws Exception {
@@ -136,14 +136,6 @@ public class RecordWriterDelegateTest extends TestLogger {
 		return new RecordWriterBuilder().build(partition);
 	}
 
-	private RecordWriter createRecordWriter(ArrayDeque<BufferConsumer>[] queues) {
-		final ResultPartitionWriter partition = new RecordWriterTest.CollectingPartitionWriter(
-			queues,
-			new TestPooledBufferProvider(1));
-
-		return new RecordWriterBuilder().build(partition);
-	}
-
 	private void verifyAvailability(RecordWriterDelegate writerDelegate) throws Exception {
 		// writer is available at the beginning
 		assertTrue(writerDelegate.isAvailable());
@@ -151,13 +143,14 @@ public class RecordWriterDelegateTest extends TestLogger {
 
 		// request one buffer from the local pool to make it unavailable
 		RecordWriter recordWriter = writerDelegate.getRecordWriter(0);
-		final BufferBuilder bufferBuilder = checkNotNull(recordWriter.getBufferBuilder(0));
+		for (int i = 0; i < memorySegmentSize / recordSize; ++i) {
+			recordWriter.emit(new IntValue(i));
+		}
 		assertFalse(writerDelegate.isAvailable());
 		CompletableFuture future = writerDelegate.getAvailableFuture();
 		assertFalse(future.isDone());
 
 		// recycle the buffer to make the local pool available again
-		BufferBuilderTestUtils.fillBufferBuilder(bufferBuilder, 1).finish();
 		ResultSubpartitionView readView = recordWriter.getTargetPartition().createSubpartitionView(0, new NoOpBufferAvailablityListener());
 		Buffer buffer = readView.getNextBuffer().buffer();
 
@@ -169,18 +162,18 @@ public class RecordWriterDelegateTest extends TestLogger {
 
 	private void verifyBroadcastEvent(
 			RecordWriterDelegate writerDelegate,
-			ArrayDeque<BufferConsumer>[] queues,
-			int numRecordWriters) throws Exception {
+			List<ResultPartition> partitions) throws Exception {
 
 		final CancelCheckpointMarker message = new CancelCheckpointMarker(1);
 		writerDelegate.broadcastEvent(message);
 
 		// verify the added messages in all the queues
-		for (int i = 0; i < queues.length; i++) {
-			assertEquals(numRecordWriters, queues[i].size());
+		for (ResultPartition partition : partitions) {
+			for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
+				assertEquals(1, partition.getNumberOfQueuedBuffers(i));
 
-			for (int j = 0; j < numRecordWriters; j++) {
-				BufferOrEvent boe = RecordWriterTest.parseBuffer(queues[i].remove(), i);
+				ResultSubpartitionView view = partition.createSubpartitionView(i, new NoOpBufferAvailablityListener());
+				BufferOrEvent boe = RecordWriterTest.parseBuffer(view.getNextBuffer().buffer(), i);
 				assertTrue(boe.isEvent());
 				assertEquals(message, boe.getEvent());
 			}
