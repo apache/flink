@@ -59,6 +59,25 @@ function setup_confluent_dist {
   sed -i -e "s#listeners=http://0.0.0.0:8081#listeners=http://0.0.0.0:${SCHEMA_REGISTRY_PORT}#" $CONFLUENT_DIR/etc/schema-registry/schema-registry.properties
 }
 
+function wait_for_zookeeper_running {
+  start_time=$(date +%s)
+  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep "Node does not exist") ]] ; do
+    current_time=$(date +%s)
+    time_diff=$((current_time - start_time))
+
+    if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+        echo "Zookeeper did not start after $MAX_RETRY_SECONDS seconds. Printing logs:"
+        debug_error
+        exit 1
+    else
+        echo "waiting for Zookeeper to start."
+        sleep 1
+    fi
+  done
+
+  echo "Zookeeper Server has been started ..."
+}
+
 function start_kafka_cluster {
   if [[ -z $KAFKA_DIR ]]; then
     echo "Must run 'setup_kafka_dist' before attempting to start Kafka cluster"
@@ -66,6 +85,8 @@ function start_kafka_cluster {
   fi
 
   $KAFKA_DIR/bin/zookeeper-server-start.sh -daemon $KAFKA_DIR/config/zookeeper.properties
+  # we wait for Zk to be up to make sure the broker can start
+  wait_for_zookeeper_running
   $KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
 
   start_time=$(date +%s)
