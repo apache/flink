@@ -50,7 +50,7 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 ## 配置参数
 
-配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据`作业存档目录`和`刷新作业存档目录的时间间隔`进行调整。
+配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据 `作业存档目录` 和 `刷新作业存档目录的时间间隔` 进行调整。
 
 **JobManager**
 
