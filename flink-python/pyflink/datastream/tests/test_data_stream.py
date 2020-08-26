@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 import decimal
+import os
+import uuid
 
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
@@ -120,6 +122,33 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         results.sort()
         self.assertEqual(expected, results)
+
+    def test_connected_streams_with_dependency(self):
+        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir)
+        python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+
+        class TestCoMapFunction(CoMapFunction):
+
+            def map1(self, value):
+                from test_stream_dependency_manage_lib import add_two
+                return add_two(value)
+
+            def map2(self, value):
+                return value + 1
+
+        self.env.add_python_file(python_file_path)
+        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds_1 = ds.map(lambda x: x * 2)
+        ds.connect(ds_1).map(TestCoMapFunction()).add_sink(self.test_sink)
+        self.env.execute("test co-map add python file")
+        result = self.test_sink.get_results(True)
+        expected = ['11', '3', '3', '4', '5', '5', '6', '7', '7', '9']
+        result.sort()
+        expected.sort()
+        self.assertEqual(expected, result)
 
     def test_co_map_function_with_data_types(self):
         self.env.set_parallelism(1)
