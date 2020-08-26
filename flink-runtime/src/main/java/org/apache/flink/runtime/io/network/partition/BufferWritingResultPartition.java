@@ -19,16 +19,23 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
+import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkElementIndex;
@@ -48,6 +55,14 @@ public class BufferWritingResultPartition extends ResultPartition {
 
 	/** The subpartitions of this partition. At least one. */
 	protected final ResultSubpartition[] subpartitions;
+
+	/** For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be null. */
+	private final BufferBuilder[] subpartitionBufferBuilders;
+
+	/** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
+	private BufferBuilder broadcastBufferBuilder;
+
+	private Meter idleTimeMsPerSecond = new MeterView(new SimpleCounter());
 
 	public BufferWritingResultPartition(
 		String owningTaskName,
@@ -72,6 +87,7 @@ public class BufferWritingResultPartition extends ResultPartition {
 			bufferPoolFactory);
 
 		this.subpartitions = checkNotNull(subpartitions);
+		this.subpartitionBufferBuilders = new BufferBuilder[subpartitions.length];
 	}
 
 	public int getNumberOfQueuedBuffers() {
@@ -90,37 +106,6 @@ public class BufferWritingResultPartition extends ResultPartition {
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		checkInProduceState();
-
-		return bufferPool.requestBufferBuilderBlocking(targetChannel);
-	}
-
-	@Override
-	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
-		return bufferPool.requestBufferBuilder(targetChannel);
-	}
-
-	@Override
-	public boolean addBufferConsumer(
-			BufferConsumer bufferConsumer,
-			int subpartitionIndex) throws IOException {
-		checkNotNull(bufferConsumer);
-
-		ResultSubpartition subpartition;
-		try {
-			checkInProduceState();
-			subpartition = subpartitions[subpartitionIndex];
-		}
-		catch (Exception ex) {
-			bufferConsumer.close();
-			throw ex;
-		}
-
-		return subpartition.add(bufferConsumer);
-	}
-
-	@Override
 	public void flushAll() {
 		for (ResultSubpartition subpartition : subpartitions) {
 			subpartition.flush();
@@ -130,6 +115,49 @@ public class BufferWritingResultPartition extends ResultPartition {
 	@Override
 	public void flush(int targetSubpartition) {
 		subpartitions[targetSubpartition].flush();
+	}
+
+	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+		do {
+			final BufferBuilder bufferBuilder = getSubpartitionBufferBuilder(targetSubpartition);
+			bufferBuilder.appendAndCommit(record);
+
+			if (bufferBuilder.isFull()) {
+				finishSubpartitionBufferBuilder(targetSubpartition);
+			}
+		} while (record.hasRemaining());
+	}
+
+	@Override
+	public void broadcastRecord(ByteBuffer record) throws IOException {
+		do {
+			final BufferBuilder bufferBuilder = getBroadcastBufferBuilder();
+			bufferBuilder.appendAndCommit(record);
+
+			if (bufferBuilder.isFull()) {
+				finishBroadcastBufferBuilder();
+			}
+		} while (record.hasRemaining());
+	}
+
+	@Override
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+		checkInProduceState();
+		finishBroadcastBufferBuilder();
+		finishSubpartitionBufferBuilders();
+
+		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
+			for (ResultSubpartition subpartition : subpartitions) {
+				// Retain the buffer so that it can be recycled by each channel of targetPartition
+				subpartition.add(eventBufferConsumer.copy());
+			}
+		}
+	}
+
+	@Override
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
+		super.setMetricGroup(metrics);
+		idleTimeMsPerSecond = metrics.getIdleTimeMsPerSecond();
 	}
 
 	@Override
@@ -149,9 +177,13 @@ public class BufferWritingResultPartition extends ResultPartition {
 
 	@Override
 	public void finish() throws IOException {
+		finishBroadcastBufferBuilder();
+		finishSubpartitionBufferBuilders();
+
 		for (ResultSubpartition subpartition : subpartitions) {
 			subpartition.finish();
 		}
+
 		super.finish();
 	}
 
@@ -167,6 +199,101 @@ public class BufferWritingResultPartition extends ResultPartition {
 				LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
 			}
 		}
+	}
+
+	private BufferBuilder getSubpartitionBufferBuilder(int targetSubpartition) throws IOException {
+		final BufferBuilder bufferBuilder = subpartitionBufferBuilders[targetSubpartition];
+		if (bufferBuilder != null) {
+			return bufferBuilder;
+		}
+
+		return getNewSubpartitionBufferBuilder(targetSubpartition);
+	}
+
+	private BufferBuilder getNewSubpartitionBufferBuilder(int targetSubpartition) throws IOException {
+		checkInProduceState();
+		ensureUnicastMode();
+
+		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
+		subpartitions[targetSubpartition].add(bufferBuilder.createBufferConsumer());
+		subpartitionBufferBuilders[targetSubpartition] = bufferBuilder;
+		return bufferBuilder;
+	}
+
+	private BufferBuilder getBroadcastBufferBuilder() throws IOException {
+		if (broadcastBufferBuilder != null) {
+			return broadcastBufferBuilder;
+		}
+
+		return getNewBroadcastBufferBuilder();
+	}
+
+	private BufferBuilder getNewBroadcastBufferBuilder() throws IOException {
+		checkInProduceState();
+		ensureBroadcastMode();
+
+		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(0);
+		broadcastBufferBuilder = bufferBuilder;
+
+		try (final BufferConsumer consumer = bufferBuilder.createBufferConsumer()) {
+			for (ResultSubpartition subpartition : subpartitions) {
+				subpartition.add(consumer.copy());
+			}
+		}
+
+		return bufferBuilder;
+	}
+
+	private BufferBuilder requestNewBufferBuilderFromPool(int targetSubpartition) throws IOException {
+		BufferBuilder bufferBuilder = bufferPool.requestBufferBuilder(targetSubpartition);
+		if (bufferBuilder != null) {
+			return bufferBuilder;
+		}
+
+		final long start = System.currentTimeMillis();
+		try {
+			bufferBuilder = bufferPool.requestBufferBuilderBlocking(targetSubpartition);
+			idleTimeMsPerSecond.markEvent(System.currentTimeMillis() - start);
+			return bufferBuilder;
+		} catch (InterruptedException e) {
+			throw new IOException("Interrupted while waiting for buffer");
+		}
+	}
+
+	private void finishSubpartitionBufferBuilder(int targetSubpartition) {
+		final BufferBuilder bufferBuilder = subpartitionBufferBuilders[targetSubpartition];
+		if (bufferBuilder != null) {
+			numBytesOut.inc(bufferBuilder.finish());
+			numBuffersOut.inc();
+			subpartitionBufferBuilders[targetSubpartition] = null;
+		}
+	}
+
+	private void finishSubpartitionBufferBuilders() {
+		for (int channelIndex = 0; channelIndex < numSubpartitions; channelIndex++) {
+			finishSubpartitionBufferBuilder(channelIndex);
+		}
+	}
+
+	private void finishBroadcastBufferBuilder() {
+		if (broadcastBufferBuilder != null) {
+			numBytesOut.inc(broadcastBufferBuilder.finish() * numSubpartitions);
+			numBuffersOut.inc(numSubpartitions);
+			broadcastBufferBuilder = null;
+		}
+	}
+
+	private void ensureUnicastMode() {
+		finishBroadcastBufferBuilder();
+	}
+
+	private void ensureBroadcastMode() {
+		finishSubpartitionBufferBuilders();
+	}
+
+	@VisibleForTesting
+	public Meter getIdleTimeMsPerSecond() {
+		return idleTimeMsPerSecond;
 	}
 
 	@VisibleForTesting
