@@ -28,6 +28,8 @@ under the License.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
+<a name="implementing-an-interface"></a>
+
 ## 实现接口
 
 最基本的方法是实现提供的接口：
@@ -39,6 +41,8 @@ class MyMapFunction implements MapFunction<String, Integer> {
 data.map(new MyMapFunction());
 {% endhighlight %}
 
+<a name="anonymous-classes"></a>
+
 ## 匿名类
 
 你可以将函数当做匿名类传递：
@@ -47,6 +51,8 @@ data.map(new MapFunction<String, Integer> () {
   public Integer map(String value) { return Integer.parseInt(value); }
 });
 {% endhighlight %}
+
+<a name="java-8-lambdas"></a>
 
 ## Java 8 Lambdas 表达式
 
@@ -60,9 +66,11 @@ data.filter(s -> s.startsWith("http://"));
 data.reduce((i1,i2) -> i1 + i2);
 {% endhighlight %}
 
-## 富函数
+<a name="rich-functions"></a>
 
-所有需要用户自定义函数的转化操作都可以将富函数作为参数。例如，代替
+## Rich functions
+
+所有需要用户自定义函数的转化操作都可以将 *rich* function 作为参数。例如，代替
 
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
@@ -78,13 +86,13 @@ class MyMapFunction extends RichMapFunction<String, Integer> {
 };
 {% endhighlight %}
 
-并将函数照常传递给map算子:
+并将函数照常传递给 `map` transformation:
 
 {% highlight java %}
 data.map(new MyMapFunction());
 {% endhighlight %}
 
-富函数也可以定义成匿名类：
+Rich functions 也可以定义成匿名类：
 {% highlight java %}
 data.map (new RichMapFunction<String, Integer>() {
   public Integer map(String value) { return Integer.parseInt(value); }
@@ -94,6 +102,7 @@ data.map (new RichMapFunction<String, Integer>() {
 </div>
 <div data-lang="scala" markdown="1">
 
+<a name="lambda-functions"></a>
 
 ## Lambda 函数
 
@@ -110,9 +119,11 @@ data.reduce { (i1,i2) => i1 + i2 }
 data.reduce { _ + _ }
 {% endhighlight %}
 
-## 富函数
+<a name="rich-functions"></a>
 
-所有将 lambda 表达式作为参数的转化操作都可以用富函数来代替。例如，代替
+## Rich functions
+
+所有将 lambda 表达式作为参数的转化操作都可以用 *rich* function 来代替。例如，代替
 
 {% highlight scala %}
 data.map { x => x.toInt }
@@ -126,7 +137,7 @@ class MyMapFunction extends RichMapFunction[String, Int] {
 };
 {% endhighlight %}
 
-并将函数传递给 `map` 算子:
+并将函数传递给 `map` transformation:
 
 {% highlight scala %}
 data.map(new MyMapFunction())
@@ -142,7 +153,7 @@ data.map (new RichMapFunction[String, Int] {
 
 </div>
 
-除了用户自定义的功能（map，reduce 等），富函数还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
+除了用户自定义的功能（map，reduce 等），Rich functions 还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
 `setRuntimeContext`。这些对于参数化功能很有用
 (参阅 [给函数传递参数]({{ site.baseurl }}/zh/dev/batch/index.html#passing-parameters-to-functions))，
 创建和最终确定本地状态，访问广播变量(参阅
@@ -150,6 +161,8 @@ data.map (new RichMapFunction[String, Int] {
 [累加器和计数器](#累加器和计数器))，以及迭代器的相关信息(参阅 [迭代器]({{ site.baseurl }}/zh/dev/batch/iterations.html))。
 
 {% top %}
+
+<a name="accumulators--counters"></a>
 
 ## 累加器和计数器
 
@@ -168,11 +181,11 @@ Flink 目前有如下**内置累加器**。每个都实现了
   和 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/DoubleCounter.java "__DoubleCounter__" %}:
   有关使用计数器的示例，请参见下文。
 - {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Histogram.java "__直方图__" %}:
-  离散数量的柱状直方图实现。 在内部，它只是整形到整形的映射。你可以使用它来计算值的分布，例如，单词计数程序的每行单词的分布情况。
+  离散数量的柱状直方图实现。在内部，它只是整形到整形的映射。你可以使用它来计算值的分布，例如，单词计数程序的每行单词的分布情况。
 
-__如何使用累加器:__
+__如何使用累加器：__
 
-首先，你要在需要使用累加器的用户自定义的转换函数中创建一个累加器对象(此处是计数器) 。
+首先，你要在需要使用累加器的用户自定义的转换函数中创建一个累加器对象（此处是计数器）。
 
 {% highlight java %}
 private IntCounter numLines = new IntCounter();
@@ -184,7 +197,7 @@ private IntCounter numLines = new IntCounter();
 getRuntimeContext().addAccumulator("num-lines", this.numLines);
 {% endhighlight %}
 
-现在你可以在操作函数中的任何位置（包括```open()``` and```close()```方法中）使用累加器。
+现在你可以在操作函数中的任何位置（包括 ```open()``` 和 ```close()``` 方法中）使用累加器。
 
 {% highlight java %}
 this.numLines.add(1);
@@ -202,13 +215,13 @@ myJobExecutionResult.getAccumulatorResult("num-lines")
 {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98 "聚合器" %}
 来计算每次迭代的统计信息，并基于此类统计信息来终止迭代。
 
-__定制累加器:__
+__定制累加器：__
 
 要实现自己的累加器，你只需要实现累加器接口即可。如果你认为自定义累加器应随 Flink 一起提供，请尽管创建拉取请求。
 
 你可以选择实现
-{% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "累加器" %}
-或 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "简单累加器" %}。
+{% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %}
+或 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}。
 
 ```Accumulator<V,R>``` 最灵活: 它给需要添加的值定义了类型```V```，并定义了最终的结果类型```R```。例如，对于直方图，```V```是一个数字且```R```是一个直方图。
  ```SimpleAccumulator``` 适用于两种类型都相同的情况，例如计数器。
