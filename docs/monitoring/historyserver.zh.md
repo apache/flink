@@ -24,7 +24,7 @@ under the License.
 
 Flink 提供了 history server，可以在相应的 Flink 集群关闭之后查询已完成作业的统计信息。
 
-此外，它暴露了一套 REST API，该 API 接受 HTTP 请求并以 JSON 数据格式进行响应。
+此外，它暴露了一套 REST API，该 API 接受 HTTP 请求并返回 JSON 格式的数据。
 
 * This will be replaced by the TOC
 {:toc}
@@ -35,14 +35,14 @@ Flink 提供了 history server，可以在相应的 Flink 集群关闭之后查�
 
 HistoryServer 允许查询 JobManager 存档的已完成作业的状态和统计信息。
 
-在配置 HistoryServer *和* JobManager 之后，你可以使用其相应的启动脚本来启动和停止 HistoryServer：
+在配置 HistoryServer *和* JobManager 之后，你可以使用相应的脚本来启动和停止 HistoryServer：
 
 {% highlight shell %}
 # 启动或者停止 HistoryServer
 bin/historyserver.sh (start|start-foreground|stop)
 {% endhighlight %}
 
-默认情况下，此服务器绑定到 `localhost` 并监听 `8082` 端口。
+默认情况下，此服务器绑定到 `localhost` 的 `8082` 端口。
 
 目前，只能将 HistoryServer 作为独立的进程运行。
 
@@ -50,7 +50,7 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 ## 配置参数
 
-配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据归档路径和已归档作业刷新间隔进行调整。
+配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据存档路径和已存档作业刷新间隔进行调整。
 
 **JobManager**
 
