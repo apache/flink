@@ -27,32 +27,42 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * HeartbeatMonitor的默认实现。
  * The default implementation of {@link HeartbeatMonitor}.
  *
  * @param <O> Type of the payload being sent to the associated heartbeat target
  */
 public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 
-	/** Resource ID of the monitored heartbeat target. */
+	// 监视的心跳目标的资源id
+	// Resource ID of the monitored heartbeat target.
 	private final ResourceID resourceID;
 
-	/** Associated heartbeat target. */
+	// Associated heartbeat target
+	// 关联的心跳目标
 	private final HeartbeatTarget<O> heartbeatTarget;
 
+	// 调度线程池
 	private final ScheduledExecutor scheduledExecutor;
 
-	/** Listener which is notified about heartbeat timeouts. */
+	// Listener which is notified about heartbeat timeouts
+	// 心跳超时的时候通知的监视器
 	private final HeartbeatListener<?, ?> heartbeatListener;
 
-	/** Maximum heartbeat timeout interval. */
+	// Maximum heartbeat timeout interval.
+	// 最大心跳超时间隔，毫秒
 	private final long heartbeatTimeoutIntervalMs;
 
+	// 调度feature?
 	private volatile ScheduledFuture<?> futureTimeout;
 
+	// 枚举类 状态 的原子引用，刚开始是 运行RUNNING 状态
 	private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
 
+	// 最后的心跳
 	private volatile long lastHeartbeat;
 
+	// 构造函数，set值
 	HeartbeatMonitorImpl(
 		ResourceID resourceID,
 		HeartbeatTarget<O> heartbeatTarget,
@@ -70,8 +80,13 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 
 		lastHeartbeat = 0L;
 
+		//fixme 构造 futureTimeout
 		resetHeartbeatTimeout(heartbeatTimeoutIntervalMs);
 	}
+
+	/**
+	 *  =================================== getter ===========================================================
+	 */
 
 	@Override
 	public HeartbeatTarget<O> getHeartbeatTarget() {
@@ -94,6 +109,7 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 		resetHeartbeatTimeout(heartbeatTimeoutIntervalMs);
 	}
 
+	// // 只有在运行的时候才可以取消
 	@Override
 	public void cancel() {
 		// we can only cancel if we are in state running
@@ -102,37 +118,52 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 		}
 	}
 
+	// 如果是运行状态、则设置为超时
 	@Override
 	public void run() {
 		// The heartbeat has timed out if we're in state running
 		if (state.compareAndSet(State.RUNNING, State.TIMEOUT)) {
+			/**
+			 * heartbeatListener：心跳超时的时候通知的监视器
+			 * resourceID锁标识的机器心跳超时时、调用回调方法 notifyHeartbeatTimeout
+			 */
 			heartbeatListener.notifyHeartbeatTimeout(resourceID);
 		}
 	}
 
+	// 是否 取消状态
 	public boolean isCanceled() {
 		return state.get() == State.CANCELED;
 	}
 
+	// 重置心跳超时
 	void resetHeartbeatTimeout(long heartbeatTimeout) {
+		// 如果是运行状态
 		if (state.get() == State.RUNNING) {
+			// 如果 ScheduledFuture/futureTimeout 不为null、则取消其执行
 			cancelTimeout();
 
+			// 驱动执行该对象代表的任务，在 heartbeatTimeout 毫秒之后
 			futureTimeout = scheduledExecutor.schedule(this, heartbeatTimeout, TimeUnit.MILLISECONDS);
 
-			// Double check for concurrent accesses (e.g. a firing of the scheduled future)
+			// Double check for concurrent accesses
+			// (e.g. a firing of the scheduled future)
+			// 再次检查当前状态，如果不为RUNNING、则取消任务
 			if (state.get() != State.RUNNING) {
 				cancelTimeout();
 			}
 		}
 	}
 
+	// 如果 ScheduledFuture 不为null、则调用cancel取消任务
+	// true表示 可中断
 	private void cancelTimeout() {
 		if (futureTimeout != null) {
 			futureTimeout.cancel(true);
 		}
 	}
 
+	// 运行、超时、取消
 	private enum State {
 		RUNNING,
 		TIMEOUT,
@@ -140,6 +171,8 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 	}
 
 	/**
+	 * 实例化该类的工厂类。父接口是HeartbeatMonitor.Factory。
+	 *
 	 * The factory that instantiates {@link HeartbeatMonitorImpl}.
 	 *
 	 * @param <O> Type of the outgoing heartbeat payload

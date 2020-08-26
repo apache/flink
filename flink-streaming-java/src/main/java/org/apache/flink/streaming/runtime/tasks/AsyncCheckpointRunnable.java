@@ -39,16 +39,20 @@ import java.util.function.Consumer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
+ *
  * This runnable executes the asynchronous parts of all involved backend snapshots for the subtask.
  */
 final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 	public static final Logger LOG = LoggerFactory.getLogger(AsyncCheckpointRunnable.class);
+
+	// 任务名称
 	private final String taskName;
 	private final Consumer<AsyncCheckpointRunnable> registerConsumer;
 	private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
 	private final Environment taskEnvironment;
 
+	// "异步检查点状态"：运行、废弃的、完成的
 	enum AsyncCheckpointState {
 		RUNNING,
 		DISCARDED,
@@ -116,6 +120,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 			checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
+			// 如果是运行状态、则设置为完成状态
 			if (asyncCheckpointState.compareAndSet(AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
 
 				reportCompletedSnapshotStates(
@@ -170,13 +175,26 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			taskName, checkpointMetaData.getCheckpointId(), acknowledgedTaskStateSnapshot);
 	}
 
+	//处理运行报错的情况
 	private void handleExecutionException(Exception e) {
 
 		boolean didCleanup = false;
 		AsyncCheckpointState currentState = asyncCheckpointState.get();
 
+		/**
+		 * current=atomicRef.get();
+		 *
+		 * while(current!=target){
+		 * 		if(atomicRef.compareAndSet(current,target){
+		 * 			// update success
+		 * 		}else{
+		 * 			current=atomicRef.get();
+		 * 		}
+		 * }
+		 */
+		// 当前状态不是 废弃的，执行while中的任务
 		while (AsyncCheckpointState.DISCARDED != currentState) {
-
+			//设置当前状态为DISCARDED是否成功
 			if (asyncCheckpointState.compareAndSet(currentState, AsyncCheckpointState.DISCARDED)) {
 
 				didCleanup = true;
@@ -203,6 +221,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 				currentState = AsyncCheckpointState.DISCARDED;
 			} else {
+				// 获取当前状态
 				currentState = asyncCheckpointState.get();
 			}
 		}
@@ -214,6 +233,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 	@Override
 	public void close() {
+		// "异步检查点状态" 是运行中、则设置为 discarded
 		if (asyncCheckpointState.compareAndSet(AsyncCheckpointState.RUNNING, AsyncCheckpointState.DISCARDED)) {
 
 			try {

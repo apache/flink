@@ -35,10 +35,13 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 public interface HeartbeatListener<I, O> {
 
 	/**
-	 * Callback which is called if a heartbeat for the machine identified by the given resource
-	 * ID times out.
+	 * // 回调被调用
+	 * Callback which is called
+	 * // 如果被给定 资源id 所标识的机器的心跳超时
+	 * if a heartbeat for the machine identified (被标识) by the given resource ID times out.
 	 *
 	 * @param resourceID Resource ID of the machine whose heartbeat has timed out
+	 *                  机器的资源id、该机器的心跳已超时
 	 */
 	void notifyHeartbeatTimeout(ResourceID resourceID);
 

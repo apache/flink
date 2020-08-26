@@ -59,6 +59,7 @@ public final class OneShotLatch {
 		synchronized (lock) {
 			// 如果没有触发，则当前线程加入到等待集合，并wait()
 			// 被唤醒后、从等待线程移除、并检测等待谓词，并重新执行以上逻辑
+			// fixme wait()之前必须等待谓词
 			while (!triggered) {
 				Thread thread = Thread.currentThread();
 				try {
@@ -105,7 +106,9 @@ public final class OneShotLatch {
 			synchronized (lock) {
 				// 如果没有trigger、并且当前剩余等待时间毫秒数大于0，则等待剩余时间
 				while (!triggered && (millisToWait = (deadline - System.nanoTime()) / 1_000_000) > 0) {
-					// fixme wait(millisToWait)：等待指定时间后、该线程被唤醒、去争取锁
+					// fixme
+					// 	 wait(millisToWait)：等待指定时间后、该线程被唤醒、去争取锁
+					//   wait()之前必须等待谓词，防止信号丢失
 					lock.wait(millisToWait);
 				}
 

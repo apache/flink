@@ -54,6 +54,7 @@ import java.util.function.Supplier;
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	private static final Logger LOG = LoggerFactory.getLogger(SplitFetcherManager.class);
 
+	// 错误处理： void accept(T t)
 	private final Consumer<Throwable> errorHandler;
 
 	/** An atomic integer to generate monotonically increasing fetcher ids. */
@@ -62,7 +63,8 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	/** A supplier to provide split readers. */
 	private final Supplier<SplitReader<E, SplitT>> splitReaderFactory;
 
-	/** Uncaught exception in the split fetchers.*/
+	// Uncaught exception in the split fetchers.
+	// 在split fetchers中未捕获的异常
 	private final AtomicReference<Throwable> uncaughtFetcherException;
 
 	/** The element queue that the split fetchers will put elements into. */
@@ -80,8 +82,12 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	/**
 	 * Create a split fetcher manager.
 	 *
-	 * @param futureNotifier a notifier to notify the complete of a future.
-	 * @param elementsQueue the queue that split readers will put elements into.
+	 * @param futureNotifier
+	 * 						a notifier to notify the complete of a future.
+	 * 						回调方法使用，没有对应的实体变量
+	 * @param elementsQueue
+	 * 						the queue that split readers will put elements into.
+	 *
 	 * @param splitReaderFactory a supplier that could be used to create split readers.
 	 */
 	public SplitFetcherManager(
@@ -89,16 +95,28 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			Supplier<SplitReader<E, SplitT>> splitReaderFactory) {
 		this.elementsQueue = elementsQueue;
+
+
 		this.errorHandler = new Consumer<Throwable>() {
 			@Override
 			public void accept(Throwable t) {
 				LOG.error("Received uncaught exception.", t);
+				// 如果将 "未捕获的异常"从null设置为抛出的异常失败：如果之前uncaughtFetcherException引用已经设置为某个异常了
 				if (!uncaughtFetcherException.compareAndSet(null, t)) {
+
 					// Add the exception to the exception list.
+					// 将异常添加到异常列表uncaughtFetcherException引用异常的异常链表
+					// addSuppressed：
+					// 				当一个异常被抛出的时候，可能有其他异常因为该异常而被抑制住，从而无法正常抛出
+					// 				这时可以通过addSuppressed方法把这些被抑制的方法记录下来。被抑制的异常会出现在抛出的异常的堆栈信息中，
+					// 				也可以通过getSuppressed方法来获取这些异常。这样做的好处是不会丢失任何异常，方便开发人员进行调试
 					uncaughtFetcherException.get().addSuppressed(t);
+
 					// Wake up the main thread to let it know the exception.
+					// 唤醒主线程、使其感知异常
 					futureNotifier.notifyComplete();
 				}
+				//todo  设置成功的时候不用 唤醒主线程吗
 			}
 		};
 		this.splitReaderFactory = splitReaderFactory;

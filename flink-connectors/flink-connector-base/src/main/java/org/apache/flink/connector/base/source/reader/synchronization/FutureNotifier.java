@@ -54,7 +54,10 @@ public class FutureNotifier {
 	}
 
 	/**
-	 * Complete the future if there is one. This will release the thread that is waiting for data.
+	 * 如果有future、则完成这个任务——释放等待数据的线程
+	 *
+	 * Complete the future if there is one.
+	 * This will release the thread that is waiting for data.
 	 */
 	public void notifyComplete() {
 		CompletableFuture<Void> future = futureRef.get();
