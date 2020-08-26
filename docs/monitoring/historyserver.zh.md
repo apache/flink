@@ -50,7 +50,7 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 ## 配置参数
 
-配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据存档路径和已存档作业刷新间隔进行调整。
+配置项 `jobmanager.archive.fs.dir` 和 `historyserver.archive.fs.refresh-interval` 需要根据`作业存档目录`和`刷新作业存档目录的时间间隔`进行调整。
 
 **JobManager**
 
@@ -82,7 +82,8 @@ historyserver.archive.fs.refresh-interval: 10000
 ## 可用的请求
 
 以下是可用且带有示例 JSON 响应的请求列表。所有请求格式样例均为 `http://hostname:8082/jobs`，下面我们仅列出了 URLs 的 *path* 部分。
-尖括号中的值是变量，例如 `http://hostname:port/jobs/<jobid>/exceptions` 将必须请求如 `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`。
+尖括号中的值为变量，例如作业 `7684be6004e4e955c2a558a9bc463f65` 的 
+`http://hostname:port/jobs/<jobid>/exceptions` 请求须写为 `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`。
 
   - `/config`
   - `/jobs/overview`
