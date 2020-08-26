@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
@@ -65,7 +66,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OUT> The output type of the operator.
  */
 @Internal
-@SuppressWarnings("serial")
+//@SuppressWarnings("serial")
 public class SourceOperator<OUT, SplitT extends SourceSplit>
 		extends AbstractStreamOperator<OUT>
 		implements OperatorEventHandler, PushingAsyncDataInput<OUT> {
@@ -123,10 +124,25 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	public void open() throws Exception {
 		final MetricGroup metricGroup = getMetricGroup();
 
+		// the overall configuration should be more directly accessible to reduce
+		// the "scope of knowledge" (law of demeter)
+		final Configuration configuration = getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
+		final String hostname = getContainingTask().getEnvironment().getTaskManagerInfo().getTaskManagerExternalAddress();
+
 		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
 			public MetricGroup metricGroup() {
 				return metricGroup;
+			}
+
+			@Override
+			public Configuration getConfiguration() {
+				return configuration;
+			}
+
+			@Override
+			public String getLocalHostName() {
+				return hostname;
 			}
 
 			@Override
@@ -218,9 +234,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	}
 
 	private void registerReader() {
+		final String hostname = getContainingTask().getEnvironment().getTaskManagerInfo().getTaskManagerExternalAddress();
 		operatorEventGateway.sendEventToCoordinator(new ReaderRegistrationEvent(
-				getRuntimeContext().getIndexOfThisSubtask(),
-				"UNKNOWN_LOCATION"));
+				getRuntimeContext().getIndexOfThisSubtask(), hostname));
 	}
 
 	// --------------- methods for unit tests ------------
