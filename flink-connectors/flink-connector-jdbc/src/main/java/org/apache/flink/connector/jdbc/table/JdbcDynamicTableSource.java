@@ -98,8 +98,9 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 			builder.setFetchSize(readOptions.getFetchSize());
 		}
 		final JdbcDialect dialect = options.getDialect();
-		String query = dialect.getSelectFromStatement(
-			options.getTableName(), physicalSchema.getFieldNames(), new String[0]);
+		String query = readOptions.getQuery().orElseGet(
+			() -> dialect.getSelectFromStatement(
+				options.getTableName(), physicalSchema.getFieldNames(), new String[0]));
 		if (readOptions.getPartitionColumnName().isPresent()) {
 			long lowerBound = readOptions.getPartitionLowerBound().get();
 			long upperBound = readOptions.getPartitionUpperBound().get();

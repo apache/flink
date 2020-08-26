@@ -150,6 +150,13 @@ Connector Options
       <td>The JDBC password.</td>
     </tr>
     <tr>
+      <td><h5>scan.query</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>String</td>
+      <td>The custom query used when scan the database table.</td>
+    </tr>
+    <tr>
       <td><h5>scan.partition.column</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>

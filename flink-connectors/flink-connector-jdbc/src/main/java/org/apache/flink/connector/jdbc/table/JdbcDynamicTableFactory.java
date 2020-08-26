@@ -82,6 +82,11 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 			"If not set, it will automatically be derived from the URL.");
 
 	// read config options
+	private static final ConfigOption<String> SCAN_QUERY = ConfigOptions
+		.key("scan.query")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("the custom query used when scan the database table.");
 	private static final ConfigOption<String> SCAN_PARTITION_COLUMN = ConfigOptions
 		.key("scan.partition.column")
 		.stringType()
@@ -184,9 +189,9 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		final String url = readableConfig.get(URL);
 		final JdbcOptions.Builder builder = JdbcOptions.builder()
 			.setDBUrl(url)
-			.setTableName(readableConfig.get(TABLE_NAME))
 			.setDialect(JdbcDialects.get(url).get());
 
+		readableConfig.getOptional(TABLE_NAME).ifPresent(builder::setTableName);
 		readableConfig.getOptional(DRIVER).ifPresent(builder::setDriverName);
 		readableConfig.getOptional(USERNAME).ifPresent(builder::setUsername);
 		readableConfig.getOptional(PASSWORD).ifPresent(builder::setPassword);
@@ -203,6 +208,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 			builder.setNumPartitions(readableConfig.get(SCAN_PARTITION_NUM));
 		}
 		readableConfig.getOptional(SCAN_FETCH_SIZE).ifPresent(builder::setFetchSize);
+		readableConfig.getOptional(SCAN_QUERY).ifPresent(builder::setQuery);
 		return builder.build();
 	}
 
@@ -253,6 +259,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		optionalOptions.add(DRIVER);
 		optionalOptions.add(USERNAME);
 		optionalOptions.add(PASSWORD);
+		optionalOptions.add(SCAN_QUERY);
 		optionalOptions.add(SCAN_PARTITION_COLUMN);
 		optionalOptions.add(SCAN_PARTITION_LOWER_BOUND);
 		optionalOptions.add(SCAN_PARTITION_UPPER_BOUND);

@@ -36,6 +36,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -91,10 +92,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 	@Test
 	public void testJdbcSource() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		EnvironmentSettings envSettings = EnvironmentSettings.newInstance()
-			.useBlinkPlanner()
-			.inStreamingMode()
-			.build();
+		EnvironmentSettings envSettings = EnvironmentSettings.newInstance().build();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
 
 		tEnv.executeSql(
@@ -110,8 +108,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 				"  'connector'='jdbc'," +
 				"  'url'='" + DB_URL + "'," +
 				"  'table-name'='" + INPUT_TABLE + "'" +
-				")"
-		);
+				")");
 
 		Iterator<Row> collected = tEnv.executeSql("SELECT * FROM " + INPUT_TABLE).collect();
 		List<String> result = Lists.newArrayList(collected).stream()
@@ -123,6 +120,34 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 				"1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
 				"2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234")
 			.sorted().collect(Collectors.toList());
+		assertEquals(expected, result);
+	}
+
+	@Test
+	public void testJdbcSourceWithCustomQuery() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		EnvironmentSettings envSettings = EnvironmentSettings.newInstance().build();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+
+		tEnv.executeSql(
+			"CREATE TABLE " + INPUT_TABLE + "(" +
+				"id BIGINT," +
+				"timestamp6_col TIMESTAMP(6)," +
+				"timestamp9_col TIMESTAMP(9)" +
+				") WITH (" +
+				"  'connector'='jdbc'," +
+				"  'url'='" + DB_URL + "'," +
+				"  'table-name'='" + INPUT_TABLE + "'," +
+				"  'scan.query'='select id, timestamp6_col, timestamp9_col from " + INPUT_TABLE + " where id > 1 '" +
+				")");
+
+		Iterator<Row> collected = tEnv.executeSql("SELECT * FROM " + INPUT_TABLE).collect();
+		List<String> result = Lists.newArrayList(collected).stream()
+			.map(Row::toString)
+			.sorted()
+			.collect(Collectors.toList());
+		List<String> expected = new ArrayList<>();
+		expected.add("2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789");
 		assertEquals(expected, result);
 	}
 
