@@ -80,7 +80,7 @@ $ tail log/flink-*-taskexecutor-*.out
   (be,2)
 {% endhighlight %}
 
-另外，你可以通过 Flink 的 [Web UI](http://localhost:8080) 来监视集群的状态和正在运行的作业。
+另外，你可以通过 Flink 的 [Web UI](http://localhost:8081) 来监视集群的状态和正在运行的作业。
 
 <a name="step-4-stop-the-cluster"></a>
 
