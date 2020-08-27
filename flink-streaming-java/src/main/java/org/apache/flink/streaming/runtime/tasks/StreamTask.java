@@ -74,6 +74,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.RunnableWithException;
@@ -1178,6 +1179,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (0 < numKeyGroups) {
 				((ConfigurableStreamPartitioner) outputPartitioner).configure(numKeyGroups);
 			}
+		}
+
+		// Clones the partition to avoid multiple stream edges sharing the same stream partitioner,
+		// like the case of https://issues.apache.org/jira/browse/FLINK-14087.
+		try {
+			outputPartitioner = InstantiationUtil.clone(outputPartitioner, Thread.currentThread().getContextClassLoader());
+		} catch (Exception e) {
+			ExceptionUtils.rethrow(e);
 		}
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
