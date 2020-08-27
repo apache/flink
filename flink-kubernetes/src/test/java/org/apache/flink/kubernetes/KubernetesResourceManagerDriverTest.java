@@ -275,7 +275,7 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 			final CompletableFuture<KubernetesWorkerNode> requestResourceFuture = new CompletableFuture<>();
 			final CompletableFuture<ResourceID> onWorkerTerminatedConsumer = new CompletableFuture<>();
 
-			resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer(onWorkerTerminatedConsumer::complete);
+			resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer((resourceId, ignore) -> onWorkerTerminatedConsumer.complete(resourceId));
 
 			runTest(() -> {
 				// request new pod and send onAdded event
