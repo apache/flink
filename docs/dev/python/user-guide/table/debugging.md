@@ -43,11 +43,11 @@ def add(i, j):
     
 {% endhighlight %}
 
-## Watching Logs
+## Accessing Logs
 
 If the environment variable `FLINK_HOME` is set, logs will be written in the log directory under `FLINK_HOME`.
 Otherwise, logs will be placed in the directory of the PyFlink module. You can execute the following command to find
-the log directory of PyFlink module:
+the log directory of the PyFlink module:
 
 {% highlight shell %}
 
@@ -55,14 +55,14 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 
 {% endhighlight %}
 
-## Debug Python UDF
-You can take use of the pydevd_pycharm tool of PyCharm to debug Python UDF.
+## Debugging Python UDFs
+You can make use of the [`pydevd_pycharm`](https://pypi.org/project/pydevd-pycharm/) tool of PyCharm to debug Python UDFs.
 
 1. Create a Python Remote Debug in PyCharm
 
     run -> Python Remote Debug -> + -> choose a port (e.g. 6789)
 
-2. Install pydevd-pycharm tool
+2. Install the `pydevd-pycharm` tool
 
     ```bash
     $ pip install pydevd-pycharm
@@ -75,6 +75,6 @@ You can take use of the pydevd_pycharm tool of PyCharm to debug Python UDF.
     pydevd_pycharm.settrace('localhost', port=6789, stdoutToServer=True, stderrToServer=True)
     ```
 
-4. Start the previous created Python Remote Debug Server
+4. Start the previously created Python Remote Debug Server
 
 5. Run your Python Code

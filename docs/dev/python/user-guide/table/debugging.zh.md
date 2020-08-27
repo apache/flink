@@ -54,14 +54,14 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 
 {% endhighlight %}
 
-## 调试Python UDF
-你可以利用PyCharm提供的pydevd_pycharm工具进行Python UDF的调试
+## 调试Python UDFs
+你可以利用PyCharm提供的[`pydevd_pycharm`](https://pypi.org/project/pydevd-pycharm/)工具进行Python UDF的调试
 
 1. 在PyCharm里创建一个Python Remote Debug
 
     run -> Python Remote Debug -> + -> 选择一个port (e.g. 6789)
 
-2. 安装pydevd-pycharm工具
+2. 安装`pydevd-pycharm`工具
 
     ```bash
     $ pip install pydevd-pycharm
