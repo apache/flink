@@ -328,6 +328,6 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 	}
 
 	private static MemoryManager createMemoryManager(ResourceProfile resourceProfile, int pageSize) {
-		return new MemoryManager(resourceProfile.getManagedMemory().getBytes(), pageSize);
+		return MemoryManager.create(resourceProfile.getManagedMemory().getBytes(), pageSize);
 	}
 }
