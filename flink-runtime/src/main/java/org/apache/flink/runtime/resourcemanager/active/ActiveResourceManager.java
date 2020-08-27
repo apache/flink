@@ -197,11 +197,12 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public void onWorkerTerminated(ResourceID resourceId) {
-		log.info("Worker {} is terminated.", resourceId.getStringWithMetadata());
+	public void onWorkerTerminated(ResourceID resourceId, Exception cause) {
+		log.info("Worker {} is terminated. Diagnostics: {}", resourceId.getStringWithMetadata(), cause.getMessage());
 		if (clearStateForWorker(resourceId)) {
 			requestWorkerIfRequired();
 		}
+		closeTaskManagerConnection(resourceId, cause);
 	}
 
 	@Override

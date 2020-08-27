@@ -44,4 +44,9 @@ public class TestingKubernetesPod extends KubernetesPod {
 	public boolean isTerminated() {
 		return isTerminated;
 	}
+
+	@Override
+	public String getTerminatedDiagnostics() {
+		return "testing-diagnostics";
+	}
 }

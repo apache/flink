@@ -41,8 +41,9 @@ public interface ResourceEventHandler<WorkerType extends ResourceIDRetrievable> 
 	 * <p>See also {@link ResourceManagerDriver#requestResource}.
 	 *
 	 * @param resourceId Identifier of the terminated worker.
+	 * @param cause The exception which cause the worker terminated.
 	 */
-	void onWorkerTerminated(ResourceID resourceId);
+	void onWorkerTerminated(ResourceID resourceId, Exception cause);
 
 	/**
 	 * Notifies that an error has occurred that the process cannot proceed.
