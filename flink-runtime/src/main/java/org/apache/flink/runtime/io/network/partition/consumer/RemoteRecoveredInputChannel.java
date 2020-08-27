@@ -61,7 +61,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 	}
 
 	@Override
-	public InputChannel toInputChannel() throws IOException {
+	protected InputChannel toInputChannelInternal() throws IOException {
 		RemoteInputChannel remoteInputChannel = new RemoteInputChannel(
 			inputGate,
 			getChannelIndex(),
