@@ -77,7 +77,7 @@ Scala-Flink> val textStreaming = senv.fromElements(
   "Or to take arms against a sea of troubles,")
 Scala-Flink> val countsStreaming = textStreaming
     .flatMap { _.toLowerCase.split("\\W+") }
-    .map { (_, 1) }.keyBy(0).sum(1)
+    .map { (_, 1) }.keyBy(_._1).sum(1)
 Scala-Flink> countsStreaming.print()
 Scala-Flink> senv.execute("Streaming Wordcount")
 {% endhighlight %}
