@@ -1187,8 +1187,8 @@ public interface Table {
 	 * <pre>
 	 * {@code
 	 *   tab.renameColumns(
-	 *      $("a").as($("a1")),
-	 *      $("b").as($("b1"))
+	 *      $("a").as("a1"),
+	 *      $("b").as("b1")
 	 *   );
 	 * }
 	 * </pre>
@@ -1198,8 +1198,8 @@ public interface Table {
 	 * <pre>
 	 * {@code
 	 *   tab.renameColumns(
-	 *      $"a" as $"a1",
-	 *      $"b" as $"b1"
+	 *      $"a" as "a1",
+	 *      $"b" as "b1"
 	 *   )
 	 * }
 	 * </pre>
