@@ -90,7 +90,7 @@ public class MemoryManager {
 	 * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 */
-	public MemoryManager(long memorySize, int pageSize) {
+	MemoryManager(long memorySize, int pageSize) {
 		sanityCheck(memorySize, pageSize);
 
 		this.pageSize = pageSize;
@@ -626,11 +626,13 @@ public class MemoryManager {
 		return (long) Math.floor(memoryBudget.getTotalMemorySize() * fraction);
 	}
 
-	// ------------------------------------------------------------------------
-	//  factories for testing
-	// ------------------------------------------------------------------------
-
-	public static MemoryManager forDefaultPageSize(long size) {
-		return new MemoryManager(size, DEFAULT_PAGE_SIZE);
+	/**
+	 * Creates a memory manager with the given capacity and given page size.
+	 *
+	 * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
+	 * @param pageSize The size of the pages handed out by the memory manager.
+	 */
+	public static MemoryManager create(long memorySize, int pageSize) {
+		return new MemoryManager(memorySize, pageSize);
 	}
 }

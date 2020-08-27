@@ -54,6 +54,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
+
 /**
  * A minimally implemented {@link Environment} that provides the functionality required to run the
  * {@code state-processor-api}.
@@ -100,7 +102,7 @@ public class SavepointEnvironment implements Environment {
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
 		this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
-		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
+		this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 	}
 
