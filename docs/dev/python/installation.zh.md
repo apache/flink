@@ -35,22 +35,23 @@ $ python --version
 
 ## 环境设置
 
-你的系统也许安装了好几个版本的python。你可以运行下面的`ls`命令来查看你系统中安装的python版本有哪些:
+你的系统也许安装了好几个版本的Python。你可以运行下面的`ls`命令来查看你系统中安装的Python版本有哪些:
 
 {% highlight bash %}
 $ ls /usr/bin/python*
 {% endhighlight %}
 
-为了满足Python版本要求，你可以选择通过软链接的方式将python指向python3解释器:
+为了满足Python版本要求，你可以选择通过软链接的方式将`python`指向`python3`解释器:
+
 {% highlight bash %}
 ln -s /usr/bin/python3 python
 {% endhighlight %}
 
-除了软链接的方式，你也可以选择创建一个Python virtual env的方式。关于如何创建一个virtual env，你可以参考[准备Python虚拟环境]({{ site.baseurl }}/zh/dev/python/faq.html#preparing-python-virtual-environment)
+除了软链接的方式，你也可以选择创建一个Python virtual env（`venv`）的方式。关于如何创建一个virtual env，你可以参考[准备Python虚拟环境]({{ site.baseurl }}/zh/dev/python/faq.html#preparing-python-virtual-environment)
 
 ## PyFlink 安装
 
-PyFlink已经被发布到PyPi，可以通过如下方式安装PyFlink：
+PyFlink已经被发布到[PyPi](https://pypi.org/project/apache-flink/)，可以通过如下方式安装PyFlink：
 
 {% highlight bash %}
 {% if site.is_stable %}
