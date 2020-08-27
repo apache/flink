@@ -67,7 +67,7 @@ object SocketWindowWordCount {
     val windowCounts = text
           .flatMap { w => w.split("\\s") }
           .map { w => WordWithCount(w, 1) }
-          .keyBy("word")
+          .keyBy(_.word)
           .timeWindow(Time.seconds(5))
           .sum("count")
 

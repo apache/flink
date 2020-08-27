@@ -70,7 +70,7 @@ public class TopSpeedWindowing {
 		double triggerMeters = 50;
 		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData
 				.assignTimestampsAndWatermarks(new CarTimestamp())
-				.keyBy(0)
+				.keyBy(value -> value.f0)
 				.window(GlobalWindows.create())
 				.evictor(TimeEvictor.of(Time.of(evictionSec, TimeUnit.SECONDS)))
 				.trigger(DeltaTrigger.of(triggerMeters,

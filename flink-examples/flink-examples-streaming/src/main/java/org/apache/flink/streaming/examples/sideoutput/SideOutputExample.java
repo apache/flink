@@ -95,7 +95,7 @@ public class SideOutputExample {
 				});
 
 		DataStream<Tuple2<String, Integer>> counts = tokenized
-				.keyBy(0)
+				.keyBy(value -> value.f0)
 				.window(TumblingEventTimeWindows.of(Time.seconds(5)))
 				// group by the tuple field "0" and sum up tuple field "1"
 				.sum(1);

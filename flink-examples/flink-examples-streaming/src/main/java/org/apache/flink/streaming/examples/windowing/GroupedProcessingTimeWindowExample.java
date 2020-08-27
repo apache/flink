@@ -47,7 +47,7 @@ public class GroupedProcessingTimeWindowExample {
 		DataStream<Tuple2<Long, Long>> stream = env.addSource(new DataSource());
 
 		stream
-			.keyBy(0)
+			.keyBy(value -> value.f0)
 			.timeWindow(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
 			.reduce(new SummingReducer())
 
