@@ -70,6 +70,7 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.util.IOUtils.closeQuietly;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
@@ -363,8 +364,13 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private void registerAsyncCheckpointRunnable(long checkpointId, AsyncCheckpointRunnable asyncCheckpointRunnable) throws IOException {
 		synchronized (lock) {
 			if (closed) {
+				LOG.debug("Cannot register Closeable, this subtaskCheckpointCoordinator is already closed. Closing argument.");
+				final boolean running = asyncCheckpointRunnable.isRunning();
 				closeQuietly(asyncCheckpointRunnable);
-				throw new IOException("Cannot register Closeable, this subtaskCheckpointCoordinator is already closed. Closing argument.");
+				checkState(
+					!running,
+					"SubtaskCheckpointCoordinatorImpl was closed without closing asyncCheckpointRunnable %s",
+					checkpointId);
 			} else if (checkpoints.containsKey(checkpointId)) {
 				closeQuietly(asyncCheckpointRunnable);
 				throw new IOException(String.format("Cannot register Closeable, async checkpoint %d runnable has been register. Closing argument.", checkpointId));
