@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor.DummyComponentMainThreadExecutor;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.util.clock.Clock;
 
@@ -62,23 +63,28 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
 	}
 
 	@Override
-	public void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulk bulk, Time timeout) {
+	public void schedulePendingRequestBulkTimeoutCheck(final PhysicalSlotRequestBulk bulk, Time timeout) {
 		PhysicalSlotRequestBulkWithTimestamp bulkWithTimestamp = new PhysicalSlotRequestBulkWithTimestamp(bulk);
 		bulkWithTimestamp.markUnfulfillable(clock.relativeTimeMillis());
-		schedulePendingRequestBulkTimeoutCheck(bulkWithTimestamp, timeout);
+		schedulePendingRequestBulkWithTimestampCheck(bulkWithTimestamp, timeout);
 	}
 
-	private void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulkWithTimestamp bulk, Time timeout) {
+	private void schedulePendingRequestBulkWithTimestampCheck(
+			final PhysicalSlotRequestBulkWithTimestamp bulk,
+			final Time timeout) {
 		componentMainThreadExecutor.schedule(() -> {
 			TimeoutCheckResult result = checkPhysicalSlotRequestBulkTimeout(bulk, timeout);
 
 			switch (result) {
 				case PENDING:
 					//re-schedule the timeout check
-					schedulePendingRequestBulkTimeoutCheck(bulk, timeout);
+					schedulePendingRequestBulkWithTimestampCheck(bulk, timeout);
 					break;
 				case TIMEOUT:
-					bulk.cancel(new TimeoutException("Slot request bulk is not fulfillable!"));
+					Throwable cancellationCause = new NoResourceAvailableException(
+						"Slot request bulk is not fulfillable! Could not allocate the required slot within slot request timeout",
+						new TimeoutException("Timeout has occurred: " + timeout));
+					bulk.cancel(cancellationCause);
 					break;
 				case FULFILLED:
 				default:
