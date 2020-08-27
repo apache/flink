@@ -274,7 +274,7 @@ public class WindowWordCount {
         DataStream<Tuple2<String, Integer>> dataStream = env
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
-                .keyBy(0)
+                .keyBy(value -> value.f0)
                 .timeWindow(Time.seconds(5))
                 .sum(1);
 
@@ -311,7 +311,7 @@ object WindowWordCount {
 
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
-      .keyBy(0)
+      .keyBy(_._1)
       .timeWindow(Time.seconds(5))
       .sum(1)
 
