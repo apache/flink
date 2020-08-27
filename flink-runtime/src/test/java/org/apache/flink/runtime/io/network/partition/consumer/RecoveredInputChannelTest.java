@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 
@@ -289,4 +291,28 @@ public class RecoveredInputChannelTest {
 			.setSegmentProvider(globalPool)
 			.build();
 	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testConversionOnlyPossibleAfterConsumed() throws IOException {
+		buildChannel().toInputChannel();
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testRequestPartitionsImpossible() {
+		buildChannel().requestSubpartition(0);
+	}
+
+	private RecoveredInputChannel buildChannel() {
+		try {
+			return new RecoveredInputChannel(new SingleInputGateBuilder().build(), 0, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter(), 10) {
+				@Override
+				protected InputChannel toInputChannelInternal() {
+					throw new AssertionError("channel conversion succeeded");
+				}
+			};
+		} catch (Exception e) {
+			throw new AssertionError("channel creation failed", e);
+		}
+	}
+
 }
