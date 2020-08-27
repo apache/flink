@@ -25,9 +25,9 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
+Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询在无边界的实时流或有边界的批处理数据集上以相同的语义执行，并产生相同的结果。 Flink 的 Table API 易于编写，通常能简化数据分析，数据管道和ETL应用的编码。
 
-关于Python执行环境的要求，请参考Python Table API[环境安装]({% link dev/python/installation.zh.md %})。
+在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。关于Python执行环境的要求，请参考Python Table API[环境安装]({% link dev/python/installation.zh.md %})。
 
 ## 创建一个Python Table API项目
 

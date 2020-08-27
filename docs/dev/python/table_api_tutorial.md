@@ -22,9 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This walkthrough will quickly get you started building a pure Python Flink Table API project.
+Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results. The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
 
-Please refer to the Python Table API [installation guide]({% link dev/python/installation.md %}) on how to set up the Python execution environments.
+This walkthrough will quickly get you started building a pure Python Flink Table API project. Please refer to the Python Table API [installation guide]({% link dev/python/installation.md %}) on how to set up the Python execution environments.
 
 * This will be replaced by the TOC
 {:toc}

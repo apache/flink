@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This walkthrough will quickly get you started building a pure Python Flink DataStream project.
+Apache Flink offers a DataStream API for building robust, stateful streaming applications. It provides fine-grained control over state and time, which allows for the implementation of advanced event-driven systems. In this step-by-step guide, you’ll learn how to build a simple streaming application with PyFlink and the DataStream API.
 
 Please refer to the PyFlink [installation guide]({{ site.baseurl }}/dev/python/getting-started/installation.html) on how to set up the Python execution environments.
 
@@ -35,16 +35,16 @@ You can begin by creating a Python project and installing the PyFlink package fo
 
 ## Writing a Flink Python DataStream API Program
 
-DataStream API applications begin by declaring a `StreamExecutionEnvironment`.
-This is the context in which a streaming program is executed.
-It can be used for setting execution parameters such as restart strategy, default parallelism, etc.
+DataStream API applications begin by declaring an execution environment (`StreamExecutionEnvironment`), the context in which a streaming program is executed. This is what you will use to set the properties of your job (e.g. default parallelism, restart strategy), create your sources and finally trigger the execution of the job.
 
 {% highlight python %}
 env = StreamExecutionEnvironment.get_execution_environment()
 env.set_parallelism(1)
 {% endhighlight %}
 
-Once a `StreamExecutionEnvironment` created, you can declare your source with it.
+Once a `StreamExecutionEnvironment` is created, you can use it to declare your _source_. Sources ingest data from external systems, such as Apache Kafka, Rabbit MQ, or Apache Pulsar, into Flink Jobs. 
+
+To keep things simple, this walkthrough uses a source that is backed by a collection of elements.
 
 {% highlight python %}
 ds = env.from_collection(
@@ -52,9 +52,9 @@ ds = env.from_collection(
     type_info=Types.ROW([Types.INT(), Types.STRING()]))
 {% endhighlight %}
 
-This creates a data stream from the given collection. The type is that of the elements in the collection. In this example, the type is a Row type with two fields. The type of the first field is integer type while the second is string type.
+This creates a data stream from the given collection, with the same type as that of the elements in it (here, a `ROW` type with a INT field and a STRING field).
 
-You can now perform transformations on the datastream or writes the data into external system with sink.
+You can now perform transformations on this data stream, or just write the data to an external system using a _sink_. This walkthrough uses the `StreamingFileSink` sink connector to write the data into a file in the `/tmp/output` directory.
 
 {% highlight python %}
 ds.add_sink(StreamingFileSink
@@ -62,9 +62,7 @@ ds.add_sink(StreamingFileSink
     .build())
 {% endhighlight %}
 
-Finally you must execute the actual Flink Python DataStream API job.
-All operations, such as creating sources, transformations and sinks are lazy.
-Only when `env.execute(job_name)` is called will runs the job.
+The last step is to execute the actual PyFlink DataStream API job. PyFlink applications are built lazily and shipped to the cluster for execution only once fully formed. To execute an application, you simply call `env.execute(job_name)`.
 
 {% highlight python %}
 env.execute("tutorial_job")
@@ -96,22 +94,20 @@ if __name__ == '__main__':
 {% endhighlight %}
 
 ## Executing a Flink Python DataStream API Program
-Firstly, make sure the output directory is not existed:
+
+Now that you defined your PyFlink program, you can run it! First, make sure that the output directory doesn't exist:
 
 {% highlight bash %}
 rm -rf /tmp/output
 {% endhighlight %}
 
-Next, you can run this example on the command line:
+Next, you can run the example you just created on the command line:
 
 {% highlight bash %}
 $ python datastream_tutorial.py
 {% endhighlight %}
 
-The command builds and runs the Python DataStream API program in a local mini cluster.
-You can also submit the Python DataStream API program to a remote cluster, you can refer
-[Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples)
-for more details.
+The command builds and runs your PyFlink program in a local mini cluster. You can alternatively submit it to a remote cluster using the instructions detailed in [Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples).
 
 Finally, you can see the execution result on the command line:
 
@@ -121,6 +117,4 @@ $ find /tmp/output -type f -exec cat {} \;
 2,bbb
 {% endhighlight %}
 
-This should get you started with writing your own Flink Python DataStream API programs.
-To learn more about the Python DataStream API, you can refer
-[Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
+This walkthrough gives you the foundations to get started writing your own PyFlink DataStream API programs. To learn more about the Python DataStream API, please refer to [Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
