@@ -30,13 +30,11 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 
 /**
  * Wrapping {@link Output} that forwards to other {@link Output Outputs } based on a list of
@@ -46,15 +44,13 @@ public class DirectedOutput<OUT> implements WatermarkGaugeExposingOutput<StreamR
 
 	protected final OutputSelector<OUT>[] outputSelectors;
 
-	protected final Output<StreamRecord<OUT>>[] selectAllOutputs;
-
-	protected final HashMap<String, Output<StreamRecord<OUT>>[]> outputMap;
-
 	protected final Output<StreamRecord<OUT>>[] allOutputs;
 
 	private final Random random = new XORShiftRandom();
 
 	protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
+
+	protected final SelectedOutputsCollector<OUT> selectedCollector;
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public DirectedOutput(
@@ -62,45 +58,9 @@ public class DirectedOutput<OUT> implements WatermarkGaugeExposingOutput<StreamR
 			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
 		this.outputSelectors = outputSelectors.toArray(new OutputSelector[outputSelectors.size()]);
 
-		this.allOutputs = new Output[outputs.size()];
-		for (int i = 0; i < outputs.size(); i++) {
-			allOutputs[i] = outputs.get(i).f0;
-		}
-
-		HashSet<Output<StreamRecord<OUT>>> selectAllOutputs = new HashSet<Output<StreamRecord<OUT>>>();
-		HashMap<String, ArrayList<Output<StreamRecord<OUT>>>> outputMap = new HashMap<String, ArrayList<Output<StreamRecord<OUT>>>>();
-
-		for (Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge> outputPair : outputs) {
-			final Output<StreamRecord<OUT>> output = outputPair.f0;
-			final StreamEdge edge = outputPair.f1;
-
-			List<String> selectedNames = edge.getSelectedNames();
-
-			if (selectedNames.isEmpty()) {
-				selectAllOutputs.add(output);
-			}
-			else {
-				for (String selectedName : selectedNames) {
-					if (!outputMap.containsKey(selectedName)) {
-						outputMap.put(selectedName, new ArrayList<Output<StreamRecord<OUT>>>());
-						outputMap.get(selectedName).add(output);
-					}
-					else {
-						if (!outputMap.get(selectedName).contains(output)) {
-							outputMap.get(selectedName).add(output);
-						}
-					}
-				}
-			}
-		}
-
-		this.selectAllOutputs = selectAllOutputs.toArray(new Output[selectAllOutputs.size()]);
-
-		this.outputMap = new HashMap<>();
-		for (Map.Entry<String, ArrayList<Output<StreamRecord<OUT>>>> entry : outputMap.entrySet()) {
-			Output<StreamRecord<OUT>>[] arr = entry.getValue().toArray(new Output[entry.getValue().size()]);
-			this.outputMap.put(entry.getKey(), arr);
-		}
+		SplitOutputs splitOutputs = new SplitOutputs(outputs);
+		this.allOutputs = splitOutputs.selectAllOutputs;
+		this.selectedCollector = initSelectedOutputsCollector(splitOutputs.selectAllOutputs, splitOutputs.outputMap);
 	}
 
 	@Override
@@ -117,30 +77,11 @@ public class DirectedOutput<OUT> implements WatermarkGaugeExposingOutput<StreamR
 		allOutputs[random.nextInt(allOutputs.length)].emitLatencyMarker(latencyMarker);
 	}
 
-	protected Set<Output<StreamRecord<OUT>>> selectOutputs(StreamRecord<OUT> record)  {
-		Set<Output<StreamRecord<OUT>>> selectedOutputs = new HashSet<>(selectAllOutputs.length);
-		Collections.addAll(selectedOutputs, selectAllOutputs);
-
-		for (OutputSelector<OUT> outputSelector : outputSelectors) {
-			Iterable<String> outputNames = outputSelector.select(record.getValue());
-
-			for (String outputName : outputNames) {
-				Output<StreamRecord<OUT>>[] outputList = outputMap.get(outputName);
-				if (outputList != null) {
-					Collections.addAll(selectedOutputs, outputList);
-				}
-			}
-		}
-
-		return selectedOutputs;
-	}
-
 	@Override
 	public void collect(StreamRecord<OUT> record) {
-		Set<Output<StreamRecord<OUT>>> selectedOutputs = selectOutputs(record);
-
-		for (Output<StreamRecord<OUT>> out : selectedOutputs) {
-			out.collect(record);
+		for (OutputSelector<OUT> outputSelector : outputSelectors) {
+			Iterable<String> outputNames = outputSelector.select(record.getValue());
+			selectedCollector.collect(outputNames, record);
 		}
 	}
 
@@ -159,5 +100,55 @@ public class DirectedOutput<OUT> implements WatermarkGaugeExposingOutput<StreamR
 	@Override
 	public Gauge<Long> getWatermarkGauge() {
 		return watermarkGauge;
+	}
+
+	protected SelectedOutputsCollector<OUT> initSelectedOutputsCollector(
+			Output<StreamRecord<OUT>>[] selectAllOutputs,
+			Map<String, Output<StreamRecord<OUT>>[]> outputMap) {
+		return new DirectedOutputsCollector<>(selectAllOutputs, outputMap);
+	}
+
+	/**
+	 * Helper class to split chained and nonChained outputs.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	class SplitOutputs {
+		private Output<StreamRecord<OUT>>[] selectAllOutputs;
+		private Map<String, Output<StreamRecord<OUT>>[]> outputMap;
+
+		public SplitOutputs(List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
+			HashSet<Output<StreamRecord<OUT>>> selectAllOutputs = new HashSet<>();
+			HashMap<String, ArrayList<Output<StreamRecord<OUT>>>> outputMap = new HashMap<>();
+
+			for (Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge> outputPair : outputs) {
+				final Output<StreamRecord<OUT>> output = outputPair.f0;
+				final StreamEdge edge = outputPair.f1;
+
+				List<String> selectedNames = edge.getSelectedNames();
+
+				if (selectedNames.isEmpty()) {
+					selectAllOutputs.add(output);
+				} else {
+					for (String selectedName : selectedNames) {
+						if (!outputMap.containsKey(selectedName)) {
+							outputMap.put(selectedName, new ArrayList<>());
+							outputMap.get(selectedName).add(output);
+						} else {
+							if (!outputMap.get(selectedName).contains(output)) {
+								outputMap.get(selectedName).add(output);
+							}
+						}
+					}
+				}
+			}
+
+			this.selectAllOutputs = selectAllOutputs.toArray(new Output[selectAllOutputs.size()]);
+
+			this.outputMap = new HashMap<>();
+			for (Map.Entry<String, ArrayList<Output<StreamRecord<OUT>>>> entry : outputMap.entrySet()) {
+				Output<StreamRecord<OUT>>[] arr = entry.getValue().toArray(new Output[entry.getValue().size()]);
+				this.outputMap.put(entry.getKey(), arr);
+			}
+		}
 	}
 }

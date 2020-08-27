@@ -17,32 +17,30 @@
 
 package org.apache.flink.streaming.api.collector.selector;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.util.List;
 import java.util.Map;
 
-
 /**
- * Special version of {@link DirectedOutput} that performs a shallow copy of the
+ * Special version of {@link DirectedOutputsCollector} that performs a shallow copy of the
  * {@link StreamRecord} to ensure that multi-chaining works correctly.
+ *
+ * @param <T> The type of the elements that can be emitted.
  */
-public class CopyingDirectedOutput<OUT> extends DirectedOutput<OUT> {
+public class CopyingDirectedOutputsCollector<T> extends DirectedOutputsCollector<T> {
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public CopyingDirectedOutput(
-			List<OutputSelector<OUT>> outputSelectors,
-			List<? extends Tuple2<? extends Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
-		super(outputSelectors, outputs);
+	public CopyingDirectedOutputsCollector(
+			Output<StreamRecord<T>>[] selectAllOutputs,
+			Map<String, Output<StreamRecord<T>>[]> outputMap) {
+		super(selectAllOutputs, outputMap);
 	}
 
 	@Override
-	protected SelectedOutputsCollector<OUT> initSelectedOutputsCollector(
-			Output<StreamRecord<OUT>>[] selectAllOutputs,
-			Map<String, Output<StreamRecord<OUT>>[]> outputMap) {
-		return new CopyingDirectedOutputsCollector<>(selectAllOutputs, outputMap);
+	protected void collect(Output<StreamRecord<T>>[] outputs, StreamRecord<T> record) {
+		for (Output<StreamRecord<T>> output : outputs) {
+			StreamRecord<T> shallowCopy = record.copy(record.getValue());
+			output.collect(shallowCopy);
+		}
 	}
 }
