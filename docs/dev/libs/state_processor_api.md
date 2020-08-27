@@ -246,26 +246,24 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class StatefulFunctionWithTime extends KeyedProcessFunction[Integer, Integer, Void] {
- 
-   var state: ValueState[Integer] = _
- 
-   var updateTimes: ListState[Long] = _ 
+class StatefulFunctionWithTime extends KeyedProcessFunction[Int, Int, Void] {
+  var state: ValueState[Int] = _
+  var updateTimes: ListState[Long] = _
 
-   @throws[Exception]
-   override def open(parameters: Configuration): Unit = {
-      val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
-      state = getRuntimeContext().getState(stateDescriptor)
+  @throws[Exception]
+  override def open(parameters: Configuration): Unit = {
+    val stateDescriptor = new ValueStateDescriptor("state", createTypeInformation[Int])
+    state = getRuntimeContext().getState(stateDescriptor)
 
-      val updateDescriptor = new ListStateDescriptor("times", Types.LONG)
-      updateTimes = getRuntimeContext().getListState(updateDescriptor)
-   }
- 
-   @throws[Exception]
-   override def processElement(value: Integer, ctx: KeyedProcessFunction[ Integer, Integer, Void ]#Context, out: Collector[Void]): Unit = {
-      state.update(value + 1)
-      updateTimes.add(System.currentTimeMillis)
-   }
+    val updateDescriptor = new ListStateDescriptor("times", createTypeInformation[Long])
+    updateTimes = getRuntimeContext().getListState(updateDescriptor)
+  }
+
+  @throws[Exception]
+  override def processElement(value: Int, ctx: KeyedProcessFunction[Int, Int, Void]#Context, out: Collector[Void]): Unit = {
+    state.update(value + 1)
+    updateTimes.add(System.currentTimeMillis)
+  }
 }
 {% endhighlight %}
 </div>
@@ -321,34 +319,22 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val keyedState = savepoint.readKeyedState("my-uid", new ReaderFunction)
-
-case class KeyedState(key: Int, value: Int, times: List[Long])
- 
-class ReaderFunction extends KeyedStateReaderFunction[Integer, KeyedState] {
- 
-  var state: ValueState[Integer] = _
-
+class ReaderFunction extends KeyedStateReaderFunction[Int, KeyedState] {
+  var state: ValueState[Int] = _
   var updateTimes: ListState[Long] = _
- 
+
   @throws[Exception]
   override def open(parameters: Configuration): Unit = {
-     val stateDescriptor = new ValueStateDescriptor("state", Types.INT)
-     state = getRuntimeContext().getState(stateDescriptor)
+    val stateDescriptor = new ValueStateDescriptor("state", createTypeInformation[Int])
+    state = getRuntimeContext().getState(stateDescriptor)
 
-      val updateDescriptor = new ListStateDescriptor("times", Types.LONG)
-      updateTimes = getRuntimeContext().getListState(updateDescriptor)
-    }
- 
+    val updateDescriptor = new ListStateDescriptor("times", createTypeInformation[Long])
+    updateTimes = getRuntimeContext().getListState(updateDescriptor)
+  }
 
-  @throws[Exception]
-  override def processKey(
-    key: Int,
-    ctx: Context,
-    out: Collector[Keyedstate]): Unit = {
- 
-     val data = KeyedState(key, state.value(), updateTimes.get.asScala.toList)
-     out.collect(data)
+  override def readKey(key: Int, ctx: KeyedStateReaderFunction.Context, out: Collector[KeyedState]): Unit = {
+    val data = KeyedState(key, state.value, updateTimes.get.asScala.toList)
+    out.collect(data)
   }
 }
 {% endhighlight %}
