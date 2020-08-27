@@ -41,7 +41,7 @@ object GroupedProcessingTimeWindowExample {
     val stream: DataStream[(Long, Long)] = env.addSource(new DataSource)
 
     stream
-      .keyBy(0)
+      .keyBy(_._1)
       .timeWindow(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
       .reduce((value1, value2) => (value1._1, value1._2 + value2._2))
       .addSink(new SinkFunction[(Long, Long)]() {
