@@ -21,6 +21,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.fail;
 
@@ -29,9 +30,10 @@ import static org.junit.Assert.fail;
  */
 public class StreamTaskUtil {
 
-	public static void waitTaskIsRunning(StreamTask<?, ?> task, CompletableFuture<Void> taskInvocation) throws InterruptedException {
+	public static void waitTaskIsRunning(StreamTask<?, ?> task, CompletableFuture<Void> taskInvocation) throws InterruptedException, ExecutionException {
 		while (!task.isRunning()) {
 			if (taskInvocation.isDone()) {
+				taskInvocation.get();
 				fail("Task has stopped");
 			}
 			Thread.sleep(10L);
