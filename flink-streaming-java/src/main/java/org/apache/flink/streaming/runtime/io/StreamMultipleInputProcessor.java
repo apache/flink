@@ -53,6 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Input processor for {@link MultipleInputStreamOperator}.
  */
 @Internal
+@SuppressWarnings({"unchecked", "rawtypes"})
 public final class StreamMultipleInputProcessor implements StreamInputProcessor {
 
 	private final MultipleInputSelectionHandler inputSelectionHandler;
