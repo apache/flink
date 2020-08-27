@@ -60,16 +60,21 @@ function setup_confluent_dist {
 }
 
 function wait_for_zookeeper_running {
-  while $KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep -q "Connection refused"; do
-    echo "waiting for zookeeper to start."
-    sleep 1
+  start_time=$(date +%s)
+  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep "Node does not exist") ]] ; do
+    current_time=$(date +%s)
+    time_diff=$((current_time - start_time))
+
+    if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+        echo "Zookeeper did not start after $MAX_RETRY_SECONDS seconds. Printing logs:"
+        debug_error
+        exit 1
+    else
+        echo "waiting for Zookeeper to start."
+        sleep 1
+    fi
   done
 
-  if ! $KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep -q ".*Node does not exist.*" ; then
-    echo "Zookeeper server was expected to be running and node /testnonexistent was not expected to exist"
-    debug_error
-    exit 1
-  fi
   echo "Zookeeper Server has been started ..."
 }
 
