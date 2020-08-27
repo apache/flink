@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * {@link LogicalSlot.Payload} implementation for test purposes.
  */
-final class DummyPayload implements LogicalSlot.Payload {
+public final class DummyPayload implements LogicalSlot.Payload {
 
 	private final CompletableFuture<?> terminalStateFuture;
 
@@ -34,7 +34,7 @@ final class DummyPayload implements LogicalSlot.Payload {
 		this(new CompletableFuture<>());
 	}
 
-	DummyPayload(CompletableFuture<?> terminalStateFuture) {
+	public DummyPayload(CompletableFuture<?> terminalStateFuture) {
 		this.terminalStateFuture = Preconditions.checkNotNull(terminalStateFuture);
 	}
 
