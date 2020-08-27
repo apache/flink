@@ -216,7 +216,7 @@ public class MemoryManagerSharedResourcesTest {
 
 	private static MemoryManager createMemoryManager() {
 		final long size = 128 * 1024 * 1024;
-		final MemoryManager mm = MemoryManager.forDefaultPageSize(size);
+		final MemoryManager mm = MemoryManagerBuilder.newBuilder().setMemorySize(size).build();
 
 		// this is to guard test assumptions
 		assertEquals(size, mm.getMemorySize());
