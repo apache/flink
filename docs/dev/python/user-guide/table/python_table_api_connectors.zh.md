@@ -28,11 +28,11 @@ This page describes how to use connectors in PyFlink and highlights the details 
 * This will be replaced by the TOC
 {:toc}
 
-<span class="label label-info">Note</span>For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({{ site.baseurl }}/zh/dev/table/connectors/index.html). 
+<span class="label label-info">Note</span> For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({{ site.baseurl }}/zh/dev/table/connectors/index.html). 
 
 ## Download connector and format jars
 
-Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/dev/python/user-guide/table/dependency_management.html).
+Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html).
 
 {% highlight python %}
 
@@ -51,13 +51,12 @@ source_ddl = """
             a VARCHAR,
             b INT
         ) WITH (
-          'connector.type' = 'kafka',
-          'connector.version' = 'universal',
-          'connector.topic' = 'source_topic',
-          'connector.properties.bootstrap.servers' = 'kafka:9092',
-          'connector.properties.group.id' = 'test_3',
-          'connector.startup-mode' = 'latest-offset',
-          'format.type' = 'json'
+          'type' = 'kafka',
+          'topic' = 'source_topic',
+          'properties.bootstrap.servers' = 'kafka:9092',
+          'properties.group.id' = 'test_3',
+          'scan.startup.mode' = 'latest-offset',
+          'format' = 'json'
         )
         """
 
@@ -65,11 +64,10 @@ sink_ddl = """
         CREATE TABLE sink_table(
             a VARCHAR
         ) WITH (
-          'connector.type' = 'kafka',
-          'connector.version' = 'universal',
-          'connector.topic' = 'sink_topic',
-          'connector.properties.bootstrap.servers' = 'kafka:9092',
-          'format.type' = 'json'
+          'type' = 'kafka',
+          'topic' = 'sink_topic',
+          'properties.bootstrap.servers' = 'kafka:9092',
+          'format' = 'json'
         )
         """
 
@@ -78,7 +76,6 @@ t_env.execute_sql(sink_ddl)
 
 t_env.sql_query("SELECT a FROM source_table") \
     .insert_into("sink_table")
-    
 {% endhighlight %}
 
 Below is a complete example of how to use a Kafka source/sink and the JSON format in PyFlink.
@@ -102,13 +99,12 @@ def log_processing():
                 a VARCHAR,
                 b INT
             ) WITH (
-              'connector.type' = 'kafka',
-              'connector.version' = 'universal',
-              'connector.topic' = 'source_topic',
-              'connector.properties.bootstrap.servers' = 'kafka:9092',
-              'connector.properties.group.id' = 'test_3',
-              'connector.startup-mode' = 'latest-offset',
-              'format.type' = 'json'
+              'type' = 'kafka',
+              'topic' = 'source_topic',
+              'properties.bootstrap.servers' = 'kafka:9092',
+              'properties.group.id' = 'test_3',
+              'scan.startup.mode' = 'latest-offset',
+              'format' = 'json'
             )
             """
 
@@ -116,11 +112,10 @@ def log_processing():
             CREATE TABLE sink_table(
                 a VARCHAR
             ) WITH (
-              'connector.type' = 'kafka',
-              'connector.version' = 'universal',
-              'connector.topic' = 'sink_topic',
-              'connector.properties.bootstrap.servers' = 'kafka:9092',
-              'format.type' = 'json'
+              'type' = 'kafka',
+              'topic' = 'sink_topic',
+              'properties.bootstrap.servers' = 'kafka:9092',
+              'format' = 'json'
             )
             """
 
