@@ -104,8 +104,8 @@ dataStream.filter(new FilterFunction<Integer>() {
             <p>
             This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
 {% highlight java %}
-dataStream.keyBy("someKey") // Key by field "someKey"
-dataStream.keyBy(0) // Key by the first element of a Tuple
+dataStream.keyBy(value -> value.getSomeKey()) // Key by field "someKey"
+dataStream.keyBy(value -> value.f0) // Key by the first element of a Tuple
 {% endhighlight %}
             <p>
             <span class="label label-danger">Attention</span>
@@ -187,7 +187,7 @@ keyedStream.maxBy("key");
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="windows.html">windows</a> for a complete description of windows.
 {% highlight java %}
-dataStream.keyBy(0).window(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
+dataStream.keyBy(value -> value.f0).window(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
 {% endhighlight %}
         </p>
           </td>
@@ -503,8 +503,8 @@ dataStream.filter { _ != 0 }
             Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keys</a> on how to specify keys.
             This transformation returns a KeyedStream.</p>
 {% highlight scala %}
-dataStream.keyBy("someKey") // Key by field "someKey"
-dataStream.keyBy(0) // Key by the first element of a Tuple
+dataStream.keyBy(_.someKey) // Key by field "someKey"
+dataStream.keyBy(_._1) // Key by the first element of a Tuple
 {% endhighlight %}
           </td>
         </tr>
@@ -566,7 +566,7 @@ keyedStream.maxBy("key")
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="windows.html">windows</a> for a description of windows.
 {% highlight scala %}
-dataStream.keyBy(0).window(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
+dataStream.keyBy(_._1).window(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
 {% endhighlight %}
         </p>
           </td>

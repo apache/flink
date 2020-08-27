@@ -107,7 +107,7 @@ DataStream<Tuple2<String, String>> stream = ...;
 
 // apply the process function onto a keyed stream
 DataStream<Tuple2<String, Long>> result = stream
-    .keyBy(0)
+    .keyBy(value -> value.f0)
     .process(new CountWithTimeoutFunction());
 
 /**
@@ -192,7 +192,7 @@ val stream: DataStream[Tuple2[String, String]] = ...
 
 // apply the process function onto a keyed stream
 val result: DataStream[Tuple2[String, Long]] = stream
-  .keyBy(0)
+  .keyBy(_._1)
   .process(new CountWithTimeoutFunction())
 
 /**

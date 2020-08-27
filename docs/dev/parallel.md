@@ -54,7 +54,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 DataStream<String> text = [...]
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
-    .keyBy(0)
+    .keyBy(value -> value.f0)
     .timeWindow(Time.seconds(5))
     .sum(1).setParallelism(5);
 
@@ -70,7 +70,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(0)
+    .keyBy(_._1)
     .timeWindow(Time.seconds(5))
     .sum(1).setParallelism(5)
 wordCounts.print()
@@ -113,7 +113,7 @@ env.setParallelism(3)
 val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
-    .keyBy(0)
+    .keyBy(_._1)
     .timeWindow(Time.seconds(5))
     .sum(1)
 wordCounts.print()
