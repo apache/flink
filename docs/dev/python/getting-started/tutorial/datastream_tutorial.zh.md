@@ -24,14 +24,37 @@ under the License.
 
 Apache Flink offers a DataStream API for building robust, stateful streaming applications. It provides fine-grained control over state and time, which allows for the implementation of advanced event-driven systems. In this step-by-step guide, you’ll learn how to build a simple streaming application with PyFlink and the DataStream API.
 
-Please refer to the PyFlink [installation guide]({{ site.baseurl }}/zh/dev/python/getting-started/installation.html) on how to set up the Python execution environments.
-
 * This will be replaced by the TOC
 {:toc}
 
-## Setting up a Python Project
+## What Will You Be Building? 
 
-You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({{ site.baseurl }}/zh/dev/python/getting-started/installation.html#installation-of-pyflink).
+In this tutorial, you will learn how to write a simple Python DataStream job.
+The pipeline will read data from a non-empty collection and write the results to the local file system.
+
+## Prerequisites
+
+This walkthrough assumes that you have some familiarity with Python, but you should be able to follow along even if you come from a different programming language.
+
+## Help, I’m Stuck! 
+
+If you get stuck, check out the [community support resources](https://flink.apache.org/zh/community.html).
+In particular, Apache Flink's [user mailing list](https://flink.apache.org/zh/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
+
+## How To Follow Along
+
+If you want to follow along, you will require a computer with: 
+
+* Java 8 or 11
+* Python 3.5, 3.6 or 3.7
+
+Using Python DataStream API requires installing PyFlink, which is available on [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`. 
+
+{% highlight bash %}
+$ python -m pip install apache-flink
+{% endhighlight %}
+
+Once PyFlink is installed, you can move on to write a Python DataStream job.
 
 ## Writing a Flink Python DataStream API Program
 
