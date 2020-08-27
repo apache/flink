@@ -28,16 +28,16 @@ under the License.
 
 本页面列出了目前 Flink SQL 所支持的所有语句：
 
-- [SELECT (Queries)](queries.html)
-- [CREATE TABLE, DATABASE, VIEW, FUNCTION](create.html)
-- [DROP TABLE, DATABASE, VIEW, FUNCTION](drop.html)
-- [ALTER TABLE, DATABASE, FUNCTION](alter.html)
-- [INSERT](insert.html)
-- [SQL HINTS](hints.html)
-- [DESCRIBE](describe.html)
-- [EXPLAIN](explain.html)
-- [USE](use.html)
-- [SHOW](show.html)
+- [SELECT (Queries)]({% link dev/table/sql/queries.zh.md %})
+- [CREATE TABLE, DATABASE, VIEW, FUNCTION]({% link dev/table/sql/create.zh.md %})
+- [DROP TABLE, DATABASE, VIEW, FUNCTION]({% link dev/table/sql/drop.zh.md %})
+- [ALTER TABLE, DATABASE, FUNCTION]({% link dev/table/sql/alter.zh.md %})
+- [INSERT]({% link dev/table/sql/insert.zh.md %})
+- [SQL HINTS]({% link dev/table/sql/hints.zh.md %})
+- [DESCRIBE]({% link dev/table/sql/describe.zh.md %})
+- [EXPLAIN]({% link dev/table/sql/explain.zh.md %})
+- [USE]({% link dev/table/sql/use.zh.md %})
+- [SHOW]({% link dev/table/sql/show.zh.md %})
 
 ## 数据类型
 
