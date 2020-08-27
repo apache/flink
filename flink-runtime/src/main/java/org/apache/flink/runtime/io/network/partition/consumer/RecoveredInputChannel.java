@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +89,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		this.channelStateWriter = checkNotNull(channelStateWriter);
 	}
 
-	public abstract InputChannel toInputChannel() throws IOException;
+	public final InputChannel toInputChannel() throws IOException {
+		Preconditions.checkState(stateConsumedFuture.isDone(), "recovered state is not fully consumed");
+		return toInputChannelInternal();
+	}
+
+	protected abstract InputChannel toInputChannelInternal() throws IOException;
 
 	CompletableFuture<?> getStateConsumedFuture() {
 		return stateConsumedFuture;
@@ -201,7 +207,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 	}
 
 	@Override
-	void requestSubpartition(int subpartitionIndex) {
+	final void requestSubpartition(int subpartitionIndex) {
 		throw new UnsupportedOperationException("RecoveredInputChannel should never request partition.");
 	}
 
