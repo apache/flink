@@ -36,16 +36,19 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 class UnsafeMemoryBudget {
 	private static final int MAX_SLEEPS = 11; // 2^11 - 1 = (2 x 1024) - 1 ms ~ 2 s total sleep duration
-	private static final int MAX_SLEEPS_VERIFY_EMPTY = 17; // 2^17 - 1 = (128 x 1024) - 1 ms ~ 2 min total sleep duration
+	static final int MAX_SLEEPS_VERIFY_EMPTY = 17; // 2^17 - 1 = (128 x 1024) - 1 ms ~ 2 min total sleep duration
 	private static final int RETRIGGER_GC_AFTER_SLEEPS = 9; // ~ 0.5 sec
 
 	private final long totalMemorySize;
 
 	private final AtomicLong availableMemorySize;
 
-	UnsafeMemoryBudget(long totalMemorySize) {
+	private final int verifyEmptyWaitGcMaxSleeps;
+
+	UnsafeMemoryBudget(long totalMemorySize, int verifyEmptyWaitGcMaxSleeps) {
 		this.totalMemorySize = totalMemorySize;
 		this.availableMemorySize = new AtomicLong(totalMemorySize);
+		this.verifyEmptyWaitGcMaxSleeps = verifyEmptyWaitGcMaxSleeps;
 	}
 
 	long getTotalMemorySize() {
@@ -60,7 +63,7 @@ class UnsafeMemoryBudget {
 		try {
 			// we wait longer than during the normal reserveMemory as we have to GC all memory,
 			// allocated by task, to perform the verification
-			reserveMemory(totalMemorySize, MAX_SLEEPS_VERIFY_EMPTY);
+			reserveMemory(totalMemorySize, verifyEmptyWaitGcMaxSleeps);
 		} catch (MemoryReservationException e) {
 			return false;
 		}
