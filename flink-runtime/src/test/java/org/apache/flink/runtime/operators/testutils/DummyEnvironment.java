@@ -230,7 +230,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public IndexedInputGate getInputGate(int index) {
-		return null;
+		throw new ArrayIndexOutOfBoundsException(0);
 	}
 
 	@Override
