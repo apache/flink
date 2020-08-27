@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -31,12 +32,12 @@ import java.util.function.Consumer;
 public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievable> implements ResourceEventHandler<WorkerType> {
 
 	private final Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer;
-	private final Consumer<ResourceID> onWorkerTerminatedConsumer;
+	private final BiConsumer<ResourceID, String> onWorkerTerminatedConsumer;
 	private final Consumer<Throwable> onErrorConsumer;
 
 	private TestingResourceEventHandler(
 			Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer,
-			Consumer<ResourceID> onWorkerTerminatedConsumer,
+			BiConsumer<ResourceID, String> onWorkerTerminatedConsumer,
 			Consumer<Throwable> onErrorConsumer) {
 		this.onPreviousAttemptWorkersRecoveredConsumer = onPreviousAttemptWorkersRecoveredConsumer;
 		this.onWorkerTerminatedConsumer = onWorkerTerminatedConsumer;
@@ -49,8 +50,8 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
 	}
 
 	@Override
-	public void onWorkerTerminated(ResourceID resourceId) {
-		onWorkerTerminatedConsumer.accept(resourceId);
+	public void onWorkerTerminated(ResourceID resourceId, String diagnostics) {
+		onWorkerTerminatedConsumer.accept(resourceId, diagnostics);
 	}
 
 	@Override
@@ -67,7 +68,7 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
 	 */
 	public static class Builder<WorkerType extends ResourceIDRetrievable> {
 		private Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer = (ignore) -> {};
-		private Consumer<ResourceID> onWorkerTerminatedConsumer = (ignore) -> {};
+		private BiConsumer<ResourceID, String> onWorkerTerminatedConsumer = (ignore1, ignore2) -> {};
 		private Consumer<Throwable> onErrorConsumer = (ignore) -> {};
 
 		private Builder() {}
@@ -78,7 +79,7 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
 			return this;
 		}
 
-		public Builder<WorkerType> setOnWorkerTerminatedConsumer(Consumer<ResourceID> onWorkerTerminatedConsumer) {
+		public Builder<WorkerType> setOnWorkerTerminatedConsumer(BiConsumer<ResourceID, String> onWorkerTerminatedConsumer) {
 			this.onWorkerTerminatedConsumer = Preconditions.checkNotNull(onWorkerTerminatedConsumer);
 			return this;
 		}

@@ -264,7 +264,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 						requestResourceFuture.completeExceptionally(new FlinkException("Pod is terminated."));
 					}
 
-					getResourceEventHandler().onWorkerTerminated(new ResourceID(podName));
+					getResourceEventHandler().onWorkerTerminated(
+							new ResourceID(podName),
+							pod.getTerminatedDiagnostics());
 					stopPod(podName);
 				}
 			}
