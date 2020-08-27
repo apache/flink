@@ -49,6 +49,10 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 	private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
 	private final Environment taskEnvironment;
 
+	public boolean isRunning() {
+		return asyncCheckpointState.get() == AsyncCheckpointState.RUNNING;
+	}
+
 	enum AsyncCheckpointState {
 		RUNNING,
 		DISCARDED,
