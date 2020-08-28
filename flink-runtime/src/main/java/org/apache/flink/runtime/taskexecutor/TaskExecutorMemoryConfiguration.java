@@ -52,13 +52,13 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 	public static final String FIELD_NAME_FRAMEWORK_OFFHEAP = "frameworkOffHeap";
 	public static final String FIELD_NAME_TASK_OFFHEAP = "taskOffHeap";
 
-	public static final String FIELD_NAME_NETWORK = "networkMax";
+	public static final String FIELD_NAME_NETWORK_MEMORY = "networkMemory";
 
-	public static final String FIELD_NAME_MANAGED_TOTAL = "managedTotal";
+	public static final String FIELD_NAME_MANAGED_MEMORY = "managedMemory";
 
-	public static final String FIELD_NAME_METASPACE_MAX = "metaspaceMax";
+	public static final String FIELD_NAME_JVM_METASPACE = "jvmMetaspace";
 
-	public static final String FIELD_NAME_OVERHEAD = "overheadMax";
+	public static final String FIELD_NAME_JVM_OVERHEAD = "jvmOverhead";
 
 	public static final String FIELD_NAME_TOTAL_FLINK_MEMORY = "totalFlinkMemory";
 
@@ -77,16 +77,16 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 	@JsonProperty(FIELD_NAME_TASK_OFFHEAP)
 	private final Long taskOffHeap;
 
-	@JsonProperty(FIELD_NAME_NETWORK)
+	@JsonProperty(FIELD_NAME_NETWORK_MEMORY)
 	private final Long networkMemory;
 
-	@JsonProperty(FIELD_NAME_MANAGED_TOTAL)
+	@JsonProperty(FIELD_NAME_MANAGED_MEMORY)
 	private final Long managedMemoryTotal;
 
-	@JsonProperty(FIELD_NAME_METASPACE_MAX)
-	private final Long jvmMetaspaceMax;
+	@JsonProperty(FIELD_NAME_JVM_METASPACE)
+	private final Long jvmMetaspace;
 
-	@JsonProperty(FIELD_NAME_OVERHEAD)
+	@JsonProperty(FIELD_NAME_JVM_OVERHEAD)
 	private final Long jvmOverhead;
 
 	@JsonProperty(FIELD_NAME_TOTAL_FLINK_MEMORY)
@@ -126,10 +126,10 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 			@JsonProperty(FIELD_NAME_TASK_HEAP) Long taskHeap,
 			@JsonProperty(FIELD_NAME_FRAMEWORK_OFFHEAP) Long frameworkOffHeap,
 			@JsonProperty(FIELD_NAME_TASK_OFFHEAP) Long taskOffHeap,
-			@JsonProperty(FIELD_NAME_NETWORK) Long networkMemory,
-			@JsonProperty(FIELD_NAME_MANAGED_TOTAL) Long managedMemoryTotal,
-			@JsonProperty(FIELD_NAME_METASPACE_MAX) Long jvmMetaspaceMax,
-			@JsonProperty(FIELD_NAME_OVERHEAD) Long jvmOverhead,
+			@JsonProperty(FIELD_NAME_NETWORK_MEMORY) Long networkMemory,
+			@JsonProperty(FIELD_NAME_MANAGED_MEMORY) Long managedMemoryTotal,
+			@JsonProperty(FIELD_NAME_JVM_METASPACE) Long jvmMetaspace,
+			@JsonProperty(FIELD_NAME_JVM_OVERHEAD) Long jvmOverhead,
 			@JsonProperty(FIELD_NAME_TOTAL_FLINK_MEMORY) Long totalFlinkMemory,
 			@JsonProperty(FIELD_NAME_TOTAL_PROCESS_MEMORY) Long totalProcessMemory) {
 		this.frameworkHeap = frameworkHeap;
@@ -138,7 +138,7 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 		this.taskOffHeap = taskOffHeap;
 		this.networkMemory = networkMemory;
 		this.managedMemoryTotal = managedMemoryTotal;
-		this.jvmMetaspaceMax = jvmMetaspaceMax;
+		this.jvmMetaspace = jvmMetaspace;
 		this.jvmOverhead = jvmOverhead;
 		this.totalFlinkMemory = totalFlinkMemory;
 		this.totalProcessMemory = totalProcessMemory;
@@ -189,8 +189,8 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 	/**
 	 * Returns the maximum Metaspace size allowed for the task manager.
 	 */
-	public Long getJvmMetaspaceMax() {
-		return jvmMetaspaceMax;
+	public Long getJvmMetaspace() {
+		return jvmMetaspace;
 	}
 
 	/**
@@ -229,7 +229,7 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 			Objects.equals(taskOffHeap, that.taskOffHeap) &&
 			Objects.equals(networkMemory, that.networkMemory) &&
 			Objects.equals(managedMemoryTotal, that.managedMemoryTotal) &&
-			Objects.equals(jvmMetaspaceMax, that.jvmMetaspaceMax) &&
+			Objects.equals(jvmMetaspace, that.jvmMetaspace) &&
 			Objects.equals(jvmOverhead, that.jvmOverhead) &&
 			Objects.equals(totalFlinkMemory, that.totalFlinkMemory) &&
 			Objects.equals(totalProcessMemory, that.totalProcessMemory);
@@ -243,7 +243,7 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 			taskOffHeap,
 			networkMemory,
 			managedMemoryTotal,
-			jvmMetaspaceMax,
+			jvmMetaspace,
 			jvmOverhead,
 			totalFlinkMemory,
 			totalProcessMemory);
@@ -256,10 +256,10 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
 			.add(FIELD_NAME_TASK_HEAP, taskHeap)
 			.add(FIELD_NAME_FRAMEWORK_OFFHEAP, frameworkOffHeap)
 			.add(FIELD_NAME_TASK_OFFHEAP, taskOffHeap)
-			.add(FIELD_NAME_NETWORK, networkMemory)
-			.add(FIELD_NAME_MANAGED_TOTAL, managedMemoryTotal)
-			.add(FIELD_NAME_METASPACE_MAX, jvmMetaspaceMax)
-			.add(FIELD_NAME_OVERHEAD, jvmOverhead)
+			.add(FIELD_NAME_NETWORK_MEMORY, networkMemory)
+			.add(FIELD_NAME_MANAGED_MEMORY, managedMemoryTotal)
+			.add(FIELD_NAME_JVM_METASPACE, jvmMetaspace)
+			.add(FIELD_NAME_JVM_OVERHEAD, jvmOverhead)
 			.add(FIELD_NAME_TOTAL_FLINK_MEMORY, totalFlinkMemory)
 			.add(FIELD_NAME_TOTAL_PROCESS_MEMORY, totalProcessMemory)
 			.toString();

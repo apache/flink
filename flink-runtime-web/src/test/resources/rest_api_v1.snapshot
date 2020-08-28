@@ -2740,34 +2740,22 @@
                   "taskOffHeap" : {
                     "type" : "integer"
                   },
-                  "networkMin" : {
+                  "networkMemory" : {
                     "type" : "integer"
                   },
-                  "networkMax" : {
+                  "managedMemory" : {
                     "type" : "integer"
                   },
-                  "networkFraction" : {
-                    "type" : "number"
-                  },
-                  "managedTotal" : {
+                  "jvmMetaspace" : {
                     "type" : "integer"
                   },
-                  "managedFraction" : {
-                    "type" : "number"
-                  },
-                  "metaspaceMax" : {
+                  "jvmOverhead" : {
                     "type" : "integer"
                   },
-                  "overheadMin" : {
+                  "totalFlinkMemory" : {
                     "type" : "integer"
                   },
-                  "overheadMax" : {
-                    "type" : "integer"
-                  },
-                  "overheadFraction" : {
-                    "type" : "number"
-                  },
-                  "memoryTotal" : {
+                  "totalProcessMemory" : {
                     "type" : "integer"
                   }
                 }
@@ -2906,34 +2894,22 @@
             "taskOffHeap" : {
               "type" : "integer"
             },
-            "networkMin" : {
+            "networkMemory" : {
               "type" : "integer"
             },
-            "networkMax" : {
+            "managedMemory" : {
               "type" : "integer"
             },
-            "networkFraction" : {
-              "type" : "number"
-            },
-            "managedTotal" : {
+            "jvmMetaspace" : {
               "type" : "integer"
             },
-            "managedFraction" : {
-              "type" : "number"
-            },
-            "metaspaceMax" : {
+            "jvmOverhead" : {
               "type" : "integer"
             },
-            "overheadMin" : {
+            "totalFlinkMemory" : {
               "type" : "integer"
             },
-            "overheadMax" : {
-              "type" : "integer"
-            },
-            "overheadFraction" : {
-              "type" : "number"
-            },
-            "memoryTotal" : {
+            "totalProcessMemory" : {
               "type" : "integer"
             }
           }
