@@ -266,7 +266,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 					getResourceEventHandler().onWorkerTerminated(
 							new ResourceID(podName),
-							new Exception(pod.getTerminatedDiagnostics()));
+							pod.getTerminatedDiagnostics());
 					stopPod(podName);
 				}
 			}

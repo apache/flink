@@ -32,12 +32,12 @@ import java.util.function.Consumer;
 public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievable> implements ResourceEventHandler<WorkerType> {
 
 	private final Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer;
-	private final BiConsumer<ResourceID, Exception> onWorkerTerminatedConsumer;
+	private final BiConsumer<ResourceID, String> onWorkerTerminatedConsumer;
 	private final Consumer<Throwable> onErrorConsumer;
 
 	private TestingResourceEventHandler(
 			Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer,
-			BiConsumer<ResourceID, Exception> onWorkerTerminatedConsumer,
+			BiConsumer<ResourceID, String> onWorkerTerminatedConsumer,
 			Consumer<Throwable> onErrorConsumer) {
 		this.onPreviousAttemptWorkersRecoveredConsumer = onPreviousAttemptWorkersRecoveredConsumer;
 		this.onWorkerTerminatedConsumer = onWorkerTerminatedConsumer;
@@ -50,8 +50,8 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
 	}
 
 	@Override
-	public void onWorkerTerminated(ResourceID resourceId, Exception cause) {
-		onWorkerTerminatedConsumer.accept(resourceId, cause);
+	public void onWorkerTerminated(ResourceID resourceId, String diagnostics) {
+		onWorkerTerminatedConsumer.accept(resourceId, diagnostics);
 	}
 
 	@Override
@@ -68,7 +68,7 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
 	 */
 	public static class Builder<WorkerType extends ResourceIDRetrievable> {
 		private Consumer<Collection<WorkerType>> onPreviousAttemptWorkersRecoveredConsumer = (ignore) -> {};
-		private BiConsumer<ResourceID, Exception> onWorkerTerminatedConsumer = (ignore1, ignore2) -> {};
+		private BiConsumer<ResourceID, String> onWorkerTerminatedConsumer = (ignore1, ignore2) -> {};
 		private Consumer<Throwable> onErrorConsumer = (ignore) -> {};
 
 		private Builder() {}
@@ -79,7 +79,7 @@ public class TestingResourceEventHandler<WorkerType extends ResourceIDRetrievabl
 			return this;
 		}
 
-		public Builder<WorkerType> setOnWorkerTerminatedConsumer(BiConsumer<ResourceID, Exception> onWorkerTerminatedConsumer) {
+		public Builder<WorkerType> setOnWorkerTerminatedConsumer(BiConsumer<ResourceID, String> onWorkerTerminatedConsumer) {
 			this.onWorkerTerminatedConsumer = Preconditions.checkNotNull(onWorkerTerminatedConsumer);
 			return this;
 		}

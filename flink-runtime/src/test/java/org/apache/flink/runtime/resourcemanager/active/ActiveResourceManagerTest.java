@@ -194,7 +194,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 						is(TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, WORKER_RESOURCE_SPEC)));
 
 				// first worker failed before register, verify requesting another worker from driver
-				runInMainThread(() -> getResourceManager().onWorkerTerminated(tmResourceIds.get(0), new Exception()));
+				runInMainThread(() -> getResourceManager().onWorkerTerminated(tmResourceIds.get(0), "terminate for testing"));
 				TaskExecutorProcessSpec taskExecutorProcessSpec2 =
 						requestWorkerFromDriverFutures.get(1).get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
@@ -248,7 +248,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 				assertThat(registerTaskExecutorFuture1.get(TIMEOUT_SEC, TimeUnit.SECONDS), instanceOf(RegistrationResponse.Success.class));
 
 				// first worker terminated, verify requesting another worker from driver
-				runInMainThread(() -> getResourceManager().onWorkerTerminated(tmResourceIds.get(0), new Exception()));
+				runInMainThread(() -> getResourceManager().onWorkerTerminated(tmResourceIds.get(0), "terminate for testing"));
 				TaskExecutorProcessSpec taskExecutorProcessSpec2 =
 						requestWorkerFromDriverFutures.get(1).get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
@@ -298,7 +298,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
 				// worker terminated, verify not requesting new worker
 				runInMainThread(() -> {
-					getResourceManager().onWorkerTerminated(tmResourceId, new Exception());
+					getResourceManager().onWorkerTerminated(tmResourceId, "terminate for testing");
 					// needs to return something, so that we can use `get()` to make sure the main thread processing
 					// finishes before the assertions
 					return null;
@@ -327,8 +327,8 @@ public class ActiveResourceManagerTest extends TestLogger {
 			runTest(() -> {
 				// request a new worker, terminate it after registered
 				runInMainThread(() -> getResourceManager().startNewWorker(WORKER_RESOURCE_SPEC))
-					.thenCompose((ignrore) -> registerTaskExecutor(tmResourceId, taskExecutorGateway))
-					.thenRun(() -> runInMainThread(() -> getResourceManager().onWorkerTerminated(tmResourceId, new Exception())));
+					.thenCompose((ignore) -> registerTaskExecutor(tmResourceId, taskExecutorGateway))
+					.thenRun(() -> runInMainThread(() -> getResourceManager().onWorkerTerminated(tmResourceId, "terminate for testing")));
 				// verify task manager connection is closed
 				disconnectResourceManagerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 			});
