@@ -159,7 +159,6 @@ public class ResultPartitionTest {
 		ResultPartitionManager manager = new ResultPartitionManager();
 
 		final ResultPartition partition = new ResultPartitionBuilder()
-			.isReleasedOnConsumption(false)
 			.setResultPartitionManager(manager)
 			.setResultPartitionType(ResultPartitionType.BLOCKING)
 			.setFileChannelManager(fileChannelManager)

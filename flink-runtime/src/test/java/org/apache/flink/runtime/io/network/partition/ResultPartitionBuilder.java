@@ -63,8 +63,6 @@ public class ResultPartitionBuilder {
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
-	private boolean releasedOnConsumption;
-
 	private boolean blockingShuffleCompressionEnabled = false;
 
 	private String compressionCodec = "LZ4";
@@ -137,11 +135,6 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder isReleasedOnConsumption(boolean releasedOnConsumption) {
-		this.releasedOnConsumption = releasedOnConsumption;
-		return this;
-	}
-
 	public ResultPartitionBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		return this;
@@ -167,7 +160,6 @@ public class ResultPartitionBuilder {
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			networkBufferSize,
-			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
 			compressionCodec,
 			maxBuffersPerChannel);

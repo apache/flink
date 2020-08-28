@@ -467,14 +467,13 @@ public class PartitionRequestQueueTest {
 		channel.runPendingTasks();
 
 		assertFalse(queue.getAvailableReaders().contains(reader));
-		// the partition and its reader view should all be released
+
+		// the reader view should be released (the partition is not, though, blocking partitions
+		// support multiple successive readers for recovery and caching)
 		assertTrue(reader.isReleased());
-		assertTrue(partition.isReleased());
-		for (ResultSubpartition subpartition : partition.getAllPartitions()) {
-			assertTrue(subpartition.isReleased());
-		}
 
 		// cleanup
+		partition.release();
 		channel.close();
 	}
 
@@ -483,7 +482,6 @@ public class PartitionRequestQueueTest {
 			.setResultPartitionType(ResultPartitionType.BLOCKING)
 			.setFileChannelManager(fileChannelManager)
 			.setResultPartitionManager(partitionManager)
-			.isReleasedOnConsumption(true)
 			.build();
 
 		partitionManager.registerResultPartition(partition);
