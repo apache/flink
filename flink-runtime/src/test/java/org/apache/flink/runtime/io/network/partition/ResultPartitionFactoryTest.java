@@ -59,37 +59,29 @@ public class ResultPartitionFactoryTest extends TestLogger {
 
 	@Test
 	public void testBoundedBlockingSubpartitionsCreated() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
+		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
 	}
 
 	@Test
 	public void testPipelinedSubpartitionsCreated() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
+		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.PIPELINED);
 		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
 	}
 
 	@Test
-	public void testConsumptionOnReleaseForced() {
-		final ResultPartition resultPartition = createResultPartition(true, ResultPartitionType.BLOCKING);
+	public void testConsumptionOnReleaseForPipelined() {
+		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.PIPELINED);
 		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
 	}
 
 	@Test
-	public void testConsumptionOnReleaseEnabledForNonBlocking() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
-		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
-	}
-
-	@Test
-	public void testConsumptionOnReleaseDisabled() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
+	public void testNoConsumptionOnReleaseForBlocking() {
+		final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
 	}
 
-	private static ResultPartition createResultPartition(
-			boolean releasePartitionOnConsumption,
-			ResultPartitionType partitionType) {
+	private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
 			fileChannelManager,
@@ -98,7 +90,6 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			1,
 			1,
 			SEGMENT_SIZE,
-			releasePartitionOnConsumption,
 			false,
 			"LZ4",
 			Integer.MAX_VALUE);
