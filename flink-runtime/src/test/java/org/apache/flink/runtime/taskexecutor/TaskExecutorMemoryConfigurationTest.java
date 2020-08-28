@@ -37,6 +37,7 @@ import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_M
 import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_MIN;
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_HEAP_MEMORY;
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_OFF_HEAP_MEMORY;
+import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_FLINK_MEMORY;
 import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_PROCESS_MEMORY;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -63,7 +64,8 @@ public class TaskExecutorMemoryConfigurationTest extends TestLogger {
 		config.set(JVM_OVERHEAD_MIN, new MemorySize(9));
 		config.set(JVM_OVERHEAD_MAX, new MemorySize(10));
 		config.set(JVM_OVERHEAD_FRACTION, 0.3f);
-		config.set(TOTAL_PROCESS_MEMORY, new MemorySize(11));
+		config.set(TOTAL_FLINK_MEMORY, new MemorySize(11));
+		config.set(TOTAL_PROCESS_MEMORY, new MemorySize(12));
 
 		TaskExecutorMemoryConfiguration actual = TaskExecutorMemoryConfiguration.create(config);
 		TaskExecutorMemoryConfiguration expected = new TaskExecutorMemoryConfiguration(
@@ -71,12 +73,12 @@ public class TaskExecutorMemoryConfigurationTest extends TestLogger {
 			2L,
 			3L,
 			4L,
-			5L,
 			6L,
 			7L,
 			8L,
-			9L,
-			10L);
+			10L,
+			11L,
+			12L);
 
 		assertThat(actual, is(expected));
 	}
