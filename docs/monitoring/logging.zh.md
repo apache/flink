@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 中的日志记录是使用 slf4j 日志接口实现的。使用 log4j2 作为底层日志框架。我们也支持了 logback 日志配置，只要将其配置文件作为属性传递给 JVM 即可。愿意使用 logback 而不是 log4j2 的用户只需排除 log4j2 的依赖（或从 lib/ 文件夹中删除它）即可。
+Flink 中的日志记录是使用 slf4j 日志接口实现的。使用 log4j2 作为底层日志框架。我们也支持了 logback 日志配置，只要将其配置文件作为参数传递给 JVM 即可。愿意使用 logback 而不是 log4j2 的用户只需排除 log4j2 的依赖（或从 lib/ 文件夹中删除它）即可。
 
 * This will be replaced by the TOC
 {:toc}
@@ -32,9 +32,9 @@ Flink 中的日志记录是使用 slf4j 日志接口实现的。使用 log4j2 �
 
 ## 配置 Log4j2
 
-Log4j2 是使用属性文件指定的。在 Flink 的使用中，该文件通常命名为 `log4j.properties`。我们使用 `-Dlog4j.configurationFile=` 参数将该文件的文件名和位置传递给 JVM。
+Log4j2 是使用配置文件指定的。在 Flink 的使用中，该文件通常命名为 `log4j.properties`。我们使用 `-Dlog4j.configurationFile=` 参数将该文件的文件名和位置传递给 JVM。
 
-Flink 附带以下默认属性文件：
+Flink 附带以下默认日志配置文件：
 
 - `log4j-cli.properties`：由 Flink 命令行客户端使用（例如 `flink run`）（不包括在集群上执行的代码）
 - `log4j-session.properties`：Flink 命令行客户端在启动 YARN 或 Kubernetes session 时使用（`yarn-session.sh`，`kubernetes-session.sh`）
@@ -61,13 +61,13 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 对于 Flink 发行版，这意味着你必须
 - 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars，
 - 向 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars，
-- 用兼容的 Log4j1 版本替换 `conf` 目录中的所有 log4j 属性文件。
+- 用兼容的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
 
 <a name="configuring-logback"></a>
 
 ## 配置 logback
 
-对于用户和开发人员来说，控制日志框架非常重要。日志框架的配置完全由配置文件完成。必须通过设置环境属性 `-Dlogback.configurationFile=<file>` 或将 `logback.xml` 放在 classpath 中来指定配置文件。`conf` 目录包含一个 `logback.xml` 文件，该文件可以修改，如果使用附带的启动脚本在 IDE 之外启动 Flink 则会使用该日志配置文件。提供的 `logback.xml` 具有以下格式：
+对于用户和开发人员来说，控制日志框架非常重要。日志框架的配置完全由配置文件完成。必须通过设置环境参数 `-Dlogback.configurationFile=<file>` 或将 `logback.xml` 放在 classpath 中来指定配置文件。`conf` 目录包含一个 `logback.xml` 文件，该文件可以修改，如果使用附带的启动脚本在 IDE 之外启动 Flink 则会使用该日志配置文件。提供的 `logback.xml` 具有以下格式：
 
 {% highlight xml %}
 <configuration>
