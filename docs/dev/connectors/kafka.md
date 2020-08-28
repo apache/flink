@@ -52,7 +52,7 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 {% highlight xml %}
 <dependency>
 	<groupId>org.apache.flink</groupId>
-	<artifactId>flink-connector-kafka-011{{ site.scala_version_suffix }}</artifactId>
+	<artifactId>flink-connector-kafka-0.11{{ site.scala_version_suffix }}</artifactId>
 	<version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
@@ -61,7 +61,7 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 {% highlight xml %}
 <dependency>
 	<groupId>org.apache.flink</groupId>
-	<artifactId>flink-connector-kafka-010{{ site.scala_version_suffix }}</artifactId>
+	<artifactId>flink-connector-kafka-0.10{{ site.scala_version_suffix }}</artifactId>
 	<version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
