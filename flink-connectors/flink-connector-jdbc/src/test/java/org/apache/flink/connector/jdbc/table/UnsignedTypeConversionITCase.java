@@ -28,11 +28,15 @@ import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import ch.vorburger.exec.ManagedProcessException;
 import ch.vorburger.mariadb4j.DB;
 import ch.vorburger.mariadb4j.DBConfigurationBuilder;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -56,30 +60,23 @@ import static org.junit.Assert.assertEquals;
  */
 public class UnsignedTypeConversionITCase extends AbstractTestBase {
 
+	private static final Logger logger = LoggerFactory.getLogger(UnsignedTypeConversionITCase.class);
 	private static final String DEFAULT_DB_NAME = "test";
 	private static final String TABLE_NAME = "unsigned_test";
+	private static final int INITIALIZE_DB_MAX_RETRY = 3;
+	private static DB db;
+	private static String dbUrl;
+	private static Connection connection;
 
 	private StreamTableEnvironment tEnv;
-	private DB db;
-	private String dbUrl;
-	private Connection connection;
 
-	@Before
-	public void setUp() throws SQLException, IllegalStateException {
-		//dbUrl: jdbc:mysql://localhost:3306/test
-		prepareMariaDB();
-		createMysqlTable();
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		tEnv = StreamTableEnvironment.create(env);
-		createFlinkTable();
-		prepareData();
-	}
-
-	private void prepareMariaDB() throws IllegalStateException {
+	@BeforeClass
+	public static void prepareMariaDB() throws IllegalStateException {
 		boolean initDbSuccess = false;
 		int i = 0;
-		//retry
-		while (i < 3) {
+		//The initialization of maria db instance is a little unstable according to past CI tests.
+		//Add retry logic here to avoid initialization failure.
+		while (i < INITIALIZE_DB_MAX_RETRY) {
 			try {
 				db = DB.newEmbeddedDB(DBConfigurationBuilder.newBuilder().build());
 				db.start();
@@ -95,7 +92,8 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 					}
 				}
 			} catch (Exception e) {
-				log.info("Initialize DB fail caused by {}", e);
+				logger.warn("Initialize DB fail caused by {}", e);
+				stopDb();
 			}
 			if (initDbSuccess) {
 				break;
@@ -103,9 +101,19 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 			i++;
 		}
 		if (!initDbSuccess) {
-			throw new IllegalStateException("Initialize MySQL database instance failed after 3 attempts," +
-				" please open an issue.");
+			throw new IllegalStateException(String.format("Initialize MySQL database instance failed after {} attempts," +
+				" please open an issue.", INITIALIZE_DB_MAX_RETRY));
 		}
+	}
+
+	@Before
+	public void setUp() throws SQLException, IllegalStateException {
+		//dbUrl: jdbc:mysql://localhost:3306/test
+		createMysqlTable();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		tEnv = StreamTableEnvironment.create(env);
+		createFlinkTable();
+		prepareData();
 	}
 
 	@Test
@@ -204,7 +212,18 @@ public class UnsignedTypeConversionITCase extends AbstractTestBase {
 	}
 
 	@After
-	public void cleanup() throws Exception {
-		db.stop();
+	public void cleanup() {
+		stopDb();
+	}
+
+	private static void stopDb() {
+		if (db == null) {
+			return;
+		}
+		try {
+			db.stop();
+		} catch (ManagedProcessException e1) {
+			logger.warn("Stop DB instance fail caused by {}", e1);
+		}
 	}
 }
