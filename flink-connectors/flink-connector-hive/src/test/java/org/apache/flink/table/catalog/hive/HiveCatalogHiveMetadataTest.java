@@ -156,7 +156,10 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 		catalog.createDatabase(db1, createDb(), false);
 		CatalogTable catalogTable = createPartitionedTable();
 		catalog.createTable(path1, catalogTable, false);
-		CatalogPartitionSpec partitionSpec = createPartitionSpec();
+		CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(new HashMap<String, String>() {{
+			put("second", "2010-04-21 09:45:00");
+			put("third", "2000");
+		}});
 		catalog.createPartition(path1, partitionSpec, createPartition(), true);
 		Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
 		columnStatisticsDataBaseMap.put("first", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));
