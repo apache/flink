@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.core.io.InputSplitAssigner;
 
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -52,6 +53,7 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	// helper variable to decide whether the input is exhausted or not
 	protected boolean endReached = false;
 
+	protected transient Connection connection = null;
 	protected transient HTable table = null;
 	protected transient Scan scan = null;
 
@@ -197,8 +199,12 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 			if (table != null) {
 				table.close();
 			}
+			if (connection != null) {
+				connection.close();
+			}
 		} finally {
 			table = null;
+			connection = null;
 		}
 	}
 
