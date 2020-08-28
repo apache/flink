@@ -163,11 +163,6 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 	}
 
 	@Override
-	public ResultSubpartition getSubpartition(int subpartitionIndex) {
-		return subpartitions[subpartitionIndex];
-	}
-
-	@Override
 	public int getNumberOfSubpartitions() {
 		return subpartitions.length;
 	}
@@ -304,6 +299,7 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 	/**
 	 * Returns the requested subpartition.
 	 */
+	@Override
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 		checkState(!isReleased.get(), "Partition released.");
