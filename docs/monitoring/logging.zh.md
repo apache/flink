@@ -112,7 +112,7 @@ Logger LOG = LoggerFactory.getLogger(Foobar.class)
 LOG.info("This message contains {} placeholders. {}", 2, "Yippie");
 {% endhighlight %}
 
-占位符也可以与应记录的异常一起使用。
+占位符也可以和要记录的异常一起使用。
 
 {% highlight java %}
 catch(Exception exception){
