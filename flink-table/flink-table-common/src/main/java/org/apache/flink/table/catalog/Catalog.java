@@ -327,7 +327,7 @@ public interface Catalog {
 	 * @throws CatalogException in case of any runtime exception
 	 */
 	List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-		throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException;
+		throws TableNotExistException, TableNotPartitionedException, CatalogException;
 
 	/**
 	 * Get CatalogPartitionSpec of partitions by expression filters in the table.

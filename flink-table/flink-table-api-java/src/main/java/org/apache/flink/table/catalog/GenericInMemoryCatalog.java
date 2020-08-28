@@ -533,7 +533,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		checkNotNull(tablePath);
 		checkNotNull(partitionSpec);
 

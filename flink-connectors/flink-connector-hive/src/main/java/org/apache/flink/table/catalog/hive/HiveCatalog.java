@@ -765,7 +765,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, CatalogException {
 		checkNotNull(tablePath, "Table path cannot be null");
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 
@@ -1003,13 +1003,14 @@ public class HiveCatalog extends AbstractCatalog {
 	 * @param partitionSpec a partition spec.
 	 * @param partitionKeys a list of partition keys.
 	 * @param tablePath path of the table to which the partition belongs.
-	 * @throws PartitionSpecInvalidException thrown if any key in partitionSpec doesn't exist in partitionKeys.
 	 */
-	private void checkValidPartitionSpec(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
-		throws PartitionSpecInvalidException {
+	private void checkValidPartitionSpec(
+			CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath) {
 		for (String key : partitionSpec.getPartitionSpec().keySet()) {
 			if (!partitionKeys.contains(key)) {
-				throw new PartitionSpecInvalidException(getName(), partitionKeys, tablePath, partitionSpec);
+				// Wrap CatalogException for version Compatibility.
+				throw new CatalogException(
+						new PartitionSpecInvalidException(getName(), partitionKeys, tablePath, partitionSpec));
 			}
 		}
 	}
