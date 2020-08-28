@@ -1996,7 +1996,7 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
-			return (CheckpointedResultSubpartition) super.getSubpartition(subpartitionIndex);
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
