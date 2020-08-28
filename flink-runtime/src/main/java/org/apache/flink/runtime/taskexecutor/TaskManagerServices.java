@@ -281,7 +281,7 @@ public class TaskManagerServices {
 			taskManagerServicesConfiguration.getResourceID(),
 			taskManagerServicesConfiguration.getExternalAddress(),
 			// we expose the task manager location with the listening port
-			// iff the external data port is not explicitly defined
+			// if the external data port is not explicitly defined
 			taskManagerServicesConfiguration.getExternalDataPort() > 0 ?
 				taskManagerServicesConfiguration.getExternalDataPort() :
 				listeningDataPort);
