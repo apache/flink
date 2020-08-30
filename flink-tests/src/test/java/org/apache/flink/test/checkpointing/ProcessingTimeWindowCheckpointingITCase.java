@@ -332,9 +332,14 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                 return false;
             }
 
-            for (int i : windowCounts.values()) {
-                if (countPerElementExpected != i) {
+            for (Map.Entry<Long, Integer> e : windowCounts.entrySet()) {
+                if (e.getValue() < countPerElementExpected) {
                     return false;
+                } else if (e.getValue() > countPerElementExpected) {
+                    fail(
+                            String.format(
+                                    "counter too big for %d: %d (expected %d)",
+                                    e.getKey(), e.getValue(), countPerElementExpected));
                 }
             }
 
