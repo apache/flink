@@ -18,17 +18,35 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
 import org.apache.flink.state.api.runtime.BootstrapTransformationWithID;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * A {@code WritableSavepoint} is any savepoint that can be written to from a batch context.
@@ -88,10 +106,44 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 		List<BootstrapTransformationWithID<?>> newOperatorTransformations = metadata.getNewOperators();
 		DataSet<OperatorState> newOperatorStates = writeOperatorStates(newOperatorTransformations, savepointPath);
 
-		List<OperatorState> existingOperators = metadata.getExistingOperators();
+		List<OperatorState> existingOperatorStateList = metadata.getExistingOperators();
 
-		DataSet<OperatorState> finalOperatorStates = unionOperatorStates(newOperatorStates, existingOperators);
+		DataSet<OperatorState> finalOperatorStates;
+		if (existingOperatorStateList.isEmpty()) {
+			finalOperatorStates = newOperatorStates;
+		} else {
+			DataSet<OperatorState> existingOperatorStates = newOperatorStates.getExecutionEnvironment()
+				.fromCollection(existingOperatorStateList);
 
+			existingOperatorStates
+				.map(new OperatorState2PathSetMapFunction())
+				.flatMap(new FlatMapFunction<Set<Optional<Path>>, Optional<Path>>() {
+					@Override
+					public void flatMap(Set<Optional<Path>> value, Collector<Optional<Path>> out) throws Exception {
+						for (Optional<Path> path : value) {
+							out.collect(path);
+						}
+					}
+				})
+				.filter(Optional<Path>::isPresent)
+				.map(Optional<Path>::get)
+				.returns(TypeInformation.of(new TypeHint<Path>(){}))
+				.map(new MapFunction<Path, Path>() {
+					@Override
+					public Path map(Path existingStateFile) throws IOException {
+						savepointPath.getFileSystem().mkdirs(savepointPath);
+						Files.copy(
+							Paths.get(existingStateFile.getPath()), // source file
+							Paths.get(path + "/" + existingStateFile.getName()) // destination file
+						);
+						return existingStateFile;
+					}
+				})
+				.output(new DiscardingOutputFormat<>());
+
+			finalOperatorStates = newOperatorStates.union(existingOperatorStates);
+
+		}
 		finalOperatorStates
 			.reduceGroup(new MergeOperatorStates(metadata.getMasterStates()))
 			.name("reduce(OperatorState)")
@@ -99,23 +151,9 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			.name(path);
 	}
 
-	private DataSet<OperatorState> unionOperatorStates(DataSet<OperatorState> newOperatorStates, List<OperatorState> existingOperators) {
-		DataSet<OperatorState> finalOperatorStates;
-		if (existingOperators.isEmpty()) {
-			finalOperatorStates = newOperatorStates;
-		} else {
-			DataSet<OperatorState> wrappedCollection = newOperatorStates
-				.getExecutionEnvironment()
-				.fromCollection(existingOperators);
-
-			finalOperatorStates = newOperatorStates.union(wrappedCollection);
-		}
-		return finalOperatorStates;
-	}
-
 	private DataSet<OperatorState> writeOperatorStates(
-			List<BootstrapTransformationWithID<?>> newOperatorStates,
-			Path savepointWritePath) {
+		List<BootstrapTransformationWithID<?>> newOperatorStates,
+		Path savepointWritePath) {
 		return newOperatorStates
 			.stream()
 			.map(newOperatorState -> newOperatorState
@@ -123,5 +161,64 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata.getMaxParallelism(), savepointWritePath))
 			.reduce(DataSet::union)
 			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
+	}
+
+	/**
+	 * Map an OperatorState to a set of Paths which represent the state files.
+	 */
+	static class OperatorState2PathSetMapFunction implements MapFunction<OperatorState, Set<Optional<Path>>>  {
+		/**
+		 * This method recursively looks for the contained {@link FileStateHandle}s in a given {@link StreamStateHandle}.
+		 *
+		 * @param handle the {@code StreamStateHandle} to check for a contained {@code FileStateHandle}
+		 * @return the file path if the given {@code StreamStateHandle} contains a {@code FileStateHandle} object, null
+		 * otherwise
+		 */
+		private Optional<Path> getStateFilePathFromStreamStateHandle(StreamStateHandle handle) {
+			if (handle instanceof FileStateHandle) {
+				return Optional.of(
+					((FileStateHandle) handle).getFilePath()
+				);
+			} else if (handle instanceof OperatorStateHandle) {
+				return getStateFilePathFromStreamStateHandle(
+					((OperatorStateHandle) handle).getDelegateStateHandle()
+				);
+			} else if (handle instanceof KeyedStateHandle) {
+				if (handle instanceof KeyGroupsStateHandle) {
+					return getStateFilePathFromStreamStateHandle(
+						((KeyGroupsStateHandle) handle).getDelegateStateHandle()
+					);
+				}
+			}
+			return Optional.empty();
+		}
+
+		@Override
+		public Set<Optional<Path>> map(OperatorState operatorState) {
+			Set<Optional<Path>> stateFiles = new HashSet<>();
+			for (OperatorSubtaskState subTaskState : operatorState.getSubtaskStates().values()) {
+				// managed operator state
+				for (OperatorStateHandle operatorStateHandle: subTaskState.getManagedOperatorState()) {
+					stateFiles.add(getStateFilePathFromStreamStateHandle(operatorStateHandle));
+				}
+				// managed keyed state
+				for (KeyedStateHandle keyedStateHandle: subTaskState.getManagedKeyedState()) {
+					if (keyedStateHandle instanceof KeyGroupsStateHandle) {
+						stateFiles.add(getStateFilePathFromStreamStateHandle((KeyGroupsStateHandle) keyedStateHandle));
+					}
+				}
+				// raw operator state
+				for (OperatorStateHandle operatorStateHandle: subTaskState.getRawOperatorState()) {
+					stateFiles.add(getStateFilePathFromStreamStateHandle(operatorStateHandle));
+				}
+				// raw keyed state
+				for (KeyedStateHandle keyedStateHandle: subTaskState.getRawKeyedState()) {
+					if (keyedStateHandle instanceof KeyGroupsStateHandle) {
+						stateFiles.add(getStateFilePathFromStreamStateHandle((KeyGroupsStateHandle) keyedStateHandle));
+					}
+				}
+			}
+			return stateFiles;
+		}
 	}
 }
