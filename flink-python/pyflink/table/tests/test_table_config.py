@@ -23,15 +23,21 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class TableConfigTests(PyFlinkTestCase):
-
     def test_get_set_idle_state_retention_time(self):
         table_config = TableConfig.get_default()
 
         table_config.set_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
 
-        self.assertEqual(2 * 24 * 3600 * 1000, table_config.get_max_idle_state_retention_time())
+        self.assertEqual(3 * 24 * 3600 * 1000 / 2, table_config.get_max_idle_state_retention_time())
         self.assertEqual(24 * 3600 * 1000, table_config.get_min_idle_state_retention_time())
+
+    def test_get_set_idle_state_rentention(self):
+        table_config = TableConfig.get_default()
+
+        table_config.set_idle_state_retention(datetime.timedelta(days=1))
+
+        self.assertEqual(datetime.timedelta(days=1), table_config.get_idle_state_retention())
 
     def test_get_set_decimal_context(self):
         table_config = TableConfig.get_default()

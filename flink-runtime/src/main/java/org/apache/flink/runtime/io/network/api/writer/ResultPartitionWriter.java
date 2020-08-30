@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import javax.annotation.Nullable;
 
@@ -43,12 +43,6 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
 	 */
 	void setup() throws IOException;
-
-	/**
-	 * Reads the previous output states with the given reader for unaligned checkpoint.
-	 * It should be done before task processing the inputs.
-	 */
-	void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException;
 
 	ResultPartitionID getPartitionId();
 
@@ -98,9 +92,9 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	}
 
 	/**
-	 * Returns the subpartition with the given index.
+	 * Returns a reader for the subpartition with the given index.
 	 */
-	ResultSubpartition getSubpartition(int subpartitionIndex);
+	ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException;
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.

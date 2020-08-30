@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -17,19 +16,25 @@
 # limitations under the License.
 ################################################################################
 
-# The entrypoint script of flink-kubernetes integration.
-# It is the command of jobmanager and taskmanager container.
+from pyflink.datastream.functions import CoMapFunction
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
 
-# get Flink config
-. "$bin"/config.sh
+def str_len(value):
+    return value[0], len(value[0]), value[1]
 
-FLINK_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
-# FLINK_CLASSPATH will be used by KubernetesUtils.java to generate jobmanager and taskmanager start command.
-export FLINK_CLASSPATH
 
-echo "Start command : $*"
+def add_one(value):
+    return value[0], value[1] + 1, value[1]
 
-exec "$@"
+
+def m_flat_map(value):
+    for i in range(value[1]):
+        yield value[0], i, value[2]
+
+
+class MyCoMapFunction(CoMapFunction):
+    def map1(self, value):
+        return str_len(value)
+
+    def map2(self, value):
+        return add_one(value)

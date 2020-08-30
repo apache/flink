@@ -20,6 +20,7 @@ package org.apache.flink.python.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonPartitionCustomFunctionOperator;
 import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonStatelessFunctionOperator;
+import org.apache.flink.datastream.runtime.operators.python.DataStreamTwoInputPythonStatelessFunctionOperator;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperatorBase;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import java.lang.reflect.InvocationTargetException;
@@ -131,13 +133,14 @@ public class PythonConfigUtil {
 			StreamOperatorFactory streamOperatorFactory = streamNode.getOperatorFactory();
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
-				if (streamOperator instanceof DataStreamPythonStatelessFunctionOperator) {
-					DataStreamPythonStatelessFunctionOperator dataStreamPythonStatelessFunctionOperator =
-						(DataStreamPythonStatelessFunctionOperator) streamOperator;
+				if ((streamOperator instanceof DataStreamPythonStatelessFunctionOperator) ||
+					(streamOperator instanceof DataStreamTwoInputPythonStatelessFunctionOperator)) {
+					AbstractPythonFunctionOperatorBase abstractPythonFunctionOperatorBase =
+						(AbstractPythonFunctionOperatorBase) streamOperator;
 
-					Configuration oldConfig = dataStreamPythonStatelessFunctionOperator.getPythonConfig()
+					Configuration oldConfig = abstractPythonFunctionOperatorBase.getPythonConfig()
 						.getMergedConfig();
-					dataStreamPythonStatelessFunctionOperator.setPythonConfig(generateNewPythonConfig(oldConfig,
+					abstractPythonFunctionOperatorBase.setPythonConfig(generateNewPythonConfig(oldConfig,
 						mergedConfig));
 				}
 			}

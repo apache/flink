@@ -41,8 +41,9 @@ public interface ResourceEventHandler<WorkerType extends ResourceIDRetrievable> 
 	 * <p>See also {@link ResourceManagerDriver#requestResource}.
 	 *
 	 * @param resourceId Identifier of the terminated worker.
+	 * @param diagnostics Diagnostic message about the worker termination.
 	 */
-	void onWorkerTerminated(ResourceID resourceId);
+	void onWorkerTerminated(ResourceID resourceId, String diagnostics);
 
 	/**
 	 * Notifies that an error has occurred that the process cannot proceed.

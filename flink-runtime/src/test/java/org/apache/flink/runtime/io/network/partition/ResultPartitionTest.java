@@ -159,7 +159,6 @@ public class ResultPartitionTest {
 		ResultPartitionManager manager = new ResultPartitionManager();
 
 		final ResultPartition partition = new ResultPartitionBuilder()
-			.isReleasedOnConsumption(false)
 			.setResultPartitionManager(manager)
 			.setResultPartitionType(ResultPartitionType.BLOCKING)
 			.setFileChannelManager(fileChannelManager)
@@ -450,7 +449,7 @@ public class ResultPartitionTest {
 	public void testInitializeEmptyState() throws Exception {
 		final int totalBuffers = 2;
 		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1);
-		final ResultPartition partition = new ResultPartitionBuilder()
+		final PipelinedResultPartition partition = (PipelinedResultPartition) new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
 			.build();
 		final ChannelStateReader stateReader = ChannelStateReader.NO_OP;
@@ -482,7 +481,7 @@ public class ResultPartitionTest {
 
 		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
 		final ChannelStateReader stateReader = new FiniteChannelStateReader(totalStates, states);
-		final ResultPartition partition = new ResultPartitionBuilder()
+		final PipelinedResultPartition partition = (PipelinedResultPartition) new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
 			.build();
 		final ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -541,7 +540,7 @@ public class ResultPartitionTest {
 	public void testReadRecoveredStateWithException() throws Exception {
 		final int totalBuffers = 2;
 		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, 1);
-		final ResultPartition partition = new ResultPartitionBuilder()
+		final PipelinedResultPartition partition = (PipelinedResultPartition) new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
 			.build();
 		final ChannelStateReader stateReader = new ChannelStateReaderWithException();

@@ -85,38 +85,55 @@ public class SourceOperatorTest {
 		operator.initializeState(getStateContext());
 		// Open the operator.
 		operator.open();
+		try {
+			// The source reader should have been assigned a split.
+			assertEquals(Collections.singletonList(MOCK_SPLIT), mockSourceReader.getAssignedSplits());
+			// The source reader should have started.
+			assertTrue(mockSourceReader.isStarted());
 
-		// The source reader should have been assigned a split.
-		assertEquals(Collections.singletonList(MOCK_SPLIT), mockSourceReader.getAssignedSplits());
-		// The source reader should have started.
-		assertTrue(mockSourceReader.isStarted());
+			// A ReaderRegistrationRequest should have been sent.
+			assertEquals(1, mockGateway.getEventsSent().size());
+			OperatorEvent operatorEvent = mockGateway.getEventsSent().get(0);
+			assertTrue(operatorEvent instanceof ReaderRegistrationEvent);
+			assertEquals(SUBTASK_INDEX, ((ReaderRegistrationEvent) operatorEvent).subtaskId());
 
-		// A ReaderRegistrationRequest should have been sent.
-		assertEquals(1, mockGateway.getEventsSent().size());
-		OperatorEvent operatorEvent = mockGateway.getEventsSent().get(0);
-		assertTrue(operatorEvent instanceof ReaderRegistrationEvent);
-		assertEquals(SUBTASK_INDEX, ((ReaderRegistrationEvent) operatorEvent).subtaskId());
+		}
+		finally {
+			operator.close();
+		}
+		assertTrue(mockSourceReader.isClosed());
 	}
 
 	@Test
 	public void testHandleAddSplitsEvent() throws Exception {
 		operator.initializeState(getStateContext());
 		operator.open();
-		MockSourceSplit newSplit = new MockSourceSplit((2));
-		operator.handleOperatorEvent(new AddSplitEvent<>(
+		try {
+			MockSourceSplit newSplit = new MockSourceSplit((2));
+			operator.handleOperatorEvent(new AddSplitEvent<>(
 				Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
-		// The source reader should have been assigned two splits.
-		assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), mockSourceReader.getAssignedSplits());
+			// The source reader should have been assigned two splits.
+			assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), mockSourceReader.getAssignedSplits());
+		}
+		finally {
+			operator.close();
+		}
 	}
 
 	@Test
 	public void testHandleAddSourceEvent() throws Exception {
 		operator.initializeState(getStateContext());
 		operator.open();
-		SourceEvent event = new SourceEvent() {};
-		operator.handleOperatorEvent(new SourceEventWrapper(event));
-		// The source reader should have been assigned two splits.
-		assertEquals(Collections.singletonList(event), mockSourceReader.getReceivedSourceEvents());
+		try {
+			SourceEvent event = new SourceEvent() {
+			};
+			operator.handleOperatorEvent(new SourceEventWrapper(event));
+			// The source reader should have been assigned two splits.
+			assertEquals(Collections.singletonList(event), mockSourceReader.getReceivedSourceEvents());
+		}
+		finally {
+			operator.close();
+		}
 	}
 
 	@Test
@@ -124,14 +141,19 @@ public class SourceOperatorTest {
 		StateInitializationContext stateContext = getStateContext();
 		operator.initializeState(stateContext);
 		operator.open();
-		MockSourceSplit newSplit = new MockSourceSplit((2));
-		operator.handleOperatorEvent(new AddSplitEvent<>(
+		try {
+			MockSourceSplit newSplit = new MockSourceSplit((2));
+			operator.handleOperatorEvent(new AddSplitEvent<>(
 				Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
-		operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
+			operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
 
-		// Verify the splits in state.
-		List<MockSourceSplit> splitsInState = CollectionUtil.iterableToList(operator.getReaderState().get());
-		assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), splitsInState);
+			// Verify the splits in state.
+			List<MockSourceSplit> splitsInState = CollectionUtil.iterableToList(operator.getReaderState().get());
+			assertEquals(Arrays.asList(MOCK_SPLIT, newSplit), splitsInState);
+		}
+		finally {
+			operator.close();
+		}
 	}
 
 	// ---------------- helper methods -------------------------
@@ -139,21 +161,21 @@ public class SourceOperatorTest {
 	private StateInitializationContext getStateContext() throws Exception {
 		// Create a mock split.
 		byte[] serializedSplitWithVersion = SimpleVersionedSerialization
-				.writeVersionAndSerialize(new MockSourceSplitSerializer(), MOCK_SPLIT);
+			.writeVersionAndSerialize(new MockSourceSplitSerializer(), MOCK_SPLIT);
 
 		// Crate the state context.
 		OperatorStateStore operatorStateStore = createOperatorStateStore();
 		StateInitializationContext stateContext = new StateInitializationContextImpl(
-				false,
-				operatorStateStore,
-				null,
-				null,
-				null);
+			false,
+			operatorStateStore,
+			null,
+			null,
+			null);
 
 		// Update the context.
 		stateContext.getOperatorStateStore()
-					.getListState(SourceOperator.SPLITS_STATE_DESC)
-					.update(Collections.singletonList(serializedSplitWithVersion));
+			.getListState(SourceOperator.SPLITS_STATE_DESC)
+			.update(Collections.singletonList(serializedSplitWithVersion));
 
 		return stateContext;
 	}
@@ -163,6 +185,6 @@ public class SourceOperatorTest {
 		final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
 		CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 		return abstractStateBackend.createOperatorStateBackend(
-				env, "test-operator", Collections.emptyList(), cancelStreamRegistry);
+			env, "test-operator", Collections.emptyList(), cancelStreamRegistry);
 	}
 }

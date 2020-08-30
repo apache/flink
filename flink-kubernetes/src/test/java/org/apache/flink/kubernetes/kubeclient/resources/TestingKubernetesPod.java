@@ -16,27 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.kubernetes.configuration;
-
-import org.apache.flink.api.common.time.Time;
+package org.apache.flink.kubernetes.kubeclient.resources;
 
 /**
- * Configuration specific to {@link org.apache.flink.kubernetes.KubernetesResourceManager}.
+ * Testing implementation of {@link KubernetesPod}.
  */
-public class KubernetesResourceManagerConfiguration {
-	private final String clusterId;
-	private final Time podCreationRetryInterval;
+public class TestingKubernetesPod extends KubernetesPod {
+	private final String name;
+	private final boolean isTerminated;
 
-	public KubernetesResourceManagerConfiguration(String clusterId, Time podCreationRetryInterval) {
-		this.clusterId = clusterId;
-		this.podCreationRetryInterval = podCreationRetryInterval;
+	public TestingKubernetesPod(String name) {
+		this(name, false);
 	}
 
-	public String getClusterId() {
-		return clusterId;
+	public TestingKubernetesPod(String name, boolean isTerminated) {
+		super(null);
+		this.name = name;
+		this.isTerminated = isTerminated;
 	}
 
-	public Time getPodCreationRetryInterval() {
-		return podCreationRetryInterval;
+	@Override
+	public String getName() {
+		return name;
+	}
+
+	@Override
+	public boolean isTerminated() {
+		return isTerminated;
+	}
+
+	@Override
+	public String getTerminatedDiagnostics() {
+		return "testing-diagnostics";
 	}
 }

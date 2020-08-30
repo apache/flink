@@ -110,4 +110,14 @@ public interface KubernetesParameters {
 	 * The local directory to locate the custom Hadoop configuration.
 	 */
 	Optional<String> getLocalHadoopConfigurationDirectory();
+
+	/**
+	 * A collection of secret and path pairs that are mounted to the JobManager and TaskManager container(s).
+	 */
+	Map<String, String> getSecretNamesToMountPaths();
+
+	/**
+	 * A collection of customized environments that are attached to the JobManager and TaskManager container(s).
+	 */
+	List<Map<String, String>> getEnvironmentsFromSecrets();
 }

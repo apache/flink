@@ -58,7 +58,7 @@
         </tr>
         <tr>
             <td><h5>kubernetes.entry.path</h5></td>
-            <td style="word-wrap: break-word;">"/opt/flink/bin/kubernetes-entry.sh"</td>
+            <td style="word-wrap: break-word;">"/docker-entrypoint.sh"</td>
             <td>String</td>
             <td>The entrypoint script of kubernetes in the image. It will be used as command for jobmanager and taskmanager container.</td>
         </tr>
@@ -163,6 +163,18 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;Map&gt;</td>
             <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.secrets</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.env.secretKeyRef</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;Map&gt;</td>
+            <td>The user-specified secrets to set env variables in Flink container. The value should be in the form of <span markdown="span">`env:FOO_ENV,secret:foo_secret,key:foo_key;env:BAR_ENV,secret:bar_secret,key:bar_key`</span>.</td>
         </tr>
     </tbody>
 </table>

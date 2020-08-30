@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 
 from py4j.compat import long
 
@@ -132,6 +133,11 @@ class TableConfig(object):
             larger differences of minTime and maxTime. The difference between minTime and maxTime
             must be at least 5 minutes.
 
+            Method set_idle_state_retention_time is deprecated now. The suggested way to set idle
+            state retention time is :func:`~pyflink.table.TableConfig.set_idle_state_retention`
+            Currently, setting max_time will not work and the max_time is directly derived from the
+            min_time as 1.5 x min_time.
+
         :param min_time: The minimum time interval for which idle state is retained. Set to
                          0 (zero) to never clean-up the state.
         :type min_time: datetime.timedelta
@@ -145,9 +151,49 @@ class TableConfig(object):
         j_max_time = j_time_class.milliseconds(long(round(max_time.total_seconds() * 1000)))
         self._j_table_config.setIdleStateRetentionTime(j_min_time, j_max_time)
 
+    def set_idle_state_retention(self, duration):
+        """
+        Specifies a retention time interval for how long idle state, i.e., state which
+        was not updated, will be retained.
+
+        State will never be cleared until it was idle for less than the duration and will never
+        be kept if it was idle for more than the 1.5 x duration.
+
+        When new data arrives for previously cleaned-up state, the new data will be handled as if it
+        was the first data. This can result in previous results being overwritten.
+
+        Set to 0 (zero) to never clean-up the state.
+
+        Example:
+        ::
+
+            >>> table_config = TableConfig() \\
+            ...     .set_idle_state_retention(datetime.timedelta(days=1))
+
+        .. note::
+
+            Cleaning up state requires additional bookkeeping which becomes less expensive for
+            larger differences of minTime and maxTime. The difference between minTime and maxTime
+            must be at least 5 minutes.
+
+        :param duration: The retention time interval for which idle state is retained. Set to
+                         0 (zero) to never clean-up the state.
+        :type: duration: datetime.timedelta
+        """
+        j_duration_class = get_gateway().jvm.java.time.Duration
+        j_duration = j_duration_class.ofMillis(long(round(duration.total_seconds() * 1000)))
+        self._j_table_config.setIdleStateRetention(j_duration)
+
     def get_min_idle_state_retention_time(self):
         """
         State might be cleared and removed if it was not updated for the defined period of time.
+
+        .. note::
+
+            Currently the concept of min/max idle state retention has been deprecated and only
+            idle state retention time is supported. The min idle state retention is regarded as
+            idle state retention and the max idle state retention is derived from idle state
+            retention as 1.5 x idle state retention.
 
         :return: The minimum time until state which was not updated will be retained.
         :rtype: int
@@ -158,10 +204,26 @@ class TableConfig(object):
         """
         State will be cleared and removed if it was not updated for the defined period of time.
 
+        .. note::
+
+            Currently the concept of min/max idle state retention has been deprecated and only
+            idle state retention time is supported. The min idle state retention is regarded as
+            idle state retention and the max idle state retention is derived from idle state
+            retention as 1.5 x idle state retention.
+
         :return: The maximum time until state which was not updated will be retained.
         :rtype: int
         """
         return self._j_table_config.getMaxIdleStateRetentionTime()
+
+    def get_idle_state_retention(self):
+        """
+
+        :return: The duration until state which was not updated will be retained.
+        :return: datetime.timedelta
+        """
+        return datetime.timedelta(
+            milliseconds=self._j_table_config.getIdleStateRetention().toMillis())
 
     def set_decimal_context(self, precision, rounding_mode):
         """

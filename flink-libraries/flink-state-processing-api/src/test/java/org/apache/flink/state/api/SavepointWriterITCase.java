@@ -28,9 +28,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -51,6 +49,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -63,6 +62,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
@@ -147,7 +147,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		bEnv.execute("Bootstrap");
 	}
 
-	private void validateBootstrap(String savepointPath) throws ProgramInvocationException {
+	private void validateBootstrap(String savepointPath) throws Exception {
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setStateBackend(backend);
 
@@ -170,7 +170,12 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointWriterITCase.class.getClassLoader());
+		Optional<SerializedThrowable> serializedThrowable = client
+			.submitJob(jobGraph)
+			.thenCompose(client::requestJobResult)
+			.get()
+			.getSerializedThrowable();
+		Assert.assertFalse(serializedThrowable.isPresent());
 
 		Assert.assertEquals("Unexpected output", 3, CollectSink.accountList.size());
 	}
@@ -193,7 +198,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		bEnv.execute("Modifying");
 	}
 
-	private void validateModification(String savepointPath) throws ProgramInvocationException {
+	private void validateModification(String savepointPath) throws Exception {
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setStateBackend(backend);
 
@@ -216,7 +221,12 @@ public class SavepointWriterITCase extends AbstractTestBase {
 		jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, false));
 
 		ClusterClient<?> client = miniClusterResource.getClusterClient();
-		ClientUtils.submitJobAndWaitForResult(client, jobGraph, SavepointWriterITCase.class.getClassLoader());
+		Optional<SerializedThrowable> serializedThrowable = client
+			.submitJob(jobGraph)
+			.thenCompose(client::requestJobResult)
+			.get()
+			.getSerializedThrowable();
+		Assert.assertFalse(serializedThrowable.isPresent());
 
 		Assert.assertEquals("Unexpected output", 3, CollectSink.accountList.size());
 	}

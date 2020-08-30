@@ -26,7 +26,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -209,7 +208,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 		JobID jobID = Preconditions.checkNotNull(jobGraph.getJobID());
 
-		ClientUtils.submitJob(clusterClient, jobGraph);
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait until we did some checkpoints
 		waitForCheckpointLatch.await();

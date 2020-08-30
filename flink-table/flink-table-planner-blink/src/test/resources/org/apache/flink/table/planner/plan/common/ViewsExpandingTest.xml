@@ -161,4 +161,48 @@ Calc(select=[CAST(a) AS a, b, CAST(EXPR$2) AS c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testViewExpandingWithLateralTableFunction[0]">
+    <Resource name="sql">
+      <![CDATA[select * from tmp_view]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
+   :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
+   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser*])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f0, name AS f1])
++- Correlate(invocation=[myFunc($cor1.f0)], correlate=[table(myFunc($cor1.f0))], select=[f0,name,age], rowType=[RecordType(VARCHAR(9) f0, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+   +- Calc(select=[f0])
+      +- Values(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]], values=[f0])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testViewExpandingWithLateralTableFunction[1]">
+    <Resource name="sql">
+      <![CDATA[select * from tmp_view]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalProject(f0=[AS($0, _UTF-16LE'f0')])
+   :  +- LogicalValues(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
+   +- LogicalTableFunctionScan(invocation=[myFunc($cor1.f0)], rowType=[*org.apache.flink.table.planner.utils.SimpleUser*])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[f0, name AS f1])
++- Correlate(invocation=[myFunc($cor1.f0)], correlate=[table(myFunc($cor1.f0))], select=[f0,name,age], rowType=[RecordType(VARCHAR(9) f0, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
+   +- Calc(select=[f0])
+      +- Values(tuples=[[{ _UTF-16LE'danny#21' }, { _UTF-16LE'julian#55' }, { _UTF-16LE'fabian#30' }]])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

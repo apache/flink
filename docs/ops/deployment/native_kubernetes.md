@@ -152,13 +152,6 @@ When the deployment is deleted, all other resources will be deleted automaticall
 $ kubectl delete deployment/<ClusterID>
 {% endhighlight %}
 
-## Log Files
-
-By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
-The STDOUT and STDERR will only be redirected to the console. You can access them via `kubectl logs <PodName>`.
-
-If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
-
 ## Flink Kubernetes Application
 
 ### Start Flink Application
@@ -194,6 +187,104 @@ As always, Jobs may stop when manually canceled or, in the case of bounded Jobs,
 {% highlight bash %}
 $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>
 {% endhighlight %}
+
+
+## Log Files
+
+By default, the JobManager and TaskManager will output the logs to the console and `/opt/flink/log` in each pod simultaneously.
+The STDOUT and STDERR will only be redirected to the console. You can access them via `kubectl logs <PodName>`.
+
+If the pod is running, you can also use `kubectl exec -it <PodName> bash` to tunnel in and view the logs or debug the process.
+
+## Using plugins
+
+In order to use [plugins]({{ site.baseurl }}/ops/plugins.html), they must be copied to the correct location in the Flink JobManager/TaskManager pod for them to work. 
+You can use the built-in plugins without mounting a volume or building a custom Docker image.
+For example, use the following command to pass the environment variable to enable the S3 plugin for your Flink application.
+
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-{{site.version}}.jar \
+  local:///opt/flink/usrlib/my-flink-job.jar
+{% endhighlight %}
+
+## Using Secrets
+
+[Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) is an object that contains a small amount of sensitive data such as a password, a token, or a key.
+Such information might otherwise be put in a Pod specification or in an image. Flink on Kubernetes can use Secrets in two ways:
+
+- Using Secrets as files from a pod;
+
+- Using Secrets as environment variables;
+
+### Using Secrets as files from a pod
+
+Here is an example of a Pod that mounts a Secret in a volume:
+
+{% highlight yaml %}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foo
+spec:
+  containers:
+  - name: foo
+    image: foo
+    volumeMounts:
+    - name: foo
+      mountPath: "/opt/foo"
+  volumes:
+  - name: foo
+    secret:
+      secretName: foo
+{% endhighlight %}
+
+By applying this yaml, each key in foo Secrets becomes the filename under `/opt/foo` path. Flink on Kubernetes can enable this feature by the following command:
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dkubernetes.secrets=foo:/opt/foo
+{% endhighlight %}
+
+For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod).
+
+### Using Secrets as environment variables
+
+Here is an example of a Pod that uses secrets from environment variables:
+
+{% highlight yaml %}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foo
+spec:
+  containers:
+  - name: foo
+    image: foo
+    env:
+      - name: FOO_ENV
+        valueFrom:
+          secretKeyRef:
+            name: foo_secret
+            key: foo_key
+{% endhighlight %}
+
+By applying this yaml, an environment variable named `FOO_ENV` is added into `foo` container, and `FOO_ENV` consumes the value of `foo_key` which is defined in Secrets `foo_secret`.
+Flink on Kubernetes can enable this feature by the following command:
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dkubernetes.container.image=<CustomImageName> \
+  -Dkubernetes.env.secretKeyRef=env:FOO_ENV,secret:foo_secret,key:foo_key
+{% endhighlight %}
+
+For more details see the [official Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables).
 
 ## Kubernetes concepts
 

@@ -21,6 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
+import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
+import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.ClientConfigurationFactory;
@@ -47,9 +50,12 @@ import com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
 import com.fasterxml.jackson.databind.deser.DeserializerFactory;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 
 /**
  * Some utilities specific to Amazon Web Service.
@@ -237,6 +243,24 @@ public class AWSUtil {
 			mapper.readerForUpdating(config).readValue(propTree);
 		} catch (IOException ex) {
 			throw new RuntimeException(ex);
+		}
+	}
+
+	/**
+	 * Creates a {@link StartingPosition} from the given {@link SequenceNumber} and {@link Properties}.
+	 * In the case we are restating from a {@link SentinelSequenceNumber#SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM}, the date
+	 * is parsed from the properties.
+	 *
+	 * @param sequenceNumber the sequence number to resume from
+	 * @param configProps the properties to parse date from
+	 * @return the starting position
+	 */
+	public static StartingPosition getStartingPosition(final SequenceNumber sequenceNumber, final Properties configProps) {
+		if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
+			Date timestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(configProps);
+			return StartingPosition.fromTimestamp(timestamp);
+		} else {
+			return StartingPosition.restartFromSequenceNumber(sequenceNumber);
 		}
 	}
 

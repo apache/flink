@@ -130,7 +130,7 @@ public static class NYCEnrichment implements FlatMapFunction<TaxiRide, EnrichedR
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy("startCell")
+    .keyBy(value -> value.startCell)
 {% endhighlight %}
 
 每个 `keyBy` 会通过 shuffle 来为数据流进行重新分区。总体来说这个开销是很大的，它涉及网络通信、序列化和反序列化。
@@ -206,7 +206,7 @@ DataStream<Tuple2<Integer, Minutes>> minutesByStartCell = enrichedNYCRides
 
 {% highlight java %}
 minutesByStartCell
-  .keyBy(0) // startCell
+  .keyBy(value -> value.f0) // .keyBy(value -> value.startCell)
   .maxBy(1) // duration
   .print();
 {% endhighlight %}

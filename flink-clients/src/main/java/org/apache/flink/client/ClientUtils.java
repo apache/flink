@@ -18,8 +18,6 @@
 
 package org.apache.flink.client;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -27,22 +25,15 @@ import org.apache.flink.client.program.StreamContextEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -80,49 +71,6 @@ public enum ClientUtils {
 			alwaysParentFirstLoaderPatterns,
 			NOOP_EXCEPTION_HANDLER,
 			checkClassloaderLeak);
-	}
-
-	public static JobExecutionResult submitJob(
-			ClusterClient<?> client,
-			JobGraph jobGraph) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		try {
-			return client
-				.submitJob(jobGraph)
-				.thenApply(DetachedJobExecutionResult::new)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job in detached mode.", jobGraph.getJobID(), e);
-		}
-	}
-
-	public static JobExecutionResult submitJobAndWaitForResult(
-			ClusterClient<?> client,
-			JobGraph jobGraph,
-			ClassLoader classLoader) throws ProgramInvocationException {
-		checkNotNull(client);
-		checkNotNull(jobGraph);
-		checkNotNull(classLoader);
-
-		JobResult jobResult;
-
-		try {
-			jobResult = client
-				.submitJob(jobGraph)
-				.thenCompose(client::requestJobResult)
-				.get();
-		} catch (InterruptedException | ExecutionException e) {
-			ExceptionUtils.checkInterrupted(e);
-			throw new ProgramInvocationException("Could not run job", jobGraph.getJobID(), e);
-		}
-
-		try {
-			return jobResult.toJobExecutionResult(classLoader);
-		} catch (JobExecutionException | IOException | ClassNotFoundException e) {
-			throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-		}
 	}
 
 	public static void executeProgram(
