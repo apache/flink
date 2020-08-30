@@ -57,6 +57,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		Properties serverProperties = new Properties();
 		serverProperties.put("transaction.state.log.num.partitions", Integer.toString(1));
 		serverProperties.put("auto.leader.rebalance.enable", Boolean.toString(false));
+		serverProperties.put("transaction.max.timeout.ms", Integer.toString(10_000));
 		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(false)
@@ -74,11 +75,12 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		extraProperties.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 		extraProperties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		extraProperties.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+		extraProperties.put("transaction.timeout.ms", Integer.toString(10_000));
 		extraProperties.put("isolation.level", "read_committed");
 	}
 
-	@Test(timeout = 30000L)
-	public void testHappyPath() throws IOException {
+	@Test(timeout = 130000L)
+	public void testHappyPath() throws IOException, InterruptedException {
 		String topicName = "flink-kafka-producer-happy-path";
 
 		Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
@@ -86,6 +88,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 			kafkaProducer.initTransactions();
 			kafkaProducer.beginTransaction();
 			kafkaProducer.send(new ProducerRecord<>(topicName, "42", "42"));
+			Thread.sleep(70_000);
 			kafkaProducer.commitTransaction();
 		} finally {
 			kafkaProducer.close(Duration.ofSeconds(5));
