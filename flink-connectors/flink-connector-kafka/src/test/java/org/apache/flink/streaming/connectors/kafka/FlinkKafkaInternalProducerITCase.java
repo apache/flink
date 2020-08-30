@@ -35,6 +35,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -48,6 +49,8 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 	protected String transactionalId;
 	protected Properties extraProperties;
 
+	private final static Long TimeOut = 500_0000L;
+
 	@BeforeClass
 	public static void prepare() throws Exception {
 		LOG.info("-------------------------------------------------------------------------");
@@ -57,7 +60,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		Properties serverProperties = new Properties();
 		serverProperties.put("transaction.state.log.num.partitions", Integer.toString(1));
 		serverProperties.put("auto.leader.rebalance.enable", Boolean.toString(false));
-		serverProperties.put("transaction.max.timeout.ms", Integer.toString(10_000));
+		serverProperties.put("transaction.max.timeout.ms", Long.toString(TimeOut));
 		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(false)
@@ -75,7 +78,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		extraProperties.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 		extraProperties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		extraProperties.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-		extraProperties.put("transaction.timeout.ms", Integer.toString(10_000));
+		extraProperties.put("transaction.timeout.ms", Long.toString(TimeOut));
 		extraProperties.put("isolation.level", "read_committed");
 	}
 
@@ -88,7 +91,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 			kafkaProducer.initTransactions();
 			kafkaProducer.beginTransaction();
 			kafkaProducer.send(new ProducerRecord<>(topicName, "42", "42"));
-			Thread.sleep(70_000);
+			Thread.sleep(TimeOut * 2);
 			kafkaProducer.commitTransaction();
 		} finally {
 			kafkaProducer.close(Duration.ofSeconds(5));
@@ -97,6 +100,63 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		deleteTestTopic(topicName);
 	}
 
+	@Test(timeout = 1300000L)
+	public void testHappyPath2() throws IOException, InterruptedException {
+		String topicName = "flink-kafka-producer-happy-path222";
+
+		final int totalCount = 3;
+		for(int i = 0; i < totalCount ; i++) {
+			extraProperties.put("transactional.id", UUID.randomUUID().toString() + "-" + i);
+			Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+			short epoch = -1;
+			long producerId = -1;
+
+			kafkaProducer.initTransactions();
+			kafkaProducer.beginTransaction();
+			kafkaProducer.send(new ProducerRecord<>(topicName, Integer.toString(i), "42"));
+
+			kafkaProducer.flush();
+
+			epoch = ((FlinkKafkaInternalProducer) kafkaProducer).getEpoch();
+			producerId = ((FlinkKafkaInternalProducer) kafkaProducer).getProducerId();
+
+			FlinkKafkaInternalProducer<String, String> resumeProducer = new FlinkKafkaInternalProducer<>(extraProperties);
+
+			try {
+				resumeProducer.resumeTransaction(producerId, epoch);
+				resumeProducer.commitTransaction();
+
+				System.out.println("Resume to commit the transaction id : " + resumeProducer.getTransactionalId());
+
+			} finally {
+				resumeProducer.close(Duration.ofSeconds(5));
+			}
+		}
+
+		extraProperties.remove("transactional.id");
+		int no = 0;
+
+		while(no < totalCount) {
+
+			try (KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(extraProperties)) {
+				kafkaConsumer.subscribe(Collections.singletonList(topicName));
+				ConsumerRecords<String, String> records = kafkaConsumer.poll(10000);
+
+
+				Iterator<ConsumerRecord<String, String>> it = records.iterator();
+
+				while (it.hasNext()) {
+					ConsumerRecord<String, String> cr = it.next();
+
+					System.err.println(no + " The key is " + cr.key() + ". The value is " + cr.value() + ". :" + cr) ;
+					no++;
+				}
+
+			}
+		}
+		//assertRecord(topicName, "42", "42");
+		deleteTestTopic(topicName);
+	}
 	@Test(timeout = 30000L)
 	public void testResumeTransaction() throws IOException {
 		String topicName = "flink-kafka-producer-resume-transaction";
