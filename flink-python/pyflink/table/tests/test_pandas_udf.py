@@ -17,7 +17,6 @@
 ################################################################################
 import datetime
 import decimal
-import unittest
 
 import pytz
 
@@ -26,11 +25,11 @@ from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase,\
-    exec_insert_table
+    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
+    exec_insert_table, PyFlinkTestCase
 
 
-class PandasUDFTests(unittest.TestCase):
+class PandasUDFTests(PyFlinkTestCase):
 
     def test_non_exist_udf_type(self):
         with self.assertRaisesRegex(ValueError,
