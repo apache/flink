@@ -858,7 +858,7 @@ public class FunctionITCase extends StreamingTestBase {
 				e,
 				hasMessage(
 					containsString(
-						"Currently, only table functions can emit rows.")));
+						"Currently, only table functions can be used in a correlate operation.")));
 		}
 	}
 
@@ -869,12 +869,19 @@ public class FunctionITCase extends StreamingTestBase {
 		tEnv().executeSql("CREATE TABLE SinkTable(s ROW<s STRING, sa ARRAY<STRING> NOT NULL>) WITH ('connector' = 'COLLECTION')");
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
-		tEnv().executeSql(
-			"INSERT INTO SinkTable " +
-			"SELECT RowTableFunction('test')");
 
-		// currently, calling a table function like a scalar function produces no result
-		assertThat(TestCollectionTableFactory.getResult(), equalTo(Collections.emptyList()));
+		try {
+			tEnv().explainSql(
+				"INSERT INTO SinkTable " +
+				"SELECT RowTableFunction('test')");
+			fail();
+		} catch (ValidationException e) {
+			assertThat(
+				e,
+				hasMessage(
+					containsString(
+						"Currently, only scalar functions can be used in a projection or filter operation.")));
+		}
 	}
 
 	@Test
