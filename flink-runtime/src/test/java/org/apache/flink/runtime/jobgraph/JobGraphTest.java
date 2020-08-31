@@ -26,6 +26,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -35,9 +37,12 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -360,5 +365,45 @@ public class JobGraphTest extends TestLogger {
 			Collections.emptyList(),
 			checkpointCoordinatorConfiguration,
 			null);
+	}
+
+	@Test
+	public void testGetSlotSharingGroups() {
+		final JobVertex v1 = new JobVertex("1");
+		final JobVertex v2 = new JobVertex("2");
+		final JobVertex v3 = new JobVertex("3");
+		final JobVertex v4 = new JobVertex("4");
+
+		final SlotSharingGroup group1 = new SlotSharingGroup();
+		v1.setSlotSharingGroup(group1);
+		v2.setSlotSharingGroup(group1);
+
+		final SlotSharingGroup group2 = new SlotSharingGroup();
+		v3.setSlotSharingGroup(group2);
+		v4.setSlotSharingGroup(group2);
+
+		final JobGraph jobGraph = new JobGraph(v1, v2, v3, v4);
+
+		assertThat(jobGraph.getSlotSharingGroups(), containsInAnyOrder(group1, group2));
+	}
+
+	@Test
+	public void testGetCoLocationGroupDescriptors() {
+		final JobVertex v1 = new JobVertex("1");
+		final JobVertex v2 = new JobVertex("2");
+		final JobVertex v3 = new JobVertex("3");
+		final JobVertex v4 = new JobVertex("4");
+
+		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+		v1.setSlotSharingGroup(slotSharingGroup);
+		v2.setSlotSharingGroup(slotSharingGroup);
+		v1.setStrictlyCoLocatedWith(v2);
+
+		final JobGraph jobGraph = new JobGraph(v1, v2, v3, v4);
+
+		assertThat(jobGraph.getCoLocationGroupDescriptors(), hasSize(1));
+
+		final CoLocationGroupDesc onlyCoLocationGroupDesc = jobGraph.getCoLocationGroupDescriptors().iterator().next();
+		assertThat(onlyCoLocationGroupDesc.getVertices(), containsInAnyOrder(v1.getID(), v2.getID()));
 	}
 }
