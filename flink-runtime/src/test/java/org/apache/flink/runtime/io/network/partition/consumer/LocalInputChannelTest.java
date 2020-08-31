@@ -37,6 +37,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.PipelinedResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -461,7 +462,7 @@ public class LocalInputChannelTest {
 	public void testCheckpointingInflightData() throws Exception {
 		SingleInputGate inputGate = new SingleInputGateBuilder().build();
 
-		ResultPartition parent = PartitionTestUtils.createPartition(
+		PipelinedResultPartition parent = (PipelinedResultPartition) PartitionTestUtils.createPartition(
 			ResultPartitionType.PIPELINED,
 			NoOpFileChannelManager.INSTANCE);
 		ResultSubpartition subpartition = parent.getAllPartitions()[0];
@@ -501,7 +502,7 @@ public class LocalInputChannelTest {
 
 	private static ResultSubpartitionView createResultSubpartitionView(boolean addBuffer) throws IOException {
 		int bufferSize = 4096;
-		ResultPartition parent = PartitionTestUtils.createPartition(
+		PipelinedResultPartition parent = (PipelinedResultPartition) PartitionTestUtils.createPartition(
 			ResultPartitionType.PIPELINED,
 			NoOpFileChannelManager.INSTANCE,
 			true,
