@@ -181,8 +181,8 @@ public class YarnResourceManagerTest extends TestLogger {
 	}
 
 	static class TestingYarnResourceManager extends YarnResourceManager {
-		final TestingYarnAMRMClientAsync testingYarnAMRMClientAsync;
-		final TestingYarnNMClientAsync testingYarnNMClientAsync;
+		final TestingYarnAMRMClientAsync.Builder testingYarnAMRMClientAsyncBuilder;
+		final TestingYarnNMClientAsync.Builder testingYarnNMClientAsyncBuilder;
 
 		TestingYarnResourceManager(
 				RpcService rpcService,
@@ -212,8 +212,8 @@ public class YarnResourceManagerTest extends TestLogger {
 				webInterfaceUrl,
 				resourceManagerMetricGroup,
 				ForkJoinPool.commonPool());
-			this.testingYarnNMClientAsync = new TestingYarnNMClientAsync(this);
-			this.testingYarnAMRMClientAsync = new TestingYarnAMRMClientAsync(this);
+			this.testingYarnNMClientAsyncBuilder = TestingYarnNMClientAsync.builder();
+			this.testingYarnAMRMClientAsyncBuilder = TestingYarnAMRMClientAsync.builder();
 		}
 
 		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
@@ -229,12 +229,12 @@ public class YarnResourceManagerTest extends TestLogger {
 				YarnConfiguration yarnConfiguration,
 				int yarnHeartbeatIntervalMillis,
 				@Nullable String webInterfaceUrl) {
-			return testingYarnAMRMClientAsync;
+			return testingYarnAMRMClientAsyncBuilder.build(this);
 		}
 
 		@Override
 		protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
-			return testingYarnNMClientAsync;
+			return testingYarnNMClientAsyncBuilder.build(this);
 		}
 	}
 
@@ -260,9 +260,9 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		public String taskHost = "host1";
 
-		final TestingYarnNMClientAsync testingYarnNMClientAsync;
+		final TestingYarnNMClientAsync.Builder testingYarnNMClientAsyncBuilder;
 
-		final TestingYarnAMRMClientAsync testingYarnAMRMClientAsync;
+		final TestingYarnAMRMClientAsync.Builder testingYarnAMRMClientAsyncBuilder;
 
 		int containerIdx = 0;
 
@@ -301,8 +301,8 @@ public class YarnResourceManagerTest extends TestLogger {
 							null,
 							UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 
-			testingYarnAMRMClientAsync = resourceManager.testingYarnAMRMClientAsync;
-			testingYarnNMClientAsync = resourceManager.testingYarnNMClientAsync;
+			testingYarnAMRMClientAsyncBuilder = resourceManager.testingYarnAMRMClientAsyncBuilder;
+			testingYarnNMClientAsyncBuilder = resourceManager.testingYarnNMClientAsyncBuilder;
 
 			containerResource = resourceManager.getContainerResource(workerResourceSpec).get();
 		}
@@ -386,14 +386,14 @@ public class YarnResourceManagerTest extends TestLogger {
 			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> stopContainerAsyncFuture = new CompletableFuture<>();
 
-			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((ignored1, ignored2) ->
 				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
-			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
-			testingYarnAMRMClientAsync.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null));
-			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
-			testingYarnNMClientAsync.setStopContainerAsyncConsumer((ignored1, ignored2, ignored3) -> stopContainerAsyncFuture.complete(null));
+			testingYarnAMRMClientAsyncBuilder.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
+			testingYarnAMRMClientAsyncBuilder.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null));
+			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
+			testingYarnNMClientAsyncBuilder.setStopContainerAsyncConsumer((ignored1, ignored2, ignored3) -> stopContainerAsyncFuture.complete(null));
 
 			runTest(() -> {
 				// Request slot from SlotManager.
@@ -481,12 +481,12 @@ public class YarnResourceManagerTest extends TestLogger {
 			final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
 
-			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((ignored1, ignored2) ->
 				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
-			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
-			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
+			testingYarnAMRMClientAsyncBuilder.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
+			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
 
 			runTest(() -> {
 				// Request slot from SlotManager.
@@ -539,12 +539,12 @@ public class YarnResourceManagerTest extends TestLogger {
 			final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
 
-			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((ignored1, ignored2) ->
 				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
-			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
-			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
+			testingYarnAMRMClientAsyncBuilder.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
+			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
 
 			runTest(() -> {
 				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
@@ -583,13 +583,13 @@ public class YarnResourceManagerTest extends TestLogger {
 			final CompletableFuture<Void> releaseAssignedContainerFuture = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncFuture = new CompletableFuture<>();
 
-			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(Collections.singletonList(resourceManager.getContainerRequest(containerResource))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((ignored1, ignored2) ->
 				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
-			testingYarnAMRMClientAsync.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
-			testingYarnAMRMClientAsync.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null));
-			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
+			testingYarnAMRMClientAsyncBuilder.setRemoveContainerRequestConsumer((ignored1, ignored2) -> removeContainerRequestFuture.complete(null));
+			testingYarnAMRMClientAsyncBuilder.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null));
+			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, ignored2, ignored3) -> startContainerAsyncFuture.complete(null));
 
 			runTest(() -> {
 				registerSlotRequest(resourceManager, rmServices, resourceProfile1, taskHost);
@@ -643,13 +643,13 @@ public class YarnResourceManagerTest extends TestLogger {
 			final CompletableFuture<Void> startContainerAsyncCommandFuture1 = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncCommandFuture2 = new CompletableFuture<>();
 
-			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(ignored ->
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored ->
 				Collections.singletonList(ImmutableList.of(
 					resourceManager.getContainerRequest(resourceManager.getContainerResource(workerResourceSpec1).get()),
 					resourceManager.getContainerRequest(resourceManager.getContainerResource(workerResourceSpec2).get()))));
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((ignored1, ignored2) ->
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((ignored1, ignored2) ->
 				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
-			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, context, ignored2) -> {
+			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, context, ignored2) -> {
 				if (containsStartCommand(context, startCommand1)) {
 					startContainerAsyncCommandFuture1.complete(null);
 				} else if (containsStartCommand(context, startCommand2)) {
@@ -725,7 +725,7 @@ public class YarnResourceManagerTest extends TestLogger {
 			final CompletableFuture<Void> startContainerAsyncCommandFuture1 = new CompletableFuture<>();
 			final CompletableFuture<Void> startContainerAsyncCommandFuture2 = new CompletableFuture<>();
 
-			testingYarnAMRMClientAsync.setGetMatchingRequestsFunction(tuple -> {
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(tuple -> {
 				if (tuple.f2.equals(containerResource1)) {
 					return Collections.singletonList(
 						Collections.singletonList(resourceManager.getContainerRequest(resourceManager.getContainerResource(workerResourceSpec1).get())));
@@ -735,9 +735,9 @@ public class YarnResourceManagerTest extends TestLogger {
 				}
 				return null;
 			});
-			testingYarnAMRMClientAsync.setAddContainerRequestConsumer((request, ignored) ->
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((request, ignored) ->
 				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(request.getCapability()));
-			testingYarnNMClientAsync.setStartContainerAsyncConsumer((ignored1, context, ignored3) -> {
+			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, context, ignored3) -> {
 				if (containsStartCommand(context, startCommand1)) {
 					startContainerAsyncCommandFuture1.complete(null);
 				} else if (containsStartCommand(context, startCommand2)) {

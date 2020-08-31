@@ -34,11 +34,16 @@ import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
  */
 class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 
-	private volatile TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
-	private volatile TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+	private final TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer;
+	private final TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer;
 
-	TestingYarnNMClientAsync(final CallbackHandler callbackHandler) {
+	private TestingYarnNMClientAsync(
+		final CallbackHandler callbackHandler,
+		TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer,
+		TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
 		super(callbackHandler);
+		this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
+		this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
 	}
 
 	@Override
@@ -51,12 +56,8 @@ class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 		this.stopContainerAsyncConsumer.accept(containerId, nodeId, callbackHandler);
 	}
 
-	void setStartContainerAsyncConsumer(TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer) {
-		this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
-	}
-
-	void setStopContainerAsyncConsumer(TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
-		this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
+	static Builder builder() {
+		return new Builder();
 	}
 
 	// ------------------------------------------------------------------------
@@ -76,5 +77,32 @@ class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 	@Override
 	protected void serviceStop() throws Exception {
 		// noop
+	}
+
+	/**
+	 * Builder class for {@link TestingYarnAMRMClientAsync}.
+	 */
+	public static class Builder {
+		private TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+		private TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+
+		private Builder() {}
+
+		Builder setStartContainerAsyncConsumer(TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer) {
+			this.startContainerAsyncConsumer = startContainerAsyncConsumer;
+			return this;
+		}
+
+		Builder setStopContainerAsyncConsumer(TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
+			this.stopContainerAsyncConsumer = stopContainerAsyncConsumer;
+			return this;
+		}
+
+		public TestingYarnNMClientAsync build(CallbackHandler callbackHandler) {
+			return new TestingYarnNMClientAsync(
+				callbackHandler,
+				startContainerAsyncConsumer,
+				stopContainerAsyncConsumer);
+		}
 	}
 }
