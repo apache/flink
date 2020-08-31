@@ -95,20 +95,15 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 	}
 
 	@Override
-	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
+	protected DataType inferReturnType() throws UDFArgumentException {
 		LOG.info("Getting result type of HiveGenericUDF from {}", hiveFunctionWrapper.getClassName());
+		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 
-		try {
-			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
+		ObjectInspector resultObjectInspector =
+				createFunction().initializeAndFoldConstants(argumentInspectors);
 
-			ObjectInspector resultObjectInspector =
-					createFunction().initializeAndFoldConstants(argumentInspectors);
-
-			return HiveTypeUtil.toFlinkType(
+		return HiveTypeUtil.toFlinkType(
 				TypeInfoUtils.getTypeInfoFromObjectInspector(resultObjectInspector));
-		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
-		}
 	}
 
 	private GenericUDF createFunction() {

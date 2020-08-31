@@ -21,9 +21,11 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContext;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
@@ -391,8 +393,8 @@ public class HiveGenericUDFTest {
 	private static HiveGenericUDF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
 		HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
-		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-		udf.getHiveResultType(constantArgs, argTypes);
+		CallContext callContext = new HiveUDFCallContext(constantArgs, argTypes);
+		udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
 		udf.open(null);
 

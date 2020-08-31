@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
@@ -120,14 +119,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			}
 		} else if (definition instanceof ScalarFunctionDefinition) {
 			ScalarFunctionDefinition def = (ScalarFunctionDefinition) definition;
-			if (isHiveFunc(def.getScalarFunction())) {
-				return Optional.of(new HiveScalarSqlFunction(
-						identifier,
-						def.getScalarFunction(),
-						typeFactory));
-			} else {
-				return convertScalarFunction(identifier, def);
-			}
+			return convertScalarFunction(identifier, def);
 		} else if (definition instanceof TableFunctionDefinition &&
 				category != null &&
 				category.isTableFunction()) {
