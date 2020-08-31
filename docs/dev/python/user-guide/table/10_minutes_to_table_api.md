@@ -82,8 +82,8 @@ table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").get_job_client(
 
 {% top %}
 
-Create a TableEnvironment
--------------------------
+Creating a TableEnvironment
+---------------------------
 
 The `TableEnvironment` is a central concept of the Table API and SQL integration. The following code example shows how to create a TableEnvironment:
 
@@ -113,10 +113,10 @@ The `TableEnvironment` is responsible for:
 
 * Creating `Table`s
 * Registering `Table`s as a temporary view
-* Executing SQL queries
-* Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %}) and [Vectorized User-defined Functions]({% link dev/python/user-guide/table/udfs/vectorized_python_udfs.md %})
-* Configuring the job
-* Managing Python dependencies, see [Dependency Management]({% link dev/python/user-guide/table/dependency_management.md %})
+* Executing SQL queries, see [SQL]({% link dev/table/sql/index.md %}) for more details
+* Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %}) and [Vectorized User-defined Functions]({% link dev/python/user-guide/table/udfs/vectorized_python_udfs.md %}) for more details
+* Configuring the job, see [Python Configuration]({% link dev/python/user-guide/table/python_config.md %}) for more details
+* Managing Python dependencies, see [Dependency Management]({% link dev/python/user-guide/table/dependency_management.md %}) for more details
 * Submitting the jobs for execution
 
 Currently there are 2 planners available: flink planner and blink planner.
@@ -127,7 +127,7 @@ We recommend using the blink planner as much as possible.
 {% top %}
 
 Creating Tables
--------------
+---------------
 
 `Table` is a core component of the Python Table API. A `Table` is a logical representation of the intermediate result of a Table API Job.
 
@@ -141,6 +141,7 @@ You can create a Table from a list object:
 
 # create a blink batch TableEnvironment
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
+
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
@@ -157,7 +158,7 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
-You can also create the Table with column names:
+You can also create the Table with specified column names:
 
 {% highlight python %}
 
@@ -207,6 +208,11 @@ Now the type of the "id" column is int8.
 You can create a Table using connector DDL:
 
 {% highlight python %}
+# create a blink stream TableEnvironment
+from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
 table_env.execute_sql("""
     CREATE TABLE random_source (
@@ -238,7 +244,7 @@ The result is:
 
 ### Create using a Catalog
 
-A TableEnvironment maintains a map of catalogs of tables which are created with an identifier.
+A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier.
 
 The tables in a catalog may either be temporary, and tied to the lifecycle of a single Flink session, or permanent, and visible across multiple Flink sessions and clusters.
 
@@ -271,8 +277,8 @@ The result is:
 
 {% top %}
 
-Write Queries
--------------
+Writing Queries
+---------------
 
 ### Writing Table API Queries
 
@@ -280,7 +286,7 @@ The `Table` object offers many methods for applying relational operations.
 These methods return new `Table` objects representing the result of applying the relational operations on the input `Table`. 
 These relational operations may be composed of multiple method calls, such as `table.group_by(...).select(...)`.
 
-The [Table API]({{ site.baseurl }}/dev/table/tableApi.html?code_tab=python) documentation describes all Table API operations that are supported on streaming and batch tables.
+The [Table API]({% link dev/table/tableApi.md %}?code_tab=python) documentation describes all Table API operations that are supported on streaming and batch tables.
 
 The following example shows a simple Table API aggregation query:
 
@@ -288,6 +294,7 @@ The following example shows a simple Table API aggregation query:
 
 # using batch table environment to execute the queries
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
+
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
@@ -311,11 +318,11 @@ The result is:
 0  Jack       30
 {% endhighlight %}
 
-### Write SQL Queries
+### Writing SQL Queries
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as Strings.
 
-The [SQL]({{ site.baseurl }}/dev/table/sql/index.html) documentation describes Flink's SQL support for streaming and batch tables.
+The [SQL]({% link dev/table/sql/index.md %}) documentation describes Flink's SQL support for streaming and batch tables.
 
 The following example shows a simple SQL aggregation query:
 
@@ -323,6 +330,7 @@ The following example shows a simple SQL aggregation query:
 
 # use a StreamTableEnvironment to execute the queries
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
@@ -456,14 +464,24 @@ table.to_pandas()
 
 {% endhighlight %}
 
+The result is:
+
+{% highlight text %}
+   id  data
+0   2     5
+1   1     4
+2   4     7
+3   3     6
+{% endhighlight %}
+
 {% top %}
 
-Emit Results
-------------
+Emitting Results
+----------------
 
-### Capturing Data in a Variable
+### Collecting Results to Client
 
-You can call the "to_pandas" method to emit the data from a `Table` object to a pandas DataFrame:
+You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({% link dev/python/user-guide/table/conversion_of_pandas.md %}#convert-pyflink-table-to-pandas-dataframe):
 
 {% highlight python %}
 
@@ -480,7 +498,7 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
-Note that "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
+<span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
 
 ### Emitting Results to One Sink Table
 
@@ -568,17 +586,17 @@ The result is:
 7> +I(2,Hello)
 {% endhighlight %}
 
-Explain Tables
---------------
+Explaining Tables
+-----------------
 
 The Table API provides a mechanism to explain the logical and optimized query plans used to compute a `Table`. 
-This is done through the `Table.explain()` and `StatementSet.explain()` methods. `Table.explain()`returns the plan for a `Table`. `StatementSet.explain()` returns the plan for multiple sinks. These methods return a String describing three things:
+This is done through the `Table.explain()` or `StatementSet.explain()` methods. `Table.explain()`returns the plan of a `Table`. `StatementSet.explain()` returns the plan for multiple sinks. These methods return a string describing three things:
 
 1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
 2. the optimized logical query plan, and
 3. the physical execution plan.
 
-`TableEnvironment.explain_sql()` and `TableEnvironment.execute_sql()` support executing an `EXPLAIN` statement to get the plans. Please refer to the [EXPLAIN]({{ site.baseurl }}/dev/table/sql/explain.html) page for more details.
+`TableEnvironment.explain_sql()` and `TableEnvironment.execute_sql()` support executing an `EXPLAIN` statement to get the plans. Please refer to the [EXPLAIN]({% link dev/table/sql/explain.md %}) page for more details.
 
 The following code shows how to use the `Table.explain()` method:
 
@@ -586,6 +604,7 @@ The following code shows how to use the `Table.explain()` method:
 
 # using a StreamTableEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
@@ -640,6 +659,7 @@ The following code shows how to use the `StatementSet.explain()` method:
 
 # using a StreamTableEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
+
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
