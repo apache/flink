@@ -95,7 +95,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 			Executor ioExecutor) {
 
 		return new ActiveResourceManager<>(
-				createResourceManagerDriver(configuration),
+				createResourceManagerDriver(configuration, webInterfaceUrl, rpcService.getAddress()),
 				configuration,
 				rpcService,
 				resourceId,
@@ -110,5 +110,5 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 				ioExecutor);
 	}
 
-	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(Configuration configuration);
+	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(Configuration configuration, String webInterfaceUrl, String rpcAddress);
 }
