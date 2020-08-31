@@ -74,15 +74,15 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
-	/** The mode in which the job is scheduled */
+	/** The mode in which the job is scheduled. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
 	// --- checkpointing ---
 
-	/** Job specific execution config */
+	/** Job specific execution config. */
 	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	/** The settings for the job checkpoints */
+	/** The settings for the job checkpoints. */
 	private JobCheckpointingSettings snapshotSettings;
 
 	/** Savepoint restore settings. */
@@ -210,7 +210,7 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
-	 * Returns the {@link ExecutionConfig}
+	 * Returns the {@link ExecutionConfig}.
 	 *
 	 * @return ExecutionConfig
 	 */
@@ -321,7 +321,7 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
-	 * Checks if the checkpointing was enabled for this job graph
+	 * Checks if the checkpointing was enabled for this job graph.
 	 *
 	 * @return true if checkpointing enabled
 	 */
