@@ -206,10 +206,7 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 	}
 
 	@Override
-	public boolean addBufferConsumer(
-			BufferConsumer bufferConsumer,
-			int subpartitionIndex,
-			boolean isPriorityEvent) throws IOException {
+	public boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
 		checkNotNull(bufferConsumer);
 
 		ResultSubpartition subpartition;
@@ -222,7 +219,7 @@ public abstract class ResultPartition implements ResultPartitionWriter, BufferPo
 			throw ex;
 		}
 
-		return subpartition.add(bufferConsumer, isPriorityEvent);
+		return subpartition.add(bufferConsumer);
 	}
 
 	@Override

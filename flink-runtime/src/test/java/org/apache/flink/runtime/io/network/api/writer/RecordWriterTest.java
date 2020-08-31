@@ -650,7 +650,7 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel, boolean isPriorityEvent) {
+		public boolean addBufferConsumer(BufferConsumer buffer, int targetChannel) {
 			return queues[targetChannel].add(buffer);
 		}
 	}
@@ -707,7 +707,7 @@ public class RecordWriterTest {
 		}
 
 		@Override
-		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel, boolean isPriorityEvent) {
+		public boolean addBufferConsumer(BufferConsumer bufferConsumer, int targetChannel) {
 			// keep the buffer occupied.
 			produced.putIfAbsent(targetChannel, new ArrayList<>());
 			produced.get(targetChannel).add(bufferConsumer);

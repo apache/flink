@@ -104,11 +104,8 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public boolean addBufferConsumer(
-			BufferConsumer bufferConsumer,
-			int subpartitionIndex,
-			boolean isPriorityEvent) throws IOException {
-		boolean success = partitionWriter.addBufferConsumer(bufferConsumer, subpartitionIndex, isPriorityEvent);
+	public boolean addBufferConsumer(BufferConsumer bufferConsumer,	int subpartitionIndex) throws IOException {
+		boolean success = partitionWriter.addBufferConsumer(bufferConsumer, subpartitionIndex);
 		if (success) {
 			notifyPipelinedConsumers();
 		}

@@ -115,7 +115,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException {
+	public boolean add(BufferConsumer bufferConsumer) throws IOException {
 		if (isFinished()) {
 			bufferConsumer.close();
 			return false;
