@@ -154,11 +154,12 @@ data.map (new RichMapFunction[String, Int] {
 </div>
 
 除了用户自定义的功能（map，reduce 等），Rich functions 还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
-`setRuntimeContext`。这些对于参数化功能很有用
-(参阅 [给函数传递参数]({{ site.baseurl }}/zh/dev/batch/index.html#passing-parameters-to-functions))，
+`setRuntimeContext`。这些方法对于参数化函数
+(参阅 [给函数传递参数]({{ site.baseurl }}{% link zh/dev/batch/index.html#passing-parameters-to-functions %}))，
 创建和最终确定本地状态，访问广播变量(参阅
-[广播变量]({{ site.baseurl }}/zh/dev/batch/index.html#broadcast-variables))，以及访问运行时信息，例如累加器和计数器(参阅
-[累加器和计数器](#累加器和计数器))，以及迭代器的相关信息(参阅 [迭代器]({{ site.baseurl }}/zh/dev/batch/iterations.html))。
+[广播变量]({{ site.baseurl }}{% link zh/dev/batch/index.html#broadcast-variables %}))，以及访问运行时信息，例如累加器和计数器(参阅
+[累加器和计数器](#accumulators--counters))，以及迭代器的相关信息(参阅 [迭代器]({{ site.baseurl }}{% link zh/dev/batch/iterations.html %}))
+有很大作用。
 
 {% top %}
 
@@ -185,13 +186,13 @@ Flink 目前有如下**内置累加器**。每个都实现了
 
 __如何使用累加器：__
 
-首先，你要在需要使用累加器的用户自定义的转换函数中创建一个累加器对象（此处是计数器）。
+首先，在需要使用累加器的用户自定义的转换函数中创建一个累加器对象（此处是计数器）。
 
 {% highlight java %}
 private IntCounter numLines = new IntCounter();
 {% endhighlight %}
 
-其次，你必须在富函数的```open()```方法中注册累加器对象。也可以在此处定义名称。
+其次，你必须在 *rich* function 的 ```open()``` 方法中注册累加器对象。也可以在此处定义名称。
 
 {% highlight java %}
 getRuntimeContext().addAccumulator("num-lines", this.numLines);
@@ -217,13 +218,13 @@ myJobExecutionResult.getAccumulatorResult("num-lines")
 
 __定制累加器：__
 
-要实现自己的累加器，你只需要实现累加器接口即可。如果你认为自定义累加器应随 Flink 一起提供，请尽管创建拉取请求。
+要实现自己的累加器，你只需要实现累加器接口即可。如果你认为自定义累加器应随 Flink 一起提供，请尽管创建 pull request。
 
 你可以选择实现
 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %}
 或 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}。
 
-```Accumulator<V,R>``` 最灵活: 它给需要添加的值定义了类型```V```，并定义了最终的结果类型```R```。例如，对于直方图，```V```是一个数字且```R```是一个直方图。
+```Accumulator<V,R>``` 最灵活: 它给需要添加的值定义了类型 ```V```，并定义了最终的结果类型 ```R```。例如，对于直方图，```V``` 是一个数字且 ```R``` 是一个直方图。
  ```SimpleAccumulator``` 适用于两种类型都相同的情况，例如计数器。
 
 {% top %}
