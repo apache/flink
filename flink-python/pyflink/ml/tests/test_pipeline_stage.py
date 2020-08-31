@@ -18,7 +18,8 @@
 
 from abc import ABC, abstractmethod
 from pyflink.ml.api import Transformer, Estimator, MLEnvironmentFactory
-import unittest
+
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class PipelineStageTestBase(ABC):
@@ -33,7 +34,7 @@ class PipelineStageTestBase(ABC):
         pass
 
 
-class TransformerBaseTest(PipelineStageTestBase, unittest.TestCase):
+class TransformerBaseTest(PipelineStageTestBase, PyFlinkTestCase):
     """
     Test for TransformerBase.
     """
@@ -61,7 +62,7 @@ class TransformerBaseTest(PipelineStageTestBase, unittest.TestCase):
             return table
 
 
-class EstimatorBaseTest(PipelineStageTestBase, unittest.TestCase):
+class EstimatorBaseTest(PipelineStageTestBase, PyFlinkTestCase):
     """
     Test for EstimatorBase.
     """
