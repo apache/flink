@@ -136,6 +136,16 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
+	protected CompletableFuture<Void> prepareLeadershipAsync() {
+		return resourceManagerDriver.onGrantLeadership();
+	}
+
+	@Override
+	protected CompletableFuture<Void> clearStateAsync() {
+		return resourceManagerDriver.onRevokeLeadership();
+	}
+
+	@Override
 	protected void internalDeregisterApplication(ApplicationStatus finalStatus, @Nullable String optionalDiagnostics)
 			throws ResourceManagerException {
 		try {
