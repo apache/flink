@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.metrics;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,13 +48,7 @@ public class ResultPartitionMetrics {
 	 * @return total number of queued buffers
 	 */
 	long refreshAndGetTotal() {
-		long total = 0;
-
-		for (ResultSubpartition part : partition.getAllPartitions()) {
-			total += part.unsynchronizedGetNumberOfQueuedBuffers();
-		}
-
-		return total;
+		return partition.getNumberOfQueuedBuffers();
 	}
 
 	/**
@@ -66,15 +59,15 @@ public class ResultPartitionMetrics {
 	 */
 	int refreshAndGetMin() {
 		int min = Integer.MAX_VALUE;
+		int numSubpartitions = partition.getNumberOfSubpartitions();
 
-		ResultSubpartition[] allPartitions = partition.getAllPartitions();
-		if (allPartitions.length == 0) {
+		if (numSubpartitions == 0) {
 			// meaningful value when no channels exist:
 			return 0;
 		}
 
-		for (ResultSubpartition part : allPartitions) {
-			int size = part.unsynchronizedGetNumberOfQueuedBuffers();
+		for (int targetSubpartition = 0; targetSubpartition < numSubpartitions; ++targetSubpartition) {
+			int size = partition.getNumberOfQueuedBuffers(targetSubpartition);
 			min = Math.min(min, size);
 		}
 
@@ -89,9 +82,10 @@ public class ResultPartitionMetrics {
 	 */
 	int refreshAndGetMax() {
 		int max = 0;
+		int numSubpartitions = partition.getNumberOfSubpartitions();
 
-		for (ResultSubpartition part : partition.getAllPartitions()) {
-			int size = part.unsynchronizedGetNumberOfQueuedBuffers();
+		for (int targetSubpartition = 0; targetSubpartition < numSubpartitions; ++targetSubpartition) {
+			int size = partition.getNumberOfQueuedBuffers(targetSubpartition);
 			max = Math.max(max, size);
 		}
 
@@ -105,15 +99,7 @@ public class ResultPartitionMetrics {
 	 * @return average number of queued buffers per sub-partition
 	 */
 	float refreshAndGetAvg() {
-		long total = 0;
-
-		ResultSubpartition[] allPartitions = partition.getAllPartitions();
-		for (ResultSubpartition part : allPartitions) {
-			int size = part.unsynchronizedGetNumberOfQueuedBuffers();
-			total += size;
-		}
-
-		return total / (float) allPartitions.length;
+		return partition.getNumberOfQueuedBuffers() / (float) partition.getNumberOfSubpartitions();
 	}
 
 	// ------------------------------------------------------------------------

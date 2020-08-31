@@ -95,7 +95,7 @@ public class ResultPartitionTest {
 		final int numSubpartitions = 3;
 
 		for (int i = 0; i < numPartitions; i++) {
-			final ResultPartition partition = new ResultPartitionBuilder()
+			final PipelinedResultPartition partition = (PipelinedResultPartition) new ResultPartitionBuilder()
 				.setResultPartitionIndex(i)
 				.setNumberOfSubpartitions(numSubpartitions)
 				.build();

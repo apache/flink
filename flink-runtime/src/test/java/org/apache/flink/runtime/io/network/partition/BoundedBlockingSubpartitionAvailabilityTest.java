@@ -122,7 +122,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 	// ------------------------------------------------------------------------
 
 	private static ResultSubpartition createPartitionWithData(int numberOfBuffers) throws IOException {
-		ResultPartition parent = new ResultPartitionBuilder()
+		BoundedBlockingResultPartition parent = (BoundedBlockingResultPartition) new ResultPartitionBuilder()
 			.setResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
 			.setBoundedBlockingSubpartitionType(BoundedBlockingSubpartitionType.FILE)
 			.setFileChannelManager(new FileChannelManagerImpl(new String[] { TMP_FOLDER.newFolder().toString() }, "data"))

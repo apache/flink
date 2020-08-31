@@ -64,9 +64,9 @@ public class InputGateFairnessTest {
 		final int numberOfChannels = 37;
 		final int buffersPerChannel = 27;
 
-		ResultPartition[] resultPartitions = IntStream.range(0, numberOfChannels)
-			.mapToObj(i -> new ResultPartitionBuilder().build())
-			.toArray(ResultPartition[]::new);
+		PipelinedResultPartition[] resultPartitions = IntStream.range(0, numberOfChannels)
+			.mapToObj(i -> (PipelinedResultPartition) new ResultPartitionBuilder().build())
+			.toArray(PipelinedResultPartition[]::new);
 		final BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42);
 
 		// ----- create some source channels and fill them with buffers -----
@@ -124,9 +124,9 @@ public class InputGateFairnessTest {
 		final int numberOfChannels = 37;
 		final int buffersPerChannel = 27;
 
-		ResultPartition[] resultPartitions = IntStream.range(0, numberOfChannels)
-			.mapToObj(i -> new ResultPartitionBuilder().build())
-			.toArray(ResultPartition[]::new);
+		PipelinedResultPartition[] resultPartitions = IntStream.range(0, numberOfChannels)
+			.mapToObj(i -> (PipelinedResultPartition) new ResultPartitionBuilder().build())
+			.toArray(PipelinedResultPartition[]::new);
 		try (BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42)) {
 
 			// ----- create some source channels and fill them with one buffer each -----
