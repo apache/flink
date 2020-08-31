@@ -632,35 +632,44 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
-			throws IOException, InterruptedException {
+		throws IOException, InterruptedException {
 		while (true) {
-			Optional<InputChannel> inputChannel = getChannel(blocking);
-			if (!inputChannel.isPresent()) {
+			Optional<InputChannel> inputChannelOpt = getChannel(blocking);
+			if (!inputChannelOpt.isPresent()) {
 				return Optional.empty();
 			}
 
 			// Do not query inputChannel under the lock, to avoid potential deadlocks coming from
 			// notifications.
-			Optional<BufferAndAvailability> result = inputChannel.get().getNextBuffer();
+			final InputChannel inputChannel = inputChannelOpt.get();
+			Optional<BufferAndAvailability> bufferAndAvailabilityOpt = inputChannel.getNextBuffer();
 
 			synchronized (inputChannelsWithData) {
-				if (result.isPresent() && result.get().moreAvailable()) {
+				if (!bufferAndAvailabilityOpt.isPresent()) {
+					checkUnavailability();
+					continue;
+				}
+
+				final BufferAndAvailability bufferAndAvailability = bufferAndAvailabilityOpt.get();
+				if (bufferAndAvailability.moreAvailable()) {
 					// enqueue the inputChannel at the end to avoid starvation
-					inputChannelsWithData.add(inputChannel.get());
-					enqueuedInputChannelsWithData.set(inputChannel.get().getChannelIndex());
+					inputChannelsWithData.add(inputChannel);
+					enqueuedInputChannelsWithData.set(inputChannel.getChannelIndex());
 				}
 
-				if (inputChannelsWithData.isEmpty()) {
-					availabilityHelper.resetUnavailable();
-				}
+				checkUnavailability();
 
-				if (result.isPresent()) {
-					return Optional.of(new InputWithData<>(
-						inputChannel.get(),
-						result.get(),
-						!inputChannelsWithData.isEmpty()));
-				}
+				return Optional.of(new InputWithData<>(
+					inputChannel,
+					bufferAndAvailability,
+					!inputChannelsWithData.isEmpty()));
 			}
+		}
+	}
+
+	private void checkUnavailability() {
+		if (inputChannelsWithData.isEmpty()) {
+			availabilityHelper.resetUnavailable();
 		}
 	}
 
