@@ -82,25 +82,8 @@ public abstract class ResultSubpartition {
 	 * implementation.
 	 *
 	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
-	 * state. Because of the performance reasons, this is only enforced during the data reading.
-	 *
-	 * @param bufferConsumer
-	 * 		the buffer to add (transferring ownership to this writer)
-	 * @param isPriorityEvent
-	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
-	 * @throws IOException
-	 * 		thrown in case of errors while adding the buffer
-	 */
-	public abstract boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException;
-
-	/**
-	 * Adds the given buffer.
-	 *
-	 * <p>The request may be executed synchronously, or asynchronously, depending on the
-	 * implementation.
-	 *
-	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
-	 * state. Because of the performance reasons, this is only enforced during the data reading.
+	 * state. Because of the performance reasons, this is only enforced during the data reading. Priority events can be
+	 * added while the previous buffer consumer is still open, in which case the open buffer consumer is overtaken.
 	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
@@ -108,9 +91,7 @@ public abstract class ResultSubpartition {
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	public boolean add(BufferConsumer bufferConsumer) throws IOException {
-		return add(bufferConsumer, false);
-	}
+	public abstract boolean add(BufferConsumer bufferConsumer) throws IOException;
 
 	public abstract void flush();
 

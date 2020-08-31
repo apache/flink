@@ -335,7 +335,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 			true,
 			true);
 		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
-		subpartition.add(barrierBuffer, true);
+		subpartition.add(barrierBuffer);
 		assertEquals(2, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
 

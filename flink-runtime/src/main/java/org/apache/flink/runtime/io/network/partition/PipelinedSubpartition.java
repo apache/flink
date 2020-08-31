@@ -114,7 +114,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 
 				// check whether there are some states data filled in this time
 				if (bufferConsumer.isDataAvailable()) {
-					add(bufferConsumer, false, false);
+					add(bufferConsumer, false);
 					recycleBuffer = false;
 					bufferBuilder.finish();
 				}
@@ -127,21 +127,17 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException {
-		if (isPriorityEvent) {
-			// TODO: use readView.notifyPriorityEvent for local channels
-			return add(bufferConsumer, false, true);
-		}
-		return add(bufferConsumer, false, false);
+	public boolean add(BufferConsumer bufferConsumer) throws IOException {
+		return add(bufferConsumer, false);
 	}
 
 	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), true, false);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), true);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
-	private boolean add(BufferConsumer bufferConsumer, boolean finish, boolean insertAsHead) {
+	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
 		checkNotNull(bufferConsumer);
 
 		final boolean notifyDataAvailable;
@@ -152,7 +148,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 			}
 
 			// Add the bufferConsumer and update the stats
-			handleAddingBarrier(bufferConsumer, insertAsHead);
+			final boolean insertAsHead = addBuffer(bufferConsumer);
 			updateStatistics(bufferConsumer);
 			increaseBuffersInBacklog(bufferConsumer);
 			notifyDataAvailable = insertAsHead || finish || shouldNotifyDataAvailable();
@@ -167,16 +163,16 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 		return true;
 	}
 
-	private void handleAddingBarrier(BufferConsumer bufferConsumer, boolean insertAsHead) {
+	private boolean addBuffer(BufferConsumer bufferConsumer) {
 		assert Thread.holdsLock(buffers);
-		if (insertAsHead) {
-			processPriorityBuffer(bufferConsumer);
-			return;
+		if (bufferConsumer.getDataType().hasPriority()) {
+			return processPriorityBuffer(bufferConsumer);
 		}
 		buffers.add(bufferConsumer);
+		return false;
 	}
 
-	private void processPriorityBuffer(BufferConsumer bufferConsumer) {
+	private boolean processPriorityBuffer(BufferConsumer bufferConsumer) {
 		checkState(inflightBufferSnapshot.isEmpty(), "Supporting only one concurrent checkpoint in unaligned " +
 			"checkpoints");
 
@@ -195,6 +191,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 				}
 			}
 		}
+		return numPriorityElements == 1;
 	}
 
 	@Override

@@ -74,22 +74,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 	 *
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 */
-	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex, boolean isPriorityEvent) throws IOException;
-
-	/**
-	 * Adds the bufferConsumer to the subpartition with the given index.
-	 *
-	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
-	 * it's resources.
-	 *
-	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
-	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
-	 *
-	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
-	 */
-	default boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
-		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
-	}
+	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
 
 	/**
 	 * Returns a reader for the subpartition with the given index.
