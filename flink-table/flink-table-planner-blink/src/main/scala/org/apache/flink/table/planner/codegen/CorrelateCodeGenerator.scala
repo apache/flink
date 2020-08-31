@@ -70,8 +70,10 @@ object CorrelateCodeGenerator {
     rexCall.getOperator match {
       case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
       case _: TableSqlFunction => // ok
-      case _ =>
-        throw new ValidationException("Currently, only table functions can emit rows.")
+      case f@_ =>
+        throw new ValidationException(
+          s"Invalid use of function '$f'. " +
+            s"Currently, only table functions can be used in a correlate operation.")
     }
 
     val swallowInputOnly = if (projectProgram.isDefined) {
