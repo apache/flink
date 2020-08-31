@@ -23,17 +23,17 @@
 
 set -Eeuo pipefail
 
-if [ $# -lt 3 ]; then
-	echo "[ERROR] `date +%H:%M:%S` Insufficient params, need 3 parameters: <generatorDir> <scaleFactor>  <outputDataDir>"
+if [ $# -lt 4 ]; then
+	echo "[ERROR] `date +%H:%M:%S` Insufficient params, need 4 parameters: <generatorDir> <scaleFactor> <outputDataDir> <retryScriptsDir>"
 	exit 127
 fi
 
 generator_dir=$1
 scale_factor=$2
 data_dir=$3
-common_scripts_dir=$4
+retry_scripts_dir=$4
 
-source "$common_scripts_dir"/common.sh
+source "$retry_scripts_dir"/common.sh
 
 # download urls
 dsdgen_linux_url=https://raw.githubusercontent.com/ververica/tpc-ds-generators/f5d6c11681637908ce15d697ae683676a5383641/generators/dsdgen_linux
