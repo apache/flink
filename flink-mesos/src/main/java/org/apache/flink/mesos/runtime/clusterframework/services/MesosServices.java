@@ -24,8 +24,6 @@ import org.apache.flink.mesos.util.MesosArtifactServer;
 
 import akka.actor.ActorSystem;
 
-import java.util.concurrent.Executor;
-
 /**
  * Service factory interface for Mesos.
  */
@@ -36,13 +34,11 @@ public interface MesosServices {
 	 * mode.
 	 *
 	 * @param configuration to be used
-	 * @param executor to run asynchronous tasks
 	 * @return a mesos worker store
 	 * @throws Exception if the mesos worker store could not be created
 	 */
 	MesosWorkerStore createMesosWorkerStore(
-		Configuration configuration,
-		Executor executor) throws Exception;
+		Configuration configuration) throws Exception;
 
 	/**
 	 * Gets a local {@link ActorSystem} which is used for child actors within
