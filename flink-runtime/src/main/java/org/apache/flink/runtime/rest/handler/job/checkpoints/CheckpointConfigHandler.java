@@ -109,7 +109,8 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 				checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
 				checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointInfo,
-				stateBackendName);
+				stateBackendName,
+				checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled());
 		}
 	}
 }

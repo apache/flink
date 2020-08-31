@@ -1195,6 +1195,9 @@
         },
         "state_backend" : {
           "type" : "string"
+        },
+        "unaligned_checkpoints" : {
+          "type" : "boolean"
         }
       }
     }

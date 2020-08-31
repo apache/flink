@@ -55,6 +55,8 @@ public class CheckpointConfigInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_STATE_BACKEND = "state_backend";
 
+	public static final String FIELD_NAME_UNALIGNED_CHECKPOINTS = "unaligned_checkpoints";
+
 	@JsonProperty(FIELD_NAME_PROCESSING_MODE)
 	private final ProcessingMode processingMode;
 
@@ -76,6 +78,9 @@ public class CheckpointConfigInfo implements ResponseBody {
 	@JsonProperty(FIELD_NAME_STATE_BACKEND)
 	private final String stateBackend;
 
+	@JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS)
+	private final boolean unalignedCheckpoints;
+
 	@JsonCreator
 	public CheckpointConfigInfo(
 			@JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
@@ -84,7 +89,8 @@ public class CheckpointConfigInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_CHECKPOINT_MIN_PAUSE) long minPauseBetweenCheckpoints,
 			@JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT) int maxConcurrentCheckpoints,
 			@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG) ExternalizedCheckpointInfo externalizedCheckpointInfo,
-			@JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend) {
+			@JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend,
+			@JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS) boolean unalignedCheckpoints) {
 		this.processingMode = Preconditions.checkNotNull(processingMode);
 		this.checkpointInterval = checkpointInterval;
 		this.checkpointTimeout = checkpointTimeout;
@@ -92,6 +98,7 @@ public class CheckpointConfigInfo implements ResponseBody {
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
 		this.stateBackend = Preconditions.checkNotNull(stateBackend);
+		this.unalignedCheckpoints = unalignedCheckpoints;
 	}
 
 	@Override
@@ -109,13 +116,14 @@ public class CheckpointConfigInfo implements ResponseBody {
 			maxConcurrentCheckpoints == that.maxConcurrentCheckpoints &&
 			processingMode == that.processingMode &&
 			Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo) &&
-			Objects.equals(stateBackend, that.stateBackend);
+			Objects.equals(stateBackend, that.stateBackend) &&
+			unalignedCheckpoints == that.unalignedCheckpoints;
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(processingMode, checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints,
-			maxConcurrentCheckpoints, externalizedCheckpointInfo, stateBackend);
+			maxConcurrentCheckpoints, externalizedCheckpointInfo, stateBackend, unalignedCheckpoints);
 	}
 
 	/**
