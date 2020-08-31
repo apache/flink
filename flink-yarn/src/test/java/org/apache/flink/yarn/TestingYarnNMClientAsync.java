@@ -36,14 +36,23 @@ class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 
 	private final TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer;
 	private final TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer;
+	private final Runnable clientInitRunnable;
+	private final Runnable clientStartRunnable;
+	private final Runnable clientStopRunnable;
 
 	private TestingYarnNMClientAsync(
 		final CallbackHandler callbackHandler,
 		TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer,
-		TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
+		TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer,
+		Runnable clientInitRunnable,
+		Runnable clientStartRunnable,
+		Runnable clientStopRunnable) {
 		super(callbackHandler);
 		this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
 		this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
+		this.clientInitRunnable = Preconditions.checkNotNull(clientInitRunnable);
+		this.clientStartRunnable = Preconditions.checkNotNull(clientStartRunnable);
+		this.clientStopRunnable = Preconditions.checkNotNull(clientStopRunnable);
 	}
 
 	@Override
@@ -65,18 +74,18 @@ class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void serviceInit(Configuration conf) throws Exception {
-		// noop
+	public void init(Configuration conf) {
+		clientInitRunnable.run();
 	}
 
 	@Override
-	protected void serviceStart() throws Exception {
-		// noop
+	public void start() {
+		clientStartRunnable.run();
 	}
 
 	@Override
-	protected void serviceStop() throws Exception {
-		// noop
+	public void stop() {
+		clientStopRunnable.run();
 	}
 
 	/**
@@ -85,6 +94,9 @@ class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 	public static class Builder {
 		private TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
 		private TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+		private Runnable clientInitRunnable = () -> {};
+		private Runnable clientStartRunnable = () -> {};
+		private Runnable clientStopRunnable = () -> {};
 
 		private Builder() {}
 
@@ -98,11 +110,29 @@ class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 			return this;
 		}
 
+		Builder setClientInitRunnable(Runnable clientInitRunnable) {
+			this.clientInitRunnable = clientInitRunnable;
+			return this;
+		}
+
+		Builder setClientStartRunnable(Runnable clientStartRunnable) {
+			this.clientStartRunnable = clientStartRunnable;
+			return this;
+		}
+
+		Builder setClientStopRunnable(Runnable clientStopRunnable) {
+			this.clientStopRunnable = clientStopRunnable;
+			return this;
+		}
+
 		public TestingYarnNMClientAsync build(CallbackHandler callbackHandler) {
 			return new TestingYarnNMClientAsync(
 				callbackHandler,
 				startContainerAsyncConsumer,
-				stopContainerAsyncConsumer);
+				stopContainerAsyncConsumer,
+				clientInitRunnable,
+				clientStartRunnable,
+				clientStopRunnable);
 		}
 	}
 }

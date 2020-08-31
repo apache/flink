@@ -52,6 +52,9 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 	private final Consumer<Integer> setHeartbeatIntervalConsumer;
 	private final TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction;
 	private final TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer;
+	private final Runnable clientInitRunnable;
+	private final Runnable clientStartRunnable;
+	private final Runnable clientStopRunnable;
 
 	private TestingYarnAMRMClientAsync(
 		CallbackHandler callbackHandler,
@@ -61,7 +64,10 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 		BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer,
 		Consumer<Integer> setHeartbeatIntervalConsumer,
 		TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction,
-		TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer) {
+		TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer,
+		Runnable clientInitRunnable,
+		Runnable clientStartRunnable,
+		Runnable clientStopRunnable) {
 		super(0, callbackHandler);
 		this.setHeartbeatIntervalConsumer = Preconditions.checkNotNull(setHeartbeatIntervalConsumer);
 		this.addContainerRequestConsumer = Preconditions.checkNotNull(addContainerRequestConsumer);
@@ -70,6 +76,9 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 		this.registerApplicationMasterFunction = Preconditions.checkNotNull(registerApplicationMasterFunction);
 		this.getMatchingRequestsFunction = Preconditions.checkNotNull(getMatchingRequestsFunction);
 		this.unregisterApplicationMasterConsumer = Preconditions.checkNotNull(unregisterApplicationMasterConsumer);
+		this.clientInitRunnable = Preconditions.checkNotNull(clientInitRunnable);
+		this.clientStartRunnable = Preconditions.checkNotNull(clientStartRunnable);
+		this.clientStopRunnable = Preconditions.checkNotNull(clientStopRunnable);
 	}
 
 	@Override
@@ -116,18 +125,18 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void serviceInit(Configuration conf) throws Exception {
-		// noop
+	public void init(Configuration conf) {
+		clientInitRunnable.run();
 	}
 
 	@Override
-	protected void serviceStart() throws Exception {
-		// noop
+	public void start() {
+		clientStartRunnable.run();
 	}
 
 	@Override
-	protected void serviceStop() throws Exception {
-		// noop
+	public void stop() {
+		clientStopRunnable.run();
 	}
 
 	/**
@@ -143,6 +152,9 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 		private TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction =
 			(ignored1, ignored2, ignored3) -> new TestingRegisterApplicationMasterResponse(Collections::emptyList);
 		private TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
+		private Runnable clientInitRunnable = () -> {};
+		private Runnable clientStartRunnable = () -> {};
+		private Runnable clientStopRunnable = () -> {};
 
 		private Builder() {}
 
@@ -181,6 +193,21 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 			return this;
 		}
 
+		Builder setClientInitRunnable(Runnable clientInitRunnable) {
+			this.clientInitRunnable = clientInitRunnable;
+			return this;
+		}
+
+		Builder setClientStartRunnable(Runnable clientStartRunnable) {
+			this.clientStartRunnable = clientStartRunnable;
+			return this;
+		}
+
+		Builder setClientStopRunnable(Runnable clientStopRunnable) {
+			this.clientStopRunnable = clientStopRunnable;
+			return this;
+		}
+
 		public TestingYarnAMRMClientAsync build(CallbackHandler callbackHandler) {
 			return new TestingYarnAMRMClientAsync(
 				callbackHandler,
@@ -190,7 +217,10 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 				releaseAssignedContainerConsumer,
 				setHeartbeatIntervalConsumer,
 				registerApplicationMasterFunction,
-				unregisterApplicationMasterConsumer);
+				unregisterApplicationMasterConsumer,
+				clientInitRunnable,
+				clientStartRunnable,
+				clientStopRunnable);
 		}
 	}
 }
