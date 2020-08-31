@@ -180,7 +180,7 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 			assertThat(Thread.currentThread().getName(), is(MAIN_THREAD_NAME));
 		}
 
-		protected abstract void prepareRunTest();
+		protected abstract void prepareRunTest() throws Exception;
 
 		protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver();
 

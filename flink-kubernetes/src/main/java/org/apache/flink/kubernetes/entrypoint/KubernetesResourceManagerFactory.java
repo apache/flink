@@ -47,7 +47,7 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 	}
 
 	@Override
-	protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver(Configuration configuration) {
+	protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver(Configuration configuration, String webInterfaceUrl, String rpcAddress) {
 		final KubernetesResourceManagerDriverConfiguration kubernetesResourceManagerDriverConfiguration =
 				new KubernetesResourceManagerDriverConfiguration(
 						configuration.getString(KubernetesConfigOptions.CLUSTER_ID),

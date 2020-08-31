@@ -560,6 +560,30 @@ public final class Utils {
 			ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 	}
 
+	static TaskExecutorProcessSpecContainerResourceAdapter createTaskExecutorProcessSpecContainerResourceAdapter(
+		org.apache.flink.configuration.Configuration flinkConfig,
+		YarnConfiguration yarnConfig) {
+
+		Resource unitResource = getUnitResource(yarnConfig);
+
+		return new TaskExecutorProcessSpecContainerResourceAdapter(
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB),
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES),
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
+			yarnConfig.getInt(
+				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
+				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
+			unitResource.getMemory(),
+			unitResource.getVirtualCores(),
+			ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
+	}
+
 	@VisibleForTesting
 	static Resource getUnitResource(YarnConfiguration yarnConfig) {
 		final int unitMemMB, unitVcore;
