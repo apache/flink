@@ -160,7 +160,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			failoverStrategy,
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
-		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getPreferredLocationsRetriever());
+
+		final ExecutionSlotAllocationContext slotAllocationContext = new ExecutionSlotAllocationContext(
+			getPreferredLocationsRetriever(),
+			executionVertexID -> getExecutionVertex(executionVertexID).getResourceProfile(),
+			executionVertexID -> getExecutionVertex(executionVertexID).getLatestPriorAllocation(),
+			getSchedulingTopology(),
+			() -> getJobGraph().getSlotSharingGroups(),
+			() -> getJobGraph().getCoLocationGroupDescriptors());
+		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(slotAllocationContext);
 
 		this.verticesWaitingForRestart = new HashSet<>();
 		this.startUpAction = startUpAction;

@@ -45,10 +45,10 @@ class OneSlotPerExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorF
 	}
 
 	@Override
-	public ExecutionSlotAllocator createInstance(final PreferredLocationsRetriever preferredLocationsRetriever) {
+	public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
 		return new OneSlotPerExecutionSlotAllocator(
 			slotProvider,
-			preferredLocationsRetriever,
+			context::getPreferredLocations,
 			slotWillBeOccupiedIndefinitely,
 			allocationTimeout);
 	}
