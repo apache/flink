@@ -48,6 +48,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(KafkaDescriptorTests, cls).setUpClass()
         cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
         _load_specific_flink_module_jars('/flink-connectors/flink-connector-kafka-base')
 
@@ -182,6 +183,7 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(ElasticsearchDescriptorTest, cls).setUpClass()
         cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
         _load_specific_flink_module_jars('/flink-connectors/flink-connector-elasticsearch-base')
 
@@ -395,6 +397,7 @@ class HBaseDescriptorTests(PyFlinkTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(HBaseDescriptorTests, cls).setUpClass()
         cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
         _load_specific_flink_module_jars('/flink-connectors/flink-connector-hbase')
 

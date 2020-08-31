@@ -18,14 +18,13 @@
 import glob
 import os
 import subprocess
-import unittest
 
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase,\
-    exec_insert_table
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
+    exec_insert_table, PyFlinkTestCase
 
 
 class SqlTests(object):
@@ -118,7 +117,7 @@ class BatchSqlTests(SqlTests, PyFlinkBatchTableTestCase):
     pass
 
 
-class JavaSqlTests(unittest.TestCase):
+class JavaSqlTests(PyFlinkTestCase):
     """
     We need to start these Java tests from python process to make sure that Python environment is
     available when the tests are running.

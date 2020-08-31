@@ -25,6 +25,7 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
     LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 try:
     from pyflink.fn_execution import coder_impl_fast  # noqa # pylint: disable=unused-import
@@ -36,7 +37,7 @@ except ImportError:
 
 @unittest.skipIf(have_cython,
                  "Found cython implementation, we don't need to test non-compiled implementation")
-class CodersTest(unittest.TestCase):
+class CodersTest(PyFlinkTestCase):
 
     def check_coder(self, coder, *values):
         coder_impl = coder.get_impl()
