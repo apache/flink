@@ -25,6 +25,8 @@ import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
 
+import java.util.Objects;
+
 /**
  * Describe the specifics of different resource dimensions of the TaskExecutor process.
  *
@@ -139,6 +141,24 @@ public class TaskExecutorProcessSpec extends CommonProcessMemorySpec<TaskExecuto
 
 	public MemorySize getManagedMemorySize() {
 		return getFlinkMemory().getManaged();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		} else if (obj instanceof TaskExecutorProcessSpec) {
+			TaskExecutorProcessSpec that = (TaskExecutorProcessSpec) obj;
+			return Objects.equals(this.cpuCores, that.cpuCores) &&
+				Objects.equals(this.getJvmMetaspaceAndOverhead(), that.getJvmMetaspaceAndOverhead()) &&
+				Objects.equals(this.getFlinkMemory(), that.getFlinkMemory());
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(getJvmMetaspaceAndOverhead(), getFlinkMemory(), cpuCores);
 	}
 
 	@Override
