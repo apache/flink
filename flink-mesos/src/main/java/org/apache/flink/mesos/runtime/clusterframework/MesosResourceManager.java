@@ -238,7 +238,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	protected void initialize() throws ResourceManagerException {
 		// create and start the worker store
 		try {
-			this.workerStore = mesosServices.createMesosWorkerStore(flinkConfig, ioExecutor);
+			this.workerStore = mesosServices.createMesosWorkerStore(flinkConfig);
 			workerStore.start();
 		} catch (Exception e) {
 			throw new ResourceManagerException("Unable to initialize the worker store.", e);

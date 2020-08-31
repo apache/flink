@@ -390,7 +390,7 @@ public class MesosResourceManagerTest extends TestLogger {
 
 		class MockMesosServices implements MesosServices {
 			@Override
-			public MesosWorkerStore createMesosWorkerStore(Configuration configuration, Executor executor) throws Exception {
+			public MesosWorkerStore createMesosWorkerStore(Configuration configuration) throws Exception {
 				return rmServices.workerStore;
 			}
 
