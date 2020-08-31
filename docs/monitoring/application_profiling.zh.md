@@ -27,9 +27,9 @@ under the License.
 
 <a name="overview-of-custom-logging-with-apache-flink"></a>
 
-## 使用 Apache Flink 自定义日志概述
+## Apache Flink 自定义日志概述
 
-每个独立的 JobManager，TaskManager，HistoryServer，ZooKeeper 后台进程都将 `stdout` 和 `stderr` 重定向到 `.out` 文件名后缀的文件，并将其内部的日志记录写入到 `.log` 后缀的文件。用户可以在 `env.java.opts`，`env.java.opts.jobmanager`，`env.java.opts.taskmanager`，`env.java.opts.historyserver` 和 `env.java.opts.client` 配置项中配置 Java 选项（包括 log 相关的选项），同样也可以使用脚本变量 `FLINK_LOG_PREFIX` 定义日志文件，并将选项括在双引号中以供后期使用。日志文件将使用 `FLINK_LOG_PREFIX` 与默认的 `.out` 和 `.log` 后缀一起滚动。
+每个独立的 JobManager，TaskManager，HistoryServer，ZooKeeper 守护进程都将 `stdout` 和 `stderr` 重定向到名称后缀为 `.out` 的文件，并将其内部的日志记录写入到 `.log` 后缀的文件。用户可以在 `env.java.opts`，`env.java.opts.jobmanager`，`env.java.opts.taskmanager`，`env.java.opts.historyserver` 和 `env.java.opts.client` 配置项中配置 Java 选项（包括 log 相关的选项），同样也可以使用脚本变量 `FLINK_LOG_PREFIX` 定义日志文件，并将选项括在双引号中以供后期使用。日志文件将使用 `FLINK_LOG_PREFIX` 与默认的 `.out` 和 `.log` 后缀一起滚动。
 
 <a name="profiling-with-java-flight-recorder"></a>
 
@@ -53,7 +53,7 @@ env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCo
 
 <a name="analyzing-out-of-memory-problems"></a>
 
-## 分析内存不足问题（Out of Memory Problems）
+## 分析内存溢出问题（Out of Memory Problems）
 
 如果你的 Flink 应用程序遇到 `OutOfMemoryExceptions` ，那么启用在内存不足错误时堆转储是一个好主意。
 
@@ -67,14 +67,14 @@ env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PRE
 
 ## 分析内存和 Garbage Collection
 
-内存使用和 garbage collection 会对你的应用程序产生巨大的影响。如果 GC 停顿时间过长，其影响范围可能从轻微的性能下降到完全的集群故障。如果你想更好地理解应用程序的内存和 GC 行为，那么可以在 `TaskManagers` 上启用内存日志记录。
+内存使用和 garbage collection 会对你的应用程序产生巨大的影响。如果 GC 停顿时间过长，其影响力小到性能下降，大到集群全面瘫痪。如果你想更好地理解应用程序的内存和 GC 行为，可以在 `TaskManagers` 上启用内存日志记录。
 
 {% highlight yaml %}
 taskmanager.debug.memory.log: true
 taskmanager.debug.memory.log-interval: 10000 // 10s interval
 {% endhighlight %}
 
-如果你对更详细的 GC 统计数据感兴趣，则可以通过以下方式激活 JVM 的 GC 日志记录：
+如果你想了解更详细的 GC 统计数据，可以通过以下方式激活 JVM 的 GC 日志记录：
 
 {% highlight yaml %}
 env.java.opts: "-Xloggc:${FLINK_LOG_PREFIX}.gc.log -XX:+PrintGCApplicationStoppedTime -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M -XX:+PrintPromotionFailure -XX:+PrintGCCause"
