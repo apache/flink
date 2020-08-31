@@ -27,6 +27,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +36,8 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A pipelined in-memory only subpartition, which can be consumed once.
  *
- * <p>Whenever {@link ResultSubpartition#add(BufferConsumer, boolean)} adds a finished {@link BufferConsumer} or a second
+ * <p>Whenever {@link ResultSubpartition#add(BufferConsumer)} adds a finished {@link BufferConsumer} or a second
  * {@link BufferConsumer} (in which case we will assume the first one finished), we will
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notify} a read view created via
  * {@link ResultSubpartition#createReadView(BufferAvailabilityListener)} of new data availability. Except by calling
@@ -64,7 +66,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	// ------------------------------------------------------------------------
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
+	private final PrioritizedDeque<BufferConsumer> buffers = new PrioritizedDeque<>();
 
 	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
@@ -168,21 +170,30 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	private void handleAddingBarrier(BufferConsumer bufferConsumer, boolean insertAsHead) {
 		assert Thread.holdsLock(buffers);
 		if (insertAsHead) {
-			checkState(inflightBufferSnapshot.isEmpty(), "Supporting only one concurrent checkpoint in unaligned " +
-				"checkpoints");
+			processPriorityBuffer(bufferConsumer);
+			return;
+		}
+		buffers.add(bufferConsumer);
+	}
 
-			// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
-			for (BufferConsumer buffer : buffers) {
+	private void processPriorityBuffer(BufferConsumer bufferConsumer) {
+		checkState(inflightBufferSnapshot.isEmpty(), "Supporting only one concurrent checkpoint in unaligned " +
+			"checkpoints");
+
+		buffers.addPriorityElement(bufferConsumer);
+		final int numPriorityElements = buffers.getNumPriorityElements();
+
+		// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
+		final Iterator<BufferConsumer> iterator = buffers.iterator();
+		Iterators.advance(iterator, numPriorityElements);
+		while (iterator.hasNext()) {
+			BufferConsumer buffer = iterator.next();
+
+			if (buffer.isBuffer()) {
 				try (BufferConsumer bc = buffer.copy()) {
-					if (bc.isBuffer()) {
-						inflightBufferSnapshot.add(bc.build());
-					}
+					inflightBufferSnapshot.add(bc.build());
 				}
 			}
-
-			buffers.addFirst(bufferConsumer);
-		} else {
-			buffers.add(bufferConsumer);
 		}
 	}
 
@@ -250,7 +261,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 				}
 
 				if (bufferConsumer.isFinished()) {
-					buffers.pop().close();
+					buffers.poll().close();
 					decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
 				}
 
@@ -340,7 +351,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	private boolean isEventAvailableUnsafe() {
 		assert Thread.holdsLock(buffers);
 
-		return !isBlockedByCheckpoint && !buffers.isEmpty() && !buffers.peekFirst().isBuffer();
+		return !isBlockedByCheckpoint && !buffers.isEmpty() && !buffers.peek().isBuffer();
 	}
 
 	// ------------------------------------------------------------------------
@@ -469,11 +480,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 		// NOTE: isFinished() is not guaranteed to provide the most up-to-date state here
 		// worst-case: a single finished buffer sits around until the next flush() call
 		// (but we do not offer stronger guarantees anyway)
-		if (buffers.size() == 1 && buffers.peekLast().isFinished()) {
+		final int numBuffers = buffers.size();
+		if (numBuffers == 1 && buffers.peekLast().isFinished()) {
 			return 1;
 		}
 
 		// We assume that only last buffer is not finished.
-		return Math.max(0, buffers.size() - 1);
+		return Math.max(0, numBuffers - 1);
 	}
 }
