@@ -63,7 +63,7 @@ import org.apache.flink.util.Preconditions;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import akka.actor.UntypedActor;
+import akka.actor.UntypedAbstractActor;
 import akka.pattern.Patterns;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskScheduler;
@@ -881,7 +881,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	/**
 	 * Adapts incoming Akka messages as RPC calls to the resource manager.
 	 */
-	private class AkkaAdapter extends UntypedActor {
+	private class AkkaAdapter extends UntypedAbstractActor {
 		@Override
 		public void onReceive(final Object message) throws Exception {
 			if (message instanceof ReconciliationCoordinator.Reconcile) {
