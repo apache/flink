@@ -26,7 +26,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -41,7 +44,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -298,6 +303,27 @@ public class JobGraph implements Serializable {
 	 */
 	public int getNumberOfVertices() {
 		return this.taskVertices.size();
+	}
+
+	public Set<SlotSharingGroup> getSlotSharingGroups() {
+		final Set<SlotSharingGroup> slotSharingGroups = IterableUtils
+			.toStream(getVertices())
+			.map(JobVertex::getSlotSharingGroup)
+			.collect(Collectors.toSet());
+		return Collections.unmodifiableSet(slotSharingGroups);
+	}
+
+	public Set<CoLocationGroupDesc> getCoLocationGroupDescriptors() {
+		// invoke distinct() on CoLocationGroup first to avoid creating
+		// multiple CoLocationGroupDec from one CoLocationGroup
+		final Set<CoLocationGroupDesc> coLocationGroups = IterableUtils
+			.toStream(getVertices())
+			.map(JobVertex::getCoLocationGroup)
+			.filter(Objects::nonNull)
+			.distinct()
+			.map(CoLocationGroupDesc::from)
+			.collect(Collectors.toSet());
+		return Collections.unmodifiableSet(coLocationGroups);
 	}
 
 	/**
