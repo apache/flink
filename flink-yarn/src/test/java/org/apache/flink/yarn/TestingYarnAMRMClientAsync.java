@@ -45,25 +45,31 @@ import java.util.function.Function;
  */
 public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.ContainerRequest> {
 
-	private volatile Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>>
-		getMatchingRequestsFunction = ignored -> Collections.emptyList();
-	private volatile BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer = (ignored1, ignored2) -> {};
-	private volatile BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer = (ignored1, ignored2) -> {};
-	private volatile BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer = (ignored1, ignored2) -> {};
-	private volatile Consumer<Integer> setHeartbeatIntervalConsumer = (ignored) -> {};
-	private volatile TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction =
-		(ignored1, ignored2, ignored3) -> RegisterApplicationMasterResponse.newInstance(
-			Resource.newInstance(0, 0),
-			Resource.newInstance(Integer.MAX_VALUE, Integer.MAX_VALUE),
-			Collections.emptyMap(),
-			null,
-			Collections.emptyList(),
-			null,
-			Collections.emptyList());
-	private volatile TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
+	private final Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>> getMatchingRequestsFunction;
+	private final BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer;
+	private final BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer;
+	private final BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer;
+	private final Consumer<Integer> setHeartbeatIntervalConsumer;
+	private final TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction;
+	private final TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer;
 
-	TestingYarnAMRMClientAsync(CallbackHandler callbackHandler) {
+	private TestingYarnAMRMClientAsync(
+		CallbackHandler callbackHandler,
+		Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>> getMatchingRequestsFunction,
+		BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer,
+		BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer,
+		BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer,
+		Consumer<Integer> setHeartbeatIntervalConsumer,
+		TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction,
+		TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer) {
 		super(0, callbackHandler);
+		this.setHeartbeatIntervalConsumer = Preconditions.checkNotNull(setHeartbeatIntervalConsumer);
+		this.addContainerRequestConsumer = Preconditions.checkNotNull(addContainerRequestConsumer);
+		this.releaseAssignedContainerConsumer = Preconditions.checkNotNull(releaseAssignedContainerConsumer);
+		this.removeContainerRequestConsumer = Preconditions.checkNotNull(removeContainerRequestConsumer);
+		this.registerApplicationMasterFunction = Preconditions.checkNotNull(registerApplicationMasterFunction);
+		this.getMatchingRequestsFunction = Preconditions.checkNotNull(getMatchingRequestsFunction);
+		this.unregisterApplicationMasterConsumer = Preconditions.checkNotNull(unregisterApplicationMasterConsumer);
 	}
 
 	@Override
@@ -101,40 +107,8 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 		unregisterApplicationMasterConsumer.accept(appStatus, appMessage, appTrackingUrl);
 	}
 
-	void setGetMatchingRequestsFunction(
-		Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>>
-			getMatchingRequestsFunction) {
-		this.getMatchingRequestsFunction = Preconditions.checkNotNull(getMatchingRequestsFunction);
-	}
-
-	void setAddContainerRequestConsumer(
-		BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer) {
-		this.addContainerRequestConsumer = Preconditions.checkNotNull(addContainerRequestConsumer);
-	}
-
-	void setRemoveContainerRequestConsumer(
-		BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer) {
-		this.removeContainerRequestConsumer = Preconditions.checkNotNull(removeContainerRequestConsumer);
-	}
-
-	void setReleaseAssignedContainerConsumer(
-		BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer) {
-		this.releaseAssignedContainerConsumer = Preconditions.checkNotNull(releaseAssignedContainerConsumer);
-	}
-
-	void setSetHeartbeatIntervalConsumer(
-		Consumer<Integer> setHeartbeatIntervalConsumer) {
-		this.setHeartbeatIntervalConsumer = setHeartbeatIntervalConsumer;
-	}
-
-	void setRegisterApplicationMasterFunction(
-		TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction) {
-		this.registerApplicationMasterFunction = registerApplicationMasterFunction;
-	}
-
-	void setUnregisterApplicationMasterConsumer(
-		TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer) {
-		this.unregisterApplicationMasterConsumer = unregisterApplicationMasterConsumer;
+	static Builder builder() {
+		return new Builder();
 	}
 
 	// ------------------------------------------------------------------------
@@ -154,5 +128,76 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 	@Override
 	protected void serviceStop() throws Exception {
 		// noop
+	}
+
+	/**
+	 * Builder class for {@link TestingYarnAMRMClientAsync}.
+	 */
+	public static class Builder {
+		private Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>>
+			getMatchingRequestsFunction = ignored -> Collections.emptyList();
+		private BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer = (ignored1, ignored2) -> {};
+		private BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer = (ignored1, ignored2) -> {};
+		private BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer = (ignored1, ignored2) -> {};
+		private Consumer<Integer> setHeartbeatIntervalConsumer = (ignored) -> {};
+		private TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction =
+			(ignored1, ignored2, ignored3) -> RegisterApplicationMasterResponse.newInstance(
+				Resource.newInstance(0, 0),
+				Resource.newInstance(Integer.MAX_VALUE, Integer.MAX_VALUE),
+				Collections.emptyMap(),
+				null,
+				Collections.emptyList(),
+				null,
+				Collections.emptyList());
+		private TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
+
+		private Builder() {}
+
+		Builder setAddContainerRequestConsumer(BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> addContainerRequestConsumer) {
+			this.addContainerRequestConsumer = addContainerRequestConsumer;
+			return this;
+		}
+
+		Builder setGetMatchingRequestsFunction(Function<Tuple4<Priority, String, Resource, CallbackHandler>, List<? extends Collection<AMRMClient.ContainerRequest>>> getMatchingRequestsFunction) {
+			this.getMatchingRequestsFunction = getMatchingRequestsFunction;
+			return this;
+		}
+
+		Builder setRegisterApplicationMasterFunction(TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction) {
+			this.registerApplicationMasterFunction = registerApplicationMasterFunction;
+			return this;
+		}
+
+		Builder setReleaseAssignedContainerConsumer(BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer) {
+			this.releaseAssignedContainerConsumer = releaseAssignedContainerConsumer;
+			return this;
+		}
+
+		Builder setRemoveContainerRequestConsumer(BiConsumer<AMRMClient.ContainerRequest, CallbackHandler> removeContainerRequestConsumer) {
+			this.removeContainerRequestConsumer = removeContainerRequestConsumer;
+			return this;
+		}
+
+		Builder setSetHeartbeatIntervalConsumer(Consumer<Integer> setHeartbeatIntervalConsumer) {
+			this.setHeartbeatIntervalConsumer = setHeartbeatIntervalConsumer;
+			return this;
+		}
+
+		Builder setUnregisterApplicationMasterConsumer(TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer) {
+			this.unregisterApplicationMasterConsumer = unregisterApplicationMasterConsumer;
+			return this;
+		}
+
+		public TestingYarnAMRMClientAsync build(CallbackHandler callbackHandler) {
+			return new TestingYarnAMRMClientAsync(
+				callbackHandler,
+				getMatchingRequestsFunction,
+				addContainerRequestConsumer,
+				removeContainerRequestConsumer,
+				releaseAssignedContainerConsumer,
+				setHeartbeatIntervalConsumer,
+				registerApplicationMasterFunction,
+				unregisterApplicationMasterConsumer);
+		}
 	}
 }
