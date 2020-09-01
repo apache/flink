@@ -149,6 +149,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 				});
 				// Handle the finished splits.
 				onSplitFinished(splitIter.finishedSplitIds());
+				splitIter.dispose();
 				// Prepare the return status based on the availability of the next element.
 				status = finishedOrAvailableLater();
 			} else {
