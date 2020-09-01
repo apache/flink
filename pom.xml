@@ -1455,6 +1455,7 @@ under the License.
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
+						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
