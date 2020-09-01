@@ -25,7 +25,7 @@ import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -344,7 +344,7 @@ public final class Utils {
 	 * @param yarnConfig
 	 *		 The YARN configuration object.
 	 * @param configuration
-	 *		 The YarnResourceManager configurations.
+	 *		 The YarnResourceManagerDriver configurations.
 	 * @param tmParams
 	 *		 The TaskExecutor container memory parameters.
 	 * @param taskManagerDynamicProperties
@@ -364,7 +364,7 @@ public final class Utils {
 	static ContainerLaunchContext createTaskExecutorContext(
 		org.apache.flink.configuration.Configuration flinkConfig,
 		YarnConfiguration yarnConfig,
-		YarnResourceManagerConfiguration configuration,
+		YarnResourceManagerDriverConfiguration configuration,
 		ContaineredTaskManagerParameters tmParams,
 		String taskManagerDynamicProperties,
 		String workingDirectory,
@@ -533,31 +533,6 @@ public final class Utils {
 			}
 		}
 		return resourceDescriptors;
-	}
-
-	public static WorkerSpecContainerResourceAdapter createWorkerSpecContainerResourceAdapter(
-			org.apache.flink.configuration.Configuration flinkConfig,
-			YarnConfiguration yarnConfig) {
-
-		Resource unitResource = getUnitResource(yarnConfig);
-
-		return new WorkerSpecContainerResourceAdapter(
-			flinkConfig,
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
-			unitResource.getMemory(),
-			unitResource.getVirtualCores(),
-			ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 	}
 
 	static TaskExecutorProcessSpecContainerResourceAdapter createTaskExecutorProcessSpecContainerResourceAdapter(

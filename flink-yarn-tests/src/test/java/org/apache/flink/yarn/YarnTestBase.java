@@ -136,7 +136,7 @@ public abstract class YarnTestBase extends TestLogger {
 		Pattern.compile("Association with remote system \\[akka.tcp://flink@[^]]+\\] has failed, address is now gated for \\[50\\] ms. Reason: \\[Association failed with \\[akka.tcp://flink@[^]]+\\]\\] Caused by: \\[java.net.ConnectException: Connection refused: [^]]+\\]"),
 
 		// filter out expected ResourceManagerException caused by intended shutdown request
-		Pattern.compile(YarnResourceManager.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST),
+		Pattern.compile(YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST),
 
 		// this can happen in Akka 2.4 on shutdown.
 		Pattern.compile("java\\.util\\.concurrent\\.RejectedExecutionException: Worker has already been shutdown"),
