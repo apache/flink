@@ -22,6 +22,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -38,22 +39,38 @@ import javax.annotation.Nullable;
 class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>> {
 	private static final Logger LOG = LoggerFactory.getLogger(ChainingOutput.class);
 
-	protected final OneInputStreamOperator<T, ?> operator;
+	protected final Input<T> input;
 	protected final Counter numRecordsIn;
 	protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
 	protected final StreamStatusProvider streamStatusProvider;
 	@Nullable protected final OutputTag<T> outputTag;
+	@Nullable protected final AutoCloseable closeable;
 
 	public ChainingOutput(
 			OneInputStreamOperator<T, ?> operator,
 			StreamStatusProvider streamStatusProvider,
 			@Nullable OutputTag<T> outputTag) {
-		this.operator = operator;
+		this(
+			operator,
+			(OperatorMetricGroup) operator.getMetricGroup(),
+			streamStatusProvider,
+			outputTag,
+			operator::close);
+	}
+
+	public ChainingOutput(
+			Input<T> input,
+			OperatorMetricGroup operatorMetricGroup,
+			StreamStatusProvider streamStatusProvider,
+			@Nullable OutputTag<T> outputTag,
+			@Nullable AutoCloseable closeable) {
+		this.input = input;
+		this.closeable = closeable;
 
 		{
 			Counter tmpNumRecordsIn;
 			try {
-				OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup();
+				OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup.getIOMetricGroup();
 				tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
 			} catch (Exception e) {
 				LOG.warn("An exception occurred during the metrics setup.", e);
@@ -91,8 +108,8 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 			StreamRecord<T> castRecord = (StreamRecord<T>) record;
 
 			numRecordsIn.inc();
-			operator.setKeyContextElement1(castRecord);
-			operator.processElement(castRecord);
+			input.setKeyContextElement(castRecord);
+			input.processElement(castRecord);
 		}
 		catch (Exception e) {
 			throw new ExceptionInChainedOperatorException(e);
@@ -104,7 +121,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 		try {
 			watermarkGauge.setCurrentWatermark(mark.getTimestamp());
 			if (streamStatusProvider.getStreamStatus().isActive()) {
-				operator.processWatermark(mark);
+				input.processWatermark(mark);
 			}
 		}
 		catch (Exception e) {
@@ -115,7 +132,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 	@Override
 	public void emitLatencyMarker(LatencyMarker latencyMarker) {
 		try {
-			operator.processLatencyMarker(latencyMarker);
+			input.processLatencyMarker(latencyMarker);
 		}
 		catch (Exception e) {
 			throw new ExceptionInChainedOperatorException(e);
@@ -125,7 +142,9 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 	@Override
 	public void close() {
 		try {
-			operator.close();
+			if (closeable != null) {
+				closeable.close();
+			}
 		}
 		catch (Exception e) {
 			throw new ExceptionInChainedOperatorException(e);

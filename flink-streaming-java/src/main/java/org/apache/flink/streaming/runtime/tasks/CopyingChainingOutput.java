@@ -67,8 +67,8 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
 
 			numRecordsIn.inc();
 			StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
-			operator.setKeyContextElement1(copy);
-			operator.processElement(copy);
+			input.setKeyContextElement(copy);
+			input.processElement(copy);
 		} catch (ClassCastException e) {
 			if (outputTag != null) {
 				// Enrich error message
