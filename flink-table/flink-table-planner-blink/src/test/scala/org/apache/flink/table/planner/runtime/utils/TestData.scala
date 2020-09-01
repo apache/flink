@@ -533,6 +533,20 @@ object TestData {
     row(5L, "US Dollar")
   )
 
+  // [city, state, population]
+  val citiesData: Seq[Row] = Seq(
+    row("Los_Angeles", "CA", 3979576),
+    row("Phoenix", "AZ", 1680992),
+    row("Houston", "TX", 2320268),
+    row("San_Diego", "CA", 1423851),
+    row("San_Francisco", "CA", 881549),
+    row("New_York", "NY", 8336817),
+    row("Dallas", "TX", 1343573),
+    row("San_Antonio", "TX", 1547253),
+    row("San_Jose", "CA", 1021795),
+    row("Chicago", "IL", 2695598),
+    row("Austin", "TX", 978908))
+
   // kind[currency, rate]
   val ratesHistoryData: Seq[Row] = Seq(
     changelogRow("+I", "US Dollar", JLong.valueOf(102L)),

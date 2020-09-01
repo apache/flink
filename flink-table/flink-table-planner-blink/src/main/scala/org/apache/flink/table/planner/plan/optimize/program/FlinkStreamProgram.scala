@@ -32,6 +32,7 @@ object FlinkStreamProgram {
 
   val SUBQUERY_REWRITE = "subquery_rewrite"
   val TEMPORAL_JOIN_REWRITE = "temporal_join_rewrite"
+  val PRE_DECORRELATE_REWRITE = "pre_decorrelate_rewrite"
   val DECORRELATE = "decorrelate"
   val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
@@ -89,6 +90,15 @@ object FlinkStreamProgram {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkStreamRuleSets.POST_EXPAND_CLEAN_UP_RULES)
             .build(), "convert enumerable table scan")
+        .build())
+
+    // rewrite before decorrelation
+    chainedProgram.addLast(
+      PRE_DECORRELATE_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
         .build())
 
     // query decorrelation
