@@ -91,13 +91,9 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-			// we are not responsible for emitting to the side-output specified by this
-			// OutputTag.
-			return;
+		if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+			pushToRecordWriter(record);
 		}
-
-		pushToRecordWriter(record);
 	}
 
 	private <X> void pushToRecordWriter(StreamRecord<X> record) {
