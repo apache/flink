@@ -43,7 +43,6 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -277,8 +276,7 @@ public class MesosResourceManagerDriver extends AbstractResourceManagerDriver<Re
 
 		try {
 			// generate new workers into persistent state and launch associated actors
-			// TODO: arbitrary WorkerResourceSpec used here, which should be removed after removing MesosResourceManager.
-			MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID(), WorkerResourceSpec.ZERO);
+			MesosWorkerStore.Worker worker = MesosWorkerStore.Worker.newWorker(workerStore.newTaskID());
 			workerStore.putWorker(worker);
 
 			final ResourceID resourceId = extractResourceID(worker.taskID());
@@ -573,7 +571,7 @@ public class MesosResourceManagerDriver extends AbstractResourceManagerDriver<Re
 	 * @param taskId the Mesos TaskID
 	 * @return The ResourceID for the container
 	 */
-	private static ResourceID extractResourceID(Protos.TaskID taskId) {
+	static ResourceID extractResourceID(Protos.TaskID taskId) {
 		return new ResourceID(taskId.getValue());
 	}
 
