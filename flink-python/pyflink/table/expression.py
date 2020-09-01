@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Union
+from typing import Union, TypeVar, Generic
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
@@ -34,84 +34,83 @@ Example:
     >>> tab \\
     >>>     .group_by(col("a")) \\
     >>>     .select(col("a"),
-    >>>             col("b").sum().alias("d"),
-    >>>             col("b").sum0().alias("e"),
-    >>>             col("b").min().alias("f"),
-    >>>             col("b").max().alias("g"),
-    >>>             col("b").count().alias("h"),
-    >>>             col("b").avg().alias("i"),
-    >>>             col("b").stddev_pop().alias("j"),
-    >>>             col("b").stddev_samp().alias("k"),
-    >>>             col("b").var_pop().alias("l"),
-    >>>             col("b").var_samp().alias("m"),
-    >>>             col("b").collect().alias("n"))
+    >>>             col("b").sum.alias("d"),
+    >>>             col("b").sum0.alias("e"),
+    >>>             col("b").min.alias("f"),
+    >>>             col("b").max.alias("g"),
+    >>>             col("b").count.alias("h"),
+    >>>             col("b").avg.alias("i"),
+    >>>             col("b").stddev_pop.alias("j"),
+    >>>             col("b").stddev_samp.alias("k"),
+    >>>             col("b").var_pop.alias("l"),
+    >>>             col("b").var_samp.alias("m"),
+    >>>             col("b").collect.alias("n"))
 
-.. seealso:: :func:`~Expression.sum`, :func:`~Expression.sum0`, :func:`~Expression.min`,
-             :func:`~Expression.max`, :func:`~Expression.count`, :func:`~Expression.avg`,
-             :func:`~Expression.stddev_pop`, :func:`~Expression.stddev_samp`,
-             :func:`~Expression.var_pop`, :func:`~Expression.var_samp`,
-             :func:`~Expression.collect`
+.. seealso:: :py:attr:`~Expression.sum`, :py:attr:`~Expression.sum0`, :py:attr:`~Expression.min`,
+             :py:attr:`~Expression.max`, :py:attr:`~Expression.count`, :py:attr:`~Expression.avg`,
+             :py:attr:`~Expression.stddev_pop`, :py:attr:`~Expression.stddev_samp`,
+             :py:attr:`~Expression.var_pop`, :py:attr:`~Expression.var_samp`,
+             :py:attr:`~Expression.collect`
 """
-
 
 _math_log_doc = """
 {op_desc}
 
-.. seealso:: :func:`~Expression.log10`, :func:`~Expression.log2`, :func:`~Expression.ln`,
+.. seealso:: :py:attr:`~Expression.log10`, :py:attr:`~Expression.log2`, :py:attr:`~Expression.ln`,
              :func:`~Expression.log`
 """
-
 
 _math_trigonometric_doc = """
 Calculates the {op_desc} of a given number.
 
-.. seealso:: :func:`~Expression.sin`, :func:`~Expression.cos`, :func:`~Expression.sinh`,
-             :func:`~Expression.cosh`, :func:`~Expression.tan`, :func:`~Expression.cot`,
-             :func:`~Expression.asin`, :func:`~Expression.acos`, :func:`~Expression.atan`,
-             :func:`~Expression.tanh`
+.. seealso:: :py:attr:`~Expression.sin`, :py:attr:`~Expression.cos`, :py:attr:`~Expression.sinh`,
+             :py:attr:`~Expression.cosh`, :py:attr:`~Expression.tan`, :py:attr:`~Expression.cot`,
+             :py:attr:`~Expression.asin`, :py:attr:`~Expression.acos`, :py:attr:`~Expression.atan`,
+             :py:attr:`~Expression.tanh`
 """
 
 _string_doc_seealso = """
 .. seealso:: :func:`~Expression.trim_leading`, :func:`~Expression.trim_trailing`,
-             :func:`~Expression.trim`, :func:`~Expression.replace`, :func:`~Expression.char_length`,
-             :func:`~Expression.upper_case`, :func:`~Expression.lower_case`,
-             :func:`~Expression.init_cap`, :func:`~Expression.like`, :func:`~Expression.similar`,
+             :func:`~Expression.trim`, :func:`~Expression.replace`,
+             :py:attr:`~Expression.char_length`, :py:attr:`~Expression.upper_case`,
+             :py:attr:`~Expression.lower_case`, :py:attr:`~Expression.init_cap`,
+             :func:`~Expression.like`, :func:`~Expression.similar`,
              :func:`~Expression.position`, :func:`~Expression.lpad`, :func:`~Expression.rpad`,
              :func:`~Expression.overlay`, :func:`~Expression.regexp_replace`,
              :func:`~Expression.regexp_extract`, :func:`~Expression.substring`,
-             :func:`~Expression.from_base64`, :func:`~Expression.to_base64`,
-             :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`
+             :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
+             :py:attr:`~Expression.ltrim`, :py:attr:`~Expression.rtrim`, :func:`~Expression.repeat`
 """
 
 _temporal_doc_seealso = """
-.. seealso:: :func:`~Expression.to_date`, :func:`~Expression.to_time`,
-             :func:`~Expression.to_timestamp`, :func:`~Expression.extract`,
+.. seealso:: :py:attr:`~Expression.to_date`, :py:attr:`~Expression.to_time`,
+             :py:attr:`~Expression.to_timestamp`, :func:`~Expression.extract`,
              :func:`~Expression.floor`, :func:`~Expression.ceil`
 """
-
 
 _time_doc = """
 Creates an interval of the given number of {op_desc}.
 
 The produced expression is of type :func:`~DataTypes.INTERVAL`.
 
-.. seealso:: :func:`~Expression.year`, :func:`~Expression.years`, :func:`~Expression.quarter`,
-             :func:`~Expression.quarters`, :func:`~Expression.month`, :func:`~Expression.months`,
-             :func:`~Expression.week`, :func:`~Expression.weeks`, :func:`~Expression.day`,
-             :func:`~Expression.days`, :func:`~Expression.hour`, :func:`~Expression.hours`,
-             :func:`~Expression.minute`, :func:`~Expression.minutes`, :func:`~Expression.second`,
-             :func:`~Expression.seconds`, :func:`~Expression.milli`, :func:`~Expression.millis`
+.. seealso:: :py:attr:`~Expression.year`, :py:attr:`~Expression.years`,
+             :py:attr:`~Expression.quarter`, :py:attr:`~Expression.quarters`,
+             :py:attr:`~Expression.month`, :py:attr:`~Expression.months`,
+             :py:attr:`~Expression.week`, :py:attr:`~Expression.weeks`, :py:attr:`~Expression.day`,
+             :py:attr:`~Expression.days`, :py:attr:`~Expression.hour`, :py:attr:`~Expression.hours`,
+             :py:attr:`~Expression.minute`, :py:attr:`~Expression.minutes`,
+             :py:attr:`~Expression.second`, :py:attr:`~Expression.seconds`,
+             :py:attr:`~Expression.milli`, :py:attr:`~Expression.millis`
 """
-
 
 _hash_doc = """
 Returns the {op_desc} hash of the string argument; null if string is null.
 
 :return: string of {bit} hexadecimal digits or null.
 
-.. seealso:: :func:`~Expression.md5`, :func:`~Expression.sha1`, :func:`~Expression.sha224`,
-             :func:`~Expression.sha256`, :func:`~Expression.sha384`, :func:`~Expression.sha512`,
-             :func:`~Expression.sha2`
+.. seealso:: :py:attr:`~Expression.md5`, :py:attr:`~Expression.sha1`, :py:attr:`~Expression.sha224`,
+             :py:attr:`~Expression.sha256`, :py:attr:`~Expression.sha384`,
+             :py:attr:`~Expression.sha512`, :py:attr:`~Expression.sha2`
 """
 
 
@@ -159,9 +158,9 @@ def _make_aggregation_doc():
         Expression.avg: "Returns the average (arithmetic mean) of the numeric field across all "
                         "input values.",
         Expression.stddev_pop: "Returns the population standard deviation of an expression(the "
-                               "square root of varPop()).",
+                               "square root of var_pop).",
         Expression.stddev_samp: "Returns the sample standard deviation of an expression(the square "
-                                "root of varSamp()).",
+                                "root of var_samp).",
         Expression.var_pop: "Returns the population standard variance of an expression.",
         Expression.var_samp: "Returns the sample variance of a given expression.",
         Expression.collect: "Returns multiset aggregate of a given expression.",
@@ -241,8 +240,18 @@ def _add_version_doc():
             add_version_doc(getattr(Expression, func_name), "1.12.0")
 
 
-def _get_java_expression(expr):
-    return expr._j_expr if isinstance(expr, Expression) else expr
+def _get_java_expression(expr, to_expr: bool = False):
+    """
+    Returns the Java expression for the given expr. If expr is a Python expression, returns the
+    underlying Java expression, otherwise, convert it to a Java expression if to_expr is true.
+    """
+    if isinstance(expr, Expression):
+        return expr._j_expr
+    elif to_expr:
+        gateway = get_gateway()
+        return gateway.jvm.Expressions.lit(expr)
+    else:
+        return expr
 
 
 def _get_or_create_java_expression(expr: Union["Expression", str]):
@@ -266,7 +275,7 @@ def _unary_op(op_name: str):
 def _binary_op(op_name: str, reverse: bool = False):
     def _(self, other):
         if reverse:
-            return Expression(getattr(_get_java_expression(other), op_name)(self._j_expr))
+            return Expression(getattr(_get_java_expression(other, True), op_name)(self._j_expr))
         else:
             return Expression(getattr(self._j_expr, op_name)(_get_java_expression(other)))
 
@@ -467,7 +476,10 @@ class TimePointUnit(object):
         return j_time_point_unit
 
 
-class Expression(object):
+T = TypeVar('T')
+
+
+class Expression(Generic[T]):
     """
     Expressions represent a logical tree for producing a computation result.
     Expressions might be literal values, function calls, or field references.
@@ -505,7 +517,7 @@ class Expression(object):
     __pow__ = _binary_op("power")
     __neg__ = _expressions_op("negative")
 
-    __radd__ = _binary_op("plus")
+    __radd__ = _binary_op("plus", True)
     __rsub__ = _binary_op("minus", True)
     __rmul__ = _binary_op("times")
     __rtruediv__ = _binary_op("dividedBy", True)
@@ -529,98 +541,117 @@ class Expression(object):
 
     # ---------------------------- arithmetic functions ----------------------------------
 
-    def exp(self):
+    @property
+    def exp(self) -> 'Expression[float]':
         """
         Calculates the Euler's number raised to the given power.
         """
         return _unary_op("exp")(self)
 
-    def log10(self):
+    @property
+    def log10(self) -> 'Expression[float]':
         return _unary_op("log10")(self)
 
-    def log2(self):
+    @property
+    def log2(self) -> 'Expression[float]':
         return _unary_op("log2")(self)
 
-    def ln(self):
+    @property
+    def ln(self) -> 'Expression[float]':
         return _unary_op("ln")(self)
 
-    def log(self, base=None):
+    def log(self, base=None) -> 'Expression[float]':
         if base is None:
             return _unary_op("log")(self)
         else:
             return _binary_op("log")(self, base)
 
-    def cosh(self):
+    @property
+    def cosh(self) -> 'Expression[float]':
         return _unary_op("cosh")(self)
 
-    def sinh(self):
+    @property
+    def sinh(self) -> 'Expression[float]':
         return _unary_op("sinh")(self)
 
-    def sin(self):
+    @property
+    def sin(self) -> 'Expression[float]':
         return _unary_op("sin")(self)
 
-    def cos(self):
+    @property
+    def cos(self) -> 'Expression[float]':
         return _unary_op("cos")(self)
 
-    def tan(self):
+    @property
+    def tan(self) -> 'Expression[float]':
         return _unary_op("tan")(self)
 
-    def cot(self):
+    @property
+    def cot(self) -> 'Expression[float]':
         return _unary_op("cot")(self)
 
-    def asin(self):
+    @property
+    def asin(self) -> 'Expression[float]':
         return _unary_op("asin")(self)
 
-    def acos(self):
+    @property
+    def acos(self) -> 'Expression[float]':
         return _unary_op("acos")(self)
 
-    def atan(self):
+    @property
+    def atan(self) -> 'Expression[float]':
         return _unary_op("atan")(self)
 
-    def tanh(self):
+    @property
+    def tanh(self) -> 'Expression[float]':
         return _unary_op("tanh")(self)
 
-    def degrees(self):
+    @property
+    def degrees(self) -> 'Expression[float]':
         """
         Converts numeric from radians to degrees.
 
-        .. seealso:: :func:`~Expression.radians`
+        .. seealso:: :py:attr:`~Expression.radians`
         """
         return _unary_op("degrees")(self)
 
-    def radians(self):
+    @property
+    def radians(self) -> 'Expression[float]':
         """
         Converts numeric from degrees to radians.
 
-        .. seealso:: :func:`~Expression.degrees`
+        .. seealso:: :py:attr:`~Expression.degrees`
         """
         return _unary_op("radians")(self)
 
-    def sqrt(self):
+    @property
+    def sqrt(self) -> 'Expression[float]':
         """
         Calculates the square root of a given value.
         """
         return _unary_op("sqrt")(self)
 
-    def abs(self):
+    @property
+    def abs(self) -> 'Expression[T]':
         """
         Calculates the absolute value of given value.
         """
         return _unary_op("abs")(self)
 
-    def sign(self):
+    @property
+    def sign(self) -> 'Expression[T]':
         """
         Calculates the signum of a given number.
         """
         return _unary_op("sign")(self)
 
-    def round(self, places):
+    def round(self, places: Union[int, 'Expression[int]']):
         """
         Rounds the given number to integer places right to the decimal point.
         """
         return _binary_op("round")(self, places)
 
-    def between(self, lower_bound, upper_bound):
+    def between(self, lower_bound, upper_bound) -> 'Expression[bool]':
         """
         Returns true if the given expression is between lower_bound and upper_bound
         (both inclusive). False otherwise. The parameters must be numeric types or identical
@@ -633,7 +664,7 @@ class Expression(object):
         """
         return _ternary_op("between")(self, lower_bound, upper_bound)
 
-    def not_between(self, lower_bound, upper_bound):
+    def not_between(self, lower_bound, upper_bound) -> 'Expression[bool]':
         """
         Returns true if the given expression is not between lower_bound and upper_bound
         (both inclusive). False otherwise. The parameters must be numeric types or identical
@@ -658,58 +689,65 @@ class Expression(object):
         """
         return _ternary_op("then")(self, if_true, if_false)
 
-    def is_null(self):
+    @property
+    def is_null(self) -> 'Expression[bool]':
         """
         Returns true if the given expression is null.
 
-        .. seealso:: :func:`~Expression.is_not_null`
+        .. seealso:: :py:attr:`~Expression.is_not_null`
         """
         return _unary_op("isNull")(self)
 
-    def is_not_null(self):
+    @property
+    def is_not_null(self) -> 'Expression[bool]':
         """
         Returns true if the given expression is not null.
 
-        .. seealso:: :func:`~Expression.is_null`
+        .. seealso:: :py:attr:`~Expression.is_null`
         """
         return _unary_op("isNotNull")(self)
 
-    def is_true(self):
+    @property
+    def is_true(self) -> 'Expression[bool]':
         """
         Returns true if given boolean expression is true. False otherwise (for null and false).
 
-        .. seealso:: :func:`~Expression.is_false`, :func:`~Expression.is_not_true`,
-                     :func:`~Expression.is_not_false`
+        .. seealso:: :py:attr:`~Expression.is_false`, :py:attr:`~Expression.is_not_true`,
+                     :py:attr:`~Expression.is_not_false`
         """
         return _unary_op("isTrue")(self)
 
-    def is_false(self):
+    @property
+    def is_false(self) -> 'Expression[bool]':
         """
         Returns true if given boolean expression is false. False otherwise (for null and true).
 
-        .. seealso:: :func:`~Expression.is_true`, :func:`~Expression.is_not_true`,
-                     :func:`~Expression.is_not_false`
+        .. seealso:: :py:attr:`~Expression.is_true`, :py:attr:`~Expression.is_not_true`,
+                     :py:attr:`~Expression.is_not_false`
         """
         return _unary_op("isFalse")(self)
 
-    def is_not_true(self):
+    @property
+    def is_not_true(self) -> 'Expression[bool]':
         """
         Returns true if given boolean expression is not true (for null and false). False otherwise.
 
-        .. seealso:: :func:`~Expression.is_true`, :func:`~Expression.is_false`,
-                     :func:`~Expression.is_not_false`
+        .. seealso:: :py:attr:`~Expression.is_true`, :py:attr:`~Expression.is_false`,
+                     :py:attr:`~Expression.is_not_false`
         """
         return _unary_op("isNotTrue")(self)
 
-    def is_not_false(self):
+    @property
+    def is_not_false(self) -> 'Expression[bool]':
         """
         Returns true if given boolean expression is not false (for null and true). False otherwise.
 
-        .. seealso:: :func:`~Expression.is_true`, :func:`~Expression.is_false`,
-                     :func:`~Expression.is_not_true`
+        .. seealso:: :py:attr:`~Expression.is_true`, :py:attr:`~Expression.is_false`,
+                     :py:attr:`~Expression.is_not_true`
         """
         return _unary_op("isNotFalse")(self)
 
+    @property
     def distinct(self):
         """
         Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
@@ -720,44 +758,55 @@ class Expression(object):
 
             >>> tab \\
             >>>     .group_by(col("a")) \\
-            >>>     .select(col("a"), col("b").sum().distinct().alias("d"))
+            >>>     .select(col("a"), col("b").sum.distinct.alias("d"))
         """
         return _unary_op("distinct")(self)
 
+    @property
     def sum(self):
         return _unary_op("sum")(self)
 
+    @property
     def sum0(self):
         return _unary_op("sum0")(self)
 
+    @property
     def min(self):
         return _unary_op("min")(self)
 
+    @property
     def max(self):
         return _unary_op("max")(self)
 
+    @property
     def count(self):
         return _unary_op("count")(self)
 
+    @property
     def avg(self):
         return _unary_op("avg")(self)
 
+    @property
     def stddev_pop(self):
         return _unary_op("stddevPop")(self)
 
+    @property
     def stddev_samp(self):
         return _unary_op("stddevSamp")(self)
 
+    @property
     def var_pop(self):
         return _unary_op("varPop")(self)
 
+    @property
     def var_samp(self):
         return _unary_op("varSamp")(self)
 
+    @property
     def collect(self):
         return _unary_op("collect")(self)
 
-    def alias(self, name: str, *extra_names: str):
+    def alias(self, name: str, *extra_names: str) -> 'Expression[T]':
         """
         Specifies a name for an expression i.e. a field.
 
@@ -780,6 +829,7 @@ class Expression(object):
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
+    @property
     def asc(self):
         """
         Specifies ascending order of an expression i.e. a field for order_by.
@@ -787,12 +837,13 @@ class Expression(object):
         Example:
         ::
 
-            >>> tab.order_by(col('a').asc())
+            >>> tab.order_by(col('a').asc)
 
-        .. seealso:: :func:`~Expression.desc`
+        .. seealso:: :py:attr:`~Expression.desc`
         """
         return _unary_op("asc")(self)
 
+    @property
     def desc(self):
         """
         Specifies descending order of an expression i.e. a field for order_by.
@@ -800,9 +851,9 @@ class Expression(object):
         Example:
         ::
 
-            >>> tab.order_by(col('a').desc())
+            >>> tab.order_by(col('a').desc)
 
-        .. seealso:: :func:`~Expression.asc`
+        .. seealso:: :py:attr:`~Expression.asc`
         """
         return _unary_op("desc")(self)
 
@@ -843,6 +894,7 @@ class Expression(object):
                      for e in remaining_elements]
             return _binary_op("in")(self, to_jarray(gateway.jvm.Object, exprs))
 
+    @property
     def start(self):
         """
         Returns the start time (inclusive) of a window when applied on a window reference.
@@ -855,12 +907,13 @@ class Expression(object):
             >>>         .on(col("a"))
             >>>         .alias("w")) \\
             >>>     .group_by(col("c"), col("w")) \\
-            >>>     .select(col("c"), col("w").start(), col("w").end(), col("w").proctime())
+            >>>     .select(col("c"), col("w").start, col("w").end, col("w").proctime)
 
-        .. seealso:: :func:`~Expression.end`
+        .. seealso:: :py:attr:`~Expression.end`
         """
         return _unary_op("start")(self)
 
+    @property
     def end(self):
         """
         Returns the end time (exclusive) of a window when applied on a window reference.
@@ -875,22 +928,24 @@ class Expression(object):
             >>>             .on(col("a"))
             >>>             .alias("w")) \\
             >>>     .group_by(col("c"), col("w")) \\
-            >>>     .select(col("c"), col("w").start(), col("w").end(), col("w").proctime())
+            >>>     .select(col("c"), col("w").start, col("w").end, col("w").proctime)
 
-        .. seealso:: :func:`~Expression.start`
+        .. seealso:: :py:attr:`~Expression.start`
         """
         return _unary_op("end")(self)
 
-    def bin(self):
+    @property
+    def bin(self) -> 'Expression[str]':
         """
         Returns a string representation of an integer numeric value in binary format. Returns null
         if numeric is null. E.g. "4" leads to "100", "12" leads to "1100".
 
-        .. seealso:: :func:`~Expression.hex`
+        .. seealso:: :py:attr:`~Expression.hex`
         """
         return _unary_op("bin")(self)
 
-    def hex(self):
+    @property
+    def hex(self) -> 'Expression[str]':
         """
         Returns a string representation of an integer numeric value or a string in hex format.
         Returns null if numeric or string is null.
@@ -898,11 +953,11 @@ class Expression(object):
         E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", and a string "hello,world"
         leads to "68656c6c6f2c776f726c64".
 
-        .. seealso:: :func:`~Expression.bin`
+        .. seealso:: :py:attr:`~Expression.bin`
         """
         return _unary_op("hex")(self)
 
-    def truncate(self, n=0):
+    def truncate(self, n: Union[int, 'Expression[int]'] = 0) -> 'Expression[T]':
         """
         Returns a number of truncated to n decimal places.
         If n is 0, the result has no decimal point or fractional part.
@@ -913,7 +968,9 @@ class Expression(object):
 
     # ---------------------------- string functions ----------------------------------
 
-    def substring(self, begin_index, length=None):
+    def substring(self,
+                  begin_index: Union[int, 'Expression[int]'],
+                  length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
         """
         Creates a substring of the given string at given index for a given length.
 
@@ -925,7 +982,7 @@ class Expression(object):
         else:
             return _ternary_op("substring")(self, begin_index, length)
 
-    def trim_leading(self, character=None):
+    def trim_leading(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
         Removes leading space characters from the given string if character is None.
         Otherwise, removes leading specified characters from the given string.
@@ -935,7 +992,7 @@ class Expression(object):
         else:
             return _binary_op("trimLeading")(self, character)
 
-    def trim_trailing(self, character=None):
+    def trim_trailing(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
         Removes trailing space characters from the given string if character is None.
         Otherwise, removes trailing specified characters from the given string.
@@ -945,7 +1002,7 @@ class Expression(object):
         else:
             return _binary_op("trimTrailing")(self, character)
 
-    def trim(self, character=None):
+    def trim(self, character: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
         Removes leading and trailing space characters from the given string if character
         is None. Otherwise, removes leading and trailing specified characters from the given string.
@@ -955,62 +1012,70 @@ class Expression(object):
         else:
             return _binary_op("trim")(self, character)
 
-    def replace(self, search, replacement):
+    def replace(self,
+                search: Union[str, 'Expression[str]'] = None,
+                replacement: Union[str, 'Expression[str]'] = None) -> 'Expression[str]':
         """
         Returns a new string which replaces all the occurrences of the search target
         with the replacement string (non-overlapping).
         """
         return _ternary_op("replace")(self, search, replacement)
 
-    def char_length(self):
+    @property
+    def char_length(self) -> 'Expression[int]':
         """
         Returns the length of a string.
         """
         return _unary_op("charLength")(self)
 
-    def upper_case(self):
+    @property
+    def upper_case(self) -> 'Expression[str]':
         """
         Returns all of the characters in a string in upper case using the rules of the default
         locale.
         """
         return _unary_op("upperCase")(self)
 
-    def lower_case(self):
+    @property
+    def lower_case(self) -> 'Expression[str]':
         """
         Returns all of the characters in a string in lower case using the rules of the default
         locale.
         """
         return _unary_op("lowerCase")(self)
 
-    def init_cap(self):
+    @property
+    def init_cap(self) -> 'Expression[str]':
         """
         Converts the initial letter of each word in a string to uppercase. Assumes a
         string containing only [A-Za-z0-9], everything else is treated as whitespace.
         """
         return _unary_op("initCap")(self)
 
-    def like(self, pattern):
+    def like(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
         """
         Returns true, if a string matches the specified LIKE pattern.
         e.g. 'Jo_n%' matches all strings that start with 'Jo(arbitrary letter)n'
         """
         return _binary_op("like")(self, pattern)
 
-    def similar(self, pattern):
+    def similar(self, pattern: Union[str, 'Expression[str]'] = None) -> 'Expression[bool]':
         """
         Returns true, if a string matches the specified SQL regex pattern.
         e.g. 'A+' matches all strings that consist of at least one A
         """
         return _binary_op("similar")(self, pattern)
 
-    def position(self, haystack):
+    def position(self, haystack: Union[str, 'Expression[str]'] = None) -> 'Expression[int]':
         """
         Returns the position of string in an other string starting at 1.
         Returns 0 if string could not be found. e.g. lit('a').position('bbbbba') leads to 6.
         """
         return _binary_op("position")(self, haystack)
 
-    def lpad(self, length, pad):
+    def lpad(self,
+             length: Union[int, 'Expression[int]'],
+             pad: Union[str, 'Expression[str]']) -> 'Expression[str]':
         """
         Returns a string left-padded with the given pad string to a length of len characters.
         If the string is longer than len, the return value is shortened to len characters.
@@ -1018,7 +1083,9 @@ class Expression(object):
         """
         return _ternary_op("lpad")(self, length, pad)
 
-    def rpad(self, length, pad):
+    def rpad(self,
+             length: Union[int, 'Expression[int]'],
+             pad: Union[str, 'Expression[str]']) -> 'Expression[str]':
         """
         Returns a string right-padded with the given pad string to a length of len characters.
         If the string is longer than len, the return value is shortened to len characters.
@@ -1026,7 +1093,10 @@ class Expression(object):
         """
         return _ternary_op("rpad")(self, length, pad)
 
-    def overlay(self, new_string, starting, length=None):
+    def overlay(self,
+                new_string: Union[str, 'Expression[str]'],
+                starting: Union[int, 'Expression[int]'],
+                length: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
         """
         Replaces a substring of string with a string starting at a position
         (starting at 1). e.g. lit('xxxxxtest').overlay('xxxx', 6) leads to 'xxxxxxxxx'
@@ -1044,14 +1114,19 @@ class Expression(object):
             return Expression(getattr(self._j_expr, "overlay")(
                 j_expr_new_string, j_expr_starting, j_expr_length))
 
-    def regexp_replace(self, regex, replacement):
+    def regexp_replace(self,
+                       regex: Union[str, 'Expression[str]'],
+                       replacement: Union[str, 'Expression[str]']) -> 'Expression[str]':
         """
         Returns a string with all substrings that match the regular expression
         consecutively being replaced.
         """
         return _ternary_op("regexpReplace")(self, regex, replacement)
 
-    def regexp_extract(self, regex, extract_index=None):
+    def regexp_extract(
+            self,
+            regex: Union[str, 'Expression[str]'],
+            extract_index: Union[int, 'Expression[int]'] = None) -> 'Expression[str]':
         """
         Returns a string extracted with a specified regular expression and a regex match
         group index.
@@ -1061,31 +1136,35 @@ class Expression(object):
         else:
             return _ternary_op("regexpExtract")(self, regex, extract_index)
 
-    def from_base64(self):
+    @property
+    def from_base64(self) -> 'Expression[str]':
         """
         Returns the base string decoded with base64.
         """
         return _unary_op("fromBase64")(self)
 
-    def to_base64(self):
+    @property
+    def to_base64(self) -> 'Expression[str]':
         """
         Returns the base64-encoded result of the input string.
         """
         return _unary_op("toBase64")(self)
 
-    def ltrim(self):
+    @property
+    def ltrim(self) -> 'Expression[str]':
         """
         Returns a string that removes the left whitespaces from the given string.
         """
         return _unary_op("ltrim")(self)
 
-    def rtrim(self):
+    @property
+    def rtrim(self) -> 'Expression[str]':
         """
         Returns a string that removes the right whitespaces from the given string.
         """
         return _unary_op("rtrim")(self)
 
-    def repeat(self, n):
+    def repeat(self, n: Union[int, 'Expression[int]']) -> 'Expression[str]':
         """
         Returns a string that repeats the base string n times.
         """
@@ -1104,24 +1183,27 @@ class Expression(object):
             >>>         .preceding(row_interval(2))
             >>>         .following(CURRENT_ROW)
             >>>         .alias("w")) \\
-            >>>     .select(col('c'), col('a'), col('a').count().over(col('w')))
+            >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
         """
         return _binary_op("over")(self, alias)
 
     # ---------------------------- temporal functions ----------------------------------
 
+    @property
     def to_date(self):
         """
         Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
         """
         return _unary_op("toDate")(self)
 
+    @property
     def to_time(self):
         """
         Parses a time string in the form "HH:mm:ss" to a SQL Time.
         """
         return _unary_op("toTime")(self)
 
+    @property
     def to_timestamp(self):
         """
         Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
@@ -1131,7 +1213,7 @@ class Expression(object):
     def extract(self, time_interval_unit: TimeIntervalUnit):
         """
         Extracts parts of a time point or time interval. Returns the part as a long value.
-        e.g. `lit("2006-06-05").to_date().extract(TimeIntervalUnit.DAY)` leads to `5`.
+        e.g. `lit("2006-06-05").to_date.extract(TimeIntervalUnit.DAY)` leads to `5`.
         """
         return _binary_op("extract")(
             self, TimeIntervalUnit._to_j_time_interval_unit(time_interval_unit))
@@ -1139,7 +1221,7 @@ class Expression(object):
     def floor(self, time_interval_unit: TimeIntervalUnit = None):
         """
         If time_interval_unit is specified, it rounds down a time point to the given
-        unit, e.g. `lit("12:44:31").to_date().floor(TimeIntervalUnit.MINUTE)` leads to
+        unit, e.g. `lit("12:44:31").to_date.floor(TimeIntervalUnit.MINUTE)` leads to
         `12:44:00`. Otherwise, it calculates the largest integer less than or equal to a
         given number.
         """
@@ -1152,7 +1234,7 @@ class Expression(object):
     def ceil(self, time_interval_unit: TimeIntervalUnit = None):
         """
         If time_interval_unit is specified, it rounds up a time point to the given unit,
-        e.g. `lit("12:44:31").to_date().floor(TimeIntervalUnit.MINUTE)` leads to 12:45:00.
+        e.g. `lit("12:44:31").to_date.floor(TimeIntervalUnit.MINUTE)` leads to 12:45:00.
         Otherwise, it calculates the smallest integer greater than or equal to a given number.
         """
         if time_interval_unit is None:
@@ -1170,10 +1252,11 @@ class Expression(object):
 
         :param name_or_index: name or index of the field (similar to Flink's field expressions)
 
-        .. seealso:: :func:`~Expression.flatten`
+        .. seealso:: :py:attr:`~Expression.flatten`
         """
         return _binary_op("get")(self, name_or_index)
 
+    @property
     def flatten(self):
         """
         Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
@@ -1189,122 +1272,150 @@ class Expression(object):
 
         :param index: index key or position of the element (array index starting at 1)
 
-        .. seealso:: :func:`~Expression.cardinality`, :func:`~Expression.element`
+        .. seealso:: :py:attr:`~Expression.cardinality`, :py:attr:`~Expression.element`
         """
         return _binary_op("at")(self, index)
 
+    @property
     def cardinality(self):
         """
         Returns the number of elements of an array or number of entries of a map.
 
-        .. seealso:: :func:`~Expression.at`, :func:`~Expression.element`
+        .. seealso:: :func:`~Expression.at`, :py:attr:`~Expression.element`
         """
         return _unary_op("cardinality")(self)
 
+    @property
     def element(self):
         """
         Returns the sole element of an array with a single element. Returns null if the array is
         empty. Throws an exception if the array has more than one element.
 
-        .. seealso:: :func:`~Expression.at`, :func:`~Expression.cardinality`
+        .. seealso:: :func:`~Expression.at`, :py:attr:`~Expression.cardinality`
         """
         return _unary_op("element")(self)
 
     # ---------------------------- time definition functions -----------------------------
 
+    @property
     def rowtime(self):
         """
         Declares a field as the rowtime attribute for indicating, accessing, and working in
         Flink's event time.
 
-        .. seealso:: :func:`~Expression.proctime`
+        .. seealso:: :py:attr:`~Expression.proctime`
         """
         return _unary_op("rowtime")(self)
 
+    @property
     def proctime(self):
         """
         Declares a field as the proctime attribute for indicating, accessing, and working in
         Flink's processing time.
 
-        .. seealso:: :func:`~Expression.rowtime`
+        .. seealso:: :py:attr:`~Expression.rowtime`
         """
         return _unary_op("proctime")(self)
 
+    @property
     def year(self):
         return _unary_op("year")(self)
 
+    @property
     def years(self):
         return _unary_op("years")(self)
 
+    @property
     def quarter(self):
         return _unary_op("quarter")(self)
 
+    @property
     def quarters(self):
         return _unary_op("quarters")(self)
 
+    @property
     def month(self):
         return _unary_op("month")(self)
 
+    @property
     def months(self):
         return _unary_op("months")(self)
 
+    @property
     def week(self):
         return _unary_op("week")(self)
 
+    @property
     def weeks(self):
         return _unary_op("weeks")(self)
 
+    @property
     def day(self):
         return _unary_op("day")(self)
 
+    @property
     def days(self):
         return _unary_op("days")(self)
 
+    @property
     def hour(self):
         return _unary_op("hour")(self)
 
+    @property
     def hours(self):
         return _unary_op("hours")(self)
 
+    @property
     def minute(self):
         return _unary_op("minute")(self)
 
+    @property
     def minutes(self):
         return _unary_op("minutes")(self)
 
+    @property
     def second(self):
         return _unary_op("second")(self)
 
+    @property
     def seconds(self):
         return _unary_op("seconds")(self)
 
+    @property
     def milli(self):
         return _unary_op("milli")(self)
 
+    @property
     def millis(self):
         return _unary_op("millis")(self)
 
     # ---------------------------- hash functions -----------------------------
 
-    def md5(self):
+    @property
+    def md5(self) -> 'Expression[str]':
         return _unary_op("md5")(self)
 
-    def sha1(self):
+    @property
+    def sha1(self) -> 'Expression[str]':
         return _unary_op("sha1")(self)
 
-    def sha224(self):
+    @property
+    def sha224(self) -> 'Expression[str]':
         return _unary_op("sha224")(self)
 
-    def sha256(self):
+    @property
+    def sha256(self) -> 'Expression[str]':
         return _unary_op("sha256")(self)
 
-    def sha384(self):
+    @property
+    def sha384(self) -> 'Expression[str]':
         return _unary_op("sha384")(self)
 
-    def sha512(self):
+    @property
+    def sha512(self) -> 'Expression[str]':
         return _unary_op("sha512")(self)
 
-    def sha2(self, hash_length):
+    def sha2(self, hash_length: Union[int, 'Expression[int]']) -> 'Expression[str]':
         """
         Returns the hash for the given string expression using the SHA-2 family of hash
         functions (SHA-224, SHA-256, SHA-384, or SHA-512).
@@ -1312,9 +1423,9 @@ class Expression(object):
         :param hash_length: bit length of the result (either 224, 256, 384, or 512)
         :return: string or null if one of the arguments is null.
 
-        .. seealso:: :func:`~Expression.md5`, :func:`~Expression.sha1`, :func:`~Expression.sha224`,
-                     :func:`~Expression.sha256`, :func:`~Expression.sha384`,
-                     :func:`~Expression.sha512`
+        .. seealso:: :py:attr:`~Expression.md5`, :py:attr:`~Expression.sha1`,
+                     :py:attr:`~Expression.sha224`, :py:attr:`~Expression.sha256`,
+                     :py:attr:`~Expression.sha384`, :py:attr:`~Expression.sha512`
         """
         return _binary_op("sha2")(self, hash_length)
 

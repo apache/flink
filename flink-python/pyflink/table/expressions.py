@@ -121,7 +121,9 @@ def range_(start: Union[str, int], end: Union[str, int]):
     return _binary_op("range", start, end)
 
 
-def and_(predicate0, predicate1, *predicates):
+def and_(predicate0: Union[bool, 'Expression[bool]'],
+         predicate1: Union[bool, 'Expression[bool]'],
+         *predicates: Union[bool, 'Expression[bool]']) -> 'Expression[bool]':
     """
     Boolean AND in three-valued logic.
     """
@@ -130,7 +132,9 @@ def and_(predicate0, predicate1, *predicates):
     return _ternary_op("and", predicate0, predicate1, predicates)
 
 
-def or_(predicate0, predicate1, *predicates):
+def or_(predicate0: Union[bool, 'Expression[bool]'],
+        predicate1: Union[bool, 'Expression[bool]'],
+        *predicates: Union[bool, 'Expression[bool]']) -> 'Expression[bool]':
     """
     Boolean OR in three-valued logic.
     """
@@ -340,21 +344,21 @@ def row_interval(rows: int):
     return _unary_op("rowInterval", rows)
 
 
-def pi():
+def pi() -> 'Expression[float]':
     """
     Returns a value that is closer than any other value to `pi`.
     """
     return _leaf_op("pi")
 
 
-def e():
+def e() -> 'Expression[float]':
     """
     Returns a value that is closer than any other value to `e`.
     """
     return _leaf_op("e")
 
 
-def rand(seed=None):
+def rand(seed: 'Union[int, Expression[int]]' = None) -> 'Expression[float]':
     """
     Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
     initial seed if specified. Two rand() functions will return identical sequences of numbers if
@@ -366,7 +370,8 @@ def rand(seed=None):
         return _unary_op("rand", seed)
 
 
-def rand_integer(bound, seed=None):
+def rand_integer(bound: 'Union[int, Expression[int]]',
+                 seed: 'Union[int, Expression[int]]' = None):
     """
     Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
     (exclusive) with a initial seed if specified. Two rand_integer() functions will return
@@ -378,7 +383,7 @@ def rand_integer(bound, seed=None):
         return _binary_op("randInteger", seed, bound)
 
 
-def atan2(y, x):
+def atan2(y, x) -> 'Expression[float]':
     """
     Calculates the arc tangent of a given coordinate.
     """
@@ -392,7 +397,8 @@ def negative(v):
     return _unary_op("negative", v)
 
 
-def concat(first, *others):
+def concat(first: 'Union[str, Expression[str]]',
+           *others: 'Union[str, Expression[str]]') -> 'Expression[str]':
     """
     Returns the string that results from concatenating the arguments.
     Returns NULL if any argument is NULL.
@@ -404,7 +410,9 @@ def concat(first, *others):
                                 [_get_java_expression(other) for other in others]))
 
 
-def concat_ws(separator, first, *others):
+def concat_ws(separator: 'Union[str, Expression[str]]',
+              first: 'Union[str, Expression[str]]',
+              *others: 'Union[str, Expression[str]]'):
     """
     Returns the string that results from concatenating the arguments and separator.
     Returns NULL If the separator is NULL.
@@ -422,7 +430,7 @@ def concat_ws(separator, first, *others):
                                  [_get_java_expression(other) for other in others]))
 
 
-def uuid():
+def uuid() -> Union[str, 'Expression[str]']:
     """
     Returns an UUID (Universally Unique Identifier) string (e.g.,
     "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
@@ -439,7 +447,7 @@ def null_of(data_type: DataType):
     return _unary_op("nullOf", _to_java_data_type(data_type))
 
 
-def log(v, base=None):
+def log(v, base=None) -> 'Expression[float]':
     """
     If base is specified, calculates the logarithm of the given value to the given base.
     Otherwise, calculates the natural logarithm of the given value.
@@ -450,7 +458,7 @@ def log(v, base=None):
         return _binary_op("log", base, v)
 
 
-def if_then_else(condition, if_true, if_false):
+def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false):
     """
     Ternary conditional operator that decides which of two other expressions should be evaluated
     based on a evaluated boolean condition.
