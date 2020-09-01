@@ -28,8 +28,8 @@ import java.util.Set;
  * A class that wraps around a {@link RecordsWithSplitIds} and provide a consistent iterator.
  */
 public class SplitsRecordIterator<E> {
-	private final Map<String, Collection<E>> recordsBySplits;
-	private final Set<String> finishedSplitIds;
+
+	private final RecordsWithSplitIds<E> recordsWithSplitIds;
 	private final Iterator<Map.Entry<String, Collection<E>>> splitIter;
 	private String currentSplitId;
 	private Iterator<E> recordsIter;
@@ -40,11 +40,11 @@ public class SplitsRecordIterator<E> {
 	 * @param recordsWithSplitIds the records by splits.
 	 */
 	public SplitsRecordIterator(RecordsWithSplitIds<E> recordsWithSplitIds) {
-		this.recordsBySplits = recordsWithSplitIds.recordsBySplits();
+		this.recordsWithSplitIds = recordsWithSplitIds;
+		Map<String, Collection<E>> recordsBySplits = recordsWithSplitIds.recordsBySplits();
 		// Remove empty splits;
 		recordsBySplits.entrySet().removeIf(e -> e.getValue().isEmpty());
 		this.splitIter = recordsBySplits.entrySet().iterator();
-		this.finishedSplitIds = recordsWithSplitIds.finishedSplits();
 	}
 
 	/**
@@ -91,6 +91,10 @@ public class SplitsRecordIterator<E> {
 	 * @return a set of finished split Ids.
 	 */
 	public Set<String> finishedSplitIds() {
-		return finishedSplitIds;
+		return recordsWithSplitIds.finishedSplits();
+	}
+
+	public void dispose() {
+		recordsWithSplitIds.recycle();
 	}
 }
