@@ -46,7 +46,7 @@ public interface MesosServices {
 
 	/**
 	 * Gets a {@link MesosResourceManagerActorFactory} which creates child actors within
-	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager} in a local {@link ActorSystem}.
+	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerDriver} in a local {@link ActorSystem}.
 	 * @return the factory.
 	 */
 	MesosResourceManagerActorFactory createMesosResourceManagerActorFactory();

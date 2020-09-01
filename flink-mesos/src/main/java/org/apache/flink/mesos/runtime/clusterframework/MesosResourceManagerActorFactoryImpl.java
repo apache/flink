@@ -56,13 +56,6 @@ public class MesosResourceManagerActorFactoryImpl implements MesosResourceManage
 	}
 
 	@Override
-	public ActorRef createSelfActorForMesosResourceManager(MesosResourceManager self) {
-		return actorSystem.actorOf(
-				Props.create(MesosResourceManager.AkkaAdapter.class, self),
-				"ResourceManager");
-	}
-
-	@Override
 	public ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self) {
 		return actorSystem.actorOf(
 				Props.create(MesosResourceManagerDriver.AkkaAdapter.class, self),

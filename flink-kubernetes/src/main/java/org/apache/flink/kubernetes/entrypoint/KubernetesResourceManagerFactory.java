@@ -31,6 +31,8 @@ import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFact
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.util.ConfigurationException;
 
+import javax.annotation.Nullable;
+
 /**
  * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager} with {@link KubernetesResourceManagerDriver}.
  */
@@ -47,7 +49,8 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 	}
 
 	@Override
-	protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver(Configuration configuration, String webInterfaceUrl, String rpcAddress) {
+	protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver(
+			Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) {
 		final KubernetesResourceManagerDriverConfiguration kubernetesResourceManagerDriverConfiguration =
 				new KubernetesResourceManagerDriverConfiguration(
 						configuration.getString(KubernetesConfigOptions.CLUSTER_ID),

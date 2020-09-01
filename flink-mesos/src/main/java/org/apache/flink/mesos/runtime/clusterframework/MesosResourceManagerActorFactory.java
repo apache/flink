@@ -38,11 +38,6 @@ public interface MesosResourceManagerActorFactory {
 	/**
 	 * Create self actor for mesos resource manager.
 	 */
-	ActorRef createSelfActorForMesosResourceManager(MesosResourceManager self);
-
-	/**
-	 * Create self actor for mesos resource manager.
-	 */
 	ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self);
 
 	/**

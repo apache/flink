@@ -38,7 +38,6 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTestBase;
 import org.apache.flink.util.Preconditions;
@@ -140,16 +139,13 @@ public class MesosResourceManagerDriverTest extends ResourceManagerDriverTestBas
 
 	private class Context extends ResourceManagerDriverTestBase<RegisteredMesosWorkerNode>.Context {
 		private final MesosWorkerStore.Worker previousAttemptNewWorker = MesosWorkerStore.Worker.newWorker(
-				Protos.TaskID.newBuilder().setValue("previous-new-worker").build(),
-				WorkerResourceSpec.ZERO);
+				Protos.TaskID.newBuilder().setValue("previous-new-worker").build());
 		private final MesosWorkerStore.Worker previousAttemptReleasedWorker = MesosWorkerStore.Worker.newWorker(
-				Protos.TaskID.newBuilder().setValue("previous-released-worker").build(),
-				WorkerResourceSpec.ZERO)
+				Protos.TaskID.newBuilder().setValue("previous-released-worker").build())
 				.launchWorker(SLAVE_ID, SLAVE_HOST)
 				.releaseWorker();
 		final MesosWorkerStore.Worker previousAttemptLaunchedWorker = MesosWorkerStore.Worker.newWorker(
-				Protos.TaskID.newBuilder().setValue("previous-launched-worker").build(),
-				WorkerResourceSpec.ZERO)
+				Protos.TaskID.newBuilder().setValue("previous-launched-worker").build())
 				.launchWorker(SLAVE_ID, SLAVE_HOST);
 
 		private final CompletableFuture<Boolean> mesosWorkerStoreStopFuture = new CompletableFuture<>();
