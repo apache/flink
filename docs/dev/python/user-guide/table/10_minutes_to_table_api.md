@@ -1,5 +1,5 @@
 ---
-title: "10 Minutes to Table API"
+title: "10 Minutes to Python Table API"
 nav-parent_id: python_tableapi
 nav-pos: 25
 ---
@@ -246,7 +246,7 @@ The result is:
 
 A `TableEnvironment` maintains a map of catalogs of tables which are created with an identifier.
 
-The tables in a catalog may either be temporary, and tied to the lifecycle of a single Flink session, or permanent, and visible across multiple Flink sessions and clusters.
+The tables in a catalog may either be temporary, and tied to the lifecycle of a single Flink session, or permanent, and visible across multiple Flink sessions.
 
 The tables and views created via SQL DDL, e.g. "create table ..." and "create view ..." are also stored in a catalog.
 
