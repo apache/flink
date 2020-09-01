@@ -47,4 +47,13 @@ public interface RecordsWithSplitIds<E> {
 	 * @return the finished splits after this RecordsWithSplitIds is returned.
 	 */
 	Set<String> finishedSplits();
+
+	/**
+	 * This method is called when all records from this batch have been emitted.
+	 *
+	 * <p>Overriding this method gives implementations the opportunity to recycle/reuse this object,
+	 * which is a performance optimization that is important for cases where the record objects are
+	 * large or otherwise heavy to allocate.
+	 */
+	default void recycle() {}
 }

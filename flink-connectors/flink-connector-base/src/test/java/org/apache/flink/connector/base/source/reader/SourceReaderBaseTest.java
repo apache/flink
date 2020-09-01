@@ -19,10 +19,17 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
+import org.apache.flink.connector.base.source.reader.mocks.PassThroughRecordEmitter;
+import org.apache.flink.connector.base.source.reader.mocks.TestingReaderContext;
+import org.apache.flink.connector.base.source.reader.mocks.TestingReaderOutput;
+import org.apache.flink.connector.base.source.reader.mocks.TestingRecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit;
+import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -33,9 +40,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * A unit test class for {@link SourceReaderBase}.
@@ -89,6 +100,29 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		}
 	}
 
+	@Test
+	public void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
+		final TestingRecordsWithSplitIds<String> records = new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
+		final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
+
+		reader.pollNext(new TestingReaderOutput<>());
+
+		assertFalse(records.isRecycled());
+	}
+
+	@Test
+	public void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
+		final TestingRecordsWithSplitIds<String> records = new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
+		final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
+
+		// poll thrice: twice to get all records, one more to trigger recycle and moving to the next split
+		reader.pollNext(new TestingReaderOutput<>());
+		reader.pollNext(new TestingReaderOutput<>());
+		reader.pollNext(new TestingReaderOutput<>());
+
+		assertTrue(records.isRecycled());
+	}
+
 	// ---------------- helper methods -----------------
 
 	@Override
@@ -139,5 +173,50 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
 		config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
 		return config;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Testing Setup Helpers
+	// ------------------------------------------------------------------------
+
+	private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(
+		final String splitId,
+		final RecordsWithSplitIds<E> records) throws Exception {
+
+		final FutureNotifier futureNotifier = new FutureNotifier();
+		final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue =
+			new FutureCompletingBlockingQueue<>(futureNotifier);
+
+		final SourceReader<E, TestingSourceSplit> reader = new SingleThreadMultiplexSourceReaderBase<E, E, TestingSourceSplit, TestingSourceSplit>(
+			futureNotifier,
+			elementsQueue,
+			() -> new TestingSplitReader<E, TestingSourceSplit>(records),
+			new PassThroughRecordEmitter<E, TestingSourceSplit>(),
+			new Configuration(),
+			new TestingReaderContext()) {
+
+			@Override
+			protected void onSplitFinished(Collection<String> finishedSplitIds) {
+			}
+
+			@Override
+			protected TestingSourceSplit initializedState(TestingSourceSplit split) {
+				return split;
+			}
+
+			@Override
+			protected TestingSourceSplit toSplitType(String splitId, TestingSourceSplit splitState) {
+				return splitState;
+			}
+		};
+
+		reader.start();
+
+		final List<TestingSourceSplit> splits = Collections.singletonList(new TestingSourceSplit(splitId));
+		reader.addSplits(splits);
+
+		reader.isAvailable().get();
+
+		return reader;
 	}
 }
