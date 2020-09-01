@@ -385,7 +385,7 @@ public class TypeInferenceExtractorTest {
 			TestSpec
 				.forTableFunction(
 					"A data type hint on the class is used instead of a function output hint",
-					DataTypeHintOnTableFunction.class)
+					DataTypeHintOnTableFunctionClass.class)
 				.expectNamedArguments()
 				.expectTypedArguments()
 				.expectOutputMapping(
@@ -397,7 +397,7 @@ public class TypeInferenceExtractorTest {
 			TestSpec
 				.forTableFunction(
 					"A data type hint on the method is used instead of a function output hint",
-					DataTypeHintOnTableFunction2.class)
+					DataTypeHintOnTableFunctionMethod.class)
 				.expectNamedArguments("i")
 				.expectTypedArguments(DataTypes.INT())
 				.expectOutputMapping(
@@ -909,13 +909,13 @@ public class TypeInferenceExtractorTest {
 	}
 
 	@DataTypeHint("ROW<i INT>")
-	private static class DataTypeHintOnTableFunction extends TableFunction<Row> {
+	private static class DataTypeHintOnTableFunctionClass extends TableFunction<Row> {
 		public void eval() {
 			// nothing to do
 		}
 	}
 
-	private static class DataTypeHintOnTableFunction2 extends TableFunction<Row> {
+	private static class DataTypeHintOnTableFunctionMethod extends TableFunction<Row> {
 		@DataTypeHint("ROW<i INT>")
 		public void eval(Integer i) {
 			// nothing to do
