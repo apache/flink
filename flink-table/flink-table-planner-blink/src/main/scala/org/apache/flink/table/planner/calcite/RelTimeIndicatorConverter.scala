@@ -165,6 +165,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       val input = snapshot.getInput.accept(this)
       snapshot.copy(snapshot.getTraitSet, input, snapshot.getPeriod)
 
+    case rank: LogicalRank =>
+      val input = rank.getInput.accept(this)
+      rank.copy(rank.getTraitSet, JCollections.singletonList(input))
+
     case sink: LogicalSink =>
       val newInput = convertSinkInput(sink.getInput)
       new LogicalSink(

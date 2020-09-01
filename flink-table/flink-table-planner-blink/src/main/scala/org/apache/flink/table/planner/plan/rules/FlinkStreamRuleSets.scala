@@ -71,6 +71,13 @@ object FlinkStreamRuleSets {
   )
 
   /**
+   * Solid transformations before actual decorrelation.
+   */
+  val PRE_DECORRELATION_RULES: RuleSet = RuleSets.ofList(
+    CorrelateSortToRankRule.INSTANCE
+  )
+
+  /**
     * RuleSet to reduce expressions
     */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
@@ -317,6 +324,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalDataStreamTableScan.CONVERTER,
     FlinkLogicalIntermediateTableScan.CONVERTER,
     FlinkLogicalExpand.CONVERTER,
+    FlinkLogicalRank.CONVERTER,
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalWindowTableAggregate.CONVERTER,

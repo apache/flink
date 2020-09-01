@@ -42,6 +42,44 @@ Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCorrelateSortToRank">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, b
+FROM
+  (SELECT DISTINCT a FROM MyTable) T1,
+  LATERAL (
+    SELECT b, c
+    FROM MyTable
+    WHERE a = T1.a
+    ORDER BY c
+    DESC LIMIT 3
+  )
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalAggregate(group=[{0}])
+   :  +- LogicalProject(a=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[3])
+      +- LogicalProject(b=[$1], c=[$2])
+         +- LogicalFilter(condition=[=($0, $cor0.a)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[c DESC], select=[a, b, c])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, b, c])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestedTopN">
     <Resource name="sql">
       <![CDATA[

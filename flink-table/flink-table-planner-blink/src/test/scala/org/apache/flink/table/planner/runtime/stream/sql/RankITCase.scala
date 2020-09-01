@@ -24,6 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -33,6 +34,8 @@ import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
 class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -1305,4 +1308,50 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
   }
 
+  @Test
+  def testCorrelateSortToRank(): Unit = {
+    val citiesDataId = TestValuesTableFactory.registerData(TestData.citiesData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE cities (
+         |  name STRING NOT NULL,
+         |  state STRING NOT NULL,
+         |  pop INT NOT NULL
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$citiesDataId',
+         | 'changelog-mode' = 'I'
+         |)
+         |""".stripMargin)
+
+    val query =
+      s"""
+         |SELECT state, name
+         |FROM
+         |  (SELECT DISTINCT state FROM cities) states,
+         |  LATERAL (
+         |    SELECT name, pop
+         |    FROM cities
+         |    WHERE state = states.state
+         |    ORDER BY pop
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq(
+      "TX,Dallas",
+      "AZ,Phoenix",
+      "IL,Chicago",
+      "TX,Houston",
+      "CA,San_Jose",
+      "NY,New_York",
+      "CA,San_Diego",
+      "CA,Los_Angeles",
+      "TX,San_Antonio")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }

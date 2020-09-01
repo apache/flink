@@ -92,7 +92,17 @@ object FlinkStreamProgram {
         .build())
 
     // query decorrelation
-    chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+    chainedProgram.addLast(DECORRELATE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+          // rewrite before decorrelation
+          .addProgram(
+            FlinkHepRuleSetProgramBuilder.newBuilder
+                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
+                .build(), "pre-rewrite before decorrelation")
+          .addProgram(new FlinkDecorrelateProgram)
+          .build())
 
     // convert time indicators
     chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
