@@ -1484,7 +1484,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 	public static void clearWriters(List<RecordWriter<?>> writers) {
 		for (RecordWriter<?> writer : writers) {
-			writer.clearBuffers();
+			writer.close();
 		}
 	}
 
