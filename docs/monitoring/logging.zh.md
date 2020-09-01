@@ -44,7 +44,7 @@ Flink 附带以下默认日志配置文件：
 
 ### 与 Log4j1 的兼容性
 
-Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html)，使得对 Log4j1 工作的现有应用程序继续工作。
+Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html)，使得现有作业能够继续使用 log4j1 的接口。
 
 如果你有基于 Log4j 的自定义配置文件或代码，请查看官方 Log4j [兼容性](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
 
@@ -56,7 +56,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 - Classpath 中不存在 `org.apache.logging.log4j:log4j-core`，`org.apache.logging.log4j:log4j-slf4j-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`，
 - 且 Classpath 中存在 `log4j:log4j`，`org.slf4j:slf4j-log4j12`，`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
 
-在 IDE 中，这意味着你必须替换在 pom 文件中定义的依赖项，并尽可能在传递依赖于它们的依赖项上添加排除项。
+在 IDE 中使用 log4j1，你必须在 pom 文件中使用上述 `Classpath 中存在的 jars` 依赖项替换 `Classpath 中不存在的 jars` 依赖项，并尽可能在传递依赖于 `Classpath 中不存在的 jars` 的依赖项上添加排除 `Classpath 中不存在的 jars` 配置。
 
 对于 Flink 发行版，这意味着你必须
 - 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars，
@@ -97,7 +97,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 
 ## 开发人员的最佳实践
 
-Slf4j 的 loggers 通过调用来创建
+Slf4j 的 loggers 通过调用 `LoggerFactory` 的 `getLogger()` 方法创建
 
 {% highlight java %}
 import org.slf4j.LoggerFactory
