@@ -62,14 +62,28 @@ public class CanalJsonSerDeSchemaTest {
 	).getLogicalType();
 
 	@Test
+	public void testFilteringTables() throws Exception {
+		List<String> lines = readLines("canal-data-filter-table.txt");
+		CanalJsonDeserializationSchema deserializationSchema = CanalJsonDeserializationSchema
+			.builder(SCHEMA, InternalTypeInfo.of(SCHEMA))
+			.setDatabase("mydb")
+			.setTable("product")
+			.build();
+		runTest(lines, deserializationSchema);
+	}
+
+	@Test
 	public void testSerializationDeserialization() throws Exception {
 		List<String> lines = readLines("canal-data.txt");
-		CanalJsonDeserializationSchema deserializationSchema = new CanalJsonDeserializationSchema(
-			SCHEMA,
-			InternalTypeInfo.of(SCHEMA),
-			false,
-			TimestampFormat.ISO_8601);
+		CanalJsonDeserializationSchema deserializationSchema = CanalJsonDeserializationSchema
+			.builder(SCHEMA, InternalTypeInfo.of(SCHEMA))
+			.setIgnoreParseErrors(false)
+			.setTimestampFormat(TimestampFormat.ISO_8601)
+			.build();
+		runTest(lines, deserializationSchema);
+	}
 
+	public void runTest(List<String> lines, CanalJsonDeserializationSchema deserializationSchema) throws Exception {
 		SimpleCollector collector = new SimpleCollector();
 		for (String line : lines) {
 			deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
