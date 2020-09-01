@@ -82,7 +82,7 @@ table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").get_job_client(
 
 {% top %}
 
-Creating a TableEnvironment
+Create a TableEnvironment
 ---------------------------
 
 The `TableEnvironment` is a central concept of the Table API and SQL integration. The following code example shows how to create a TableEnvironment:
@@ -126,7 +126,7 @@ We recommend using the blink planner as much as possible.
 
 {% top %}
 
-Creating Tables
+Create Tables
 ---------------
 
 `Table` is a core component of the Python Table API. A `Table` is a logical representation of the intermediate result of a Table API Job.
@@ -277,10 +277,10 @@ The result is:
 
 {% top %}
 
-Writing Queries
+Write Queries
 ---------------
 
-### Writing Table API Queries
+### Write Table API Queries
 
 The `Table` object offers many methods for applying relational operations. 
 These methods return new `Table` objects representing the result of applying the relational operations on the input `Table`. 
@@ -318,7 +318,7 @@ The result is:
 0  Jack       30
 {% endhighlight %}
 
-### Writing SQL Queries
+### Write SQL Queries
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as Strings.
 
@@ -398,7 +398,7 @@ So, we get this result from the change logs above:
 (3, 19)
 {% endhighlight %}
 
-### Mixing the Table API and SQL
+### Mix the Table API and SQL
 
 The `Table` objects used in Table API and the tables used in SQL can be freely converted to each other.
 
@@ -476,10 +476,10 @@ The result is:
 
 {% top %}
 
-Emitting Results
+Emit Results
 ----------------
 
-### Collecting Results to Client
+### Collect Results to Client
 
 You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({% link dev/python/user-guide/table/conversion_of_pandas.md %}#convert-pyflink-table-to-pandas-dataframe):
 
@@ -500,7 +500,7 @@ The result is:
 
 <span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
 
-### Emitting Results to One Sink Table
+### Emit Results to One Sink Table
 
 You can call the "execute_insert" method to emit the data in a `Table` object to a sink table:
 
@@ -537,7 +537,7 @@ table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source") \
 
 {% endhighlight %}
 
-### Emitting Results to Multiple Sink Tables
+### Emit Results to Multiple Sink Tables
 
 You can use a `StatementSet` to emit the `Table`s to multiple sink tables in one job:
 
@@ -586,7 +586,7 @@ The result is:
 7> +I(2,Hello)
 {% endhighlight %}
 
-Explaining Tables
+Explain Tables
 -----------------
 
 The Table API provides a mechanism to explain the logical and optimized query plans used to compute a `Table`. 
