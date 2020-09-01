@@ -23,7 +23,11 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * An {@link OutputTag} is a typed and named tag to use for tagging side outputs
@@ -81,6 +85,10 @@ public class OutputTag<T> implements Serializable {
 		this.typeInfo = Preconditions.checkNotNull(typeInfo, "TypeInformation cannot be null.");
 	}
 
+	public static boolean isResponsibleFor(@Nullable OutputTag<?> owner, @Nonnull OutputTag<?> other) {
+		return other.equals(owner);
+	}
+
 	// ------------------------------------------------------------------------
 
 	public String getId() {
@@ -95,8 +103,14 @@ public class OutputTag<T> implements Serializable {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj instanceof OutputTag
-			&& ((OutputTag) obj).id.equals(this.id);
+		if (obj == this) {
+			return true;
+		}
+		if (obj == null || !(obj instanceof OutputTag)) {
+			return false;
+		}
+		OutputTag other = (OutputTag) obj;
+		return Objects.equals(this.id, other.id);
 	}
 
 	@Override
