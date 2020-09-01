@@ -40,6 +40,9 @@ class LegacyLimitITCase extends BatchTestBase {
     assertEquals(
       executeQuery(tEnv.from("LimitTable").fetch(5)).size,
       5)
+    assertEquals(
+      executeQuery(tEnv.from("LimitTable").fetch(5).fetch(3)).size,
+      3)
   }
 
   @Test
@@ -54,5 +57,8 @@ class LegacyLimitITCase extends BatchTestBase {
     assertEquals(
       executeQuery(tEnv.from("LimitTable").limit(5, 5)).size,
       5)
+    assertEquals(
+      executeQuery(tEnv.from("LimitTable").limit(5, 5).limit(3, 3)).size,
+      3)
   }
 }
