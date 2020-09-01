@@ -30,7 +30,7 @@ import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTest
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
@@ -468,7 +468,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 		protected ResourceManagerDriver<YarnWorkerNode> createResourceManagerDriver() {
 			return new YarnResourceManagerDriver(
 				flinkConfig,
-				new YarnResourceManagerConfiguration(env, "localhost:9000", null),
+				new YarnResourceManagerDriverConfiguration(env, "localhost:9000", null),
 				testingYarnResourceManagerClientFactory,
 				testingYarnNodeManagerClientFactory);
 		}

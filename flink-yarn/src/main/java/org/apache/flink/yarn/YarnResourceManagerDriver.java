@@ -37,7 +37,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
-import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -84,14 +84,14 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 	/** Environment variable name of the hostname given by YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
-	private static final String ENV_FLINK_NODE_ID = "_FLINK_NODE_ID";
+	static final String ENV_FLINK_NODE_ID = "_FLINK_NODE_ID";
 
 	static final String ERROR_MESSAGE_ON_SHUTDOWN_REQUEST = "Received shutdown request from YARN ResourceManager.";
 
 	private final YarnConfiguration yarnConfig;
 
 	/** The process environment variables. */
-	private final YarnResourceManagerConfiguration configuration;
+	private final YarnResourceManagerDriverConfiguration configuration;
 
 	/** Default heartbeat interval between this resource manager and the YARN ResourceManager. */
 	private final int yarnHeartbeatIntervalMillis;
@@ -120,7 +120,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 	public YarnResourceManagerDriver(
 		Configuration flinkConfig,
-		YarnResourceManagerConfiguration configuration,
+		YarnResourceManagerDriverConfiguration configuration,
 		YarnResourceManagerClientFactory yarnResourceManagerClientFactory,
 		YarnNodeManagerClientFactory yarnNodeManagerClientFactory) {
 		super(flinkConfig, GlobalConfiguration.loadConfiguration(configuration.getCurrentDir()));
