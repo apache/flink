@@ -28,9 +28,9 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * Configuration specific to {@link org.apache.flink.yarn.YarnResourceManager}.
+ * Configuration specific to {@link org.apache.flink.yarn.YarnResourceManagerDriver}.
  */
-public class YarnResourceManagerConfiguration {
+public class YarnResourceManagerDriverConfiguration {
 	@Nullable private final String webInterfaceUrl;
 	private final String rpcAddress;
 	private final String yarnFiles;
@@ -44,7 +44,7 @@ public class YarnResourceManagerConfiguration {
 	@Nullable private final String krb5Path;
 	@Nullable private final String yarnSiteXMLPath;
 
-	public YarnResourceManagerConfiguration(
+	public YarnResourceManagerDriverConfiguration(
 		Map<String, String> env,
 		String rpcAddress,
 		@Nullable String webInterfaceUrl) {

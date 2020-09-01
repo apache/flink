@@ -25,7 +25,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.hadoop.fs.Path;
@@ -109,7 +109,7 @@ public class UtilsTest extends TestLogger {
 		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 		env = Collections.unmodifiableMap(env);
 
-		final YarnResourceManagerConfiguration yarnResourceManagerConfiguration = new YarnResourceManagerConfiguration(env, "localhost", null);
+		final YarnResourceManagerDriverConfiguration yarnResourceManagerDriverConfiguration = new YarnResourceManagerDriverConfiguration(env, "localhost", null);
 
 		File credentialFile = temporaryFolder.newFile("container_tokens");
 		final Text amRmTokenKind = AMRMTokenIdentifier.KIND_NAME;
@@ -137,7 +137,7 @@ public class UtilsTest extends TestLogger {
 			Map<String, String> systemEnv = new HashMap<>(originalEnv);
 			systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
 			CommonTestUtils.setEnv(systemEnv);
-			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, yarnResourceManagerConfiguration, tmParams,
+			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, yarnResourceManagerDriverConfiguration, tmParams,
 				"", workingDirectory, taskManagerMainClass, LOG);
 		} finally {
 			CommonTestUtils.setEnv(originalEnv);

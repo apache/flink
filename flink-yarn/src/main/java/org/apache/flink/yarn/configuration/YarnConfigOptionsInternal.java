@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
-import org.apache.flink.yarn.YarnResourceManager;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -39,7 +38,7 @@ public class YarnConfigOptionsInternal {
 					.withDescription("**DO NOT USE** The location of the log config file, e.g. the path to your log4j.properties for log4j.");
 
 	/**
-	 * **DO NOT USE** Whether {@link YarnResourceManager} should match the vcores of allocated containers with those requested.
+	 * **DO NOT USE** Whether {@link org.apache.flink.yarn.YarnResourceManagerDriver} should match the vcores of allocated containers with those requested.
 	 *
 	 * <p>By default, Yarn ignores vcores in the container requests, and always allocate 1 vcore for each container.
 	 * Iff 'yarn.scheduler.capacity.resource-calculator' is set to 'DominantResourceCalculator' for Yarn, will it
@@ -59,5 +58,5 @@ public class YarnConfigOptionsInternal {
 			key("$internal.yarn.resourcemanager.enable-vcore-matching")
 					.booleanType()
 					.defaultValue(false)
-					.withDescription("**DO NOT USE** Whether YarnResourceManager should match the container vcores.");
+					.withDescription("**DO NOT USE** Whether YarnResourceManagerDriver should match the container vcores.");
 }
