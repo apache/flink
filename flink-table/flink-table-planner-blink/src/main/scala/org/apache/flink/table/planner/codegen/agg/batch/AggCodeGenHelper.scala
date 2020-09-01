@@ -384,7 +384,7 @@ object AggCodeGenHelper {
           val externalAccType = aggInfo.externalAccTypes.head
           val internalAccType = externalAccType.getLogicalType
           val genExpr = GeneratedExpression(
-            genToInternal(ctx, externalAccType)(accTerm),
+            genToInternalConverter(ctx, externalAccType)(accTerm),
             NEVER_NULL,
             NO_CODE,
             internalAccType)
@@ -557,8 +557,8 @@ object AggCodeGenHelper {
           val externalResultType = aggInfo.externalResultType
           val resultType = externalResultType.getLogicalType
           val getValueCode = s"${functionIdentifiers(function)}.getValue(" +
-            s"${genToExternal(ctx, externalAccType, aggBufferName)})"
-          val resultTerm = genToInternal(ctx, externalResultType)(getValueCode)
+            s"${genToExternalConverter(ctx, externalAccType, aggBufferName)})"
+          val resultTerm = genToInternalConverter(ctx, externalResultType)(getValueCode)
           val nullTerm = s"${aggBufferName}IsNull"
           GeneratedExpression(resultTerm, nullTerm, NO_CODE, resultType)
       }
@@ -640,11 +640,11 @@ object AggCodeGenHelper {
           s"""
             |$iterableTypeTerm accIt$aggIndex = new $iterableTypeTerm();
             |accIt$aggIndex.set(${
-              genToExternal(ctx, externalAccType, inputExpr.resultTerm)});
+              genToExternalConverter(ctx, externalAccType, inputExpr.resultTerm)});
             |$externalAccTypeTerm $externalAccTerm = ${
-              genToExternal(ctx, externalAccType, aggBufferName)};
+              genToExternalConverter(ctx, externalAccType, aggBufferName)};
             |${functionIdentifiers(function)}.merge($externalAccTerm, accIt$aggIndex);
-            |$aggBufferName = ${genToInternal(ctx, externalAccType)(externalAccTerm)};
+            |$aggBufferName = ${genToInternalConverter(ctx, externalAccType)(externalAccTerm)};
             |${aggBufferExpr.nullTerm} = ${aggBufferName}IsNull || ${inputExpr.nullTerm};
           """.stripMargin
       }
@@ -720,7 +720,7 @@ object AggCodeGenHelper {
               exprCodeGen.generateExpression(inputRef.accept(converter))
           }
           val operandTerms = inputExprs.zipWithIndex.map { case (expr, i) =>
-              genToExternalIfNeeded(ctx, aggInfo.externalArgTypes(i), expr)
+              genToExternalConverterAll(ctx, aggInfo.externalArgTypes(i), expr)
           }
           val aggBufferName = aggBufferNames(aggBufferIdx).head
           val aggBufferExpr = aggBufferExprs(currentAggBufferExprIdx)
@@ -728,13 +728,13 @@ object AggCodeGenHelper {
           val externalAccType = aggInfo.externalAccTypes.head
           val externalAccTypeTerm = typeTerm(externalAccType.getConversionClass)
           val externalAccTerm = newName("acc")
-          val externalAccCode = genToExternal(ctx, externalAccType, aggBufferName)
+          val externalAccCode = genToExternalConverter(ctx, externalAccType, aggBufferName)
           s"""
             |$externalAccTypeTerm $externalAccTerm = $externalAccCode;
             |${functionIdentifiers(function)}.accumulate(
             |  $externalAccTerm,
             |  ${operandTerms.mkString(", ")});
-            |$aggBufferName = ${genToInternal(ctx, externalAccType)(externalAccTerm)};
+            |$aggBufferName = ${genToInternalConverter(ctx, externalAccType)(externalAccTerm)};
             |${aggBufferExpr.nullTerm} = false;
           """.stripMargin
       }

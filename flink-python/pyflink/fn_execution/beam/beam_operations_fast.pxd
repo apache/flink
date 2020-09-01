@@ -39,3 +39,6 @@ cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
 
 cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
     pass
+
+cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
+    pass

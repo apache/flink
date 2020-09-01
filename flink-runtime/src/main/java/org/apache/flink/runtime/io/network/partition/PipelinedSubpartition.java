@@ -57,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notification} for any
  * {@link BufferConsumer} present in the queue.
  */
-public class PipelinedSubpartition extends ResultSubpartition {
+public class PipelinedSubpartition extends ResultSubpartition implements CheckpointedResultSubpartition {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
@@ -290,13 +290,6 @@ public class PipelinedSubpartition extends ResultSubpartition {
 
 			isBlockedByCheckpoint = false;
 		}
-	}
-
-	@Override
-	public int releaseMemory() {
-		// The pipelined subpartition does not react to memory release requests.
-		// The buffers will be recycled by the consuming task.
-		return 0;
 	}
 
 	@Override

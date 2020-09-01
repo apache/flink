@@ -54,6 +54,7 @@ import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowFunctions;
+import org.apache.flink.sql.parser.dql.SqlShowPartitions;
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.table.api.TableException;
@@ -85,6 +86,7 @@ import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
@@ -114,6 +116,7 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -136,6 +139,7 @@ import org.apache.calcite.sql.parser.SqlParser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -230,6 +234,8 @@ public class SqlToOperationConverter {
 			return Optional.of(converter.convertShowTables((SqlShowTables) validated));
 		} else if (validated instanceof SqlShowFunctions) {
 			return Optional.of(converter.convertShowFunctions((SqlShowFunctions) validated));
+		} else if (validated instanceof SqlShowPartitions) {
+			return Optional.of(converter.convertShowPartitions((SqlShowPartitions) validated));
 		} else if (validated instanceof SqlCreateView) {
 			return Optional.of(converter.convertCreateView((SqlCreateView) validated));
 		} else if (validated instanceof SqlDropView) {
@@ -294,15 +300,12 @@ public class SqlToOperationConverter {
 			SqlAlterViewAs alterViewAs = (SqlAlterViewAs) alterView;
 			final SqlNode newQuery = alterViewAs.getNewQuery();
 
-			SqlNode validateQuery = flinkPlanner.validate(newQuery);
-			PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
-			TableSchema schema = operation.getTableSchema();
-
-			String originalQuery = getQuotedSqlString(newQuery);
-			String expandedQuery = getQuotedSqlString(validateQuery);
 			CatalogView oldView = (CatalogView) baseTable;
-			CatalogView newView = new CatalogViewImpl(originalQuery, expandedQuery, schema,
-					oldView.getOptions(), oldView.getComment());
+			CatalogView newView = convertViewQuery(
+					newQuery,
+					Collections.emptyList(),
+					oldView.getOptions(),
+					oldView.getComment());
 			return new AlterViewAsOperation(viewIdentifier, newView);
 		} else {
 			throw new ValidationException(
@@ -671,12 +674,44 @@ public class SqlToOperationConverter {
 		return new ShowFunctionsOperation();
 	}
 
+	/** Convert SHOW PARTITIONS statement. */
+	private Operation convertShowPartitions(SqlShowPartitions sqlShowPartitions) {
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlShowPartitions.fullTableName());
+		ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+		LinkedHashMap<String, String> partitionKVs = sqlShowPartitions.getPartitionKVs();
+		if (partitionKVs != null) {
+			CatalogPartitionSpec partitionSpec = new CatalogPartitionSpec(partitionKVs);
+			return new ShowPartitionsOperation(tableIdentifier, partitionSpec);
+		}
+		return new ShowPartitionsOperation(tableIdentifier, null);
+	}
+
 	/** Convert CREATE VIEW statement. */
 	private Operation convertCreateView(SqlCreateView sqlCreateView) {
 		final SqlNode query = sqlCreateView.getQuery();
 		final SqlNodeList fieldList = sqlCreateView.getFieldList();
 
-		SqlNode validateQuery = flinkPlanner.validate(query);
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateView.fullViewName());
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+		String comment = sqlCreateView.getComment()
+				.map(c -> c.getNlsString().getValue()).orElse(null);
+		CatalogView catalogView = convertViewQuery(
+				query,
+				fieldList.getList(),
+				OperationConverterUtils.extractProperties(sqlCreateView.getProperties()
+						.orElse(null)),
+				comment);
+		return new CreateViewOperation(
+				identifier,
+				catalogView,
+				sqlCreateView.isIfNotExists(),
+				sqlCreateView.isTemporary());
+	}
+
+	/** Convert the query part of a VIEW statement. */
+	private CatalogView convertViewQuery(SqlNode query, List<SqlNode> fieldNames,
+			Map<String, String> props, String comment) {
 		// Put the sql string unparse (getQuotedSqlString()) in front of
 		// the node conversion (toQueryOperation()),
 		// because before Calcite 1.22.0, during sql-to-rel conversion, the SqlWindow
@@ -684,17 +719,23 @@ public class SqlToOperationConverter {
 
 		// This bug is fixed in CALCITE-3877 of Calcite 1.23.0.
 		String originalQuery = getQuotedSqlString(query);
-		String expandedQuery = getQuotedSqlString(validateQuery);
+		SqlNode validateQuery = flinkPlanner.validate(query);
+		// The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
+		// does not contain LATERAL which is problematic,
+		// the issue was resolved in CALCITE-4077
+		// (always treat the table function as implicitly LATERAL).
+		String expandedQuery = Expander.create(flinkPlanner)
+				.expanded(originalQuery).substitute(this::getQuotedSqlString);
 
 		PlannerQueryOperation operation = toQueryOperation(flinkPlanner, validateQuery);
 		TableSchema schema = operation.getTableSchema();
 
 		// the view column list in CREATE VIEW is optional, if it's not empty, we should update
 		// the column name with the names in view column list.
-		if (!fieldList.getList().isEmpty()) {
+		if (!fieldNames.isEmpty()) {
 			// alias column names:
 			String[] inputFieldNames = schema.getFieldNames();
-			String[] aliasFieldNames = fieldList.getList().stream()
+			String[] aliasFieldNames = fieldNames.stream()
 					.map(SqlNode::toString)
 					.toArray(String[]::new);
 
@@ -708,21 +749,11 @@ public class SqlToOperationConverter {
 			schema = TableSchema.builder().fields(aliasFieldNames, inputFieldTypes).build();
 		}
 
-		String comment = sqlCreateView.getComment().map(c -> c.getNlsString().getValue()).orElse(null);
-		CatalogView catalogView = new CatalogViewImpl(originalQuery,
+		return new CatalogViewImpl(originalQuery,
 				expandedQuery,
 				schema,
-				OperationConverterUtils.extractProperties(sqlCreateView.getProperties().orElse(null)),
+				props,
 				comment);
-
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlCreateView.fullViewName());
-		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-		return new CreateViewOperation(
-				identifier,
-				catalogView,
-				sqlCreateView.isIfNotExists(),
-				sqlCreateView.isTemporary());
 	}
 
 	/** Convert DROP VIEW statement. */

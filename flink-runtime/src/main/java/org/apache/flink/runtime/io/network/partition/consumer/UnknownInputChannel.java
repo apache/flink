@@ -48,6 +48,8 @@ class UnknownInputChannel extends InputChannel {
 
 	private final int maxBackoff;
 
+	private final int networkBuffersPerChannel;
+
 	private final InputChannelMetrics metrics;
 
 	public UnknownInputChannel(
@@ -59,6 +61,7 @@ class UnknownInputChannel extends InputChannel {
 			ConnectionManager connectionManager,
 			int initialBackoff,
 			int maxBackoff,
+			int networkBuffersPerChannel,
 			InputChannelMetrics metrics) {
 
 		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
@@ -69,6 +72,7 @@ class UnknownInputChannel extends InputChannel {
 		this.metrics = checkNotNull(metrics);
 		this.initialBackoff = initialBackoff;
 		this.maxBackoff = maxBackoff;
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
 	}
 
 	@Override
@@ -127,6 +131,7 @@ class UnknownInputChannel extends InputChannel {
 			connectionManager,
 			initialBackoff,
 			maxBackoff,
+			networkBuffersPerChannel,
 			metrics.getNumBytesInRemoteCounter(),
 			metrics.getNumBuffersInRemoteCounter());
 	}

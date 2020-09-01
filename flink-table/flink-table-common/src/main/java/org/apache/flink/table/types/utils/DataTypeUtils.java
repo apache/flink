@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -55,6 +56,9 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldNames;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
@@ -165,6 +169,33 @@ public final class DataTypeUtils {
 	}
 
 	/**
+	 * Returns the data types of the flat representation in the first level of the given data type.
+	 */
+	public static List<DataType> flattenToDataTypes(DataType dataType) {
+		final LogicalType type = dataType.getLogicalType();
+		if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+			return flattenToDataTypes(dataType.getChildren().get(0));
+		} else if (isCompositeType(type)) {
+			return dataType.getChildren();
+		}
+		return Collections.singletonList(dataType);
+	}
+
+	/**
+	 * Returns the names of the flat representation in the first level of the given data type.
+	 */
+	public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
+		final LogicalType type = dataType.getLogicalType();
+		if (hasRoot(type, LogicalTypeRoot.DISTINCT_TYPE)) {
+			return flattenToNames(dataType.getChildren().get(0), existingNames);
+		} else if (isCompositeType(type)) {
+			return getFieldNames(type);
+		} else {
+			return Collections.singletonList(getAtomicName(existingNames));
+		}
+	}
+
+	/**
 	 * The {@link DataType} class can only partially verify the conversion class. This method can perform
 	 * the final check when we know if the data type should be used for input.
 	 */
@@ -257,7 +288,11 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new CollectionDataType(newLogicalType, newElementType));
+			return transformation.transform(
+				new CollectionDataType(
+					newLogicalType,
+					collectionDataType.getConversionClass(),
+					newElementType));
 		}
 
 		@Override
@@ -307,7 +342,11 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new FieldsDataType(newLogicalType, newDataTypes));
+			return transformation.transform(
+				new FieldsDataType(
+					newLogicalType,
+					fieldsDataType.getConversionClass(),
+					newDataTypes));
 		}
 
 		@Override
@@ -324,7 +363,12 @@ public final class DataTypeUtils {
 			} else {
 				throw new UnsupportedOperationException("Unsupported logical type : " + logicalType);
 			}
-			return transformation.transform(new KeyValueDataType(newLogicalType, newKeyType, newValueType));
+			return transformation.transform(
+				new KeyValueDataType(
+					newLogicalType,
+					keyValueDataType.getConversionClass(),
+					newKeyType,
+					newValueType));
 		}
 
 		// ----------------------------------------------------------------------------------------

@@ -61,25 +61,6 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_S
 public class PlannerTypeUtils {
 
 	/**
-	 * Gets the arity of the type.
-	 */
-	public static int getArity(LogicalType t) {
-		if (t instanceof RowType) {
-			return ((RowType) t).getFieldCount();
-		} else {
-			return 1;
-		}
-	}
-
-	public static RowType toRowType(LogicalType t) {
-		if (t instanceof RowType) {
-			return (RowType) t;
-		} else {
-			return RowType.of(t);
-		}
-	}
-
-	/**
 	 * A conversion that removes all {@link LegacyTypeInformationType}s by mapping to corresponding new types.
 	 */
 	public static LogicalType removeLegacyTypes(LogicalType t) {

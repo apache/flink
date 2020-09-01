@@ -50,7 +50,7 @@ public class ResultPartitionBuilder {
 
 	private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 1, 1);
+	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 1);
 
 	private int networkBuffersPerChannel = 1;
 
@@ -62,8 +62,6 @@ public class ResultPartitionBuilder {
 
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
-
-	private boolean releasedOnConsumption;
 
 	private boolean blockingShuffleCompressionEnabled = false;
 
@@ -137,11 +135,6 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder isReleasedOnConsumption(boolean releasedOnConsumption) {
-		this.releasedOnConsumption = releasedOnConsumption;
-		return this;
-	}
-
 	public ResultPartitionBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		return this;
@@ -167,7 +160,6 @@ public class ResultPartitionBuilder {
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			networkBufferSize,
-			releasedOnConsumption,
 			blockingShuffleCompressionEnabled,
 			compressionCodec,
 			maxBuffersPerChannel);

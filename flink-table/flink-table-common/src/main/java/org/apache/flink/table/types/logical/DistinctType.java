@@ -38,7 +38,7 @@ import java.util.Objects;
  *
  * <p>Distinct types are implicitly final and do not support super types.
  *
- * <p>Most other properties are forwarded from the source type. Thus, ordering and comparision among
+ * <p>Most other properties are forwarded from the source type. Thus, ordering and comparison among
  * the same distinct types are supported.
  *
  * <p>The serialized string representation is the fully qualified name of this type which means that

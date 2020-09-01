@@ -48,6 +48,8 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -708,7 +710,7 @@ public class StreamTaskTest extends TestLogger {
 
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
-			new ExecutionAttemptID(1L, 2L),
+			new ExecutionAttemptID(),
 			mock(TaskLocalStateStoreImpl.class),
 			null,
 			checkpointResponder);
@@ -882,7 +884,7 @@ public class StreamTaskTest extends TestLogger {
 
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
-			new ExecutionAttemptID(1L, 2L),
+			new ExecutionAttemptID(),
 			mock(TaskLocalStateStoreImpl.class),
 			null,
 			checkpointResponder);
@@ -963,8 +965,8 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testNotifyCheckpointOnClosedOperator() throws Throwable {
 		ClosingOperator operator = new ClosingOperator();
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
 			.setupOutputForSingletonOperatorChain(operator)
@@ -998,8 +1000,8 @@ public class StreamTaskTest extends TestLogger {
 
 	private void testFailToConfirmCheckpointMessage(Consumer<StreamTask<?, ?>> consumer) throws Exception {
 		StreamMap<Integer, Integer> streamMap = new StreamMap<>(new FailOnNotifyCheckpointMapper<>());
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
 			.setupOutputForSingletonOperatorChain(streamMap)
@@ -1022,8 +1024,8 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testCheckpointDeclinedOnClosedOperator() throws Throwable {
 		ClosingOperator operator = new ClosingOperator();
-		MultipleInputStreamTaskTestHarnessBuilder<Integer> builder =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+		StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+			new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO);
 		StreamTaskMailboxTestHarness<Integer> harness = builder
 			.setupOutputForSingletonOperatorChain(operator)
@@ -1986,10 +1988,15 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
-	private static class RecoveryResultPartition extends MockResultPartitionWriter {
+	private static class RecoveryResultPartition extends MockResultPartitionWriter implements CheckpointedResultPartition {
 		private boolean isStateRecovered;
 
 		RecoveryResultPartition() {
+		}
+
+		@Override
+		public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
@@ -37,10 +36,6 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 
 	@Override
 	public void setup() {
-	}
-
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) {
 	}
 
 	@Override
@@ -75,7 +70,7 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public ResultSubpartition getSubpartition(int subpartitionIndex) {
+	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		throw new UnsupportedOperationException();
 	}
 

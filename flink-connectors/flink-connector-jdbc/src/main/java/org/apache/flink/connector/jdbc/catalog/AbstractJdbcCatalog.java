@@ -215,7 +215,7 @@ public abstract class AbstractJdbcCatalog extends AbstractCatalog {
 	}
 
 	@Override
-	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws TableNotExistException, TableNotPartitionedException, CatalogException {
+	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
 		return Collections.emptyList();
 	}
 

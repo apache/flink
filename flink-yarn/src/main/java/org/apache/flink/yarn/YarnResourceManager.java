@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -35,9 +36,9 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
+import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -77,7 +78,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -86,12 +86,12 @@ import java.util.stream.Collectors;
  * The yarn implementation of the resource manager. Used when the system is started
  * via the resource framework YARN.
  */
-public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
+public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerNode>
 		implements AMRMClientAsync.CallbackHandler, NMClientAsync.CallbackHandler {
 
 	private static final Priority RM_REQUEST_PRIORITY = Priority.newInstance(1);
 
-	/** YARN container map. Package private for unit test purposes. */
+	/** YARN container map. */
 	private final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
 
 	/** Environment variable name of the hostname given by the YARN.
@@ -234,7 +234,8 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 		log.info("Recovered {} containers from previous attempts ({}).", containersFromPreviousAttempts.size(), containersFromPreviousAttempts);
 
 		for (final Container container : containersFromPreviousAttempts) {
-			workerNodeMap.put(new ResourceID(container.getId().toString()), new YarnWorkerNode(container));
+			final ResourceID resourceID = getContainerResourceId(container);
+			workerNodeMap.put(resourceID, new YarnWorkerNode(container, resourceID));
 		}
 	}
 
@@ -284,27 +285,27 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	}
 
 	@Override
-	public CompletableFuture<Void> onStop() {
+	public void terminate() throws Exception {
 		// shut down all components
-		Throwable firstException = null;
+		Exception firstException = null;
 
 		if (resourceManagerClient != null) {
 			try {
 				resourceManagerClient.stop();
-			} catch (Throwable t) {
-				firstException = t;
+			} catch (Exception e) {
+				firstException = e;
 			}
 		}
 
 		if (nodeManagerClient != null) {
 			try {
 				nodeManagerClient.stop();
-			} catch (Throwable t) {
-				firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
+			} catch (Exception e) {
+				firstException = ExceptionUtils.firstOrSuppressed(e, firstException);
 			}
 		}
 
-		return getStopTerminationFutureOrCompletedExceptionally(firstException);
+		ExceptionUtils.tryRethrowException(firstException);
 	}
 
 	@Override
@@ -342,7 +343,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	@Override
 	public boolean stopWorker(final YarnWorkerNode workerNode) {
 		final Container container = workerNode.getContainer();
-		log.info("Stopping container {}.", container.getId());
+		log.info("Stopping container {}.", workerNode.getResourceID().getStringWithMetadata());
 		nodeManagerClient.stopContainerAsync(container.getId(), container.getNodeId());
 		resourceManagerClient.releaseAssignedContainer(container.getId());
 		workerNodeMap.remove(workerNode.getResourceID());
@@ -449,17 +450,18 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 			numAccepted, numExcess, numPending, resource);
 	}
 
-	private static ResourceID getContainerResourceId(Container container) {
-		return new ResourceID(container.getId().toString());
+	@VisibleForTesting
+	static ResourceID getContainerResourceId(Container container) {
+		return new ResourceID(container.getId().toString(), container.getNodeId().toString());
 	}
 
 	private void startTaskExecutorInContainer(Container container, WorkerResourceSpec workerResourceSpec, ResourceID resourceId) {
-		workerNodeMap.put(resourceId, new YarnWorkerNode(container));
+		workerNodeMap.put(resourceId, new YarnWorkerNode(container, resourceId));
 
 		try {
 			// Context information used to start a TaskExecutor Java process
 			ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-				resourceId.toString(),
+				resourceId,
 				container.getNodeId().getHost(),
 				TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec));
 
@@ -649,7 +651,7 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(
-		String containerId,
+		ResourceID containerId,
 		String host,
 		TaskExecutorProcessSpec taskExecutorProcessSpec) throws Exception {
 
@@ -660,12 +662,13 @@ public class YarnResourceManager extends ActiveResourceManager<YarnWorkerNode>
 				ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
 
 		log.info("TaskExecutor {} will be started on {} with {}.",
-			containerId,
+			containerId.getStringWithMetadata(),
 			host,
 			taskExecutorProcessSpec);
 
 		final Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
-		taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId);
+		taskManagerConfig.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, containerId.getResourceIdString());
+		taskManagerConfig.set(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, containerId.getMetadata());
 
 		final String taskManagerDynamicProperties =
 			BootstrapTools.getDynamicPropertiesAsString(flinkClientConfig, taskManagerConfig);

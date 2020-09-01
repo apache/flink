@@ -37,13 +37,12 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.Long) \nExpected: (int)")
+    expectedException.expectMessage("Invalid function call:\nTop3(BIGINT)")
 
     table
       .window(Slide over 2.hours every 30.minutes on 'rowtime as 'w)
       .groupBy('string, 'w)
-      .flatAggregate(top3('long)) // invalid args
+      .flatAggregate(call(top3, 'long)) // invalid args
       .select('string, 'f0)
   }
 

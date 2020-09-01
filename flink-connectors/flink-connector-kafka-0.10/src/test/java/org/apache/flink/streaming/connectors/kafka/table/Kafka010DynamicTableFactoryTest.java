@@ -38,9 +38,13 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.ExceptionUtils;
 
+import javax.annotation.Nullable;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -68,7 +72,8 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 	@Override
 	protected KafkaDynamicSourceBase getExpectedScanSource(
 			DataType producedDataType,
-			String topic,
+			@Nullable List<String> topics,
+			@Nullable Pattern topicPattern,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
@@ -76,7 +81,8 @@ public class Kafka010DynamicTableFactoryTest extends KafkaDynamicTableFactoryTes
 			long startupTimestamp) {
 		return new Kafka010DynamicSource(
 				producedDataType,
-				topic,
+				topics,
+				topicPattern,
 				properties,
 				decodingFormat,
 				startupMode,

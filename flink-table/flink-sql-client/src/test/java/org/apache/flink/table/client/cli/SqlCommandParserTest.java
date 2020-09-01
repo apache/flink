@@ -33,6 +33,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -292,6 +293,18 @@ public class SqlCommandParserTest {
 						"ALTER TEMPORARY SYSTEM FUNCTION IF EXISTS catalog1.db1.func1 as 'a.b.c.func2'",
 						SqlExecutionException.class,
 						"Alter temporary system function is not supported")
+		);
+		for (TestItem item : testItems) {
+			tableEnv.getConfig().setSqlDialect(item.sqlDialect);
+			runTestItem(item);
+		}
+	}
+
+	@Test
+	public void testHiveCommands() throws Exception {
+		List<TestItem> testItems = Collections.singletonList(
+			// show partitions
+			TestItem.validSql(SqlDialect.HIVE, "SHOW PARTITIONS t1", SqlCommand.SHOW_PARTITIONS, "SHOW PARTITIONS t1")
 		);
 		for (TestItem item : testItems) {
 			tableEnv.getConfig().setSqlDialect(item.sqlDialect);

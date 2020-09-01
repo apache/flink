@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -72,7 +71,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>State management</h2>
  */
-public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
+public abstract class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 
@@ -90,7 +89,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	protected final ResultPartitionManager partitionManager;
 
-	public final int numTargetKeyGroups;
+	private final int numTargetKeyGroups;
 
 	// - Runtime state --------------------------------------------------------
 
@@ -151,14 +150,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		partitionManager.registerResultPartition(this);
 	}
 
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		for (ResultSubpartition subpartition : subpartitions) {
-			subpartition.readRecoveredState(stateReader);
-		}
-		LOG.debug("{}: Finished reading recovered state.", this);
-	}
-
 	public String getOwningTaskName() {
 		return owningTaskName;
 	}
@@ -169,11 +160,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	public int getPartitionIndex() {
 		return partitionIndex;
-	}
-
-	@Override
-	public ResultSubpartition getSubpartition(int subpartitionIndex) {
-		return subpartitions[subpartitionIndex];
 	}
 
 	@Override
@@ -313,6 +299,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	/**
 	 * Returns the requested subpartition.
 	 */
+	@Override
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 		checkState(!isReleased.get(), "Partition released.");
@@ -341,16 +328,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 */
 	@Override
 	public void releaseMemory(int toRelease) throws IOException {
-		checkArgument(toRelease > 0);
-
-		for (ResultSubpartition subpartition : subpartitions) {
-			toRelease -= subpartition.releaseMemory();
-
-			// Only release as much memory as needed
-			if (toRelease <= 0) {
-				break;
-			}
-		}
+		// default behavior is nothing to release
 	}
 
 	/**

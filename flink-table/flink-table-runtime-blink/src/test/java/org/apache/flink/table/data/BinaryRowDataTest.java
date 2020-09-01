@@ -43,10 +43,12 @@ import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
@@ -1045,5 +1047,31 @@ public class BinaryRowDataTest {
 			row.setTimestamp(0, timestamp2, precision);
 			assertEquals("1970-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
 		}
+	}
+
+	@Test
+	public void testNestedRowWithBinaryRowEquals() {
+		BinaryRowData nestedBinaryRow = new BinaryRowData(2);
+		{
+			BinaryRowWriter writer = new BinaryRowWriter(nestedBinaryRow);
+			writer.writeInt(0, 42);
+			LogicalType innerType = DataTypes.ROW(
+				DataTypes.FIELD("f0", DataTypes.STRING()),
+				DataTypes.FIELD("f1", DataTypes.DOUBLE())).getLogicalType();
+			RowDataSerializer innerSerializer = (RowDataSerializer) (TypeSerializer<?>) InternalSerializers.create(innerType);
+			writer.writeRow(1, GenericRowData.of(StringData.fromString("Test"), 12.345), innerSerializer);
+			writer.complete();
+		}
+
+		BinaryRowData innerBinaryRow = new BinaryRowData(2);
+		{
+			BinaryRowWriter writer = new BinaryRowWriter(innerBinaryRow);
+			writer.writeString(0, StringData.fromString("Test"));
+			writer.writeDouble(1, 12.345);
+			writer.complete();
+		}
+
+		assertEquals(innerBinaryRow, nestedBinaryRow.getRow(1, 2));
+		assertEquals(nestedBinaryRow.getRow(1, 2), innerBinaryRow);
 	}
 }

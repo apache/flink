@@ -23,6 +23,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 
 import java.util.Objects;
@@ -38,27 +39,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class YarnLocalResourceDescriptor {
 
 	private static final String STRING_FORMAT = "YarnLocalResourceDescriptor{" +
-		"key=%s, path=%s, size=%d, modificationTime=%d, visibility=%s}";
+		"key=%s, path=%s, size=%d, modificationTime=%d, visibility=%s, type=%s}";
 	private static final Pattern LOCAL_RESOURCE_DESC_FORMAT = Pattern.compile("YarnLocalResourceDescriptor\\{" +
-		"key=(\\S+), path=(\\S+), size=([\\d]+), modificationTime=([\\d]+), visibility=(\\S+)}");
+		"key=(\\S+), path=(\\S+), size=([\\d]+), modificationTime=([\\d]+), visibility=(\\S+), type=(\\S+)}");
 
 	private final String resourceKey;
 	private final Path path;
 	private final long size;
 	private final long modificationTime;
 	private final LocalResourceVisibility visibility;
+	private final LocalResourceType resourceType;
 
 	YarnLocalResourceDescriptor(
 			String resourceKey,
 			Path path,
 			long resourceSize,
 			long modificationTime,
-			LocalResourceVisibility visibility) {
+			LocalResourceVisibility visibility,
+			LocalResourceType resourceType) {
 		this.resourceKey = checkNotNull(resourceKey);
 		this.path = checkNotNull(path);
 		this.size = resourceSize;
 		this.modificationTime = modificationTime;
 		this.visibility = checkNotNull(visibility);
+		this.resourceType = checkNotNull(resourceType);
 	}
 
 	boolean alreadyRegisteredAsLocalResource() {
@@ -85,6 +89,10 @@ class YarnLocalResourceDescriptor {
 		return visibility;
 	}
 
+	LocalResourceType getResourceType() {
+		return resourceType;
+	}
+
 	static YarnLocalResourceDescriptor fromString(String desc) throws Exception {
 		Matcher m = LOCAL_RESOURCE_DESC_FORMAT.matcher(desc);
 		boolean mat = m.find();
@@ -94,7 +102,8 @@ class YarnLocalResourceDescriptor {
 				new Path(m.group(2)),
 				Long.parseLong(m.group(3)),
 				Long.parseLong(m.group(4)),
-				LocalResourceVisibility.valueOf(m.group(5)));
+				LocalResourceVisibility.valueOf(m.group(5)),
+				LocalResourceType.valueOf(m.group(6)));
 		} else {
 			throw new FlinkException("Error to parse YarnLocalResourceDescriptor from " + desc);
 		}
@@ -103,7 +112,8 @@ class YarnLocalResourceDescriptor {
 	static YarnLocalResourceDescriptor fromFileStatus(
 			final String key,
 			final FileStatus fileStatus,
-			final LocalResourceVisibility visibility) {
+			final LocalResourceVisibility visibility,
+			final LocalResourceType resourceType) {
 		checkNotNull(key);
 		checkNotNull(fileStatus);
 		checkNotNull(visibility);
@@ -112,12 +122,13 @@ class YarnLocalResourceDescriptor {
 				fileStatus.getPath(),
 				fileStatus.getLen(),
 				fileStatus.getModificationTime(),
-				visibility);
+				visibility,
+				resourceType);
 	}
 
 	@Override
 	public String toString() {
-		return String.format(STRING_FORMAT, resourceKey, path.toString(), size, modificationTime, visibility);
+		return String.format(STRING_FORMAT, resourceKey, path.toString(), size, modificationTime, visibility, resourceType);
 	}
 
 	@Override
@@ -127,6 +138,7 @@ class YarnLocalResourceDescriptor {
 		result = 31 * result + Objects.hashCode(size);
 		result = 31 * result + Objects.hashCode(modificationTime);
 		result = 31 * result + Objects.hashCode(visibility.toString());
+		result = 31 * result + Objects.hashCode(resourceType.toString());
 		return result;
 	}
 
@@ -140,7 +152,8 @@ class YarnLocalResourceDescriptor {
 				Objects.equals(path, that.path) &&
 				Objects.equals(size, that.size) &&
 				Objects.equals(modificationTime, that.modificationTime) &&
-				Objects.equals(visibility, that.visibility);
+				Objects.equals(visibility, that.visibility) &&
+				Objects.equals(resourceType, that.resourceType);
 		}
 		return false;
 	}
@@ -150,6 +163,6 @@ class YarnLocalResourceDescriptor {
 	 * @return YARN resource
 	 */
 	public LocalResource toLocalResource() {
-		return Utils.registerLocalResource(path, size, modificationTime, visibility);
+		return Utils.registerLocalResource(path, size, modificationTime, visibility, resourceType);
 	}
 }

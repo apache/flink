@@ -128,13 +128,13 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/** Maximum retry attempts for the get shard iterator operation. */
 	private final int getShardIteratorMaxRetries;
 
-	/* Backoff millis for the describe stream operation. */
+	/** Backoff millis for the describe stream operation. */
 	private final long describeStreamBaseBackoffMillis;
 
-	/* Maximum backoff millis for the describe stream operation. */
+	/** Maximum backoff millis for the describe stream operation. */
 	private final long describeStreamMaxBackoffMillis;
 
-	/* Exponential backoff power constant for the describe stream operation. */
+	/** Exponential backoff power constant for the describe stream operation. */
 	private final double describeStreamExpConstant;
 
 	/**
@@ -148,61 +148,61 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 		this.kinesisClient = createKinesisClient(configProps);
 
-		this.listShardsBaseBackoffMillis = Long.valueOf(
+		this.listShardsBaseBackoffMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
 				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_BASE)));
-		this.listShardsMaxBackoffMillis = Long.valueOf(
+		this.listShardsMaxBackoffMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
 				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_MAX)));
-		this.listShardsExpConstant = Double.valueOf(
+		this.listShardsExpConstant = Double.parseDouble(
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.listShardsMaxRetries = Integer.valueOf(
+		this.listShardsMaxRetries = Integer.parseInt(
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_RETRIES)));
-		this.describeStreamBaseBackoffMillis = Long.valueOf(
+		this.describeStreamBaseBackoffMillis = Long.parseLong(
 				configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE,
 						Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE)));
-		this.describeStreamMaxBackoffMillis = Long.valueOf(
+		this.describeStreamMaxBackoffMillis = Long.parseLong(
 				configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX,
 						Long.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX)));
-		this.describeStreamExpConstant = Double.valueOf(
+		this.describeStreamExpConstant = Double.parseDouble(
 				configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT,
 						Double.toString(ConsumerConfigConstants.DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.getRecordsBaseBackoffMillis = Long.valueOf(
+		this.getRecordsBaseBackoffMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_BASE)));
-		this.getRecordsMaxBackoffMillis = Long.valueOf(
+		this.getRecordsMaxBackoffMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_MAX)));
-		this.getRecordsExpConstant = Double.valueOf(
+		this.getRecordsExpConstant = Double.parseDouble(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.getRecordsMaxRetries = Integer.valueOf(
+		this.getRecordsMaxRetries = Integer.parseInt(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_RETRIES)));
 
-		this.getShardIteratorBaseBackoffMillis = Long.valueOf(
+		this.getShardIteratorBaseBackoffMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_BASE)));
-		this.getShardIteratorMaxBackoffMillis = Long.valueOf(
+		this.getShardIteratorMaxBackoffMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_MAX)));
-		this.getShardIteratorExpConstant = Double.valueOf(
+		this.getShardIteratorExpConstant = Double.parseDouble(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.getShardIteratorMaxRetries = Integer.valueOf(
+		this.getShardIteratorMaxRetries = Integer.parseInt(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_RETRIES)));

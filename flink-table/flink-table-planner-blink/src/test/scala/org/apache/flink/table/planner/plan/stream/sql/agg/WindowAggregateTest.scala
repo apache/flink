@@ -32,7 +32,7 @@ class WindowAggregateTest extends TableTestBase {
   private val util = streamTestUtil()
   util.addDataStream[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
-  util.addFunction("weightedAvg", new WeightedAvgWithMerge)
+  util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvgWithMerge])
   util.tableEnv.executeSql(
     s"""
        |create table MyTable1 (

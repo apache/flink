@@ -25,7 +25,7 @@ import java.util.Collection;
  * The provider used for requesting and releasing batch of memory segments.
  */
 public interface MemorySegmentProvider {
-	Collection<MemorySegment> requestMemorySegments() throws IOException;
+	Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) throws IOException;
 
 	void recycleMemorySegments(Collection<MemorySegment> segments) throws IOException;
 }

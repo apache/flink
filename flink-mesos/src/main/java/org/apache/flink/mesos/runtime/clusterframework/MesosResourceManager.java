@@ -394,8 +394,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public CompletableFuture<Void> onStop() {
-		return stopSupportingActorsAsync().thenCompose((ignored) -> super.onStop());
+	public void terminate() throws Exception {
+		stopSupportingActorsAsync().get();
 	}
 
 	@Override
@@ -460,7 +460,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 	@Override
 	public boolean stopWorker(RegisteredMesosWorkerNode workerNode) {
-		LOG.info("Stopping worker {}.", workerNode.getResourceID());
+		LOG.info("Stopping worker {}.", workerNode.getResourceID().getStringWithMetadata());
 		try {
 
 			if (workersInLaunch.containsKey(workerNode.getResourceID())) {
@@ -478,10 +478,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				}
 			}
 			else if (workersBeingReturned.containsKey(workerNode.getResourceID())) {
-				LOG.info("Ignoring request to stop worker {} because it is already being stopped.", workerNode.getResourceID());
+				LOG.info("Ignoring request to stop worker {} because it is already being stopped.", workerNode.getResourceID().getStringWithMetadata());
 			}
 			else {
-				LOG.warn("Unrecognized worker {}.", workerNode.getResourceID());
+				LOG.warn("Unrecognized worker {}.", workerNode.getResourceID().getStringWithMetadata());
 			}
 		}
 		catch (Exception e) {

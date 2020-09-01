@@ -20,6 +20,8 @@ package org.apache.flink.runtime.util.config.memory;
 
 import org.apache.flink.configuration.MemorySize;
 
+import java.util.Objects;
+
 /**
  * Common memory components of Flink processes (e.g. JM or TM).
  *
@@ -93,5 +95,24 @@ public class CommonProcessMemorySpec<FM extends FlinkMemory> implements ProcessM
 
 	public MemorySize getTotalProcessMemorySize() {
 		return flinkMemory.getTotalFlinkMemorySize().add(getJvmMetaspaceSize()).add(getJvmOverheadSize());
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		} else if (obj instanceof CommonProcessMemorySpec<?> ) {
+			CommonProcessMemorySpec<?> that = (CommonProcessMemorySpec<?>) obj;
+			return Objects.equals(this.flinkMemory, that.flinkMemory) &&
+					Objects.equals(this.jvmMetaspaceAndOverhead, that.jvmMetaspaceAndOverhead);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+				flinkMemory,
+				jvmMetaspaceAndOverhead);
 	}
 }

@@ -1023,6 +1023,35 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testCreateTableIfNotExists() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		String sessionId = executor.openSession(session);
+		final String ddlTemplate = "create table if not exists %s(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c varchar\n" +
+			") with (\n" +
+			"  'connector.type'='filesystem',\n" +
+			"  'format.type'='csv',\n" +
+			"  'connector.path'='xxx'\n" +
+			")\n";
+		try {
+			// Test create table twice.
+			executor.executeSql(sessionId, "use catalog catalog1");
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable1"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Collections.singletonList("MyTable1"));
+
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			executor.executeSql(sessionId, String.format(ddlTemplate, "MyTable2"));
+			assertShowResult(executor.executeSql(sessionId, "SHOW TABLES"), Arrays.asList("MyTable1", "MyTable2"));
+		} finally {
+			executor.closeSession(sessionId);
+		}
+	}
+
+	@Test
 	public void testCreateTableWithComputedColumn() throws Exception {
 		// only blink planner support computed column for DDL
 		Assume.assumeTrue(planner.equals("blink"));

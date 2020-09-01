@@ -142,7 +142,7 @@ public class DataSink<T> {
 			this.sortOrders = new Order[flatKeys.length];
 			Arrays.fill(this.sortOrders, order);
 		} else {
-			// append sorting info to exising info
+			// append sorting info to existing info
 			int oldLength = this.sortKeyPositions.length;
 			int newLength = oldLength + flatKeys.length;
 			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);

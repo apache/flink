@@ -42,3 +42,11 @@ Core Classes:
     :class:`pyflink.table.Table`
 
     Core component of the Flink Table API. The Flink Table API is built around :class:`~pyflink.table.Table`.
+
+    :class:`pyflink.datastream.StreamExecutionEnvironment`
+
+    Main entry point for Flink DataStream functionality.
+
+    :class:`pyflink.datastream.DataStream`
+
+    Core component of the Flink DataStream API. The Flink DataStream API is built around :class:`~pyflink.datastream.DataStream`.

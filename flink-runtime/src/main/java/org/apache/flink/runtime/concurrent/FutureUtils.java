@@ -76,17 +76,17 @@ public class FutureUtils {
 	}
 
 	/**
-	 * Fakes asynchronous execution by immediately executing the operation and returns a (exceptionally) completed
-	 * future.
+	 * Fakes asynchronous execution by immediately executing the operation and completing the supplied future
+	 * either noramlly or exceptionally.
 	 *
 	 * @param operation to executed
 	 * @param <T> type of the result
 	 */
-	public static <T> CompletableFuture<T> runSync(Callable<T> operation) {
+	public static <T> void completeFromCallable(CompletableFuture<T> future, Callable<T> operation) {
 		try {
-			return CompletableFuture.completedFuture(operation.call());
+			future.complete(operation.call());
 		} catch (Exception e) {
-			return completedExceptionally(e);
+			future.completeExceptionally(e);
 		}
 	}
 

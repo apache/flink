@@ -35,7 +35,7 @@ class TableAggregateTest extends TableTestBase {
   def testTableAggregateWithGroupBy(): Unit = {
     val resultTable = table
       .groupBy('b % 5 as 'bb)
-      .flatAggregate(emptyFunc('a, 'b) as ('x, 'y))
+      .flatAggregate(call(emptyFunc, 'a, 'b) as ('x, 'y))
       .select('bb, 'x + 1, 'y)
 
     util.verifyPlan(resultTable)
@@ -74,7 +74,7 @@ class TableAggregateTest extends TableTestBase {
   def testTableAggregateWithAlias(): Unit = {
 
     val resultTable = table
-      .flatAggregate(emptyFunc('b) as ('a, 'b))
+      .flatAggregate(call(emptyFunc, 'b) as ('a, 'b))
       .select('a, 'b)
 
     util.verifyPlan(resultTable)

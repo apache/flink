@@ -23,6 +23,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -53,6 +54,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			@JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
 			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
 			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+			@JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration,
 			@JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
 		super(
 			resourceId,
@@ -63,7 +65,8 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			numberAvailableSlots,
 			totalResource,
 			freeResource,
-			hardwareDescription);
+			hardwareDescription,
+			memoryConfiguration);
 
 		this.taskManagerMetrics = Preconditions.checkNotNull(taskManagerMetrics);
 	}
@@ -79,6 +82,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			taskManagerInfo.getTotalResource(),
 			taskManagerInfo.getFreeResource(),
 			taskManagerInfo.getHardwareDescription(),
+			taskManagerInfo.getMemoryConfiguration(),
 			taskManagerMetrics);
 	}
 

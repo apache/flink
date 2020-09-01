@@ -19,13 +19,15 @@ import collections
 import os
 import sys
 
+from pyflink.java_gateway import get_gateway
 from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
                                        Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
                                        CustomFormatDescriptor, HBase)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+                                             PyFlinkBatchTableTestCase, exec_insert_table,
+                                             _load_specific_flink_module_jars)
 
 
 class FileSystemDescriptorTests(PyFlinkTestCase):
@@ -43,6 +45,11 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
 
 
 class KafkaDescriptorTests(PyFlinkTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-kafka-base')
 
     def test_version(self):
         kafka = Kafka().version("0.11")
@@ -165,8 +172,18 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
+    @classmethod
+    def tearDownClass(cls):
+        if cls._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
+
 
 class ElasticsearchDescriptorTest(PyFlinkTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-elasticsearch-base')
 
     def test_version(self):
         elasticsearch = Elasticsearch().version("6")
@@ -352,6 +369,11 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
+    @classmethod
+    def tearDownClass(cls):
+        if cls._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
+
 
 class CustomConnectorDescriptorTests(PyFlinkTestCase):
 
@@ -370,6 +392,11 @@ class CustomConnectorDescriptorTests(PyFlinkTestCase):
 
 
 class HBaseDescriptorTests(PyFlinkTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-hbase')
 
     def test_version(self):
         hbase = HBase().version("1.4.3")
@@ -464,6 +491,11 @@ class HBaseDescriptorTests(PyFlinkTestCase):
                     'connector.write.buffer-flush.interval': '123ms',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
 
 
 class OldCsvDescriptorTests(PyFlinkTestCase):
@@ -1146,10 +1178,7 @@ class AbstractTableDescriptorTests(object):
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
              .create_temporary_table("sink")
-        t_env.scan("source") \
-             .select("a + 1, b, c") \
-             .insert_into("sink")
-        self.t_env.execute("test")
+        exec_insert_table(t_env.from_path("source").select("a + 1, b, c"), "sink")
 
         with open(sink_path, 'r') as f:
             lines = f.read()

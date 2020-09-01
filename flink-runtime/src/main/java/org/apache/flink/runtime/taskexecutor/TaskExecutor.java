@@ -228,6 +228,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final HardwareDescription hardwareDescription;
 
+	private final TaskExecutorMemoryConfiguration memoryConfiguration;
+
 	private FileCache fileCache;
 
 	/** The heartbeat manager for job manager in the task manager. */
@@ -297,6 +299,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 
 		this.hardwareDescription = HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());
+		this.memoryConfiguration = TaskExecutorMemoryConfiguration.create(taskManagerConfiguration.getConfiguration());
 
 		this.resourceManagerAddress = null;
 		this.resourceManagerConnection = null;
@@ -1061,7 +1064,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 		if (task == null) {
 			return FutureUtils.completedExceptionally(new TaskNotRunningException(
-				"Task " + executionAttemptID.toHexString() + " not running on TaskManager"));
+				"Task " + executionAttemptID + " not running on TaskManager"));
 		}
 
 		try {
@@ -1128,6 +1131,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			getResourceID(),
 			unresolvedTaskManagerLocation.getDataPort(),
 			hardwareDescription,
+			memoryConfiguration,
 			taskManagerConfiguration.getDefaultSlotResourceProfile(),
 			taskManagerConfiguration.getTotalResourceProfile()
 		);
@@ -1685,7 +1689,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							String.format(
 								"Slot %s on TaskExecutor %s is not allocated by job %s.",
 								allocatedSlotInfo.getSlotIndex(),
-								getResourceID(),
+								getResourceID().getStringWithMetadata(),
 								allocatedSlotReport.getJobId())));
 			}
 		}
@@ -1739,12 +1743,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						throw new CompletionException(new FlinkException("Could not upload file " + fileTag + '.', e));
 					}
 				} else {
-					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID());
+					log.debug("The file {} does not exist on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 					throw new CompletionException(new FlinkException("The file " + fileTag + " does not exist on the TaskExecutor."));
 				}
 			}, ioExecutor);
 		} else {
-			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID());
+			log.debug("The file {} is unavailable on the TaskExecutor {}.", fileTag, getResourceID().getStringWithMetadata());
 			return FutureUtils.completedExceptionally(new FlinkException("The file " + fileTag + " is not available on the TaskExecutor."));
 		}
 	}
