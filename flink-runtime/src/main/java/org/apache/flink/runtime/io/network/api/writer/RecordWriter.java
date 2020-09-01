@@ -120,19 +120,14 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	public static ByteBuffer serializeRecord(
 			DataOutputSerializer serializer,
 			IOReadableWritable record) throws IOException {
-		serializer.clear();
-
 		// the initial capacity should be no less than 4 bytes
-		serializer.skipBytesToWrite(4);
+		serializer.setPositionUnsafe(4);
 
 		// write data
 		record.write(serializer);
 
 		// write length
-		int len = serializer.length() - 4;
-		serializer.setPosition(0);
-		serializer.writeInt(len);
-		serializer.skipBytesToWrite(len);
+		serializer.writeIntUnsafe(serializer.length() - 4, 0);
 
 		return serializer.wrapAsByteBuffer();
 	}
