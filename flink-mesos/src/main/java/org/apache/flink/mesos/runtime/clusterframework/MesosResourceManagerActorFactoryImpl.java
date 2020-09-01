@@ -63,6 +63,13 @@ public class MesosResourceManagerActorFactoryImpl implements MesosResourceManage
 	}
 
 	@Override
+	public ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self) {
+		return actorSystem.actorOf(
+				Props.create(MesosResourceManagerDriver.AkkaAdapter.class, self),
+				"MesosResourceManagerDriver");
+	}
+
+	@Override
 	public ActorRef createConnectionMonitor(Configuration flinkConfig) {
 		return actorSystem.actorOf(
 				ConnectionMonitor.createActorProps(ConnectionMonitor.class, flinkConfig),
