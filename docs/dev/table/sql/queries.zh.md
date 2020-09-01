@@ -64,7 +64,7 @@ final Schema schema = new Schema()
     .field("product", DataTypes.STRING())
     .field("amount", DataTypes.INT());
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(...)
     .withSchema(schema)
     .createTemporaryTable("RubberOrders");
@@ -101,7 +101,7 @@ val schema = new Schema()
     .field("product", DataTypes.STRING())
     .field("amount", DataTypes.INT())
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(...)
     .withSchema(schema)
     .createTemporaryTable("RubberOrders")
