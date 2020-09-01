@@ -74,6 +74,17 @@ public class RowDataToAvroConverters {
 
 		return (schema, object) -> {
 			final RowData row = (RowData) object;
+			if (Schema.Type.UNION == schema.getType()) {
+				List<Schema> types = schema.getTypes();
+				int size = types.size();
+				if (size == 2 && types.get(0).getType() == Schema.Type.NULL) {
+					schema = types.get(1);
+				} else if (size == 2 && types.get(1).getType() == Schema.Type.NULL) {
+					schema = types.get(0);
+				} else if (size == 1) {
+					schema = types.get(0);
+				}
+			}
 			final List<Schema.Field> fields = schema.getFields();
 			final GenericRecord record = new GenericData.Record(schema);
 			for (int i = 0; i < length; ++i) {
