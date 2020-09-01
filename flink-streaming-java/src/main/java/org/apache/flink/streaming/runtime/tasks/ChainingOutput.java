@@ -78,13 +78,9 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 
 	@Override
 	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
-			// we are not responsible for emitting to the side-output specified by this
-			// OutputTag.
-			return;
+		if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+			pushToOperator(record);
 		}
-
-		pushToOperator(record);
 	}
 
 	protected <X> void pushToOperator(StreamRecord<X> record) {
