@@ -743,7 +743,7 @@ TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 final Schema schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG());
+    .field("c", DataTypes.BIGINT());
 
 tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
@@ -768,9 +768,9 @@ val tableEnv = ... // see "Create a TableEnvironment" section
 val schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG())
+    .field("c", DataTypes.BIGINT())
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable")
