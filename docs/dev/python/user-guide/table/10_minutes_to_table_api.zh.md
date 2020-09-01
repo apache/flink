@@ -1,5 +1,5 @@
 ---
-title: "10分钟入门Python Table API"
+title: "Python Table API简介"
 nav-parent_id: python_tableapi
 nav-pos: 25
 ---
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document is a short introduction to PyFlink Table API, which is used to help novice users quickly understand the basic usage of PyFlink Table API.
+This document is a short introduction to the PyFlink Table API, which is used to help novice users quickly understand the basic usage of PyFlink Table API.
 For advanced usage, please refer to other documents in this User Guide.
 
 * This will be replaced by the TOC
@@ -177,7 +177,7 @@ The result is:
 
 By default the table schema is extracted from the data automatically. 
 
-If the table schema is not as your wish, you can specify it manually:
+If the automatically generated table schema isn't satisfactory, you can specify it manually:
 
 {% highlight python %}
 
@@ -300,6 +300,7 @@ table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30), ('Jack', 'FRANCE', 20)],
                                  ['name', 'country', 'revenue'])
+
 # compute revenue for all customers from France
 revenue = orders \
     .select("name, country, revenue") \
@@ -383,7 +384,7 @@ The result is:
 
 In fact, this shows the change logs received by the print sink.
 The output format of a change log is:
-{% highlight python %}
+{% highlight text %}
 {subtask id}> {message type}{string format of the value}
 {% endhighlight %}
 For example, "2> +I(4,11)" means this message comes from the 2nd subtask, and "+I" means it is an insert message. "(4, 11)" is the content of the message.
