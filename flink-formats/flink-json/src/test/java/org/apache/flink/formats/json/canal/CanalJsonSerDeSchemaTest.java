@@ -37,6 +37,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
@@ -48,7 +49,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link CanalJsonDeserializationSchema}.
  */
-public class CanalJsonDeserializationSchemaTest {
+public class CanalJsonSerDeSchemaTest {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
@@ -61,7 +62,7 @@ public class CanalJsonDeserializationSchemaTest {
 	).getLogicalType();
 
 	@Test
-	public void testDeserialization() throws Exception {
+	public void testSerializationDeserialization() throws Exception {
 		List<String> lines = readLines("canal-data.txt");
 		CanalJsonDeserializationSchema deserializationSchema = new CanalJsonDeserializationSchema(
 			SCHEMA,
@@ -131,7 +132,50 @@ public class CanalJsonDeserializationSchemaTest {
 			"-D(102,car battery,12V car battery,5.17)",
 			"-D(103,12-pack drill bits,12-pack of drill bits with sizes ranging from #40 to #3,0.8)"
 		);
-		assertEquals(expected, collector.list);
+		List<String> actual = collector.list.stream()
+			.map(Object::toString)
+			.collect(Collectors.toList());
+		assertEquals(expected, actual);
+
+		// test Serialization
+		CanalJsonSerializationSchema serializationSchema = new CanalJsonSerializationSchema(
+			SCHEMA,
+			TimestampFormat.ISO_8601);
+		serializationSchema.open(null);
+
+		List<String> result = new ArrayList<>();
+		for (RowData rowData : collector.list) {
+			result.add(new String(serializationSchema.serialize(rowData), StandardCharsets.UTF_8));
+		}
+
+		List<String> expectedResult = Arrays.asList("{\"data\":[{\"id\":101,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":3.14}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":8.1}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":103,\"name\":\"12-pack drill bits\",\"description\":\"12-pack of drill bits with sizes ranging from #40 to #3\",\"weight\":0.8}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":104,\"name\":\"hammer\",\"description\":\"12oz carpenter's hammer\",\"weight\":0.75}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":105,\"name\":\"hammer\",\"description\":\"14oz carpenter's hammer\",\"weight\":0.875}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":\"16oz carpenter's hammer\",\"weight\":1.0}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":107,\"name\":\"rocks\",\"description\":\"box of assorted rocks\",\"weight\":5.3}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":108,\"name\":\"jacket\",\"description\":\"water resistent black wind breaker\",\"weight\":0.1}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":109,\"name\":\"spare tire\",\"description\":\"24 inch spare tire\",\"weight\":22.2}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":\"16oz carpenter's hammer\",\"weight\":1.0}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":106,\"name\":\"hammer\",\"description\":\"18oz carpenter hammer\",\"weight\":1.0}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":107,\"name\":\"rocks\",\"description\":\"box of assorted rocks\",\"weight\":5.3}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":107,\"name\":\"rocks\",\"description\":\"box of assorted rocks\",\"weight\":5.1}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":110,\"name\":\"jacket\",\"description\":\"water resistent white wind breaker\",\"weight\":0.2}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.18}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":110,\"name\":\"jacket\",\"description\":\"water resistent white wind breaker\",\"weight\":0.2}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":110,\"name\":\"jacket\",\"description\":\"new water resistent white wind breaker\",\"weight\":0.5}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.18}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":101,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":3.14}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":101,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":5.17}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":8.1}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":5.17}],\"type\":\"INSERT\"}",
+			"{\"data\":[{\"id\":102,\"name\":\"car battery\",\"description\":\"12V car battery\",\"weight\":5.17}],\"type\":\"DELETE\"}",
+			"{\"data\":[{\"id\":103,\"name\":\"12-pack drill bits\",\"description\":\"12-pack of drill bits with sizes ranging from #40 to #3\",\"weight\":0.8}],\"type\":\"DELETE\"}");
+
+		assertEquals(expectedResult, result);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -139,7 +183,7 @@ public class CanalJsonDeserializationSchemaTest {
 	// --------------------------------------------------------------------------------------------
 
 	private static List<String> readLines(String resource) throws IOException {
-		final URL url = CanalJsonDeserializationSchemaTest.class.getClassLoader().getResource(resource);
+		final URL url = CanalJsonSerDeSchemaTest.class.getClassLoader().getResource(resource);
 		assert url != null;
 		Path path = new File(url.getFile()).toPath();
 		return Files.readAllLines(path);
@@ -147,11 +191,11 @@ public class CanalJsonDeserializationSchemaTest {
 
 	private static class SimpleCollector implements Collector<RowData> {
 
-		private List<String> list = new ArrayList<>();
+		private List<RowData> list = new ArrayList<>();
 
 		@Override
 		public void collect(RowData record) {
-			list.add(record.toString());
+			list.add(record);
 		}
 
 		@Override
