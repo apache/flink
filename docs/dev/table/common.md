@@ -770,7 +770,7 @@ val schema = new Schema()
     .field("b", DataTypes.STRING())
     .field("c", DataTypes.LONG())
 
-tableEnv.connect(new FileSystem("/path/to/file")
+tableEnv.connect(new FileSystem("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable")
