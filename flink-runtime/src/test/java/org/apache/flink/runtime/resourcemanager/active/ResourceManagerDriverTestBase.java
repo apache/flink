@@ -74,6 +74,7 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 	public void testTerminate() throws Exception {
 		final Context context = createContext();
 		context.runTest(() -> {
+			context.getDriver().onRevokeLeadership();
 			context.getDriver().terminate();
 			context.validateTermination();
 		});
@@ -161,6 +162,7 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 					resourceEventHandlerBuilder.build(),
 					mainThreadExecutor,
 					ForkJoinPool.commonPool());
+			driver.onGrantLeadership();
 
 			testMethod.run();
 		}

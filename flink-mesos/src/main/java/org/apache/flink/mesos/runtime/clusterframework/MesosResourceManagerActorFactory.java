@@ -41,6 +41,11 @@ public interface MesosResourceManagerActorFactory {
 	ActorRef createSelfActorForMesosResourceManager(MesosResourceManager self);
 
 	/**
+	 * Create self actor for mesos resource manager.
+	 */
+	ActorRef createSelfActorForMesosResourceManagerDriver(MesosResourceManagerDriver self);
+
+	/**
 	 * Create actor for the connection monitor.
 	 */
 	ActorRef createConnectionMonitor(Configuration flinkConfig);
