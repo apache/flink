@@ -24,6 +24,7 @@ under the License.
 -->
 
 <span class="label label-info">Changelog-Data-Capture Format</span>
+<span class="label label-info">Format: Serialization Schema</span>
 <span class="label label-info">Format: Deserialization Schema</span>
 
 * This will be replaced by the TOC
@@ -36,6 +37,9 @@ Flink 支持将 Canal 的 JSON 消息解析为 INSERT / UPDATE / DELETE 消息�
  - 日志审计
  - 数据库的实时物化视图
  - 关联维度数据库的变更历史，等等。
+
+Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Canal 格式的 JSON 消息，输出到 Kafka 等存储中。
+但需要注意的是，目前 Flink 还不支持将 UPDATE_BEFORE 和 UPDATE_AFTER 合并为一条 UPDATE 消息。因此，Flink 将 UPDATE_BEFORE 和 UDPATE_AFTER 分别编码为 DELETE 和 INSERT 类型的 Canal 消息。
 
 *注意：未来会支持 Canal protobuf 类型消息的解析以及输出 Canal 格式的消息。*
 
@@ -185,5 +189,5 @@ Format 参数
 数据类型映射
 ----------------
 
-目前，Canal Format 使用 JSON Format 进行反序列化。 有关数据类型映射的更多详细信息，请参阅 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
+目前，Canal Format 使用 JSON Format 进行序列化和反序列化。 有关数据类型映射的更多详细信息，请参阅 [JSON Format 文档]({% link dev/table/connectors/formats/json.zh.md %}#data-type-mapping)。
 
