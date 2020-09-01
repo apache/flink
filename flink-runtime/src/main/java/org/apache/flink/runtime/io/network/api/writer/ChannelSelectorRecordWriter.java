@@ -116,17 +116,12 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 	}
 
 	@Override
-	public void closeBufferBuilder(int targetChannel) {
-		if (bufferBuilders[targetChannel] != null) {
-			bufferBuilders[targetChannel].finish();
-			bufferBuilders[targetChannel] = null;
-		}
-	}
-
-	@Override
-	public void clearBuffers() {
-		for (int index = 0; index < numberOfChannels; index++) {
-			closeBufferBuilder(index);
+	public void closeBufferBuilders() {
+		for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
+			if (bufferBuilders[targetChannel] != null) {
+				bufferBuilders[targetChannel].finish();
+				bufferBuilders[targetChannel] = null;
+			}
 		}
 	}
 }

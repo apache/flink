@@ -163,7 +163,7 @@ public class PipelinedRegionSchedulingITCase extends TestLogger {
 				writer.emit(new IntValue(42));
 				writer.flushAll();
 			} finally {
-				writer.clearBuffers();
+				writer.close();
 			}
 
 			if (getIndexInSubtaskGroup() == 0) {
