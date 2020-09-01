@@ -1160,14 +1160,25 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return recordWriters;
 	}
 
+	@SuppressWarnings("unchecked")
 	private static <OUT> RecordWriter<SerializationDelegate<StreamRecord<OUT>>> createRecordWriter(
 			StreamEdge edge,
 			int outputIndex,
 			Environment environment,
 			String taskName,
 			long bufferTimeout) {
-		@SuppressWarnings("unchecked")
-		StreamPartitioner<OUT> outputPartitioner = (StreamPartitioner<OUT>) edge.getPartitioner();
+
+		StreamPartitioner<OUT> outputPartitioner = null;
+
+		// Clones the partition to avoid multiple stream edges sharing the same stream partitioner,
+		// like the case of https://issues.apache.org/jira/browse/FLINK-14087.
+		try {
+			outputPartitioner = InstantiationUtil.clone(
+				(StreamPartitioner<OUT>) edge.getPartitioner(),
+				Thread.currentThread().getContextClassLoader());
+		} catch (Exception e) {
+			ExceptionUtils.rethrow(e);
+		}
 
 		LOG.debug("Using partitioner {} for output {} of task {}", outputPartitioner, outputIndex, taskName);
 
@@ -1179,14 +1190,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (0 < numKeyGroups) {
 				((ConfigurableStreamPartitioner) outputPartitioner).configure(numKeyGroups);
 			}
-		}
-
-		// Clones the partition to avoid multiple stream edges sharing the same stream partitioner,
-		// like the case of https://issues.apache.org/jira/browse/FLINK-14087.
-		try {
-			outputPartitioner = InstantiationUtil.clone(outputPartitioner, Thread.currentThread().getContextClassLoader());
-		} catch (Exception e) {
-			ExceptionUtils.rethrow(e);
 		}
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
