@@ -79,11 +79,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
@@ -92,7 +88,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.spy;
 
 /**
  * Tests for the {@link RecordWriter}.
@@ -115,87 +110,6 @@ public class RecordWriterTest {
 	// ---------------------------------------------------------------------------------------------
 	// Resource release tests
 	// ---------------------------------------------------------------------------------------------
-
-	/**
-	 * Tests a fix for FLINK-2089.
-	 *
-	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-2089">FLINK-2089</a>
-	 */
-	@Test
-	public void testClearBuffersAfterInterruptDuringBlockingBufferRequest() throws Exception {
-		ExecutorService executor = null;
-
-		try {
-			executor = Executors.newSingleThreadExecutor();
-
-			TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(1);
-
-			KeepingPartitionWriter partitionWriter = new KeepingPartitionWriter(bufferProvider);
-
-			final RecordWriter<IntValue> recordWriter = createRecordWriter(partitionWriter);
-
-			CountDownLatch waitLock = new CountDownLatch(1);
-			Future<?> result = executor.submit(new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					IntValue val = new IntValue(0);
-
-					try {
-						recordWriter.emit(val);
-						recordWriter.flushAll();
-						waitLock.countDown();
-						recordWriter.emit(val);
-					}
-					catch (InterruptedException e) {
-						recordWriter.clearBuffers();
-					}
-
-					return null;
-				}
-			});
-
-			waitLock.await();
-
-			// Interrupt the Thread.
-			//
-			// The second emit call requests a new buffer and blocks the thread.
-			// When interrupting the thread at this point, clearing the buffers
-			// should not recycle any buffer.
-			result.cancel(true);
-
-			recordWriter.clearBuffers();
-
-			// Verify that the written out buffer has only been recycled once
-			// (by the partition writer), so no buffer recycled.
-			assertEquals(0, bufferProvider.getNumberOfAvailableBuffers());
-
-			partitionWriter.close();
-			assertEquals(1, bufferProvider.getNumberOfAvailableBuffers());
-		}
-		finally {
-			if (executor != null) {
-				executor.shutdown();
-			}
-		}
-	}
-
-	@Test
-	public void testSerializerClearedAfterClearBuffers() throws Exception {
-		ResultPartitionWriter partitionWriter =
-			spy(new RecyclingPartitionWriter(new TestPooledBufferProvider(1, 16)));
-
-		RecordWriter<IntValue> recordWriter = createRecordWriter(partitionWriter);
-
-		// Fill a buffer, but don't write it out.
-		recordWriter.emit(new IntValue(0));
-
-		// Clear all buffers.
-		recordWriter.clearBuffers();
-
-		// This should not throw an Exception iff the serializer state
-		// has been cleared as expected.
-		recordWriter.flushAll();
-	}
 
 	/**
 	 * Tests broadcasting events when no records have been emitted yet.

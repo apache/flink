@@ -163,16 +163,7 @@ public final class BroadcastRecordWriter<T extends IOReadableWritable> extends R
 	}
 
 	@Override
-	public void closeBufferBuilder(int targetChannel) {
-		closeBufferBuilder();
-	}
-
-	@Override
-	public void clearBuffers() {
-		closeBufferBuilder();
-	}
-
-	private void closeBufferBuilder() {
+	public void closeBufferBuilders() {
 		if (bufferBuilder != null) {
 			bufferBuilder.finish();
 			bufferBuilder = null;

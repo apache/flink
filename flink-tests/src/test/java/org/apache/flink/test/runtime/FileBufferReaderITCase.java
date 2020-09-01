@@ -71,7 +71,13 @@ public class FileBufferReaderITCase extends TestLogger {
 
 	private static final int numRecords = 100_000;
 
-	private static final byte[] dataSource = new byte[1024];
+	private static final int bufferSize = 4096;
+
+	private static final int headerSize = 8;
+
+	private static final int recordSize = bufferSize - headerSize;
+
+	private static final byte[] dataSource = new byte[recordSize];
 
 	@BeforeClass
 	public static void setup() {
@@ -87,6 +93,7 @@ public class FileBufferReaderITCase extends TestLogger {
 		configuration.setString(RestOptions.BIND_PORT, "0");
 		configuration.setString(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
 		configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
+		configuration.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(bufferSize + "b"));
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
@@ -153,12 +160,8 @@ public class FileBufferReaderITCase extends TestLogger {
 			final ByteArrayType bytes = new ByteArrayType(dataSource);
 			int counter = 0;
 			while (counter++ < numRecords) {
-				try {
-					writer.emit(bytes);
-					writer.flushAll();
-				} finally {
-					writer.clearBuffers();
-				}
+				writer.emit(bytes);
+				writer.flushAll();
 			}
 		}
 	}

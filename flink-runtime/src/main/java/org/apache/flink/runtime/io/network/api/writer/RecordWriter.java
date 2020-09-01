@@ -236,20 +236,15 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	abstract void emptyCurrentBufferBuilder(int targetChannel);
 
 	/**
-	 * Marks the current {@link BufferBuilder} as finished and releases the resources for the target channel.
+	 * Marks the current {@link BufferBuilder}s as finished and releases the resources.
 	 */
-	abstract void closeBufferBuilder(int targetChannel);
-
-	/**
-	 * Closes the {@link BufferBuilder}s for all the channels.
-	 */
-	public abstract void clearBuffers();
+	abstract void closeBufferBuilders();
 
 	/**
 	 * Closes the writer. This stops the flushing thread (if there is one).
 	 */
 	public void close() {
-		clearBuffers();
+		closeBufferBuilders();
 		// make sure we terminate the thread in any case
 		if (outputFlusher != null) {
 			outputFlusher.terminate();
