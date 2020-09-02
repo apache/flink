@@ -28,6 +28,7 @@ import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.scheduler.ConnectionMonitor;
 import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
+import org.apache.flink.mesos.scheduler.TaskSchedulerBuilder;
 import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
 import org.apache.flink.mesos.scheduler.messages.Disconnected;
 import org.apache.flink.mesos.scheduler.messages.OfferRescinded;
@@ -155,11 +156,6 @@ public class MesosResourceManagerTest extends TestLogger {
 	 */
 	static class TestingMesosResourceManager extends MesosResourceManager {
 
-		public TestProbe connectionMonitor = new TestProbe(system);
-		public TestProbe taskRouter = new TestProbe(system);
-		public TestProbe launchCoordinator = new TestProbe(system);
-		public TestProbe reconciliationCoordinator = new TestProbe(system);
-
 		public final Set<ResourceID> closedTaskManagerConnections = new HashSet<>();
 
 		public TestingMesosResourceManager(
@@ -197,26 +193,6 @@ public class MesosResourceManagerTest extends TestLogger {
 				null,
 				resourceManagerMetricGroup,
 				ForkJoinPool.commonPool());
-		}
-
-		@Override
-		protected ActorRef createConnectionMonitor() {
-			return connectionMonitor.ref();
-		}
-
-		@Override
-		protected ActorRef createTaskMonitor(SchedulerDriver schedulerDriver) {
-			return taskRouter.ref();
-		}
-
-		@Override
-		protected ActorRef createLaunchCoordinator(SchedulerDriver schedulerDriver, ActorRef selfActorRef) {
-			return launchCoordinator.ref();
-		}
-
-		@Override
-		protected ActorRef createReconciliationCoordinator(SchedulerDriver schedulerDriver) {
-			return reconciliationCoordinator.ref();
 		}
 
 		@Override
@@ -265,6 +241,11 @@ public class MesosResourceManagerTest extends TestLogger {
 
 		// job masters
 		public MockJobMaster jobMaster1;
+
+		public TestProbe connectionMonitor = new TestProbe(system);
+		public TestProbe taskRouter = new TestProbe(system);
+		public TestProbe launchCoordinator = new TestProbe(system);
+		public TestProbe reconciliationCoordinator = new TestProbe(system);
 
 		/**
 		 * Create mock RM dependencies.
@@ -394,8 +375,28 @@ public class MesosResourceManagerTest extends TestLogger {
 			}
 
 			@Override
-			public ActorSystem getLocalActorSystem() {
-				return system;
+			public MesosResourceManagerActorFactory createMesosResourceManagerActorFactory() {
+				return new MesosResourceManagerActorFactoryImpl(system) {
+					@Override
+					public ActorRef createConnectionMonitor(Configuration flinkConfig) {
+						return connectionMonitor.ref();
+					}
+
+					@Override
+					public ActorRef createTaskMonitor(Configuration flinkConfig, ActorRef resourceManagerActor, SchedulerDriver schedulerDriver) {
+						return taskRouter.ref();
+					}
+
+					@Override
+					public ActorRef createLaunchCoordinator(Configuration flinkConfig, ActorRef resourceManagerActor, SchedulerDriver schedulerDriver, TaskSchedulerBuilder optimizer) {
+						return launchCoordinator.ref();
+					}
+
+					@Override
+					public ActorRef createReconciliationCoordinator(Configuration flinkConfig, SchedulerDriver schedulerDriver) {
+						return reconciliationCoordinator.ref();
+					}
+				};
 			}
 
 			@Override
@@ -467,7 +468,7 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// drain probe events
 			verify(rmServices.schedulerDriver).start();
-			resourceManager.connectionMonitor.expectMsgClass(ConnectionMonitor.Start.class);
+			connectionMonitor.expectMsgClass(ConnectionMonitor.Start.class);
 		}
 
 		/**
@@ -500,8 +501,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			// drain the probe messages
 			verify(rmServices.workerStore, Mockito.timeout(timeout.toMilliseconds())).putWorker(expected);
 			assertThat(resourceManager.workersInNew, hasEntry(extractResourceID(taskID), expected));
-			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
-			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
+			taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
+			launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
 			return expected;
 		}
 
@@ -550,13 +551,13 @@ public class MesosResourceManagerTest extends TestLogger {
 			assertThat(resourceManager.workersInNew.entrySet(), empty());
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task2), worker2));
 			assertThat(resourceManager.workersBeingReturned, hasEntry(extractResourceID(task3), worker3));
-			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
+			taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
 			LaunchCoordinator.Assign actualAssign =
-				resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Assign.class);
+				launchCoordinator.expectMsgClass(LaunchCoordinator.Assign.class);
 			assertThat(actualAssign.tasks(), hasSize(1));
 			assertThat(actualAssign.tasks().get(0).f0.getId(), equalTo(task2.getValue()));
 			assertThat(actualAssign.tasks().get(0).f1, equalTo(slave1host));
-			resourceManager.launchCoordinator.expectNoMsg();
+			launchCoordinator.expectNoMsg();
 		}};
 	}
 
@@ -587,8 +588,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosWorkerStore.Worker expected = MesosWorkerStore.Worker.newWorker(task1, workerResourceSpec);
 			verify(rmServices.workerStore, Mockito.timeout(timeout.toMilliseconds())).putWorker(expected);
 			assertThat(resourceManager.workersInNew, hasEntry(extractResourceID(task1), expected));
-			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
-			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
+			taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
+			launchCoordinator.expectMsgClass(LaunchCoordinator.Launch.class);
 		}};
 	}
 
@@ -602,9 +603,9 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			// Verify that the RM forwards offers to the launch coordinator.
 			resourceManager.resourceOffers(new ResourceOffers(Collections.<Protos.Offer>emptyList()));
-			resourceManager.launchCoordinator.expectMsgClass(ResourceOffers.class);
+			launchCoordinator.expectMsgClass(ResourceOffers.class);
 			resourceManager.offerRescinded(new OfferRescinded(offer1));
-			resourceManager.launchCoordinator.expectMsgClass(OfferRescinded.class);
+			launchCoordinator.expectMsgClass(OfferRescinded.class);
 		}};
 	}
 
@@ -632,7 +633,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			verify(rmServices.workerStore).putWorker(worker1launched);
 			assertThat(resourceManager.workersInNew.entrySet(), empty());
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
-			resourceManager.taskRouter.expectMsg(
+			taskRouter.expectMsg(
 				new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker1launched)));
 			verify(rmServices.schedulerDriver).acceptOffers(msg.offerIds(), msg.operations(), msg.filters());
 		}};
@@ -649,8 +650,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			// Verify that the RM forwards status updates to the launch coordinator and task router.
 			resourceManager.statusUpdate(new StatusUpdate(Protos.TaskStatus.newBuilder()
 				.setTaskId(task1).setSlaveId(slave1).setState(Protos.TaskState.TASK_LOST).build()));
-			resourceManager.reconciliationCoordinator.expectMsgClass(StatusUpdate.class);
-			resourceManager.taskRouter.expectMsgClass(StatusUpdate.class);
+			reconciliationCoordinator.expectMsgClass(StatusUpdate.class);
+			taskRouter.expectMsgClass(StatusUpdate.class);
 		}};
 	}
 
@@ -739,7 +740,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			startResourceManager();
 
 			// drain the assign message
-			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Assign.class);
+			launchCoordinator.expectMsgClass(LaunchCoordinator.Assign.class);
 
 			// tell the RM to stop the worker
 			resourceManager.stopWorker(new RegisteredMesosWorkerNode(worker1launched));
@@ -751,8 +752,8 @@ public class MesosResourceManagerTest extends TestLogger {
 			assertThat(resourceManager.workersBeingReturned, hasEntry(extractResourceID(task1), worker1Released));
 
 			// verify that the monitor was notified
-			resourceManager.taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
-			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Unassign.class);
+			taskRouter.expectMsgClass(TaskMonitor.TaskGoalStateUpdated.class);
+			launchCoordinator.expectMsgClass(LaunchCoordinator.Unassign.class);
 		}};
 	}
 
@@ -786,10 +787,10 @@ public class MesosResourceManagerTest extends TestLogger {
 			resourceManager.registered(new Registered(framework1, masterInfo));
 
 			verify(rmServices.workerStore).setFrameworkID(Option.apply(framework1));
-			resourceManager.connectionMonitor.expectMsgClass(Registered.class);
-			resourceManager.reconciliationCoordinator.expectMsgClass(Registered.class);
-			resourceManager.launchCoordinator.expectMsgClass(Registered.class);
-			resourceManager.taskRouter.expectMsgClass(Registered.class);
+			connectionMonitor.expectMsgClass(Registered.class);
+			reconciliationCoordinator.expectMsgClass(Registered.class);
+			launchCoordinator.expectMsgClass(Registered.class);
+			taskRouter.expectMsgClass(Registered.class);
 		}};
 	}
 
@@ -807,10 +808,10 @@ public class MesosResourceManagerTest extends TestLogger {
 				.setId("master1").setIp(0).setPort(5050).build();
 			resourceManager.reregistered(new ReRegistered(masterInfo));
 
-			resourceManager.connectionMonitor.expectMsgClass(ReRegistered.class);
-			resourceManager.reconciliationCoordinator.expectMsgClass(ReRegistered.class);
-			resourceManager.launchCoordinator.expectMsgClass(ReRegistered.class);
-			resourceManager.taskRouter.expectMsgClass(ReRegistered.class);
+			connectionMonitor.expectMsgClass(ReRegistered.class);
+			reconciliationCoordinator.expectMsgClass(ReRegistered.class);
+			launchCoordinator.expectMsgClass(ReRegistered.class);
+			taskRouter.expectMsgClass(ReRegistered.class);
 		}};
 	}
 
@@ -825,10 +826,10 @@ public class MesosResourceManagerTest extends TestLogger {
 
 			resourceManager.disconnected(new Disconnected());
 
-			resourceManager.connectionMonitor.expectMsgClass(Disconnected.class);
-			resourceManager.reconciliationCoordinator.expectMsgClass(Disconnected.class);
-			resourceManager.launchCoordinator.expectMsgClass(Disconnected.class);
-			resourceManager.taskRouter.expectMsgClass(Disconnected.class);
+			connectionMonitor.expectMsgClass(Disconnected.class);
+			reconciliationCoordinator.expectMsgClass(Disconnected.class);
+			launchCoordinator.expectMsgClass(Disconnected.class);
+			taskRouter.expectMsgClass(Disconnected.class);
 		}};
 	}
 

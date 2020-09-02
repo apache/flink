@@ -19,11 +19,12 @@
 package org.apache.flink.mesos.runtime.clusterframework.services;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerActorFactory;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.util.MesosArtifactServer;
+import org.apache.flink.mesos.util.MesosConfiguration;
 
 import akka.actor.ActorSystem;
-import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 
@@ -44,12 +45,11 @@ public interface MesosServices {
 		Configuration configuration) throws Exception;
 
 	/**
-	 * Gets a local {@link ActorSystem} which is used for child actors within
-	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager}.
-	 *
-	 * @return a reference to an actor system.
+	 * Gets a {@link MesosResourceManagerActorFactory} which creates child actors within
+	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager} in a local {@link ActorSystem}.
+	 * @return the factory.
 	 */
-	ActorSystem getLocalActorSystem();
+	MesosResourceManagerActorFactory createMesosResourceManagerActorFactory();
 
 	/**
 	 * Gets the artifact server with which to serve essential resources to task managers.
