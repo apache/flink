@@ -1,6 +1,6 @@
 ---
 title: "Table API 教程"
-nav-parent_id: python_tutorial
+nav-parent_id: python
 nav-pos: 20
 ---
 <!--
@@ -27,11 +27,11 @@ under the License.
 
 在该教程中，我们会从零开始，介绍如何创建一个Flink Python项目及运行Python Table API程序。
 
-关于Python执行环境的要求，请参考Python Table API[环境安装]({% link dev/python/getting-started/installation.zh.md %})。
+关于Python执行环境的要求，请参考Python Table API[环境安装]({% link dev/python/installation.zh.md %})。
 
 ## 创建一个Python Table API项目
 
-首先，使用您最熟悉的IDE创建一个Python项目，然后安装PyFlink包，请参考[PyFlink安装指南]({% link dev/python/getting-started/installation.zh.md %}#pyflink-安装)了解详细信息。
+首先，使用您最熟悉的IDE创建一个Python项目，然后安装PyFlink包，请参考[PyFlink安装指南]({% link dev/python/installation.zh.md %}#pyflink-安装)了解详细信息。
 
 ## 编写一个Flink Python Table API程序
 

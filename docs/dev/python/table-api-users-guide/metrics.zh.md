@@ -29,7 +29,7 @@ PyFlink支持指标系统，该指标系统允许收集指标并将其暴露给�
 
 ## 注册指标
 
-您可以通过在[用户自定义函数]({% link dev/python/user-guide/table/udfs/python_udfs.zh.md %})的`open`方法中调用`function_context.get_metric_group()`来访问指标系统。
+您可以通过在[用户自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})的`open`方法中调用`function_context.get_metric_group()`来访问指标系统。
 `get_metric_group()`方法返回一个`MetricGroup`对象，您可以在该对象上创建和注册新指标。
 
 ### 指标类型
