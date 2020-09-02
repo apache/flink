@@ -122,7 +122,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -380,7 +379,6 @@ public class MesosResourceManagerTest extends TestLogger {
 				mesosConfig = mock(MesosConfiguration.class);
 				when(mesosConfig.frameworkInfo()).thenReturn(Protos.FrameworkInfo.newBuilder());
 				when(mesosConfig.withFrameworkInfo(any(Protos.FrameworkInfo.Builder.class))).thenReturn(mesosConfig);
-				when(mesosConfig.createDriver(any(Scheduler.class), anyBoolean())).thenReturn(schedulerDriver);
 
 				workerStore = mock(MesosWorkerStore.class);
 				when(workerStore.getFrameworkID()).thenReturn(Option.<Protos.FrameworkID>empty());
@@ -403,6 +401,11 @@ public class MesosResourceManagerTest extends TestLogger {
 			@Override
 			public MesosArtifactServer getArtifactServer() {
 				return rmServices.artifactServer;
+			}
+
+			@Override
+			public SchedulerDriver createMesosSchedulerDriver(MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements) {
+				return rmServices.schedulerDriver;
 			}
 
 			@Override
