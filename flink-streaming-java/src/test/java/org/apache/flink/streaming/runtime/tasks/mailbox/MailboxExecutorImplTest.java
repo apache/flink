@@ -80,6 +80,26 @@ public class MailboxExecutorImplTest {
 	}
 
 	@Test
+	public void testIsIdle() throws Exception {
+		MailboxProcessor processor = new MailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction);
+		MailboxExecutorImpl executor = (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
+
+		assertFalse(executor.isIdle());
+
+		processor.runMailboxStep(); // suspend default action after suspension
+		processor.mailbox.drain(); // drop any control mails
+
+		assertTrue(executor.isIdle());
+
+		executor.execute(() -> {}, "");
+		assertFalse(executor.isIdle());
+
+		processor.mailbox.drain();
+		processor.mailbox.quiesce();
+		assertFalse(executor.isIdle());
+	}
+
+	@Test
 	public void testOperations() throws Exception {
 		AtomicBoolean wasExecuted = new AtomicBoolean(false);
 		CompletableFuture.runAsync(() -> mailboxExecutor.execute(() -> wasExecuted.set(true), ""), otherThreadExecutor).get();
