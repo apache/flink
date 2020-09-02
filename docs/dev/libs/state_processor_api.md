@@ -612,5 +612,3 @@ Savepoint
 {% endhighlight %}
 </div>
 </div>
-
-{% panel **Note:** When basing a new savepoint on existing state, the state processor api makes a shallow copy of the pointers to the existing operators. This means that both savepoints share state and one cannot be deleted without corrupting the other! %}
