@@ -553,28 +553,33 @@ class StreamExecutionEnvironment(object):
             .getEnvironmentConfig(self._j_stream_execution_environment)
         env_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
-    def add_jars(self, key: str, jars_path: str):
+    def add_jars(self, jars_path: str):
         """
-        Adds the given jars path into the configuration of StreamExecutionEnvironment.
+        Adds a list of jar files that contain the user-defined function (UDF) classes and all
+        classes used from within the UDFs.
 
-        Note that users are able to configure two types of jars distinguished by key:
-            1. pipeline.jars:  A list of jar files that contain the user-defined function (UDF)
-               classes and all classes used from within the UDFs.
-            2. pipeline.classpaths: A list of URLs that are added to the classpath of each user code
-               classloader of the program. Paths must specify a protocol (e.g. file://) and be
-               accessible on all nodes
-
-        :param key: The key of jars type, must be one of 'pipeline.jars' and 'pipeline.classpaths'.
         :param jars_path: Path of jars that delimited by ';'.
         """
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        add_jars_to_context_class_loader(jars_path.split(";"))
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
+            .getEnvironmentConfig(self._j_stream_execution_environment)
+        env_config.setString(jars_key, jars_path)
+
+    def add_classpaths(self, classpaths: str):
+        """
+        Adds a list of URLs that are added to the classpath of each user code classloader of the
+        program. Paths must specify a protocol (e.g. file://) and be accessible on all nodes
+
+        :param classpaths: Classpaths that delimited by ';'.
+        """
+        jvm = get_gateway().jvm
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
-        if key in [jars_key, classpaths_key]:
-            add_jars_to_context_class_loader(jars_path.split(";"))
-            env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
-                .getEnvironmentConfig(self._j_stream_execution_environment)
-            env_config.setString(key, jars_path)
+        add_jars_to_context_class_loader(classpaths.split(";"))
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
+            .getEnvironmentConfig(self._j_stream_execution_environment)
+        env_config.setString(classpaths_key, classpaths)
 
     def get_default_local_parallelism(self):
         """

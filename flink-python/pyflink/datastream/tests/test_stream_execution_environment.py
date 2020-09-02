@@ -432,7 +432,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
         specific_jars = ';'.join(specific_jars)
 
-        self.env.add_jars('pipeline.jars', specific_jars)
+        self.env.add_jars(specific_jars)
         source_topic = 'test_source_topic'
         props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
         type_info = Types.ROW([Types.INT(), Types.STRING()])
@@ -442,6 +442,29 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             .type_info(type_info=type_info).build()
 
         # Will get a ClassNotFoundException if not add the kafka connector into the pipeline jars.
+        kafka_consumer = FlinkKafkaConsumer(source_topic, deserialization_schema, props)
+        self.env.add_source(kafka_consumer).print()
+        self.env.get_execution_plan()
+
+    def test_add_classpaths(self):
+        # find kafka connector jars
+        flink_source_root = _find_flink_source_root()
+        jars_abs_path = flink_source_root + '/flink-connectors/flink-sql-connector-kafka'
+        specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
+        specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
+        specific_jars = ';'.join(specific_jars)
+
+        self.env.add_classpaths(specific_jars)
+        source_topic = 'test_source_topic'
+        props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
+        type_info = Types.ROW([Types.INT(), Types.STRING()])
+
+        # Test for kafka consumer
+        deserialization_schema = JsonRowDeserializationSchema.builder() \
+            .type_info(type_info=type_info).build()
+
+        # Will get a ClassNotFoundException if not add the kafka connector into the pipeline
+        # classpaths.
         kafka_consumer = FlinkKafkaConsumer(source_topic, deserialization_schema, props)
         self.env.add_source(kafka_consumer).print()
         self.env.get_execution_plan()
