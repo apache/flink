@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -25,7 +25,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -44,7 +43,7 @@ import java.util.concurrent.CompletionException;
 /**
  * A {@link JobClient} for a {@link MiniCluster}.
  */
-final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequestGateway {
+public final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequestGateway {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PerJobMiniClusterJobClient.class);
 
@@ -53,7 +52,7 @@ final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequest
 	private final CompletableFuture<JobResult> jobResultFuture;
 	private final ClassLoader classLoader;
 
-	PerJobMiniClusterJobClient(JobID jobID, MiniCluster miniCluster, ClassLoader classLoader) {
+	public PerJobMiniClusterJobClient(JobID jobID, MiniCluster miniCluster, ClassLoader classLoader) {
 		this.jobID = jobID;
 		this.miniCluster = miniCluster;
 		this.jobResultFuture = miniCluster
