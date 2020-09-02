@@ -27,7 +27,6 @@ import org.apache.flink.mesos.scheduler.LaunchCoordinator;
 import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.TaskSchedulerBuilder;
-import org.apache.flink.mesos.scheduler.Tasks;
 import org.apache.flink.mesos.scheduler.messages.AcceptOffers;
 import org.apache.flink.mesos.scheduler.messages.Disconnected;
 import org.apache.flink.mesos.scheduler.messages.ExecutorLost;
@@ -44,7 +43,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -61,10 +59,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
 import akka.actor.UntypedAbstractActor;
-import akka.pattern.Patterns;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskScheduler;
 import com.netflix.fenzo.VirtualMachineLease;
@@ -119,8 +114,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	/** Persistent storage of allocated containers. */
 	private MesosWorkerStore workerStore;
 
-	/** A local actor system for using the helper actors. */
-	private final ActorSystem actorSystem;
+	/** Factory for creating local actors. */
+	private final MesosResourceManagerActorFactory actorFactory;
 
 	/** Web url to show in mesos page. */
 	@Nullable
@@ -182,7 +177,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			ioExecutor);
 
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
-		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());
+		this.actorFactory = Preconditions.checkNotNull(mesosServices.createMesosResourceManagerActorFactory());
 
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.mesosConfig = Preconditions.checkNotNull(mesosConfig);
@@ -196,38 +191,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersInNew = new HashMap<>(8);
 		this.workersInLaunch = new HashMap<>(8);
 		this.workersBeingReturned = new HashMap<>(8);
-	}
-
-	protected ActorRef createSelfActor() {
-		return actorSystem.actorOf(
-			Props.create(AkkaAdapter.class, this),
-			"ResourceManager");
-	}
-
-	protected ActorRef createConnectionMonitor() {
-		return actorSystem.actorOf(
-			ConnectionMonitor.createActorProps(ConnectionMonitor.class, flinkConfig),
-			"connectionMonitor");
-	}
-
-	protected ActorRef createTaskMonitor(SchedulerDriver schedulerDriver) {
-		return actorSystem.actorOf(
-			Tasks.createActorProps(Tasks.class, selfActor, flinkConfig, schedulerDriver, TaskMonitor.class),
-			"tasks");
-	}
-
-	protected ActorRef createLaunchCoordinator(
-			SchedulerDriver schedulerDriver,
-			ActorRef selfActor) {
-		return actorSystem.actorOf(
-			LaunchCoordinator.createActorProps(LaunchCoordinator.class, selfActor, flinkConfig, schedulerDriver, createOptimizer()),
-			"launchCoordinator");
-	}
-
-	protected ActorRef createReconciliationCoordinator(SchedulerDriver schedulerDriver) {
-		return actorSystem.actorOf(
-			ReconciliationCoordinator.createActorProps(ReconciliationCoordinator.class, flinkConfig, schedulerDriver),
-			"reconciliationCoordinator");
 	}
 
 	// ------------------------------------------------------------------------
@@ -267,7 +230,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		initializedMesosConfig = mesosConfig.withFrameworkInfo(frameworkInfo);
 		MesosConfiguration.logMesosConfig(LOG, initializedMesosConfig);
 
-		this.selfActor = createSelfActor();
+		this.selfActor = actorFactory.createSelfActorForMesosResourceManager(this);
 
 		// configure the artifact server to serve the TM container artifacts
 		try {
@@ -288,10 +251,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				false);
 
 		// create supporting actors
-		connectionMonitor = createConnectionMonitor();
-		launchCoordinator = createLaunchCoordinator(schedulerDriver, selfActor);
-		reconciliationCoordinator = createReconciliationCoordinator(schedulerDriver);
-		taskMonitor = createTaskMonitor(schedulerDriver);
+		connectionMonitor = actorFactory.createConnectionMonitor(flinkConfig);
+		launchCoordinator = actorFactory.createLaunchCoordinator(flinkConfig, selfActor, schedulerDriver, createOptimizer());
+		reconciliationCoordinator = actorFactory.createReconciliationCoordinator(flinkConfig, schedulerDriver);
+		taskMonitor = actorFactory.createTaskMonitor(flinkConfig, selfActor, schedulerDriver);
 
 		return getWorkersAsync().thenApplyAsync((tasksFromPreviousAttempts) -> {
 			// recover state
@@ -378,16 +341,16 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	private CompletableFuture<Void> stopSupportingActorsAsync() {
 		FiniteDuration stopTimeout = new FiniteDuration(5L, TimeUnit.SECONDS);
 
-		CompletableFuture<Boolean> stopTaskMonitorFuture = stopActor(taskMonitor, stopTimeout);
+		CompletableFuture<Boolean> stopTaskMonitorFuture = actorFactory.stopActor(taskMonitor, stopTimeout);
 		taskMonitor = null;
 
-		CompletableFuture<Boolean> stopConnectionMonitorFuture = stopActor(connectionMonitor, stopTimeout);
+		CompletableFuture<Boolean> stopConnectionMonitorFuture = actorFactory.stopActor(connectionMonitor, stopTimeout);
 		connectionMonitor = null;
 
-		CompletableFuture<Boolean> stopLaunchCoordinatorFuture = stopActor(launchCoordinator, stopTimeout);
+		CompletableFuture<Boolean> stopLaunchCoordinatorFuture = actorFactory.stopActor(launchCoordinator, stopTimeout);
 		launchCoordinator = null;
 
-		CompletableFuture<Boolean> stopReconciliationCoordinatorFuture = stopActor(reconciliationCoordinator, stopTimeout);
+		CompletableFuture<Boolean> stopReconciliationCoordinatorFuture = actorFactory.stopActor(reconciliationCoordinator, stopTimeout);
 		reconciliationCoordinator = null;
 
 		return CompletableFuture.allOf(
@@ -676,32 +639,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Tries to shut down the given actor gracefully.
-	 *
-	 * @param actorRef specifying the actor to shut down
-	 * @param timeout  for the graceful shut down
-	 * @return A future that finishes with {@code true} iff. the actor could be stopped gracefully
-	 * or {@code actorRef} was {@code null}.
-	 */
-	private CompletableFuture<Boolean> stopActor(@Nullable final ActorRef actorRef, FiniteDuration timeout) {
-		if (actorRef == null) {
-			return CompletableFuture.completedFuture(true);
-		}
-
-		return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
-			.exceptionally(
-				(Throwable throwable) -> {
-					// The actor did not stop gracefully in time, try to directly stop it
-					actorSystem.stop(actorRef);
-
-					log.warn("Could not stop actor {} gracefully.", actorRef.path(), throwable);
-
-					return false;
-				}
-			);
-	}
-
-	/**
 	 * Creates a launchable task for Fenzo to process.
 	 */
 	private LaunchableMesosWorker createLaunchableMesosWorker(Protos.TaskID taskID) {
@@ -882,7 +819,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	/**
 	 * Adapts incoming Akka messages as RPC calls to the resource manager.
 	 */
-	private class AkkaAdapter extends UntypedAbstractActor {
+	class AkkaAdapter extends UntypedAbstractActor {
 		@Override
 		public void onReceive(final Object message) throws Exception {
 			if (message instanceof ReconciliationCoordinator.Reconcile) {
