@@ -160,7 +160,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 				.getBootstrapTransformation()
 				.writeOperatorState(newOperatorState.getOperatorID(), stateBackend, metadata.getMaxParallelism(), savepointWritePath))
 			.reduce(DataSet::union)
-			.orElseThrow(() -> new IllegalStateException("Savepoint's must contain at least one operator"));
+			.orElseThrow(() -> new IllegalStateException("Savepoint must contain at least one operator"));
 	}
 
 	/**
