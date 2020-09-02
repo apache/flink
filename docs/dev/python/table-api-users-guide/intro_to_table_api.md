@@ -114,9 +114,9 @@ The `TableEnvironment` is responsible for:
 * Creating `Table`s
 * Registering `Table`s as a temporary view
 * Executing SQL queries, see [SQL]({% link dev/table/sql/index.md %}) for more details
-* Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %}) and [Vectorized User-defined Functions]({% link dev/python/user-guide/table/udfs/vectorized_python_udfs.md %}) for more details
-* Configuring the job, see [Python Configuration]({% link dev/python/user-guide/table/python_config.md %}) for more details
-* Managing Python dependencies, see [Dependency Management]({% link dev/python/user-guide/table/dependency_management.md %}) for more details
+* Registering user-defined (scalar, table, or aggregation) functions, see [General User-defined Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) and [Vectorized User-defined Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}) for more details
+* Configuring the job, see [Python Configuration]({% link dev/python/table-api-users-guide/python_config.md %}) for more details
+* Managing Python dependencies, see [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.md %}) for more details
 * Submitting the jobs for execution
 
 Currently there are 2 planners available: flink planner and blink planner.
@@ -482,7 +482,7 @@ Emit Results
 
 ### Collect Results to Client
 
-You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({% link dev/python/user-guide/table/conversion_of_pandas.md %}#convert-pyflink-table-to-pandas-dataframe):
+You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({% link dev/python/table-api-users-guide/conversion_of_pandas.md %}#convert-pyflink-table-to-pandas-dataframe):
 
 {% highlight python %}
 

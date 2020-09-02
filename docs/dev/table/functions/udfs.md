@@ -718,7 +718,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 </div>
 
-If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %}#scalar-functions) documentation for more details.
+If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#scalar-functions) documentation for more details.
 
 {% top %}
 
@@ -876,7 +876,7 @@ env.sqlQuery(
 
 If you intend to implement functions in Scala, do not implement a table function as a Scala `object`. Scala `object`s are singletons and will cause concurrency issues.
 
-If you intend to implement or call functions in Python, please refer to the [Python Table Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %}#table-functions) documentation for more details.
+If you intend to implement or call functions in Python, please refer to the [Python Table Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#table-functions) documentation for more details.
 
 {% top %}
 
@@ -914,7 +914,7 @@ includes the generic argument `ACC` of the class for determining an accumulator 
 argument `T` for determining an accumulator data type. Input arguments are derived from one or more
 `accumulate(...)` methods. See the [Implementation Guide](#implementation-guide) for more details.
 
-If you intend to implement or call functions in Python, please refer to the [Python Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %})
+If you intend to implement or call functions in Python, please refer to the [Python Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %})
 documentation for more details.
 
 The following example shows how to define your own aggregate function and call it in a query.
@@ -1264,7 +1264,7 @@ includes the generic argument `ACC` of the class for determining an accumulator 
 argument `T` for determining an accumulator data type. Input arguments are derived from one or more
 `accumulate(...)` methods. See the [Implementation Guide](#implementation-guide) for more details.
 
-If you intend to implement or call functions in Python, please refer to the [Python Functions]({% link dev/python/user-guide/table/udfs/python_udfs.md %})
+If you intend to implement or call functions in Python, please refer to the [Python Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %})
 documentation for more details.
 
 The following example shows how to define your own table aggregate function and call it in a query.

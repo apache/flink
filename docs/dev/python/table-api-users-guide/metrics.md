@@ -29,7 +29,7 @@ PyFlink exposes a metric system that allows gathering and exposing metrics to ex
 
 ## Registering metrics
 
-You can access the metric system from a [User-defined Function]({% link dev/python/user-guide/table/udfs/python_udfs.md %}) by calling `function_context.get_metric_group()` in the `open` method.
+You can access the metric system from a [User-defined Function]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) by calling `function_context.get_metric_group()` in the `open` method.
 The `get_metric_group()` method returns a `MetricGroup` object on which you can create and register new metrics.
 
 ### Metric types

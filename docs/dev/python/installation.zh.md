@@ -1,7 +1,7 @@
 ---
 title: "环境安装"
-nav-parent_id: python_start
-nav-pos: 10
+nav-parent_id: python
+nav-pos: 15
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

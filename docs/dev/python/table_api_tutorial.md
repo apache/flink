@@ -1,6 +1,6 @@
 ---
 title: "Table API Tutorial"
-nav-parent_id: python_tutorial
+nav-parent_id: python
 nav-pos: 20
 ---
 <!--
@@ -24,14 +24,14 @@ under the License.
 
 This walkthrough will quickly get you started building a pure Python Flink project.
 
-Please refer to the Python Table API [installation guide]({% link dev/python/getting-started/installation.md %}) on how to set up the Python execution environments.
+Please refer to the Python Table API [installation guide]({% link dev/python/installation.md %}) on how to set up the Python execution environments.
 
 * This will be replaced by the TOC
 {:toc}
 
 ## Setting up a Python Project
 
-You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({% link dev/python/getting-started/installation.md %}#installation-of-pyflink).
+You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({% link dev/python/installation.md %}#installation-of-pyflink).
 
 ## Writing a Flink Python Table API Program
 
