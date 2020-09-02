@@ -23,6 +23,9 @@ import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.util.MesosArtifactServer;
 
 import akka.actor.ActorSystem;
+import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.mesos.Scheduler;
+import org.apache.mesos.SchedulerDriver;
 
 /**
  * Service factory interface for Mesos.
@@ -53,6 +56,15 @@ public interface MesosServices {
 	 * @return a reference to an artifact server.
 	 */
 	MesosArtifactServer getArtifactServer();
+
+	/**
+	 * Create the Mesos scheduler driver.
+	 * @param mesosConfig configuration of the scheduler
+	 * @param scheduler the scheduler to use.
+	 * @param implicitAcknowledgements whether to configure the driver for implicit acknowledgements.
+	 * @return a scheduler driver.
+	 */
+	SchedulerDriver createMesosSchedulerDriver(MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements);
 
 	/**
 	 * Closes all state maintained by the mesos services implementation.
