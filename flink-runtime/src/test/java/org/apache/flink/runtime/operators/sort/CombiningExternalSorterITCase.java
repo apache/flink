@@ -53,9 +53,11 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class CombiningUnilateralSortMergerITCase extends TestLogger {
+import static org.junit.Assert.assertEquals;
+
+public class CombiningExternalSorterITCase extends TestLogger {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(CombiningUnilateralSortMergerITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CombiningExternalSorterITCase.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -79,7 +81,6 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 	private TypeComparator<Tuple2<Integer, String>> comparator1;
 	private TypeComparator<Tuple2<Integer, Integer>> comparator2;
 
-	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
 		this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
@@ -115,10 +116,20 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		LOG.debug("initializing sortmerger");
 		
 		TestCountCombiner comb = new TestCountCombiner();
-		
-		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.25, 64, 0.7f, true /* use large record handler */, false);
+
+		Sorter<Tuple2<Integer, Integer>> merger =
+			ExternalSorter.newBuilder(
+				this.memoryManager,
+				this.parentTask,
+				this.serializerFactory2.getSerializer(),
+				this.comparator2)
+				.maxNumFileHandles(64)
+				.withCombiner(comb)
+				.enableSpilling(this.ioManager, 0.7f)
+				.memoryFraction(0.25)
+				.objectReuse(false)
+				.largeRecords(true)
+				.build(reader);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -135,13 +146,13 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 
 		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
 		while (result.hasNext()) {
-			Assert.assertEquals(noKeyCnt, result.next().intValue());
+			assertEquals(noKeyCnt, result.next().intValue());
 		}
 		
 		merger.close();
 		
 		// if the combiner was opened, it must have been closed
-		Assert.assertTrue(comb.opened == comb.closed);
+		assertEquals(comb.opened, comb.closed);
 	}
 	
 	@Test
@@ -155,9 +166,19 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		
 		TestCountCombiner comb = new TestCountCombiner();
 		
-		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 64, 0.005f, true /* use large record handler */, true);
+		Sorter<Tuple2<Integer, Integer>> merger =
+			ExternalSorter.newBuilder(
+				this.memoryManager,
+				this.parentTask,
+				this.serializerFactory2.getSerializer(),
+				this.comparator2)
+				.maxNumFileHandles(64)
+				.withCombiner(comb)
+				.enableSpilling(this.ioManager, 0.005f)
+				.memoryFraction(0.01)
+				.objectReuse(true)
+				.largeRecords(true)
+				.build(reader);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 		rec.setField(1, 1);
@@ -174,13 +195,13 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 
 		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
 		while (result.hasNext()) {
-			Assert.assertEquals(noKeyCnt, result.next().intValue());
+			assertEquals(noKeyCnt, result.next().intValue());
 		}
 		
 		merger.close();
 		
 		// if the combiner was opened, it must have been closed
-		Assert.assertTrue(comb.opened == comb.closed);
+		assertEquals(comb.opened, comb.closed);
 	}
 
 	@Test
@@ -195,9 +216,19 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		MaterializedCountCombiner comb = new MaterializedCountCombiner();
 
 		// set maxNumFileHandles = 2 to trigger multiple channel merging
-		Sorter<Tuple2<Integer, Integer>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory2, this.comparator2,
-				0.01, 2, 0.005f, true /* use large record handler */, false);
+		Sorter<Tuple2<Integer, Integer>> merger =
+			ExternalSorter.newBuilder(
+				this.memoryManager,
+				this.parentTask,
+				this.serializerFactory2.getSerializer(),
+				this.comparator2)
+				.maxNumFileHandles(2)
+				.withCombiner(comb)
+				.enableSpilling(this.ioManager, 0.005f)
+				.memoryFraction(0.01)
+				.objectReuse(false)
+				.largeRecords(true)
+				.build(reader);
 
 		final Tuple2<Integer, Integer> rec = new Tuple2<>();
 
@@ -213,7 +244,7 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		MutableObjectIterator<Tuple2<Integer, Integer>> iterator = merger.getIterator();
 		Iterator<Integer> result = getReducingIterator(iterator, serializerFactory2.getSerializer(), comparator2.duplicate());
 		while (result.hasNext()) {
-			Assert.assertEquals(4950, result.next().intValue());
+			assertEquals(4950, result.next().intValue());
 		}
 
 		merger.close();
@@ -238,9 +269,19 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		
 		TestCountCombiner2 comb = new TestCountCombiner2();
 		
-		Sorter<Tuple2<Integer, String>> merger = new CombiningUnilateralSortMerger<>(comb,
-				this.memoryManager, this.ioManager, reader, this.parentTask, this.serializerFactory1, this.comparator1,
-				0.25, 2, 0.7f, true /* use large record handler */, false);
+		Sorter<Tuple2<Integer, String>> merger =
+			ExternalSorter.newBuilder(
+				this.memoryManager,
+				this.parentTask,
+				this.serializerFactory1.getSerializer(),
+				this.comparator1)
+				.maxNumFileHandles(2)
+				.withCombiner(comb)
+				.enableSpilling(this.ioManager, 0.7f)
+				.memoryFraction(0.25)
+				.objectReuse(false)
+				.largeRecords(true)
+				.build(reader);
 
 		// emit data
 		LOG.debug("emitting data");
@@ -264,7 +305,7 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		
 		Tuple2<Integer, String> rec1 = new Tuple2<>();
 		Tuple2<Integer, String> rec2 = new Tuple2<>();
-		
+
 		Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
 		countTable.put(rec1.f0, countTable.get(rec1.f0) - (Integer.parseInt(rec1.f1)));
 
@@ -279,13 +320,13 @@ public class CombiningUnilateralSortMergerITCase extends TestLogger {
 		}
 
 		for (Integer cnt : countTable.values()) {
-			Assert.assertTrue(cnt == 0);
+			assertEquals(0, (int) cnt);
 		}
 		
 		merger.close();
 		
 		// if the combiner was opened, it must have been closed
-		Assert.assertTrue(comb.opened == comb.closed);
+		assertEquals(comb.opened, comb.closed);
 	}
 
 	// --------------------------------------------------------------------------------------------

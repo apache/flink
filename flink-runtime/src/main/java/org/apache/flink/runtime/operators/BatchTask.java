@@ -51,8 +51,8 @@ import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableOb
 import org.apache.flink.runtime.operators.shipping.OutputCollector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
-import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
+import org.apache.flink.runtime.operators.sort.Sorter;
+import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -939,11 +939,18 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				break;
 			case SORT:
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
-					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
-					this.getExecutionConfig().isObjectReuseEnabled());
+				Sorter<?> sorter =
+					ExternalSorter.newBuilder(
+							getMemoryManager(),
+							this,
+							this.inputSerializers[inputNum].getSerializer(),
+							getLocalStrategyComparator(inputNum))
+						.maxNumFileHandles(this.config.getFilehandlesInput(inputNum))
+						.enableSpilling(getIOManager(), this.config.getSpillingThresholdInput(inputNum))
+						.memoryFraction(this.config.getRelativeMemoryInput(inputNum))
+						.objectReuse(this.getExecutionConfig().isObjectReuseEnabled())
+						.largeRecords(this.getTaskConfig().getUseLargeRecordHandler())
+						.build((MutableObjectIterator) this.inputIterators[inputNum]);
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = sorter;
@@ -975,13 +982,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
-					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getTaskConfig().getUseLargeRecordHandler(),
-					this.getExecutionConfig().isObjectReuseEnabled());
-				cSorter.setUdfConfiguration(this.config.getStubParameters());
+				Sorter<?> cSorter =
+					ExternalSorter.newBuilder(
+							getMemoryManager(),
+							this,
+							this.inputSerializers[inputNum].getSerializer(),
+							getLocalStrategyComparator(inputNum))
+						.maxNumFileHandles(this.config.getFilehandlesInput(inputNum))
+						.withCombiner((GroupCombineFunction) localStub, this.config.getStubParameters())
+						.enableSpilling(getIOManager(), this.config.getSpillingThresholdInput(inputNum))
+						.memoryFraction(this.config.getRelativeMemoryInput(inputNum))
+						.objectReuse(this.getExecutionConfig().isObjectReuseEnabled())
+						.largeRecords(this.getTaskConfig().getUseLargeRecordHandler())
+						.build(this.inputIterators[inputNum]);
 
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;

@@ -20,13 +20,9 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
-import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.
- * 
  */
-public interface Sorter<E> extends CloseableInputProvider<E>
-{
-	MutableObjectIterator<E> getIterator() throws InterruptedException;
+public interface Sorter<E> extends CloseableInputProvider<E> {
 }
