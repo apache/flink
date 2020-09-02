@@ -260,7 +260,7 @@ class StatefulFunctionWithTime extends KeyedProcessFunction[Int, Int, Void] {
   }
 
   @throws[Exception]
-  override def processElement(value: Int, ctx: KeyedProcessFunction[ Int, Int, Void ]#Context, out: Collector[Void]): Unit = {
+  override def processElement(value: Int, ctx: KeyedProcessFunction[Int, Int, Void]#Context, out: Collector[Void]): Unit = {
     state.update(value + 1)
     updateTimes.add(System.currentTimeMillis)
   }
@@ -319,7 +319,7 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class ReaderFunction extends KeyedStateReaderFunction[java.lang.Integer, KeyedState] {
+class ReaderFunction extends KeyedStateReaderFunction[Int, KeyedState] {
   var state: ValueState[Int] = _
   var updateTimes: ListState[Long] = _
 
@@ -332,13 +332,8 @@ class ReaderFunction extends KeyedStateReaderFunction[java.lang.Integer, KeyedSt
     updateTimes = getRuntimeContext().getListState(updateDescriptor)
   }
 
-  override def readKey(key: java.lang.Integer,
-                       ctx: KeyedStateReaderFunction.Context,
-                       out: Collector[KeyedState]): Unit = {
-    val data = KeyedState(
-      key,
-      state.value(),
-      updateTimes.get().asScala.toList)
+  override def readKey(key: Int, ctx: KeyedStateReaderFunction.Context, out: Collector[KeyedState]): Unit = {
+    val data = KeyedState(key, state.value, updateTimes.get.asScala.toList)
     out.collect(data)
   }
 }
