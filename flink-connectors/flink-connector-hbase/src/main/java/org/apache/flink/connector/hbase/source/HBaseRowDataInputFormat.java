@@ -19,7 +19,6 @@
 package org.apache.flink.connector.hbase.source;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseSerde;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.data.RowData;
@@ -60,11 +59,12 @@ public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
-		LOG.info("Initializing HBase configuration.");
+	protected void initTable() {
 		this.serde = new HBaseSerde(schema, nullStringLiteral);
-		connectToTable();
-		if (table != null) {
+		if (table == null) {
+			connectToTable();
+		}
+		if (table != null && scan == null) {
 			scan = getScanner();
 		}
 	}

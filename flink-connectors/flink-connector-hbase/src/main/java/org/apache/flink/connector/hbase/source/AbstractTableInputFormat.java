@@ -71,6 +71,11 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	}
 
 	/**
+	 * Creates a {@link Scan} object and opens the {@link HTable} connection to initialize the HBase table.
+	 */
+	protected abstract void initTable();
+
+	/**
 	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
 	 *
 	 * @return The appropriate instance of Scan for this use case.
@@ -96,25 +101,24 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	 */
 	protected abstract T mapResultToOutType(Result r);
 
-	/**
-	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
-	 *
-	 * <p>These are opened here because they are needed in the createInputSplits
-	 * which is called before the openInputFormat method.
-	 *
-	 * <p>The connection is opened in this method and closed in {@link #closeInputFormat()}.
-	 *
-	 * @param parameters The configuration that is to be used
-	 * @see Configuration
-	 */
-	public abstract void configure(Configuration parameters);
+	@Override
+	public void configure(Configuration parameters) {
+	}
 
 	protected org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
 		return HBaseConfigurationUtil.deserializeConfiguration(serializedConfig, HBaseConfigurationUtil.getHBaseConfiguration());
 	}
 
+	/**
+	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
+	 * The connection is opened in this method and closed in {@link #close()}.
+	 *
+	 * @param split The split to be opened.
+	 * @throws IOException Thrown, if the spit could not be opened due to an I/O problem.
+	 */
 	@Override
 	public void open(TableInputSplit split) throws IOException {
+		initTable();
 		if (table == null) {
 			throw new IOException("The HBase table has not been opened! " +
 				"This needs to be done in configure().");
@@ -188,14 +192,6 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 			if (resultScanner != null) {
 				resultScanner.close();
 			}
-		} finally {
-			resultScanner = null;
-		}
-	}
-
-	@Override
-	public void closeInputFormat() throws IOException {
-		try {
 			if (table != null) {
 				table.close();
 			}
@@ -203,6 +199,7 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 				connection.close();
 			}
 		} finally {
+			resultScanner = null;
 			table = null;
 			connection = null;
 		}
@@ -210,6 +207,7 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
+		initTable();
 		if (table == null) {
 			throw new IOException("The HBase table has not been opened! " +
 				"This needs to be done in configure().");

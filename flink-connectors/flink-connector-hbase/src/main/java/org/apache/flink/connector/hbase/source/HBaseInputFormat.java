@@ -21,7 +21,6 @@ package org.apache.flink.connector.hbase.source;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
@@ -65,19 +64,12 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 	 */
 	protected abstract T mapResultToTuple(Result r);
 
-	/**
-	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
-	 * These are opened here because they are needed in the createInputSplits
-	 * which is called before the openInputFormat method.
-	 * So the connection is opened in {@link #configure(Configuration)} and closed in {@link #closeInputFormat()}.
-	 *
-	 * @param parameters The configuration that is to be used
-	 * @see Configuration
-	 */
 	@Override
-	public void configure(Configuration parameters) {
-		table = createTable();
-		if (table != null) {
+	protected void initTable() {
+		if (table == null) {
+			table = createTable();
+		}
+		if (table != null && scan == null) {
 			scan = getScanner();
 		}
 	}

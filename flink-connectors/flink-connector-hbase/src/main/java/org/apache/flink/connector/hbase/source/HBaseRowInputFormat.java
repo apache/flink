@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseReadWriteHelper;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.types.Row;
@@ -61,12 +60,12 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
-		LOG.info("Initializing HBase configuration.");
-		// prepare hbase read helper
+	public void initTable()  {
 		this.readHelper = new HBaseReadWriteHelper(schema);
-		connectToTable();
-		if (table != null) {
+		if (table == null) {
+			connectToTable();
+		}
+		if (table != null && scan == null) {
 			scan = getScanner();
 		}
 	}
