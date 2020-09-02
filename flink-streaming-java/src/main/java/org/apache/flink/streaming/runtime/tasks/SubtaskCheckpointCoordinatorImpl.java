@@ -366,11 +366,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		synchronized (lock) {
 			if (closed) {
 				LOG.debug("Cannot register Closeable, this subtaskCheckpointCoordinator is already closed. Closing argument.");
-				final boolean running = asyncCheckpointRunnable.isRunning();
 				closeQuietly(asyncCheckpointRunnable);
 				checkState(
-					!running,
-					"SubtaskCheckpointCoordinatorImpl was closed without closing asyncCheckpointRunnable %s",
+					!checkpoints.containsKey(checkpointId),
+					"SubtaskCheckpointCoordinator was closed without releasing asyncCheckpointRunnable for checkpoint %s",
 					checkpointId);
 			} else if (checkpoints.containsKey(checkpointId)) {
 				closeQuietly(asyncCheckpointRunnable);
