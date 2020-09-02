@@ -16,24 +16,22 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.operators.sort;
 
-package org.apache.flink.runtime.operators.util;
-
-import java.io.Closeable;
 import java.io.IOException;
 
-import org.apache.flink.util.MutableObjectIterator;
-
 /**
- * Utility interface for a provider of an input that can be closed.
+ * A push-based {@link Sorter}. It exposes methods for adding new records to the sorter.
  */
-public interface CloseableInputProvider<E> extends Closeable
-{
+public interface PushSorter<E> extends Sorter<E> {
 	/**
-	 * Gets the iterator over this input.
-	 * 
-	 * @return The iterator provided by this iterator provider.
-	 * @throws InterruptedException 
+	 * Writers a new record to the sorter.
 	 */
-	MutableObjectIterator<E> getIterator() throws InterruptedException, IOException;
+	void writeRecord(E record) throws IOException, InterruptedException;
+
+	/**
+	 * Finalizes the sorting. The method {@link #getIterator()} will
+	 * not complete until this method is called.
+	 */
+	void finishReading();
 }
