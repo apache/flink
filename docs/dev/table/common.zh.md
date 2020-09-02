@@ -297,7 +297,7 @@ b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 在 Catalog 中创建表
 -------------------------------
 
-`TableEnvironment` 维护着一个由标识符（identifier）创建的表 catalog 的映射。标识符由三个部分组成：catalog 名称、数据库名称以及对象名称。如果 catalog 或者数据库没有指明，就会使用当前默认值（参见[表标识符扩展]({{ site.baseurl }}/zh/dev/table/common.html#table-identifier-expanding)章节中的例子）。
+`TableEnvironment` 维护着一个由标识符（identifier）创建的表 catalog 的映射。标识符由三个部分组成：catalog 名称、数据库名称以及对象名称。如果 catalog 或者数据库没有指明，就会使用当前默认值（参见[表标识符扩展](#table-identifier-expanding)章节中的例子）。
 
 `Table` 可以是虚拟的（视图 `VIEWS`）也可以是常规的（表 `TABLES`）。视图 `VIEWS`可以从已经存在的`Table`中创建，一般是 Table API 或者 SQL 的查询结果。 表`TABLES`描述的是外部数据，例如文件、数据库表或者消息队列。
 
@@ -413,8 +413,9 @@ tableEnvironment.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 </div>
 </div>
 
-### 扩展表标识符
 <a name="table-identifier-expanding"></a>
+
+### 扩展表标识符
 
 表总是通过三元标识符注册，包括 catalog 名、数据库名和表名。
 
@@ -846,6 +847,8 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 
 {% top %}
 
+<a name="integration-with-datastream-and-dataset-api"></a>
+
 与 DataStream 和 DataSet API 结合
 -------------------------------------------
 
@@ -1072,6 +1075,8 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 
 {% top %}
 
+<a name="mapping-of-data-types-to-table-schema"></a>
+
 ### 数据类型到 Table Schema 的映射
 
 Flink 的 DataStream 和 DataSet APIs 支持多样的数据类型。例如 Tuple（Scala 内置以及Flink Java tuple）、POJO 类型、Scala case class 类型以及 Flink 的 Row 类型等允许嵌套且有多个可在表的表达式中访问的字段的复合数据类型。其他类型被视为原子类型。下面，我们讨论 Table API 如何将这些数据类型类型转换为内部 row 表示形式，并提供将 `DataStream` 转换成 `Table` 的样例。
@@ -1278,7 +1283,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.zh.md %}#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({% link dev/types_serialization.zh.md %}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
@@ -1386,6 +1391,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 
 {% top %}
 
+<a name="query-optimization"></a>
 
 查询优化
 ------------------
