@@ -2,7 +2,7 @@
 title: "Python API"
 nav-id: python
 nav-parent_id: dev
-nav-pos: 50
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

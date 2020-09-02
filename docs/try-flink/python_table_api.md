@@ -28,4 +28,4 @@ under the License.
 
 ## Python Table API tutorial
 
-You can refer to the [Python Table API Tutorial]({% link dev/python/getting-started/tutorial/table_api_tutorial.md %}) Docs for more details.
+You can refer to the [Python Table API Tutorial]({% link dev/python/table_api_tutorial.md %}) Docs for more details.
