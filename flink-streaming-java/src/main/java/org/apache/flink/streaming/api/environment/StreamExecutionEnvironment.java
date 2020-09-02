@@ -1605,7 +1605,17 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Add a data {@link Source} to the environment to get a {@link DataStream}.
+	 * Adds a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * <p>The result will be either a bounded data stream (that can be processed in a batch way) or
+	 * an unbounded data stream (that must be processed in a streaming way), based on the
+	 * boundedness property of the source, as defined by {@link Source#getBoundedness()}.
+	 *
+	 * <p>The result type (that is used to create serializers for the produced data events)
+	 * will be automatically extracted. This is useful for sources that describe the produced types
+	 * already in their configuration, to avoid having to declare the type multiple times.
+	 * For example the file sources and Kafka sources already define the produced byte their
+	 * parsers/serializers/formats, and can forward that information.
 	 *
 	 * @param source
 	 * 		the user defined source
@@ -1624,7 +1634,17 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Add a data {@link Source} to the environment to get a {@link DataStream}.
+	 * Adds a data {@link Source} to the environment to get a {@link DataStream}.
+	 *
+	 * <p>The result will be either a bounded data stream (that can be processed in a batch way) or
+	 * an unbounded data stream (that must be processed in a streaming way), based on the
+	 * boundedness property of the source, as defined by {@link Source#getBoundedness()}.
+	 *
+	 * <p>This method takes an explicit type information for the produced data stream, so that callers
+	 * can define directly what type/serializer will be used for the produced stream.
+	 * For sources that describe their produced type, the method
+	 * {@link #fromSource(Source, WatermarkStrategy, String)} can be used to avoid specifying the
+	 * produced type redundantly.
 	 *
 	 * @param source
 	 * 		the user defined source
