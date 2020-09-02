@@ -1,8 +1,8 @@
 ---
-title: "User Guide"
-nav-id: python_user_guide
+title: "DataStream API User's Guide"
+nav-id: python_datastream_api
 nav-parent_id: python
-nav-pos: 20
+nav-pos: 30
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
