@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * ITCase for {@link OrcFileSystemFormatFactory}.
@@ -110,7 +111,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 	}
 
 	@Test
-	public void testOrcFilterPushDown(){
+	public void testOrcFilterPushDown() throws ExecutionException, InterruptedException {
 		super.tableEnv().executeSql(
 				"insert into orcFilterTable select x, y, a, b, " +
 						"case when y >= 10 then false else true end as c, " +
@@ -118,7 +119,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 						"y * 3.14 as e, " +
 						"date '2020-01-01' as f, " +
 						"timestamp '2020-01-01 05:20:00' as g " +
-						"from originalT");
+						"from originalT").await();
 
 		check("select x, y from orcFilterTable where x = 'x11' and 11 = y",
 				Collections.singletonList(
