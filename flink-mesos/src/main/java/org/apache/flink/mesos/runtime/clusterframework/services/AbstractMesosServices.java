@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos.runtime.clusterframework.services;
 
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerActorFactory;
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerActorFactoryImpl;
 import org.apache.flink.mesos.util.MesosArtifactServer;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.util.ExceptionUtils;
@@ -45,8 +47,8 @@ public abstract class AbstractMesosServices implements MesosServices {
 	}
 
 	@Override
-	public ActorSystem getLocalActorSystem() {
-		return actorSystem;
+	public MesosResourceManagerActorFactory createMesosResourceManagerActorFactory() {
+		return new MesosResourceManagerActorFactoryImpl(actorSystem);
 	}
 
 	@Override
@@ -57,18 +59,21 @@ public abstract class AbstractMesosServices implements MesosServices {
 	@Override
 	public SchedulerDriver createMesosSchedulerDriver(
 			MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements) {
-		MesosSchedulerDriver schedulerDriver;
 		if (mesosConfig.credential().isDefined()) {
-			schedulerDriver =
-					new MesosSchedulerDriver(scheduler, mesosConfig.frameworkInfo().build(), mesosConfig.masterUrl(),
-							implicitAcknowledgements, mesosConfig.credential().get().build());
+			return new MesosSchedulerDriver(
+				scheduler,
+				mesosConfig.frameworkInfo().build(),
+				mesosConfig.masterUrl(),
+				implicitAcknowledgements,
+				mesosConfig.credential().get().build());
 		}
 		else {
-			schedulerDriver =
-					new MesosSchedulerDriver(scheduler, mesosConfig.frameworkInfo().build(), mesosConfig.masterUrl(),
-							implicitAcknowledgements);
+			return new MesosSchedulerDriver(
+				scheduler,
+				mesosConfig.frameworkInfo().build(),
+				mesosConfig.masterUrl(),
+				implicitAcknowledgements);
 		}
-		return schedulerDriver;
 	}
 
 	@Override
