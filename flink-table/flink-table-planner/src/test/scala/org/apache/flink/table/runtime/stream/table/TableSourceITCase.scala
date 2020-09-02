@@ -82,6 +82,46 @@ class TableSourceITCase extends AbstractTestBase {
   }
 
   @Test
+  def testStreamScanParallelism(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
+    val tEnv = StreamTableEnvironment.create(env, settings)
+
+    // set environment parallelism to 4
+    env.setParallelism(4)
+
+    // test DataStreamScan
+    val table = env.fromElements[String]()
+      .setParallelism(1)
+      .toTable(tEnv, 'a)
+
+    tEnv.createTemporaryView("MyTable1", table)
+    val parallelism = tEnv.from("MyTable1")
+      .toAppendStream[String]
+      .parallelism
+
+    assertEquals(1, parallelism)
+
+    // test StreamTableSourceScan
+    val createTableStmt =
+      """
+        |CREATE TEMPORARY TABLE MyTable2 (
+        | str varchar
+        |) with (
+        | 'connector' = 'COLLECTION',
+        | 'parallelism' = '1'
+        |)
+        |""".stripMargin
+    tEnv.executeSql(createTableStmt)
+
+    val parallelism2 = tEnv.from("MyTable2")
+      .toAppendStream[String]
+      .parallelism
+
+    assertEquals(1, parallelism2)
+  }
+
+  @Test
   def testUnregisteredCsvTableSource(): Unit = {
     val csvTable = CommonTestData.getCsvTableSource
     val env = StreamExecutionEnvironment.getExecutionEnvironment

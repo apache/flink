@@ -41,7 +41,7 @@ import org.apache.flink.types.Row
 
 import java.io.IOException
 import java.util
-import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
+import java.util.{Optional, ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 
@@ -53,7 +53,7 @@ class TestCollectionTableFactory
 {
 
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    getCollectionSource(properties, isStreaming = TestCollectionTableFactory.isStreaming)
+    getCollectionSource(properties, TestCollectionTableFactory.isStreaming)
   }
 
   override def createTableSink(properties: JMap[String, String]): TableSink[Row] = {
@@ -117,7 +117,8 @@ object TestCollectionTableFactory {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
     val schema = properties.getTableSchema(Schema.SCHEMA)
-    new CollectionTableSource(emitIntervalMS, schema, isStreaming)
+    val parallelism = properties.getOptionalInt("parallelism")
+    new CollectionTableSource(emitIntervalMS, schema, isStreaming, parallelism)
   }
 
   def getCollectionSink(props: JMap[String, String]): CollectionTableSink = {
@@ -133,7 +134,8 @@ object TestCollectionTableFactory {
   class CollectionTableSource(
       val emitIntervalMs: Long,
       val schema: TableSchema,
-      val isStreaming: Boolean)
+      val isStreaming: Boolean,
+      val parallelism: Optional[Integer])
     extends BatchTableSource[Row]
     with StreamTableSource[Row]
     with LookupableTableSource[Row] {
@@ -143,17 +145,25 @@ object TestCollectionTableFactory {
     override def isBounded: Boolean = !isStreaming
 
     def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-      execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
+      val dataSet = execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
         SOURCE_DATA,
         rowType.createSerializer(new ExecutionConfig)),
         rowType)
+      if (parallelism.isPresent) {
+        dataSet.setParallelism(parallelism.get())
+      }
+      dataSet
     }
 
     override def getDataStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[Row] = {
-      streamEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
+      val dataStream = streamEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
         SOURCE_DATA,
         rowType.createSerializer(new ExecutionConfig)),
         rowType)
+      if (parallelism.isPresent) {
+        dataStream.setParallelism(parallelism.get())
+      }
+      dataStream
     }
 
     override def getReturnType: TypeInformation[Row] = rowType
