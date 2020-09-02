@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.operators.sort;
 
-package org.apache.flink.runtime.operators.util;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 
-import java.io.Closeable;
-import java.io.IOException;
+final class ChannelWithBlockCount {
 
-import org.apache.flink.util.MutableObjectIterator;
+	private final FileIOChannel.ID channel;
+	private final int blockCount;
 
-/**
- * Utility interface for a provider of an input that can be closed.
- */
-public interface CloseableInputProvider<E> extends Closeable
-{
-	/**
-	 * Gets the iterator over this input.
-	 * 
-	 * @return The iterator provided by this iterator provider.
-	 * @throws InterruptedException 
-	 */
-	MutableObjectIterator<E> getIterator() throws InterruptedException, IOException;
+	public ChannelWithBlockCount(FileIOChannel.ID channel, int blockCount) {
+		this.channel = channel;
+		this.blockCount = blockCount;
+	}
+
+	public FileIOChannel.ID getChannel() {
+		return channel;
+	}
+
+	public int getBlockCount() {
+		return blockCount;
+	}
 }

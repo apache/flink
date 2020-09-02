@@ -43,9 +43,9 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link UnilateralSortMerger}.
+ * Tests for the {@link ExternalSorter}.
  */
-public class UnilateralSortMergerTest extends TestLogger {
+public class ExternalSorterTest extends TestLogger {
 
 	@Test
 	public void testInMemorySorterDisposal() throws Exception {
@@ -60,29 +60,26 @@ public class UnilateralSortMergerTest extends TestLogger {
 
 		try (final IOManagerAsync ioManager = new IOManagerAsync()) {
 			final List<MemorySegment> memory = memoryManager.allocatePages(parentTask, numPages);
-			final UnilateralSortMerger<Tuple2<Integer, Integer>> unilateralSortMerger = new UnilateralSortMerger<>(
-				memoryManager,
-				memory,
-				ioManager,
-				EmptyMutableObjectIterator.get(),
-				parentTask,
-				TestData.getIntIntTupleSerializerFactory(),
-				TestData.getIntIntTupleComparator(),
-				10,
-				2,
-				1.0f,
-				true,
-				false,
-				false,
-				inMemorySorterFactory);
+			final Sorter<Tuple2<Integer, Integer>> unilateralSortMerger =
+				ExternalSorter.newBuilder(
+						memoryManager,
+						parentTask,
+						TestData.getIntIntTupleSerializerFactory().getSerializer(),
+						TestData.getIntIntTupleComparator())
+					.maxNumFileHandles(2)
+					.enableSpilling(ioManager, 1.0f)
+					.memory(memory)
+					.sortBuffers(10)
+					.objectReuse(false)
+					.largeRecords(false)
+					.sorterFactory(inMemorySorterFactory)
+					.build(EmptyMutableObjectIterator.get());
 
 			final Collection<TestingInMemorySorter<?>> inMemorySorters = inMemorySorterFactory.getInMemorySorters();
 
 			assertThat(inMemorySorters, is(not(empty())));
 
 			unilateralSortMerger.close();
-
-			assertThat(unilateralSortMerger.closed, is(true));
 
 			for (TestingInMemorySorter<?> inMemorySorter : inMemorySorters) {
 				assertThat(inMemorySorter.isDisposed(), is(true));
