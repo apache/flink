@@ -75,7 +75,7 @@ def _add_version_doc():
             add_version_doc(o[1], "1.12.0")
 
 
-def col(name: str):
+def col(name: str) -> Expression:
     """
     Creates an expression which refers to a table's field.
 
@@ -89,7 +89,7 @@ def col(name: str):
     return _unary_op("$", name)
 
 
-def lit(v, data_type: DataType = None):
+def lit(v, data_type: DataType = None) -> Expression:
     """
     Creates a SQL literal.
 
@@ -107,7 +107,7 @@ def lit(v, data_type: DataType = None):
         return _binary_op("lit", v, _to_java_data_type(data_type))
 
 
-def range_(start: Union[str, int], end: Union[str, int]):
+def range_(start: Union[str, int], end: Union[str, int]) -> Expression:
     """
     Indicates a range from 'start' to 'end', which can be used in columns selection.
 
@@ -121,9 +121,9 @@ def range_(start: Union[str, int], end: Union[str, int]):
     return _binary_op("range", start, end)
 
 
-def and_(predicate0: Union[bool, 'Expression[bool]'],
-         predicate1: Union[bool, 'Expression[bool]'],
-         *predicates: Union[bool, 'Expression[bool]']) -> 'Expression[bool]':
+def and_(predicate0: Union[bool, Expression[bool]],
+         predicate1: Union[bool, Expression[bool]],
+         *predicates: Union[bool, Expression[bool]]) -> Expression[bool]:
     """
     Boolean AND in three-valued logic.
     """
@@ -132,9 +132,9 @@ def and_(predicate0: Union[bool, 'Expression[bool]'],
     return _ternary_op("and", predicate0, predicate1, predicates)
 
 
-def or_(predicate0: Union[bool, 'Expression[bool]'],
-        predicate1: Union[bool, 'Expression[bool]'],
-        *predicates: Union[bool, 'Expression[bool]']) -> 'Expression[bool]':
+def or_(predicate0: Union[bool, Expression[bool]],
+        predicate1: Union[bool, Expression[bool]],
+        *predicates: Union[bool, Expression[bool]]) -> Expression[bool]:
     """
     Boolean OR in three-valued logic.
     """
@@ -182,42 +182,45 @@ all rows with the same sort key as the current row are included in the window.
 CURRENT_RANGE = Expression("CURRENT_RANGE")
 
 
-def current_date():
+def current_date() -> Expression:
     """
     Returns the current SQL date in UTC time zone.
     """
     return _leaf_op("currentDate")
 
 
-def current_time():
+def current_time() -> Expression:
     """
     Returns the current SQL time in UTC time zone.
     """
     return _leaf_op("currentTime")
 
 
-def current_timestamp():
+def current_timestamp() -> Expression:
     """
     Returns the current SQL timestamp in UTC time zone.
     """
     return _leaf_op("currentTimestamp")
 
 
-def local_time():
+def local_time() -> Expression:
     """
     Returns the current SQL time in local time zone.
     """
     return _leaf_op("localTime")
 
 
-def local_timestamp():
+def local_timestamp() -> Expression:
     """
     Returns the current SQL timestamp in local time zone.
     """
     return _leaf_op("localTimestamp")
 
 
-def temporal_overlaps(left_time_point, left_temporal, right_time_point, right_temporal):
+def temporal_overlaps(left_time_point,
+                      left_temporal,
+                      right_time_point,
+                      right_temporal) -> Expression:
     """
     Determines whether two anchored time intervals overlap. Time point and temporal are
     transformed into a range defined by two time points (start, end). The function
@@ -225,10 +228,10 @@ def temporal_overlaps(left_time_point, left_temporal, right_time_point, right_te
 
     e.g.
         temporal_overlaps(
-            lit("2:55:00").to_time(),
-            lit(1).hours(),
-            lit("3:30:00").to_time(),
-            lit(2).hours()) leads to true.
+            lit("2:55:00").to_time,
+            lit(1).hours,
+            lit("3:30:00").to_time,
+            lit(2).hours) leads to true.
 
     :param left_time_point: The left time point
     :param left_temporal: The time interval from the left time point
@@ -240,7 +243,7 @@ def temporal_overlaps(left_time_point, left_temporal, right_time_point, right_te
                           left_time_point, left_temporal, right_time_point, right_temporal)
 
 
-def date_format(timestamp, format):
+def date_format(timestamp, format) -> Expression:
     """
     Formats a timestamp as a string using a specified format.
     The format must be compatible with MySQL's date formatting syntax as used by the
@@ -256,13 +259,13 @@ def date_format(timestamp, format):
     return _binary_op("dateFormat", timestamp, format)
 
 
-def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2):
+def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> Expression:
     """
     Returns the (signed) number of :class:`~pyflink.table.expression.TimePointUnit` between
     time_point1 and time_point2.
 
     For example,
-    `timestamp_diff(TimePointUnit.DAY, lit("2016-06-15").to_date(), lit("2016-06-18").to_date()`
+    `timestamp_diff(TimePointUnit.DAY, lit("2016-06-15").to_date, lit("2016-06-18").to_date`
     leads to 3.
 
     :param time_point_unit: The unit to compute diff.
@@ -270,11 +273,11 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2):
     :param time_point2: The second point in time.
     :return: The number of intervals as integer value.
     """
-    return _ternary_op("timestampDiff", TimePointUnit._to_j_time_point_unit(time_point_unit),
+    return _ternary_op("timestampDiff", time_point_unit._to_j_time_point_unit(),
                        time_point1, time_point2)
 
 
-def array(head, *tail):
+def array(head, *tail) -> Expression:
     """
     Creates an array of literals.
 
@@ -288,7 +291,7 @@ def array(head, *tail):
     return _binary_op("array", head, tail)
 
 
-def row(head, *tail):
+def row(head, *tail) -> Expression:
     """
     Creates a row of expressions.
 
@@ -302,7 +305,7 @@ def row(head, *tail):
     return _binary_op("row", head, tail)
 
 
-def map_(key, value, *tail):
+def map_(key, value, *tail) -> Expression:
     """
     Creates a map of expressions.
 
@@ -325,7 +328,7 @@ def map_(key, value, *tail):
     return _ternary_op("map", key, value, tail)
 
 
-def row_interval(rows: int):
+def row_interval(rows: int) -> Expression:
     """
     Creates an interval of rows.
 
@@ -344,21 +347,21 @@ def row_interval(rows: int):
     return _unary_op("rowInterval", rows)
 
 
-def pi() -> 'Expression[float]':
+def pi() -> Expression[float]:
     """
     Returns a value that is closer than any other value to `pi`.
     """
     return _leaf_op("pi")
 
 
-def e() -> 'Expression[float]':
+def e() -> Expression[float]:
     """
     Returns a value that is closer than any other value to `e`.
     """
     return _leaf_op("e")
 
 
-def rand(seed: 'Union[int, Expression[int]]' = None) -> 'Expression[float]':
+def rand(seed: Union[int, Expression[int]] = None) -> Expression[float]:
     """
     Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
     initial seed if specified. Two rand() functions will return identical sequences of numbers if
@@ -370,8 +373,8 @@ def rand(seed: 'Union[int, Expression[int]]' = None) -> 'Expression[float]':
         return _unary_op("rand", seed)
 
 
-def rand_integer(bound: 'Union[int, Expression[int]]',
-                 seed: 'Union[int, Expression[int]]' = None):
+def rand_integer(bound: Union[int, Expression[int]],
+                 seed: Union[int, Expression[int]] = None) -> Expression:
     """
     Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
     (exclusive) with a initial seed if specified. Two rand_integer() functions will return
@@ -383,22 +386,22 @@ def rand_integer(bound: 'Union[int, Expression[int]]',
         return _binary_op("randInteger", seed, bound)
 
 
-def atan2(y, x) -> 'Expression[float]':
+def atan2(y, x) -> Expression[float]:
     """
     Calculates the arc tangent of a given coordinate.
     """
     return _binary_op("atan2", y, x)
 
 
-def negative(v):
+def negative(v) -> Expression:
     """
     Returns negative numeric.
     """
     return _unary_op("negative", v)
 
 
-def concat(first: 'Union[str, Expression[str]]',
-           *others: 'Union[str, Expression[str]]') -> 'Expression[str]':
+def concat(first: Union[str, Expression[str]],
+           *others: Union[str, Expression[str]]) -> Expression[str]:
     """
     Returns the string that results from concatenating the arguments.
     Returns NULL if any argument is NULL.
@@ -410,9 +413,9 @@ def concat(first: 'Union[str, Expression[str]]',
                                 [_get_java_expression(other) for other in others]))
 
 
-def concat_ws(separator: 'Union[str, Expression[str]]',
-              first: 'Union[str, Expression[str]]',
-              *others: 'Union[str, Expression[str]]'):
+def concat_ws(separator: Union[str, Expression[str]],
+              first: Union[str, Expression[str]],
+              *others: Union[str, Expression[str]]) -> Expression[str]:
     """
     Returns the string that results from concatenating the arguments and separator.
     Returns NULL If the separator is NULL.
@@ -430,7 +433,7 @@ def concat_ws(separator: 'Union[str, Expression[str]]',
                                  [_get_java_expression(other) for other in others]))
 
 
-def uuid() -> Union[str, 'Expression[str]']:
+def uuid() -> Expression[str]:
     """
     Returns an UUID (Universally Unique Identifier) string (e.g.,
     "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
@@ -440,14 +443,14 @@ def uuid() -> Union[str, 'Expression[str]']:
     return _leaf_op("uuid")
 
 
-def null_of(data_type: DataType):
+def null_of(data_type: DataType) -> Expression:
     """
     Returns a null literal value of a given data type.
     """
     return _unary_op("nullOf", _to_java_data_type(data_type))
 
 
-def log(v, base=None) -> 'Expression[float]':
+def log(v, base=None) -> Expression[float]:
     """
     If base is specified, calculates the logarithm of the given value to the given base.
     Otherwise, calculates the natural logarithm of the given value.
@@ -458,7 +461,7 @@ def log(v, base=None) -> 'Expression[float]':
         return _binary_op("log", base, v)
 
 
-def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false):
+def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) -> Expression:
     """
     Ternary conditional operator that decides which of two other expressions should be evaluated
     based on a evaluated boolean condition.
@@ -472,7 +475,7 @@ def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false):
     return _ternary_op("ifThenElse", condition, if_true, if_false)
 
 
-def with_columns(head, *tails):
+def with_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects a range of columns. It can be used wherever an array of
     expression is accepted such as function calls, projections, or groupings.
@@ -490,7 +493,7 @@ def with_columns(head, *tails):
     return _binary_op("withColumns", head, tails)
 
 
-def without_columns(head, tails):
+def without_columns(head, tails) -> Expression:
     """
     Creates an expression that selects all columns except for the given range of columns. It can
     be used wherever an array of expression is accepted such as function calls, projections, or
@@ -509,7 +512,7 @@ def without_columns(head, tails):
     return _binary_op("withoutColumns", head, tails)
 
 
-def call(f: Union[str, UserDefinedFunctionWrapper], *args):
+def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     """
     The first parameter `f` could be a str or a Python user-defined function.
 

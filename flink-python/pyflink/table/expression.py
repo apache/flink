@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
 from typing import Union, TypeVar, Generic
 
 from pyflink import add_version_doc
@@ -266,14 +267,14 @@ def _get_or_create_java_expression(expr: Union["Expression", str]):
 
 
 def _unary_op(op_name: str):
-    def _(self):
+    def _(self) -> 'Expression':
         return Expression(getattr(self._j_expr, op_name)())
 
     return _
 
 
 def _binary_op(op_name: str, reverse: bool = False):
-    def _(self, other):
+    def _(self, other) -> 'Expression':
         if reverse:
             return Expression(getattr(_get_java_expression(other, True), op_name)(self._j_expr))
         else:
@@ -283,7 +284,7 @@ def _binary_op(op_name: str, reverse: bool = False):
 
 
 def _ternary_op(op_name: str):
-    def _(self, first, second):
+    def _(self, first, second) -> 'Expression':
         return Expression(getattr(self._j_expr, op_name)(
             _get_java_expression(first), _get_java_expression(second)))
 
@@ -291,14 +292,14 @@ def _ternary_op(op_name: str):
 
 
 def _expressions_op(op_name: str):
-    def _(self, *args):
+    def _(self, *args) -> 'Expression':
         from pyflink.table import expressions
         return getattr(expressions, op_name)(self, *[_get_java_expression(arg) for arg in args])
 
     return _
 
 
-class TimeIntervalUnit(object):
+class TimeIntervalUnit(Enum):
     """
     Units for working with time intervals.
 
@@ -321,86 +322,13 @@ class TimeIntervalUnit(object):
     MINUTE = 13,
     MINUTE_TO_SECOND = 14
 
-    @staticmethod
-    def _from_j_time_interval_unit(j_time_interval_unit):
+    def _to_j_time_interval_unit(self):
         gateway = get_gateway()
         JTimeIntervalUnit = gateway.jvm.org.apache.flink.table.expressions.TimeIntervalUnit
-        if j_time_interval_unit == JTimeIntervalUnit.YEAR:
-            return TimeIntervalUnit.YEAR
-        elif j_time_interval_unit == JTimeIntervalUnit.YEAR_TO_MONTH:
-            return TimeIntervalUnit.YEAR_TO_MONTH
-        elif j_time_interval_unit == JTimeIntervalUnit.QUARTER:
-            return TimeIntervalUnit.QUARTER
-        elif j_time_interval_unit == JTimeIntervalUnit.MONTH:
-            return TimeIntervalUnit.MONTH
-        elif j_time_interval_unit == JTimeIntervalUnit.WEEK:
-            return TimeIntervalUnit.WEEK
-        elif j_time_interval_unit == JTimeIntervalUnit.DAY:
-            return TimeIntervalUnit.DAY
-        elif j_time_interval_unit == JTimeIntervalUnit.DAY_TO_HOUR:
-            return TimeIntervalUnit.DAY_TO_HOUR
-        elif j_time_interval_unit == JTimeIntervalUnit.DAY_TO_MINUTE:
-            return TimeIntervalUnit.DAY_TO_MINUTE
-        elif j_time_interval_unit == JTimeIntervalUnit.DAY_TO_SECOND:
-            return TimeIntervalUnit.DAY_TO_SECOND
-        elif j_time_interval_unit == JTimeIntervalUnit.HOUR:
-            return TimeIntervalUnit.HOUR
-        elif j_time_interval_unit == JTimeIntervalUnit.SECOND:
-            return TimeIntervalUnit.SECOND
-        elif j_time_interval_unit == JTimeIntervalUnit.HOUR_TO_MINUTE:
-            return TimeIntervalUnit.HOUR_TO_MINUTE
-        elif j_time_interval_unit == JTimeIntervalUnit.HOUR_TO_SECOND:
-            return TimeIntervalUnit.HOUR_TO_SECOND
-        elif j_time_interval_unit == JTimeIntervalUnit.MINUTE:
-            return TimeIntervalUnit.MINUTE
-        elif j_time_interval_unit == JTimeIntervalUnit.MINUTE_TO_SECOND:
-            return TimeIntervalUnit.MINUTE_TO_SECOND
-        else:
-            raise Exception("Unsupported Java time interval unit: %s." % j_time_interval_unit)
-
-    @staticmethod
-    def _to_j_time_interval_unit(time_interval_unit):
-        gateway = get_gateway()
-        JTimeIntervalUnit = gateway.jvm.org.apache.flink.table.expressions.TimeIntervalUnit
-        if time_interval_unit == TimeIntervalUnit.YEAR:
-            j_time_interval_unit = JTimeIntervalUnit.YEAR
-        elif time_interval_unit == TimeIntervalUnit.YEAR_TO_MONTH:
-            j_time_interval_unit = JTimeIntervalUnit.YEAR_TO_MONTH
-        elif time_interval_unit == TimeIntervalUnit.QUARTER:
-            j_time_interval_unit = JTimeIntervalUnit.QUARTER
-        elif time_interval_unit == TimeIntervalUnit.MONTH:
-            j_time_interval_unit = JTimeIntervalUnit.MONTH
-        elif time_interval_unit == TimeIntervalUnit.WEEK:
-            j_time_interval_unit = JTimeIntervalUnit.WEEK
-        elif time_interval_unit == TimeIntervalUnit.DAY:
-            j_time_interval_unit = JTimeIntervalUnit.DAY
-        elif time_interval_unit == TimeIntervalUnit.DAY_TO_HOUR:
-            j_time_interval_unit = JTimeIntervalUnit.DAY_TO_HOUR
-        elif time_interval_unit == TimeIntervalUnit.DAY_TO_MINUTE:
-            j_time_interval_unit = JTimeIntervalUnit.DAY_TO_MINUTE
-        elif time_interval_unit == TimeIntervalUnit.DAY_TO_SECOND:
-            j_time_interval_unit = JTimeIntervalUnit.DAY_TO_SECOND
-        elif time_interval_unit == TimeIntervalUnit.HOUR:
-            j_time_interval_unit = JTimeIntervalUnit.HOUR
-        elif time_interval_unit == TimeIntervalUnit.SECOND:
-            j_time_interval_unit = JTimeIntervalUnit.SECOND
-        elif time_interval_unit == TimeIntervalUnit.HOUR_TO_MINUTE:
-            j_time_interval_unit = JTimeIntervalUnit.HOUR_TO_MINUTE
-        elif time_interval_unit == TimeIntervalUnit.HOUR_TO_SECOND:
-            j_time_interval_unit = JTimeIntervalUnit.HOUR_TO_SECOND
-        elif time_interval_unit == TimeIntervalUnit.MINUTE:
-            j_time_interval_unit = JTimeIntervalUnit.MINUTE
-        elif time_interval_unit == TimeIntervalUnit.MINUTE_TO_SECOND:
-            j_time_interval_unit = JTimeIntervalUnit.MINUTE_TO_SECOND
-        else:
-            raise TypeError("Unsupported time interval unit: %s, supported time interval unit "
-                            "are: YEAR, YEAR_TO_MONTH, QUARTER, MONTH, WEEK, DAY, DAY_TO_HOUR, "
-                            "DAY_TO_MINUTE, DAY_TO_SECOND, HOUR, SECOND, HOUR_TO_MINUTE, "
-                            "HOUR_TO_SECOND, MINUTE, MINUTE_TO_SECOND" % time_interval_unit)
-        return j_time_interval_unit
+        return getattr(JTimeIntervalUnit, self.name)
 
 
-class TimePointUnit(object):
+class TimePointUnit(Enum):
     """
     Units for working with points in time.
 
@@ -418,62 +346,10 @@ class TimePointUnit(object):
     MILLISECOND = 8,
     MICROSECOND = 9
 
-    @staticmethod
-    def _from_j_time_point_unit(j_time_point_unit):
+    def _to_j_time_point_unit(self):
         gateway = get_gateway()
         JTimePointUnit = gateway.jvm.org.apache.flink.table.expressions.TimePointUnit
-        if j_time_point_unit == JTimePointUnit.YEAR:
-            return TimePointUnit.YEAR
-        elif j_time_point_unit == JTimePointUnit.MONTH:
-            return TimePointUnit.MONTH
-        elif j_time_point_unit == JTimePointUnit.DAY:
-            return TimePointUnit.DAY
-        elif j_time_point_unit == JTimePointUnit.HOUR:
-            return TimePointUnit.HOUR
-        elif j_time_point_unit == JTimePointUnit.MINUTE:
-            return TimePointUnit.MINUTE
-        elif j_time_point_unit == JTimePointUnit.SECOND:
-            return TimePointUnit.SECOND
-        elif j_time_point_unit == JTimePointUnit.QUARTER:
-            return TimePointUnit.QUARTER
-        elif j_time_point_unit == JTimePointUnit.WEEK:
-            return TimePointUnit.WEEK
-        elif j_time_point_unit == JTimePointUnit.MILLISECOND:
-            return TimePointUnit.MILLISECOND
-        elif j_time_point_unit == JTimePointUnit.MICROSECOND:
-            return TimePointUnit.MICROSECOND
-        else:
-            raise Exception("Unsupported Java time point unit: %s." % j_time_point_unit)
-
-    @staticmethod
-    def _to_j_time_point_unit(time_point_unit):
-        gateway = get_gateway()
-        JTimePointUnit = gateway.jvm.org.apache.flink.table.expressions.TimePointUnit
-        if time_point_unit == TimePointUnit.YEAR:
-            j_time_point_unit = JTimePointUnit.YEAR
-        elif time_point_unit == TimePointUnit.MONTH:
-            j_time_point_unit = JTimePointUnit.MONTH
-        elif time_point_unit == TimePointUnit.DAY:
-            j_time_point_unit = JTimePointUnit.DAY
-        elif time_point_unit == TimePointUnit.HOUR:
-            j_time_point_unit = JTimePointUnit.HOUR
-        elif time_point_unit == TimePointUnit.MINUTE:
-            j_time_point_unit = JTimePointUnit.MINUTE
-        elif time_point_unit == TimePointUnit.SECOND:
-            j_time_point_unit = JTimePointUnit.SECOND
-        elif time_point_unit == TimePointUnit.QUARTER:
-            j_time_point_unit = JTimePointUnit.QUARTER
-        elif time_point_unit == TimePointUnit.WEEK:
-            j_time_point_unit = JTimePointUnit.WEEK
-        elif time_point_unit == TimePointUnit.MILLISECOND:
-            j_time_point_unit = JTimePointUnit.MILLISECOND
-        elif time_point_unit == TimePointUnit.MICROSECOND:
-            j_time_point_unit = JTimePointUnit.MICROSECOND
-        else:
-            raise TypeError("Unsupported time point unit: %s, supported time point unit are: "
-                            "YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, QUARTER, "
-                            "WEEK, MILLISECOND, MICROSECOND" % time_point_unit)
-        return j_time_point_unit
+        return getattr(JTimePointUnit, self.name)
 
 
 T = TypeVar('T')
@@ -677,7 +553,7 @@ class Expression(Generic[T]):
         """
         return _ternary_op("notBetween")(self, lower_bound, upper_bound)
 
-    def then(self, if_true, if_false):
+    def then(self, if_true, if_false) -> 'Expression':
         """
         Ternary conditional operator that decides which of two other expressions should be evaluated
         based on a evaluated boolean condition.
@@ -748,7 +624,7 @@ class Expression(Generic[T]):
         return _unary_op("isNotFalse")(self)
 
     @property
-    def distinct(self):
+    def distinct(self) -> 'Expression':
         """
         Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
         aggregation function is only applied on distinct input values.
@@ -763,47 +639,47 @@ class Expression(Generic[T]):
         return _unary_op("distinct")(self)
 
     @property
-    def sum(self):
+    def sum(self) -> 'Expression':
         return _unary_op("sum")(self)
 
     @property
-    def sum0(self):
+    def sum0(self) -> 'Expression':
         return _unary_op("sum0")(self)
 
     @property
-    def min(self):
+    def min(self) -> 'Expression':
         return _unary_op("min")(self)
 
     @property
-    def max(self):
+    def max(self) -> 'Expression':
         return _unary_op("max")(self)
 
     @property
-    def count(self):
+    def count(self) -> 'Expression':
         return _unary_op("count")(self)
 
     @property
-    def avg(self):
+    def avg(self) -> 'Expression':
         return _unary_op("avg")(self)
 
     @property
-    def stddev_pop(self):
+    def stddev_pop(self) -> 'Expression':
         return _unary_op("stddevPop")(self)
 
     @property
-    def stddev_samp(self):
+    def stddev_samp(self) -> 'Expression':
         return _unary_op("stddevSamp")(self)
 
     @property
-    def var_pop(self):
+    def var_pop(self) -> 'Expression':
         return _unary_op("varPop")(self)
 
     @property
-    def var_samp(self):
+    def var_samp(self) -> 'Expression':
         return _unary_op("varSamp")(self)
 
     @property
-    def collect(self):
+    def collect(self) -> 'Expression':
         return _unary_op("collect")(self)
 
     def alias(self, name: str, *extra_names: str) -> 'Expression[T]':
@@ -821,16 +697,16 @@ class Expression(Generic[T]):
         gateway = get_gateway()
         return _ternary_op("as")(self, name, to_jarray(gateway.jvm.String, extra_names))
 
-    def cast(self, data_type: DataType):
+    def cast(self, data_type: DataType) -> 'Expression':
         """
         Converts a value to a given data type.
 
-        e.g. "42".cast(DataTypes.INT()) leads to 42.
+        e.g. lit("42").cast(DataTypes.INT()) leads to 42.
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
     @property
-    def asc(self):
+    def asc(self) -> 'Expression':
         """
         Specifies ascending order of an expression i.e. a field for order_by.
 
@@ -844,7 +720,7 @@ class Expression(Generic[T]):
         return _unary_op("asc")(self)
 
     @property
-    def desc(self):
+    def desc(self) -> 'Expression':
         """
         Specifies descending order of an expression i.e. a field for order_by.
 
@@ -857,7 +733,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("desc")(self)
 
-    def in_(self, first_element_or_table, *remaining_elements):
+    def in_(self, first_element_or_table, *remaining_elements) -> 'Expression':
         """
         If first_element_or_table is a Table, Returns true if an expression exists in a given table
         sub-query. The sub-query table must consist of one column. This column must have the same
@@ -895,7 +771,7 @@ class Expression(Generic[T]):
             return _binary_op("in")(self, to_jarray(gateway.jvm.Object, exprs))
 
     @property
-    def start(self):
+    def start(self) -> 'Expression':
         """
         Returns the start time (inclusive) of a window when applied on a window reference.
 
@@ -914,7 +790,7 @@ class Expression(Generic[T]):
         return _unary_op("start")(self)
 
     @property
-    def end(self):
+    def end(self) -> 'Expression':
         """
         Returns the end time (exclusive) of a window when applied on a window reference.
 
@@ -1170,7 +1046,7 @@ class Expression(Generic[T]):
         """
         return _binary_op("repeat")(self, n)
 
-    def over(self, alias):
+    def over(self, alias) -> 'Expression':
         """
         Defines an aggregation to be used for a previously specified over window.
 
@@ -1190,35 +1066,35 @@ class Expression(Generic[T]):
     # ---------------------------- temporal functions ----------------------------------
 
     @property
-    def to_date(self):
+    def to_date(self) -> 'Expression':
         """
         Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
         """
         return _unary_op("toDate")(self)
 
     @property
-    def to_time(self):
+    def to_time(self) -> 'Expression':
         """
         Parses a time string in the form "HH:mm:ss" to a SQL Time.
         """
         return _unary_op("toTime")(self)
 
     @property
-    def to_timestamp(self):
+    def to_timestamp(self) -> 'Expression':
         """
         Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
         """
         return _unary_op("toTimestamp")(self)
 
-    def extract(self, time_interval_unit: TimeIntervalUnit):
+    def extract(self, time_interval_unit: TimeIntervalUnit) -> 'Expression':
         """
         Extracts parts of a time point or time interval. Returns the part as a long value.
         e.g. `lit("2006-06-05").to_date.extract(TimeIntervalUnit.DAY)` leads to `5`.
         """
         return _binary_op("extract")(
-            self, TimeIntervalUnit._to_j_time_interval_unit(time_interval_unit))
+            self, time_interval_unit._to_j_time_interval_unit())
 
-    def floor(self, time_interval_unit: TimeIntervalUnit = None):
+    def floor(self, time_interval_unit: TimeIntervalUnit = None) -> 'Expression':
         """
         If time_interval_unit is specified, it rounds down a time point to the given
         unit, e.g. `lit("12:44:31").to_date.floor(TimeIntervalUnit.MINUTE)` leads to
@@ -1229,9 +1105,9 @@ class Expression(Generic[T]):
             return _unary_op("floor")(self)
         else:
             return _binary_op("floor")(
-                self, TimeIntervalUnit._to_j_time_interval_unit(time_interval_unit))
+                self, time_interval_unit._to_j_time_interval_unit())
 
-    def ceil(self, time_interval_unit: TimeIntervalUnit = None):
+    def ceil(self, time_interval_unit: TimeIntervalUnit = None) -> 'Expression':
         """
         If time_interval_unit is specified, it rounds up a time point to the given unit,
         e.g. `lit("12:44:31").to_date.floor(TimeIntervalUnit.MINUTE)` leads to 12:45:00.
@@ -1241,11 +1117,11 @@ class Expression(Generic[T]):
             return _unary_op("ceil")(self)
         else:
             return _binary_op("ceil")(
-                self, TimeIntervalUnit._to_j_time_interval_unit(time_interval_unit))
+                self, time_interval_unit._to_j_time_interval_unit())
 
     # ---------------------------- advanced type helper functions -----------------------------
 
-    def get(self, name_or_index: Union[str, int]):
+    def get(self, name_or_index: Union[str, int]) -> 'Expression':
         """
         Accesses the field of a Flink composite type (such as Tuple, POJO, etc.) by name or index
         and returns it's value.
@@ -1257,7 +1133,7 @@ class Expression(Generic[T]):
         return _binary_op("get")(self, name_or_index)
 
     @property
-    def flatten(self):
+    def flatten(self) -> 'Expression':
         """
         Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes
         into a flat representation where every subtype is a separate field.
@@ -1266,7 +1142,7 @@ class Expression(Generic[T]):
         """
         return _unary_op("flatten")(self)
 
-    def at(self, index):
+    def at(self, index) -> 'Expression':
         """
         Accesses the element of an array or map based on a key or an index (starting at 1).
 
@@ -1277,7 +1153,7 @@ class Expression(Generic[T]):
         return _binary_op("at")(self, index)
 
     @property
-    def cardinality(self):
+    def cardinality(self) -> 'Expression':
         """
         Returns the number of elements of an array or number of entries of a map.
 
@@ -1286,7 +1162,7 @@ class Expression(Generic[T]):
         return _unary_op("cardinality")(self)
 
     @property
-    def element(self):
+    def element(self) -> 'Expression':
         """
         Returns the sole element of an array with a single element. Returns null if the array is
         empty. Throws an exception if the array has more than one element.
@@ -1298,7 +1174,7 @@ class Expression(Generic[T]):
     # ---------------------------- time definition functions -----------------------------
 
     @property
-    def rowtime(self):
+    def rowtime(self) -> 'Expression':
         """
         Declares a field as the rowtime attribute for indicating, accessing, and working in
         Flink's event time.
@@ -1308,7 +1184,7 @@ class Expression(Generic[T]):
         return _unary_op("rowtime")(self)
 
     @property
-    def proctime(self):
+    def proctime(self) -> 'Expression':
         """
         Declares a field as the proctime attribute for indicating, accessing, and working in
         Flink's processing time.
@@ -1318,75 +1194,75 @@ class Expression(Generic[T]):
         return _unary_op("proctime")(self)
 
     @property
-    def year(self):
+    def year(self) -> 'Expression':
         return _unary_op("year")(self)
 
     @property
-    def years(self):
+    def years(self) -> 'Expression':
         return _unary_op("years")(self)
 
     @property
-    def quarter(self):
+    def quarter(self) -> 'Expression':
         return _unary_op("quarter")(self)
 
     @property
-    def quarters(self):
+    def quarters(self) -> 'Expression':
         return _unary_op("quarters")(self)
 
     @property
-    def month(self):
+    def month(self) -> 'Expression':
         return _unary_op("month")(self)
 
     @property
-    def months(self):
+    def months(self) -> 'Expression':
         return _unary_op("months")(self)
 
     @property
-    def week(self):
+    def week(self) -> 'Expression':
         return _unary_op("week")(self)
 
     @property
-    def weeks(self):
+    def weeks(self) -> 'Expression':
         return _unary_op("weeks")(self)
 
     @property
-    def day(self):
+    def day(self) -> 'Expression':
         return _unary_op("day")(self)
 
     @property
-    def days(self):
+    def days(self) -> 'Expression':
         return _unary_op("days")(self)
 
     @property
-    def hour(self):
+    def hour(self) -> 'Expression':
         return _unary_op("hour")(self)
 
     @property
-    def hours(self):
+    def hours(self) -> 'Expression':
         return _unary_op("hours")(self)
 
     @property
-    def minute(self):
+    def minute(self) -> 'Expression':
         return _unary_op("minute")(self)
 
     @property
-    def minutes(self):
+    def minutes(self) -> 'Expression':
         return _unary_op("minutes")(self)
 
     @property
-    def second(self):
+    def second(self) -> 'Expression':
         return _unary_op("second")(self)
 
     @property
-    def seconds(self):
+    def seconds(self) -> 'Expression':
         return _unary_op("seconds")(self)
 
     @property
-    def milli(self):
+    def milli(self) -> 'Expression':
         return _unary_op("milli")(self)
 
     @property
-    def millis(self):
+    def millis(self) -> 'Expression':
         return _unary_op("millis")(self)
 
     # ---------------------------- hash functions -----------------------------
