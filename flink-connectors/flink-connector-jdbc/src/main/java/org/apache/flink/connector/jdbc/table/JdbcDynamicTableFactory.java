@@ -86,7 +86,8 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		.key("scan.query")
 		.stringType()
 		.noDefaultValue()
-		.withDescription("the custom query used when scan the database table.");
+		.withDescription("the custom query used when scan the database table, if the scan.query option is present" +
+			" then the table-name option is ignored when the jdbc table is used as source table.");
 	private static final ConfigOption<String> SCAN_PARTITION_COLUMN = ConfigOptions
 		.key("scan.partition.column")
 		.stringType()

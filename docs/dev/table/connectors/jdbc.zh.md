@@ -154,7 +154,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The custom query used when scan the database table.</td>
+      <td>The custom query used when scan the database table, if the <code>'scan.query'</code> option is present then the <code>'table-name'</code> option is ignored when the jdbc table is used as source table.</td>
     </tr>
     <tr>
       <td><h5>scan.partition.column</h5></td>
