@@ -20,6 +20,7 @@ import array
 import datetime
 from decimal import Decimal
 
+from pyflink.table import expressions as E
 from pyflink.table import DataTypes, Row, BatchTableEnvironment, EnvironmentSettings
 from pyflink.table.tests.test_types import ExamplePoint, PythonOnlyPoint, ExamplePointUDT, \
     PythonOnlyUDT
@@ -31,21 +32,21 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_select(self):
         t = self.t_env.from_elements([(1, 'hi', 'hello')], ['a', 'b', 'c'])
-        result = t.select("a + 1, b, c")
+        result = t.select(t.a + 1, t.b, t.c)
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[plus(a, 1), b, c]',
                          query_operation.getProjectList().toString())
 
     def test_alias(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.alias("d, e, f").select("d, e, f")
+        result = t.alias("d, e, f").select(E.col('d'), E.col('e'), E.col('f'))
         table_schema = result._j_table.getQueryOperation().getTableSchema()
         self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
 
     def test_where(self):
         t_env = self.t_env
         t = t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.where("a > 1 && b = 'Hello'")
+        result = t.where((t.a > 1) & (t.b == 'Hello'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual("and("
                          "greaterThan(a, 1), "
@@ -54,7 +55,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_filter(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.filter("a > 1 && b = 'Hello'")
+        result = t.filter((t.a > 1) & (t.b == 'Hello'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual("and("
                          "greaterThan(a, 1), "

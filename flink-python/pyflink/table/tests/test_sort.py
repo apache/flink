@@ -23,7 +23,7 @@ class BatchTableSortTests(PyFlinkBatchTableTestCase):
 
     def test_order_by_offset_fetch(self):
         t = self.t_env.from_elements([(1, "Hello")], ["a", "b"])
-        result = t.order_by("a.desc").offset(2).fetch(2)
+        result = t.order_by(t.a.desc).offset(2).fetch(2)
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual(2, query_operation.getOffset())
