@@ -18,10 +18,7 @@
 
 package org.apache.flink.mesos.util;
 
-import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
-import org.apache.mesos.Scheduler;
-import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 
 import java.util.Collections;
@@ -97,27 +94,6 @@ public class MesosConfiguration {
 	public Set<String> roles() {
 		return frameworkInfo.hasRole() && !"*".equals(frameworkInfo.getRole()) ?
 			Collections.singleton(frameworkInfo.getRole()) : Collections.emptySet();
-	}
-
-	/**
-	 * Create the Mesos scheduler driver based on this configuration.
-	 * @param scheduler the scheduler to use.
-	 * @param implicitAcknowledgements whether to configure the driver for implicit acknowledgements.
-	 * @return a scheduler driver.
-	 */
-	public SchedulerDriver createDriver(Scheduler scheduler, boolean implicitAcknowledgements) {
-		MesosSchedulerDriver schedulerDriver;
-		if (this.credential().isDefined()) {
-			schedulerDriver =
-				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(),
-					implicitAcknowledgements, this.credential().get().build());
-		}
-		else {
-			schedulerDriver =
-				new MesosSchedulerDriver(scheduler, frameworkInfo.build(), this.masterUrl(),
-					implicitAcknowledgements);
-		}
-		return schedulerDriver;
 	}
 
 	@Override

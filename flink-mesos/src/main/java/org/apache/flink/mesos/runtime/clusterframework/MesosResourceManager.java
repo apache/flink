@@ -282,9 +282,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	protected CompletableFuture<Void> prepareLeadershipAsync() {
 		Preconditions.checkState(initializedMesosConfig != null);
 
-		schedulerDriver = initializedMesosConfig.createDriver(
-			new MesosResourceManagerSchedulerCallback(),
-			false);
+		schedulerDriver = mesosServices.createMesosSchedulerDriver(
+				initializedMesosConfig,
+				new MesosResourceManagerSchedulerCallback(),
+				false);
 
 		// create supporting actors
 		connectionMonitor = createConnectionMonitor();
