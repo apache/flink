@@ -44,7 +44,6 @@ public class ExecutionVertexSchedulingRequirements {
 
 	private final ResourceProfile physicalSlotResourceProfile;
 
-	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
 	@Nullable
@@ -55,13 +54,13 @@ public class ExecutionVertexSchedulingRequirements {
 			@Nullable AllocationID previousAllocationId,
 			ResourceProfile taskResourceProfile,
 			ResourceProfile physicalSlotResourceProfile,
-			@Nullable SlotSharingGroupId slotSharingGroupId,
+			SlotSharingGroupId slotSharingGroupId,
 			@Nullable CoLocationConstraint coLocationConstraint) {
 		this.executionVertexId = checkNotNull(executionVertexId);
 		this.previousAllocationId = previousAllocationId;
 		this.taskResourceProfile = checkNotNull(taskResourceProfile);
 		this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
-		this.slotSharingGroupId = slotSharingGroupId;
+		this.slotSharingGroupId = checkNotNull(slotSharingGroupId);
 		this.coLocationConstraint = coLocationConstraint;
 	}
 
@@ -82,7 +81,6 @@ public class ExecutionVertexSchedulingRequirements {
 		return physicalSlotResourceProfile;
 	}
 
-	@Nullable
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
 	}

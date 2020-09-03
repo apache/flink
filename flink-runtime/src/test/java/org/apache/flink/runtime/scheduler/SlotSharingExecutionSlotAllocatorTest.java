@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -425,6 +426,7 @@ public class SlotSharingExecutionSlotAllocatorTest {
 				.map(id -> new ExecutionVertexSchedulingRequirements
 					.Builder()
 					.withExecutionVertexId(id)
+					.withSlotSharingGroupId(new SlotSharingGroupId())
 					.build())
 				.collect(Collectors.toList());
 			return allocator.allocateSlotsFor(requirements);
