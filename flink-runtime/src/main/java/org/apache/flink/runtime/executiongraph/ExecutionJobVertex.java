@@ -72,6 +72,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * An {@code ExecutionJobVertex} is part of the {@link ExecutionGraph}, and the peer
  * to the {@link JobVertex}.
@@ -188,13 +190,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.inputs = new ArrayList<>(jobVertex.getInputs().size());
 
 		// take the sharing group
-		this.slotSharingGroup = jobVertex.getSlotSharingGroup();
+		this.slotSharingGroup = checkNotNull(jobVertex.getSlotSharingGroup());
 		this.coLocationGroup = jobVertex.getCoLocationGroup();
-
-		// setup the coLocation group
-		if (coLocationGroup != null && slotSharingGroup == null) {
-			throw new JobException("Vertex uses a co-location constraint without using slot sharing");
-		}
 
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
@@ -359,7 +356,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return splitAssigner;
 	}
 
-	@Nullable
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
 	}
