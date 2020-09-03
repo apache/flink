@@ -53,11 +53,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
  * serializing records into buffers.
  *
- * <p><strong>Important</strong>: it is necessary to call {@link #flushAll()} after
- * all records have been written with {@link #emit(IOReadableWritable)}. This
- * ensures that all produced records are written to the output stream (incl.
- * partially filled ones).
- *
  * @param <T> the type of the record that can be emitted with this record writer
  */
 public abstract class RecordWriter<T extends IOReadableWritable> implements AvailabilityProvider {
