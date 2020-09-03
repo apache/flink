@@ -43,23 +43,39 @@ import java.util.concurrent.CompletionException;
 /**
  * A {@link JobClient} for a {@link MiniCluster}.
  */
-public final class PerJobMiniClusterJobClient implements JobClient, CoordinationRequestGateway {
+public final class MiniClusterJobClient implements JobClient, CoordinationRequestGateway {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PerJobMiniClusterJobClient.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterJobClient.class);
 
 	private final JobID jobID;
 	private final MiniCluster miniCluster;
-	private final CompletableFuture<JobResult> jobResultFuture;
 	private final ClassLoader classLoader;
+	private final CompletableFuture<JobResult> jobResultFuture;
 
-	public PerJobMiniClusterJobClient(JobID jobID, MiniCluster miniCluster, ClassLoader classLoader) {
+	/**
+	 * Creates a {@link MiniClusterJobClient} for the given {@link JobID} and {@link MiniCluster}.
+	 * This will shut down the {@code MiniCluster} after job result retrieval if {@code
+	 * shutdownCluster} is {@code true}.
+	 */
+	public MiniClusterJobClient(
+			JobID jobID,
+			MiniCluster miniCluster,
+			ClassLoader classLoader,
+			JobFinalizationBehavior finalizationBehaviour) {
 		this.jobID = jobID;
 		this.miniCluster = miniCluster;
-		this.jobResultFuture = miniCluster
-				.requestJobResult(jobID)
-				// Make sure to shutdown the cluster when the job completes.
-				.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
 		this.classLoader = classLoader;
+		this.jobResultFuture = miniCluster.requestJobResult(jobID);
+
+		if (finalizationBehaviour == JobFinalizationBehavior.SHUTDOWN_CLUSTER) {
+			// Make sure to shutdown the cluster when the job completes.
+			jobResultFuture.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
+		} else if (finalizationBehaviour == JobFinalizationBehavior.NOTHING) {
+			// fine
+		} else {
+			throw new IllegalArgumentException(
+					"Unexpected shutdown behavior: " + finalizationBehaviour);
+		}
 	}
 
 	@Override
@@ -130,5 +146,20 @@ public final class PerJobMiniClusterJobClient implements JobClient, Coordination
 						LOG.warn("Shutdown of MiniCluster failed.", throwable);
 					}
 				});
+	}
+
+	/**
+	 * Determines the behavior of the {@link MiniClusterJobClient} when the job finishes.
+	 */
+	public enum JobFinalizationBehavior {
+		/**
+		 * Shut down the {@link MiniCluster} when the job finishes.
+		 */
+		SHUTDOWN_CLUSTER,
+
+		/**
+		 * Don't do anything when the job finishes.
+		 */
+		NOTHING
 	}
 }

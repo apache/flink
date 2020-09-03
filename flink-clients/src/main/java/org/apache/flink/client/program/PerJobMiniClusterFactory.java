@@ -26,7 +26,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.runtime.minicluster.PerJobMiniClusterJobClient;
+import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -82,7 +82,11 @@ public final class PerJobMiniClusterFactory {
 					userCodeClassloader);
 				return submissionResult;
 			}))
-			.thenApply(result -> new PerJobMiniClusterJobClient(result.getJobID(), miniCluster, userCodeClassloader))
+			.thenApply(result -> new MiniClusterJobClient(
+					result.getJobID(),
+					miniCluster,
+					userCodeClassloader,
+					MiniClusterJobClient.JobFinalizationBehavior.SHUTDOWN_CLUSTER))
 			.whenComplete((ignored, throwable) -> {
 				if (throwable != null) {
 					// We failed to create the JobClient and must shutdown to ensure cleanup.
