@@ -90,7 +90,6 @@ Operator state can be either user-defined or internal.
 | Operator                                            | Data Type of Internal Operator State |
 |:----------------------------------------------------|:-------------------------------------|
 | ReduceFunction[IOT]                                 | IOT (Input and output type) [, KEY]  |
-| FoldFunction[IT, OT]                                | OT (Output type) [, KEY]             |
 | WindowFunction[IT, OT, KEY, WINDOW]                 | IT (Input type), KEY                 |
 | AllWindowFunction[IT, OT, WINDOW]                   | IT (Input type)                      |
 | JoinFunction[IT1, IT2, OT]                          | IT1, IT2 (Type of 1. and 2. input), KEY |

@@ -73,7 +73,7 @@ a timestamp that falls into this interval arrives, and it will remove it when th
 timestamp.
 
 In addition, each window will have a `Trigger` (see [Triggers](#triggers)) and a function (`ProcessWindowFunction`, `ReduceFunction`,
-`AggregateFunction` or `FoldFunction`) (see [Window Functions](#window-functions)) attached to it. The function will contain the computation to
+or `AggregateFunction`) (see [Window Functions](#window-functions)) attached to it. The function will contain the computation to
 be applied to the contents of the window, while the `Trigger` specifies the conditions under which the window is
 considered ready for the function to be applied. A triggering policy might be something like "when the number of elements
 in the window is more than 4", or "when the watermark passes the end of the window". A trigger can also decide to
@@ -375,7 +375,6 @@ creates a new window for each arriving record and merges windows together if the
 than the defined gap.
 In order to be mergeable, a session window operator requires a merging [Trigger](#triggers) and a merging
 [Window Function](#window-functions), such as `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`
-(`FoldFunction` cannot merge.)
 
 ### Global Windows
 
@@ -419,14 +418,14 @@ to perform on each of these windows. This is the responsibility of the *window f
 elements of each (possibly keyed) window once the system determines that a window is ready for processing
 (see [triggers](#triggers) for how Flink determines when a window is ready).
 
-The window function can be one of `ReduceFunction`, `AggregateFunction`, `FoldFunction` or `ProcessWindowFunction`. The first
+The window function can be one of `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`. The first
 two can be executed more efficiently (see [State Size](#state size) section) because Flink can incrementally aggregate
 the elements for each window as they arrive. A `ProcessWindowFunction` gets an `Iterable` for all the elements contained in a
 window and additional meta information about the window to which the elements belong.
 
 A windowed transformation with a `ProcessWindowFunction` cannot be executed as efficiently as the other
 cases because Flink has to buffer *all* elements for a window internally before invoking the function.
-This can be mitigated by combining a `ProcessWindowFunction` with a `ReduceFunction`, `AggregateFunction`, or `FoldFunction` to
+This can be mitigated by combining a `ProcessWindowFunction` with a `ReduceFunction`, or `AggregateFunction` to
 get both incremental aggregation of window elements and the additional window metadata that the
 `ProcessWindowFunction` receives. We will look at examples for each of these variants.
 
@@ -552,46 +551,6 @@ input
 </div>
 
 The above example computes the average of the second field of the elements in the window.
-
-### FoldFunction
-
-A `FoldFunction` specifies how an input element of the window is combined with an element of
-the output type. The `FoldFunction` is incrementally called for each element that is added
-to the window and the current output value. The first element is combined with a pre-defined initial value of the output type.
-
-A `FoldFunction` can be defined and used like this:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<Tuple2<String, Long>> input = ...;
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .fold("", new FoldFunction<Tuple2<String, Long>, String>> {
-       public String fold(String acc, Tuple2<String, Long> value) {
-         return acc + value.f1;
-       }
-    });
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .fold("") { (acc, v) => acc + v._2 }
-{% endhighlight %}
-</div>
-</div>
-
-The above example appends all input `Long` values to an initially empty `String`.
-
-<span class="label label-danger">Attention</span> `fold()` cannot be used with session windows or other mergeable windows.
 
 ### ProcessWindowFunction
 
@@ -777,7 +736,7 @@ The example shows a `ProcessWindowFunction` that counts the elements in a window
 
 ### ProcessWindowFunction with Incremental Aggregation
 
-A `ProcessWindowFunction` can be combined with either a `ReduceFunction`, an `AggregateFunction`, or a `FoldFunction` to
+A `ProcessWindowFunction` can be combined with either a `ReduceFunction`, or an `AggregateFunction` to
 incrementally aggregate elements as they arrive in the window.
 When the window is closed, the `ProcessWindowFunction` will be provided with the aggregated result.
 This allows it to incrementally compute windows while having access to the
@@ -948,73 +907,6 @@ class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Dou
 </div>
 </div>
 
-#### Incremental Window Aggregation with FoldFunction
-
-The following example shows how an incremental `FoldFunction` can be combined with
-a `ProcessWindowFunction` to extract the number of events in the window and return also
-the key and end time of the window.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<SensorReading> input = ...;
-
-input
-  .keyBy(<key selector>)
-  .timeWindow(<duration>)
-  .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyProcessWindowFunction())
-
-// Function definitions
-
-private static class MyFoldFunction
-    implements FoldFunction<SensorReading, Tuple3<String, Long, Integer> > {
-
-  public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
-      Integer cur = acc.getField(2);
-      acc.setField(cur + 1, 2);
-      return acc;
-  }
-}
-
-private static class MyProcessWindowFunction
-    extends ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
-
-  public void process(String key,
-                    Context context,
-                    Iterable<Tuple3<String, Long, Integer>> counts,
-                    Collector<Tuple3<String, Long, Integer>> out) {
-    Integer count = counts.iterator().next().getField(2);
-    out.collect(new Tuple3<String, Long, Integer>(key, context.window().getEnd(),count));
-  }
-}
-
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-
-val input: DataStream[SensorReading] = ...
-
-input
- .keyBy(<key selector>)
- .timeWindow(<duration>)
- .fold (
-    ("", 0L, 0),
-    (acc: (String, Long, Int), r: SensorReading) => { ("", 0L, acc._3 + 1) },
-    ( key: String,
-      window: TimeWindow,
-      counts: Iterable[(String, Long, Int)],
-      out: Collector[(String, Long, Int)] ) =>
-      {
-        val count = counts.iterator.next()
-        out.collect((key, window.getEnd, count._3))
-      }
-  )
-
-{% endhighlight %}
-</div>
-</div>
-
 ### Using per-window state in ProcessWindowFunction
 
 In addition to accessing keyed state (as any rich function can) a `ProcessWindowFunction` can
@@ -1151,7 +1043,7 @@ Two things to notice about the above methods are:
 Once a trigger determines that a window is ready for processing, it fires, *i.e.*, it returns `FIRE` or `FIRE_AND_PURGE`. This is the signal for the window operator
 to emit the result of the current window. Given a window with a `ProcessWindowFunction`
 all elements are passed to the `ProcessWindowFunction` (possibly after passing them to an evictor).
-Windows with `ReduceFunction`, `AggregateFunction`, or `FoldFunction` simply emit their eagerly aggregated result.
+Windows with `ReduceFunction`, or `AggregateFunction` simply emit their eagerly aggregated result.
 
 When a trigger fires, it can either `FIRE` or `FIRE_AND_PURGE`. While `FIRE` keeps the contents of the window, `FIRE_AND_PURGE` removes its content.
 By default, the pre-implemented triggers simply `FIRE` without purging the window state.
@@ -1421,7 +1313,7 @@ Windows can be defined over long periods of time (such as days, weeks, or months
 
 1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each element (an element belongs to exactly one window unless it is dropped late). In contrast, sliding windows create several of each element, as explained in the [Window Assigners](#window-assigners) section. Hence, a sliding window of size 1 day and slide 1 second might not be a good idea.
 
-2. `ReduceFunction`, `AggregateFunction`, and `FoldFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `ProcessWindowFunction` requires accumulating all elements.
+2. `ReduceFunction` and `AggregateFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `ProcessWindowFunction` requires accumulating all elements.
 
 3. Using an `Evictor` prevents any pre-aggregation, as all the elements of a window have to be passed through the evictor before applying the computation (see [Evictors](#evictors)).
 
