@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
@@ -40,7 +41,6 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
 	public static final String FIELD_NAME_METRICS = "metrics";
 
-	@JsonProperty(FIELD_NAME_METRICS)
 	private final TaskManagerMetricsInfo taskManagerMetrics;
 
 	@JsonCreator
@@ -87,6 +87,12 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			taskManagerInfo.getHardwareDescription(),
 			taskManagerInfo.getMemoryConfiguration(),
 			taskManagerMetrics);
+	}
+
+	@JsonProperty(FIELD_NAME_METRICS)
+	@VisibleForTesting
+	public final TaskManagerMetricsInfo getTaskManagerMetricsInfo() {
+		return this.taskManagerMetrics;
 	}
 
 	@Override

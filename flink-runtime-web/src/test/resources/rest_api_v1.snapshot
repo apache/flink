@@ -2969,6 +2969,24 @@
             "memorySegmentsTotal" : {
               "type" : "integer"
             },
+            "nettyShuffleMemorySegmentsAvailable" : {
+              "type" : "integer"
+            },
+            "nettyShuffleMemorySegmentsUsed" : {
+              "type" : "integer"
+            },
+            "nettyShuffleMemorySegmentsTotal" : {
+              "type" : "integer"
+            },
+            "nettyShuffleMemoryAvailable" : {
+              "type" : "integer"
+            },
+            "nettyShuffleMemoryUsed" : {
+              "type" : "integer"
+            },
+            "nettyShuffleMemoryTotal" : {
+              "type" : "integer"
+            },
             "garbageCollectors" : {
               "type" : "array",
               "items" : {
