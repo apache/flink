@@ -28,9 +28,9 @@ import java.nio.file.Paths;
 /**
  * A {@link RichMapFunction} for copying files.
  */
-public class FileCopyRichMapFunction extends RichMapFunction<String, String> {
+public final class FileCopyRichMapFunction extends RichMapFunction<String, String> {
 	// the destination path to copy file
-	private String path;
+	private final String path;
 
 	public FileCopyRichMapFunction(String path) {
 		this.path = path;
