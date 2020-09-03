@@ -32,8 +32,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -89,8 +89,10 @@ public class VertexSlotSharingTest {
 			SlotSharingGroup group1;
 			SlotSharingGroup group2;
 
-			// verify that v1 tasks have no slot sharing group
-			assertNull(eg.getJobVertex(v1.getID()).getSlotSharingGroup());
+			// verify that v1 tasks are not in the same slot sharing group as v2
+			assertNotEquals(
+				eg.getJobVertex(v1.getID()).getSlotSharingGroup(),
+				eg.getJobVertex(v2.getID()).getSlotSharingGroup());
 
 			// v2 and v3 are shared
 			group1 = eg.getJobVertex(v2.getID()).getSlotSharingGroup();
