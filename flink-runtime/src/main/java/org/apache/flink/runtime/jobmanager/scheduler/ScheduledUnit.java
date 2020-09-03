@@ -34,7 +34,6 @@ public class ScheduledUnit {
 
 	private final ExecutionVertexID executionVertexId;
 
-	@Nullable
 	private final SlotSharingGroupId slotSharingGroupId;
 
 	@Nullable
@@ -46,10 +45,10 @@ public class ScheduledUnit {
 	public ScheduledUnit(Execution task) {
 		this(
 			task,
-			null);
+			new SlotSharingGroupId());
 	}
 
-	public ScheduledUnit(Execution task, @Nullable SlotSharingGroupId slotSharingGroupId) {
+	public ScheduledUnit(Execution task, SlotSharingGroupId slotSharingGroupId) {
 		this(
 			task,
 			slotSharingGroupId,
@@ -58,7 +57,7 @@ public class ScheduledUnit {
 
 	public ScheduledUnit(
 			Execution task,
-			@Nullable SlotSharingGroupId slotSharingGroupId,
+			SlotSharingGroupId slotSharingGroupId,
 			@Nullable CoLocationConstraint coLocationConstraint) {
 		this(
 			Preconditions.checkNotNull(task).getVertex().getID(),
@@ -69,7 +68,7 @@ public class ScheduledUnit {
 	@VisibleForTesting
 	public ScheduledUnit(
 			JobVertexID jobVertexId,
-			@Nullable SlotSharingGroupId slotSharingGroupId,
+			SlotSharingGroupId slotSharingGroupId,
 			@Nullable CoLocationConstraint coLocationConstraint) {
 		this(
 			new ExecutionVertexID(jobVertexId, 0),
@@ -79,7 +78,7 @@ public class ScheduledUnit {
 
 	public ScheduledUnit(
 			ExecutionVertexID executionVertexId,
-			@Nullable SlotSharingGroupId slotSharingGroupId,
+			SlotSharingGroupId slotSharingGroupId,
 			@Nullable CoLocationConstraint coLocationConstraint) {
 
 		this.executionVertexId = Preconditions.checkNotNull(executionVertexId);
@@ -98,7 +97,6 @@ public class ScheduledUnit {
 		return executionVertexId.getSubtaskIndex();
 	}
 
-	@Nullable
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
 	}
