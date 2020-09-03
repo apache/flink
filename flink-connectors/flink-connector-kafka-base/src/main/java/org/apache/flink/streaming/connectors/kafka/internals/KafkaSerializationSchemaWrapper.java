@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.KafkaContextAware;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
@@ -32,6 +33,7 @@ import javax.annotation.Nullable;
  * {@link org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner} to the
  * {@link KafkaSerializationSchema}.
  */
+@Internal
 public class KafkaSerializationSchemaWrapper<T> implements KafkaSerializationSchema<T>, KafkaContextAware<T> {
 
 	private final FlinkKafkaPartitioner<T> partitioner;
@@ -40,6 +42,8 @@ public class KafkaSerializationSchemaWrapper<T> implements KafkaSerializationSch
 	private boolean writeTimestamp;
 
 	private int[] partitions;
+	private int parallelInstanceId;
+	private int numParallelInstances;
 
 	public KafkaSerializationSchemaWrapper(
 			String topic,
@@ -55,6 +59,9 @@ public class KafkaSerializationSchemaWrapper<T> implements KafkaSerializationSch
 	@Override
 	public void open(SerializationSchema.InitializationContext context) throws Exception {
 		serializationSchema.open(context);
+		if (partitioner != null) {
+			partitioner.open(parallelInstanceId, numParallelInstances);
+		}
 	}
 
 	@Override
@@ -87,6 +94,16 @@ public class KafkaSerializationSchemaWrapper<T> implements KafkaSerializationSch
 	@Override
 	public void setPartitions(int[] partitions) {
 		this.partitions = partitions;
+	}
+
+	@Override
+	public void setParallelInstanceId(int parallelInstanceId) {
+		this.parallelInstanceId = parallelInstanceId;
+	}
+
+	@Override
+	public void setNumParallelInstances(int numParallelInstances) {
+		this.numParallelInstances = numParallelInstances;
 	}
 
 	public void setWriteTimestamp(boolean writeTimestamp) {
