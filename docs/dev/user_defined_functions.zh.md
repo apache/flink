@@ -155,9 +155,9 @@ data.map (new RichMapFunction[String, Int] {
 
 除了用户自定义的功能（map，reduce 等），Rich functions 还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
 `setRuntimeContext`。这些方法对于参数化函数
-(参阅 [给函数传递参数]({% link dev/batch/index.zh.md#passing-parameters-to-functions %}))，
+(参阅 [给函数传递参数]({% link dev/batch/index.zh.md %}#passing-parameters-to-functions))，
 创建和最终确定本地状态，访问广播变量(参阅
-[广播变量]({% link dev/batch/index.zh.md#broadcast-variables %}))，以及访问运行时信息，例如累加器和计数器(参阅
+[广播变量]({% link dev/batch/index.zh.md %}#broadcast-variables ))，以及访问运行时信息，例如累加器和计数器(参阅
 [累加器和计数器](#accumulators--counters))，以及迭代器的相关信息(参阅 [迭代器]({% link dev/batch/iterations.zh.md %}))
 有很大作用。
 
