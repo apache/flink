@@ -53,6 +53,7 @@ public class StatePathExtractor implements FlatMapFunction<OperatorState, String
 					((KeyGroupsStateHandle) handle).getDelegateStateHandle()
 				);
 			}
+			// other KeyedStateHandles either do not contains FileStateHandle, or are not part of a savepoint
 		}
 		return null;
 	}
