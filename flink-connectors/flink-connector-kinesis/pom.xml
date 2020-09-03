@@ -283,6 +283,12 @@ under the License.
 										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>software.amazon.awssdk:*</artifact>
+									<excludes>
+										<exclude>META-INF/services/**</exclude>
+									</excludes>
+								</filter>
 							</filters>
 						</configuration>
 					</execution>
