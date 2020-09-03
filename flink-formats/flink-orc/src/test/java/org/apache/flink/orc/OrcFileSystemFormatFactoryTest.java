@@ -35,7 +35,7 @@ import static org.junit.Assert.assertTrue;
 
 
 /**
- * Unit Tests for {@link OrcFileSystemFormatFactoryTest}.
+ * Unit Tests for {@link OrcFileSystemFormatFactory}.
  */
 public class OrcFileSystemFormatFactoryTest {
 
