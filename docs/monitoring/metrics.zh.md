@@ -1096,15 +1096,35 @@ Metrics related to data exchange between task executors using netty network comm
   </thead>
   <tbody>
     <tr>
-      <th rowspan="2"><strong>TaskManager</strong></th>
-      <td rowspan="2">Status.Shuffle.Netty</td>
+      <th rowspan="6"><strong>TaskManager</strong></th>
+      <td rowspan="6">Status.Shuffle.Netty</td>
       <td>AvailableMemorySegments</td>
       <td>The number of unused memory segments.</td>
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>UsedMemorySegments</td>
+      <td>The number of used memory segments.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>TotalMemorySegments</td>
       <td>The number of allocated memory segments.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>AvailableMemory</td>
+      <td>The amount of unused memory in bytes.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>UsedMemory</td>
+      <td>The amount of used memory in bytes.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>TotalMemory</td>
+      <td>The amount of totally allocated memory in bytes.</td>
       <td>Gauge</td>
     </tr>
     <tr>
