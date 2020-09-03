@@ -105,7 +105,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 				(callExpression.getChildren().get(0) instanceof ValueLiteralExpression && callExpression.getChildren().get(1) instanceof FieldReferenceExpression));
 	}
 
-	private OrcSplitReader.Predicate toOrcPredicate(Expression expression) {
+	public OrcSplitReader.Predicate toOrcPredicate(Expression expression) {
 		if (expression instanceof CallExpression) {
 			CallExpression callExp = (CallExpression) expression;
 			FunctionDefinition funcDef = callExp.getFunctionDefinition();
@@ -270,7 +270,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		}
 	}
 
-	private static PredicateLeaf.Type toOrcType(DataType type) {
+	public PredicateLeaf.Type toOrcType(DataType type) {
 		LogicalTypeRoot ltype = type.getLogicalType().getTypeRoot();
 
 		if (ltype == LogicalTypeRoot.TINYINT ||
