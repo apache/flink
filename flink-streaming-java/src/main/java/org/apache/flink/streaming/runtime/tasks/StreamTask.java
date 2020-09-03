@@ -1175,7 +1175,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		try {
 			outputPartitioner = InstantiationUtil.clone(
 				(StreamPartitioner<OUT>) edge.getPartitioner(),
-				Thread.currentThread().getContextClassLoader());
+				environment.getUserClassLoader());
 		} catch (Exception e) {
 			ExceptionUtils.rethrow(e);
 		}
