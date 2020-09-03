@@ -102,8 +102,9 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 
 			existingOperatorStates
 				.flatMap(new StatePathExtractor())
-				.map(new FileCopyRichMapFunction(path))
+				// first extractor all paths together in one thread, then distribute them to the file copy mapper
 				.setParallelism(1)
+				.map(new FileCopyRichMapFunction(path))
 				.output(new DiscardingOutputFormat<>());
 
 			finalOperatorStates = newOperatorStates.union(existingOperatorStates);
