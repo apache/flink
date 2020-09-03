@@ -77,8 +77,6 @@ public class SchedulerImpl implements Scheduler {
 	@Nonnull
 	private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagers;
 
-	private final BulkSlotProvider bulkSlotProvider;
-
 	public SchedulerImpl(
 		@Nonnull SlotSelectionStrategy slotSelectionStrategy,
 		@Nonnull SlotPool slotPool) {
@@ -97,15 +95,11 @@ public class SchedulerImpl implements Scheduler {
 		this.componentMainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 			"Scheduler is not initialized with proper main thread executor. " +
 				"Call to Scheduler.start(...) required.");
-
-		this.bulkSlotProvider = new BulkSlotProviderImpl(slotSelectionStrategy, slotPool);
 	}
 
 	@Override
 	public void start(@Nonnull ComponentMainThreadExecutor mainThreadExecutor) {
 		this.componentMainThreadExecutor = mainThreadExecutor;
-
-		bulkSlotProvider.start(mainThreadExecutor);
 	}
 
 	//---------------------------
@@ -565,13 +559,5 @@ public class SchedulerImpl implements Scheduler {
 	@Override
 	public boolean requiresPreviousExecutionGraphAllocations() {
 		return slotSelectionStrategy instanceof PreviousAllocationSlotSelectionStrategy;
-	}
-
-	@Override
-	public CompletableFuture<Collection<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
-			final Collection<PhysicalSlotRequest> physicalSlotRequests,
-			final Time timeout) {
-
-		return bulkSlotProvider.allocatePhysicalSlots(physicalSlotRequests, timeout);
 	}
 }

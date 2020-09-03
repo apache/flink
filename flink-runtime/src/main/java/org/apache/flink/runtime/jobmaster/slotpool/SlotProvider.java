@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -42,16 +40,7 @@ import java.util.concurrent.CompletableFuture;
  *         fulfilled as soon as a slot becomes available.</li>
  * </ul>
  */
-public interface SlotProvider extends BulkSlotProvider {
-
-	/**
-	 * Starts the slot provider by initializing the main thread executor.
-	 *
-	 * @param mainThreadExecutor the main thread executor of the job master
-	 */
-	default void start(ComponentMainThreadExecutor mainThreadExecutor) {
-		throw new UnsupportedOperationException("Not properly implemented.");
-	}
+public interface SlotProvider {
 
 	/**
 	 * Allocating slot with specific requirement.
@@ -77,9 +66,9 @@ public interface SlotProvider extends BulkSlotProvider {
 	 * @return The future of the allocation
 	 */
 	default CompletableFuture<LogicalSlot> allocateBatchSlot(
-		SlotRequestId slotRequestId,
-		ScheduledUnit scheduledUnit,
-		SlotProfile slotProfile) {
+			SlotRequestId slotRequestId,
+			ScheduledUnit scheduledUnit,
+			SlotProfile slotProfile) {
 		throw new UnsupportedOperationException("Not properly implemented.");
 	}
 
@@ -103,20 +92,6 @@ public interface SlotProvider extends BulkSlotProvider {
 	}
 
 	/**
-	 * Allocates a bulk of physical slots. The allocation will be completed
-	 * normally only when all the requests are fulfilled.
-	 *
-	 * @param physicalSlotRequests requests for physical slots
-	 * @param timeout indicating how long it is accepted that the slot requests can be unfulfillable
-	 * @return future of the results of slot requests
-	 */
-	default CompletableFuture<Collection<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
-		Collection<PhysicalSlotRequest> physicalSlotRequests,
-		Time timeout) {
-		throw new UnsupportedOperationException("Not properly implemented.");
-	}
-
-	/**
 	 * Cancels the slot request with the given {@link SlotRequestId} and {@link SlotSharingGroupId}.
 	 *
 	 * @param slotRequestId identifying the slot request to cancel
@@ -127,15 +102,4 @@ public interface SlotProvider extends BulkSlotProvider {
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause);
-
-	/**
-	 * Cancels the slot request with the given {@link SlotRequestId}. If the request is already fulfilled
-	 * with a physical slot, the slot will be released.
-	 *
-	 * @param slotRequestId identifying the slot request to cancel
-	 * @param cause of the cancellation
-	 */
-	default void cancelSlotRequest(SlotRequestId slotRequestId, Throwable cause) {
-		cancelSlotRequest(slotRequestId, null, cause);
-	}
 }
