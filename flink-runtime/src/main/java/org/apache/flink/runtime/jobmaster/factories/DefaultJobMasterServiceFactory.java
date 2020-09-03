@@ -29,11 +29,10 @@ import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
-import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 /**
@@ -44,8 +43,6 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 	private final JobMasterConfiguration jobMasterConfiguration;
 
 	private final SlotPoolFactory slotPoolFactory;
-
-	private final SchedulerFactory schedulerFactory;
 
 	private final RpcService rpcService;
 
@@ -66,7 +63,6 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 	public DefaultJobMasterServiceFactory(
 			JobMasterConfiguration jobMasterConfiguration,
 			SlotPoolFactory slotPoolFactory,
-			SchedulerFactory schedulerFactory,
 			RpcService rpcService,
 			HighAvailabilityServices haServices,
 			JobManagerSharedServices jobManagerSharedServices,
@@ -77,7 +73,6 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 			ShuffleMaster<?> shuffleMaster) {
 		this.jobMasterConfiguration = jobMasterConfiguration;
 		this.slotPoolFactory = slotPoolFactory;
-		this.schedulerFactory = schedulerFactory;
 		this.rpcService = rpcService;
 		this.haServices = haServices;
 		this.jobManagerSharedServices = jobManagerSharedServices;
@@ -101,7 +96,6 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 			jobGraph,
 			haServices,
 			slotPoolFactory,
-			schedulerFactory,
 			jobManagerSharedServices,
 			heartbeatServices,
 			jobManagerJobMetricGroupFactory,
