@@ -21,6 +21,7 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.listeners.LocalContextListener;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -182,6 +183,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private LinkedHashSet<Class<?>> registeredKryoTypes = new LinkedHashSet<>();
 
 	private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
+
+	// Local context listeners
+	// we store them in a linked set to ensure they are notified in order
+	private LinkedHashSet<Class<? extends LocalContextListener>> registeredLocalContextListeners = new LinkedHashSet<>();
 
 	// --------------------------------------------------------------------------------------------
 
@@ -936,6 +941,32 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		this.useSnapshotCompression = useSnapshotCompression;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Registry for context listeners
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Registers the given context listener. The context listener will be invoked around tasks being started on the
+	 * current JVM.
+	 *
+	 * @param listener The class of the type to register.
+	 */
+	public void registerLocalContextListener(Class<? extends LocalContextListener> listener) {
+		if (listener == null) {
+			throw new NullPointerException("Cannot register null context listener class.");
+		}
+		if (!registeredLocalContextListeners.contains(listener)) {
+			registeredLocalContextListeners.add(listener);
+		}
+	}
+
+	/**
+	 * Returns the registered local context listener types.
+	 */
+	public LinkedHashSet<Class<? extends LocalContextListener>> getRegisteredLocalContextListeners() {
+		return registeredLocalContextListeners;
+	}
+
 	/**
 	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
 	 * to the task, and we have not supported task to fail on checkpoint error.
@@ -980,6 +1011,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses) &&
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
+				registeredLocalContextListeners.equals(other.registeredLocalContextListeners) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
 				useSnapshotCompression == other.useSnapshotCompression &&
 				defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
@@ -1007,6 +1039,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			defaultKryoSerializerClasses,
 			registeredKryoTypes,
 			registeredPojoTypes,
+			registeredLocalContextListeners,
 			taskCancellationIntervalMillis,
 			useSnapshotCompression,
 			defaultInputDependencyConstraint);
