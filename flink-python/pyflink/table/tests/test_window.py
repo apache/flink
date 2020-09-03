@@ -41,7 +41,7 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
 
     def test_tumble_window(self):
         t = self.t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Tumble.over(E.lit(2).rows).on("a").alias("w"))\
+        result = t.window(Tumble.over(E.row_interval(2)).on("a").alias("w"))\
             .group_by(E.col('w'), E.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
