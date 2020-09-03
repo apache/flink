@@ -139,28 +139,6 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
-          <td>
-          <p>A "rolling" fold on a keyed data stream with an initial value.
-          Combines the current element with the last folded value and
-          emits the new value.
-          <br/>
-          <br/>
-          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
-          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
-{% highlight java %}
-DataStream<String> result =
-  keyedStream.fold("start", new FoldFunction<Integer, String>() {
-    @Override
-    public String fold(String current, Integer value) {
-        return current + "-" + value;
-    }
-  });
-{% endhighlight %}
-          </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
@@ -247,21 +225,6 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
 windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
-    }
-});
-{% endhighlight %}
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
-          <td>
-            <p>Applies a functional fold function to the window and returns the folded value.
-               The example function, when applied on the sequence (1,2,3,4,5),
-               folds the sequence into the string "start-1-2-3-4-5":</p>
-{% highlight java %}
-windowedStream.fold("start", new FoldFunction<Integer, String>() {
-    public String fold(String current, Integer value) {
-        return current + "-" + value;
     }
 });
 {% endhighlight %}
@@ -523,23 +486,6 @@ keyedStream.reduce { _ + _ }
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
-          <td>
-          <p>A "rolling" fold on a keyed data stream with an initial value.
-          Combines the current element with the last folded value and
-          emits the new value.
-          <br/>
-          <br/>
-          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
-          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
-{% highlight scala %}
-val result: DataStream[String] =
-    keyedStream.fold("start")((str, i) => { str + "-" + i })
-{% endhighlight %}
-          </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
@@ -607,18 +553,6 @@ windowedStream.reduce { _ + _ }
 {% endhighlight %}
           </td>
         </tr>
-        <tr>
-          <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
-          <td>
-            <p>Applies a functional fold function to the window and returns the folded value.
-               The example function, when applied on the sequence (1,2,3,4,5),
-               folds the sequence into the string "start-1-2-3-4-5":</p>
-{% highlight scala %}
-val result: DataStream[String] =
-    windowedStream.fold("start", (str, i) => { str + "-" + i })
-{% endhighlight %}
-          </td>
-	</tr>
         <tr>
           <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
           <td>

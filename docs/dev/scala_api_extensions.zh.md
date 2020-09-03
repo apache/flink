@@ -315,29 +315,6 @@ data.reduceWith {
       </td>
     </tr>
     <tr>
-      <td><strong>foldWith</strong></td>
-      <td><strong>fold (KeyedStream, WindowedStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.foldWith(User(bought = 0)) {
-  case (User(b), (_, items)) => User(b + items.size)
-}
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
-      <td><strong>applyWith</strong></td>
-      <td><strong>apply (WindowedStream)</strong></td>
-      <td>
-{% highlight scala %}
-data.applyWith(0)(
-  foldFunction = case (sum, amount) => sum + amount
-  windowFunction = case (k, w, sum) => // [...]
-)
-{% endhighlight %}
-      </td>
-    </tr>
-    <tr>
       <td><strong>projecting</strong></td>
       <td><strong>apply (JoinedStream)</strong></td>
       <td>
