@@ -463,8 +463,8 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         deserialization_schema = JsonRowDeserializationSchema.builder() \
             .type_info(type_info=type_info).build()
 
-        # Will get a ClassNotFoundException if not add the kafka connector into the pipeline
-        # classpaths.
+        # It Will raise a ClassNotFoundException if the kafka connector is not added into the
+        # pipeline classpaths.
         kafka_consumer = FlinkKafkaConsumer(source_topic, deserialization_schema, props)
         self.env.add_source(kafka_consumer).print()
         self.env.get_execution_plan()

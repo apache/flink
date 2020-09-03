@@ -555,8 +555,7 @@ class StreamExecutionEnvironment(object):
 
     def add_jars(self, jars_path: str):
         """
-        Adds a list of jar files that contain the user-defined function (UDF) classes and all
-        classes used from within the UDFs.
+        Adds a list of jar files that will be uploaded to the cluster and referenced by the job.
 
         :param jars_path: Path of jars that delimited by ';'.
         """
