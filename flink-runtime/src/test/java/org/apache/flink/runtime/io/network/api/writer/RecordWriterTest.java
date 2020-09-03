@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -39,7 +38,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
@@ -71,8 +69,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
@@ -488,19 +484,6 @@ public class RecordWriterTest {
 		@Override
 		public void read(DataInputView in) throws IOException {
 			in.readFully(bytes);
-		}
-	}
-
-	private static class TrackingBufferRecycler implements BufferRecycler {
-		private final ArrayList<MemorySegment> recycledMemorySegments = new ArrayList<>();
-
-		@Override
-		public synchronized void recycle(MemorySegment memorySegment) {
-			recycledMemorySegments.add(memorySegment);
-		}
-
-		public synchronized List<MemorySegment> getRecycledMemorySegments() {
-			return recycledMemorySegments;
 		}
 	}
 }
