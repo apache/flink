@@ -1,6 +1,6 @@
 ---
 title: "本地集群"
-nav-title: 'Local Cluster'
+nav-title: '本地集群'
 nav-parent_id: deployment
 nav-pos: 2
 ---
@@ -27,6 +27,8 @@ under the License.
 
 * This will be replaced by the TOC
 {:toc}
+
+<a name="setup-download-and-start-flink"></a>
 
 ## 步骤：下载并启动 Flink
 
@@ -77,6 +79,8 @@ Version: 1.2.0, Commit ID: 1c659cf
 </div>
 
 {% else %}
+<a name="download-and-compile"></a>
+
 ### 下载并编译
 你可以从我们的[仓库](https://flink.apache.org/community.html#source-code)之一克隆源代码，例如：
 
@@ -94,6 +98,8 @@ $ mvn clean package -DskipTests -Pfast
 $ cd build-target               
 {% endhighlight %}
 {% endif %}
+
+<a name="start-a-local-flink-cluster"></a>
 
 ### 启动 Flink 本地集群
 
@@ -121,6 +127,8 @@ INFO ... - Recovering all persisted jobs.
 INFO ... - Registering TaskManager ... at ResourceManager
 {% endhighlight %}
 
+<a name="windows-cygwin-users"></a>
+
 #### Windows Cygwin 用户
 
 如果你使用 Windows 的 git shell 从 git 仓库安装 Flink，Cygwin 可能会产生类似如下的错误：
@@ -133,7 +141,7 @@ c:/flink/bin/start-cluster.sh: line 30: $'\r': command not found
 
 1. 启动 Cygwin shell。
 
-2. 输入以下命令进入你的家目录
+2. 输入以下命令进入你的用户目录
 
 {% highlight bash %}
 cd; pwd
@@ -141,7 +149,7 @@ cd; pwd
 
     这个命令会在 Cygwin 的根目录下返回路径地址。
 
-3. 使用 NotePad、WordPad 或其他的文本编辑器在家目录下打开 `.bash_profile` 文件并添加以下内容：（如果这个文件不存在则需要创建）
+3. 使用 NotePad、WordPad 或其他的文本编辑器在用户目录下打开 `.bash_profile` 文件并添加以下内容：（如果这个文件不存在则需要创建）
 
 {% highlight bash %}
 export SHELLOPTS
@@ -149,6 +157,8 @@ set -o igncr
 {% endhighlight %}
 
 保存文件并打开一个新的 bash shell。
+
+<a name="stop-a-local-flink-cluster"></a>
 
 ### 关闭 Flink 本地集群
 
