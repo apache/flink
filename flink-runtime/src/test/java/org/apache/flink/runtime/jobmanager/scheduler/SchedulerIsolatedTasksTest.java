@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -249,7 +250,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
 
 		testingSlotProvider.allocateSlot(
 			new SlotRequestId(),
-			new ScheduledUnit(new JobVertexID(), null, null),
+			new ScheduledUnit(new JobVertexID(), new SlotSharingGroupId(), null),
 			SlotProfile.priorAllocation(
 				taskResourceProfile,
 				physicalSlotResourceProfile,
