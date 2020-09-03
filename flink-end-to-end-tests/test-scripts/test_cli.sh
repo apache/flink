@@ -85,7 +85,7 @@ if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Test job launch with complex parameter set\n"
     printf "==============================================================================\n"
-    eval "$FLINK_DIR/bin/flink run -m localhost:8081 -p 4 -q \
+    eval "$FLINK_DIR/bin/flink run -m localhost:8081 -p 4 \
       -c org.apache.flink.examples.java.wordcount.WordCount \
       $FLINK_DIR/examples/batch/WordCount.jar \
       --input file:///$FLINK_DIR/README.txt \

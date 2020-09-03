@@ -166,7 +166,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			Properties properties = new Properties();
 
 			StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-			see.getConfig().disableSysoutLogging();
 			see.setRestartStrategy(RestartStrategies.noRestart());
 			see.setParallelism(1);
 
@@ -1519,7 +1518,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.getConfig().disableSysoutLogging();
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1553,7 +1551,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		env1.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.getConfig().disableSysoutLogging();
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1619,7 +1616,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.getConfig().disableSysoutLogging();
 		env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
 		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(

@@ -92,10 +92,6 @@ option.
         ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with flink log output disabled:
-
-            ./bin/flink run -q ./examples/batch/WordCount.jar
-
 -   Run example program in detached mode:
 
             ./bin/flink run -d ./examples/batch/WordCount.jar

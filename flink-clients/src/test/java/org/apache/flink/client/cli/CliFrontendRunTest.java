@@ -72,12 +72,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 			verifyCliFrontend(getCli(configuration), parameters, 42, false);
 		}
 
-		// test configure sysout logging
-		{
-			String[] parameters = {"-p", "2", "-q", getTestJarPath()};
-			verifyCliFrontend(getCli(configuration), parameters, 2, false);
-		}
-
 		// test detached mode
 		{
 			String[] parameters = {"-p", "2", "-d", getTestJarPath()};
