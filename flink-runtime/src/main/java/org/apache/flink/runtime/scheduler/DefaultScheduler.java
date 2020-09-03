@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -68,6 +69,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -95,12 +97,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
+	private final Consumer<ComponentMainThreadExecutor> startUpAction;
+
 	DefaultScheduler(
 		final Logger log,
 		final JobGraph jobGraph,
 		final BackPressureStatsTracker backPressureStatsTracker,
 		final Executor ioExecutor,
 		final Configuration jobMasterConfiguration,
+		final Consumer<ComponentMainThreadExecutor> startUpAction,
 		final ScheduledExecutorService futureExecutor,
 		final ScheduledExecutor delayExecutor,
 		final ClassLoader userCodeLoader,
@@ -158,11 +163,18 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(getPreferredLocationsRetriever());
 
 		this.verticesWaitingForRestart = new HashSet<>();
+		this.startUpAction = startUpAction;
 	}
 
 	// ------------------------------------------------------------------------
 	// SchedulerNG
 	// ------------------------------------------------------------------------
+
+	@Override
+	public void setMainThreadExecutor(ComponentMainThreadExecutor mainThreadExecutor) {
+		super.setMainThreadExecutor(mainThreadExecutor);
+		startUpAction.accept(mainThreadExecutor);
+	}
 
 	@Override
 	protected long getNumberOfRestarts() {

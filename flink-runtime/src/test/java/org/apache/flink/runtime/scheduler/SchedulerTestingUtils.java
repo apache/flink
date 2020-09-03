@@ -498,6 +498,7 @@ public class SchedulerTestingUtils {
 				backPressureStatsTracker,
 				ioExecutor,
 				jobMasterConfiguration,
+				componentMainThreadExecutor -> {},
 				futureExecutor,
 				delayExecutor,
 				userCodeLoader,

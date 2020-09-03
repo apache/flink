@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Default implementation of {@link BulkSlotProvider}.
  */
-class BulkSlotProviderImpl implements BulkSlotProvider {
+public class BulkSlotProviderImpl implements BulkSlotProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BulkSlotProviderImpl.class);
 
@@ -57,7 +57,7 @@ class BulkSlotProviderImpl implements BulkSlotProvider {
 
 	private final PhysicalSlotRequestBulkChecker slotRequestBulkChecker;
 
-	BulkSlotProviderImpl(final SlotSelectionStrategy slotSelectionStrategy, final SlotPool slotPool) {
+	public BulkSlotProviderImpl(final SlotSelectionStrategy slotSelectionStrategy, final SlotPool slotPool) {
 		this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
 		this.slotPool = checkNotNull(slotPool);
 
