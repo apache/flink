@@ -18,8 +18,7 @@
 
 package org.apache.flink.state.api.functions;
 
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
@@ -29,28 +28,23 @@ import java.nio.file.Paths;
 /**
  * This mapper copies files from an existing savepoint into a new directory.
  */
-public final class FileCopyRichMapFunction extends RichMapFunction<String, String> {
+public final class FileCopyMapFunction implements MapFunction<String, String> {
 
 	private static final long serialVersionUID = 1L;
 
 	// the destination path to copy file
 	private final String path;
 
-	public FileCopyRichMapFunction(String path) {
+	public FileCopyMapFunction(String path) {
 		this.path = Preconditions.checkNotNull(path, "The destination path cannot be null");
 	}
 
 	@Override
-	public void open(Configuration configuration) throws Exception {
-		// create the parent dir only in the first subtask
-		if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
-			Path destPath = new Path(path);
-			destPath.getFileSystem().mkdirs(destPath);
-		}
-	}
-
-	@Override
 	public String map(String sourceFile) throws Exception {
+		// Create the destination directory before copying. It is not a problem if it exists already.
+		Path destPath = new Path(path);
+		destPath.getFileSystem().mkdirs(destPath);
+
 		Files.copy(
 			Paths.get(sourceFile), // source file
 			Paths.get(path, Paths.get(sourceFile).getFileName().toString()) // destination file

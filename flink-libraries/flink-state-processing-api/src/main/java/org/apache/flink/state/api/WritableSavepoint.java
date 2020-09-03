@@ -23,7 +23,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.state.api.functions.FileCopyRichMapFunction;
+import org.apache.flink.state.api.functions.FileCopyMapFunction;
 import org.apache.flink.state.api.functions.StatePathExtractor;
 import org.apache.flink.state.api.output.MergeOperatorStates;
 import org.apache.flink.state.api.output.SavepointOutputFormat;
@@ -104,7 +104,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 				.flatMap(new StatePathExtractor())
 				// first extractor all paths together in one thread, then distribute them to the file copy mapper
 				.setParallelism(1)
-				.map(new FileCopyRichMapFunction(path))
+				.map(new FileCopyMapFunction(path))
 				.output(new DiscardingOutputFormat<>());
 
 			finalOperatorStates = newOperatorStates.union(existingOperatorStates);
