@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-通过几个简单的步骤启动和运行一个 Flink 本地集群。
+通过几个简单的步骤启动并运行 Flink 本地集群。
 
 * This will be replaced by the TOC
 {:toc}
