@@ -24,21 +24,25 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import javax.annotation.Nullable;
+
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 /**
- * A CloseableIterator for insert operation result.
+ * A {@link CloseableIterator} for insert operation result.
  */
 @Internal
 class InsertResultIterator implements CloseableIterator<Row> {
 	private final JobClient jobClient;
 	private final Row affectedRowCountsRow;
-	private Optional<Boolean> hasNext = Optional.empty();
+	private final ClassLoader classLoader;
+	@Nullable
+	private Boolean hasNext = null;
 
-	InsertResultIterator(JobClient jobClient, Row affectedRowCountsRow) {
+	InsertResultIterator(JobClient jobClient, Row affectedRowCountsRow, ClassLoader classLoader) {
 		this.jobClient = jobClient;
 		this.affectedRowCountsRow = affectedRowCountsRow;
+		this.classLoader = classLoader;
 	}
 
 	@Override
@@ -48,21 +52,21 @@ class InsertResultIterator implements CloseableIterator<Row> {
 
 	@Override
 	public boolean hasNext() {
-		if (!hasNext.isPresent()) {
+		if (hasNext == null) {
 			try {
-				jobClient.getJobExecutionResult(Thread.currentThread().getContextClassLoader()).get();
+				jobClient.getJobExecutionResult(classLoader).get();
 			} catch (Exception e) {
 				throw new TableException("Failed to wait job finish", e);
 			}
-			hasNext = Optional.of(true);
+			hasNext = true;
 		}
-		return hasNext.get();
+		return hasNext;
 	}
 
 	@Override
 	public Row next() {
 		if (hasNext()) {
-			hasNext = Optional.of(false);
+			hasNext = false;
 			return affectedRowCountsRow;
 		} else {
 			throw new NoSuchElementException();

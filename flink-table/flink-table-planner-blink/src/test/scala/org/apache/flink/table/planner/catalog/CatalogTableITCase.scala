@@ -239,7 +239,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |FROM T1
         |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
       """.stripMargin
-      tableEnv.executeSql(query).await()
+    tableEnv.executeSql(query).await()
 
     val expected =
       "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +

@@ -66,7 +66,8 @@ import _root_.scala.util.Try
 abstract class TableEnvImpl(
     val config: TableConfig,
     private val catalogManager: CatalogManager,
-    private val moduleManager: ModuleManager)
+    private val moduleManager: ModuleManager,
+    private val userClassLoader: ClassLoader)
   extends TableEnvironmentInternal {
 
   // Table API/SQL function catalog
@@ -578,7 +579,7 @@ abstract class TableEnvImpl(
         .jobClient(jobClient)
         .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
         .tableSchema(builder.build())
-        .data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts: _*)))
+        .data(new InsertResultIterator(jobClient, Row.of(affectedRowCounts: _*), userClassLoader))
         .build()
     } catch {
       case e: Exception =>
