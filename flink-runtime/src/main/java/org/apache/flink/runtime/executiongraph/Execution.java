@@ -512,16 +512,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
 		final CoLocationConstraint locationConstraint = vertex.getLocationConstraint();
 
-		// sanity check
-		if (locationConstraint != null && sharingGroup == null) {
-			throw new IllegalStateException(
-					"Trying to schedule with co-location constraint but without slot sharing allowed.");
-		}
-
 		// this method only works if the execution is in the state 'CREATED'
 		if (transitionState(CREATED, SCHEDULED)) {
 
-			final SlotSharingGroupId slotSharingGroupId = sharingGroup != null ? sharingGroup.getSlotSharingGroupId() : null;
+			final SlotSharingGroupId slotSharingGroupId = sharingGroup.getSlotSharingGroupId();
 
 			ScheduledUnit toSchedule = locationConstraint == null ?
 					new ScheduledUnit(this, slotSharingGroupId) :

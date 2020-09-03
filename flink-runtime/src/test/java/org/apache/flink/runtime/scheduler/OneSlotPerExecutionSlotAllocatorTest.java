@@ -223,6 +223,7 @@ public class OneSlotPerExecutionSlotAllocatorTest extends TestLogger {
 		final List<ExecutionVertexSchedulingRequirements> schedulingRequirements = Collections.singletonList(
 			new ExecutionVertexSchedulingRequirements.Builder()
 				.withExecutionVertexId(new ExecutionVertexID(new JobVertexID(), 0))
+				.withSlotSharingGroupId(new SlotSharingGroupId())
 				.withCoLocationConstraint(coLocationConstraint)
 				.build()
 		);

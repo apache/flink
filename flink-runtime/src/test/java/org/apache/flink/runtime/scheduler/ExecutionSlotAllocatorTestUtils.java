@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
@@ -36,8 +37,11 @@ class ExecutionSlotAllocatorTestUtils {
 			new ArrayList<>(executionVertexIds.length);
 
 		for (ExecutionVertexID executionVertexId : executionVertexIds) {
-			schedulingRequirements.add(new ExecutionVertexSchedulingRequirements.Builder()
-					.withExecutionVertexId(executionVertexId).build());
+			schedulingRequirements.add(
+				new ExecutionVertexSchedulingRequirements.Builder()
+					.withExecutionVertexId(executionVertexId)
+					.withSlotSharingGroupId(new SlotSharingGroupId())
+					.build());
 		}
 		return schedulingRequirements;
 	}
