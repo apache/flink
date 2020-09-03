@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-import unittest
 from pyflink.metrics.metricbase import GenericMetricGroup, MetricGroup
 from pyflink.table import FunctionContext
 
@@ -27,8 +26,10 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.cells import DistributionData
 
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
-class MetricTests(unittest.TestCase):
+
+class MetricTests(PyFlinkTestCase):
 
     base_metric_group = GenericMetricGroup(None, None)
 

@@ -37,8 +37,8 @@ import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.LegacyTimestampTypeInfo;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
@@ -180,9 +180,9 @@ public class DataFormatConvertersTest {
 		}
 		test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
 		test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
-		test(new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+		test(InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
 				GenericRowData.of(StringData.fromString("hehe"), 111));
-		test(new RowDataTypeInfo(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRowData.of(null, null));
+		test(InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()), GenericRowData.of(null, null));
 
 		test(new DecimalDataTypeInfo(10, 5), null);
 		test(new DecimalDataTypeInfo(10, 5), DecimalDataUtils.castFrom(5.555, 10, 5));

@@ -33,5 +33,6 @@ under the License.
 
 	<artifactId>flink-walkthrough-datastream-scala</artifactId>
 	<packaging>maven-archetype</packaging>
+	<name>Flink : Walkthrough : Datastream Scala</name>
 
 </project>

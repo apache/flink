@@ -295,14 +295,6 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		verifyViewReleasedAfterParentRelease(partition);
 	}
 
-	@Test
-	public void testReleaseParentAfterSpilled() throws Exception {
-		final ResultSubpartition partition = createSubpartition();
-		partition.releaseMemory();
-
-		verifyViewReleasedAfterParentRelease(partition);
-	}
-
 	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
 		// Add a bufferConsumer
 		BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);

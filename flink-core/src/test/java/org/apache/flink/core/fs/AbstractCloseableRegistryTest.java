@@ -164,7 +164,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 					createAndRegisterStream();
 
 					try {
-						Thread.sleep(2);
+						Thread.sleep(0);
 					} catch (InterruptedException ignored) {}
 
 					if (maxStreams != Integer.MAX_VALUE) {

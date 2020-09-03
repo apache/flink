@@ -240,6 +240,10 @@
             <td>Maximum Concurrent Checkpoints</td>
             <td>{{ checkPointConfig['max_concurrent'] }}</td>
           </tr>
+          <tr>
+            <td>Unaligned Checkpoints</td>
+            <td>{{ checkPointConfig['unaligned_checkpoints'] ? 'Enabled' : 'Disabled' }}</td>
+          </tr>
           <tr *ngIf="checkPointConfig['externalization']">
             <td>Persist Checkpoints Externally</td>
             <td *ngIf="checkPointConfig['externalization']['enabled']">Enabled

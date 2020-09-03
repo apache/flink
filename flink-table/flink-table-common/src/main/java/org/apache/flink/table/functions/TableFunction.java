@@ -31,19 +31,19 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
 
 /**
- * Base class for a user-defined table function. A user-defined table functions maps zero, one, or
- * multiple scalar values to zero, one, or multiple rows. If an output row consists of only one field,
- * the row can be omitted and a scalar value can be emitted. It will be wrapped into an implicit row
- * by the runtime.
+ * Base class for a user-defined table function. A user-defined table function maps zero, one, or
+ * multiple scalar values to zero, one, or multiple rows (or structured types). If an output record
+ * consists of only one field, the structured record can be omitted, and a scalar value can be emitted
+ * that will be implicitly wrapped into a row by the runtime.
  *
  * <p>The behavior of a {@link TableFunction} can be defined by implementing a custom evaluation
  * method. An evaluation method must be declared publicly, not static, and named <code>eval</code>.
  * Evaluation methods can also be overloaded by implementing multiple methods named <code>eval</code>.
  *
  * <p>By default, input and output data types are automatically extracted using reflection. This includes
- * the generic argument {@code T} of the class for determining an output data type. If the reflective
- * information is not sufficient, it can be supported and enriched with {@link DataTypeHint} and
- * {@link FunctionHint} annotations.
+ * the generic argument {@code T} of the class for determining an output data type. Input arguments are
+ * derived from one or more {@code eval()} methods. If the reflective information is not sufficient, it
+ * can be supported and enriched with {@link DataTypeHint} and {@link FunctionHint} annotations.
  *
  * <p>The following examples show how to specify a table function:
  *
@@ -119,12 +119,10 @@ import org.apache.flink.util.Collector;
  *   Table table = ...    // schema: ROW< a VARCHAR >
  *
  *   // for Scala users
- *   val split = new Split()
- *   table.joinLateral(split('a) as ('s)).select('a, 's)
+ *   table.joinLateral(call(classOf[Split], $"a") as ("s")).select($"a", $"s")
  *
  *   // for Java users
- *   tEnv.createTemporarySystemFunction("split", Split.class); // register table function first
- *   table.joinLateral("split(a) as (s)").select("a, s");
+ *   table.joinLateral(call(Split.class, $("a")).as("s")).select($("a"), $("s"));
  *
  *   // for SQL users
  *   tEnv.createTemporarySystemFunction("split", Split.class); // register table function first

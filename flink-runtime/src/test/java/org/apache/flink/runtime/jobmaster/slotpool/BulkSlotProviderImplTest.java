@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -110,7 +111,7 @@ public class BulkSlotProviderImplTest extends TestLogger {
 
 		final CompletableFuture<Collection<PhysicalSlotRequest.Result>> slotFutures = allocateSlots(requests);
 
-		final Collection<PhysicalSlotRequest.Result> results = slotFutures.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+		final Collection<PhysicalSlotRequest.Result> results = slotFutures.get();
 		final Collection<SlotRequestId> resultRequestIds = results.stream()
 			.map(PhysicalSlotRequest.Result::getSlotRequestId)
 			.collect(Collectors.toList());
@@ -119,7 +120,7 @@ public class BulkSlotProviderImplTest extends TestLogger {
 	}
 
 	@Test
-	public void testBulkSlotAllocationFulfilledWithNewSlots() {
+	public void testBulkSlotAllocationFulfilledWithNewSlots() throws ExecutionException, InterruptedException {
 		final List<PhysicalSlotRequest> requests = Arrays.asList(
 			createPhysicalSlotRequest(),
 			createPhysicalSlotRequest());
@@ -131,8 +132,7 @@ public class BulkSlotProviderImplTest extends TestLogger {
 
 		addSlotToSlotPool();
 
-		assertThat(slotFutures.isDone(), is(true));
-		assertThat(slotFutures.isCompletedExceptionally(), is(false));
+		slotFutures.get();
 	}
 
 	@Test
@@ -185,8 +185,19 @@ public class BulkSlotProviderImplTest extends TestLogger {
 	}
 
 	@Test
-	public void testIndividualBatchSlotRequestTimeoutCheckIsDisabled() {
+	public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots() {
+		assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
+
+		allocateSlots(Collections.singletonList(createPhysicalSlotRequest()));
+
+		// drain the main thread tasks to ensure BulkSlotProviderImpl#requestNewSlot() to have been invoked
+		drainMainThreadExecutorTasks();
+
 		assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
+	}
+
+	private static void drainMainThreadExecutorTasks() {
+		CompletableFuture.runAsync(() -> {}, mainThreadExecutor).join();
 	}
 
 	private void addSlotToSlotPool() {
@@ -209,6 +220,6 @@ public class BulkSlotProviderImplTest extends TestLogger {
 		return new PhysicalSlotRequest(
 			new SlotRequestId(),
 			SlotProfile.noLocality(ResourceProfile.UNKNOWN),
-			true);
+			false);
 	}
 }

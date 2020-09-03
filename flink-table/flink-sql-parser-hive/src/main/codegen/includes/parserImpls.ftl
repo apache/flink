@@ -1048,6 +1048,23 @@ SqlShowCatalogs SqlShowCatalogs() :
     }
 }
 
+SqlCall SqlShowCurrentCatalogOrDatabase() :
+{
+}
+{
+    <SHOW> <CURRENT> (
+        <CATALOG>
+        {
+            return new SqlShowCurrentCatalog(getPos());
+        }
+    |
+        <DATABASE>
+        {
+            return new SqlShowCurrentDatabase(getPos());
+        }
+    )
+}
+
 SqlDescribeCatalog SqlDescribeCatalog() :
 {
     SqlIdentifier catalogName;
@@ -1451,4 +1468,22 @@ SqlAlterTable SqlDropPartitions(SqlParserPos startPos, SqlIdentifier tableIdenti
     }
   )*
   { return new SqlDropPartitions(startPos.plus(getPos()), tableIdentifier, ifExists, partSpecs); }
+}
+
+/**
+ * Hive syntax:
+ *
+ * SHOW PARTITIONS table_name [PARTITION partition_spec];
+ */
+SqlShowPartitions SqlShowPartitions() :
+{
+     SqlParserPos pos;
+     SqlIdentifier tableIdentifier;
+     SqlNodeList partitionSpec = null;
+}
+{
+    <SHOW> <PARTITIONS> { pos = getPos(); }
+        tableIdentifier = CompoundIdentifier()
+    [ <PARTITION> { partitionSpec = new SqlNodeList(getPos()); PartitionSpecCommaList(new SqlNodeList(getPos()), partitionSpec); } ]
+    { return new SqlShowPartitions(pos, tableIdentifier, partitionSpec); }
 }

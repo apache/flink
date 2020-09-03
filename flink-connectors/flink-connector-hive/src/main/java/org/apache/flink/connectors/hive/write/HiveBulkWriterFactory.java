@@ -51,7 +51,8 @@ public class HiveBulkWriterFactory implements HadoopPathBasedBulkWriter.Factory<
 
 			@Override
 			public long getSize() throws IOException {
-				return fs.getFileStatus(inProgressPath).getLen();
+				// it's possible the in-progress file hasn't yet been created, due to writer lazy init or data buffering
+				return fs.exists(inProgressPath) ? fs.getFileStatus(inProgressPath).getLen() : 0;
 			}
 
 			@Override

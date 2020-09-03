@@ -32,7 +32,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
-	<name>flink-statebackend-rocksdb</name>
+	<name>Flink : State backends : RocksDB</name>
 
 	<packaging>jar</packaging>
 

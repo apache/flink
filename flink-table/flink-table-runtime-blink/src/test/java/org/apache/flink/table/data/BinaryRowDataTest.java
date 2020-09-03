@@ -43,10 +43,12 @@ import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
@@ -475,7 +477,7 @@ public class BinaryRowDataTest {
 		BinaryRowData row = new BinaryRowData(2);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
 		writer.writeRow(0, GenericRowData.of(fromString("1"), 1),
-				new RowDataSerializer(null, RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
+				new RowDataSerializer(RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
 		writer.setNullAt(1);
 		writer.complete();
 
@@ -518,8 +520,7 @@ public class BinaryRowDataTest {
 		// 2. test write array to binary row
 		BinaryRowData row = new BinaryRowData(1);
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
-		ArrayDataSerializer serializer = new ArrayDataSerializer(
-			DataTypes.INT().getLogicalType(), new ExecutionConfig());
+		ArrayDataSerializer serializer = new ArrayDataSerializer(DataTypes.INT().getLogicalType());
 		rowWriter.writeArray(0, array, serializer);
 		rowWriter.complete();
 
@@ -543,8 +544,7 @@ public class BinaryRowDataTest {
 		// 2. test write array to binary row
 		BinaryRowData row2 = new BinaryRowData(1);
 		BinaryRowWriter writer2 = new BinaryRowWriter(row2);
-		ArrayDataSerializer serializer = new ArrayDataSerializer(
-			DataTypes.INT().getLogicalType(), new ExecutionConfig());
+		ArrayDataSerializer serializer = new ArrayDataSerializer(DataTypes.INT().getLogicalType());
 		writer2.writeArray(0, array, serializer);
 		writer2.complete();
 
@@ -580,8 +580,7 @@ public class BinaryRowDataTest {
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
 		MapDataSerializer serializer = new MapDataSerializer(
 			DataTypes.STRING().getLogicalType(),
-			DataTypes.INT().getLogicalType(),
-			new ExecutionConfig());
+			DataTypes.INT().getLogicalType());
 		rowWriter.writeMap(0, binaryMap, serializer);
 		rowWriter.complete();
 
@@ -613,8 +612,7 @@ public class BinaryRowDataTest {
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
 		MapDataSerializer serializer = new MapDataSerializer(
 			DataTypes.INT().getLogicalType(),
-			DataTypes.STRING().getLogicalType(),
-			new ExecutionConfig());
+			DataTypes.STRING().getLogicalType());
 		rowWriter.writeMap(0, genericMap, serializer);
 		rowWriter.complete();
 
@@ -1049,5 +1047,31 @@ public class BinaryRowDataTest {
 			row.setTimestamp(0, timestamp2, precision);
 			assertEquals("1970-01-01T00:00:00.123456789", row.getTimestamp(0, precision).toString());
 		}
+	}
+
+	@Test
+	public void testNestedRowWithBinaryRowEquals() {
+		BinaryRowData nestedBinaryRow = new BinaryRowData(2);
+		{
+			BinaryRowWriter writer = new BinaryRowWriter(nestedBinaryRow);
+			writer.writeInt(0, 42);
+			LogicalType innerType = DataTypes.ROW(
+				DataTypes.FIELD("f0", DataTypes.STRING()),
+				DataTypes.FIELD("f1", DataTypes.DOUBLE())).getLogicalType();
+			RowDataSerializer innerSerializer = (RowDataSerializer) (TypeSerializer<?>) InternalSerializers.create(innerType);
+			writer.writeRow(1, GenericRowData.of(StringData.fromString("Test"), 12.345), innerSerializer);
+			writer.complete();
+		}
+
+		BinaryRowData innerBinaryRow = new BinaryRowData(2);
+		{
+			BinaryRowWriter writer = new BinaryRowWriter(innerBinaryRow);
+			writer.writeString(0, StringData.fromString("Test"));
+			writer.writeDouble(1, 12.345);
+			writer.complete();
+		}
+
+		assertEquals(innerBinaryRow, nestedBinaryRow.getRow(1, 2));
+		assertEquals(nestedBinaryRow.getRow(1, 2), innerBinaryRow);
 	}
 }

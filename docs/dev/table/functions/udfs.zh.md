@@ -401,8 +401,8 @@ public static class OverloadedFunction extends TableFunction<Row> {
   output = @DataTypeHint("INT")
 )
 @FunctionHint(
-  input = [@DataTypeHint("LONG"), @DataTypeHint("LONG")],
-  output = @DataTypeHint("LONG")
+  input = [@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")],
+  output = @DataTypeHint("BIGINT")
 )
 @FunctionHint(
   input = [],
@@ -432,7 +432,7 @@ import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.types.Row
 
 // 为函数类的所有求值方法指定同一个输出类型
-@FunctionHint(output = @DataTypeHint("ROW<s STRING, i INT>"))
+@FunctionHint(output = new DataTypeHint("ROW<s STRING, i INT>"))
 class OverloadedFunction extends TableFunction[Row] {
 
   def eval(a: Int, b: Int): Unit = {
@@ -447,16 +447,16 @@ class OverloadedFunction extends TableFunction[Row] {
 
 // 解耦类型推导与求值方法，类型推导完全取决于 @FunctionHint
 @FunctionHint(
-  input = Array(@DataTypeHint("INT"), @DataTypeHint("INT")),
-  output = @DataTypeHint("INT")
+  input = Array(new DataTypeHint("INT"), new DataTypeHint("INT")),
+  output = new DataTypeHint("INT")
 )
 @FunctionHint(
-  input = Array(@DataTypeHint("LONG"), @DataTypeHint("LONG")),
-  output = @DataTypeHint("LONG")
+  input = Array(new DataTypeHint("BIGINT"), new DataTypeHint("BIGINT")),
+  output = new DataTypeHint("BIGINT")
 )
 @FunctionHint(
   input = Array(),
-  output = @DataTypeHint("BOOLEAN")
+  output = new DataTypeHint("BOOLEAN")
 )
 class OverloadedFunction extends TableFunction[AnyRef] {
 
@@ -709,7 +709,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 </div>
 
-如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/table/python/python_udfs.zh.md %}#scalar-functions)。
+如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#标量函数scalarfunction)。
 
 {% top %}
 
@@ -805,12 +805,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.types.Row
 
-@FunctionHint(output = @DataTypeHint("ROW<word STRING, length INT>"))
+@FunctionHint(output = new DataTypeHint("ROW<word STRING, length INT>"))
 class SplitFunction extends TableFunction[Row] {
 
   def eval(str: String): Unit = {
     // use collect(...) to emit a row
-    str.split(" ").foreach(s => collect(Row.of(s, s.length)))
+    str.split(" ").foreach(s => collect(Row.of(s, Int.box(s.length))))
   }
 }
 
@@ -867,7 +867,7 @@ env.sqlQuery(
 
 如果你打算使用 Scala，不要把表值函数声明为 Scala `object`，Scala `object` 是单例对象，将导致并发问题。
 
-如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/table/python/python_udfs.zh.md %}#table-functions)。
+如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#表值函数)。
 
 {% top %}
 

@@ -24,7 +24,7 @@
             <td><h5>yarn.application-attempts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need to set the JM host:port manually. It is recommended to leave this option at 1.</td>
+            <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
         </tr>
         <tr>
             <td><h5>yarn.application-master.port</h5></td>
@@ -135,10 +135,22 @@
             <td>When this is true Flink will ship the keytab file configured via security.kerberos.login.keytab as a localized YARN resource.</td>
         </tr>
         <tr>
-            <td><h5>yarn.ship-directories</h5></td>
+            <td><h5>yarn.ship-archives</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of directories to be shipped to the YARN cluster.</td>
+            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip".</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.ship-files</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.staging-directory</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Staging directory used to store YARN files while submitting applications. Per default, it uses the home directory of the configured file system.</td>
         </tr>
         <tr>
             <td><h5>yarn.tags</h5></td>

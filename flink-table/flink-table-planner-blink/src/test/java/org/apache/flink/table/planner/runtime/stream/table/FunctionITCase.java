@@ -38,8 +38,10 @@ import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
  * Tests for user defined functions in the Table API.
@@ -114,7 +116,10 @@ public class FunctionITCase extends StreamingTestBase {
 	@Test
 	public void testLateralJoinWithScalarFunction() throws Exception {
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Currently, only table functions can emit rows.");
+		thrown.expect(
+			hasMessage(
+				containsString(
+					"Currently, only table functions can be used in a correlate operation.")));
 
 		TestCollectionTableFactory.reset();
 		tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");

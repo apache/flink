@@ -650,7 +650,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			public AggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter, String name,
 					boolean isDistinct) {
 				this.relBuilder = relBuilder;
-				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor(relBuilder);
 				this.expressionConverter = expressionConverter;
 				this.name = name;
 				this.isDistinct = isDistinct;
@@ -704,7 +704,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			public TableAggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter) {
 				this.relBuilder = relBuilder;
-				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor(relBuilder);
 				this.expressionConverter = expressionConverter;
 			}
 

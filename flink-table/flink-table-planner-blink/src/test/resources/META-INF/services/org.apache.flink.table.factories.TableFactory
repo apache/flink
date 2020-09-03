@@ -16,7 +16,7 @@
 org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 org.apache.flink.table.planner.runtime.batch.sql.TestPartitionableSinkFactory
 org.apache.flink.table.planner.utils.TestPartitionableSourceFactory
-org.apache.flink.table.planner.utils.TestFilterableTableSourceFactory
+org.apache.flink.table.planner.utils.TestLegacyFilterableTableSourceFactory
 org.apache.flink.table.planner.utils.TestLegacyProjectableTableSourceFactory
 org.apache.flink.table.planner.utils.TestOptionsTableFactory
 
@@ -28,7 +28,7 @@ org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil$DataTypeOutputFor
 org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil$LegacyUnsafeMemoryAppendTableFactory
 org.apache.flink.table.planner.utils.TestTableSourceFactory
 org.apache.flink.table.planner.runtime.utils.InMemoryLookupableTableFactory
-org.apache.flink.table.planner.utils.TestLimitableTableSourceFactory
+org.apache.flink.table.planner.utils.TestLegacyLimitableTableSourceFactory
 org.apache.flink.table.planner.utils.TestInputFormatTableSourceFactory
 org.apache.flink.table.planner.utils.TestDataTypeTableSourceFactory
 org.apache.flink.table.planner.utils.TestDataTypeTableSourceWithTimeFactory

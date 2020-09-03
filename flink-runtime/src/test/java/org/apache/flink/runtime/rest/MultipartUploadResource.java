@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -26,12 +25,12 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -39,7 +38,6 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.rules.ExternalResource;
@@ -67,7 +65,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -122,14 +119,12 @@ public class MultipartUploadResource extends ExternalResource {
 		jsonHandler = new MultipartJsonHandler(mockGatewayRetriever);
 		fileHandler = new MultipartFileHandler(mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
 
-		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
-			Tuple2.of(mixedHandler.getMessageHeaders(), mixedHandler),
-			Tuple2.of(jsonHandler.getMessageHeaders(), jsonHandler),
-			Tuple2.of(fileHandler.getMessageHeaders(), fileHandler));
+		serverEndpoint = TestRestServerEndpoint.builder(serverConfig)
+				.withHandler(mixedHandler)
+				.withHandler(jsonHandler)
+				.withHandler(fileHandler)
+				.buildAndStart();
 
-		serverEndpoint = new TestRestServerEndpoint(serverConfig, handlers);
-
-		serverEndpoint.start();
 		serverAddress = serverEndpoint.getRestBaseUrl();
 		serverSocketAddress = serverEndpoint.getServerAddress();
 	}
@@ -439,27 +434,6 @@ public class MultipartUploadResource extends ExternalResource {
 			return "TestRequestBody{" +
 				"index=" + index +
 				'}';
-		}
-	}
-
-	private static class TestRestServerEndpoint extends RestServerEndpoint {
-
-		private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
-
-		TestRestServerEndpoint(
-			RestServerEndpointConfiguration configuration,
-			List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) throws IOException {
-			super(configuration);
-			this.handlers = requireNonNull(handlers);
-		}
-
-		@Override
-		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(final CompletableFuture<String> localAddressFuture) {
-			return handlers;
-		}
-
-		@Override
-		protected void startInternal() {
 		}
 	}
 }

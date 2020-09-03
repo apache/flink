@@ -59,9 +59,9 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 - **ID**: The ID of the triggered checkpoint. The IDs are incremented for each checkpoint, starting at 1.
 - **Status**: The current status of the checkpoint, which is either *In Progress* (<i aria-hidden="true" class="fa fa-circle-o-notch fa-spin fa-fw"/>), *Completed* (<i aria-hidden="true" class="fa fa-check"/>), or *Failed* (<i aria-hidden="true" class="fa fa-remove"/>). If the triggered checkpoint is a savepoint, you will see a <i aria-hidden="true" class="fa fa-floppy-o"/> symbol.
 - **Trigger Time**: The time when the checkpoint was triggered at the JobManager.
-- **Latest Acknowledgement**: The time when the latest acknowledged for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
+- **Latest Acknowledgement**: The time when the latest acknowledgement for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
 - **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
-- **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. This value would be the delta delta checkpointed data if incremetnal checkpoint is on.
+- **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. If incremental checkpointing is enabled this value is the checkpointed data size delta.
 - **Buffered During Alignment**: The number of bytes buffered during alignment over all acknowledged subtasks. This is only > 0 if a stream alignment takes place during checkpointing. If the checkpointing mode is `AT_LEAST_ONCE` this will always be zero as at least once mode does not require stream alignment.
 
 #### History Size Configuration

@@ -24,9 +24,12 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -42,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * results, receivers are deployed as soon as the first buffer is added to the result partition.
  * With blocking results on the other hand, receivers are deployed after the partition is finished.
  */
-public class ConsumableNotifyingResultPartitionWriterDecorator implements ResultPartitionWriter {
+public class ConsumableNotifyingResultPartitionWriterDecorator implements ResultPartitionWriter, CheckpointedResultPartition {
 
 	private final TaskActions taskActions;
 
@@ -96,13 +99,8 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 	}
 
 	@Override
-	public ResultSubpartition getSubpartition(int subpartitionIndex) {
-		return partitionWriter.getSubpartition(subpartitionIndex);
-	}
-
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		partitionWriter.readRecoveredState(stateReader);
+	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
+		return partitionWriter.createSubpartitionView(index, availabilityListener);
 	}
 
 	@Override
@@ -161,6 +159,28 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionWriter.getPartitionId(), taskActions);
 
 			hasNotifiedPipelinedConsumers = true;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  checkpointable methods
+	// ------------------------------------------------------------------------
+
+	@Override
+	public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
+		return getCheckpointablePartition().getCheckpointedSubpartition(subpartitionIndex);
+	}
+
+	@Override
+	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
+		getCheckpointablePartition().readRecoveredState(stateReader);
+	}
+
+	private CheckpointedResultPartition getCheckpointablePartition() {
+		if (partitionWriter instanceof CheckpointedResultPartition) {
+			return (CheckpointedResultPartition) partitionWriter;
+		} else {
+			throw new IllegalStateException("This partition is not checkpointable: " + partitionWriter);
 		}
 	}
 

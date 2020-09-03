@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -37,7 +36,6 @@ import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -60,12 +58,12 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 	private transient BinaryArrayWriter reuseKeyWriter;
 	private transient BinaryArrayWriter reuseValueWriter;
 
-	public MapDataSerializer(LogicalType keyType, LogicalType valueType, ExecutionConfig conf) {
+	public MapDataSerializer(LogicalType keyType, LogicalType valueType) {
 		this.keyType = keyType;
 		this.valueType = valueType;
 
-		this.keySerializer = InternalSerializers.create(keyType, conf);
-		this.valueSerializer = InternalSerializers.create(valueType, conf);
+		this.keySerializer = InternalSerializers.create(keyType);
+		this.valueSerializer = InternalSerializers.create(valueType);
 	}
 
 	private MapDataSerializer(

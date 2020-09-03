@@ -96,7 +96,7 @@ public class RowDataPythonTableFunctionOperator extends AbstractPythonTableFunct
 		reuseJoinedRow = new JoinedRowData();
 
 		udtfInputProjection = createUdtfInputProjection();
-		forwardedInputSerializer = new RowDataSerializer(this.getExecutionConfig(), inputType);
+		forwardedInputSerializer = new RowDataSerializer(inputType);
 		udtfInputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
 		udtfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
 	}

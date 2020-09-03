@@ -49,6 +49,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -79,8 +81,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 	protected void onSetup() throws Exception {
 		super.onSetup();
 
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "logback.xml");
-		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, "log4j.properties");
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOGBACK_NAME);
+		KubernetesTestUtils.createTemporyFile("some data", flinkConfDir, CONFIG_FILE_LOG4J_NAME);
 
 		this.kubernetesJobManagerSpecification =
 			KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(kubernetesJobManagerParameters);
@@ -138,7 +140,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 		assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
 
 		assertEquals(1, resultedMainContainer.getCommand().size());
-		assertEquals(3, resultedMainContainer.getArgs().size());
+		assertEquals(2, resultedMainContainer.getArgs().size());
 
 		assertEquals(1, resultedMainContainer.getVolumeMounts().size());
 	}
@@ -212,8 +214,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
 		final Map<String, String> resultDatas = resultConfigMap.getData();
 		assertEquals(3, resultDatas.size());
-		assertEquals("some data", resultDatas.get("log4j.properties"));
-		assertEquals("some data", resultDatas.get("logback.xml"));
+		assertEquals("some data", resultDatas.get(CONFIG_FILE_LOG4J_NAME));
+		assertEquals("some data", resultDatas.get(CONFIG_FILE_LOGBACK_NAME));
 		assertTrue(resultDatas.get(FLINK_CONF_FILENAME)
 			.contains(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS.key() + ": " + ENTRY_POINT_CLASS));
 	}

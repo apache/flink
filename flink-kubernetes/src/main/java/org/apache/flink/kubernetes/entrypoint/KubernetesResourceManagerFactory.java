@@ -20,30 +20,19 @@ package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.kubernetes.KubernetesResourceManager;
+import org.apache.flink.kubernetes.KubernetesResourceManagerDriver;
 import org.apache.flink.kubernetes.KubernetesWorkerNode;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerConfiguration;
+import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
+import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFactory;
+import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.util.ConfigurationException;
 
-import javax.annotation.Nullable;
-
 /**
- * {@link ResourceManagerFactory} implementation which creates a {@link KubernetesResourceManager}.
+ * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager} with {@link KubernetesResourceManagerDriver}.
  */
 public class KubernetesResourceManagerFactory extends ActiveResourceManagerFactory<KubernetesWorkerNode> {
 
@@ -58,42 +47,21 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 	}
 
 	@Override
-	public ResourceManager<KubernetesWorkerNode> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
+	protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver(Configuration configuration) {
+		final KubernetesResourceManagerDriverConfiguration kubernetesResourceManagerDriverConfiguration =
+				new KubernetesResourceManagerDriverConfiguration(
+						configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
+						POD_CREATION_RETRY_INTERVAL);
 
-		final KubernetesResourceManagerConfiguration kubernetesResourceManagerConfiguration =
-			new KubernetesResourceManagerConfiguration(
-				configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
-				POD_CREATION_RETRY_INTERVAL);
-
-		return new KubernetesResourceManager(
-			rpcService,
-			resourceId,
-			configuration,
-			highAvailabilityServices,
-			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManager(),
-			ResourceManagerPartitionTrackerImpl::new,
-			resourceManagerRuntimeServices.getJobLeaderIdService(),
-			clusterInformation,
-			fatalErrorHandler,
-			resourceManagerMetricGroup,
-			KubeClientFactory.fromConfiguration(configuration),
-			kubernetesResourceManagerConfiguration);
+		return new KubernetesResourceManagerDriver(
+				configuration,
+				KubeClientFactory.fromConfiguration(configuration),
+				kubernetesResourceManagerDriverConfiguration);
 	}
 
 	@Override
 	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
-		Configuration configuration) throws ConfigurationException {
+			Configuration configuration) throws ConfigurationException {
 		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, KubernetesWorkerResourceSpecFactory.INSTANCE);
 	}
 }

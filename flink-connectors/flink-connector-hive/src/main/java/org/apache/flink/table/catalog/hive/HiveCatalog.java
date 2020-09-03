@@ -78,6 +78,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -147,7 +148,8 @@ public class HiveCatalog extends AbstractCatalog {
 	private final String hiveVersion;
 	private final HiveShim hiveShim;
 
-	private HiveMetastoreClientWrapper client;
+	@VisibleForTesting
+	HiveMetastoreClientWrapper client;
 
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir) {
 		this(catalogName, defaultDatabase, hiveConfDir, HiveShimLoader.getHiveVersion());
@@ -614,8 +616,10 @@ public class HiveCatalog extends AbstractCatalog {
 			DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
 			tableSchemaProps.putProperties(properties);
 			ObjectPath tablePath = new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName());
+			// try to get table schema with both new and old (1.10) key, in order to support tables created in old version
 			tableSchema = tableSchemaProps.getOptionalTableSchema(Schema.SCHEMA)
-					.orElseThrow(() -> new CatalogException("Failed to get table schema from properties for generic table " + tablePath));
+					.orElseGet(() -> tableSchemaProps.getOptionalTableSchema("generic.table.schema")
+							.orElseThrow(() -> new CatalogException("Failed to get table schema from properties for generic table " + tablePath)));
 			partitionKeys = tableSchemaProps.getPartitionKeys();
 			// remove the schema from properties
 			properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
@@ -762,13 +766,14 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public List<CatalogPartitionSpec> listPartitions(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-			throws TableNotExistException, TableNotPartitionedException, CatalogException {
+			throws TableNotExistException, TableNotPartitionedException, PartitionSpecInvalidException, CatalogException {
 		checkNotNull(tablePath, "Table path cannot be null");
 		checkNotNull(partitionSpec, "CatalogPartitionSpec cannot be null");
 
 		Table hiveTable = getHiveTable(tablePath);
 
 		ensurePartitionedTable(tablePath, hiveTable);
+		checkValidPartitionSpec(partitionSpec, getFieldNames(hiveTable.getPartitionKeys()), tablePath);
 
 		try {
 			// partition spec can be partial
@@ -991,6 +996,23 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 
 		return values;
+	}
+
+	/**
+	 * Check whether a list of partition values are valid based on the given list of partition keys.
+	 *
+	 * @param partitionSpec a partition spec.
+	 * @param partitionKeys a list of partition keys.
+	 * @param tablePath path of the table to which the partition belongs.
+	 * @throws PartitionSpecInvalidException thrown if any key in partitionSpec doesn't exist in partitionKeys.
+	 */
+	private void checkValidPartitionSpec(CatalogPartitionSpec partitionSpec, List<String> partitionKeys, ObjectPath tablePath)
+		throws PartitionSpecInvalidException {
+		for (String key : partitionSpec.getPartitionSpec().keySet()) {
+			if (!partitionKeys.contains(key)) {
+				throw new PartitionSpecInvalidException(getName(), partitionKeys, tablePath, partitionSpec);
+			}
+		}
 	}
 
 	private Partition getHivePartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
@@ -1283,7 +1305,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Partition hivePartition = getHivePartition(tablePath, partitionSpec);
 			Table hiveTable = getHiveTable(tablePath);
-			String partName = getPartitionName(tablePath, partitionSpec, hiveTable);
+			String partName = getEscapedPartitionName(tablePath, partitionSpec, hiveTable);
 			client.updatePartitionColumnStatistics(HiveStatsUtil.createPartitionColumnStats(
 					hivePartition, partName, columnStatistics.getColumnStatisticsData(), hiveVersion));
 		} catch (TableNotExistException | PartitionSpecInvalidException e) {
@@ -1296,14 +1318,12 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private String getPartitionName(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, Table hiveTable) throws PartitionSpecInvalidException {
+	// make a valid partition name that escapes special characters
+	private String getEscapedPartitionName(ObjectPath tablePath, CatalogPartitionSpec partitionSpec, Table hiveTable) throws PartitionSpecInvalidException {
 		List<String> partitionCols = getFieldNames(hiveTable.getPartitionKeys());
 		List<String> partitionVals = getOrderedFullPartitionValues(partitionSpec, partitionCols, tablePath);
-		List<String> partKVs = new ArrayList<>();
-		for (int i = 0; i < partitionCols.size(); i++) {
-			partKVs.add(partitionCols.get(i) + "=" + partitionVals.get(i));
-		}
-		return String.join("/", partKVs);
+		String defaultPartName = getHiveConf().getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
+		return FileUtils.makePartName(partitionCols, partitionVals, defaultPartName);
 	}
 
 	@Override
@@ -1353,7 +1373,7 @@ public class HiveCatalog extends AbstractCatalog {
 		try {
 			Partition partition = getHivePartition(tablePath, partitionSpec);
 			Table hiveTable = getHiveTable(tablePath);
-			String partName = getPartitionName(tablePath, partitionSpec, hiveTable);
+			String partName = getEscapedPartitionName(tablePath, partitionSpec, hiveTable);
 			List<String> partNames = new ArrayList<>();
 			partNames.add(partName);
 			Map<String, List<ColumnStatisticsObj>> partitionColumnStatistics =

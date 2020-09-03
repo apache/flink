@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import java.util
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.getAtomicName
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.util.{ImmutableBitSet, Pair, Util}
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.types.utils.{LegacyTypeInfoDataTypeConverter, TypeConversions}
-import org.apache.flink.table.typeutils.FieldInfoUtils
+
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
@@ -82,13 +82,8 @@ abstract class TableAggregate(
       // only a structured type contains a field list.
       aggCall.`type`.getFieldList.foreach(builder.add)
     } else {
-      // A non-structured type does not have a field list, so get field name through
-      // FieldInfoUtils.getFieldNames.
-      val logicalType = FlinkTypeFactory.toLogicalType(aggCall.`type`)
-      val dataType = TypeConversions.fromLogicalToDataType(logicalType)
-      val name = FieldInfoUtils
-        .getFieldNames(LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(dataType), groupNames).head
-      builder.add(name, aggCall.`type`)
+      // wrap non-structured types into a row
+      builder.add(getAtomicName(groupNames), aggCall.`type`)
     }
     builder.build()
   }

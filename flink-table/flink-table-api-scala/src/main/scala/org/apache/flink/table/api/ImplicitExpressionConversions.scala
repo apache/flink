@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
-import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedAggregateFunction, UserDefinedFunctionHelper, _}
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction, ImperativeAggregateFunction, UserDefinedFunctionHelper, _}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
@@ -173,8 +173,8 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  implicit class UserDefinedAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
-      (val a: UserDefinedAggregateFunction[T, ACC]) {
+  implicit class ImperativeAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
+      (val a: ImperativeAggregateFunction[T, ACC]) {
 
     private def createFunctionDefinition(): FunctionDefinition = {
       val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
@@ -362,6 +362,20 @@ trait ImplicitExpressionConversions {
   // ----------------------------------------------------------------------------------------------
   // Implicit expressions in prefix notation
   // ----------------------------------------------------------------------------------------------
+
+  /**
+   * Creates an unresolved reference to a table's field.
+   *
+   * For example:
+   *
+   * ```
+   * tab.select($("key"), $("value"))
+   * ```
+   *
+   * This method is useful in cases where the field name is calculated and the recommended way of
+   * using string interpolation like `$"key"` would be inconvenient.
+   */
+  def $(name: String): Expression = Expressions.$(name)
 
   /**
    * Creates a SQL literal.

@@ -42,7 +42,6 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -142,15 +141,6 @@ public interface RuntimeContext {
 	 * accumulator exists, but with different type.
 	 */
 	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
-
-	/**
-	 * Returns a map of all registered accumulators for this task.
-	 * The returned map must not be modified.
-	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
-	 */
-	@Deprecated
-	@PublicEvolving
-	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**
 	 * Convenience function to create a counter object for integers.

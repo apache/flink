@@ -33,7 +33,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -60,8 +60,8 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
 	// Minimum interval by which state is cleaned up
 	private final long minCleanUpInterval;
 	protected final long allowedLateness;
-	private final RowDataTypeInfo leftType;
-	private final RowDataTypeInfo rightType;
+	private final InternalTypeInfo<RowData> leftType;
+	private final InternalTypeInfo<RowData> rightType;
 	private GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc;
 	private transient OuterJoinPaddingUtil paddingUtil;
 
@@ -93,8 +93,8 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
 			long leftLowerBound,
 			long leftUpperBound,
 			long allowedLateness,
-			RowDataTypeInfo leftType,
-			RowDataTypeInfo rightType,
+			InternalTypeInfo<RowData> leftType,
+			InternalTypeInfo<RowData> rightType,
 			GeneratedFunction<FlatJoinFunction<RowData, RowData, RowData>> genJoinFunc) {
 		this.joinType = joinType;
 		this.leftRelativeSize = -leftLowerBound;
@@ -146,7 +146,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
 				Long.class);
 		rightTimerState = getRuntimeContext().getState(rightValueStateDescriptor);
 
-		paddingUtil = new OuterJoinPaddingUtil(leftType.getArity(), rightType.getArity());
+		paddingUtil = new OuterJoinPaddingUtil(leftType.toRowSize(), rightType.toRowSize());
 	}
 
 	@Override

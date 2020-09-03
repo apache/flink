@@ -111,7 +111,7 @@ public class OrcBulkWriterFactory<T> implements BulkWriter.Factory<T> {
 
 	private OrcFile.WriterOptions getWriterOptions() {
 		if (null == writerOptions) {
-			Configuration conf = new Configuration();
+			Configuration conf = new ThreadLocalClassLoaderConfiguration();
 			for (Map.Entry<String, String> entry : confMap.entrySet()) {
 				conf.set(entry.getKey(), entry.getValue());
 			}

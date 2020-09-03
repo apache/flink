@@ -95,6 +95,11 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
+	public long getCheckpointStartDelayNanos() {
+		return activeHandler.getCheckpointStartDelayNanos();
+	}
+
+	@Override
 	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
 		// should only be called for unaligned checkpoint
 		return unalignedHandler.hasInflightData(checkpointId, channelInfo);

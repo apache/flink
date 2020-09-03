@@ -36,7 +36,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -115,6 +114,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.getRunningJobs;
 import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilJobIsRunning;
 import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilNoJobIsRunning;
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -166,7 +166,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			Properties properties = new Properties();
 
 			StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-			see.getConfig().disableSysoutLogging();
 			see.setRestartStrategy(RestartStrategies.noRestart());
 			see.setParallelism(1);
 
@@ -455,7 +454,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final AtomicReference<Throwable> error = new AtomicReference<>();
 		Thread consumeThread = new Thread(() -> {
 			try {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, KafkaConsumerTestBase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			} catch (Throwable t) {
 				if (!ExceptionUtils.findThrowable(t, JobCancellationException.class).isPresent()) {
 					error.set(t);
@@ -1001,7 +1000,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 		final Runnable jobRunner = () -> {
 			try {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, KafkaConsumerTestBase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			} catch (Throwable t) {
 				jobError.set(t);
 			}
@@ -1071,7 +1070,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 		final Runnable jobRunner = () -> {
 			try {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, KafkaConsumerTestBase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			} catch (Throwable t) {
 				LOG.error("Job Runner failed with exception", t);
 				error.set(t);
@@ -1519,7 +1518,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.getConfig().disableSysoutLogging();
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1553,7 +1551,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		env1.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.getConfig().disableSysoutLogging();
 
 		Properties props = new Properties();
 		props.putAll(standardProps);
@@ -1619,7 +1616,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env1.getConfig().disableSysoutLogging();
 		env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
 		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(
@@ -1657,7 +1653,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 		Thread jobThread = new Thread(() -> {
 			try {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, KafkaConsumerTestBase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			} catch (Throwable t) {
 				if (!ExceptionUtils.findThrowable(t, JobCancellationException.class).isPresent()) {
 					LOG.warn("Got exception during execution", t);
@@ -2134,7 +2130,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 		Thread runner = new Thread(() -> {
 			try {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, KafkaConsumerTestBase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 				tryExecute(readEnv, "sequence validation");
 			} catch (Throwable t) {
 				if (!ExceptionUtils.findThrowable(t, SuccessException.class).isPresent()) {

@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-sql-connector-hive-1.2.2_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-hive-1.2.2</name>
+	<name>Flink : Connectors : SQL : Hive 1.2.2</name>
 
 	<packaging>jar</packaging>
 
@@ -87,7 +87,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
-			<version>${hive.connector.orc.version}</version>
+			<version>${orc.version}</version>
 			<classifier>nohive</classifier>
 			<exclusions>
 				<exclusion>
@@ -104,6 +104,12 @@ under the License.
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.orc</groupId>
+			<artifactId>orc-shims</artifactId>
+			<version>${orc.version}</version>
 		</dependency>
 
 		<dependency>
@@ -133,6 +139,7 @@ under the License.
 									<include>org.apache.hive:hive-metastore</include>
 									<include>org.apache.thrift:libfb303</include>
 									<include>org.apache.orc:orc-core</include>
+									<include>org.apache.orc:orc-shims</include>
 									<include>io.airlift:aircompressor</include>
 								</includes>
 							</artifactSet>

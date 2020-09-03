@@ -177,7 +177,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 		JobID jobID = new JobID(42L, 43L);
 		AllocationID allocationID = new AllocationID(4711L, 23L);
 		JobVertexID jobVertexID = new JobVertexID(12L, 34L);
-		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(23L, 24L);
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
 		Executor directExecutor = Executors.directExecutor();

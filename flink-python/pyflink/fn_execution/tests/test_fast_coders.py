@@ -20,6 +20,8 @@
 import logging
 import unittest
 
+from pyflink.testing.test_case_utils import PyFlinkTestCase
+
 try:
     from pyflink.fn_execution import coder_impl_fast
     from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
@@ -30,7 +32,7 @@ except ImportError:
 
 
 @unittest.skipUnless(have_cython, "Uncompiled Cython Coder")
-class CodersTest(unittest.TestCase):
+class CodersTest(PyFlinkTestCase):
 
     def check_cython_coder(self, python_field_coders, cython_field_coders, data):
         from apache_beam.coders.coder_impl import create_InputStream, create_OutputStream

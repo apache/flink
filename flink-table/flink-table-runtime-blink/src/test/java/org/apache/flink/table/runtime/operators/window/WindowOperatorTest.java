@@ -39,7 +39,7 @@ import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.ElementTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.ProcessingTimeTriggers;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -115,7 +115,7 @@ public class WindowOperatorTest {
 			new IntType(),
 			new BigIntType()};
 
-	private RowDataTypeInfo outputType = new RowDataTypeInfo(
+	private InternalTypeInfo<RowData> outputType = InternalTypeInfo.ofFields(
 			new VarCharType(VarCharType.MAX_LENGTH),
 			new BigIntType(),
 			new BigIntType(),
@@ -130,7 +130,7 @@ public class WindowOperatorTest {
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(new int[] { 0 }, inputFieldTypes);
 	private TypeInformation<RowData> keyType = keySelector.getProducedType();
 	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
-			outputType.getFieldTypes(),
+			outputType.toRowFieldTypes(),
 			new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
 	private ConcurrentLinkedQueue<Object> doubleRecord(boolean isDouble, StreamRecord<RowData> record) {
@@ -751,7 +751,8 @@ public class WindowOperatorTest {
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
 
 		RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(
-				outputType.getFieldTypes(), new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
+			outputType.toRowFieldTypes(),
+			new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 

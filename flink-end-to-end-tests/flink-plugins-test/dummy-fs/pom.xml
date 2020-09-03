@@ -28,6 +28,7 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>dummy-fs</artifactId>
+	<name>Flink : E2E Tests : Plugins : Dummy fs</name>
 
 	<packaging>jar</packaging>
 

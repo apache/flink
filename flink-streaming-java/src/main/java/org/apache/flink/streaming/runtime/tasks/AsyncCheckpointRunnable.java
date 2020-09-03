@@ -49,6 +49,10 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 	private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
 	private final Environment taskEnvironment;
 
+	public boolean isRunning() {
+		return asyncCheckpointState.get() == AsyncCheckpointState.RUNNING;
+	}
+
 	enum AsyncCheckpointState {
 		RUNNING,
 		DISCARDED,
@@ -129,12 +133,10 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 					checkpointMetaData.getCheckpointId());
 			}
 		} catch (Exception e) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} - asynchronous part of checkpoint {} could not be completed.",
-					taskName,
-					checkpointMetaData.getCheckpointId(),
-					e);
-			}
+			LOG.info("{} - asynchronous part of checkpoint {} could not be completed.",
+				taskName,
+				checkpointMetaData.getCheckpointId(),
+				e);
 			handleExecutionException(e);
 		} finally {
 			unregisterConsumer.accept(this);

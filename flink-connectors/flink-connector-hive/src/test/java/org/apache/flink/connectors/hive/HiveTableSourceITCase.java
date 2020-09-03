@@ -53,7 +53,7 @@ import org.apache.flink.table.planner.runtime.utils.TestingAppendRowDataSink;
 import org.apache.flink.table.planner.runtime.utils.TestingAppendSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 
@@ -495,7 +495,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
 		Table src = tEnv.from("hive.source_db.stream_test");
 
-		TestingAppendRowDataSink sink = new TestingAppendRowDataSink(new RowDataTypeInfo(
+		TestingAppendRowDataSink sink = new TestingAppendRowDataSink(InternalTypeInfo.ofFields(
 				DataTypes.INT().getLogicalType(),
 				DataTypes.STRING().getLogicalType(),
 				DataTypes.STRING().getLogicalType()));
@@ -574,8 +574,6 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
 		TestingAppendSink sink = new TestingAppendSink();
 		tEnv.toAppendStream(src, Row.class).addSink(sink);
-		DataStream<RowData> out = tEnv.toAppendStream(src, RowData.class);
-		out.print(); // add print to see streaming reading
 		final JobClient jobClient = env.executeAsync();
 
 		Runnable runnable = () -> {

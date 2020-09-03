@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.JobManagerOptions;
 
 import javax.annotation.Nullable;
@@ -25,10 +26,11 @@ import javax.annotation.Nullable;
 import static org.apache.flink.util.ExceptionUtils.tryEnrichOutOfMemoryError;
 
 /**
- * Exception utils to handle and enrich exceptions occurring in TaskManager.
+ * Exception utils to handle and enrich exceptions occurring in the ClusterEntrypoint.
  */
-class ClusterEntryPointExceptionUtils {
-	private static final String JM_DIRECT_OOM_ERROR_MESSAGE = String.format(
+public class ClusterEntryPointExceptionUtils {
+	@VisibleForTesting
+	static final String JM_DIRECT_OOM_ERROR_MESSAGE = String.format(
 		"Direct buffer memory. The direct out-of-memory error has occurred. This can mean two things: either Flink Master requires " +
 			"a larger size of JVM direct memory or there is a direct memory leak. The direct memory can be " +
 			"allocated by user code or some of its dependencies. Flink framework and its dependencies also consume " +
@@ -39,7 +41,8 @@ class ClusterEntryPointExceptionUtils {
 			"which has to be investigated and fixed. The Flink Master has to be shutdown...",
 		JobManagerOptions.OFF_HEAP_MEMORY.key());
 
-	private static final String JM_METASPACE_OOM_ERROR_MESSAGE = String.format(
+	@VisibleForTesting
+	static final String JM_METASPACE_OOM_ERROR_MESSAGE = String.format(
 		"Metaspace. The metaspace out-of-memory error has occurred. This can mean two things: either Flink Master requires " +
 			"a larger size of JVM metaspace to load classes or there is a class loading leak. In the first case " +
 			"'%s' configuration option should be increased. If the error persists (usually in cluster after " +
@@ -47,22 +50,29 @@ class ClusterEntryPointExceptionUtils {
 			"which has to be investigated and fixed. The Flink Master has to be shutdown...",
 		JobManagerOptions.JVM_METASPACE.key());
 
+	@VisibleForTesting
+	static final String JM_HEAP_SPACE_OOM_ERROR_MESSAGE = String.format(
+		"Java heap space. A heap space-related out-of-memory error has occurred. This can mean two things: either Flink Master " +
+			"requires a larger size of JVM heap space or there is a memory leak. In the first case, '%s' can be used to increase " +
+			"the amount of available heap memory. If the problem is not resolved by increasing the heap size, it indicates a " +
+			"memory leak in the user code or its dependencies which needs to be investigated and fixed. The Flink " +
+			"Master has to be shutdown...",
+		JobManagerOptions.JVM_HEAP_MEMORY.key()
+	);
+
 	private ClusterEntryPointExceptionUtils() {
 	}
 
 	/**
-	 * Tries to enrich the passed exception with additional information.
+	 * Tries to enrich the passed exception or its causes with additional information.
 	 *
-	 * <p>This method improves error message for direct and metaspace {@link OutOfMemoryError}.
-	 * It adds description of possible causes and ways of resolution.
+	 * <p>This method improves error messages for direct and metaspace {@link OutOfMemoryError}.
+	 * It adds descriptions about possible causes and ways of resolution.
 	 *
-	 * @param exception exception to enrich if not {@code null}
-	 * @return the enriched exception or the original if no additional information could be added;
-	 * {@code null} if the argument was {@code null}
+	 * @param root The Throwable of which the cause tree shall be traversed.
 	 */
-	@Nullable
-	static Throwable tryEnrichClusterEntryPointError(@Nullable Throwable exception) {
-		return tryEnrichOutOfMemoryError(exception, JM_METASPACE_OOM_ERROR_MESSAGE, JM_DIRECT_OOM_ERROR_MESSAGE);
+	public static void tryEnrichClusterEntryPointError(@Nullable Throwable root) {
+		tryEnrichOutOfMemoryError(root, JM_METASPACE_OOM_ERROR_MESSAGE, JM_DIRECT_OOM_ERROR_MESSAGE, JM_HEAP_SPACE_OOM_ERROR_MESSAGE);
 	}
 }
 

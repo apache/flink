@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -110,6 +111,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 			((ExternallyInducedSource<?, ?>) source).setCheckpointTrigger(triggerHook);
 		}
+		getEnvironment().getMetricGroup().getIOMetricGroup().gauge(MetricNames.CHECKPOINT_START_DELAY_TIME, this::getAsyncCheckpointStartDelayNanos);
 	}
 
 	@Override
@@ -150,7 +152,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			}
 		}
 		finally {
-			sourceThread.interrupt();
+			if (sourceThread.isAlive()) {
+				sourceThread.interrupt();
+			} else if (!sourceThread.getCompletionFuture().isDone()) {
+				// source thread didn't start
+				sourceThread.getCompletionFuture().complete(null);
+			}
 		}
 	}
 
@@ -158,6 +165,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void finishTask() throws Exception {
 		isFinished = true;
 		cancelTask();
+	}
+
+	@Override
+	protected CompletableFuture<Void> getCompletionFuture() {
+		return sourceThread.getCompletionFuture();
 	}
 
 	// ------------------------------------------------------------------------
@@ -210,8 +222,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			setName("Legacy Source Thread - " + taskDescription);
 		}
 
+		/**
+		 * @return future that is completed once this thread completes. If this task {@link #isFailing()} and this thread
+		 * is not alive (e.g. not started) returns a normally completed future.
+		 */
 		CompletableFuture<Void> getCompletionFuture() {
-			return completionFuture;
+			return isFailing() && !isAlive() ? CompletableFuture.completedFuture(null) : completionFuture;
 		}
 	}
 }

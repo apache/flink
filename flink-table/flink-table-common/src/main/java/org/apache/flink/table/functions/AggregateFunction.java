@@ -19,45 +19,64 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
 /**
- * Base class for user-defined aggregates.
+ * Base class for a user-defined aggregate function. A user-defined aggregate function maps scalar
+ * values of multiple rows to a new scalar value.
  *
- * <p>The behavior of an {@link AggregateFunction} can be defined by implementing a series of custom
- * methods. An {@link AggregateFunction} needs at least three methods:
+ * <p>The behavior of an {@link AggregateFunction} is centered around the concept of an accumulator.
+ * The accumulator is an intermediate data structure that stores the aggregated values until a final
+ * aggregation result is computed.
+ *
+ * <p>For each set of rows that needs to be aggregated, the runtime will create an empty accumulator
+ * by calling {@link #createAccumulator()}. Subsequently, the {@code accumulate()} method of the
+ * function is called for each input row to update the accumulator. Once all rows have been processed,
+ * the {@link #getValue(Object)} method of the function is called to compute and return the final result.
+ *
+ * <p>The main behavior of an {@link AggregateFunction} can be defined by implementing a custom accumulate
+ * method. An accumulate method must be declared publicly, not static, and named <code>accumulate</code>.
+ * Accumulate methods can also be overloaded by implementing multiple methods named <code>accumulate</code>.
+ *
+ * <p>By default, input, accumulator, and output data types are automatically extracted using reflection.
+ * This includes the generic argument {@code ACC} of the class for determining an accumulator data type and
+ * the generic argument {@code T} for determining an accumulator data type. Input arguments are derived
+ * from one or more {@code accumulate()} methods. If the reflective information is not sufficient, it
+ * can be supported and enriched with {@link DataTypeHint} and {@link FunctionHint} annotations.
+ *
+ * <p>An {@link AggregateFunction} needs at least three methods:
  * <ul>
- *     <li>createAccumulator</li>
- *     <li>accumulate</li>
- *     <li>getValue</li>
+ *     <li>{@code createAccumulator}</li>
+ *     <li>{@code accumulate}</li>
+ *     <li>{@code getValue}</li>
  * </ul>
  *
- * <p>There are a few other methods that can be optional to have:
+ * <p>There are a few other methods that are optional:
  * <ul>
- *     <li>retract</li>
- *     <li>merge</li>
- *     <li>resetAccumulator</li>
+ *     <li>{@code retract}</li>
+ *     <li>{@code merge}</li>
  * </ul>
  *
  * <p>All these methods must be declared publicly, not static, and named exactly as the names
- * mentioned above. The method {@link #createAccumulator()} is defined in the
- * {@link UserDefinedAggregateFunction} function, and method {@link #getValue} is defined in
- * the {@link AggregateFunction} while other methods are explained below.
+ * mentioned above to be called by generated code.
+ *
+ * <p>For storing a user-defined function in a catalog, the class must have a default constructor and
+ * must be instantiable during runtime.
  *
  * <pre>
  * {@code
- * Processes the input values and update the provided accumulator instance. The method
- * accumulate can be overloaded with different custom types and arguments. An AggregateFunction
+ * Processes the input values and updates the provided accumulator instance. The method
+ * accumulate can be overloaded with different custom types and arguments. An aggregate function
  * requires at least one accumulate() method.
  *
  * param: accumulator           the accumulator which contains the current aggregated results
- * param: [user defined inputs] the input value (usually obtained from a new arrived data).
+ * param: [user defined inputs] the input value (usually obtained from new arrived data).
  *
  * public void accumulate(ACC accumulator, [user defined inputs])
  * }
@@ -67,11 +86,11 @@ import java.util.Set;
  * {@code
  * Retracts the input values from the accumulator instance. The current design assumes the
  * inputs are the values that have been previously accumulated. The method retract can be
- * overloaded with different custom types and arguments. This function must be implemented for
- * data stream bounded OVER aggregates.
+ * overloaded with different custom types and arguments. This method must be implemented for
+ * bounded OVER aggregates over unbounded tables.
  *
  * param: accumulator           the accumulator which contains the current aggregated results
- * param: [user defined inputs] the input value (usually obtained from a new arrived data).
+ * param: [user defined inputs] the input value (usually obtained from new arrived data).
  *
  * public void retract(ACC accumulator, [user defined inputs])
  * }
@@ -79,68 +98,109 @@ import java.util.Set;
  *
  * <pre>
  * {@code
- * Merges a group of accumulator instances into one accumulator instance. This function must be
- * implemented for data stream session window grouping aggregates and data set grouping aggregates.
+ * Merges a group of accumulator instances into one accumulator instance. This method must be
+ * implemented for unbounded session window grouping aggregates and bounded grouping aggregates.
  *
  * param: accumulator the accumulator which will keep the merged aggregate results. It should
  *                    be noted that the accumulator may contain the previous aggregated
  *                    results. Therefore user should not replace or clean this instance in the
  *                    custom merge method.
- * param: its         an java.lang.Iterable pointed to a group of accumulators that will be
+ * param: iterable    an java.lang.Iterable pointed to a group of accumulators that will be
  *                    merged.
  *
  * public void merge(ACC accumulator, java.lang.Iterable<ACC> iterable)
  * }
  * </pre>
  *
+ * <p>If this aggregate function can only be applied in an OVER window, this can be declared by returning
+ * the requirement {@link FunctionRequirement#OVER_WINDOW_ONLY} in {@link #getRequirements()}.
+ *
+ * <p>If an accumulator needs to store large amounts of data, {@link ListView} and {@link MapView}
+ * provide advanced features for leveraging Flink's state backends in unbounded data scenarios.
+ *
+ * <p>The following examples show how to specify an aggregate function:
+ *
  * <pre>
  * {@code
- * Resets the accumulator for this AggregateFunction. This function must be implemented for
- * data set grouping aggregates.
+ *   // a function that counts STRING arguments that are not null and emits them as STRING
+ *   // the accumulator is BIGINT
+ *   public static class CountFunction extends AggregateFunction<String, CountFunction.MyAccumulator> {
+ *     public static class MyAccumulator {
+ *       public long count = 0L;
+ *     }
  *
- * param: accumulator the accumulator which needs to be reset
+ *     {@literal @}Override
+ *     public MyAccumulator createAccumulator() {
+ *       return new MyAccumulator();
+ *     }
  *
- * public void resetAccumulator(ACC accumulator)
+ *     public void accumulate(MyAccumulator accumulator, Integer i) {
+ *       if (i != null) {
+ *         accumulator.count += i;
+ *       }
+ *     }
+ *
+ *     {@literal @}Override
+ *     public String getValue(MyAccumulator accumulator) {
+ *       return "Result: " + accumulator.count;
+ *     }
+ *   }
+ *
+ *   // a function that determines the maximum of either BIGINT or STRING arguments
+ *   // the accumulator and the output is either BIGINT or STRING
+ *   public static class MaxFunction extends AggregateFunction<Object, Row> {
+ *     {@literal @}Override
+ *     public Row createAccumulator() {
+ *       return new Row(1);
+ *     }
+ *
+ *     {@literal @}FunctionHint(
+ *       accumulator = {@literal @}DataTypeHint("ROW<max BIGINT>"),
+ *       output = {@literal @}DataTypeHint("BIGINT")
+ *     )
+ *     public void accumulate(Row accumulator, Long l) {
+ *       final Long max = (Long) accumulator.getField(0);
+ *       if (max == null || l > max) {
+ *         accumulator.setField(0, l);
+ *       }
+ *     }
+ *
+ *     {@literal @}FunctionHint(
+ *       accumulator = {@literal @}DataTypeHint("ROW<max STRING>"),
+ *       output = {@literal @}DataTypeHint("STRING")
+ *     )
+ *     public void accumulate(Row accumulator, String s) {
+ *       final String max = (String) accumulator.getField(0);
+ *       if (max == null || s.compareTo(max) > 0) {
+ *         accumulator.setField(0, s);
+ *       }
+ *     }
+ *
+ *     {@literal @}Override
+ *     public Object getValue(Row accumulator) {
+ *       return accumulator.getField(0);
+ *     }
+ *   }
  * }
  * </pre>
  *
- * <p>If this aggregate function can only be applied in an OVER window, this can be declared using the
- * requirement {@link FunctionRequirement#OVER_WINDOW_ONLY} in {@link #getRequirements()}.
- *
- * @param <T>   the type of the aggregation result
- * @param <ACC> the type of the aggregation accumulator. The accumulator is used to keep the
- *              aggregated values which are needed to compute an aggregation result.
- *              AggregateFunction represents its state using accumulator, thereby the state of the
- *              AggregateFunction must be put into the accumulator.
+ * @param <T> final result type of the aggregation
+ * @param <ACC> intermediate result type during the aggregation
  */
 @PublicEvolving
-public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunction<T, ACC> {
+public abstract class AggregateFunction<T, ACC> extends ImperativeAggregateFunction<T, ACC> {
 
 	/**
 	 * Called every time when an aggregation result should be materialized.
 	 * The returned value could be either an early and incomplete result
-	 * (periodically emitted as data arrive) or the final result of the
+	 * (periodically emitted as data arrives) or the final result of the
 	 * aggregation.
 	 *
 	 * @param accumulator the accumulator which contains the current
-	 *                    aggregated results
+	 *                    intermediate results
 	 * @return the aggregation result
 	 */
 	public abstract T getValue(ACC accumulator);
-
-	/**
-	 * Returns <code>true</code> if this {@link AggregateFunction} can only be applied in an
-	 * OVER window.
-	 *
-	 * @return <code>true</code> if the {@link AggregateFunction} requires an OVER window,
-	 *         <code>false</code> otherwise.
-	 *
-	 * @deprecated Use {@link #getRequirements()} instead.
-	 */
-	@Deprecated
-	public boolean requiresOver() {
-		return false;
-	}
 
 	@Override
 	public final FunctionKind getKind() {
@@ -148,16 +208,8 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunc
 	}
 
 	@Override
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Aggregate functions are not updated to the new type system yet.");
-	}
-
-	@Override
-	public Set<FunctionRequirement> getRequirements() {
-		final HashSet<FunctionRequirement> requirements = new HashSet<>();
-		if (requiresOver()) {
-			requirements.add(FunctionRequirement.OVER_WINDOW_ONLY);
-		}
-		return Collections.unmodifiableSet(requirements);
+		return TypeInferenceExtractor.forAggregateFunction(typeFactory, (Class) getClass());
 	}
 }

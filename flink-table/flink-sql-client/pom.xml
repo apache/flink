@@ -28,7 +28,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-sql-client_${scala.binary.version}</artifactId>
-	<name>flink-sql-client</name>
+	<name>Flink : Table : SQL Client</name>
 	<description>
 		This module contains the SQL Client for exploring and
 		submitting SQL programs to Flink.
@@ -146,6 +146,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>

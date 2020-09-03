@@ -22,10 +22,11 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
+import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContext;
+import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -62,22 +63,22 @@ public class HiveModuleTest {
 
 		switch (hiveVersion) {
 			case HIVE_VERSION_V1_2_0:
-				assertEquals(231, hiveModule.listFunctions().size());
+				assertEquals(229, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_0_0:
-				assertEquals(235, hiveModule.listFunctions().size());
+				assertEquals(233, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_1_1:
-				assertEquals(245, hiveModule.listFunctions().size());
+				assertEquals(243, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_2_0:
-				assertEquals(261, hiveModule.listFunctions().size());
+				assertEquals(259, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V2_3_4:
-				assertEquals(279, hiveModule.listFunctions().size());
+				assertEquals(277, hiveModule.listFunctions().size());
 				break;
 			case HIVE_VERSION_V3_1_1:
-				assertEquals(298, hiveModule.listFunctions().size());
+				assertEquals(296, hiveModule.listFunctions().size());
 				break;
 		}
 	}
@@ -85,16 +86,14 @@ public class HiveModuleTest {
 	@Test
 	public void testHiveBuiltInFunction() {
 		FunctionDefinition fd = new HiveModule().getFunctionDefinition("reverse").get();
-
-		ScalarFunction func = ((ScalarFunctionDefinition) fd).getScalarFunction();
-		HiveSimpleUDF udf = (HiveSimpleUDF) func;
+		HiveSimpleUDF udf = (HiveSimpleUDF) fd;
 
 		DataType[] inputType = new DataType[] {
 			DataTypes.STRING()
 		};
 
-		udf.setArgumentTypesAndConstants(new Object[0], inputType);
-		udf.getHiveResultType(new Object[0], inputType);
+		CallContext callContext = new HiveUDFCallContext(new Object[0], inputType);
+		udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
 		udf.open(null);
 
@@ -184,5 +183,20 @@ public class HiveModuleTest {
 		// GenericUDF
 		results = Lists.newArrayList(tableEnv.sqlQuery("select length('')").execute().collect());
 		assertEquals("[0]", results.toString());
+	}
+
+	@Test
+	public void testFunctionsNeedSessionState() {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+
+		tableEnv.unloadModule("core");
+		tableEnv.loadModule("hive", new HiveModule());
+		tableEnv.loadModule("core", CoreModule.INSTANCE);
+
+		tableEnv.sqlQuery("select current_timestamp,current_date").execute().collect();
+
+		List<Row> results = Lists.newArrayList(
+				tableEnv.sqlQuery("select mod(-1,2),pmod(-1,2)").execute().collect());
+		assertEquals("[-1,1]", results.toString());
 	}
 }

@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJ
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.runtime.typeutils.{RowDataTypeInfo, BinaryRowDataSerializer}
+import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, BinaryRowDataSerializer}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
@@ -135,8 +135,8 @@ class BatchExecNestedLoopJoin(
         .asInstanceOf[Transformation[RowData]]
 
     // get type
-    val lType = lInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
-    val rType = rInput.getOutputType.asInstanceOf[RowDataTypeInfo].toRowType
+    val lType = lInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val op = new NestedLoopJoinCodeGenerator(
@@ -160,7 +160,7 @@ class BatchExecNestedLoopJoin(
       rInput,
       getRelDetailedDescription,
       op,
-      RowDataTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       parallelism,
       manageMem)
   }

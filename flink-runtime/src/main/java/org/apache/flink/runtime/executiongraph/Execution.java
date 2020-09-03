@@ -216,7 +216,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		this.executor = checkNotNull(executor);
 		this.vertex = checkNotNull(vertex);
-		this.attemptId = new ExecutionAttemptID();
+		this.attemptId = new ExecutionAttemptID(vertex.getID(), attemptNumber);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 
 		this.globalModVersion = globalModVersion;
@@ -747,6 +747,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
+			getVertex().notifyPendingDeployment(this);
 			// We run the submission in the future executor so that the serialization of large TDDs does not block
 			// the main thread and sync back to the main thread once submission is completed.
 			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
@@ -754,7 +755,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				.whenCompleteAsync(
 					(ack, failure) -> {
 						if (failure == null) {
-							vertex.notifyDeployment(this);
+							vertex.notifyCompletedDeployment(this);
 						} else {
 							if (failure instanceof TimeoutException) {
 								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';

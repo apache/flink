@@ -75,15 +75,8 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 
 		serializer.serializeRecord(record);
 
-		boolean pruneAfterCopying = false;
 		for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
-			if (copyFromSerializerToTargetChannel(targetChannel)) {
-				pruneAfterCopying = true;
-			}
-		}
-
-		if (pruneAfterCopying) {
-			serializer.prune();
+			copyFromSerializerToTargetChannel(targetChannel);
 		}
 	}
 

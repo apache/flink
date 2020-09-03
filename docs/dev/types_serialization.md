@@ -70,7 +70,7 @@ wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
     }
 });
 
-wordCounts.keyBy(0); // also valid .keyBy("f0")
+wordCounts.keyBy(value -> value.f0);
 
 
 {% endhighlight %}
@@ -86,11 +86,11 @@ val input = env.fromElements(
     WordCount("hello", 1),
     WordCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word)
 
 val input2 = env.fromElements(("hello", 1), ("world", 2)) // Tuple2 Data Set
 
-input2.keyBy(0, 1) // key by field positions 0 and 1
+input2.keyBy(value => (value._1, value._2))
 {% endhighlight %}
 
 </div>
@@ -137,7 +137,7 @@ DataStream<WordWithCount> wordCounts = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2));
 
-wordCounts.keyBy("word"); // key by field expression "word"
+wordCounts.keyBy(value -> value.word);
 
 {% endhighlight %}
 </div>
@@ -153,7 +153,7 @@ val input = env.fromElements(
     new WordWithCount("hello", 1),
     new WordWithCount("world", 2)) // Case Class Data Set
 
-input.keyBy("word")// key by field expression "word"
+input.keyBy(_.word)
 
 {% endhighlight %}
 </div>
@@ -176,13 +176,13 @@ Flink treats these data types as black boxes and is not able to access their con
 
 *Value* types describe their serialization and deserialization manually. Instead of going through a
 general purpose serialization framework, they provide custom code for those operations by means of
-implementing the `org.apache.flinktypes.Value` interface with the methods `read` and `write`. Using
+implementing the `org.apache.flink.types.Value` interface with the methods `read` and `write`. Using
 a Value type is reasonable when general purpose serialization would be highly inefficient. An
 example would be a data type that implements a sparse vector of elements as an array. Knowing that
 the array is mostly zero, one can use a special encoding for the non-zero elements, while the
 general purpose serialization would simply write all array elements.
 
-The `org.apache.flinktypes.CopyableValue` interface supports manual internal cloning logic in a
+The `org.apache.flink.types.CopyableValue` interface supports manual internal cloning logic in a
 similar way.
 
 Flink comes with pre-defined Value types that correspond to basic data types. (`ByteValue`,
@@ -237,9 +237,6 @@ usually be inferred by the result types of the previous operations.
 Flink tries to infer a lot of information about the data types that are exchanged and stored during the distributed computation.
 Think about it like a database that infers the schema of tables. In most cases, Flink infers all necessary information seamlessly
 by itself. Having the type information allows Flink to do some cool things:
-
-* Using POJOs types and grouping / joining / aggregating them by referring to field names (like `dataSet.keyBy("username")`).
-  The type information allows Flink to check (for typos and type compatibility) early rather than failing later at runtime.
 
 * The more Flink knows about data types, the better the serialization and data layout schemes are.
   That is quite important for the memory usage paradigm in Flink (work on serialized data inside/outside the heap where ever possible

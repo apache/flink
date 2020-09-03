@@ -27,6 +27,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBaseNumeric;
 import org.apache.hadoop.hive.serde2.objectinspector.ConstantObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -55,7 +56,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
 		LOG.info("Open HiveGenericUDF as {}", hiveFunctionWrapper.getClassName());
 
-		function = hiveFunctionWrapper.createFunction();
+		function = createFunction();
 
 		ObjectInspector[] argInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 
@@ -94,19 +95,24 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 	}
 
 	@Override
-	public DataType getHiveResultType(Object[] constantArguments, DataType[] argTypes) {
+	protected DataType inferReturnType() throws UDFArgumentException {
 		LOG.info("Getting result type of HiveGenericUDF from {}", hiveFunctionWrapper.getClassName());
+		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 
-		try {
-			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
+		ObjectInspector resultObjectInspector =
+				createFunction().initializeAndFoldConstants(argumentInspectors);
 
-			ObjectInspector resultObjectInspector =
-				hiveFunctionWrapper.createFunction().initializeAndFoldConstants(argumentInspectors);
-
-			return HiveTypeUtil.toFlinkType(
+		return HiveTypeUtil.toFlinkType(
 				TypeInfoUtils.getTypeInfoFromObjectInspector(resultObjectInspector));
-		} catch (UDFArgumentException e) {
-			throw new FlinkHiveUDFException(e);
+	}
+
+	private GenericUDF createFunction() {
+		function = hiveFunctionWrapper.createFunction();
+		// some UDFs may need to access SessionState HiveConf, tell them not to
+		if (function instanceof GenericUDFBaseNumeric) {
+			GenericUDFBaseNumeric baseNumeric = (GenericUDFBaseNumeric) function;
+			baseNumeric.setConfLookupNeeded(false);
 		}
+		return function;
 	}
 }

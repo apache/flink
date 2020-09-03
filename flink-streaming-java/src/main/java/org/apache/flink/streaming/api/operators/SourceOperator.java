@@ -162,6 +162,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 	@Override
 	public void close() throws Exception {
+		sourceReader.close();
 		eventTimeLogic.stopPeriodicWatermarkEmits();
 		super.close();
 	}

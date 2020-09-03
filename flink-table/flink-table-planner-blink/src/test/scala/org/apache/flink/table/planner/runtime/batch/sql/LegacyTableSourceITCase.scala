@@ -25,7 +25,7 @@ import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestTableSourceSinks}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFileInputFormatTableSource, TestLegacyFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestTableSourceSinks}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
@@ -147,9 +147,9 @@ class LegacyTableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithFilterable(): Unit = {
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       tEnv,
-      TestFilterableTableSource.defaultSchema,
+      TestLegacyFilterableTableSource.defaultSchema,
       "FilterableTable",
       isBounded = true)
     checkResult(
@@ -164,9 +164,9 @@ class LegacyTableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableSourceWithFunctionFilterable(): Unit = {
-    TestFilterableTableSource.createTemporaryTable(
+    TestLegacyFilterableTableSource.createTemporaryTable(
       tEnv,
-      TestFilterableTableSource.defaultSchema,
+      TestLegacyFilterableTableSource.defaultSchema,
       "FilterableTable",
       isBounded = true,
       filterableFields = List("amount", "name"))

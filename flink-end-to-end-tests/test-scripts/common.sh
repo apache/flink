@@ -367,7 +367,7 @@ function check_logs_for_errors {
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"
-    find $FLINK_DIR/log/ -exec head -n 500 {} \;
+    find $FLINK_DIR/log/ -type f -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No errors in log files."
@@ -387,6 +387,7 @@ function check_logs_for_exceptions {
    | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
    | grep -v 'INFO.*AWSErrorCode' \
    | grep -v "RejectedExecutionException" \
+   | grep -v "CancellationException" \
    | grep -v "An exception was thrown by an exception handler" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.yarn.exceptions.YarnException" \
    | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \
@@ -403,7 +404,7 @@ function check_logs_for_exceptions {
    | grep -ic "exception" || true)
   if [[ ${exception_count} -gt 0 ]]; then
     echo "Found exception in log files; printing first 500 lines; see full logs for details:"
-    find $FLINK_DIR/log/ -exec head -n 500 {} \;
+    find $FLINK_DIR/log/ -type f -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No exceptions in log files."
@@ -425,7 +426,7 @@ function check_logs_for_non_empty_out_files {
    | grep "." \
    > /dev/null; then
     echo "Found non-empty .out files; printing first 500 lines; see full logs for details:"
-    find $FLINK_DIR/log/ -name '*.out' -exec head -n 500 {} \;
+    find $FLINK_DIR/log/ -type f -name '*.out' -exec head -n 500 {} \;
     EXIT_CODE=1
   else
     echo "No non-empty .out files."
