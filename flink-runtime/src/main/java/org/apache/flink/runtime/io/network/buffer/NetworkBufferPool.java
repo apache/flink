@@ -268,13 +268,29 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	}
 
 	public int getTotalNumberOfMemorySegments() {
-		return totalNumberOfMemorySegments;
+		return isDestroyed() ? 0 : totalNumberOfMemorySegments;
+	}
+
+	public long getTotalMemory() {
+		return getTotalNumberOfMemorySegments() * memorySegmentSize;
 	}
 
 	public int getNumberOfAvailableMemorySegments() {
 		synchronized (availableMemorySegments) {
 			return availableMemorySegments.size();
 		}
+	}
+
+	public long getAvailableMemory() {
+		return getNumberOfAvailableMemorySegments() * memorySegmentSize;
+	}
+
+	public int getNumberOfUsedMemorySegments() {
+		return getTotalNumberOfMemorySegments() - getNumberOfAvailableMemorySegments();
+	}
+
+	public long getUsedMemory() {
+		return getNumberOfUsedMemorySegments() * memorySegmentSize;
 	}
 
 	public int getNumberOfRegisteredBufferPools() {
