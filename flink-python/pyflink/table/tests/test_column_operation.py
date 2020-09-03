@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.table import expressions as E
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
@@ -46,7 +45,7 @@ class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
     def test_drop_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a, b, c").drop_columns(E.col('a'), E.col('c'))
+        result = t.drop_columns(t.a, t.c)
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[b]', query_operation.getProjectList().toString())
 

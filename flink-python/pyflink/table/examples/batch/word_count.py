@@ -23,7 +23,7 @@ import tempfile
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment, TableConfig
-from pyflink.table import expressions as E
+from pyflink.table import expressions as expr
 
 
 def word_count():
@@ -68,7 +68,7 @@ def word_count():
     elements = [(word, 1) for word in content.split(" ")]
     table = t_env.from_elements(elements, ["word", "count"])
     table.group_by(table.word) \
-         .select(table.word, E.lit(1).count.alias('count')) \
+         .select(table.word, expr.lit(1).count.alias('count')) \
          .insert_into("Results")
 
     t_env.execute("word_count")

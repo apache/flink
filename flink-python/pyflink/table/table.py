@@ -97,9 +97,9 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as E
-            >>> tab.select(tab.key, E.concat(tab.value, 'hello'))
-            >>> tab.select(E.col('key'), E.concat(E.col('value'), 'hello'))
+            >>> from pyflink.table import expressions as expr
+            >>> tab.select(tab.key, expr.concat(tab.value, 'hello'))
+            >>> tab.select(expr.col('key'), expr.concat(expr.col('value'), 'hello'))
 
             >>> tab.select("key, value + 'hello'")
 
@@ -326,8 +326,8 @@ class Table(object):
            ...     "java.table.function.class.name")
             >>> tab.join_lateral("split(text, ' ') as (b)", "a = b")
 
-            >>> from pyflink.table import expressions as E
-            >>> tab.join_lateral(E.call('split', ' ').alias('b'), E.col('a') == E.col('b'))
+            >>> from pyflink.table import expressions as expr
+            >>> tab.join_lateral(expr.call('split', ' ').alias('b'), expr.col('a') == expr.col('b'))
 
         :param table_function_call: An expression representing a table function call.
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
@@ -359,7 +359,8 @@ class Table(object):
             >>> t_env.create_java_temporary_system_function("split",
             ...     "java.table.function.class.name")
             >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
-            >>> tab.left_outer_join_lateral(E.call('split', ' ').alias('b'))
+            >>> from pyflink.table import expressions as expr
+            >>> tab.left_outer_join_lateral(expr.call('split', ' ').alias('b'))
 
         :param table_function_call: An expression representing a table function call.
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
@@ -608,8 +609,8 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as E
-            >>> tab.window(Tumble.over(E.lit(10).minutes).on(tab.rowtime).alias('w')) \\
+            >>> from pyflink.table import expressions as expr
+            >>> tab.window(Tumble.over(expr.lit(10).minutes).on(tab.rowtime).alias('w')) \\
             ...     .group_by(col('w')) \\
             ...     .select(tab.a.sum.alias('a'),
             ...             col('w').start.alias('b'),
@@ -634,7 +635,7 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as E
+            >>> from pyflink.table import expressions as expr
             >>> tab.over_window(Over.partition_by(tab.c).order_by(tab.rowtime) \\
             ...     .preceding(lit(10).seconds).alias("ow")) \\
             ...     .select(tab.c, tab.b.count.over(col('ow'), tab.e.sum.over(col('ow'))))
@@ -667,8 +668,8 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as E
-            >>> tab.add_columns((tab.a + 1).alias('a1'), E.concat(tab.b, 'sunny').alias('b1'))
+            >>> from pyflink.table import expressions as expr
+            >>> tab.add_columns((tab.a + 1).alias('a1'), expr.concat(tab.b, 'sunny').alias('b1'))
             >>> tab.add_columns("a + 1 as a1, concat(b, 'sunny') as b1")
 
         :param fields: Column list string.
@@ -692,9 +693,9 @@ class Table(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as E
+            >>> from pyflink.table import expressions as expr
             >>> tab.add_or_replace_columns((tab.a + 1).alias('a1'),
-            ...                            E.concat(tab.b, 'sunny').alias('b1'))
+            ...                            expr.concat(tab.b, 'sunny').alias('b1'))
             >>> tab.add_or_replace_columns("a + 1 as a1, concat(b, 'sunny') as b1")
 
         :param fields: Column list string.
@@ -946,8 +947,8 @@ class GroupWindowedTable(object):
         Example:
         ::
 
-            >>> from pyflink.table import expressions as E
-            >>> tab.window(Tumble.over(E.lit(10).minutes).on(tab.rowtime).alias('w')) \\
+            >>> from pyflink.table import expressions as expr
+            >>> tab.window(Tumble.over(expr.lit(10).minutes).on(tab.rowtime).alias('w')) \\
             ...     .group_by(col('w')) \\
             ...     .select(tab.a.sum.alias('a'),
             ...             col('w').start.alias('b'),

@@ -59,8 +59,10 @@ class Tumble(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as E
-        >>> Tumble.over(E.lit(10).minutes).on(E.col("rowtime")).alias("w")
+        >>> from pyflink.table import expressions as expr
+        >>> Tumble.over(expr.lit(10).minutes)
+        ...       .on(expr.col("rowtime"))
+        ...       .alias("w")
 
         >>> Tumble.over("10.minutes").on("rowtime").alias("w")
     """
@@ -136,8 +138,10 @@ class Session(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as E
-        >>> Session.with_gap(E.lit(10).minutes).on(E.col("rowtime")).alias("w")
+        >>> from pyflink.table import expressions as expr
+        >>> Session.with_gap(expr.lit(10).minutes)
+        ...        .on(expr.col("rowtime"))
+        ...        .alias("w")
 
         >>> Session.with_gap("10.minutes").on("rowtime").alias("w")
 
@@ -219,8 +223,11 @@ class Slide(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as E
-        >>> Slide.over(E.lit(10).minutes).every(E.lit(5).minutes).on(E.col("rowtime")).alias("w")
+        >>> from pyflink.table import expressions as expr
+        >>> Slide.over(expr.lit(10).minutes)
+        ...      .every(expr.lit(5).minutes)
+        ...      .on(expr.col("rowtime"))
+        ...      .alias("w")
 
         >>> Slide.over("10.minutes").every("5.minutes").on("rowtime").alias("w")
     """
@@ -325,10 +332,10 @@ class Over(object):
     Example:
     ::
 
-        >>> from pyflink.table import expressions as E
+        >>> from pyflink.table import expressions as expr
         >>> Over.partition_by(col("a")) \\
         ...     .order_by(col("rowtime")) \\
-        ...     .preceding(E.UNBOUNDED_RANGE) \\
+        ...     .preceding(expr.UNBOUNDED_RANGE) \\
         ...     .alias("w")
 
         >>> Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w")

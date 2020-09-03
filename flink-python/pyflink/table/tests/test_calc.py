@@ -20,7 +20,6 @@ import array
 import datetime
 from decimal import Decimal
 
-from pyflink.table import expressions as E
 from pyflink.table import DataTypes, Row, BatchTableEnvironment, EnvironmentSettings
 from pyflink.table.tests.test_types import ExamplePoint, PythonOnlyPoint, ExamplePointUDT, \
     PythonOnlyUDT
@@ -39,7 +38,8 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_alias(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.alias("d, e, f").select(E.col('d'), E.col('e'), E.col('f'))
+        t = t.alias("d, e, f")
+        result = t.select(t.d, t.e, t.f)
         table_schema = result._j_table.getQueryOperation().getTableSchema()
         self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
 
