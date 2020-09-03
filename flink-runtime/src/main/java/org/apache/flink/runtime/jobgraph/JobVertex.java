@@ -106,6 +106,7 @@ public class JobVertex implements java.io.Serializable {
 	private SlotSharingGroup slotSharingGroup;
 
 	/** The group inside which the vertex subtasks share slots. */
+	@Nullable
 	private CoLocationGroup coLocationGroup;
 
 	/** Optional, the name of the operator, such as 'Flat Map' or 'Join', to be included in the JSON plan. */
@@ -433,6 +434,7 @@ public class JobVertex implements java.io.Serializable {
 		}
 	}
 
+	@Nullable
 	public CoLocationGroup getCoLocationGroup() {
 		return coLocationGroup;
 	}

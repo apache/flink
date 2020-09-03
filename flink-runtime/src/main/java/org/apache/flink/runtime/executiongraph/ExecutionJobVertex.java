@@ -102,6 +102,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private final SlotSharingGroup slotSharingGroup;
 
+	@Nullable
 	private final CoLocationGroup coLocationGroup;
 
 	private final InputSplit[] inputSplits;
@@ -363,6 +364,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return slotSharingGroup;
 	}
 
+	@Nullable
 	public CoLocationGroup getCoLocationGroup() {
 		return coLocationGroup;
 	}
