@@ -87,6 +87,7 @@ import java.util.Set;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -696,12 +697,12 @@ public class StreamingJobGraphGenerator {
 			final JobVertex vertex = entry.getValue();
 			final String slotSharingGroupKey = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
 
+			checkNotNull(slotSharingGroupKey, "StreamNode slot sharing group must not be null");
+
 			final SlotSharingGroup effectiveSlotSharingGroup;
-			if (slotSharingGroupKey == null) {
-				effectiveSlotSharingGroup = null;
-			} else if (slotSharingGroupKey.equals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)) {
+			if (slotSharingGroupKey.equals(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)) {
 				// fallback to the region slot sharing group by default
-				effectiveSlotSharingGroup = vertexRegionSlotSharingGroups.get(vertex.getID());
+				effectiveSlotSharingGroup = checkNotNull(vertexRegionSlotSharingGroups.get(vertex.getID()));
 			} else {
 				effectiveSlotSharingGroup = specifiedSlotSharingGroups.computeIfAbsent(
 					slotSharingGroupKey, k -> new SlotSharingGroup());
