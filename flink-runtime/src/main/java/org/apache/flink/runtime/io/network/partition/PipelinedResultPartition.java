@@ -147,6 +147,16 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 	}
 
 	@Override
+	public void flushAll() {
+		flushAllSubpartitions(false);
+	}
+
+	@Override
+	public void flush(int targetSubpartition) {
+		flushSubpartition(targetSubpartition, false);
+	}
+
+	@Override
 	@SuppressWarnings("FieldAccessNotGuarded")
 	public String toString() {
 		return "PipelinedResultPartition " + partitionId.toString() + " [" + partitionType + ", "

@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>To avoid confusion: On the read side, all subpartitions return buffers (and backlog) to be
  * transported through the network.
  */
-public class BufferWritingResultPartition extends ResultPartition {
+public abstract class BufferWritingResultPartition extends ResultPartition {
 
 	/** The subpartitions of this partition. At least one. */
 	protected final ResultSubpartition[] subpartitions;
@@ -105,16 +105,24 @@ public class BufferWritingResultPartition extends ResultPartition {
 		return subpartitions[targetSubpartition].unsynchronizedGetNumberOfQueuedBuffers();
 	}
 
-	@Override
-	public void flushAll() {
+	protected void flushSubpartition(int targetSubpartition, boolean finishProducers) {
+		if (finishProducers) {
+			finishBroadcastBufferBuilder();
+			finishSubpartitionBufferBuilder(targetSubpartition);
+		}
+
+		subpartitions[targetSubpartition].flush();
+	}
+
+	protected void flushAllSubpartitions(boolean finishProducers) {
+		if (finishProducers) {
+			finishBroadcastBufferBuilder();
+			finishSubpartitionBufferBuilders();
+		}
+
 		for (ResultSubpartition subpartition : subpartitions) {
 			subpartition.flush();
 		}
-	}
-
-	@Override
-	public void flush(int targetSubpartition) {
-		subpartitions[targetSubpartition].flush();
 	}
 
 	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {

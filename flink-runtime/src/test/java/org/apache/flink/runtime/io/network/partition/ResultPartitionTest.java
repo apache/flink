@@ -449,7 +449,7 @@ public class ResultPartitionTest {
 		NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
 			.setNumNetworkBuffers(10)
 			.setBufferSize(bufferSize).build();
-		ResultPartition resultPartition = createPartition(network, fileChannelManager, partitionType, 1);
+		ResultPartition resultPartition = createPartition(network, fileChannelManager, partitionType, 2);
 		resultPartition.setup();
 		return (BufferWritingResultPartition) resultPartition;
 	}
@@ -609,6 +609,45 @@ public class ResultPartitionTest {
 
 		Assert.assertThat(resultPartition.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
 		assertNotNull(readView.getNextBuffer().buffer());
+	}
+
+	@Test
+	public void testFlushBoundedBlockingResultPartition() throws IOException {
+		int value = 1024;
+		ResultPartition partition = createResultPartition(ResultPartitionType.BLOCKING);
+
+		ByteBuffer record = ByteBuffer.allocate(4);
+		record.putInt(value);
+
+		record.rewind();
+		partition.emitRecord(record, 0);
+		partition.flush(0);
+
+		record.rewind();
+		partition.emitRecord(record, 0);
+
+		record.rewind();
+		partition.broadcastRecord(record);
+		partition.flushAll();
+
+		record.rewind();
+		partition.broadcastRecord(record);
+		partition.finish();
+		record.rewind();
+
+		ResultSubpartitionView readView1 = partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+		for (int i = 0; i < 4; ++i) {
+			assertEquals(record, readView1.getNextBuffer().buffer().getNioBufferReadable());
+		}
+		assertFalse(readView1.getNextBuffer().buffer().isBuffer());
+		assertNull(readView1.getNextBuffer());
+
+		ResultSubpartitionView readView2 = partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+		for (int i = 0; i < 2; ++i) {
+			assertEquals(record, readView2.getNextBuffer().buffer().getNioBufferReadable());
+		}
+		assertFalse(readView2.getNextBuffer().buffer().isBuffer());
+		assertNull(readView2.getNextBuffer());
 	}
 
 	/**
