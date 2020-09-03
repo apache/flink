@@ -186,6 +186,12 @@ public class HiveDialectITCase {
 		tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
 		hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
 		assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
+
+		try {
+			tableEnv.executeSql("create table tbl6 (s struct<ts:timestamp,bin:binary>) stored as orc tblproperties('transactional'='true')");
+		} catch (TableException e) {
+			assertEquals("Cannot read and write on a ACID table default.tbl6.", e.getCause().getMessage());
+		}
 	}
 
 	@Test
