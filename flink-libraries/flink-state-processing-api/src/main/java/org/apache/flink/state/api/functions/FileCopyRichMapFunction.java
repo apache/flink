@@ -21,19 +21,23 @@ package org.apache.flink.state.api.functions;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Preconditions;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 /**
- * A {@link RichMapFunction} for copying files.
+ * This mapper copies files from an existing savepoint into a new directory.
  */
 public final class FileCopyRichMapFunction extends RichMapFunction<String, String> {
+
+	private static final long serialVersionUID = 1L;
+
 	// the destination path to copy file
 	private final String path;
 
 	public FileCopyRichMapFunction(String path) {
-		this.path = path;
+		this.path = Preconditions.checkNotNull(path, "The destination path cannot be null");
 	}
 
 	@Override

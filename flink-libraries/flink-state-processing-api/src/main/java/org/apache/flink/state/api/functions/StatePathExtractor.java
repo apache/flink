@@ -30,9 +30,12 @@ import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.Collector;
 
 /**
- * Extract from an OperatorState a set of state file paths.
+ * Extracts all file paths that are part of the provided {@link OperatorState}.
  */
 public class StatePathExtractor implements FlatMapFunction<OperatorState, String> {
+
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * This method recursively looks for the contained {@link FileStateHandle}s in a given {@link StreamStateHandle}.
 	 *

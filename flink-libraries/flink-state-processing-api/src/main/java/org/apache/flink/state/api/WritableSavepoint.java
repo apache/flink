@@ -103,6 +103,7 @@ public abstract class WritableSavepoint<F extends WritableSavepoint> {
 			existingOperatorStates
 				.flatMap(new StatePathExtractor())
 				.map(new FileCopyRichMapFunction(path))
+				.setParallelism(1)
 				.output(new DiscardingOutputFormat<>());
 
 			finalOperatorStates = newOperatorStates.union(existingOperatorStates);
