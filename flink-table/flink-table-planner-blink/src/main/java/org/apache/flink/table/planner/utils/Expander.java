@@ -94,7 +94,12 @@ public class Expander {
 			}
 
 			@Override public Void visit(SqlIdentifier identifier) {
-				identifiers.putIfAbsent(identifier.getParserPosition(), identifier);
+				// See SqlUtil#deriveAliasFromOrdinal, there is no good solution
+				// to distinguish between system alias (EXPR${number}) and user defines,
+				// and we stop expanding all of them.
+				if (!identifier.names.get(0).startsWith("EXPR$")) {
+					identifiers.putIfAbsent(identifier.getParserPosition(), identifier);
+				}
 				return null;
 			}
 		});
