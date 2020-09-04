@@ -496,7 +496,6 @@ public class StreamingJobGraphGenerator {
 		}
 
 		config.setStreamOperatorFactory(vertex.getOperatorFactory());
-		config.setOutputSelectors(vertex.getOutputSelectors());
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);

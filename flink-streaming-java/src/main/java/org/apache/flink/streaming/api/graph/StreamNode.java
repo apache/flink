@@ -28,7 +28,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.operators.CoordinatedOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -69,7 +68,6 @@ public class StreamNode implements Serializable {
 	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperatorFactory<?> operatorFactory;
-	private List<OutputSelector<?>> outputSelectors;
 	private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
 	private TypeSerializer<?> typeSerializerOut;
 
@@ -91,10 +89,9 @@ public class StreamNode implements Serializable {
 			@Nullable String coLocationGroup,
 			StreamOperator<?> operator,
 			String operatorName,
-			List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
 		this(id, slotSharingGroup, coLocationGroup, SimpleOperatorFactory.of(operator),
-				operatorName, outputSelector, jobVertexClass);
+				operatorName, jobVertexClass);
 	}
 
 	public StreamNode(
@@ -103,12 +100,10 @@ public class StreamNode implements Serializable {
 			@Nullable String coLocationGroup,
 			StreamOperatorFactory<?> operatorFactory,
 			String operatorName,
-			List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
 		this.id = id;
 		this.operatorName = operatorName;
 		this.operatorFactory = operatorFactory;
-		this.outputSelectors = outputSelector;
 		this.jobVertexClass = jobVertexClass;
 		this.slotSharingGroup = slotSharingGroup;
 		this.coLocationGroup = coLocationGroup;
@@ -228,14 +223,6 @@ public class StreamNode implements Serializable {
 
 	public String getOperatorName() {
 		return operatorName;
-	}
-
-	public List<OutputSelector<?>> getOutputSelectors() {
-		return outputSelectors;
-	}
-
-	public void addOutputSelector(OutputSelector<?> outputSelector) {
-		this.outputSelectors.add(outputSelector);
 	}
 
 	public void setSerializersIn(TypeSerializer<?> ...typeSerializersIn) {

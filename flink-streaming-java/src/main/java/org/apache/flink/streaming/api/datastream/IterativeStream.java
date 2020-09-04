@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
+import org.apache.flink.util.OutputTag;
 
 import java.util.Collection;
 
@@ -54,7 +56,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 *
 	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
-	 * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)}
+	 * {@link ProcessFunction.Context#output(OutputTag, Object)}
 	 * for more information.
 	 *
 	 * @param feedbackStream

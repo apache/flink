@@ -31,9 +31,6 @@ import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
-import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.SourceInputConfig;
@@ -516,47 +513,25 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 
-		// if there are multiple outputs, or the outputs are directed, we need to
-		// wrap them as one output
-
-		List<OutputSelector<T>> selectors = operatorConfig.getOutputSelectors(userCodeClassloader);
-
-		if (selectors == null || selectors.isEmpty()) {
-			// simple path, no selector necessary
-			if (allOutputs.size() == 1) {
-				return allOutputs.get(0).f0;
+		if (allOutputs.size() == 1) {
+			return allOutputs.get(0).f0;
+		} else {
+			// send to N outputs. Note that this includes the special case
+			// of sending to zero outputs
+			@SuppressWarnings({"unchecked"})
+			Output<StreamRecord<T>>[] asArray = new Output[allOutputs.size()];
+			for (int i = 0; i < allOutputs.size(); i++) {
+				asArray[i] = allOutputs.get(i).f0;
 			}
-			else {
-				// send to N outputs. Note that this includes the special case
-				// of sending to zero outputs
-				@SuppressWarnings({"unchecked", "rawtypes"})
-				Output<StreamRecord<T>>[] asArray = new Output[allOutputs.size()];
-				for (int i = 0; i < allOutputs.size(); i++) {
-					asArray[i] = allOutputs.get(i).f0;
-				}
-
-				// This is the inverse of creating the normal ChainingOutput.
-				// If the chaining output does not copy we need to copy in the broadcast output,
-				// otherwise multi-chaining would not work correctly.
-				if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-					return new CopyingBroadcastingOutputCollector<>(asArray, this);
-				} else  {
-					return new BroadcastingOutputCollector<>(asArray, this);
-				}
-			}
-		}
-		else {
-			// selector present, more complex routing necessary
 
 			// This is the inverse of creating the normal ChainingOutput.
 			// If the chaining output does not copy we need to copy in the broadcast output,
 			// otherwise multi-chaining would not work correctly.
 			if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-				return new CopyingDirectedOutput<>(selectors, allOutputs);
+				return new CopyingBroadcastingOutputCollector<>(asArray, this);
 			} else {
-				return new DirectedOutput<>(selectors, allOutputs);
+				return new BroadcastingOutputCollector<>(asArray, this);
 			}
-
 		}
 	}
 
