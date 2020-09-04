@@ -133,7 +133,7 @@ public class PollingRecordPublisher implements RecordPublisher {
 		while (getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisProxy.getRecords(shardItr, maxNumberOfRecords);
-			} catch (ExpiredIteratorException eiEx) {
+			} catch (ExpiredIteratorException | InterruptedException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);
 

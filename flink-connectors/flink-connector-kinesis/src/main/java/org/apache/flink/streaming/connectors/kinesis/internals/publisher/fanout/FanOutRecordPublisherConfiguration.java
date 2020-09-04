@@ -25,11 +25,15 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.efoConsumerArn;
+
 
 /**
  * This is a configuration class for enhanced fan-out components.
@@ -48,10 +52,9 @@ public class FanOutRecordPublisherConfiguration {
 	private String consumerName;
 
 	/**
-	 * The manual set efo consumer arns for each stream. Should not be Null if the efoRegistrationType is NONE
+	 * A map of stream to stream consumer ARN for EFO subscriptions.
 	 */
-	@Nullable
-	private Map<String, String> streamConsumerArns;
+	private final Map<String, String> streamConsumerArns = new HashMap<>();
 
 	/**
 	 * Base backoff millis for the deregister stream operation.
@@ -94,6 +97,11 @@ public class FanOutRecordPublisherConfiguration {
 	private final int registerStreamMaxRetries;
 
 	/**
+	 * Maximum time to wait for a stream consumer to become active before giving up.
+	 */
+	private final Duration registerStreamConsumerTimeout;
+
+	/**
 	 * Base backoff millis for the deregister stream operation.
 	 */
 	private final long deregisterStreamBaseBackoffMillis;
@@ -112,6 +120,11 @@ public class FanOutRecordPublisherConfiguration {
 	 * Maximum retry attempts for the deregister stream operation.
 	 */
 	private final int deregisterStreamMaxRetries;
+
+	/**
+	 * Maximum time to wait for a stream consumer to deregister before giving up.
+	 */
+	private final Duration deregisterStreamConsumerTimeout;
 
 	/**
 	 * Max retries for the describe stream operation.
@@ -159,7 +172,7 @@ public class FanOutRecordPublisherConfiguration {
 	 * @param configProps the configuration properties from config file.
 	 * @param streams     the streams which is sent to match the EFO consumer arn if the EFO registration mode is set to `NONE`.
 	 */
-	public FanOutRecordPublisherConfiguration(Properties configProps, List<String> streams) {
+	public FanOutRecordPublisherConfiguration(final Properties configProps, final List<String> streams) {
 		Preconditions.checkArgument(configProps.getProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE).equals(RecordPublisherType.EFO.toString()), "Only efo record publisher can register a FanOutProperties.");
 		KinesisConfigUtil.validateEfoConfiguration(configProps, streams);
 
@@ -167,11 +180,11 @@ public class FanOutRecordPublisherConfiguration {
 		//if efo registration type is EAGER|LAZY, then user should explicitly provide a consumer name for each stream.
 		if (efoRegistrationType == EFORegistrationType.EAGER || efoRegistrationType == EFORegistrationType.LAZY) {
 			consumerName = configProps.getProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME);
-		} else {
-			//else users should explicitly provide consumer arns.
-			streamConsumerArns = new HashMap<>();
-			for (String stream : streams) {
-				String key = ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + "." + stream;
+		}
+
+		for (String stream : streams) {
+			String key = efoConsumerArn(stream);
+			if (configProps.containsKey(key)) {
 				streamConsumerArns.put(stream, configProps.getProperty(key));
 			}
 		}
@@ -206,6 +219,12 @@ public class FanOutRecordPublisherConfiguration {
 			configProps.getProperty(
 				ConsumerConfigConstants.REGISTER_STREAM_RETRIES))
 			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_RETRIES);
+		this.registerStreamConsumerTimeout = Optional.ofNullable(
+			configProps.getProperty(
+				ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS))
+			.map(Integer::parseInt)
+			.map(Duration::ofSeconds)
+			.orElse(ConsumerConfigConstants.DEFAULT_REGISTER_STREAM_TIMEOUT);
 
 		this.deregisterStreamBaseBackoffMillis = Optional.ofNullable(
 			configProps.getProperty(
@@ -223,6 +242,12 @@ public class FanOutRecordPublisherConfiguration {
 			configProps.getProperty(
 				ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES))
 			.map(Integer::parseInt).orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_RETRIES);
+		this.deregisterStreamConsumerTimeout = Optional.ofNullable(
+			configProps.getProperty(
+				ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS))
+			.map(Integer::parseInt)
+			.map(Duration::ofSeconds)
+			.orElse(ConsumerConfigConstants.DEFAULT_DEREGISTER_STREAM_TIMEOUT);
 
 		this.describeStreamMaxRetries = Optional.ofNullable(
 			configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES))
@@ -314,6 +339,13 @@ public class FanOutRecordPublisherConfiguration {
 		return registerStreamMaxRetries;
 	}
 
+	/**
+	 * Get maximum duration to wait for a stream consumer to become active before giving up.
+	 */
+	public Duration getRegisterStreamConsumerTimeout() {
+		return registerStreamConsumerTimeout;
+	}
+
 	// ------------------------------------------------------------------------
 	//  deregisterStream() related performance settings
 	// ------------------------------------------------------------------------
@@ -344,6 +376,13 @@ public class FanOutRecordPublisherConfiguration {
 	 */
 	public int getDeregisterStreamMaxRetries() {
 		return deregisterStreamMaxRetries;
+	}
+
+	/**
+	 * Get maximum duration to wait for a stream consumer to deregister before giving up.
+	 */
+	public Duration getDeregisterStreamConsumerTimeout() {
+		return deregisterStreamConsumerTimeout;
 	}
 
 	// ------------------------------------------------------------------------
@@ -428,6 +467,6 @@ public class FanOutRecordPublisherConfiguration {
 	 * Get the according consumer arn to the stream, will be null if efo registration type is 'LAZY' or 'EAGER'.
 	 */
 	public Optional<String> getStreamConsumerArn(String stream) {
-		return Optional.ofNullable(streamConsumerArns).map(arns -> arns.get(stream));
+		return Optional.ofNullable(streamConsumerArns.get(stream));
 	}
 }

@@ -20,14 +20,21 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 
 import com.amazonaws.kinesis.agg.RecordAggregator;
-import org.apache.commons.lang3.NotImplementedException;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.kinesis.model.Consumer;
+import software.amazon.awssdk.services.kinesis.model.ConsumerDescription;
+import software.amazon.awssdk.services.kinesis.model.ConsumerStatus;
+import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.kinesis.model.Record;
+import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
+import software.amazon.awssdk.services.kinesis.model.StreamDescription;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEventStream;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
@@ -38,17 +45,30 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.ACTIVE;
+import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.CREATING;
+import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.DELETING;
 
 /**
  * Factory for different kinds of fake Kinesis behaviours using the {@link KinesisProxyV2Interface} interface.
  */
 public class FakeKinesisFanOutBehavioursFactory {
+
+	public static final String STREAM_ARN = "stream-arn";
+	public static final String STREAM_CONSUMER_ARN_EXISTING = "stream-consumer-arn";
+	public static final String STREAM_CONSUMER_ARN_NEW = "stream-consumer-arn-new";
+
+	// ------------------------------------------------------------------------
+	//  Behaviours related to subscribe to shard and consuming data
+	// ------------------------------------------------------------------------
 
 	public static SingleShardFanOutKinesisV2.Builder boundedShard() {
 		return new SingleShardFanOutKinesisV2.Builder();
@@ -72,6 +92,36 @@ public class FakeKinesisFanOutBehavioursFactory {
 
 	public static SubscriptionErrorKinesisV2 alternatingSuccessErrorDuringSubscription() {
 		return new AlternatingSubscriptionErrorKinesisV2(LimitExceededException.builder().build());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Behaviours related to describing streams
+	// ------------------------------------------------------------------------
+
+	public static KinesisProxyV2Interface streamNotFound() {
+		return new StreamConsumerFakeKinesis.Builder()
+			.withThrowsWhileDescribingStream(ResourceNotFoundException.builder().build())
+			.build();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Behaviours related to stream consumer registration/deregistration
+	// ------------------------------------------------------------------------
+
+	public static StreamConsumerFakeKinesis streamConsumerNotFound() {
+		return new StreamConsumerFakeKinesis.Builder()
+			.withStreamConsumerNotFound(true)
+			.build();
+	}
+
+	public static StreamConsumerFakeKinesis existingActiveConsumer() {
+		return new StreamConsumerFakeKinesis.Builder().build();
+	}
+
+	public static StreamConsumerFakeKinesis registerExistingConsumerAndWaitToBecomeActive() {
+		return new StreamConsumerFakeKinesis.Builder()
+			.withStreamConsumerStatus(CREATING)
+			.build();
 	}
 
 	public static AbstractSingleShardFanOutKinesisV2 emptyBatchFollowedBySingleRecord() {
@@ -298,7 +348,6 @@ public class FakeKinesisFanOutBehavioursFactory {
 	public abstract static class AbstractSingleShardFanOutKinesisV2 extends KinesisProxyV2InterfaceAdapter {
 
 		private final List<SubscribeToShardRequest> requests = new ArrayList<>();
-
 		private int remainingSubscriptions;
 
 		private AbstractSingleShardFanOutKinesisV2(final int remainingSubscriptions) {
@@ -352,12 +401,164 @@ public class FakeKinesisFanOutBehavioursFactory {
 
 	}
 
+	/**
+	 * A fake Kinesis Proxy V2 that implements dummy logic for stream consumer related methods.
+	 */
+	public static class StreamConsumerFakeKinesis extends KinesisProxyV2InterfaceAdapter {
+
+		public static final int NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE = 5;
+		public static final int NUMBER_OF_DESCRIBE_REQUESTS_TO_DELETE = 5;
+
+		private final RuntimeException throwsWhileDescribingStream;
+		private String streamConsumerArn = STREAM_CONSUMER_ARN_EXISTING;
+		private ConsumerStatus streamConsumerStatus;
+		private boolean streamConsumerNotFound;
+		private int numberOfDescribeStreamConsumerInvocations = 0;
+
+		private StreamConsumerFakeKinesis(final Builder builder) {
+			this.throwsWhileDescribingStream = builder.throwsWhileDescribingStream;
+			this.streamConsumerStatus = builder.streamConsumerStatus;
+			this.streamConsumerNotFound = builder.streamConsumerNotFound;
+		}
+
+		public int getNumberOfDescribeStreamConsumerInvocations() {
+			return numberOfDescribeStreamConsumerInvocations;
+		}
+
+		@Override
+		public DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException {
+			if (throwsWhileDescribingStream != null) {
+				throw throwsWhileDescribingStream;
+			}
+
+			return DescribeStreamResponse
+				.builder()
+				.streamDescription(StreamDescription
+					.builder()
+					.streamARN(STREAM_ARN)
+					.build())
+				.build();
+		}
+
+		@Override
+		public RegisterStreamConsumerResponse registerStreamConsumer(String streamArn, String consumerName) throws InterruptedException, ExecutionException {
+			assertEquals(STREAM_ARN, streamArn);
+
+			streamConsumerNotFound = false;
+			streamConsumerArn = STREAM_CONSUMER_ARN_NEW;
+
+			return RegisterStreamConsumerResponse
+				.builder()
+				.consumer(Consumer
+					.builder()
+					.consumerARN(STREAM_CONSUMER_ARN_NEW)
+					.consumerStatus(streamConsumerStatus)
+					.build())
+				.build();
+		}
+
+		@Override
+		public DeregisterStreamConsumerResponse deregisterStreamConsumer(final String consumerArn) throws InterruptedException, ExecutionException {
+			streamConsumerStatus = DELETING;
+			return DeregisterStreamConsumerResponse.builder().build();
+		}
+
+		@Override
+		public DescribeStreamConsumerResponse describeStreamConsumer(
+				final String streamArn,
+				final String consumerName) throws InterruptedException, ExecutionException {
+			assertEquals(STREAM_ARN, streamArn);
+
+			numberOfDescribeStreamConsumerInvocations++;
+
+			if (streamConsumerStatus == DELETING && numberOfDescribeStreamConsumerInvocations == NUMBER_OF_DESCRIBE_REQUESTS_TO_DELETE) {
+				streamConsumerNotFound = true;
+			} else if (numberOfDescribeStreamConsumerInvocations == NUMBER_OF_DESCRIBE_REQUESTS_TO_ACTIVATE) {
+				streamConsumerStatus = ACTIVE;
+			}
+
+			if (streamConsumerNotFound) {
+				throw new ExecutionException(ResourceNotFoundException.builder().build());
+			}
+
+			return DescribeStreamConsumerResponse
+				.builder()
+				.consumerDescription(ConsumerDescription
+					.builder()
+					.consumerARN(streamConsumerArn)
+					.consumerName(consumerName)
+					.consumerStatus(streamConsumerStatus)
+					.build())
+				.build();
+		}
+
+		@Override
+		public DescribeStreamConsumerResponse describeStreamConsumer(String streamConsumerArn) throws InterruptedException, ExecutionException {
+			assertEquals(this.streamConsumerArn, streamConsumerArn);
+			return describeStreamConsumer(STREAM_ARN, "consumer-name");
+		}
+
+		private static class Builder {
+
+			private RuntimeException throwsWhileDescribingStream;
+			private ConsumerStatus streamConsumerStatus = ACTIVE;
+			private boolean streamConsumerNotFound = false;
+
+			public StreamConsumerFakeKinesis build() {
+				return new StreamConsumerFakeKinesis(this);
+			}
+
+			public Builder withStreamConsumerNotFound(final boolean streamConsumerNotFound) {
+				this.streamConsumerNotFound = streamConsumerNotFound;
+				return this;
+			}
+
+			public Builder withThrowsWhileDescribingStream(final RuntimeException throwsWhileDescribingStream) {
+				this.throwsWhileDescribingStream = throwsWhileDescribingStream;
+				return this;
+			}
+
+			public Builder withStreamConsumerStatus(final ConsumerStatus streamConsumerStatus) {
+				this.streamConsumerStatus = streamConsumerStatus;
+				return this;
+			}
+
+		}
+
+	}
+
 	private static class KinesisProxyV2InterfaceAdapter implements KinesisProxyV2Interface {
 
 		@Override
-		public CompletableFuture<Void> subscribeToShard(SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler) {
-			throw new NotImplementedException("This method is not implemented.");
+		public DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException("This method is not implemented.");
 		}
+
+		@Override
+		public DescribeStreamConsumerResponse describeStreamConsumer(String streamConsumerArn) throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException("This method is not implemented.");
+		}
+
+		@Override
+		public DescribeStreamConsumerResponse describeStreamConsumer(String streamArn, String consumerName) throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException("This method is not implemented.");
+		}
+
+		@Override
+		public RegisterStreamConsumerResponse registerStreamConsumer(String streamArn, String consumerName) throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException("This method is not implemented.");
+		}
+
+		@Override
+		public DeregisterStreamConsumerResponse deregisterStreamConsumer(String consumerArn) throws InterruptedException, ExecutionException {
+			throw new UnsupportedOperationException("This method is not implemented.");
+		}
+
+		@Override
+		public CompletableFuture<Void> subscribeToShard(SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler) {
+			throw new UnsupportedOperationException("This method is not implemented.");
+		}
+
 	}
 
 	private static Record createRecord(final AtomicInteger sequenceNumber) {

@@ -70,6 +70,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Collections.singletonList;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.junit.Assert.assertEquals;
@@ -893,6 +895,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 	public void testRecordPublisherFactoryIsTornDown() {
 		Properties config = TestUtils.getStandardProperties();
 		config.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
+		config.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
 
 		KinesisProxyV2Interface kinesisV2 = mock(KinesisProxyV2Interface.class);
 

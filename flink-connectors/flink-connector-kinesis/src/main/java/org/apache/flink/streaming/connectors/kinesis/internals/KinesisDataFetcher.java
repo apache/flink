@@ -43,12 +43,12 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Factory;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
-import org.apache.flink.streaming.connectors.kinesis.util.AwsV2Util;
 import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
+import org.apache.flink.streaming.connectors.kinesis.util.StreamConsumerRegistrarUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
@@ -61,7 +61,6 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 
 import javax.annotation.Nullable;
 
@@ -360,7 +359,7 @@ public class KinesisDataFetcher<T> {
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
 			KinesisProxy::create,
-			KinesisDataFetcher::createKinesisProxyV2);
+			KinesisProxyV2Factory::createKinesisProxyV2);
 	}
 
 	@VisibleForTesting
@@ -406,6 +405,8 @@ public class KinesisDataFetcher<T> {
 			createShardConsumersThreadPool(runtimeContext.getTaskNameWithSubtasks());
 
 		this.recordEmitter = createRecordEmitter(configProps);
+
+		StreamConsumerRegistrarUtil.lazilyRegisterStreamConsumers(configProps, streams);
 	}
 
 	private RecordEmitter createRecordEmitter(Properties configProps) {
@@ -465,11 +466,6 @@ public class KinesisDataFetcher<T> {
 
 		StartingPosition startingPosition = AWSUtil.getStartingPosition(sequenceNumber, configProps);
 		return recordPublisherFactory.create(startingPosition, configProps, metricGroup, subscribedShard);
-	}
-
-	private static KinesisProxyV2Interface createKinesisProxyV2(final Properties configProps) {
-		final KinesisAsyncClient client = AwsV2Util.createKinesisAsyncClient(configProps);
-		return new KinesisProxyV2(client);
 	}
 
 	/**
@@ -597,7 +593,7 @@ public class KinesisDataFetcher<T> {
 		// we will escape from this loop only when shutdownFetcher() or stopWithError() is called
 		// TODO: have this thread emit the records for tracking backpressure
 
-		final long discoveryIntervalMillis = Long.valueOf(
+		final long discoveryIntervalMillis = Long.parseLong(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS)));
@@ -699,6 +695,12 @@ public class KinesisDataFetcher<T> {
 	public void shutdownFetcher() {
 		running = false;
 
+		StreamConsumerRegistrarUtil.deregisterStreamConsumers(configProps, streams);
+
+		recordPublisherFactory.close();
+
+		shardConsumersExecutor.shutdownNow();
+
 		if (mainThread != null) {
 			mainThread.interrupt(); // the main thread may be sleeping for the discovery interval
 		}
@@ -711,9 +713,6 @@ public class KinesisDataFetcher<T> {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Shutting down the shard consumer threads of subtask {} ...", indexOfThisConsumerSubtask);
 		}
-		shardConsumersExecutor.shutdownNow();
-
-		recordPublisherFactory.close();
 	}
 
 	/** After calling {@link KinesisDataFetcher#shutdownFetcher()}, this can be called to await the fetcher shutdown. */
