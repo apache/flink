@@ -348,6 +348,14 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             return [
                 self._decode_field(value_coder_type, value_type, value_coder) if self._decode_byte()
                 else None for _ in range(length)]
+        elif field_type == PRIMITIVE_ARRAY:
+            # Primitive Array
+            length = self._decode_int()
+            value_coder = (<PrimitiveArrayCoderImpl> field_coder).elem_coder
+            value_type = value_coder.type_name()
+            value_coder_type = value_coder.coder_type()
+            return [self._decode_field(value_coder_type, value_type, value_coder)
+                    for _ in range(length)]
         elif field_type == MAP:
             # Map
             key_coder = (<MapCoderImpl> field_coder).key_coder
@@ -524,6 +532,16 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                 else:
                     self._encode_byte(True)
                     self._encode_field(value_coder_type, value_type, value_coder, value)
+        elif field_type == PRIMITIVE_ARRAY:
+            # Primitive Array
+            length = len(item)
+            value_coder = (<PrimitiveArrayCoderImpl> field_coder).elem_coder
+            value_type = value_coder.type_name()
+            value_coder_type = value_coder.coder_type()
+            self._encode_int(length)
+            for i in range(length):
+                value = item[i]
+                self._encode_field(value_coder_type, value_type, value_coder, value)
         elif field_type == MAP:
             # Map
             length = len(item)
@@ -780,6 +798,16 @@ cdef class ArrayCoderImpl(FieldCoder):
 
     cpdef TypeName type_name(self):
         return ARRAY
+
+cdef class PrimitiveArrayCoderImpl(FieldCoder):
+    def __cinit__(self, elem_coder):
+        self.elem_coder = elem_coder
+
+    cpdef CoderType coder_type(self):
+        return COMPLEX
+
+    cpdef TypeName type_name(self):
+        return PRIMITIVE_ARRAY
 
 cdef class MapCoderImpl(FieldCoder):
     def __cinit__(self, key_coder, value_coder):

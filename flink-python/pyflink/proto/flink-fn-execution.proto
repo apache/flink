@@ -224,9 +224,10 @@ message TypeInfo {
     SQL_DATE = 12;
     SQL_TIME = 13;
     SQL_TIMESTAMP = 14;
-    ARRAY = 15;
+    BASIC_ARRAY = 15;
     PICKLED_BYTES = 16;
     TUPLE = 17;
+    PRIMITIVE_ARRAY = 18;
   }
 
 

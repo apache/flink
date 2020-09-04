@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.typeutils;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -78,8 +79,14 @@ public class PythonTypeUtilsTest {
 		TypeInformation primitiveIntegerArrayTypeInfo = PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
 		FlinkFnApi.TypeInfo.FieldType convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter
 			.getFieldType(primitiveIntegerArrayTypeInfo);
-		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.ARRAY);
+		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
 		assertEquals(convertedFieldType.getCollectionElementType().getTypeName(), FlinkFnApi.TypeInfo.TypeName.INT);
+
+		TypeInformation basicIntegerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
+		FlinkFnApi.TypeInfo.FieldType convertedBasicFieldType = PythonTypeUtils.TypeInfoToProtoConverter
+			.getFieldType(basicIntegerArrayTypeInfo);
+		assertEquals(convertedBasicFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
+		assertEquals(convertedBasicFieldType.getCollectionElementType().getTypeName(), FlinkFnApi.TypeInfo.TypeName.INT);
 
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
 		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.getFieldType(rowTypeInfo);

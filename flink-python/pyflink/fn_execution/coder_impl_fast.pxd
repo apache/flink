@@ -129,6 +129,7 @@ cdef enum TypeName:
     PICKLED_BYTES = 17
     BIG_DEC = 18
     TUPLE = 19
+    PRIMITIVE_ARRAY = 20
 
 cdef class FieldCoder:
     cpdef CoderType coder_type(self)
@@ -184,6 +185,9 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef readonly object timezone
 
 cdef class ArrayCoderImpl(FieldCoder):
+    cdef readonly FieldCoder elem_coder
+
+cdef class PrimitiveArrayCoderImpl(FieldCoder):
     cdef readonly FieldCoder elem_coder
 
 cdef class MapCoderImpl(FieldCoder):

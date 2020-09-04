@@ -234,6 +234,19 @@ class ArrayCoder(CollectionCoder):
         return coder_impl.ArrayCoderImpl(self._elem_coder.get_impl())
 
 
+class PrimitiveArrayCoder(CollectionCoder):
+    """
+    Coder for Primitive Array.
+    """
+
+    def __init__(self, elem_coder):
+        self._elem_coder = elem_coder
+        super(PrimitiveArrayCoder, self).__init__(elem_coder)
+
+    def get_impl(self):
+        return coder_impl.PrimitiveArrayCoderImpl(self._elem_coder.get_impl())
+
+
 class MapCoder(FieldCoder):
     """
     Coder for Map.
@@ -508,8 +521,11 @@ def from_type_info_proto(field_type):
         if field_type_name == type_info_name.ROW:
             return RowCoder([from_type_info_proto(f.type) for f in field_type.row_type_info.field])
 
-        if field_type_name == type_info_name.ARRAY:
-            return ArrayCoder([from_type_info_proto(field_type.collection_element_type)])
+        if field_type_name == type_info_name.PRIMITIVE_ARRAY:
+            return PrimitiveArrayCoder(from_type_info_proto(field_type.collection_element_type))
+
+        if field_type_name == type_info_name.BASIC_ARRAY:
+            return ArrayCoder(from_type_info_proto(field_type.collection_element_type))
 
         if field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(f.type)

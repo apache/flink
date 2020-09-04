@@ -211,6 +211,24 @@ class ArrayCoderImpl(StreamCoderImpl):
         return 'ArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
+class PrimitiveArrayCoderImpl(StreamCoderImpl):
+    def __init__(self, elem_coder):
+        self._elem_coder = elem_coder
+
+    def encode_to_stream(self, value, out_stream, nested):
+        out_stream.write_bigendian_int32(len(value))
+        for elem in value:
+            self._elem_coder.encode_to_stream(elem, out_stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        size = in_stream.read_bigendian_int32()
+        elements = [self._elem_coder.decode_from_stream(in_stream, nested) for _ in range(size)]
+        return elements
+
+    def __repr__(self):
+        return 'PrimitiveArrayCoderImpl[%s]' % repr(self._elem_coder)
+
+
 class PickledBytesCoderImpl(StreamCoderImpl):
 
     def __init__(self):
