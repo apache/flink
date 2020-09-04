@@ -52,6 +52,17 @@ $ source venv/bin/activate
 $ python xxx.py
 {% endhighlight %}
 
+**Note:** When executing jobs in mini-cluster asynchronously (e.g. TableEnvironment.execute_sql, StatementSet.execute, 
+etc in the Python Table API), remember to  get a 
+`JobClient` to wait for the execution to be finished, or the program will exit directly before the submitted job is 
+finished. Please refer to the code snippet bellow:
+
+{% highlight python %}
+# execute SQL / Table API query asynchronously
+t_result = table_env.execute_sql(...)
+t_result.get_job_client().get_job_execution_result().result()
+{% endhighlight %}
+
 #### Cluster
 
 {% highlight shell %}

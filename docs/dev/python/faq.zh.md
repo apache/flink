@@ -51,6 +51,15 @@ $ source venv/bin/activate
 $ python xxx.py
 {% endhighlight %}
 
+**注意:** 当在 mini-cluster 环境异步执行作业的时 (如 Python Table API 的 TableEnvironment.execute_sql, StatementSet.execute)，
+记得用返回的 `JobClient` 等待作业结束，否则程序会在已提交的作业执行完之前就结束退出，以致无法观测到已提交作业的执行结果。请参考如下代码：
+
+{% highlight python %}
+# 异步执行 SQL / Table API 查询
+t_result = table_env.execute_sql(...)
+t_result.get_job_client().get_job_execution_result().result()
+{% endhighlight %}
+
 #### 集群（Cluster）
 
 {% highlight shell %}
