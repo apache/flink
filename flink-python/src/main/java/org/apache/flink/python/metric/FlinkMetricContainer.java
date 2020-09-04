@@ -106,9 +106,12 @@ public final class FlinkMetricContainer {
 
 	private boolean isUserMetric(MetricResult metricResult) {
 		MetricName metricName = metricResult.getKey().metricName();
+		String urn = ((MonitoringInfoMetricName) metricName).getUrn();
 		return (metricName instanceof MonitoringInfoMetricName) &&
-			((MonitoringInfoMetricName) metricName).getUrn()
-				.contains(MonitoringInfoConstants.Urns.USER_COUNTER);
+			(urn.contains(MonitoringInfoConstants.Urns.USER_SUM_INT64) ||
+				urn.contains(MonitoringInfoConstants.Urns.USER_SUM_DOUBLE)||
+				urn.contains(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_DOUBLE) ||
+					urn.contains(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64));
 	}
 
 	private void updateCounterOrMeter(Iterable<MetricResult<Long>> counters) {

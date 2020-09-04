@@ -26,11 +26,11 @@ under the License.
 {:toc}
 
 ## Environment Requirements
-<span class="label label-info">Note</span> Python version (3.5, 3.6 or 3.7) is required for PyFlink. Please run the following command to make sure that it meets the requirements:
+<span class="label label-info">Note</span> Python version (3.5, 3.6, 3.7 or 3.8) is required for PyFlink. Please run the following command to make sure that it meets the requirements:
 
 {% highlight bash %}
 $ python --version
-# the version printed here must be 3.5, 3.6 or 3.7
+# the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
 ## Installation of PyFlink

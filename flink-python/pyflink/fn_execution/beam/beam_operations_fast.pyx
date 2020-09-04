@@ -108,8 +108,11 @@ cdef class BeamStatelessFunctionOperation(Operation):
             str(tag)] = receiver.opcounter.element_counter.value()
         return metrics
 
-    cpdef monitoring_infos(self, transform_id):
-        # only pass user metric to Java
+    cpdef monitoring_infos(self, transform_id, tag_to_pcollection_id):
+        """
+        Only pass user metric to Java
+        :param tag_to_pcollection_id: useless for user metric
+        """
         return self.user_monitoring_infos(transform_id)
 
     cdef void _update_gauge(self, base_metric_group):

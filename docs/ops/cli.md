@@ -122,11 +122,11 @@ These examples about how to submit a job in CLI.
 
 <div data-lang="python" markdown="1">
 
-<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command “python”. Please run the following command to confirm that the command “python” in current environment points to a specified Python version 3.5, 3.6 or 3.7:
+<span class="label label-info">Note</span> When submitting Python job via `flink run`, Flink will run the command “python”. Please run the following command to confirm that the command “python” in current environment points to a specified Python version 3.5, 3.6, 3.7 or 3.8:
 
 {% highlight bash %}
 $ python --version
-# the version printed here must be 3.5, 3.6 or 3.7
+# the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
 -   Run Python Table program:
@@ -378,8 +378,8 @@ Action "run" compiles and runs a program.
                                           UDF worker (e.g.: --pyExecutable
                                           /usr/local/bin/python3). The python
                                           UDF worker depends on a specified Python
-                                          version 3.5, 3.6 or 3.7, Apache Beam
-                                          (version == 2.19.0), Pip (version >= 7.1.0)
+                                          version 3.5, 3.6 3.7 or 3.8, Apache Beam
+                                          (version == 2.23.0), Pip (version >= 7.1.0)
                                           and SetupTools (version >= 37.0.0).
                                           Please ensure that the specified environment
                                           meets the above requirements.

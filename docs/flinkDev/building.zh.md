@@ -65,11 +65,11 @@ mvn clean install -DskipTests -Dfast
 
     如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#build-flink) 中所述。
 
-2. Python 的版本为 3.5, 3.6 或者 3.7.
+2. Python 的版本为 3.5, 3.6, 3.7 或者 3.8.
 
     ```shell
     $ python --version
-    # the version printed here must be 3.5, 3.6 or 3.7
+    # the version printed here must be 3.5, 3.6, 3.7 or 3.8
     ```
 
 3. 构建 PyFlink 的 Cython 扩展模块（可选的）

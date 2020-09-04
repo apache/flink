@@ -65,7 +65,7 @@ public class BeamTablePythonStatelessFunctionRunner extends BeamPythonStatelessF
 			.setSpec(
 				RunnerApi.FunctionSpec.newBuilder()
 					.setUrn(coderUrn)
-					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
+					.setPayload(org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
 						toProtoType(rowType).getRowSchema().toByteArray()))
 					.build())
 			.build();

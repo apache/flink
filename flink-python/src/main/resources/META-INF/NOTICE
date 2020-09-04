@@ -16,18 +16,18 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.arrow:arrow-format:0.16.0
 - org.apache.arrow:arrow-memory:0.16.0
 - org.apache.arrow:arrow-vector:0.16.0
-- org.apache.beam:beam-model-fn-execution:2.19.0
-- org.apache.beam:beam-model-job-management:2.19.0
-- org.apache.beam:beam-model-pipeline:2.19.0
-- org.apache.beam:beam-runners-core-construction-java:2.19.0
-- org.apache.beam:beam-runners-core-java:2.19.0
-- org.apache.beam:beam-runners-java-fn-execution:2.19.0
-- org.apache.beam:beam-sdks-java-core:2.19.0
-- org.apache.beam:beam-sdks-java-fn-execution:2.19.0
+- org.apache.beam:beam-model-fn-execution:2.23.0
+- org.apache.beam:beam-model-job-management:2.23.0
+- org.apache.beam:beam-model-pipeline:2.23.0
+- org.apache.beam:beam-runners-core-construction-java:2.23.0
+- org.apache.beam:beam-runners-core-java:2.23.0
+- org.apache.beam:beam-runners-java-fn-execution:2.23.0
+- org.apache.beam:beam-sdks-java-core:2.23.0
+- org.apache.beam:beam-sdks-java-fn-execution:2.23.0
 - org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1
-- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.19.0
+- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.23.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
-- org.apache.beam:beam-vendor-grpc-1_21_0:0.1
+- org.apache.beam:beam-vendor-grpc-1_26_0:0.1
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
