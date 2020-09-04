@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The representation of a data exchange between to operators. The data exchange can realize a shipping strategy, 
+ * The representation of a data exchange between two operators. The data exchange can realize a shipping strategy,
  * which established global properties, and a local strategy, which establishes local properties.
  * <p>
  * Because we currently deal only with plans where the operator order is fixed, many properties are equal
