@@ -29,7 +29,6 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,7 +40,6 @@ public class MockStreamConfig extends StreamConfig {
 		super(configuration);
 
 		setChainStart();
-		setOutputSelectors(Collections.emptyList());
 		setNumberOfOutputs(numberOfOutputs);
 		setTypeSerializerOut(new StringSerializer());
 		setVertexID(0);
@@ -52,13 +50,13 @@ public class MockStreamConfig extends StreamConfig {
 			private static final long serialVersionUID = 1L;
 		};
 
-		StreamNode sourceVertex = new StreamNode(0, null, null, dummyOperator, "source", new ArrayList<>(), SourceStreamTask.class);
-		StreamNode targetVertex = new StreamNode(1, null, null, dummyOperator, "target", new ArrayList<>(), SourceStreamTask.class);
+		StreamNode sourceVertex = new StreamNode(0, null, null, dummyOperator, "source", SourceStreamTask.class);
+		StreamNode targetVertex = new StreamNode(1, null, null, dummyOperator, "target", SourceStreamTask.class);
 
 		List<StreamEdge> outEdgesInOrder = new ArrayList<>(numberOfOutputs);
 		for (int i = 0; i < numberOfOutputs; i++) {
 			outEdgesInOrder.add(
-				new StreamEdge(sourceVertex, targetVertex, numberOfOutputs, new ArrayList<>(), new BroadcastPartitioner<>(), null));
+				new StreamEdge(sourceVertex, targetVertex, numberOfOutputs, new BroadcastPartitioner<>(), null));
 		}
 		setOutEdgesInOrder(outEdgesInOrder);
 		setNonChainedOutputs(outEdgesInOrder);

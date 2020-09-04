@@ -28,7 +28,6 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -41,7 +40,6 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +72,6 @@ public class StreamConfig implements Serializable {
 	private static final String CHAIN_INDEX = "chainIndex";
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String ITERATION_ID = "iterationId";
-	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
 	private static final String INPUTS = "inputs";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out";
 	private static final String TYPE_SERIALIZER_SIDEOUT_PREFIX = "typeSerializer_sideout_";
@@ -275,25 +272,6 @@ public class StreamConfig implements Serializable {
 		}
 		catch (Exception e) {
 			throw new StreamTaskException("Cannot instantiate user function.", e);
-		}
-	}
-
-	public void setOutputSelectors(List<OutputSelector<?>> outputSelectors) {
-		try {
-			InstantiationUtil.writeObjectToConfig(outputSelectors, this.config, OUTPUT_SELECTOR_WRAPPER);
-		} catch (IOException e) {
-			throw new StreamTaskException("Could not serialize output selectors", e);
-		}
-	}
-
-	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader userCodeClassloader) {
-		try {
-			List<OutputSelector<T>> selectors =
-					InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, userCodeClassloader);
-			return selectors == null ? Collections.<OutputSelector<T>>emptyList() : selectors;
-
-		} catch (Exception e) {
-			throw new StreamTaskException("Could not read output selectors", e);
 		}
 	}
 

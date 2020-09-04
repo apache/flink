@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.ParallelIteratorInputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
@@ -571,34 +570,6 @@ class DataStreamTest extends AbstractTestBase {
         fail(e.getMessage)
       }
     }
-
-    val outputSelector = new OutputSelector[Int] {
-      override def select(value: Int): lang.Iterable[String] = null
-    }
-
-    val split = unionFilter.split(outputSelector)
-    split.print()
-    val outputSelectors = getStreamGraph(env).getStreamNode(unionFilter.getId).getOutputSelectors
-    assert(1 == outputSelectors.size)
-    assert(outputSelector == outputSelectors.get(0))
-
-    unionFilter.split(x => List("a")).print()
-    val moreOutputSelectors = getStreamGraph(env)
-      .getStreamNode(unionFilter.getId)
-      .getOutputSelectors
-    assert(2 == moreOutputSelectors.size)
-
-    val select = split.select("a")
-    val sink = select.print()
-    val splitEdge =
-      getStreamGraph(env).getStreamEdgesOrThrow(unionFilter.getId, sink.getTransformation.getId)
-    assert("a" == splitEdge.get(0).getSelectedNames.get(0))
-
-    val sinkWithIdentifier = select.print("identifier")
-    val newSplitEdge = getStreamGraph(env).getStreamEdgesOrThrow(
-      unionFilter.getId,
-      sinkWithIdentifier.getTransformation.getId)
-    assert("a" == newSplitEdge.get(0).getSelectedNames.get(0))
 
     val connect = map.connect(flatMap)
 
