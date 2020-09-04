@@ -29,28 +29,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.PartitionPathUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
-import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.orc.TypeDescription;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -67,8 +57,6 @@ import static org.apache.flink.table.filesystem.RowPartitionComputer.restorePart
  * Orc {@link FileSystemFormatFactory} for file system.
  */
 public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
-
-	private static final Logger LOG = LoggerFactory.getLogger(OrcFileSystemFormatFactory.class);
 
 	public static final String IDENTIFIER = "orc";
 
@@ -96,215 +84,12 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		return orcProperties;
 	}
 
-	private boolean isUnaryValid(CallExpression callExpression) {
-		return callExpression.getChildren().size() == 1 && callExpression.getChildren().get(0) instanceof FieldReferenceExpression;
-	}
-
-	private boolean isBinaryValid(CallExpression callExpression) {
-		return callExpression.getChildren().size() == 2 && ((callExpression.getChildren().get(0) instanceof FieldReferenceExpression && callExpression.getChildren().get(1) instanceof ValueLiteralExpression) ||
-				(callExpression.getChildren().get(0) instanceof ValueLiteralExpression && callExpression.getChildren().get(1) instanceof FieldReferenceExpression));
-	}
-
-	public OrcSplitReader.Predicate toOrcPredicate(Expression expression) {
-		if (expression instanceof CallExpression) {
-			CallExpression callExp = (CallExpression) expression;
-			FunctionDefinition funcDef = callExp.getFunctionDefinition();
-
-			if (funcDef == BuiltInFunctionDefinitions.IS_NULL || funcDef == BuiltInFunctionDefinitions.IS_NOT_NULL || funcDef == BuiltInFunctionDefinitions.NOT) {
-				if (!isUnaryValid(callExp)) {
-					// not a valid predicate
-					LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
-					return null;
-				}
-
-				PredicateLeaf.Type colType = toOrcType(((FieldReferenceExpression) callExp.getChildren().get(0)).getOutputDataType());
-				if (colType == null) {
-					// unsupported type
-					LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", callExp);
-					return null;
-				}
-
-				String colName = getColumnName(callExp);
-
-				if (funcDef == BuiltInFunctionDefinitions.IS_NULL) {
-					return new OrcSplitReader.IsNull(colName, colType);
-				} else if (funcDef == BuiltInFunctionDefinitions.IS_NOT_NULL) {
-					return new OrcSplitReader.Not(
-							new OrcSplitReader.IsNull(colName, colType));
-				} else {
-					OrcSplitReader.Predicate c = toOrcPredicate(callExp.getChildren().get(0));
-					if (c == null) {
-						return null;
-					} else {
-						return new OrcSplitReader.Not(c);
-					}
-				}
-			} else if (funcDef == BuiltInFunctionDefinitions.OR) {
-				if (callExp.getChildren().size() < 2) {
-					return null;
-				}
-				Expression left = callExp.getChildren().get(0);
-				Expression right = callExp.getChildren().get(1);
-
-				OrcSplitReader.Predicate c1 = toOrcPredicate(left);
-				OrcSplitReader.Predicate c2 = toOrcPredicate(right);
-				if (c1 == null || c2 == null) {
-					return null;
-				} else {
-					return new OrcSplitReader.Or(c1, c2);
-				}
-			} else {
-				if (!isBinaryValid(callExp)) {
-					// not a valid predicate
-					LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
-					return null;
-				}
-
-				PredicateLeaf.Type litType = getLiteralType(callExp);
-				if (litType == null) {
-					// unsupported literal type
-					LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", expression);
-					return null;
-				}
-
-				boolean literalOnRight = literalOnRight(callExp);
-				String colName = getColumnName(callExp);
-
-				// fetch literal and ensure it is serializable
-				Object literalObj = getLiteral(callExp).get();
-				Serializable literal;
-				// validate that literal is serializable
-				if (literalObj instanceof Serializable) {
-					literal = (Serializable) literalObj;
-				} else {
-					LOG.warn("Encountered a non-serializable literal of type {}. " +
-									"Cannot push predicate [{}] into OrcFileSystemFormatFactory. " +
-									"This is a bug and should be reported.",
-							literalObj.getClass().getCanonicalName(), expression);
-					return null;
-				}
-
-				if (funcDef == BuiltInFunctionDefinitions.EQUALS) {
-					return new OrcSplitReader.Equals(colName, litType, literal);
-				} else if (funcDef == BuiltInFunctionDefinitions.NOT_EQUALS) {
-					return new OrcSplitReader.Not(
-							new OrcSplitReader.Equals(colName, litType, literal));
-				} else if (funcDef == BuiltInFunctionDefinitions.GREATER_THAN) {
-					if (literalOnRight) {
-						return new OrcSplitReader.Not(
-								new OrcSplitReader.LessThanEquals(colName, litType, literal));
-					} else {
-						return new OrcSplitReader.LessThan(colName, litType, literal);
-					}
-				} else if (funcDef == BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL) {
-					if (literalOnRight) {
-						return new OrcSplitReader.Not(
-								new OrcSplitReader.LessThan(colName, litType, literal));
-					} else {
-						return new OrcSplitReader.LessThanEquals(colName, litType, literal);
-					}
-				} else if (funcDef == BuiltInFunctionDefinitions.LESS_THAN) {
-					if (literalOnRight) {
-						return new OrcSplitReader.LessThan(colName, litType, literal);
-					} else {
-						return new OrcSplitReader.Not(
-								new OrcSplitReader.LessThanEquals(colName, litType, literal));
-					}
-				} else if (funcDef == BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL) {
-					if (literalOnRight) {
-						return new OrcSplitReader.LessThanEquals(colName, litType, literal);
-					} else {
-						return new OrcSplitReader.Not(
-								new OrcSplitReader.LessThan(colName, litType, literal));
-					}
-				} else {
-					// unsupported predicate
-					LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", expression);
-					return null;
-				}
-			}
-		} else {
-			// unsupported predicate
-			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", expression);
-			return null;
-		}
-	}
-
-	private String getColumnName(CallExpression comp) {
-		if (literalOnRight(comp)) {
-			return ((FieldReferenceExpression) comp.getChildren().get(0)).getName();
-		} else {
-			return ((FieldReferenceExpression) comp.getChildren().get(1)).getName();
-		}
-	}
-
-	private boolean literalOnRight(CallExpression comp) {
-		if (comp.getChildren().size() == 1 && comp.getChildren().get(0) instanceof FieldReferenceExpression) {
-			return true;
-		} else if (comp.getChildren().get(0) instanceof ValueLiteralExpression
-				&& comp.getChildren().get(1) instanceof FieldReferenceExpression) {
-			return false;
-		} else if (comp.getChildren().get(0) instanceof FieldReferenceExpression
-				&& comp.getChildren().get(1) instanceof ValueLiteralExpression) {
-			return true;
-		} else {
-			throw new RuntimeException("Invalid binary comparison.");
-		}
-	}
-
-	private PredicateLeaf.Type getLiteralType(CallExpression comp) {
-		if (literalOnRight(comp)) {
-			return toOrcType(((ValueLiteralExpression) comp.getChildren().get(1)).getOutputDataType());
-		} else {
-			return toOrcType(((ValueLiteralExpression) comp.getChildren().get(0)).getOutputDataType());
-		}
-	}
-
-	private Optional<?> getLiteral(CallExpression comp) {
-		if (literalOnRight(comp)) {
-			ValueLiteralExpression valueLiteralExpression = (ValueLiteralExpression) comp.getChildren().get(1);
-			return valueLiteralExpression.getValueAs(valueLiteralExpression.getOutputDataType().getConversionClass());
-		} else {
-			ValueLiteralExpression valueLiteralExpression = (ValueLiteralExpression) comp.getChildren().get(0);
-			return valueLiteralExpression.getValueAs(valueLiteralExpression.getOutputDataType().getConversionClass());
-		}
-	}
-
-	public PredicateLeaf.Type toOrcType(DataType type) {
-		LogicalTypeRoot ltype = type.getLogicalType().getTypeRoot();
-
-		if (ltype == LogicalTypeRoot.TINYINT ||
-				ltype == LogicalTypeRoot.SMALLINT ||
-				ltype == LogicalTypeRoot.INTEGER ||
-				ltype == LogicalTypeRoot.BIGINT) {
-			return PredicateLeaf.Type.LONG;
-		} else if (ltype == LogicalTypeRoot.FLOAT ||
-				ltype == LogicalTypeRoot.DOUBLE) {
-			return PredicateLeaf.Type.FLOAT;
-		} else if (ltype == LogicalTypeRoot.BOOLEAN) {
-			return PredicateLeaf.Type.BOOLEAN;
-		} else if (ltype == LogicalTypeRoot.VARCHAR) {
-			return PredicateLeaf.Type.STRING;
-		} else if (ltype == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE ||
-				ltype == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE ||
-				ltype == LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE) {
-			return PredicateLeaf.Type.TIMESTAMP;
-		} else if (ltype == LogicalTypeRoot.DATE) {
-			return PredicateLeaf.Type.DATE;
-		} else if (ltype == LogicalTypeRoot.BINARY) {
-			return PredicateLeaf.Type.DECIMAL;
-		} else {
-			// unsupported type
-			return null;
-		}
-	}
-
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
 		ArrayList<OrcSplitReader.Predicate> orcPredicates = new ArrayList<>();
 
 		for (Expression pred : context.getPushedDownFilters()) {
-			OrcSplitReader.Predicate orcPred = toOrcPredicate(pred);
+			OrcSplitReader.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
 			if (orcPred != null) {
 				orcPredicates.add(orcPred);
 			}

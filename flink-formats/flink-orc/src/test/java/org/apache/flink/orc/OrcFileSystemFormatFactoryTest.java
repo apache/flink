@@ -42,8 +42,6 @@ public class OrcFileSystemFormatFactoryTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testApplyPredicate(){
-
-		OrcFileSystemFormatFactory orcFileSystemFormatFactory = new OrcFileSystemFormatFactory();
 		List<ResolvedExpression> args = new ArrayList<>();
 
 		// equal
@@ -53,19 +51,19 @@ public class OrcFileSystemFormatFactoryTest {
 		args.add(valueLiteralExpression);
 
 		CallExpression equalExpression = new CallExpression(BuiltInFunctionDefinitions.EQUALS, args, DataTypes.BOOLEAN());
-		OrcSplitReader.Predicate predicate1 = orcFileSystemFormatFactory.toOrcPredicate(equalExpression);
+		OrcSplitReader.Predicate predicate1 = OrcFilters.toOrcPredicate(equalExpression);
 		OrcSplitReader.Predicate predicate2 = new OrcSplitReader.Equals("long1", PredicateLeaf.Type.LONG, 10);
 		assertTrue(predicate1.toString().equals(predicate2.toString()));
 
 		// greater than
 		CallExpression greaterExpression = new CallExpression(BuiltInFunctionDefinitions.GREATER_THAN, args, DataTypes.BOOLEAN());
-		OrcSplitReader.Predicate predicate3 = orcFileSystemFormatFactory.toOrcPredicate(greaterExpression);
+		OrcSplitReader.Predicate predicate3 = OrcFilters.toOrcPredicate(greaterExpression);
 		OrcSplitReader.Predicate predicate4 = new OrcSplitReader.Not(new OrcSplitReader.LessThanEquals("long1", PredicateLeaf.Type.LONG, 10));
 		assertTrue(predicate3.toString().equals(predicate4.toString()));
 
 		// less than
 		CallExpression lessExpression = new CallExpression(BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
-		OrcSplitReader.Predicate predicate5 = orcFileSystemFormatFactory.toOrcPredicate(lessExpression);
+		OrcSplitReader.Predicate predicate5 = OrcFilters.toOrcPredicate(lessExpression);
 		OrcSplitReader.Predicate predicate6 = new OrcSplitReader.LessThan("long1", PredicateLeaf.Type.LONG, 10);
 		assertTrue(predicate5.toString().equals(predicate6.toString()));
 	}
