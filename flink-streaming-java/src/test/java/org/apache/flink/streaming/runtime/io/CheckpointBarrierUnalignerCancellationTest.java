@@ -25,7 +25,7 @@ import org.apache.flink.runtime.event.RuntimeEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -81,7 +81,7 @@ public class CheckpointBarrierUnalignerCancellationTest {
 	@Test
 	public void test() throws Exception {
 		TestInvokable invokable = new TestInvokable();
-		final InputGate inputGate = new SingleInputGateBuilder()
+		final SingleInputGate inputGate = new SingleInputGateBuilder()
 			.setNumberOfChannels(numChannels)
 			.setChannelFactory(InputChannelBuilder::buildLocalChannel)
 			.build();

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
@@ -68,18 +68,18 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	private final SubtaskCheckpointCoordinator checkpointCoordinator;
 
-	private final InputGate[] inputGates;
+	private final CheckpointableInput[] inputs;
 
 	CheckpointBarrierUnaligner(
-		SubtaskCheckpointCoordinator checkpointCoordinator,
-		String taskName,
-		AbstractInvokable toNotifyOnCheckpoint,
-		InputGate... inputGates) {
+			SubtaskCheckpointCoordinator checkpointCoordinator,
+			String taskName,
+			AbstractInvokable toNotifyOnCheckpoint,
+			CheckpointableInput... inputs) {
 		super(toNotifyOnCheckpoint);
 
 		this.taskName = taskName;
-		this.inputGates = inputGates;
-		numOpenChannels = (int) Arrays.stream(inputGates).flatMap(gate -> gate.getChannelInfos().stream()).count();
+		this.inputs = inputs;
+		numOpenChannels = (int) Arrays.stream(inputs).flatMap(gate -> gate.getChannelInfos().stream()).count();
 		this.checkpointCoordinator = checkpointCoordinator;
 	}
 
@@ -101,10 +101,8 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			allBarriersReceivedFuture = new CompletableFuture<>();
 			checkpointCoordinator.initCheckpoint(barrierId, barrier.getCheckpointOptions());
 
-			for (final InputGate gate : inputGates) {
-				for (int index = 0, numChannels = gate.getNumberOfInputChannels(); index < numChannels; index++) {
-					gate.getChannel(index).checkpointStarted(barrier);
-				}
+			for (final CheckpointableInput input : inputs) {
+				input.checkpointStarted(barrier);
 			}
 			notifyCheckpoint(barrier, 0);
 		}
@@ -158,10 +156,8 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	private void resetPendingCheckpoint(long cancelledId) {
 		numBarriersReceived = 0;
 
-		for (final InputGate gate : inputGates) {
-			for (int index = 0, numChannels = gate.getNumberOfInputChannels(); index < numChannels; index++) {
-				gate.getChannel(index).checkpointStopped(cancelledId);
-			}
+		for (final CheckpointableInput input : inputs) {
+			input.checkpointStopped(cancelledId);
 		}
 	}
 

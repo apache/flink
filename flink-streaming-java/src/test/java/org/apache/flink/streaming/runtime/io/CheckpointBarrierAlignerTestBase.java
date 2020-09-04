@@ -33,7 +33,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -91,7 +91,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		return createCheckpointedInputGate(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	abstract CheckpointedInputGate createCheckpointedInputGate(InputGate gate, AbstractInvokable toNotify) throws IOException;
+	abstract CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) throws IOException;
 
 	@After
 	public void ensureEmpty() throws Exception {

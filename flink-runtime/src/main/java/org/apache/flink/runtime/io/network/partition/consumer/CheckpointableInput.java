@@ -17,28 +17,25 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
+import java.io.IOException;
+import java.util.List;
+
 /**
- * An {@link InputGate} with a specific index.
+ * Input, with just basic methods for blocking and resuming consumption. It can be for example an {@link InputGate}
  */
-public abstract class IndexedInputGate extends InputGate implements CheckpointableInput {
-	/**
-	 * Returns the index of this input gate. Only supported on
-	 */
-	public abstract int getGateIndex();
+@Internal
+public interface CheckpointableInput {
+	void resumeConsumption(int channelIndex) throws IOException;
 
-	@Override
-	public void checkpointStarted(CheckpointBarrier barrier) {
-		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
-			getChannel(index).checkpointStarted(barrier);
-		}
-	}
+	List<InputChannelInfo> getChannelInfos();
 
-	@Override
-	public void checkpointStopped(long cancelledCheckpointId) {
-		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
-			getChannel(index).checkpointStopped(cancelledCheckpointId);
-		}
-	}
+	int getNumberOfInputChannels();
+
+	void checkpointStarted(CheckpointBarrier barrier);
+
+	void checkpointStopped(long cancelledCheckpointId);
 }
