@@ -56,7 +56,7 @@ class TableEnvironmentTest(object):
             .add('c', DataTypes.STRING())
         t_env = self.t_env
         t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
+        result = t.select(t.a + 1, t.b, t.c)
 
         actual = result.explain()
 
@@ -69,7 +69,7 @@ class TableEnvironmentTest(object):
             .add('c', DataTypes.STRING())
         t_env = self.t_env
         t = t_env.from_elements([], schema)
-        result = t.select("1 + a, b, c")
+        result = t.select(t.a + 1, t.b, t.c)
 
         actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
 

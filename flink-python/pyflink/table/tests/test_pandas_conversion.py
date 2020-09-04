@@ -118,7 +118,7 @@ class PandasConversionITTests(PandasConversionTestBase):
         table = self.t_env.from_pandas(self.pdf, self.data_type, 5)
         self.assertEqual(self.data_type, table.get_schema().to_row_data_type())
 
-        table = table.filter("f2 < 2")
+        table = table.filter(table.f2 < 2)
         table_sink = source_sink_utils.TestAppendSink(
             self.data_type.field_names(),
             self.data_type.field_types())
@@ -139,12 +139,12 @@ class PandasConversionITTests(PandasConversionTestBase):
 
     def test_empty_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
-        pdf = table.filter("f1 < 0").to_pandas()
+        pdf = table.filter(table.f1 < 0).to_pandas()
         self.assertTrue(pdf.empty)
 
     def test_to_pandas_for_retract_table(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
-        result_pdf = table.group_by("f1").select("max(f2) as f2").to_pandas()
+        result_pdf = table.group_by(table.f1).select(table.f2.max.alias('f2')).to_pandas()
         import pandas as pd
         import numpy as np
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int16([2])}))

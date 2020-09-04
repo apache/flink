@@ -15,8 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType
+from pyflink.util.utils import to_jarray
 
 
 def pandas_to_arrow(schema, timezone, field_types, series):
@@ -67,3 +68,11 @@ def tz_convert_to_internal(s, t: DataType, local_tz):
         elif is_datetime64tz_dtype(s.dtype):
             return s.dt.tz_convert(local_tz).dt.tz_localize(None)
     return s
+
+
+def to_expression_jarray(exprs):
+    """
+    Convert python list of Expression to java array of Expression.
+    """
+    gateway = get_gateway()
+    return to_jarray(gateway.jvm.Expression, [expr._j_expr for expr in exprs])

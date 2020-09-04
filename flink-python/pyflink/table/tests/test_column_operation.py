@@ -23,7 +23,7 @@ class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
     def test_add_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a").add_columns("a + 1 as b, a + 2 as c")
+        result = t.select(t.a).add_columns((t.a + 1).alias('b'), (t.a + 2).alias('c'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[a, plus(a, 1), '
                          'plus(a, 2)]',
@@ -31,7 +31,7 @@ class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
     def test_add_or_replace_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a").add_or_replace_columns("a + 1 as b, a + 2 as a")
+        result = t.select("a").add_or_replace_columns((t.a + 1).alias('b'), (t.a + 2).alias('a'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[plus(a, 2), '
                          'plus(a, 1)]',
@@ -39,13 +39,13 @@ class StreamTableColumnsOperationTests(PyFlinkStreamTableTestCase):
 
     def test_rename_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a, b, c").rename_columns("a as d, c as f, b as e")
+        result = t.select("a, b, c").rename_columns(t.a.alias('d'), t.c.alias('f'), t.b.alias('e'))
         table_schema = result._j_table.getQueryOperation().getTableSchema()
         self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
 
     def test_drop_columns(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.select("a, b, c").drop_columns("a, c")
+        result = t.drop_columns(t.a, t.c)
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[b]', query_operation.getProjectList().toString())
 
