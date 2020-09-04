@@ -82,7 +82,7 @@ public class BeamDataStreamPythonStatelessFunctionRunner extends BeamPythonState
 			.setSpec(
 		RunnerApi.FunctionSpec.newBuilder()
 					.setUrn(this.coderUrn)
-					.setPayload(org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
+					.setPayload(org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
 		PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(builtFieldType).toByteArray()
 					)).build()
 			).build();

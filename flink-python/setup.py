@@ -314,9 +314,11 @@ run sdist.
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.5',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.19.0',
+        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.23.0',
                           'cloudpickle==1.2.2', 'avro-python3>=1.8.1,<=1.9.1', 'jsonpickle==1.2',
-                          'pandas>=0.23.4,<=0.25.3', 'pyarrow>=0.15.1,<0.16.0', 'pytz>=2018.3'],
+                          'pandas>=0.24.2,<1; python_full_version < "3.5.3"',
+                          'pandas>=0.25.2,<1; python_full_version >= "3.5.3"',
+                          'pyarrow>=0.15.1,<0.18.0', 'pytz>=2018.3'],
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
@@ -328,7 +330,8 @@ run sdist.
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7'],
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: 3.8'],
         ext_modules=extensions
     )
 finally:

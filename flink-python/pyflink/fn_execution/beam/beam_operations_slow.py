@@ -85,8 +85,11 @@ class StatelessFunctionOperation(Operation):
             self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
             output_stream.maybe_flush()
 
-    def monitoring_infos(self, transform_id):
-        # only pass user metric to Java
+    def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+        """
+        Only pass user metric to Java
+        :param tag_to_pcollection_id: useless for user metric
+        """
         return super().user_monitoring_infos(transform_id)
 
     def generate_func(self, udfs) -> tuple:
