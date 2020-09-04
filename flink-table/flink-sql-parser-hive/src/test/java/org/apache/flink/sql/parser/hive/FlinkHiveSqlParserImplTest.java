@@ -53,6 +53,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowCurrentDatabase() {
+		sql("show current database").ok("SHOW CURRENT DATABASE");
+	}
+
+	@Test
 	public void testUseDatabase() {
 		// use database
 		sql("use db1").ok("USE `DB1`");
@@ -260,6 +265,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testShowCurrentCatalog() {
+		sql("show current catalog").ok("SHOW CURRENT CATALOG");
+	}
+
+	@Test
 	public void testUseCatalog() {
 		sql("use catalog cat").ok("USE CATALOG `CAT`");
 	}
@@ -421,5 +431,13 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 						"PARTITION (`P1` = 'a', `P2` = 1)\n" +
 						"PARTITION (`P1` = 'b', `P2` = 2)");
 		// TODO: support IGNORE PROTECTION, PURGE
+	}
+
+	@Test
+	public void testShowPartitions() {
+		sql("show partitions tbl")
+			.ok("SHOW PARTITIONS `TBL`");
+		sql("show partitions tbl partition (p=1)")
+			.ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
 	}
 }

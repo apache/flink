@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics</artifactId>
-	<name>flink-metrics</name>
+	<name>Flink : Metrics : </name>
 	<packaging>pom</packaging>
 
 	<properties>

@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-nifi_${scala.binary.version}</artifactId>
-	<name>flink-connector-nifi</name>
+	<name>Flink : Connectors : Nifi</name>
 
 	<packaging>jar</packaging>
 

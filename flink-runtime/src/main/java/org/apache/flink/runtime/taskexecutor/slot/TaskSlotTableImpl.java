@@ -53,6 +53,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -107,12 +108,18 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		"TaskSlotTableImpl is not initialized with proper main thread executor, " +
 			"call to TaskSlotTableImpl#start is required");
 
+	/**
+	 * {@link Executor} for background actions, e.g. verify all managed memory released.
+	 */
+	private final Executor memoryVerificationExecutor;
+
 	public TaskSlotTableImpl(
 			final int numberSlots,
 			final ResourceProfile totalAvailableResourceProfile,
 			final ResourceProfile defaultSlotResourceProfile,
 			final int memoryPageSize,
-			final TimerService<AllocationID> timerService) {
+			final TimerService<AllocationID> timerService,
+			final Executor memoryVerificationExecutor) {
 		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
 
 		this.numberSlots = numberSlots;
@@ -134,6 +141,8 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		slotActions = null;
 		state = State.CREATED;
 		closingFuture = new CompletableFuture<>();
+
+		this.memoryVerificationExecutor = memoryVerificationExecutor;
 	}
 
 	@Override
@@ -289,7 +298,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 			return false;
 		}
 
-		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId);
+		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId, memoryVerificationExecutor);
 		if (index >= 0) {
 			taskSlots.put(index, taskSlot);
 		}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.rest.FileUploadHandler;
 import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
@@ -57,6 +58,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * Super class for netty-based handlers that work with {@link RequestBody}.
@@ -116,7 +118,12 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 		FileUploads uploadedFiles = null;
 		try {
-			inFlightRequestTracker.registerRequest();
+			if (!inFlightRequestTracker.registerRequest()) {
+				log.debug("The handler instance for {} had already been closed.", untypedResponseMessageHeaders.getTargetRestEndpointURL());
+				ctx.channel().close();
+				return;
+			}
+
 			if (!(httpRequest instanceof FullHttpRequest)) {
 				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
 				// FullHttpRequests.
@@ -177,13 +184,17 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 			final FileUploads finalUploadedFiles = uploadedFiles;
 			requestProcessingFuture
+				.handle((Void ignored, Throwable throwable) -> {
+					if (throwable != null) {
+						return handleException(ExceptionUtils.stripCompletionException(throwable), ctx, httpRequest);
+					}
+					return CompletableFuture.<Void>completedFuture(null);
+				}).thenCompose(Function.identity())
 				.whenComplete((Void ignored, Throwable throwable) -> {
 					if (throwable != null) {
-						handleException(ExceptionUtils.stripCompletionException(throwable), ctx, httpRequest)
-							.whenComplete((Void ignored2, Throwable throwable2) -> finalizeRequestProcessing(finalUploadedFiles));
-					} else {
-						finalizeRequestProcessing(finalUploadedFiles);
+						log.warn("An exception occurred while handling another exception.", throwable);
 					}
+					finalizeRequestProcessing(finalUploadedFiles);
 				});
 		} catch (Throwable e) {
 			final FileUploads finalUploadedFiles = uploadedFiles;
@@ -198,7 +209,13 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 	}
 
 	private CompletableFuture<Void> handleException(Throwable throwable, ChannelHandlerContext ctx, HttpRequest httpRequest) {
+		ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(throwable);
+
 		FlinkHttpObjectAggregator flinkHttpObjectAggregator = ctx.pipeline().get(FlinkHttpObjectAggregator.class);
+		if (flinkHttpObjectAggregator == null) {
+			log.warn("The connection was unexpectedly closed by the client.");
+			return CompletableFuture.completedFuture(null);
+		}
 		int maxLength = flinkHttpObjectAggregator.maxContentLength() - OTHER_RESP_PAYLOAD_OVERHEAD;
 		if (throwable instanceof RestHandlerException) {
 			RestHandlerException rhe = (RestHandlerException) throwable;

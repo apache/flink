@@ -30,7 +30,7 @@ under the License.
 	<artifactId>flink-parent</artifactId>
 	<version>1.12-SNAPSHOT</version>
 
-	<name>flink</name>
+	<name>Flink : </name>
 	<packaging>pom</packaging>
 	<url>https://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>
@@ -147,7 +147,7 @@ under the License.
 		<minikdc.version>3.2.0</minikdc.version>
 		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
-		<hive.connector.orc.version>1.4.3</hive.connector.orc.version>
+		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
 		<orc.version>1.5.6</orc.version>
 		<!--
 			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
@@ -1455,6 +1455,7 @@ under the License.
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
+						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>

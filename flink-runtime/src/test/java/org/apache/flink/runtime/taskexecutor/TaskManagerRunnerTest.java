@@ -21,8 +21,10 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
@@ -90,13 +92,34 @@ public class TaskManagerRunnerTest extends TestLogger {
 	}
 
 	@Test
+	public void testGenerateTaskManagerResourceIDWithMetaData() throws Exception {
+		final Configuration configuration = createConfiguration();
+		final String metadata = "test";
+		configuration.set(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, metadata);
+		final ResourceID taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1);
+
+		assertThat(taskManagerResourceID.getMetadata(), equalTo(metadata));
+	}
+
+	@Test
+	public void testGenerateTaskManagerResourceIDWithoutMetaData() throws Exception {
+		final Configuration configuration = createConfiguration();
+		final String resourceID = "test";
+		configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceID);
+		final ResourceID taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1);
+
+		assertThat(taskManagerResourceID.getMetadata(), equalTo(""));
+		assertThat(taskManagerResourceID.getStringWithMetadata(), equalTo("test"));
+	}
+
+	@Test
 	public void testGenerateTaskManagerResourceIDWithConfig() throws Exception {
 		final Configuration configuration = createConfiguration();
 		final String resourceID = "test";
 		configuration.set(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID, resourceID);
-		final String taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1);
+		final ResourceID taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1);
 
-		assertThat(taskManagerResourceID, equalTo(resourceID));
+		assertThat(taskManagerResourceID.getResourceIdString(), equalTo(resourceID));
 	}
 
 	@Test
@@ -104,10 +127,10 @@ public class TaskManagerRunnerTest extends TestLogger {
 		final Configuration configuration = createConfiguration();
 		final String rpcAddress = "flink";
 		final int rpcPort = 9090;
-		final String taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort);
+		final ResourceID taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort);
 
 		assertThat(taskManagerResourceID, notNullValue());
-		assertThat(taskManagerResourceID, containsString(rpcAddress + ":" + rpcPort));
+		assertThat(taskManagerResourceID.getResourceIdString(), containsString(rpcAddress + ":" + rpcPort));
 	}
 
 	@Test
@@ -115,10 +138,10 @@ public class TaskManagerRunnerTest extends TestLogger {
 		final Configuration configuration = createConfiguration();
 		final String rpcAddress = "";
 		final int rpcPort = -1;
-		final String taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort);
+		final ResourceID taskManagerResourceID = TaskManagerRunner.getTaskManagerResourceID(configuration, rpcAddress, rpcPort);
 
 		assertThat(taskManagerResourceID, notNullValue());
-		assertThat(taskManagerResourceID, containsString(InetAddress.getLocalHost().getHostName()));
+		assertThat(taskManagerResourceID.getResourceIdString(), containsString(InetAddress.getLocalHost().getHostName()));
 	}
 
 	private static Configuration createConfiguration() {

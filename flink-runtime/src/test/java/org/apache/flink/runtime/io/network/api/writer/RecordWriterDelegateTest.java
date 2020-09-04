@@ -61,7 +61,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
 	@Before
 	public void setup() {
-		globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize, numberOfSegmentsToRequest);
+		globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize);
 	}
 
 	@After
@@ -158,7 +158,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
 		// recycle the buffer to make the local pool available again
 		BufferBuilderTestUtils.fillBufferBuilder(bufferBuilder, 1).finish();
-		ResultSubpartitionView readView = recordWriter.getTargetPartition().getSubpartition(0).createReadView(new NoOpBufferAvailablityListener());
+		ResultSubpartitionView readView = recordWriter.getTargetPartition().createSubpartitionView(0, new NoOpBufferAvailablityListener());
 		Buffer buffer = readView.getNextBuffer().buffer();
 
 		buffer.recycleBuffer();

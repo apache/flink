@@ -16,15 +16,14 @@
 # limitations under the License.
 ################################################################################
 
-import unittest
 from pyflink.ml.api import JavaTransformer, Transformer, Estimator, Model, \
     Pipeline, JavaEstimator, JavaModel
 from pyflink.ml.api.param.base import WithParams, ParamInfo, TypeConverters
 from pyflink import keyword
-from pyflink.testing.test_case_utils import MLTestCase
+from pyflink.testing.test_case_utils import MLTestCase, PyFlinkTestCase
 
 
-class PipelineTest(unittest.TestCase):
+class PipelineTest(PyFlinkTestCase):
 
     @staticmethod
     def describe_pipeline(pipeline):

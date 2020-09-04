@@ -88,12 +88,14 @@ class SortWindowCodeGenerator(
     isMerge,
     isFinal) {
 
+  // prepare for aggregation
+  aggInfos
+      .map(_.function)
+      .filter(_.isInstanceOf[AggregateFunction[_, _]])
+      .map(ctx.addReusableFunction(_))
+
   def genWithoutKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
-
-    aggCallToAggFunction
-        .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
 
     val timeWindowType = classOf[TimeWindow].getName
     val currentWindow = CodeGenUtils.newName("currentWindow")
@@ -158,10 +160,6 @@ class SortWindowCodeGenerator(
   }
 
   def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
-    aggCallToAggFunction
-        .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
-
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val currentKey = CodeGenUtils.newName("currentKey")

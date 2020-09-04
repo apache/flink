@@ -21,7 +21,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -48,7 +47,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -88,8 +86,10 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 	}
 
+	/**
+	 * Tests how the job master handles unknown/missing executions.
+	 */
 	@Test
-	@Ignore
 	public void testExecutionDeploymentReconciliation() throws Exception {
 		JobMasterBuilder.TestingOnCompletionActions onCompletionActions = new JobMasterBuilder.TestingOnCompletionActions();
 
@@ -122,11 +122,50 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 		assertThat(onCompletionActions.getJobReachedGloballyTerminalStateFuture().get().getState(), is(JobStatus.FAILED));
 	}
 
+	/**
+	 * Tests that the job master does not issue a cancel call if the heartbeat reports an execution for which the
+	 * deployment was not yet acknowledged.
+	 */
+	@Test
+	public void testExecutionDeploymentReconciliationForPendingExecution() throws Exception {
+		final CompletableFuture<ExecutionAttemptID> taskSubmissionFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> taskDeploymentAcknowledgedFuture = new CompletableFuture<>();
+		JobMaster jobMaster = createAndStartJobMaster(taskDeploymentAcknowledgedFuture);
+		JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+		RPC_SERVICE_RESOURCE.getTestingRpcService().registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+		final AllocationIdsExposingResourceManagerGateway resourceManagerGateway = createResourceManagerGateway();
+
+		final CompletableFuture<ExecutionAttemptID> taskCancellationFuture = new CompletableFuture<>();
+		final CompletableFuture<Acknowledge> taskSubmissionAcknowledgeFuture = new CompletableFuture<>();
+		TaskExecutorGateway taskExecutorGateway = createTaskExecutorGateway(taskCancellationFuture, taskSubmissionFuture, taskSubmissionAcknowledgeFuture);
+		LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
+
+		registerTaskExecutorAndOfferSlots(resourceManagerGateway, jobMasterGateway, taskExecutorGateway, localUnresolvedTaskManagerLocation);
+
+		ExecutionAttemptID pendingExecutionId = taskSubmissionFuture.get();
+
+		// the execution has not been acknowledged yet by the TaskExecutor, but we already allow the ID to be in the heartbeat payload
+		jobMasterGateway.heartbeatFromTaskManager(localUnresolvedTaskManagerLocation.getResourceID(), new TaskExecutorToJobManagerHeartbeatPayload(
+			new AccumulatorReport(Collections.emptyList()),
+			new ExecutionDeploymentReport(Collections.singleton(pendingExecutionId))
+		));
+
+		taskSubmissionAcknowledgeFuture.complete(Acknowledge.get());
+
+		taskDeploymentAcknowledgedFuture.get();
+		assertFalse(taskCancellationFuture.isDone());
+	}
+
+	private JobMaster createAndStartJobMaster(CompletableFuture<Void> taskDeploymentFuture) throws Exception {
+		return createAndStartJobMaster(new JobMasterBuilder.TestingOnCompletionActions(), taskDeploymentFuture);
+	}
+
 	private JobMaster createAndStartJobMaster(OnCompletionActions onCompletionActions, CompletableFuture<Void> taskDeploymentFuture) throws Exception {
 		ExecutionDeploymentTracker executionDeploymentTracker = new DefaultExecutionDeploymentTracker() {
 			@Override
-			public void startTrackingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host) {
-				super.startTrackingDeploymentOf(executionAttemptId, host);
+			public void completeDeploymentOf(ExecutionAttemptID executionAttemptId) {
+				super.completeDeploymentOf(executionAttemptId);
 				taskDeploymentFuture.complete(null);
 			}
 		};
@@ -152,11 +191,19 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 	}
 
 	private TaskExecutorGateway createTaskExecutorGateway(CompletableFuture<ExecutionAttemptID> taskCancellationFuture) {
+		return createTaskExecutorGateway(taskCancellationFuture, new CompletableFuture<>(), CompletableFuture.completedFuture(Acknowledge.get()));
+	}
+
+	private TaskExecutorGateway createTaskExecutorGateway(CompletableFuture<ExecutionAttemptID> taskCancellationFuture, CompletableFuture<ExecutionAttemptID> taskSubmissionFuture, CompletableFuture<Acknowledge> taskSubmissionResponse) {
 		TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
 			.setAddress(UUID.randomUUID().toString())
 			.setCancelTaskFunction(executionAttemptId -> {
 				taskCancellationFuture.complete(executionAttemptId);
 				return CompletableFuture.completedFuture(Acknowledge.get());
+			})
+			.setSubmitTaskConsumer((tdd, ignored) -> {
+				taskSubmissionFuture.complete(tdd.getExecutionAttemptId());
+				return taskSubmissionResponse;
 			})
 			.createTestingTaskExecutorGateway();
 

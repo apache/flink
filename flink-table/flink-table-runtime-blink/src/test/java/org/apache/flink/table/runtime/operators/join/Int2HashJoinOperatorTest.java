@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -250,8 +250,8 @@ public class Int2HashJoinOperatorTest implements Serializable {
 			int expectOutKeySize,
 			int expectOutVal,
 			boolean semiJoin) throws Exception {
-		RowDataTypeInfo typeInfo = new RowDataTypeInfo(new IntType(), new IntType());
-		RowDataTypeInfo rowDataTypeInfo = new RowDataTypeInfo(
+		InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new IntType(), new IntType());
+		InternalTypeInfo<RowData> rowDataTypeInfo = InternalTypeInfo.ofFields(
 				new IntType(), new IntType(), new IntType(), new IntType());
 		TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
 			new TwoInputStreamTaskTestHarness<>(

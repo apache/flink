@@ -195,7 +195,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
-    tEnv.registerFunction("weightAvgFun", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val sql =
       """

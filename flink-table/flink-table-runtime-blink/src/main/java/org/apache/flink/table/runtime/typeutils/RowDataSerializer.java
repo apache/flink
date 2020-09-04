@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.NestedSerializersSnapshotDelegate;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,7 +35,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
-import org.apache.flink.table.runtime.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.InstantiationUtil;
@@ -58,16 +56,16 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 	private transient BinaryRowData reuseRow;
 	private transient BinaryRowWriter reuseWriter;
 
-	public RowDataSerializer(ExecutionConfig config, RowType rowType) {
+	public RowDataSerializer(RowType rowType) {
 		this(rowType.getChildren().toArray(new LogicalType[0]),
 			rowType.getChildren().stream()
-				.map((LogicalType type) -> InternalSerializers.create(type, config))
+				.map(InternalSerializers::create)
 				.toArray(TypeSerializer[]::new));
 	}
 
-	public RowDataSerializer(ExecutionConfig config, LogicalType... types) {
+	public RowDataSerializer(LogicalType... types) {
 		this(types, Arrays.stream(types)
-			.map((LogicalType type) -> InternalSerializers.create(type, config))
+			.map(InternalSerializers::create)
 			.toArray(TypeSerializer[]::new));
 	}
 
@@ -236,7 +234,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 	public boolean equals(Object obj) {
 		if (obj instanceof RowDataSerializer) {
 			RowDataSerializer other = (RowDataSerializer) obj;
-			return Arrays.equals(types, other.types);
+			return Arrays.equals(fieldSerializers, other.fieldSerializers);
 		}
 
 		return false;
@@ -244,7 +242,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(types);
+		return Arrays.hashCode(fieldSerializers);
 	}
 
 	@Override

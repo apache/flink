@@ -35,20 +35,20 @@ import java.util.concurrent.atomic.AtomicLong;
  * continues to process any ready cleaners making {@link #MAX_SLEEPS} attempts before throwing {@link OutOfMemoryError}.
  */
 class UnsafeMemoryBudget {
-	// max. number of sleeps during try-reserving with exponentially
-	// increasing delay before throwing OutOfMemoryError:
-	// 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 (total 1023 ms ~ 1 s)
-	// which means that MemoryReservationException will be thrown after 1 s of trying
-	private static final int MAX_SLEEPS = 10;
+	private static final int MAX_SLEEPS = 11; // 2^11 - 1 = (2 x 1024) - 1 ms ~ 2 s total sleep duration
+	static final int MAX_SLEEPS_VERIFY_EMPTY = 17; // 2^17 - 1 = (128 x 1024) - 1 ms ~ 2 min total sleep duration
 	private static final int RETRIGGER_GC_AFTER_SLEEPS = 9; // ~ 0.5 sec
 
 	private final long totalMemorySize;
 
 	private final AtomicLong availableMemorySize;
 
-	UnsafeMemoryBudget(long totalMemorySize) {
+	private final int verifyEmptyWaitGcMaxSleeps;
+
+	UnsafeMemoryBudget(long totalMemorySize, int verifyEmptyWaitGcMaxSleeps) {
 		this.totalMemorySize = totalMemorySize;
 		this.availableMemorySize = new AtomicLong(totalMemorySize);
+		this.verifyEmptyWaitGcMaxSleeps = verifyEmptyWaitGcMaxSleeps;
 	}
 
 	long getTotalMemorySize() {
@@ -61,7 +61,9 @@ class UnsafeMemoryBudget {
 
 	boolean verifyEmpty() {
 		try {
-			reserveMemory(totalMemorySize);
+			// we wait longer than during the normal reserveMemory as we have to GC all memory,
+			// allocated by task, to perform the verification
+			reserveMemory(totalMemorySize, verifyEmptyWaitGcMaxSleeps);
 		} catch (MemoryReservationException e) {
 			return false;
 		}
@@ -74,8 +76,26 @@ class UnsafeMemoryBudget {
 	 *
 	 * <p>Adjusted version of {@link java.nio.Bits#reserveMemory(long, int)} taken from Java 11.
 	 */
-	@SuppressWarnings({"OverlyComplexMethod", "JavadocReference", "NestedTryStatement"})
 	void reserveMemory(long size) throws MemoryReservationException {
+		reserveMemory(size, MAX_SLEEPS);
+	}
+
+	/**
+	 * Reserve memory of certain size if it is available.
+	 *
+	 * <p>If the method cannot reserve immediately, it tries to process the phantom GC cleaners queue by
+	 * calling {@link JavaGcCleanerWrapper#tryRunPendingCleaners()}. If it does not help,
+	 * the method calls {@link System#gc} and tries again to reserve. If it still cannot reserve,
+	 * it tries to process the phantom GC cleaners queue. If there are no cleaners to process,
+	 * the method sleeps the {@code maxSleeps} number of times, starting 1 ms and each time doubling
+	 * the sleeping duration: 1 (0), 2 (1), 4 (2), 8 (3), 16 (4), 32 (5), 64 (6), 128 (7), 256 (8), 512 (9), ...
+	 * After the {@code RETRIGGER_GC_AFTER_SLEEPS} sleeps, the method also calls {@link System#gc} before sleeping.
+	 * After the {@code maxSleeps} being unable to reserve, the {@link MemoryReservationException} is thrown.
+	 *
+	 * <p>Adjusted version of {@link java.nio.Bits#reserveMemory(long, int)} taken from Java 11.
+	 */
+	@SuppressWarnings({"OverlyComplexMethod", "JavadocReference", "NestedTryStatement"})
+	void reserveMemory(long size, int maxSleeps) throws MemoryReservationException {
 		long availableOrReserved = tryReserveMemory(size);
 		// optimist!
 		if (availableOrReserved >= size) {
@@ -122,15 +142,15 @@ class UnsafeMemoryBudget {
 				if (availableOrReserved >= size) {
 					return;
 				}
-				if (sleeps >= MAX_SLEEPS) {
+				if (sleeps >= maxSleeps) {
 					break;
-				}
-				if (sleeps >= RETRIGGER_GC_AFTER_SLEEPS) {
-					// trigger again VM's Reference processing if we have to wait longer
-					System.gc();
 				}
 				try {
 					if (!JavaGcCleanerWrapper.tryRunPendingCleaners()) {
+						if (sleeps >= RETRIGGER_GC_AFTER_SLEEPS) {
+							// trigger again VM's Reference processing if we have to wait longer
+							System.gc();
+						}
 						Thread.sleep(sleepTime);
 						sleepTime <<= 1;
 						sleeps++;
@@ -141,8 +161,13 @@ class UnsafeMemoryBudget {
 			}
 
 			// no luck
-			throw new MemoryReservationException(
-				String.format("Could not allocate %d bytes, only %d bytes are remaining", size, availableOrReserved));
+			throw new MemoryReservationException(String.format(
+				"Could not allocate %d bytes, only %d bytes are remaining. This usually indicates " +
+					"that you are requesting more memory than you have reserved. " +
+					"However, when running an old JVM version it can also be caused by slow garbage collection. " +
+					"Try to upgrade to Java 8u72 or higher if running on an old Java version.",
+				size,
+				availableOrReserved));
 
 		} finally {
 			if (interrupted) {

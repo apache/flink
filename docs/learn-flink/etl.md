@@ -149,7 +149,7 @@ this would mean doing some sort of GROUP BY with the `startCell`, while in Flink
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy("startCell")
+    .keyBy(value -> value.startCell)
 {% endhighlight %}
 
 Every `keyBy` causes a network shuffle that repartitions the stream. In general this is pretty
@@ -241,7 +241,7 @@ specify the key.
 
 {% highlight java %}
 minutesByStartCell
-  .keyBy(0) // startCell
+  .keyBy(value -> value.f0) // .keyBy(value -> value.startCell)
   .maxBy(1) // duration
   .print();
 {% endhighlight %}

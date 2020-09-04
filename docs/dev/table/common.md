@@ -381,7 +381,7 @@ registered `Table` will *not* be shared.
 #### Connector Tables
 
 It is also possible to create a `TABLE` as known from relational databases from a [connector]({{ site.baseurl }}/dev/table/connect.html) declaration.
-The connector describes the external system that stores the data of a table. Storage systems such as Apacha Kafka or a regular file system can be declared here.
+The connector describes the external system that stores the data of a table. Storage systems such as Apache Kafka or a regular file system can be declared here.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -743,9 +743,9 @@ TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 final Schema schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG());
+    .field("c", DataTypes.BIGINT());
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable");
@@ -768,9 +768,9 @@ val tableEnv = ... // see "Create a TableEnvironment" section
 val schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG())
+    .field("c", DataTypes.BIGINT())
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable")
@@ -1548,19 +1548,19 @@ final Schema schema = new Schema()
     .field("count", DataTypes.INT())
     .field("word", DataTypes.STRING());
 
-tEnv.connect(new FileSystem("/source/path1"))
+tEnv.connect(new FileSystem().path("/source/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource1");
-tEnv.connect(new FileSystem("/source/path2"))
+tEnv.connect(new FileSystem().path("/source/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource2");
-tEnv.connect(new FileSystem("/sink/path1"))
+tEnv.connect(new FileSystem().path("/sink/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink1");
-tEnv.connect(new FileSystem("/sink/path2"))
+tEnv.connect(new FileSystem().path("/sink/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink2");
@@ -1588,19 +1588,19 @@ val schema = new Schema()
     .field("count", DataTypes.INT())
     .field("word", DataTypes.STRING())
 
-tEnv.connect(new FileSystem("/source/path1"))
+tEnv.connect(new FileSystem().path("/source/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource1")
-tEnv.connect(new FileSystem("/source/path2"))
+tEnv.connect(new FileSystem().path("/source/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource2")
-tEnv.connect(new FileSystem("/sink/path1"))
+tEnv.connect(new FileSystem().path("/sink/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink1")
-tEnv.connect(new FileSystem("/sink/path2"))
+tEnv.connect(new FileSystem().path("/sink/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink2")

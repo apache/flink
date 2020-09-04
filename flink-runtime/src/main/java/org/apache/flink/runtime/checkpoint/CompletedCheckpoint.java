@@ -320,6 +320,12 @@ public class CompletedCheckpoint implements Serializable {
 
 	@Override
 	public String toString() {
-		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
+		return String.format(
+			"%s %d @ %d for %s located at %s",
+			props.getCheckpointType().getName(),
+			checkpointID,
+			timestamp,
+			job,
+			externalPointer);
 	}
 }

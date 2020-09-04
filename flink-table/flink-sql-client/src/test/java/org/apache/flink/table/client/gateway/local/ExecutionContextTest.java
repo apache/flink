@@ -88,7 +88,7 @@ public class ExecutionContextTest {
 		final TableConfig tableConfig = tableEnv.getConfig();
 
 		assertEquals(1_000, tableConfig.getMinIdleStateRetentionTime());
-		assertEquals(600_000, tableConfig.getMaxIdleStateRetentionTime());
+		assertEquals(1_000 * 3 / 2, tableConfig.getMaxIdleStateRetentionTime());
 		Configuration conf = tableConfig.getConfiguration();
 
 		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
@@ -383,14 +383,16 @@ public class ExecutionContextTest {
 			.parentFirst(
 				new URL[0],
 				TestClassLoaderCatalog.class.getClassLoader(),
-				NOOP_EXCEPTION_HANDLER)
+				NOOP_EXCEPTION_HANDLER,
+				true)
 			.getClass();
 		private static final Class childFirstCL = FlinkUserCodeClassLoaders
 			.childFirst(
 				new URL[0],
 				TestClassLoaderCatalog.class.getClassLoader(),
 				new String[0],
-				NOOP_EXCEPTION_HANDLER)
+				NOOP_EXCEPTION_HANDLER,
+				true)
 			.getClass();
 
 		TestClassLoaderCatalog(String name) {

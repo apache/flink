@@ -81,10 +81,16 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<String> APPLICATION_ATTEMPTS =
 		key("yarn.application-attempts")
-		.noDefaultValue()
-		.withDescription("Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart" +
-			" and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need" +
-			" to set the JM host:port manually. It is recommended to leave this option at 1.");
+			.stringType()
+			.noDefaultValue()
+			.withDescription(
+				Description.builder()
+					.text("Number of ApplicationMaster restarts. By default, the value will be set to 1. " +
+						"If high availability is enabled, then the default value will be 2. " +
+						"The restart number is also limited by YARN (configured via %s). " +
+						"Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.",
+						link("https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-common/yarn-default.xml", "yarn.resourcemanager.am.max-attempts"))
+					.build());
 
 	/**
 	 * The config parameter defining the attemptFailuresValidityInterval of Yarn application.
@@ -196,12 +202,28 @@ public class YarnConfigOptions {
 
 	// ----------------------- YARN CLI OPTIONS ------------------------------------
 
-	public static final ConfigOption<List<String>> SHIP_DIRECTORIES =
-			key("yarn.ship-directories")
+	public static final ConfigOption<String> STAGING_DIRECTORY =
+		key("yarn.staging-directory")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Staging directory used to store YARN files while submitting applications. Per default, it uses the home directory of the configured file system.");
+
+	public static final ConfigOption<List<String>> SHIP_FILES =
+			key("yarn.ship-files")
 				.stringType()
 				.asList()
 				.noDefaultValue()
-				.withDescription("A semicolon-separated list of directories to be shipped to the YARN cluster.");
+				.withDeprecatedKeys("yarn.ship-directories")
+				.withDescription("A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.");
+
+	public static final ConfigOption<List<String>> SHIP_ARCHIVES =
+			key("yarn.ship-archives")
+				.stringType()
+				.asList()
+				.noDefaultValue()
+				.withDescription("A semicolon-separated list of archives to be shipped to the YARN cluster." +
+						" These archives will be un-packed when localizing and they can be any of the following types: " +
+						"\".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\".");
 
 	public static final ConfigOption<String> FLINK_DIST_JAR =
 			key("yarn.flink-dist-jar")

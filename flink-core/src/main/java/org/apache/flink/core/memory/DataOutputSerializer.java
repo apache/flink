@@ -20,9 +20,6 @@ package org.apache.flink.core.memory;
 
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UTFDataFormatException;
@@ -34,14 +31,6 @@ import java.util.Arrays;
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
  */
 public class DataOutputSerializer implements DataOutputView, MemorySegmentWritable {
-
-	private static final Logger LOG = LoggerFactory.getLogger(DataOutputSerializer.class);
-
-	private static final int PRUNE_BUFFER_THRESHOLD = 5 * 1024 * 1024;
-
-	// ------------------------------------------------------------------------
-
-	private final byte[] startBuffer;
 
 	private byte[] buffer;
 
@@ -56,8 +45,7 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
 			throw new IllegalArgumentException();
 		}
 
-		this.startBuffer = new byte[startSize];
-		this.buffer = this.startBuffer;
+		this.buffer = new byte[startSize];
 		this.wrapper = ByteBuffer.wrap(buffer);
 	}
 
@@ -107,18 +95,6 @@ public class DataOutputSerializer implements DataOutputView, MemorySegmentWritab
 
 	public int length() {
 		return this.position;
-	}
-
-	public void pruneBuffer() {
-		clear();
-		if (this.buffer.length > PRUNE_BUFFER_THRESHOLD) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Releasing serialization buffer of " + this.buffer.length + " bytes.");
-			}
-
-			this.buffer = this.startBuffer;
-			this.wrapper = ByteBuffer.wrap(this.buffer);
-		}
 	}
 
 	@Override

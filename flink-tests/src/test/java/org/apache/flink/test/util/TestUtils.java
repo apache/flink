@@ -19,8 +19,10 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import static org.junit.Assert.fail;
@@ -51,5 +53,12 @@ public class TestUtils {
 		}
 
 		return null;
+	}
+
+	public static void submitJobAndWaitForResult(ClusterClient<?> client, JobGraph jobGraph, ClassLoader classLoader) throws Exception {
+		client.submitJob(jobGraph)
+			.thenCompose(client::requestJobResult)
+			.get()
+			.toJobExecutionResult(classLoader);
 	}
 }

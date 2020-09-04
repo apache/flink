@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-core</artifactId>
-	<name>flink-core</name>
+	<name>Flink : Core</name>
 
 	<packaging>jar</packaging>
 
@@ -184,6 +184,11 @@ under the License.
 							<!-- leaked constructor in TypeHint -->
 							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
+
+							<!-- removed in 1.12, before that the settings were ineffective anyway -->
+							<exclude>org.apache.flink.api.common.ExecutionConfig#disableSysoutLogging()</exclude>
+							<exclude>org.apache.flink.api.common.ExecutionConfig#enableSysoutLogging()</exclude>
+							<exclude>org.apache.flink.api.common.ExecutionConfig#isSysoutLoggingEnabled()</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

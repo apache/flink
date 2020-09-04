@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-libraries</artifactId>
-	<name>flink-libraries</name>
+	<name>Flink : Libraries : </name>
 	<packaging>pom</packaging>
 
 	<modules>

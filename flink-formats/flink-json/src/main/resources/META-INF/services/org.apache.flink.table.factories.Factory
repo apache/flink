@@ -17,3 +17,4 @@ org.apache.flink.formats.json.JsonFileSystemFormatFactory
 org.apache.flink.formats.json.JsonFormatFactory
 org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory
 org.apache.flink.formats.json.canal.CanalJsonFormatFactory
+org.apache.flink.formats.json.maxwell.MaxwellJsonFormatFactory

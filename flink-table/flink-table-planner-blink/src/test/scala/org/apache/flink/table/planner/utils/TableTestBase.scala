@@ -558,22 +558,25 @@ abstract class TableTestUtil(
   }
 
   /**
-    * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
-    * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
-    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
-    */
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
+   */
+  @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: TableAggregateFunction[T, ACC]): Unit = {
@@ -990,7 +993,7 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
   // just for testing, remove this method while
@@ -999,12 +1002,12 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: TableAggregateFunction[T, ACC]): Unit = {
-    registerUserDefinedAggregateFunction(name, f)
+    registerImperativeAggregateFunction(name, f)
   }
 
-  private def registerUserDefinedAggregateFunction[T: TypeInformation, ACC: TypeInformation](
+  private def registerImperativeAggregateFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
-      f: UserDefinedAggregateFunction[T, ACC]): Unit = {
+      f: ImperativeAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserDefinedFunctionHelper

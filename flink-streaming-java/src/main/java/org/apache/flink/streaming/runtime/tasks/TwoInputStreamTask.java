@@ -51,7 +51,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		TypeSerializer<IN2> inputDeserializer2) {
 
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
-			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
+			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null);
 
 		// create an input instance for each input
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -70,11 +70,11 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			inputDeserializer2,
 			getEnvironment().getIOManager(),
 			getStreamStatusMaintainer(),
-			headOperator,
+			mainOperator,
 			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
 			operatorChain,
-			setupNumRecordsInCounter(headOperator));
+			setupNumRecordsInCounter(mainOperator));
 	}
 }

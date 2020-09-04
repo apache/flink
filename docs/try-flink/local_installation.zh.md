@@ -1,6 +1,6 @@
 ---
-title: "Local Installation"
-nav-title: 'Local Installation'
+title: "本地模式安装"
+nav-title: '本地模式安装'
 nav-parent_id: try-flink
 nav-pos: 1
 ---
@@ -26,36 +26,35 @@ under the License.
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
   <b>
-  NOTE: The Apache Flink community only publishes official builds for
-  released versions of Apache Flink.
+  注意：Apache Flink 社区只发布 Apache Flink 的 release 版本。
   </b><br>
-  Since you are currently looking at the latest SNAPSHOT
-  version of the documentation, all version references below will not work.
-  Please switch the documentation to the latest released version via the release picker which you
-  find on the left side below the menu.
+  由于你当前正在查看的是文档最新的 SNAPSHOT 版本，因此相关内容会被隐藏。请通过左侧菜单底部的版本选择将文档切换到最新的 release 版本。
 </p>
 {% else %}
-Follow these few steps to download the latest stable versions and get started.
+请按照以下几个步骤下载最新的稳定版本开始使用。
 
-## Step 1: Download
+<a name="step-1-download"></a>
 
-To be able to run Flink, the only requirement is to have a working __Java 8 or 11__ installation.
-You can check the correct installation of Java by issuing the following command:
+## 步骤 1：下载
+
+为了运行Flink，只需提前安装好 __Java 8 或者 Java 11__。你可以通过以下命令来检查 Java 是否已经安装正确。
 
 {% highlight bash %}
 java -version
 {% endhighlight %}
 
-[Download](https://flink.apache.org/downloads.html) the {{ site.version }} release and un-tar it. 
+[下载](https://flink.apache.org/downloads.html) release {{ site.version }} 并解压。
 
 {% highlight bash %}
 $ tar -xzf flink-{{ site.version }}-bin-scala{{ site.scala_version_suffix }}.tgz
 $ cd flink-{{ site.version }}-bin-scala{{ site.scala_version_suffix }}
 {% endhighlight %}
 
-## Step 2: Start a Cluster
+<a name="step-2-start-a-cluster"></a>
 
-Flink ships with a single bash script to start a local cluster.
+## 步骤 2：启动集群
+
+Flink 附带了一个 bash 脚本，可以用于启动本地集群。
 
 {% highlight bash %}
 $ ./bin/start-cluster.sh
@@ -64,10 +63,11 @@ Starting standalonesession daemon on host.
 Starting taskexecutor daemon on host.
 {% endhighlight %}
 
-## Step 3: Submit a Job
+<a name="step-3-submit-a-job"></a>
 
-Releases of Flink come with a number of example Jobs.
-You can quickly deploy one of these applications to the running cluster. 
+## 步骤 3：提交作业（Job）
+
+Flink 的 Releases 附带了许多的示例作业。你可以任意选择一个，快速部署到已运行的集群上。
 
 {% highlight bash %}
 $ ./bin/flink run examples/streaming/WordCount.jar
@@ -80,11 +80,13 @@ $ tail log/flink-*-taskexecutor-*.out
   (be,2)
 {% endhighlight %}
 
-Additionally, you can check Flink's [Web UI](http://localhost:8080) to monitor the status of the Cluster and running Job.
+另外，你可以通过 Flink 的 [Web UI](http://localhost:8081) 来监视集群的状态和正在运行的作业。
 
-## Step 4: Stop the Cluster
+<a name="step-4-stop-the-cluster"></a>
 
-When you are finished you can quickly stop the cluster and all running components.
+## 步骤 4：停止集群
+
+完成后，你可以快速停止集群和所有正在运行的组件。
 
 {% highlight bash %}
 $ ./bin/stop-cluster.sh

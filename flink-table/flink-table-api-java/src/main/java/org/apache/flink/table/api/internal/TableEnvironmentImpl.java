@@ -88,8 +88,11 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SelectSinkOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
+import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
@@ -176,7 +179,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			"Unsupported SQL query! executeSql() only accepts a single SQL statement of type " +
 			"CREATE TABLE, DROP TABLE, ALTER TABLE, CREATE DATABASE, DROP DATABASE, ALTER DATABASE, " +
 			"CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, CREATE CATALOG, DROP CATALOG, " +
-			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, " +
+			"USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW FUNCTIONS, SHOW PARTITIONS" +
 			"CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE.";
 
 	/**
@@ -1007,14 +1010,40 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			return TableResultImpl.TABLE_RESULT_OK;
 		} else if (operation instanceof ShowCatalogsOperation) {
 			return buildShowResult("catalog name", listCatalogs());
+		} else if (operation instanceof ShowCurrentCatalogOperation){
+			return buildShowResult("current catalog name", new String[]{catalogManager.getCurrentCatalog()});
 		} else if (operation instanceof ShowDatabasesOperation) {
 			return buildShowResult("database name", listDatabases());
+		} else if (operation instanceof ShowCurrentDatabaseOperation) {
+			return buildShowResult("current database name", new String[]{catalogManager.getCurrentDatabase()});
 		} else if (operation instanceof ShowTablesOperation) {
 			return buildShowResult("table name", listTables());
 		} else if (operation instanceof ShowFunctionsOperation) {
 			return buildShowResult("function name", listFunctions());
 		} else if (operation instanceof ShowViewsOperation) {
 			return buildShowResult("view name", listViews());
+		} else if (operation instanceof ShowPartitionsOperation) {
+			String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+			try {
+				ShowPartitionsOperation showPartitionsOperation = (ShowPartitionsOperation) operation;
+				Catalog catalog = getCatalogOrThrowException(showPartitionsOperation.getTableIdentifier().getCatalogName());
+				ObjectPath tablePath = showPartitionsOperation.getTableIdentifier().toObjectPath();
+				CatalogPartitionSpec partitionSpec = showPartitionsOperation.getPartitionSpec();
+				List<CatalogPartitionSpec> partitionSpecs = partitionSpec == null ? catalog.listPartitions(tablePath) : catalog.listPartitions(tablePath, partitionSpec);
+				List<String> partitionNames = new ArrayList<>(partitionSpecs.size());
+				for (CatalogPartitionSpec spec: partitionSpecs) {
+					List<String> partitionKVs = new ArrayList<>(spec.getPartitionSpec().size());
+					for (Map.Entry<String, String> partitionKV: spec.getPartitionSpec().entrySet()) {
+						partitionKVs.add(partitionKV.getKey() + "=" + partitionKV.getValue());
+					}
+					partitionNames.add(String.join("/", partitionKVs));
+				}
+				return buildShowResult("partition name", partitionNames.toArray(new String[0]));
+			} catch (TableNotExistException e) {
+				throw new ValidationException(exMsg, e);
+			} catch (Exception e) {
+				throw new TableException(exMsg, e);
+			}
 		} else if (operation instanceof ExplainOperation) {
 			String explanation = planner.explain(Collections.singletonList(((ExplainOperation) operation).getChild()));
 			return TableResultImpl.builder()

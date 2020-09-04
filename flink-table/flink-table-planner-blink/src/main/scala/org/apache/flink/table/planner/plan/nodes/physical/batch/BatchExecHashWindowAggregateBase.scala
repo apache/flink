@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchA
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.aggregate.BytesHashMap
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -146,7 +146,7 @@ abstract class BatchExecHashWindowAggregateBase(
       input,
       getRelDetailedDescription,
       operator,
-      RowDataTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       input.getParallelism,
       managedMemory)
   }

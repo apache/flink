@@ -33,7 +33,8 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
+import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -68,7 +69,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static org.apache.flink.util.IOUtils.closeQuietly;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
@@ -360,22 +363,21 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	}
 
 	private void registerAsyncCheckpointRunnable(long checkpointId, AsyncCheckpointRunnable asyncCheckpointRunnable) throws IOException {
-		StringBuilder exceptionMessage = new StringBuilder("Cannot register Closeable, ");
 		synchronized (lock) {
-			if (!closed) {
-				if (!checkpoints.containsKey(checkpointId)) {
-					checkpoints.put(checkpointId, asyncCheckpointRunnable);
-					return;
-				} else {
-					exceptionMessage.append("async checkpoint ").append(checkpointId).append(" runnable has been register. ");
-				}
+			if (closed) {
+				LOG.debug("Cannot register Closeable, this subtaskCheckpointCoordinator is already closed. Closing argument.");
+				closeQuietly(asyncCheckpointRunnable);
+				checkState(
+					!checkpoints.containsKey(checkpointId),
+					"SubtaskCheckpointCoordinator was closed without releasing asyncCheckpointRunnable for checkpoint %s",
+					checkpointId);
+			} else if (checkpoints.containsKey(checkpointId)) {
+				closeQuietly(asyncCheckpointRunnable);
+				throw new IOException(String.format("Cannot register Closeable, async checkpoint %d runnable has been register. Closing argument.", checkpointId));
 			} else {
-				exceptionMessage.append("this subtaskCheckpointCoordinator is already closed. ");
+				checkpoints.put(checkpointId, asyncCheckpointRunnable);
 			}
 		}
-
-		IOUtils.closeQuietly(asyncCheckpointRunnable);
-		throw new IOException(exceptionMessage.append("Closing argument.").toString());
 	}
 
 	private boolean unregisterAsyncCheckpointRunnable(long checkpointId) {
@@ -393,7 +395,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		synchronized (lock) {
 			asyncCheckpointRunnable = checkpoints.remove(checkpointId);
 		}
-		IOUtils.closeQuietly(asyncCheckpointRunnable);
+		closeQuietly(asyncCheckpointRunnable);
 		return asyncCheckpointRunnable != null;
 	}
 
@@ -426,8 +428,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private void prepareInflightDataSnapshot(long checkpointId) throws IOException {
 		ResultPartitionWriter[] writers = env.getAllWriters();
 		for (ResultPartitionWriter writer : writers) {
+			final CheckpointedResultPartition checkpointedPartition = checkCheckpointedResultPartition(writer);
 			for (int i = 0; i < writer.getNumberOfSubpartitions(); i++) {
-				ResultSubpartition subpartition = writer.getSubpartition(i);
+				CheckpointedResultSubpartition subpartition = checkpointedPartition.getCheckpointedSubpartition(i);
 				channelStateWriter.addOutputData(
 					checkpointId,
 					subpartition.getSubpartitionInfo(),
@@ -444,6 +447,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 					channelStateWriter.finishInput(checkpointId);
 				}
 			});
+	}
+
+	private static CheckpointedResultPartition checkCheckpointedResultPartition(ResultPartitionWriter partition) {
+		if (partition instanceof CheckpointedResultPartition) {
+			return (CheckpointedResultPartition) partition;
+		} else {
+			throw new IllegalStateException(
+					"Cannot take a checkpoint of a partition type that is not checkpointed: " + partition);
+		}
 	}
 
 	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
@@ -543,7 +555,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			checkpointOptions,
 			storage,
 			isCanceled);
-		if (op == operatorChain.getHeadOperator()) {
+		if (op == operatorChain.getMainOperator()) {
 			snapshotInProgress.setInputChannelStateFuture(
 				channelStateWriteResult
 					.getInputChannelStateHandles()

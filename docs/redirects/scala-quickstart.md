@@ -1,5 +1,5 @@
 ---
-title: Java Quckstart
+title: Java Quickstart
 layout: redirect
 redirect: /dev/project-configuration.html
 permalink: /getting-started/project-setup/scala_api_quickstart.html

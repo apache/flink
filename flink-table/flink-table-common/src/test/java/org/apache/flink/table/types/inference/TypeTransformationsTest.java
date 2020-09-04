@@ -33,6 +33,7 @@ import org.junit.Test;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.List;
 
 import static org.apache.flink.table.types.inference.TypeTransformations.TO_INTERNAL_CLASS;
 import static org.apache.flink.table.types.inference.TypeTransformations.legacyDecimalToDefaultDecimal;
@@ -68,7 +69,7 @@ public class TypeTransformationsTest {
 			DataTypes.FIELD("a", DataTypes.STRING()),
 			DataTypes.FIELD("b", DataTypes.TIMESTAMP()),
 			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME())),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME()).bridgedTo(List.class)),
 			DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
 			DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE())
 		);
@@ -77,7 +78,7 @@ public class TypeTransformationsTest {
 			DataTypes.FIELD("a", DataTypes.STRING()),
 			DataTypes.FIELD("b", DataTypes.TIMESTAMP().bridgedTo(Timestamp.class)),
 			DataTypes.FIELD("c", DataTypes.TIMESTAMP(5).bridgedTo(Timestamp.class)),
-			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().bridgedTo(Time.class))),
+			DataTypes.FIELD("d", DataTypes.ARRAY(DataTypes.TIME().bridgedTo(Time.class)).bridgedTo(List.class)),
 			DataTypes.FIELD("e", DataTypes.MAP(
 				DataTypes.DATE().bridgedTo(Date.class),
 				DataTypes.TIME(9).bridgedTo(Time.class))),

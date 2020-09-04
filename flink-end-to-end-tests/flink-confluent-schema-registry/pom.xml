@@ -27,6 +27,8 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-confluent-schema-registry</artifactId>
+	<name>Flink : E2E Tests : Confluent schema registry</name>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<confluent.version>4.1.0</confluent.version>

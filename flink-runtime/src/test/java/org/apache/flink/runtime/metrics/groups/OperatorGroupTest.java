@@ -29,7 +29,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -66,7 +65,7 @@ public class OperatorGroupTest extends TestLogger {
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
 		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
-				registry, jmGroup,  new JobVertexID(),  new AbstractID(), "aTaskName", 11, 0);
+				registry, jmGroup,  new JobVertexID(),  new ExecutionAttemptID(), "aTaskName", 11, 0);
 		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
 
 		assertArrayEquals(
@@ -112,7 +111,7 @@ public class OperatorGroupTest extends TestLogger {
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
 		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 		TaskMetricGroup taskGroup = new TaskMetricGroup(
-			registry, jmGroup, new JobVertexID(), new AbstractID(), "aTaskName", 11, 0);
+			registry, jmGroup, new JobVertexID(), new ExecutionAttemptID(), "aTaskName", 11, 0);
 		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
 
 		assertNotNull(opGroup.getIOMetricGroup());
@@ -124,7 +123,7 @@ public class OperatorGroupTest extends TestLogger {
 	public void testVariables() {
 		JobID jid = new JobID();
 		JobVertexID tid = new JobVertexID();
-		AbstractID eid = new AbstractID();
+		ExecutionAttemptID eid = new ExecutionAttemptID();
 		OperatorID oid = new OperatorID();
 
 		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
@@ -158,7 +157,7 @@ public class OperatorGroupTest extends TestLogger {
 	public void testCreateQueryServiceMetricInfo() {
 		JobID jid = new JobID();
 		JobVertexID vid = new JobVertexID();
-		AbstractID eid = new AbstractID();
+		ExecutionAttemptID eid = new ExecutionAttemptID();
 		OperatorID oid = new OperatorID();
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");

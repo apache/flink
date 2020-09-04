@@ -56,9 +56,7 @@ public class UnboundedOverWindowFrame implements OverWindowFrame {
 		processor = aggsHandleFunction.newInstance(cl);
 		processor.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 		this.aggsHandleFunction = null;
-		this.valueSer = new RowDataSerializer(
-				ctx.getRuntimeContext().getExecutionConfig(),
-				valueType.getChildren().toArray(new LogicalType[0]));
+		this.valueSer = new RowDataSerializer(valueType.getChildren().toArray(new LogicalType[0]));
 	}
 
 	@Override

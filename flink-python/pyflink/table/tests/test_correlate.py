@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.table import expressions as expr
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
@@ -22,7 +23,8 @@ class CorrelateTests(PyFlinkStreamTableTestCase):
 
     def test_join_lateral(self):
         t_env = self.t_env
-        t_env.register_java_function("split", "org.apache.flink.table.utils.TableFunc1")
+        t_env.create_java_temporary_system_function("split",
+                                                    "org.apache.flink.table.utils.TableFunc1")
         source = t_env.from_elements([("1", "1#3#5#7"), ("2", "2#4#6#8")], ["id", "words"])
 
         result = source.join_lateral("split(words) as (word)")
@@ -34,10 +36,12 @@ class CorrelateTests(PyFlinkStreamTableTestCase):
 
     def test_join_lateral_with_join_predicate(self):
         t_env = self.t_env
-        t_env.register_java_function("split", "org.apache.flink.table.utils.TableFunc1")
+        t_env.create_java_temporary_system_function("split",
+                                                    "org.apache.flink.table.utils.TableFunc1")
         source = t_env.from_elements([("1", "1#3#5#7"), ("2", "2#4#6#8")], ["id", "words"])
 
-        result = source.join_lateral("split(words) as (word)", "id = word")
+        result = source.join_lateral(expr.call('split', source.words).alias('word'),
+                                     expr.col('id') == expr.col('word'))
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('INNER', query_operation.getJoinType().toString())
@@ -47,10 +51,11 @@ class CorrelateTests(PyFlinkStreamTableTestCase):
 
     def test_left_outer_join_lateral(self):
         t_env = self.t_env
-        t_env.register_java_function("split", "org.apache.flink.table.utils.TableFunc1")
+        t_env.create_java_temporary_system_function("split",
+                                                    "org.apache.flink.table.utils.TableFunc1")
         source = t_env.from_elements([("1", "1#3#5#7"), ("2", "2#4#6#8")], ["id", "words"])
 
-        result = source.left_outer_join_lateral("split(words) as (word)")
+        result = source.left_outer_join_lateral(expr.call('split', source.words).alias('word'))
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())
@@ -59,11 +64,13 @@ class CorrelateTests(PyFlinkStreamTableTestCase):
 
     def test_left_outer_join_lateral_with_join_predicate(self):
         t_env = self.t_env
-        t_env.register_java_function("split", "org.apache.flink.table.utils.TableFunc1")
+        t_env.create_java_temporary_system_function("split",
+                                                    "org.apache.flink.table.utils.TableFunc1")
         source = t_env.from_elements([("1", "1#3#5#7"), ("2", "2#4#6#8")], ["id", "words"])
 
         # only support "true" as the join predicate currently
-        result = source.left_outer_join_lateral("split(words) as (word)", "true")
+        result = source.left_outer_join_lateral(expr.call('split', source.words).alias('word'),
+                                                expr.lit(True))
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())

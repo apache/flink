@@ -53,6 +53,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -72,6 +73,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -159,7 +161,8 @@ public class YarnResourceManagerTest extends TestLogger {
 			new Path("/tmp/flink.jar"),
 			0,
 			System.currentTimeMillis(),
-			LocalResourceVisibility.APPLICATION).toString());
+			LocalResourceVisibility.APPLICATION,
+			LocalResourceType.FILE).toString());
 		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 
 		BootstrapTools.writeConfiguration(flinkConfig, new File(home.getAbsolutePath(), FLINK_CONF_FILENAME));
@@ -406,7 +409,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 				final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
-				final ResourceID taskManagerResourceId = new ResourceID(testingContainer.getId().toString());
+				final ResourceID taskManagerResourceId = YarnResourceManager.getContainerResourceId(testingContainer);
 				final ResourceProfile resourceProfile = ResourceProfile.newBuilder()
 					.setCpuCores(10.0)
 					.setTaskHeapMemoryMB(1)
@@ -422,6 +425,7 @@ public class YarnResourceManagerTest extends TestLogger {
 					taskManagerResourceId,
 					dataPort,
 					hardwareDescription,
+					new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 					ResourceProfile.ZERO,
 					ResourceProfile.ZERO);
 				CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway

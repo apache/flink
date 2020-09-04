@@ -72,6 +72,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -272,7 +273,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		final JobMasterPartitionTracker partitionTracker,
 		ExecutionDeploymentTracker executionDeploymentTracker) throws JobExecutionException, JobException {
 
-		ExecutionDeploymentListener executionDeploymentListener = executionDeploymentTracker::startTrackingDeploymentOf;
+		ExecutionDeploymentListener executionDeploymentListener = new ExecutionDeploymentTrackerDeploymentListenerAdapter(executionDeploymentTracker);
 		ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {
 			if (newState.isTerminal()) {
 				executionDeploymentTracker.stopTrackingDeploymentOf(execution);

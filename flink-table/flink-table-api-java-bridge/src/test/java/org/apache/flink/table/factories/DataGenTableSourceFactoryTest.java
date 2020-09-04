@@ -190,8 +190,8 @@ public class DataGenTableSourceFactoryTest {
 					descriptor.asMap());
 		} catch (ValidationException e) {
 			Throwable cause = e.getCause();
-			Assert.assertTrue(cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage().contains(
+			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
 					"Could not find required property 'fields.f0.start' for sequence generator."));
 			return;
 		}
@@ -211,9 +211,93 @@ public class DataGenTableSourceFactoryTest {
 					descriptor.asMap());
 		} catch (ValidationException e) {
 			Throwable cause = e.getCause();
-			Assert.assertTrue(cause instanceof ValidationException);
-			Assert.assertTrue(cause.getMessage().contains(
+			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
 					"Could not find required property 'fields.f0.end' for sequence generator."));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
+	}
+
+	@Test
+	public void testWrongKey() {
+		try {
+			DescriptorProperties descriptor = new DescriptorProperties();
+			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+			descriptor.putLong("wrong-rows-per-second", 1);
+
+			createSource(
+					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+					descriptor.asMap());
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+					"Unsupported options:\n\nwrong-rows-per-second"));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
+	}
+
+	@Test
+	public void testWrongStartInRandom() {
+		try {
+			DescriptorProperties descriptor = new DescriptorProperties();
+			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+			descriptor.putString(FIELDS + ".f0." + KIND, RANDOM);
+			descriptor.putLong(FIELDS + ".f0." + START, 0);
+
+			createSource(
+					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+					descriptor.asMap());
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+					"Unsupported options:\n\nfields.f0.start"));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
+	}
+
+	@Test
+	public void testWrongLenInRandomLong() {
+		try {
+			DescriptorProperties descriptor = new DescriptorProperties();
+			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+			descriptor.putString(FIELDS + ".f0." + KIND, RANDOM);
+			descriptor.putInt(FIELDS + ".f0." + LENGTH, 100);
+
+			createSource(
+					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+					descriptor.asMap());
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+					"Unsupported options:\n\nfields.f0.length"));
+			return;
+		}
+		Assert.fail("Should fail by ValidationException.");
+	}
+
+	@Test
+	public void testWrongTypes() {
+		try {
+			DescriptorProperties descriptor = new DescriptorProperties();
+			descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+			descriptor.putString(FIELDS + ".f0." + KIND, SEQUENCE);
+			descriptor.putString(FIELDS + ".f0." + START, "Wrong");
+			descriptor.putString(FIELDS + ".f0." + END, "Wrong");
+
+			createSource(
+					TableSchema.builder().field("f0", DataTypes.BIGINT()).build(),
+					descriptor.asMap());
+		} catch (ValidationException e) {
+			Throwable cause = e.getCause();
+			Assert.assertTrue(cause.toString(), cause instanceof IllegalArgumentException);
+			Assert.assertTrue(cause.getMessage(), cause.getMessage().contains(
+					"Could not parse value 'Wrong' for key 'fields.f0.start'"));
 			return;
 		}
 		Assert.fail("Should fail by ValidationException.");

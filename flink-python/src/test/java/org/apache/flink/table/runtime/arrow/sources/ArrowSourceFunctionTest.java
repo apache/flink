@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.arrow.sources;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -90,8 +89,7 @@ public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData
 		}
 		rowType = new RowType(rowFields);
 		dataType = TypeConversions.fromLogicalToDataType(rowType);
-		serializer = new RowDataSerializer(
-			new ExecutionConfig(), fieldTypes.toArray(new LogicalType[0]));
+		serializer = new RowDataSerializer(fieldTypes.toArray(new LogicalType[0]));
 		allocator = ArrowUtils.getRootAllocator().newChildAllocator("stdout", 0, Long.MAX_VALUE);
 	}
 

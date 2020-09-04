@@ -24,6 +24,9 @@ from typing import Union, List, Tuple
 
 from py4j.java_gateway import get_java_class, get_method
 
+from pyflink.common.typeinfo import TypeInformation
+from pyflink.datastream.data_stream import DataStream
+
 from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
@@ -118,33 +121,31 @@ class TableEnvironment(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
         return Table(self._j_tenv.fromTableSource(table_source._j_table_source), self)
 
-    def register_catalog(self, catalog_name, catalog):
+    def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
         Registers a :class:`~pyflink.table.catalog.Catalog` under a unique name.
         All tables registered in the :class:`~pyflink.table.catalog.Catalog` can be accessed.
 
         :param catalog_name: The name under which the catalog will be registered.
-        :type catalog_name: str
         :param catalog: The catalog to register.
-        :type catalog: pyflink.table.catalog.Catalog
         """
         self._j_tenv.registerCatalog(catalog_name, catalog._j_catalog)
 
-    def get_catalog(self, catalog_name):
+    def get_catalog(self, catalog_name: str):
         """
         Gets a registered :class:`~pyflink.table.catalog.Catalog` by name.
 
         :param catalog_name: The name to look up the :class:`~pyflink.table.catalog.Catalog`.
-        :type catalog_name: str
         :return: The requested catalog, None if there is no
                  registered catalog with given name.
         :rtype: pyflink.table.catalog.Catalog
         """
         catalog = self._j_tenv.getCatalog(catalog_name)
         if catalog.isPresent():
-            return Catalog._get(catalog.get())
+            return Catalog(catalog.get())
         else:
             return None
 
@@ -293,7 +294,7 @@ class TableEnvironment(object):
         else:
             self._j_tenv.createFunction(path, java_function, ignore_if_exists)
 
-    def drop_function(self, path) -> bool:
+    def drop_function(self, path: str) -> bool:
         """
         Drops a catalog function registered in the given path.
 
@@ -380,7 +381,7 @@ class TableEnvironment(object):
         java_function = function.java_user_defined_function()
         self._j_tenv.createTemporaryFunction(path, java_function)
 
-    def drop_temporary_function(self, path) -> bool:
+    def drop_temporary_function(self, path: str) -> bool:
         """
         Drops a temporary system function registered under the given name.
 
@@ -396,7 +397,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
-    def register_table(self, name, table):
+    def register_table(self, name: str, table: Table):
         """
         Registers a :class:`~pyflink.table.Table` under a unique name in the TableEnvironment's
         catalog. Registered tables can be referenced in SQL queries.
@@ -408,16 +409,14 @@ class TableEnvironment(object):
             >>> table_env.register_table("source", tab)
 
         :param name: The name under which the table will be registered.
-        :type name: str
         :param table: The table to register.
-        :type table: pyflink.table.Table
 
         .. note:: Deprecated in 1.10. Use :func:`create_temporary_view` instead.
         """
         warnings.warn("Deprecated in 1.10. Use create_temporary_view instead.", DeprecationWarning)
         self._j_tenv.registerTable(name, table._j_table)
 
-    def register_table_source(self, name, table_source):
+    def register_table_source(self, name: str, table_source):
         """
         Registers an external :class:`~pyflink.table.TableSource` in this
         :class:`~pyflink.table.TableEnvironment`'s catalog. Registered tables can be referenced in
@@ -433,7 +432,6 @@ class TableEnvironment(object):
             ...                                                 DataTypes.STRING()]))
 
         :param name: The name under which the table source is registered.
-        :type name: str
         :param table_source: The table source to register.
         :type table_source: pyflink.table.TableSource
 
@@ -442,7 +440,7 @@ class TableEnvironment(object):
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
         self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
 
-    def register_table_sink(self, name, table_sink):
+    def register_table_sink(self, name: str, table_sink):
         """
         Registers an external :class:`~pyflink.table.TableSink` with given field names and types in
         this :class:`~pyflink.table.TableEnvironment`'s catalog. Registered sink tables can be
@@ -458,7 +456,6 @@ class TableEnvironment(object):
             ...                                            "./2.csv"))
 
         :param name: The name under which the table sink is registered.
-        :type name: str
         :param table_sink: The table sink to register.
         :type table_sink: pyflink.table.TableSink
 
@@ -467,7 +464,7 @@ class TableEnvironment(object):
         warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
         self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
 
-    def scan(self, *table_path):
+    def scan(self, *table_path: str):
         """
         Scans a registered table and returns the resulting :class:`~pyflink.table.Table`.
         A table to scan must be registered in the TableEnvironment. It can be either directly
@@ -489,7 +486,6 @@ class TableEnvironment(object):
             >>> tab = table_env.scan("catalogName", "dbName", "tableName")
 
         :param table_path: The path of the table to scan.
-        :type table_path: str
         :throws: Exception if no table is found using the given table path.
         :return: The resulting table.
         :rtype: pyflink.table.Table
@@ -502,7 +498,7 @@ class TableEnvironment(object):
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table, self)
 
-    def from_path(self, path):
+    def from_path(self, path: str):
         """
         Reads a registered table and returns the resulting :class:`~pyflink.table.Table`.
 
@@ -530,7 +526,6 @@ class TableEnvironment(object):
             >>> tab = table_env.from_path("catalogName.`db.Name`.`Table`")
 
         :param path: The path of a table API object to scan.
-        :type path: str
         :return: Either a table or virtual table (=view).
         :rtype: pyflink.table.Table
 
@@ -540,7 +535,7 @@ class TableEnvironment(object):
         """
         return Table(get_method(self._j_tenv, "from")(path), self)
 
-    def insert_into(self, target_path, table):
+    def insert_into(self, target_path: str, table: Table):
         """
         Instructs to write the content of a :class:`~pyflink.table.Table` API object into a table.
 
@@ -555,9 +550,7 @@ class TableEnvironment(object):
 
         :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                             the :class:`~pyflink.table.Table` is written.
-        :type target_path: str
         :param table: The Table to write to the sink.
-        :type table: pyflink.table.Table
 
         .. versionchanged:: 1.10.0
             The signature is changed, e.g. the parameter *table_path_continued* was removed and
@@ -566,7 +559,7 @@ class TableEnvironment(object):
         .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
                   use :func:`create_statement_set` for multiple sinks.
         """
-        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink,"
+        warnings.warn("Deprecated in 1.11. Use Table#execute_insert for single sink,"
                       "use create_statement_set for multiple sinks.", DeprecationWarning)
         self._j_tenv.insertInto(target_path, table._j_table)
 
@@ -730,17 +723,15 @@ class TableEnvironment(object):
         else:
             return self._j_tenv.explain(table._j_table, extended)
 
-    def explain_sql(self, stmt, *extra_details):
+    def explain_sql(self, stmt: str, *extra_details) -> str:
         """
         Returns the AST of the specified statement and the execution plan.
 
         :param stmt: The statement for which the AST and execution plan will be returned.
-        :type stmt: str
         :param extra_details: The extra explain details which the explain result should include,
                               e.g. estimated cost, changelog mode for streaming
         :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: The statement for which the AST and execution plan will be returned.
-        :rtype: str
 
         .. versionadded:: 1.11.0
         """
@@ -748,7 +739,7 @@ class TableEnvironment(object):
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_tenv.explainSql(stmt, j_extra_details)
 
-    def sql_query(self, query):
+    def sql_query(self, query: str):
         """
         Evaluates a SQL query on registered tables and retrieves the result as a
         :class:`~pyflink.table.Table`.
@@ -766,14 +757,13 @@ class TableEnvironment(object):
             >>> table_env.sql_query("SELECT * FROM %s" % table)
 
         :param query: The sql query string.
-        :type query: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         j_table = self._j_tenv.sqlQuery(query)
         return Table(j_table, self)
 
-    def execute_sql(self, stmt):
+    def execute_sql(self, stmt: str):
         """
         Execute the given single statement, and return the execution result.
 
@@ -804,7 +794,7 @@ class TableEnvironment(object):
         _j_statement_set = self._j_tenv.createStatementSet()
         return StatementSet(_j_statement_set, self)
 
-    def sql_update(self, stmt):
+    def sql_update(self, stmt: str):
         """
         Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
 
@@ -873,7 +863,6 @@ class TableEnvironment(object):
             >>> table_env.execute("MyJob")
 
         :param stmt: The SQL statement to evaluate.
-        :type stmt: str
 
         .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single statement,
                   use :func:`create_statement_set` for multiple DML statements.
@@ -893,7 +882,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.getCurrentCatalog()
 
-    def use_catalog(self, catalog_name):
+    def use_catalog(self, catalog_name: str):
         """
         Sets the current catalog to the given value. It also sets the default
         database to the catalog's default one.
@@ -943,7 +932,7 @@ class TableEnvironment(object):
         """
         self._j_tenv.useCatalog(catalog_name)
 
-    def get_current_database(self):
+    def get_current_database(self) -> str:
         """
         Gets the current default database name of the running session.
 
@@ -954,7 +943,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.getCurrentDatabase()
 
-    def use_database(self, database_name):
+    def use_database(self, database_name: str):
         """
         Sets the current default database. It has to exist in the current catalog. That path will
         be used as the default one when looking for unqualified object names.
@@ -1000,7 +989,6 @@ class TableEnvironment(object):
         .. seealso:: :func:`~pyflink.table.TableEnvironment.use_catalog`
 
         :param database_name: The name of the database to set as the current database.
-        :type database_name: str
         """
         self._j_tenv.useDatabase(database_name)
 
@@ -1053,7 +1041,7 @@ class TableEnvironment(object):
         """
         pass
 
-    def register_java_function(self, name, function_class_name):
+    def register_java_function(self, name: str, function_class_name: str):
         """
         Registers a java user defined function under a unique name. Replaces already existing
         user-defined functions under this name. The acceptable function type contains
@@ -1090,7 +1078,7 @@ class TableEnvironment(object):
         else:
             self._j_tenv.registerFunction(name, java_function)
 
-    def register_function(self, name, function):
+    def register_function(self, name: str, function):
         """
         Registers a python user-defined function under a unique name. Replaces already existing
         user-defined function under this name.
@@ -1132,7 +1120,7 @@ class TableEnvironment(object):
         else:
             self._j_tenv.registerFunction(name, java_function)
 
-    def create_temporary_view(self, view_path, table):
+    def create_temporary_view(self, view_path: str, table: Table):
         """
         Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
         temporary views.
@@ -1144,22 +1132,19 @@ class TableEnvironment(object):
         :param view_path: The path under which the view will be registered. See also the
                           :class:`~pyflink.table.TableEnvironment` class description for the format
                           of the path.
-        :type view_path: str
         :param table: The view to register.
-        :type table: pyflink.table.Table
 
         .. versionadded:: 1.10.0
         """
         self._j_tenv.createTemporaryView(view_path, table._j_table)
 
-    def add_python_file(self, file_path):
+    def add_python_file(self, file_path: str):
         """
         Adds a python dependency which could be python files, python packages or
         local directories. They will be added to the PYTHONPATH of the python UDF worker.
         Please make sure that these dependencies can be imported.
 
         :param file_path: The path of the python dependency.
-        :type file_path: str
 
         .. versionadded:: 1.10.0
         """
@@ -1173,7 +1158,9 @@ class TableEnvironment(object):
         self.get_config().get_configuration().set_string(
             jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
-    def set_python_requirements(self, requirements_file_path, requirements_cache_dir=None):
+    def set_python_requirements(self,
+                                requirements_file_path: str,
+                                requirements_cache_dir: str = None):
         """
         Specifies a requirements.txt file which defines the third-party dependencies.
         These dependencies will be installed to a temporary directory and added to the
@@ -1202,10 +1189,8 @@ class TableEnvironment(object):
             SetupTools (version >= 37.0.0).
 
         :param requirements_file_path: The path of "requirements.txt" file.
-        :type requirements_file_path: str
         :param requirements_cache_dir: The path of the local directory which contains the
                                        installation packages.
-        :type requirements_cache_dir: str
 
         .. versionadded:: 1.10.0
         """
@@ -1217,7 +1202,7 @@ class TableEnvironment(object):
         self.get_config().get_configuration().set_string(
             jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
-    def add_python_archive(self, archive_path, target_dir=None):
+    def add_python_archive(self, archive_path: str, target_dir: str = None):
         """
         Adds a python archive file. The file will be extracted to the working directory of
         python UDF worker.
@@ -1264,9 +1249,7 @@ class TableEnvironment(object):
             The other archive formats such as tar, tar.gz, 7z, rar, etc are not supported.
 
         :param archive_path: The archive file path.
-        :type archive_path: str
         :param target_dir: Optional, the target dir name that the archive file extracted to.
-        :type target_dir: str
 
         .. versionadded:: 1.10.0
         """
@@ -1284,7 +1267,7 @@ class TableEnvironment(object):
         self.get_config().get_configuration().set_string(
             jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
-    def execute(self, job_name):
+    def execute(self, job_name: str):
         """
         Triggers the program execution. The environment will execute all parts of
         the program.
@@ -1302,7 +1285,6 @@ class TableEnvironment(object):
             this method is called (e.g. timezone).
 
         :param job_name: Desired name of the job.
-        :type job_name: str
         :return: The result of the job execution, containing elapsed time and accumulators.
 
         .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single sink,
@@ -1422,7 +1404,6 @@ class TableEnvironment(object):
         :param elements: The elements to create a table from.
         :return: The result :class:`~pyflink.table.Table`.
         """
-
         # serializes to a file, and we read the file in java
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
         serializer = BatchedSerializer(self._serializer)
@@ -1571,7 +1552,7 @@ class TableEnvironment(object):
     def _is_aggregate_function(java_function):
         java_function_class = java_function.getClass()
         j_aggregate_function_class = get_java_class(
-            get_gateway().jvm.org.apache.flink.table.functions.UserDefinedAggregateFunction)
+            get_gateway().jvm.org.apache.flink.table.functions.ImperativeAggregateFunction)
         return j_aggregate_function_class.isAssignableFrom(java_function_class)
 
     def _register_table_function(self, name, table_function):
@@ -1726,6 +1707,69 @@ class StreamTableEnvironment(TableEnvironment):
                 j_tenv = gateway.jvm.StreamTableEnvironment.create(
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
+
+    def from_data_stream(self, data_stream: DataStream, fields: List[str] = None) -> Table:
+        """
+        Converts the given DataStream into a Table with specified field names.
+
+        There are two modes for mapping original fields to the fields of the Table:
+            1. Reference input fields by name:
+            All fields in the schema definition are referenced by name (and possibly renamed using
+            and alias (as). Moreover, we can define proctime and rowtime attributes at arbitrary
+            positions using arbitrary names (except those that exist in the result schema). In this
+            mode, fields can be reordered and projected out. This mode can be used for any input
+            type.
+            2. Reference input fields by position:
+            In this mode, fields are simply renamed. Event-time attributes can replace the field on
+            their position in the input data (if it is of correct type) or be appended at the end.
+            Proctime attributes must be appended at the end. This mode can only be used if the input
+            type has a defined field order (tuple, case class, Row) and none of the fields
+            references a field of the input type.
+
+        :param data_stream: The datastream to be converted.
+        :param fields: The fields expressions to map original fields of the DataStream to the fields
+                       of the Table
+        :return: The converted Table.
+        """
+        if fields is not None:
+            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream, fields)
+        else:
+            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream)
+        return Table(j_table=j_table, t_env=self._j_tenv)
+
+    def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
+        """
+        Converts the given Table into a DataStream of a specified type. The Table must only have
+        insert (append) changes. If the Table is also modified by update or delete changes, the
+        conversion will fail.
+
+        The fields of the Table are mapped to DataStream as follows: Row and Tuple types: Fields are
+        mapped by position, field types must match.
+
+        :param table: The Table to convert.
+        :param type_info: The TypeInformation that specifies the type of the DataStream.
+        :return: The converted DataStream.
+        """
+        j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
+        return DataStream(j_data_stream=j_data_stream)
+
+    def to_retract_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
+        """
+        Converts the given Table into a DataStream of add and retract messages. The message will be
+        encoded as Tuple. The first field is a boolean flag, the second field holds the record of
+        the specified type.
+
+        A true flag indicates an add message, a false flag indicates a retract message.
+
+        The fields of the Table are mapped to DataStream as follows: Row and Tuple types: Fields are
+        mapped by position, field types must match.
+
+        :param table: The Table to convert.
+        :param type_info: The TypeInformation of the requested record type.
+        :return: The converted DataStream.
+        """
+        j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
+        return DataStream(j_data_stream=j_data_stream)
 
 
 class BatchTableEnvironment(TableEnvironment):

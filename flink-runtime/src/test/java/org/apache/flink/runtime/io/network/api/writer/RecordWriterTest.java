@@ -45,9 +45,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.io.network.partition.PipelinedResultPartition;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
@@ -413,7 +413,7 @@ public class RecordWriterTest {
 	@Test
 	public void testIsAvailableOrNot() throws Exception {
 		// setup
-		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
@@ -455,9 +455,9 @@ public class RecordWriterTest {
 		final int[] records = {5, 6, 7, 8};
 		final int bufferSize = states.length * Integer.BYTES;
 
-		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize, 1);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(totalBuffers, bufferSize);
 		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
-		final ResultPartition partition = new ResultPartitionBuilder()
+		final PipelinedResultPartition partition = (PipelinedResultPartition) new ResultPartitionBuilder()
 			.setNetworkBufferPool(globalPool)
 			.build();
 		final RecordWriter<IntValue> recordWriter = new RecordWriterBuilder<IntValue>().build(partition);
@@ -507,7 +507,7 @@ public class RecordWriterTest {
 	@Test
 	public void testIdleTime() throws IOException, InterruptedException {
 		// setup
-		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, 2);
+		final NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 		final BufferPool localPool = globalPool.createBufferPool(1, 1, null, 1, Integer.MAX_VALUE);
 		final ResultPartitionWriter resultPartition = new ResultPartitionBuilder()
 			.setBufferPoolFactory(p -> localPool)
@@ -521,7 +521,7 @@ public class RecordWriterTest {
 		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
 		BufferBuilder builder = recordWriter.requestNewBufferBuilder(0);
 		BufferBuilderTestUtils.fillBufferBuilder(builder, 1).finish();
-		ResultSubpartitionView readView = resultPartition.getSubpartition(0).createReadView(new NoOpBufferAvailablityListener());
+		ResultSubpartitionView readView = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
 		Buffer buffer = readView.getNextBuffer().buffer();
 
 		// idle time is zero when there is buffer available.

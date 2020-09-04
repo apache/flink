@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.testjob.YarnTestArchiveJob;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
 import org.apache.flink.yarn.util.TestUtils;
 
@@ -39,7 +40,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,6 +65,9 @@ public class YARNITCase extends YarnTestBase {
 
 	private static final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
 	private static final int sleepIntervalInMS = 100;
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@BeforeClass
 	public static void setup() {
@@ -101,8 +107,14 @@ public class YARNITCase extends YarnTestBase {
 
 		final Configuration flinkConfig = createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
 		flinkConfig.set(YarnConfigOptions.PROVIDED_LIB_DIRS, Collections.singletonList(remoteLib.toString()));
-
 		runTest(() -> deployPerJob(flinkConfig, getTestingJobGraph(), false));
+	}
+
+	@Test
+	public void testPerJobWithArchive() throws Exception {
+		final Configuration flinkConfig = createDefaultConfiguration(YarnConfigOptions.UserJarInclusion.DISABLED);
+		final JobGraph archiveJobGraph = YarnTestArchiveJob.getArchiveJobGraph(tmp.newFolder(), flinkConfig);
+		runTest(() -> deployPerJob(flinkConfig, archiveJobGraph, true));
 	}
 
 	private void deployPerJob(Configuration configuration, JobGraph jobGraph, boolean withDist) throws Exception {

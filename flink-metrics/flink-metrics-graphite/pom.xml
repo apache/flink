@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-metrics-graphite</artifactId>
-	<name>flink-metrics-graphite</name>
+	<name>Flink : Metrics : Graphite</name>
 
 	<dependencies>
 		<dependency>

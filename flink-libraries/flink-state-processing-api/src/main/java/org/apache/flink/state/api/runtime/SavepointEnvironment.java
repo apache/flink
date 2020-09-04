@@ -49,6 +49,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -59,6 +60,8 @@ import org.apache.flink.util.SerializedValue;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
+
+import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
 
 /**
  * A minimally implemented {@link Environment} that provides the functionality required to run the
@@ -95,7 +98,7 @@ public class SavepointEnvironment implements Environment {
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
 		this.jobID = new JobID();
 		this.vertexID = new JobVertexID();
-		this.attemptID = new ExecutionAttemptID();
+		this.attemptID = new ExecutionAttemptID(new ExecutionVertexID(vertexID, 0), 0);
 		this.ctx = Preconditions.checkNotNull(ctx);
 		this.configuration = Preconditions.checkNotNull(configuration);
 
@@ -106,7 +109,7 @@ public class SavepointEnvironment implements Environment {
 		this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
 		this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
 		this.ioManager = new IOManagerAsync(ConfigurationUtils.parseTempDirectories(configuration));
-		this.memoryManager = MemoryManager.forDefaultPageSize(64 * 1024 * 1024);
+		this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
 		this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 	}
 

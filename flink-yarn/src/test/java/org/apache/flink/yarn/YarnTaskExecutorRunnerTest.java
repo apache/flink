@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.security.modules.SecurityModule;
@@ -56,7 +57,10 @@ public class YarnTaskExecutorRunnerTest extends TestLogger {
 		envs.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, YarnConfigOptions.LOCALIZED_KEYTAB_PATH.defaultValue());
 
 		Configuration configuration = new Configuration();
-		YarnTaskExecutorRunner.setupConfigurationAndInstallSecurityContext(configuration, resourceDirPath, envs);
+		YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
+
+		// the SecurityContext is installed on TaskManager startup
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 
 		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
 		Optional<SecurityModule> moduleOpt = modules.stream().filter(module -> module instanceof HadoopModule).findFirst();
@@ -83,7 +87,10 @@ public class YarnTaskExecutorRunnerTest extends TestLogger {
 		envs.put(YarnConfigKeys.LOCAL_KEYTAB_PATH, "src/test/resources/krb5.keytab");
 
 		Configuration configuration = new Configuration();
-		YarnTaskExecutorRunner.setupConfigurationAndInstallSecurityContext(configuration, resourceDirPath, envs);
+		YarnTaskExecutorRunner.setupAndModifyConfiguration(configuration, resourceDirPath, envs);
+
+		// the SecurityContext is installed on TaskManager startup
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 
 		final List<SecurityModule> modules = SecurityUtils.getInstalledModules();
 		Optional<SecurityModule> moduleOpt = modules.stream().filter(module -> module instanceof HadoopModule).findFirst();

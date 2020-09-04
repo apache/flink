@@ -52,6 +52,25 @@ message UserDefinedFunctions {
   bool metric_enabled = 2;
 }
 
+// User defined DataStream function definition.
+message UserDefinedDataStreamFunction {
+  enum FunctionType {
+    MAP = 0;
+    FLAT_MAP = 1;
+    REDUCE = 2;
+    CO_MAP = 3;
+    CO_FLAT_MAP = 4;
+  }
+  FunctionType functionType = 1;
+  bytes payload = 2;
+}
+
+// A list of user-defined DataStream functions to be executed in a batch.
+message UserDefinedDataStreamFunctions {
+  repeated UserDefinedDataStreamFunction udfs = 1;
+  bool metric_enabled = 2;
+}
+
 // A representation of the data schema.
 message Schema {
   enum TypeName {
@@ -146,4 +165,46 @@ message Schema {
   }
 
   repeated Field fields = 1;
+}
+
+// A representation of the data type information in DataStream.
+message TypeInfo {
+  enum TypeName {
+    ROW = 0;
+    STRING = 1;
+    BYTE = 2;
+    BOOLEAN = 3;
+    SHORT = 4;
+    INT = 5;
+    LONG = 6;
+    FLOAT = 7;
+    DOUBLE = 8;
+    CHAR = 9;
+    BIG_INT = 10;
+    BIG_DEC = 11;
+    SQL_DATE = 12;
+    SQL_TIME = 13;
+    SQL_TIMESTAMP = 14;
+    ARRAY = 15;
+    PICKLED_BYTES = 16;
+    TUPLE = 17;
+  }
+
+
+  message FieldType {
+    TypeName type_name = 1;
+    oneof type_info {
+      FieldType collection_element_type = 2;
+      TypeInfo row_type_info = 3;
+      TypeInfo tuple_type_info = 4;
+    }
+  }
+
+  message Field {
+    string name = 1;
+    //description is used in Table schema, no need in DataStream.
+    string description = 2;
+    FieldType type = 3;
+  }
+  repeated Field field = 1;
 }

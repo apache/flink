@@ -20,6 +20,7 @@ package org.apache.flink.table.types;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -28,6 +29,8 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass;
 
 /**
  * A data type that contains a key and value data type (e.g. {@code MAP}).
@@ -47,8 +50,10 @@ public final class KeyValueDataType extends DataType {
 			DataType keyDataType,
 			DataType valueDataType) {
 		super(logicalType, conversionClass);
-		this.keyDataType = Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
-		this.valueDataType = Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
+		Preconditions.checkNotNull(keyDataType, "Key data type must not be null.");
+		Preconditions.checkNotNull(valueDataType, "Value data type must not be null.");
+		this.keyDataType = updateInnerDataType(keyDataType);
+		this.valueDataType = updateInnerDataType(valueDataType);
 	}
 
 	public KeyValueDataType(
@@ -121,5 +126,14 @@ public final class KeyValueDataType extends DataType {
 	@Override
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), keyDataType, valueDataType);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private DataType updateInnerDataType(DataType innerDataType) {
+		if (conversionClass == MapData.class) {
+			return innerDataType.bridgedTo(toInternalConversionClass(innerDataType.getLogicalType()));
+		}
+		return innerDataType;
 	}
 }

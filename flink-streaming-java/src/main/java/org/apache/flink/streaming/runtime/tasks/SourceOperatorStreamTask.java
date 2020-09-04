@@ -46,9 +46,9 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
 	@Override
 	public void init() {
-		StreamTaskInput<T> input = new StreamTaskSourceInput<>(headOperator);
+		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator);
 		DataOutput<T> output = new AsyncDataOutputToOutput<>(
-			operatorChain.getChainEntryPoint(),
+			operatorChain.getMainOperatorOutput(),
 			getStreamStatusMaintainer());
 
 		inputProcessor = new StreamOneInputProcessor<>(
@@ -60,11 +60,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	/**
 	 * Implementation of {@link DataOutput} that wraps a specific {@link Output}.
 	 */
-	private static class AsyncDataOutputToOutput<T> extends AbstractDataOutput<T> {
+	public static class AsyncDataOutputToOutput<T> extends AbstractDataOutput<T> {
 
 		private final Output<StreamRecord<T>> output;
 
-		AsyncDataOutputToOutput(
+		public AsyncDataOutputToOutput(
 				Output<StreamRecord<T>> output,
 				StreamStatusMaintainer streamStatusMaintainer) {
 			super(streamStatusMaintainer);

@@ -79,7 +79,7 @@ object WindowWordCount {
       .flatMap(_.toLowerCase.split("\\W+"))
       .filter(_.nonEmpty)
       .map((_, 1))
-      .keyBy(0)
+      .keyBy(_._1)
       // create windows of windowSize records slided every slideSize records
       .countWindow(windowSize, slideSize)
       // group by the tuple field "0" and sum up tuple field "1"

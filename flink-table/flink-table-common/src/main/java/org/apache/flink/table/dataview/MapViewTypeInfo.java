@@ -34,6 +34,7 @@ import java.util.Objects;
  * @param <V> value type
  */
 @Internal
+@Deprecated
 public class MapViewTypeInfo<K, V> extends TypeInformation<MapView<K, V>> {
 
 	private static final long serialVersionUID = -2883944144965318259L;
