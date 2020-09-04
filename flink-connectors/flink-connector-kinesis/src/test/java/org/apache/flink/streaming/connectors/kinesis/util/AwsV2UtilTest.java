@@ -37,12 +37,14 @@ import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.net.URI;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_REGION;
@@ -50,8 +52,15 @@ import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigCons
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleSessionName;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.webIdentityTokenFile;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.LAZY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.POLLING;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -412,4 +421,94 @@ public class AwsV2UtilTest {
 
 		return builder;
 	}
+
+	@Test
+	public void testIsUsingEfoRecordPublisher() {
+		Properties prop = new Properties();
+		assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+
+		prop.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
+		assertTrue(AwsV2Util.isUsingEfoRecordPublisher(prop));
+
+		prop.setProperty(RECORD_PUBLISHER_TYPE, POLLING.name());
+		assertFalse(AwsV2Util.isUsingEfoRecordPublisher(prop));
+	}
+
+	@Test
+	public void testIsEagerEfoRegistrationType() {
+		Properties prop = new Properties();
+		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
+		assertTrue(AwsV2Util.isEagerEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
+		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
+		assertFalse(AwsV2Util.isEagerEfoRegistrationType(prop));
+	}
+
+	@Test
+	public void testIsLazyEfoRegistrationType() {
+		Properties prop = new Properties();
+		assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
+		assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
+		assertTrue(AwsV2Util.isLazyEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
+		assertFalse(AwsV2Util.isLazyEfoRegistrationType(prop));
+	}
+
+	@Test
+	public void testIsNoneEfoRegistrationType() {
+		Properties prop = new Properties();
+		assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, EAGER.name());
+		assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, LAZY.name());
+		assertFalse(AwsV2Util.isNoneEfoRegistrationType(prop));
+
+		prop.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, NONE.name());
+		assertTrue(AwsV2Util.isNoneEfoRegistrationType(prop));
+	}
+
+	@Test
+	public void testIsRecoverableExceptionForRecoverable() {
+		Exception recoverable = LimitExceededException.builder().build();
+		assertTrue(AwsV2Util.isRecoverableException(new ExecutionException(recoverable)));
+	}
+
+	@Test
+	public void testIsRecoverableExceptionForNonRecoverable() {
+		Exception nonRecoverable = new IllegalArgumentException("abc");
+		assertFalse(AwsV2Util.isRecoverableException(new ExecutionException(nonRecoverable)));
+	}
+
+	@Test
+	public void testIsRecoverableExceptionForRuntimeExceptionWrappingRecoverable() {
+		Exception recoverable = LimitExceededException.builder().build();
+		Exception runtime = new RuntimeException("abc", recoverable);
+		assertTrue(AwsV2Util.isRecoverableException(runtime));
+	}
+
+	@Test
+	public void testIsRecoverableExceptionForRuntimeExceptionWrappingNonRecoverable() {
+		Exception nonRecoverable = new IllegalArgumentException("abc");
+		Exception runtime = new RuntimeException("abc", nonRecoverable);
+		assertFalse(AwsV2Util.isRecoverableException(runtime));
+	}
+
+	@Test
+	public void testIsRecoverableExceptionForNullCause() {
+		Exception nonRecoverable = new IllegalArgumentException("abc");
+		assertFalse(AwsV2Util.isRecoverableException(nonRecoverable));
+	}
+
 }
