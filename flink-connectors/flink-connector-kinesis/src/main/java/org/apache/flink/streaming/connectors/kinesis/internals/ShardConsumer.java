@@ -28,6 +28,8 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -51,6 +53,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class ShardConsumer<T> implements Runnable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
+
 	private final KinesisDeserializationSchema<T> deserializer;
 
 	private final int subscribedShardStateIndex;
@@ -102,6 +107,11 @@ public class ShardConsumer<T> implements Runnable {
 		try {
 			while (isRunning()) {
 				final RecordPublisherRunResult result = recordPublisher.run(batch -> {
+					if (!batch.getDeaggregatedRecords().isEmpty()) {
+						LOG.debug("stream: {}, shard: {}, millis behind latest: {}, batch size: {}",
+							subscribedShard.getStreamName(), subscribedShard.getShard().getShardId(),
+							batch.getMillisBehindLatest(), batch.getDeaggregatedRecordSize());
+					}
 					for (UserRecord userRecord : batch.getDeaggregatedRecords()) {
 						if (filterDeaggregatedRecord(userRecord)) {
 							deserializeRecordForCollectionAndUpdateState(userRecord);
@@ -118,7 +128,6 @@ public class ShardConsumer<T> implements Runnable {
 
 				if (result == COMPLETE) {
 					fetcherRef.updateState(subscribedShardStateIndex, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
-
 					// we can close this consumer thread once we've reached the end of the subscribed shard
 					break;
 				}
@@ -188,7 +197,7 @@ public class ShardConsumer<T> implements Runnable {
 	 * This method is to support restarting from a partially consumed aggregated sequence number.
 	 *
 	 * @param record the record to filter
-	 * @return {@code true} if the record should be retained
+	 * @return true if the record should be retained
 	 */
 	private boolean filterDeaggregatedRecord(final UserRecord record) {
 		if (!lastSequenceNum.isAggregated()) {

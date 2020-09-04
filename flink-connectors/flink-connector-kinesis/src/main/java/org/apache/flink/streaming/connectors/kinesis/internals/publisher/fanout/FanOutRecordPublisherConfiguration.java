@@ -124,7 +124,7 @@ public class FanOutRecordPublisherConfiguration {
 	private final long describeStreamBaseBackoffMillis;
 
 	/**
-	 * Maximum backoff millis for the describe stream operation.
+	 *  Maximum backoff millis for the describe stream operation.
 	 */
 	private final long describeStreamMaxBackoffMillis;
 

@@ -748,8 +748,9 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 							new AtomicReference<>(),
 							new ArrayList<>(),
 							subscribedStreamsToLastDiscoveredShardIds,
-							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap)
-							) {};
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap),
+							null) {
+						};
 					return fetcher;
 				}
 			};
@@ -880,9 +881,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 							new AtomicReference<>(),
 							new ArrayList<>(),
 							subscribedStreamsToLastDiscoveredShardIds,
-							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(
-								streamToQueueMap)
-						) {
+							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamToQueueMap),
+							null) {
 							@Override
 							protected void emitWatermark() {
 								// necessary in this test to ensure that watermark state is updated

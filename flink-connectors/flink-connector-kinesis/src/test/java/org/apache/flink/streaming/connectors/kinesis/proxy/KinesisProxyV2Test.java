@@ -17,26 +17,44 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
-import org.apache.flink.annotation.Internal;
-
+import org.junit.Test;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
 
-import java.util.concurrent.CompletableFuture;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
- * Interface for a Kinesis proxy using AWS SDK v2.x operating on multiple Kinesis streams within the same AWS service region.
+ * Tests for {@link KinesisProxyV2}.
  */
-@Internal
-public interface KinesisProxyV2Interface {
+public class KinesisProxyV2Test {
 
-	CompletableFuture<Void> subscribeToShard(SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler);
+	@Test
+	public void testSubscribeToShard() {
+		KinesisAsyncClient kinesis = mock(KinesisAsyncClient.class);
+		KinesisProxyV2 proxy = new KinesisProxyV2(kinesis);
 
-	/**
-	 * Destroy any open resources used by the factory.
-	 */
-	default void close() {
-		// Do nothing by default
+		SubscribeToShardRequest request = SubscribeToShardRequest.builder().build();
+		SubscribeToShardResponseHandler responseHandler = SubscribeToShardResponseHandler
+			.builder()
+			.subscriber(event -> {})
+			.build();
+
+		proxy.subscribeToShard(request, responseHandler);
+
+		verify(kinesis).subscribeToShard(eq(request), eq(responseHandler));
+	}
+
+	@Test
+	public void testCloseInvokesClientClose() {
+		KinesisAsyncClient kinesis = mock(KinesisAsyncClient.class);
+		KinesisProxyV2 proxy = new KinesisProxyV2(kinesis);
+
+		proxy.close();
+
+		verify(kinesis).close();
 	}
 
 }

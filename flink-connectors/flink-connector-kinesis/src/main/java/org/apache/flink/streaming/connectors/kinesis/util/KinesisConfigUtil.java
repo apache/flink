@@ -247,6 +247,9 @@ public class KinesisConfigUtil {
 					ConsumerConfigConstants.MAX_SHARD_GETRECORDS_INTERVAL_MILLIS + " milliseconds."
 			);
 		}
+
+		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY,
+			"Invalid value given for EFO HTTP client max concurrency. Must be positive.");
 	}
 
 	/**

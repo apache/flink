@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 
 /**
  * Some utilities specific to Amazon Web Service.
@@ -277,7 +278,16 @@ public class AWSUtil {
 	 * @return the starting position
 	 */
 	public static StartingPosition getStartingPosition(final SequenceNumber sequenceNumber, final Properties configProps) {
-		if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
+		if (sequenceNumber.equals(SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+			// LATEST starting positions are translated to AT_TIMESTAMP starting positions. This is to prevent data loss
+			// in the situation where the first read times out and is re-attempted. Consider the following scenario:
+			// 1. Consume from LATEST
+			// 2. No records are consumed and Record Publisher throws retryable error
+			// 3. Restart consumption from LATEST
+			// Any records sent between steps 1 and 3 are lost. Using the timestamp of step 1 allows the consumer to
+			// restart from shard position of step 1, and hence no records are lost.
+			return StartingPosition.fromTimestamp(new Date());
+		} else if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
 			Date timestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(configProps);
 			return StartingPosition.fromTimestamp(timestamp);
 		} else {

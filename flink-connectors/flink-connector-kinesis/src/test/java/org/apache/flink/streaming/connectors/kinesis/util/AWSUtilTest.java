@@ -40,7 +40,6 @@ import java.util.Date;
 import java.util.Properties;
 
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
-import static com.amazonaws.services.kinesis.model.ShardIteratorType.LATEST;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider.ASSUME_ROLE;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider.AUTO;
@@ -52,7 +51,7 @@ import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequen
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -61,6 +60,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AWSUtil.class)
 public class AWSUtilTest {
+
 	@Rule
 	private final ExpectedException exception = ExpectedException.none();
 
@@ -214,8 +214,8 @@ public class AWSUtilTest {
 	public void testGetStartingPositionForLatest() {
 		StartingPosition position = AWSUtil.getStartingPosition(SENTINEL_LATEST_SEQUENCE_NUM.get(), new Properties());
 
-		assertEquals(LATEST, position.getShardIteratorType());
-		assertNull(position.getStartingMarker());
+		assertEquals(AT_TIMESTAMP, position.getShardIteratorType());
+		assertNotNull(position.getStartingMarker());
 	}
 
 	@Test

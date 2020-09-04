@@ -103,6 +103,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Amazon AWS SDK v1.x dependencies -->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>

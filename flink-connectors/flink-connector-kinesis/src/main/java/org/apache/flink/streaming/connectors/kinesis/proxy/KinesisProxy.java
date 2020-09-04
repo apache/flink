@@ -55,7 +55,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,11 +73,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisProxy.class);
 
+	/** Calculates full jitter backoff delays. */
+	private static final FullJitterBackoff BACKOFF = new FullJitterBackoff();
+
 	/** The actual Kinesis client from the AWS SDK that we will be using to make calls. */
 	private final AmazonKinesis kinesisClient;
-
-	/** Random seed used to calculate backoff jitter for Kinesis operations. */
-	private static final Random seed = new Random();
 
 	// ------------------------------------------------------------------------
 	//  listShards() related performance settings
@@ -206,7 +205,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_RETRIES)));
-
 	}
 
 	/**
@@ -230,9 +228,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return new KinesisProxy(configProps);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) throws InterruptedException {
 		final GetRecordsRequest getRecordsRequest = new GetRecordsRequest();
@@ -247,11 +242,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 				getRecordsResult = kinesisClient.getRecords(getRecordsRequest);
 			} catch (SdkClientException ex) {
 				if (isRecoverableSdkClientException(ex)) {
-					long backoffMillis = fullJitterBackoff(
+					long backoffMillis = BACKOFF.calculateFullJitterBackoff(
 						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, retryCount++);
 					LOG.warn("Got recoverable SdkClientException. Backing off for "
 						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
-					Thread.sleep(backoffMillis);
+					BACKOFF.sleep(backoffMillis);
 				} else {
 					throw ex;
 				}
@@ -266,9 +261,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return getRecordsResult;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException {
 		GetShardListResult result = new GetShardListResult();
@@ -281,9 +273,6 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return result;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public String getShardIterator(StreamShardHandle shard, String shardIteratorType, @Nullable Object startingMarker) throws InterruptedException {
 		GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
@@ -322,11 +311,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 					getShardIteratorResult = kinesisClient.getShardIterator(getShardIteratorRequest);
 			} catch (AmazonServiceException ex) {
 				if (isRecoverableException(ex)) {
-					long backoffMillis = fullJitterBackoff(
+					long backoffMillis = BACKOFF.calculateFullJitterBackoff(
 						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, retryCount++);
 					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
 						+ backoffMillis + " millis (" + ex.getClass().getName() + ": " + ex.getMessage() + ")");
-					Thread.sleep(backoffMillis);
+					BACKOFF.sleep(backoffMillis);
 				} else {
 					throw ex;
 				}
@@ -438,11 +427,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 				listShardsResults = kinesisClient.listShards(listShardsRequest);
 			} catch (LimitExceededException le) {
-				long backoffMillis = fullJitterBackoff(
+				long backoffMillis = BACKOFF.calculateFullJitterBackoff(
 						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, retryCount++);
 					LOG.warn("Got LimitExceededException when listing shards from stream " + streamName
 									+ ". Backing off for " + backoffMillis + " millis.");
-				Thread.sleep(backoffMillis);
+				BACKOFF.sleep(backoffMillis);
 			} catch (ResourceInUseException reInUse) {
 				if (LOG.isWarnEnabled()) {
 					// List Shards will throw an exception if stream in not in active state. Return and re-use previous state available.
@@ -459,11 +448,11 @@ public class KinesisProxy implements KinesisProxyInterface {
 				break;
 			} catch (SdkClientException ex) {
 				if (retryCount < listShardsMaxRetries && isRecoverableSdkClientException(ex)) {
-					long backoffMillis = fullJitterBackoff(
+					long backoffMillis = BACKOFF.calculateFullJitterBackoff(
 						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, retryCount++);
 					LOG.warn("Got SdkClientException when listing shards from stream {}. Backing off for {} millis.",
 						streamName, backoffMillis);
-					Thread.sleep(backoffMillis);
+					BACKOFF.sleep(backoffMillis);
 				} else {
 					// propagate if retries exceeded or not recoverable
 					// (otherwise would return null result and keep trying forever)
@@ -515,14 +504,14 @@ public class KinesisProxy implements KinesisProxyInterface {
 			try {
 				describeStreamResult = kinesisClient.describeStream(describeStreamRequest);
 			} catch (LimitExceededException le) {
-				long backoffMillis = fullJitterBackoff(
+				long backoffMillis = BACKOFF.calculateFullJitterBackoff(
 						describeStreamBaseBackoffMillis,
 						describeStreamMaxBackoffMillis,
 						describeStreamExpConstant,
 						attemptCount++);
 				LOG.warn(String.format("Got LimitExceededException when describing stream %s. "
 						+ "Backing off for %d millis.", streamName, backoffMillis));
-				Thread.sleep(backoffMillis);
+				BACKOFF.sleep(backoffMillis);
 			} catch (ResourceNotFoundException re) {
 				throw new RuntimeException("Error while getting stream details", re);
 			}
@@ -541,8 +530,4 @@ public class KinesisProxy implements KinesisProxyInterface {
 		return describeStreamResult;
 	}
 
-	protected static long fullJitterBackoff(long base, long max, double power, int attempt) {
-		long exponentialBackoff = (long) Math.min(max, base * Math.pow(power, attempt));
-		return (long) (seed.nextDouble() * exponentialBackoff); // random jitter between 0 and the exponential backoff
-	}
 }

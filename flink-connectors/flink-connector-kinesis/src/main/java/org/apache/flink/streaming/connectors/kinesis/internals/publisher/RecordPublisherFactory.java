@@ -45,4 +45,11 @@ public interface RecordPublisherFactory {
 			MetricGroup metricGroup,
 			StreamShardHandle streamShardHandle) throws InterruptedException;
 
+	/**
+	 * Destroy any open resources used by the factory.
+	 */
+	default void close() {
+		// Do nothing by default
+	}
+
 }
