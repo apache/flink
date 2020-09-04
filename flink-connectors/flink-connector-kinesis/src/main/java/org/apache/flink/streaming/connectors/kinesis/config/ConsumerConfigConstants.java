@@ -224,6 +224,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The maximum number of records that will be buffered before suspending consumption of a shard. */
 	public static final String WATERMARK_SYNC_QUEUE_CAPACITY = "flink.watermark.sync.queue.capacity";
 
+	public static final String EFO_HTTP_CLIENT_MAX_CONCURRENCY = "flink.stream.efo.http-client.max-concurrency";
+
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -272,7 +274,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final double DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
-	public static final int DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES = 5;
+	public static final int DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES = 10;
 
 	public static final long DEFAULT_SUBSCRIBE_TO_SHARD_BACKOFF_BASE = 1000L;
 
@@ -308,10 +310,21 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
+	public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY = 10_000;
+
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured
 	 * getRecords interval can not exceed 5 minutes, which is the expire time for retrieved iterators.
 	 */
 	public static final long MAX_SHARD_GETRECORDS_INTERVAL_MILLIS = 300000L;
+
+	/**
+	 * Build the key of an EFO consumer ARN according to a stream name.
+	 * @param streamName the stream name the key is built upon.
+	 * @return a key of EFO consumer ARN.
+	 */
+	public static String efoConsumerArn(final String streamName) {
+		return EFO_CONSUMER_ARN_PREFIX + "." + streamName;
+	}
 
 }

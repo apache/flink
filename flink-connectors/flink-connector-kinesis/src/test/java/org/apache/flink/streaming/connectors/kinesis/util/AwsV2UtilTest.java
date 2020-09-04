@@ -33,6 +33,7 @@ import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsPr
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClientBuilder;
@@ -48,6 +49,8 @@ import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigCons
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleArn;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.roleSessionName;
 import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.webIdentityTokenFile;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,6 +62,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static software.amazon.awssdk.http.Protocol.HTTP2;
 
 /**
  * Tests for {@link AwsV2Util}.
@@ -227,27 +231,16 @@ public class AwsV2UtilTest {
 		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
 		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
+		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
 		verify(builder).build();
-		verify(builder).maxConcurrency(50);
+		verify(builder).maxConcurrency(DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY);
 		verify(builder).connectionTimeout(Duration.ofSeconds(10));
 		verify(builder).writeTimeout(Duration.ofSeconds(50));
 		verify(builder).connectionMaxIdleTime(Duration.ofMinutes(1));
 		verify(builder).useIdleConnectionReaper(true);
+		verify(builder).protocol(HTTP2);
 		verify(builder, never()).connectionTimeToLive(any());
-	}
-
-	@Test
-	public void testCreateNettyHttpClientMaxConcurrency() {
-		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
-		clientConfiguration.setMaxConnections(100);
-
-		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
-
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
-
-		verify(builder).maxConcurrency(100);
 	}
 
 	@Test
@@ -257,9 +250,21 @@ public class AwsV2UtilTest {
 
 		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
+		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
 		verify(builder).connectionTimeout(Duration.ofSeconds(1));
+	}
+
+	@Test
+	public void testCreateNettyHttpClientMaxConcurrency() {
+		Properties clientConfiguration = new Properties();
+		clientConfiguration.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "123");
+
+		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
+
+		AwsV2Util.createHttpClient(new ClientConfigurationFactory().getConfig(), builder, clientConfiguration);
+
+		verify(builder).maxConcurrency(123);
 	}
 
 	@Test
@@ -269,7 +274,7 @@ public class AwsV2UtilTest {
 
 		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
+		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
 		verify(builder).writeTimeout(Duration.ofSeconds(3));
 	}
@@ -281,7 +286,7 @@ public class AwsV2UtilTest {
 
 		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
+		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
 		verify(builder).connectionMaxIdleTime(Duration.ofSeconds(2));
 	}
@@ -293,7 +298,7 @@ public class AwsV2UtilTest {
 
 		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
+		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
 		verify(builder).useIdleConnectionReaper(false);
 	}
@@ -305,7 +310,7 @@ public class AwsV2UtilTest {
 
 		NettyNioAsyncHttpClient.Builder builder = mockHttpClientBuilder();
 
-		AwsV2Util.createHttpClient(clientConfiguration, builder);
+		AwsV2Util.createHttpClient(clientConfiguration, builder, new Properties());
 
 		verify(builder).connectionTimeToLive(Duration.ofSeconds(5));
 	}
@@ -383,6 +388,9 @@ public class AwsV2UtilTest {
 		when(builder.writeTimeout(any())).thenReturn(builder);
 		when(builder.connectionMaxIdleTime(any())).thenReturn(builder);
 		when(builder.useIdleConnectionReaper(anyBoolean())).thenReturn(builder);
+		when(builder.connectionAcquisitionTimeout(any())).thenReturn(builder);
+		when(builder.protocol(any())).thenReturn(builder);
+		when(builder.http2Configuration(any(Http2Configuration.class))).thenReturn(builder);
 
 		return builder;
 	}

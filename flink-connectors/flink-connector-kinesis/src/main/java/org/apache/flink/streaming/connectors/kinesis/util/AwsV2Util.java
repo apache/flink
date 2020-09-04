@@ -34,7 +34,9 @@ import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
+import software.amazon.awssdk.http.Protocol;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
@@ -50,11 +52,18 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
+
 /**
  * Utility methods specific to Amazon Web Service SDK v2.x.
  */
 @Internal
 public class AwsV2Util {
+
+	private static final int INITIAL_WINDOW_SIZE_BYTES = 512 * 1024; // 512 KB
+	private static final Duration HEALTH_CHECK_PING_PERIOD = Duration.ofSeconds(60);
+	private static final Duration CONNECTION_ACQUISITION_TIMEOUT = Duration.ofSeconds(60);
 
 	/**
 	 * Creates an Amazon Kinesis Async Client from the provided properties.
@@ -65,8 +74,8 @@ public class AwsV2Util {
 	 * @return a new Amazon Kinesis Client
 	 */
 	public static KinesisAsyncClient createKinesisAsyncClient(final Properties configProps) {
-		final ClientConfiguration config = new ClientConfigurationFactory().getConfig();
-		return createKinesisAsyncClient(configProps, config);
+		ClientConfiguration clientConfiguration = new ClientConfigurationFactory().getConfig();
+		return createKinesisAsyncClient(configProps, clientConfiguration);
 	}
 
 	/**
@@ -79,7 +88,7 @@ public class AwsV2Util {
 	 * @return a new Amazon Kinesis Client
 	 */
 	public static KinesisAsyncClient createKinesisAsyncClient(final Properties configProps, final ClientConfiguration config) {
-		final SdkAsyncHttpClient httpClient = createHttpClient(config, NettyNioAsyncHttpClient.builder());
+		final SdkAsyncHttpClient httpClient = createHttpClient(config, NettyNioAsyncHttpClient.builder(), configProps);
 		final ClientOverrideConfiguration overrideConfiguration = createClientOverrideConfiguration(config, ClientOverrideConfiguration.builder());
 		final KinesisAsyncClientBuilder clientBuilder = KinesisAsyncClient.builder();
 
@@ -89,13 +98,27 @@ public class AwsV2Util {
 	@VisibleForTesting
 	static SdkAsyncHttpClient createHttpClient(
 			final ClientConfiguration config,
-			final NettyNioAsyncHttpClient.Builder httpClientBuilder) {
+			final NettyNioAsyncHttpClient.Builder httpClientBuilder,
+			final Properties consumerConfig) {
+
+		int maxConcurrency = Optional
+			.ofNullable(consumerConfig.getProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY))
+			.map(Integer::parseInt)
+			.orElse(DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY);
+
 		httpClientBuilder
-			.maxConcurrency(config.getMaxConnections())
+			.maxConcurrency(maxConcurrency)
 			.connectionTimeout(Duration.ofMillis(config.getConnectionTimeout()))
 			.writeTimeout(Duration.ofMillis(config.getSocketTimeout()))
 			.connectionMaxIdleTime(Duration.ofMillis(config.getConnectionMaxIdleMillis()))
-			.useIdleConnectionReaper(config.useReaper());
+			.useIdleConnectionReaper(config.useReaper())
+			.protocol(Protocol.HTTP2)
+			.connectionAcquisitionTimeout(CONNECTION_ACQUISITION_TIMEOUT)
+			.http2Configuration(Http2Configuration
+				.builder()
+				.healthCheckPingPeriod(HEALTH_CHECK_PING_PERIOD)
+				.initialWindowSize(INITIAL_WINDOW_SIZE_BYTES)
+				.build());
 
 		if (config.getConnectionTTL() > -1) {
 			httpClientBuilder.connectionTimeToLive(Duration.ofMillis(config.getConnectionTTL()));
@@ -248,4 +271,5 @@ public class AwsV2Util {
 	public static Region getRegion(final Properties configProps) {
 		return Region.of(configProps.getProperty(AWSConfigConstants.AWS_REGION));
 	}
+
 }

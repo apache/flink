@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 
 /**
  * Some utilities specific to Amazon Web Service.
@@ -277,7 +278,9 @@ public class AWSUtil {
 	 * @return the starting position
 	 */
 	public static StartingPosition getStartingPosition(final SequenceNumber sequenceNumber, final Properties configProps) {
-		if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
+		if (sequenceNumber.equals(SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+			return StartingPosition.fromTimestamp(new Date());
+		} else if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
 			Date timestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(configProps);
 			return StartingPosition.fromTimestamp(timestamp);
 		} else {
