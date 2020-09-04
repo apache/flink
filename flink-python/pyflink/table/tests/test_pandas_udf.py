@@ -21,6 +21,7 @@ import decimal
 import pytz
 
 from pyflink.table import DataTypes, Row
+from pyflink.table import expressions as E
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
@@ -58,8 +59,8 @@ class PandasUDFITTests(object):
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         exec_insert_table(
-            t.where("add_one(b) <= 3").select("a, b + 1, add(a + 1, subtract_one(c)) + 2, "
-                                              "add(add_one(a), 1L)"),
+            t.where(E.call('add_one', t.b) <= 3)
+             .select("a, b + 1, add(a + 1, subtract_one(c)) + 2, add(add_one(a), 1L)"),
             "Results")
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["1,3,6,3", "3,2,14,5"])
