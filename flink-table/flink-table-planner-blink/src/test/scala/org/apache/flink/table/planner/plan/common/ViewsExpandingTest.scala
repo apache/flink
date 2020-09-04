@@ -172,6 +172,35 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       is("SELECT `default_catalog`.`default_database`.`func`(1, 2, 'abc')"))
   }
 
+  @Test
+  def testExpandQueryWithSystemAlias(): Unit = {
+    val tableUtil = tableTestUtil(this)
+    val tableEnv = tableUtil.tableEnv
+    tableEnv.createTemporaryView("source",
+      tableEnv.fromValues("danny#21", "julian#55", "fabian#30").as("f0"))
+    val createView =
+      """
+        |create view tmp_view as
+        |select * from (
+        |  select f0,
+        |  row_number() over (partition by f0 order by f0 desc) as rowNum
+        |  from source)
+        |  where rowNum = 1
+        |""".stripMargin
+    tableEnv.executeSql(createView)
+    val objectID = ObjectIdentifier.of(tableEnv.getCurrentCatalog,
+      tableEnv.getCurrentDatabase, "tmp_view")
+    val view: CatalogBaseTable = tableEnv.getCatalog(objectID.getCatalogName)
+      .get().getTable(objectID.toObjectPath)
+    assertThat(view.asInstanceOf[CatalogView].getExpandedQuery,
+      is("SELECT *\n"
+        + "FROM (SELECT `source`.`f0`, "
+        + "ROW_NUMBER() "
+        + "OVER (PARTITION BY `source`.`f0` ORDER BY `source`.`f0` DESC) AS `rowNum`\n"
+        + "FROM `default_catalog`.`default_database`.`source`)\n"
+        + "WHERE `rowNum` = 1"))
+  }
+
   private def createSqlView(originTable: String): CatalogView = {
       new CatalogViewImpl(
         s"select * as c from $originTable",
