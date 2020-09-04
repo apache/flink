@@ -547,7 +547,7 @@ public final class PythonTypeUtils {
 		public FlinkFnApi.Schema.FieldType visit(ArrayType arrayType) {
 			FlinkFnApi.Schema.FieldType.Builder builder =
 				FlinkFnApi.Schema.FieldType.newBuilder()
-					.setTypeName(FlinkFnApi.Schema.TypeName.ARRAY)
+					.setTypeName(FlinkFnApi.Schema.TypeName.BASIC_ARRAY)
 					.setNullable(arrayType.isNullable());
 
 			FlinkFnApi.Schema.FieldType elementFieldType = arrayType.getElementType().accept(this);

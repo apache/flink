@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.typeutils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,6 +30,7 @@ import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.CharSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
@@ -85,6 +87,10 @@ public class PythonTypeUtils {
 
 			if (typeInformation instanceof TupleTypeInfo) {
 				return buildTupleTypeProto((TupleTypeInfo) typeInformation);
+			}
+
+			if (typeInformation instanceof BasicArrayTypeInfo) {
+				return buildBasicArrayTypeProto((BasicArrayTypeInfo) typeInformation);
 			}
 
 			throw new UnsupportedOperationException(
@@ -196,7 +202,58 @@ public class PythonTypeUtils {
 			}
 
 			FlinkFnApi.TypeInfo.FieldType.Builder builder = FlinkFnApi.TypeInfo.FieldType.newBuilder()
-				.setTypeName(FlinkFnApi.TypeInfo.TypeName.ARRAY);
+				.setTypeName(FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
+			builder.setCollectionElementType(elementFieldType);
+			return builder.build();
+		}
+
+		private static FlinkFnApi.TypeInfo.FieldType buildBasicArrayTypeProto(
+			BasicArrayTypeInfo basicArrayTypeInfo) {
+			FlinkFnApi.TypeInfo.FieldType elementFieldType = null;
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.BOOLEAN_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.BYTE_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.SHORT_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.INT_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.LONG_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.FLOAT_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.DOUBLE_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.CHAR_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.STRING_TYPE_INFO);
+			}
+
+			if (elementFieldType == null) {
+				throw new UnsupportedOperationException(
+					String.format("The element type of BasicArrayTypeInfo: %s is not supported in PyFlink currently."
+						, basicArrayTypeInfo.toString()));
+			}
+
+			FlinkFnApi.TypeInfo.FieldType.Builder builder = FlinkFnApi.TypeInfo.FieldType.newBuilder()
+				.setTypeName(FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
 			builder.setCollectionElementType(elementFieldType);
 			return builder.build();
 		}
@@ -282,6 +339,7 @@ public class PythonTypeUtils {
 				IntPrimitiveArraySerializer.INSTANCE);
 		}
 
+		@SuppressWarnings("unchecked")
 		public static TypeSerializer typeInfoSerializerConverter(TypeInformation typeInformation) {
 			TypeSerializer typeSerializer = typeInfoToSerialzerMap.get(typeInformation.getTypeClass());
 			if (typeSerializer != null) {
@@ -310,6 +368,14 @@ public class PythonTypeUtils {
 						.map(f -> typeInfoSerializerConverter(f)).toArray(TypeSerializer[]::new);
 					return new TupleSerializer(Tuple.getTupleClass(tupleTypeInfo.getArity()), fieldTypeSerialzers);
 				}
+
+				if (typeInformation instanceof BasicArrayTypeInfo){
+					BasicArrayTypeInfo basicArrayTypeInfo = (BasicArrayTypeInfo) typeInformation;
+					Class<?> elementClass = basicArrayTypeInfo.getComponentTypeClass();
+					TypeSerializer<?> elementTypeSerializer = typeInfoToSerialzerMap.get(elementClass);
+					return new GenericArraySerializer(elementClass, elementTypeSerializer);
+				}
+
 			}
 
 			throw new UnsupportedOperationException(

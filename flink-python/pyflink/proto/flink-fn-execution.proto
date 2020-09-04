@@ -129,7 +129,7 @@ message Schema {
     VARBINARY = 13;
     CHAR = 14;
     VARCHAR = 15;
-    ARRAY = 16;
+    BASIC_ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
     LOCAL_ZONED_TIMESTAMP = 19;
@@ -224,9 +224,10 @@ message TypeInfo {
     SQL_DATE = 12;
     SQL_TIME = 13;
     SQL_TIMESTAMP = 14;
-    ARRAY = 15;
+    BASIC_ARRAY = 15;
     PICKLED_BYTES = 16;
     TUPLE = 17;
+    PRIMITIVE_ARRAY = 18;
   }
 
 

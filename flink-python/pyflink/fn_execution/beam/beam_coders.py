@@ -194,7 +194,7 @@ class ArrowCoder(FastCoder):
                                                field_type.nullable)
             elif field_type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
                 return TimestampType(field_type.timestamp_info.precision, field_type.nullable)
-            elif field_type.type_name == flink_fn_execution_pb2.Schema.ARRAY:
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.BASIC_ARRAY:
                 return ArrayType(_to_data_type(field_type.collection_element_type),
                                  field_type.nullable)
             elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
