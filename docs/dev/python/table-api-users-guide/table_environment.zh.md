@@ -22,16 +22,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document is a introduction of PyFlink TableEnvironment. 
-It includes detailed descriptions of every public interface of the TableEnvironment class.
+This document is an introduction of PyFlink `TableEnvironment`. 
+It includes detailed descriptions of every public interface of the `TableEnvironment` class.
 
 * This will be replaced by the TOC
 {:toc}
 
-The Creation of TableEnvironment
---------------------------------
+Create a TableEnvironment
+-------------------------
 
-The recommended way to create TableEnvironments is to create them from an EnvironmentSettings object:
+The recommended way to create a `TableEnvironment` is to create from an `EnvironmentSettings` object:
 
 {% highlight python %}
 
@@ -51,8 +51,9 @@ table_env = BatchTableEnvironment.create(environment_settings=EnvironmentSetting
 
 {% endhighlight %}
 
-If you have special demands e.g. holding the `ExecutionEnvironment`/`StreamExecutionEnvironment` object which the `TableEnvironment` based on,
-you can also create TableEnvironments from a `ExecutionEnvironment`/`StreamExecutionEnvironment` with a optional `TableConfig` object:
+If you need to access the `ExecutionEnvironment`/`StreamExecutionEnvironment` object which the `TableEnvironment` based on,
+e.g. mixing with DataStream API, configuring via the APIs of `ExecutionEnvironment`/`StreamExecutionEnvironment`, 
+you can also create a `TableEnvironment` from an `ExecutionEnvironment`/`StreamExecutionEnvironment` with a optional `TableConfig` object:
 
 {% highlight python %}
 
@@ -73,16 +74,19 @@ table_env = StreamTableEnvironment.create(env, table_config)
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env, environment_settings=EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build())
 
-# create a flink batch TableEnvironment from a ExecutionEnvironment
+# create a flink batch TableEnvironment from an ExecutionEnvironment
 env = ExecutionEnvironment.get_execution_environment()
 table_env = BatchTableEnvironment.create(env)
 
-# create a flink batch TableEnvironment from a ExecutionEnvironment with a TableConfig
+# create a flink batch TableEnvironment from an ExecutionEnvironment with a TableConfig
 env = ExecutionEnvironment.get_execution_environment()
 table_config = TableConfig()  # you can add configuration options in it
 table_env = BatchTableEnvironment.create(env, table_config)
 
 {% endhighlight %}
+
+**Note:** Almost all the configurations in `ExecutionEnvironment`/`StreamExecutionEnvironment` can be configured via `TableEnvironment.get_config()` now, see [Configuration]({% link ops/config.zh.md %}) for more details.
+Only a few rarely used or deprecated configurations still require direct access to `ExecutionEnvironment` /`StreamExecutionEnvironment` for configuring, e.g. the input dependency constraint.
 
 TableEnvironment API
 --------------------
@@ -185,8 +189,8 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       <td>
         Execute the given single statement, and return the execution result.
         The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE.
-        Note that for "INSERT INTO" statement this is a async operation.
-        If you want to wait until the job execution finished, please refer to such code: <br>
+        Note that for "INSERT INTO" statement this is an async operation.
+        This is usually expected when submitting a job to a remote cluster. However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to the following code: <br>
 {% highlight python %}
 table_env.execute_sql(stmt).get_job_client().get_job_execution_result().result()
 {% endhighlight %}
@@ -275,7 +279,7 @@ table_env.execute_sql(stmt).get_job_client().get_job_execution_result().result()
       <td>
         Instructs to write the content of a `Table` object into a sink table.
         Note that this interface would not trigger the execution of jobs.
-        You need to call the "execute" method to execute you job.
+        You need to call the "execute" method to execute your job.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.insert_into">link</a>
@@ -337,7 +341,7 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         <strong>create_statement_set()</strong>
       </td>
       <td>
-        Create a StatementSet instance which accepts DML statements or Tables.
+        Creates a StatementSet instance which accepts DML statements or Tables.
         It can be used to execute a multi-sink job. 
       </td>
       <td class="text-center">
@@ -394,6 +398,7 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
 
 These APIs are used to register UDFs or remove the registered UDFs. 
 Note that the API `execute_sql` can also be used to register/remove UDFs.
+For more introduction about different kinds of UDF, please refer to [User Defined Functions]({% link dev/table/functions/index.zh.md %}).
 
 <table class="table table-bordered">
   <thead>
@@ -590,7 +595,7 @@ For more details please see the [Dependency Management]({% link dev/python/table
   </tbody>
 </table>
 
-### Configurations
+### Configuration
 
 <table class="table table-bordered">
   <thead>
