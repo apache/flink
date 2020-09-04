@@ -22,6 +22,7 @@ import inspect
 
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
+from pyflink.table import Expression
 from pyflink.table.types import DataType, _to_java_type
 from pyflink.util import utils
 
@@ -184,7 +185,7 @@ class UserDefinedFunctionWrapper(object):
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
         return expr.call(self, *args)
 

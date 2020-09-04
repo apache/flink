@@ -22,8 +22,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit
 from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
-from pyflink.util.utils import to_jarray
-
+from pyflink.util.utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW',
            'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
@@ -558,12 +557,8 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
         else:
             return f.java_user_defined_function()
 
-    expressions_clz = gateway.jvm.Class \
-        .forName('org.apache.flink.table.api.Expressions', False,
-                 get_gateway().jvm.Thread.currentThread().getContextClassLoader())
-    function_definition_clz = gateway.jvm.Class \
-        .forName('org.apache.flink.table.functions.FunctionDefinition', False,
-                 get_gateway().jvm.Thread.currentThread().getContextClassLoader())
+    expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
+    function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
     j_object_array_type = to_jarray(gateway.jvm.Object, []).getClass()
 
     api_call_method = expressions_clz.getDeclaredMethod(
