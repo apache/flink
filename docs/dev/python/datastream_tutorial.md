@@ -1,7 +1,7 @@
 ---
-title: "DataStream API 教程"
-nav-parent_id: python_tutorial
-nav-pos: 30
+title: "DataStream API Tutorial"
+nav-parent_id: python
+nav-pos: 21
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -38,8 +38,8 @@ This walkthrough assumes that you have some familiarity with Python, but you sho
 
 ## Help, I’m Stuck! 
 
-If you get stuck, check out the [community support resources](https://flink.apache.org/zh/community.html).
-In particular, Apache Flink's [user mailing list](https://flink.apache.org/zh/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
+If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
+In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
 
 ## How To Follow Along
 
@@ -130,7 +130,7 @@ Next, you can run the example you just created on the command line:
 $ python datastream_tutorial.py
 {% endhighlight %}
 
-The command builds and runs your PyFlink program in a local mini cluster. You can alternatively submit it to a remote cluster using the instructions detailed in [Job Submission Examples]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples).
+The command builds and runs your PyFlink program in a local mini cluster. You can alternatively submit it to a remote cluster using the instructions detailed in [Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples).
 
 Finally, you can see the execution result on the command line:
 

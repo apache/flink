@@ -38,8 +38,8 @@ Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询
 
 ## 如何寻求帮助
 
-如果您遇到问题，可以访问 [社区信息页面](https://flink.apache.org/community.html).
-与此同时，Apache Flink 的[用户邮件列表](https://flink.apache.org/community.html#mailing-lists) 一直被列为Apache项目中最活跃的项目邮件列表之一，也是快速获得帮助的好方法。
+如果您遇到问题，可以访问 [社区信息页面](https://flink.apache.org/zh/community.html)。
+与此同时，Apache Flink 的[用户邮件列表](https://flink.apache.org/zh/community.html#mailing-lists) 一直被列为Apache项目中最活跃的项目邮件列表之一，也是快速获得帮助的好方法。
 
 ## 继续我们的旅程
 
@@ -48,7 +48,7 @@ Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询
 * Java 8 or 11
 * Python 3.5, 3.6 or 3.7
 
-使用Python Table API需要安装PyFlink，它已经被发布到[PyPi](https://pypi.org/project/apache-flink/)，您可以通过如下方式安装PyFlink：
+使用Python Table API需要安装PyFlink，它已经被发布到 [PyPi](https://pypi.org/project/apache-flink/)，您可以通过如下方式安装PyFlink：
 
 {% highlight bash %}
 $ python -m pip install apache-flink
