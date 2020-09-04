@@ -53,7 +53,7 @@ $ python xxx.py
 {% endhighlight %}
 
 **Note:** When executing jobs in mini-cluster asynchronously (e.g. TableEnvironment.execute_sql, StatementSet.execute, 
-etc in the Python Table API), remember to  get a 
+etc in the Python Table API; StreamExecutionEnvironment.execute_async in the Python DataStream API), remember to  get a 
 `JobClient` to wait for the execution to be finished, or the program will exit directly before the submitted job is 
 finished. Please refer to the code snippet bellow:
 
@@ -61,6 +61,10 @@ finished. Please refer to the code snippet bellow:
 # execute SQL / Table API query asynchronously
 t_result = table_env.execute_sql(...)
 t_result.get_job_client().get_job_execution_result().result()
+
+# execute DataStream Job asynchronously
+job_client = stream_execution_env.execute_async('My DataStream Job')
+job_client.get_job_execution_result().result()
 {% endhighlight %}
 
 #### Cluster
