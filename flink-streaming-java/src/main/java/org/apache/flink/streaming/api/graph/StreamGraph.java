@@ -38,7 +38,6 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -392,7 +391,6 @@ public class StreamGraph implements Pipeline {
 				coLocationGroup,
 				operatorFactory,
 				operatorName,
-				new ArrayList<OutputSelector<?>>(),
 				vertexClass);
 
 		streamNodes.put(vertexID, vertex);
@@ -572,21 +570,6 @@ public class StreamGraph implements Pipeline {
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);
 		}
-	}
-
-	public <T> void addOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
-		if (virtualPartitionNodes.containsKey(vertexID)) {
-			addOutputSelector(virtualPartitionNodes.get(vertexID).f0, outputSelector);
-		} else if (virtualSelectNodes.containsKey(vertexID)) {
-			addOutputSelector(virtualSelectNodes.get(vertexID).f0, outputSelector);
-		} else {
-			getStreamNode(vertexID).addOutputSelector(outputSelector);
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Outputselector set for {}", vertexID);
-			}
-		}
-
 	}
 
 	public void setParallelism(Integer vertexID, int parallelism) {

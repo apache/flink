@@ -856,7 +856,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null,
 					(StreamOperator<?>) null,
 					null,
-					null,
 					null
 				),
 				new StreamNode(
@@ -864,7 +863,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null,
 					null,
 					(StreamOperator<?>) null,
-					null,
 					null,
 					null
 				),

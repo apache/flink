@@ -278,6 +278,11 @@ under the License.
 							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,scala.Function2,scala.Function4,org.apache.flink.api.common.typeinfo.TypeInformation,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
 							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+
+							<!-- DataStream#split was removed in 1.12 -->
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.DataStream#split(scala.Function1)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.SplitStream</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

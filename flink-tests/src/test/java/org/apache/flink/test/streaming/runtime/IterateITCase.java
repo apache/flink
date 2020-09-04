@@ -32,8 +32,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream.ConnectedIterativeStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -44,12 +44,12 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
-import org.apache.flink.test.streaming.runtime.util.EvenOddOutputSelector;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.ReceiveCheckNoOpSink;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.OutputTag;
 
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -223,11 +223,25 @@ public class IterateITCase extends AbstractTestBase {
 		DataStreamSink<Integer> head3 = iter1.map(noOpIntMap).setParallelism(parallelism / 2).addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(noOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
-		SplitStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
+		OutputTag<Integer> even = new OutputTag<Integer>("even") {};
+		OutputTag<Integer> odd = new OutputTag<Integer>("odd") {};
+		SingleOutputStreamOperator<Object> source3 = env.fromElements(1, 2, 3, 4, 5)
 				.map(noOpIntMap).name("EvenOddSourceMap")
-				.split(new EvenOddOutputSelector());
+				.process(new ProcessFunction<Integer, Object>() {
+					@Override
+					public void processElement(
+						Integer value,
+						Context ctx,
+						Collector<Object> out) throws Exception {
+						if (value % 2 == 0) {
+							ctx.output(even, value);
+						} else {
+							ctx.output(odd, value);
+						}
+					}
+				});
 
-		iter1.closeWith(source3.select("even").union(
+		iter1.closeWith(source3.getSideOutput(even).union(
 				head1.rebalance().map(noOpIntMap).broadcast(), head2.shuffle()));
 
 		StreamGraph graph = env.getStreamGraph();
@@ -307,13 +321,27 @@ public class IterateITCase extends AbstractTestBase {
 				.addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(noOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
-		SplitStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
+		OutputTag<Integer> even = new OutputTag<Integer>("even") {};
+		OutputTag<Integer> odd = new OutputTag<Integer>("odd") {};
+		SingleOutputStreamOperator<Object> source3 = env.fromElements(1, 2, 3, 4, 5)
 				.map(noOpIntMap)
 				.name("split")
-				.split(new EvenOddOutputSelector());
+				.process(new ProcessFunction<Integer, Object>() {
+					@Override
+					public void processElement(
+							Integer value,
+							Context ctx,
+							Collector<Object> out) throws Exception {
+						if (value % 2 == 0) {
+							ctx.output(even, value);
+						} else {
+							ctx.output(odd, value);
+						}
+					}
+				});
 
 		iter1.closeWith(
-				source3.select("even").union(
+				source3.getSideOutput(even).union(
 						head1.map(noOpIntMap).name("bc").broadcast(),
 						head2.map(noOpIntMap).shuffle()));
 

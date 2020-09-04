@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -46,15 +45,10 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
-import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.util.TestLogger;
 
@@ -136,138 +130,6 @@ public class StreamGraphGeneratorTest extends TestLogger {
 					assertTrue(node.getOperator() instanceof StreamSource);
 			}
 		}
-	}
-
-	/**
-	 * This tests whether virtual Transformations behave correctly.
-	 *
-	 * <p>Verifies that partitioning, output selector, selected names are correctly set in the
-	 * StreamGraph when they are intermixed.
-	 */
-	@Test
-	public void testVirtualTransformations() throws Exception {
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> source = env.fromElements(1, 10);
-
-		DataStream<Integer> rebalanceMap = source.rebalance().map(new NoOpIntMap());
-
-		// verify that only the partitioning that was set last is used
-		DataStream<Integer> broadcastMap = rebalanceMap
-				.forward()
-				.global()
-				.broadcast()
-				.map(new NoOpIntMap());
-
-		broadcastMap.addSink(new DiscardingSink<>());
-
-		// verify that partitioning is preserved across union and split/select
-		EvenOddOutputSelector selector1 = new EvenOddOutputSelector();
-		EvenOddOutputSelector selector2 = new EvenOddOutputSelector();
-		EvenOddOutputSelector selector3 = new EvenOddOutputSelector();
-
-		DataStream<Integer> map1Operator = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map1 = map1Operator
-				.broadcast()
-				.split(selector1)
-				.select("even");
-
-		DataStream<Integer> map2Operator = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map2 = map2Operator
-				.split(selector2)
-				.select("odd")
-				.global();
-
-		DataStream<Integer> map3Operator = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map3 = map3Operator
-				.global()
-				.split(selector3)
-				.select("even")
-				.shuffle();
-
-		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
-				.map(new NoOpIntMap());
-
-		unionedMap.addSink(new DiscardingSink<>());
-
-		StreamGraph graph = env.getStreamGraph();
-
-		// rebalanceMap
-		assertTrue(graph.getStreamNode(rebalanceMap.getId()).getInEdges().get(0).getPartitioner() instanceof RebalancePartitioner);
-
-		// verify that only last partitioning takes precedence
-		assertTrue(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertEquals(rebalanceMap.getId(), graph.getSourceVertex(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0)).getId());
-
-		// verify that partitioning in unions is preserved and that it works across split/select
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
-		assertTrue(graph.getStreamNode(map1Operator.getId()).getOutputSelectors().contains(selector1));
-
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof GlobalPartitioner);
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("odd"));
-		assertTrue(graph.getStreamNode(map2Operator.getId()).getOutputSelectors().contains(selector2));
-
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutEdges().get(0).getPartitioner() instanceof ShufflePartitioner);
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("even"));
-		assertTrue(graph.getStreamNode(map3Operator.getId()).getOutputSelectors().contains(selector3));
-	}
-
-	/**
-	 * This tests whether virtual Transformations behave correctly.
-	 *
-	 * <p>Checks whether output selector, partitioning works correctly when applied on a union.
-	 */
-	@Test
-	public void testVirtualTransformations2() throws Exception {
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStream<Integer> source = env.fromElements(1, 10);
-
-		DataStream<Integer> rebalanceMap = source.rebalance().map(new NoOpIntMap());
-
-		DataStream<Integer> map1 = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map2 = rebalanceMap
-				.map(new NoOpIntMap());
-
-		DataStream<Integer> map3 = rebalanceMap
-				.map(new NoOpIntMap());
-
-		EvenOddOutputSelector selector = new EvenOddOutputSelector();
-
-		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
-				.broadcast()
-				.split(selector)
-				.select("foo")
-				.map(new NoOpIntMap());
-
-		unionedMap.addSink(new DiscardingSink<>());
-
-		StreamGraph graph = env.getStreamGraph();
-
-		// verify that the properties are correctly set on all input operators
-		assertTrue(graph.getStreamNode(map1.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map1.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map1.getId()).getOutputSelectors().contains(selector));
-
-		assertTrue(graph.getStreamNode(map2.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map2.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map2.getId()).getOutputSelectors().contains(selector));
-
-		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
-		assertTrue(graph.getStreamNode(map3.getId()).getOutEdges().get(0).getSelectedNames().get(0).equals("foo"));
-		assertTrue(graph.getStreamNode(map3.getId()).getOutputSelectors().contains(selector));
-
 	}
 
 	/**
