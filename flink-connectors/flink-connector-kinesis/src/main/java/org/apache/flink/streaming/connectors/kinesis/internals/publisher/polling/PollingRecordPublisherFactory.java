@@ -38,7 +38,7 @@ public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 
 	private final FlinkKinesisProxyFactory kinesisProxyFactory;
 
-	public PollingRecordPublisherFactory(FlinkKinesisProxyFactory kinesisProxyFactory) {
+	public PollingRecordPublisherFactory(final FlinkKinesisProxyFactory kinesisProxyFactory) {
 		this.kinesisProxyFactory = kinesisProxyFactory;
 	}
 

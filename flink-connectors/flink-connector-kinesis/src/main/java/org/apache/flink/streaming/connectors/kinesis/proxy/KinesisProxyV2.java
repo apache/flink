@@ -21,6 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
+import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Kinesis proxy implementation using AWS SDK v2.x - a utility class that is used as a proxy to make
@@ -30,15 +34,28 @@ import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 @Internal
 public class KinesisProxyV2 implements KinesisProxyV2Interface {
 
+	/** An Asynchronous client used to communicate with AWS services. */
 	private final KinesisAsyncClient kinesisAsyncClient;
 
 	/**
-	 * Create a new KinesisProxyV2 based on the supplied configuration properties.
+	 * Create a new KinesisProxyV2 using the provided Async Client.
 	 *
 	 * @param kinesisAsyncClient the kinesis async client used to communicate with Kinesis
 	 */
 	public KinesisProxyV2(final KinesisAsyncClient kinesisAsyncClient) {
 		this.kinesisAsyncClient = Preconditions.checkNotNull(kinesisAsyncClient);
+	}
+
+	@Override
+	public CompletableFuture<Void> subscribeToShard(
+			final SubscribeToShardRequest request,
+			final SubscribeToShardResponseHandler responseHandler) {
+		return kinesisAsyncClient.subscribeToShard(request, responseHandler);
+	}
+
+	@Override
+	public void close() {
+		kinesisAsyncClient.close();
 	}
 
 }
