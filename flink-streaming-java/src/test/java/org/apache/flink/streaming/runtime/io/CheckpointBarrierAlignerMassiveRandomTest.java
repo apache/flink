@@ -26,8 +26,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
@@ -130,7 +130,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 	}
 
-	private static class RandomGeneratingInputGate extends InputGate {
+	private static class RandomGeneratingInputGate extends IndexedInputGate {
 
 		private final int numberOfChannels;
 		private final BufferPool[] bufferPools;
@@ -239,6 +239,11 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 
 		@Override
 		public void close() {
+		}
+
+		@Override
+		public int getGateIndex() {
+			return 0;
 		}
 	}
 }

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -73,13 +74,13 @@ public class InputProcessorUtil {
 			MailboxExecutor mailboxExecutor,
 			List<IndexedInputGate>... inputGates) {
 
-		IndexedInputGate[] sortedInputGates = Arrays.stream(inputGates)
+		CheckpointableInput[] sortedInputs = Arrays.stream(inputGates)
 			.flatMap(Collection::stream)
 			.sorted(Comparator.comparing(IndexedInputGate::getGateIndex))
-			.toArray(IndexedInputGate[]::new);
+			.toArray(CheckpointableInput[]::new);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			config,
-			sortedInputGates,
+			sortedInputs,
 			checkpointCoordinator,
 			taskName,
 			toNotifyOnCheckpoint);
@@ -96,7 +97,7 @@ public class InputProcessorUtil {
 
 	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
 			StreamConfig config,
-			InputGate[] inputGates,
+			CheckpointableInput[] inputs,
 			SubtaskCheckpointCoordinator checkpointCoordinator,
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
@@ -104,17 +105,17 @@ public class InputProcessorUtil {
 			case EXACTLY_ONCE:
 				if (config.isUnalignedCheckpointsEnabled()) {
 					return new AlternatingCheckpointBarrierHandler(
-						new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputGates),
-						new CheckpointBarrierUnaligner(checkpointCoordinator, taskName, toNotifyOnCheckpoint, inputGates),
+						new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputs),
+						new CheckpointBarrierUnaligner(checkpointCoordinator, taskName, toNotifyOnCheckpoint, inputs),
 						toNotifyOnCheckpoint);
 				}
-				return new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputGates);
+				return new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputs);
 			case AT_LEAST_ONCE:
 				if (config.isUnalignedCheckpointsEnabled()) {
 					throw new IllegalStateException("Cannot use unaligned checkpoints with AT_LEAST_ONCE " +
 						"checkpointing mode");
 				}
-				int numInputChannels = Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum();
+				int numInputChannels = Arrays.stream(inputs).mapToInt(CheckpointableInput::getNumberOfInputChannels).sum();
 				return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint);
 			default:
 				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
