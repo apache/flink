@@ -23,7 +23,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_group_by(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by("c").select("a.sum, c as b")
+        result = t.group_by(t.c).select(t.a.sum, t.c.alias('b'))
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
         self.assertEqual("[c]", query_operation.getGroupingExpressions().toString())
         self.assertEqual("[as(sum(a), 'EXPR$0')]",

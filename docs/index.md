@@ -37,7 +37,7 @@ If you’re interested in playing around with Flink, try one of our tutorials:
 * [Local Installation]({% link try-flink/local_installation.md %})
 * [Fraud Detection with the DataStream API]({% link try-flink/datastream_api.md %})
 * [Real Time Reporting with the Table API]({% link try-flink/table_api.md %})
-* [Intro to the Python Table API]({% link try-flink/python_table_api.md %})
+* [Intro to the Python Table API]({% link try-flink/python_api.md %})
 * [Flink Operations Playground]({% link try-flink/flink-operations-playground.md %})
 
 ### Learn Flink

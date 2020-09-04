@@ -27,7 +27,6 @@ import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -382,10 +381,6 @@ public class HiveCatalog extends AbstractCatalog {
 			throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
 		checkNotNull(tablePath, "tablePath cannot be null");
 		checkNotNull(table, "table cannot be null");
-
-		if (Boolean.parseBoolean(table.getOptions().get("transactional"))) {
-			throw new ValidationException(String.format("Cannot read and write on a ACID table %s.", tablePath.getFullName()));
-		}
 
 		if (!databaseExists(tablePath.getDatabaseName())) {
 			throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());

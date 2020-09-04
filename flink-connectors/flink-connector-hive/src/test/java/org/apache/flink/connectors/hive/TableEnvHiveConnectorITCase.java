@@ -574,6 +574,41 @@ public class TableEnvHiveConnectorITCase {
 		testCompressTextTable(false);
 	}
 
+	private void testTransactionalTable(boolean batch) {
+		TableEnvironment tableEnv = batch ?
+			getTableEnvWithHiveCatalog() :
+			getStreamTableEnvWithHiveCatalog();
+		tableEnv.executeSql("create database db1");
+		try {
+			tableEnv.executeSql("create table db1.src (x string,y string)");
+			hiveShell.execute("create table db1.dest (x string,y string) clustered by (x) into 3 buckets stored as orc tblproperties ('transactional'='true')");
+			try {
+				TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.src select * from db1.dest");
+			} catch (Exception e) {
+				assertTrue(e instanceof FlinkHiveException);
+				assertEquals("Reading or writing ACID table db1.dest is not supported.", e.getMessage());
+			}
+			try {
+				TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
+			} catch (Exception e) {
+				assertTrue(e instanceof FlinkHiveException);
+				assertEquals("Reading or writing ACID table db1.dest is not supported.", e.getMessage());
+			}
+		} finally {
+			tableEnv.executeSql("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testBatchTransactionalTable() {
+		testTransactionalTable(true);
+	}
+
+	@Test
+	public void testStreamTransactionalTable() {
+		testTransactionalTable(false);
+	}
+
 	@Test
 	public void testRegexSerDe() throws Exception {
 		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();

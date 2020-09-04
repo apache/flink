@@ -18,6 +18,7 @@
 
 from py4j.protocol import Py4JJavaError
 
+from pyflink.table import expressions as expr
 from pyflink.table.window import Session, Slide, Tumble, Over
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
@@ -28,8 +29,12 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
         t_env = self.t_env
         t = t_env.from_elements([(1, 1, "Hello")], ['a', 'b', 'c'])
 
-        result = t.over_window(Over.partition_by("c").order_by("a")
-                               .preceding("2.rows").following("current_row").alias("w"))
+        result = t.over_window(
+            Over.partition_by("c")
+                .order_by("a")
+                .preceding(expr.row_interval(2))
+                .following(expr.CURRENT_ROW)
+                .alias("w"))
 
         self.assertRaisesRegex(
             Py4JJavaError, "Ordering must be defined on a time attribute",
@@ -40,8 +45,8 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
 
     def test_tumble_window(self):
         t = self.t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Tumble.over("2.rows").on("a").alias("w"))\
-            .group_by("w, c").select("b.sum")
+        result = t.window(Tumble.over(expr.row_interval(2)).on("a").alias("w"))\
+            .group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
         self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
@@ -50,8 +55,8 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
 
     def test_slide_window(self):
         t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Slide.over("2.seconds").every("1.seconds").on("a").alias("w"))\
-            .group_by("w, c").select("b.sum")
+        result = t.window(Slide.over(expr.lit(2).seconds).every(expr.lit(1).seconds).on("a")
+                          .alias("w")).group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
         self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
@@ -60,8 +65,8 @@ class BatchTableWindowTests(PyFlinkBatchTableTestCase):
 
     def test_session_window(self):
         t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
-        result = t.window(Session.with_gap("1.seconds").on("a").alias("w"))\
-            .group_by("w, c").select("b.sum")
+        result = t.window(Session.with_gap(expr.lit(1).seconds).on("a").alias("w"))\
+            .group_by(expr.col('w'), expr.col('c')).select(t.b.sum)
 
         query_operation = result._j_table.getQueryOperation().getChildren().get(0)
         self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())

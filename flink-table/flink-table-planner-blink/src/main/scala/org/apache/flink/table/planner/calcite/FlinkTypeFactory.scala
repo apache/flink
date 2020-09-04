@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.calcite
 
 import java.nio.charset.Charset
 import java.util
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.RelNode
@@ -29,7 +30,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, MapSqlType, SqlTypeName}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
-import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
@@ -96,8 +97,13 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
         createSqlType(VARBINARY, t.asInstanceOf[VarBinaryType].getLength)
 
       case LogicalTypeRoot.DECIMAL =>
-        val decimalType = t.asInstanceOf[DecimalType]
-        createSqlType(DECIMAL, decimalType.getPrecision, decimalType.getScale)
+        t match {
+          case decimalType: DecimalType =>
+            createSqlType(DECIMAL, decimalType.getPrecision, decimalType.getScale)
+          case legacyType: LegacyTypeInformationType[_]
+              if legacyType.getTypeInformation == BasicTypeInfo.BIG_DEC_TYPE_INFO =>
+            createSqlType(DECIMAL, 38, 18)
+        }
 
       case LogicalTypeRoot.ROW =>
         val rowType = t.asInstanceOf[RowType]

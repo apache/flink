@@ -211,7 +211,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		this.configProps = checkNotNull(configProps, "configProps can not be null");
 
 		// check the configuration properties for any conflicting settings
-		KinesisConfigUtil.validateConsumerConfiguration(this.configProps);
+		KinesisConfigUtil.validateConsumerConfiguration(this.configProps, streams);
 
 		checkNotNull(deserializer, "deserializer can not be null");
 		checkArgument(
