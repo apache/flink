@@ -1,5 +1,5 @@
 ---
-title: "Python API Tutorial"
+title: "Python API 教程"
 nav-title: Python API
 nav-parent_id: try-flink
 nav-pos: 4
@@ -26,6 +26,11 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## Python Table API tutorial
 
-You can refer to the [Python Table API Tutorial]({% link dev/python/table_api_tutorial.md %}) Docs for more details.
+## Python Table API 教程
+
+详细信息请参考 [Python Table API 教程]({% link dev/python/table_api_tutorial.zh.md %})文档
+
+## Python DataStream API 教程
+
+详细信息请参考 [Python DataStream API 教程]({% link dev/python/datastream_tutorial.zh.md %})文档
