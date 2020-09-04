@@ -20,10 +20,9 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit
-from pyflink.table.types import _to_java_data_type, DataType
-from pyflink.table.udf import UserDefinedFunctionWrapper
-from pyflink.util.utils import to_jarray
-
+from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
+from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
+from pyflink.util.utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW',
            'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
@@ -538,9 +537,40 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     :param args: parameters of the user-defined function.
     """
     gateway = get_gateway()
-    return Expression(gateway.jvm.Expressions.call(
-        f if isinstance(f, str) else f.java_user_defined_function(),
-        to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])))
+
+    if isinstance(f, str):
+        return Expression(gateway.jvm.Expressions.call(
+            f, to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])))
+
+    def get_function_definition(f):
+        if isinstance(f, UserDefinedTableFunctionWrapper):
+            """
+            TypeInference was not supported for TableFunction in the old planner. Use
+            TableFunctionDefinition to work around this issue.
+            """
+            j_result_types = to_jarray(gateway.jvm.TypeInformation,
+                                       [_to_java_type(i) for i in f._result_types])
+            j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
+                j_result_types)
+            return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
+                'f', f.java_user_defined_function(), j_result_type)
+        else:
+            return f.java_user_defined_function()
+
+    expressions_clz = load_java_class("org.apache.flink.table.api.Expressions")
+    function_definition_clz = load_java_class('org.apache.flink.table.functions.FunctionDefinition')
+    j_object_array_type = to_jarray(gateway.jvm.Object, []).getClass()
+
+    api_call_method = expressions_clz.getDeclaredMethod(
+        "apiCall",
+        to_jarray(gateway.jvm.Class, [function_definition_clz, j_object_array_type]))
+    api_call_method.setAccessible(True)
+
+    return Expression(api_call_method.invoke(
+        None,
+        to_jarray(gateway.jvm.Object,
+                  [get_function_definition(f),
+                   to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
 
 
 _add_version_doc()
