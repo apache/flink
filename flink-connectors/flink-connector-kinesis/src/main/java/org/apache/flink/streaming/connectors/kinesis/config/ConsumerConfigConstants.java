@@ -24,6 +24,8 @@ import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumbe
 
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 
+import java.time.Duration;
+
 /**
  * Optional consumer specific configuration keys and default values for {@link FlinkKinesisConsumer}.
  */
@@ -143,6 +145,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The maximum number of registerStream attempts if we get a recoverable exception. */
 	public static final String REGISTER_STREAM_RETRIES = "flink.stream.registerstreamconsumer.maxretries";
 
+	/** The maximum time in seconds to wait for a stream consumer to become active before giving up. */
+	public static final String REGISTER_STREAM_TIMEOUT_SECONDS = "flink.stream.registerstreamconsumer.timeout";
+
 	/** The base backoff time between each registerStream attempt. */
 	public static final String REGISTER_STREAM_BACKOFF_BASE = "flink.stream.registerstreamconsumer.backoff.base";
 
@@ -154,6 +159,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/** The maximum number of deregisterStream attempts if we get a recoverable exception. */
 	public static final String DEREGISTER_STREAM_RETRIES = "flink.stream.deregisterstreamconsumer.maxretries";
+
+	/** The maximum time in seconds to wait for a stream consumer to deregister before giving up. */
+	public static final String DEREGISTER_STREAM_TIMEOUT_SECONDS = "flink.stream.deregisterstreamconsumer.timeout";
 
 	/** The base backoff time between each deregisterStream attempt. */
 	public static final String DEREGISTER_STREAM_BACKOFF_BASE = "flink.stream.deregisterstreamconsumer.backoff.base";
@@ -260,17 +268,21 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final int DEFAULT_REGISTER_STREAM_RETRIES = 10;
 
-	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_BASE = 200L;
+	public static final Duration DEFAULT_REGISTER_STREAM_TIMEOUT = Duration.ofSeconds(60);
 
-	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_MAX = 1000L;
+	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_BASE = 500L;
+
+	public static final long DEFAULT_REGISTER_STREAM_BACKOFF_MAX = 2000L;
 
 	public static final double DEFAULT_REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_DEREGISTER_STREAM_RETRIES = 10;
 
-	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE = 200L;
+	public static final Duration DEFAULT_DEREGISTER_STREAM_TIMEOUT = Duration.ofSeconds(60);
 
-	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX = 1000L;
+	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_BASE = 500L;
+
+	public static final long DEFAULT_DEREGISTER_STREAM_BACKOFF_MAX = 2000L;
 
 	public static final double DEFAULT_DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 

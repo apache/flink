@@ -206,6 +206,9 @@ public class KinesisConfigUtil {
 		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.REGISTER_STREAM_RETRIES,
 			"Invalid value given for maximum retry attempts for register stream operation. Must be a valid non-negative integer value.");
 
+		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS,
+			"Invalid value given for maximum timeout for register stream consumer. Must be a valid non-negative integer value.");
+
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX,
 			"Invalid value given for register stream operation max backoff milliseconds. Must be a valid non-negative long value.");
 
@@ -217,6 +220,9 @@ public class KinesisConfigUtil {
 
 		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES,
 			"Invalid value given for maximum retry attempts for deregister stream operation. Must be a valid non-negative integer value.");
+
+		validateOptionalPositiveIntProperty(config, ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS,
+			"Invalid value given for maximum timeout for deregister stream consumer. Must be a valid non-negative integer value.");
 
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE,
 			"Invalid value given for deregister stream operation base backoff milliseconds. Must be a valid non-negative long value.");

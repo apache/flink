@@ -703,6 +703,17 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
+	public void testUnparsableIntForRegisterStreamTimeoutInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum timeout for register stream consumer. Must be a valid non-negative integer value.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
 	public void testUnparsableLongForRegisterStreamBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for register stream operation base backoff milliseconds");
@@ -742,6 +753,17 @@ public class KinesisConfigUtilTest {
 
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForDeRegisterStreamTimeoutInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum timeout for deregister stream consumer. Must be a valid non-negative integer value.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
