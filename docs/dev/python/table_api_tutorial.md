@@ -22,16 +22,40 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This walkthrough will quickly get you started building a pure Python Flink project.
-
-Please refer to the Python Table API [installation guide]({% link dev/python/installation.md %}) on how to set up the Python execution environments.
+Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results. The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
 
 * This will be replaced by the TOC
 {:toc}
 
-## Setting up a Python Project
+## What Will You Be Building? 
 
-You can begin by creating a Python project and installing the PyFlink package following the [installation guide]({% link dev/python/installation.md %}#installation-of-pyflink).
+In this tutorial, you will learn how to build a pure Python Flink Table API project.
+The pipeline will read data from an input csv file and write the results to an output csv file.
+
+## Prerequisites
+
+This walkthrough assumes that you have some familiarity with Python, but you should be able to follow along even if you come from a different programming language.
+It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
+
+## Help, I’m Stuck! 
+
+If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
+In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
+
+## How To Follow Along
+
+If you want to follow along, you will require a computer with: 
+
+* Java 8 or 11
+* Python 3.5, 3.6 or 3.7
+
+Using Python Table API requires installing PyFlink, which is available on [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`. 
+
+{% highlight bash %}
+$ python -m pip install apache-flink
+{% endhighlight %}
+
+Once PyFlink is installed, you can move on to write a Python Table API job.
 
 ## Writing a Flink Python Table API Program
 

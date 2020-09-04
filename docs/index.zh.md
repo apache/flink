@@ -37,7 +37,7 @@ Apache Flink 是一个在无界和有界数据流上进行状态计算的框架�
 * [Local Installation]({% link try-flink/local_installation.zh.md %})
 * [DataStream API 进行欺诈检测]({% link try-flink/datastream_api.zh.md %})
 * [Table API 构建实时报表]({% link try-flink/table_api.zh.md %})
-* [Python API 教程]({% link try-flink/python_table_api.zh.md %})
+* [Python API 教程]({% link try-flink/python_api.zh.md %})
 * [Flink 游乐场]({% link try-flink/flink-operations-playground.zh.md %})
 
 ### 学习 Flink
