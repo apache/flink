@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonStatele
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
 import java.util.LinkedList;
 import java.util.List;

@@ -40,6 +40,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -100,7 +102,7 @@ public abstract class BeamPythonStatelessFunctionRunner extends BeamPythonFuncti
 						.setSpec(RunnerApi.FunctionSpec.newBuilder()
 							.setUrn(functionUrn)
 							.setPayload(
-								org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(
+								org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
 									getUserDefinedFunctionsProtoBytes()))
 							.build())
 						.putInputs(MAIN_INPUT_NAME, INPUT_ID)
@@ -137,18 +139,28 @@ public abstract class BeamPythonStatelessFunctionRunner extends BeamPythonFuncti
 			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
-	private RunnerApi.WireCoderSetting createValueOnlyWireCoderSetting() throws IOException {
+	private Collection<RunnerApi.ExecutableStagePayload.WireCoderSetting> createValueOnlyWireCoderSetting() throws IOException {
 		WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
 		Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
 		WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
 			WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), windowCoder);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		windowedValueCoder.encode(value, baos);
-		return RunnerApi.WireCoderSetting.newBuilder()
-			.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
-			.setPayload(
-				org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
-			.build();
+
+		return Arrays.asList(
+			RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
+				.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+				.setPayload(
+					org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
+				.setInputOrOutputId(INPUT_ID)
+				.build(),
+			RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
+				.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+				.setPayload(
+					org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
+				.setInputOrOutputId(OUTPUT_ID)
+				.build()
+		);
 	}
 
 	protected abstract byte[] getUserDefinedFunctionsProtoBytes();

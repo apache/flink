@@ -44,7 +44,8 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -227,7 +228,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			remoteBundle = stageBundleFactory.getBundle(createOutputReceiverFactory(), stateRequestHandler, progressHandler);
 			mainInputReceiver =
 				Preconditions.checkNotNull(
-					remoteBundle.getInputReceivers().get(MAIN_INPUT_ID),
+					Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()),
 					"Failed to retrieve main input receiver.");
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start remote bundle", t);
