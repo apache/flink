@@ -184,6 +184,10 @@ class UserDefinedFunctionWrapper(object):
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
 
+    def __call__(self, *args):
+        from pyflink.table import expressions as expr
+        return expr.call(self, *args)
+
     def java_user_defined_function(self):
         pass
 
