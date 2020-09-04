@@ -121,9 +121,9 @@ final class SortOperationFactory {
 			previousSort = (SortQueryOperation) createSort(Collections.emptyList(), child, postResolverFactory);
 		}
 
-//		if ((previousSort).getFetch() != -1) {
-//			throw new ValidationException("FETCH is already defined.");
-//		}
+		if ((previousSort).getFetch() != -1) {
+			throw new ValidationException("FETCH is already defined.");
+		}
 
 		return previousSort;
 	}
