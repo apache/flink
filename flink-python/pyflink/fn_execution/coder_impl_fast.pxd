@@ -123,12 +123,13 @@ cdef enum TypeName:
     BOOLEAN = 11
     BINARY = 12
     CHAR = 13
-    ARRAY = 14
+    BASIC_ARRAY = 14
     MAP = 15
     LOCAL_ZONED_TIMESTAMP = 16
     PICKLED_BYTES = 17
     BIG_DEC = 18
     TUPLE = 19
+    PRIMITIVE_ARRAY = 20
 
 cdef class FieldCoder:
     cpdef CoderType coder_type(self)
@@ -183,7 +184,10 @@ cdef class TimestampCoderImpl(FieldCoder):
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef readonly object timezone
 
-cdef class ArrayCoderImpl(FieldCoder):
+cdef class BasicArrayCoderImpl(FieldCoder):
+    cdef readonly FieldCoder elem_coder
+
+cdef class PrimitiveArrayCoderImpl(FieldCoder):
     cdef readonly FieldCoder elem_coder
 
 cdef class MapCoderImpl(FieldCoder):

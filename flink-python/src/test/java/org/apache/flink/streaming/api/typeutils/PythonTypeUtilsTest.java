@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.typeutils;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,6 +29,7 @@ import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.CharSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
@@ -78,8 +80,14 @@ public class PythonTypeUtilsTest {
 		TypeInformation primitiveIntegerArrayTypeInfo = PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO;
 		FlinkFnApi.TypeInfo.FieldType convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter
 			.getFieldType(primitiveIntegerArrayTypeInfo);
-		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.ARRAY);
+		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY);
 		assertEquals(convertedFieldType.getCollectionElementType().getTypeName(), FlinkFnApi.TypeInfo.TypeName.INT);
+
+		TypeInformation basicIntegerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
+		FlinkFnApi.TypeInfo.FieldType convertedBasicFieldType = PythonTypeUtils.TypeInfoToProtoConverter
+			.getFieldType(basicIntegerArrayTypeInfo);
+		assertEquals(convertedBasicFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.BASIC_ARRAY);
+		assertEquals(convertedBasicFieldType.getCollectionElementType().getTypeName(), FlinkFnApi.TypeInfo.TypeName.INT);
 
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
 		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.getFieldType(rowTypeInfo);
@@ -120,6 +128,11 @@ public class PythonTypeUtilsTest {
 		TypeSerializer convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(primitiveIntegerArrayTypeInfo);
 		assertEquals(convertedTypeSerializer, IntPrimitiveArraySerializer.INSTANCE);
+
+		TypeInformation integerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
+		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(integerArrayTypeInfo);
+		assertEquals(convertedTypeSerializer, new GenericArraySerializer(Integer.class, IntSerializer.INSTANCE));
 
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
 		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter

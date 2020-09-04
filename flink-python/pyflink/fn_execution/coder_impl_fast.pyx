@@ -80,7 +80,7 @@ cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
         output_stream.write(self._tmp_output_data, self._tmp_output_pos)
         self._tmp_output_pos = 0
 
-    cpdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
+    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
                         item):
         if coder_type == SIMPLE:
             self._encode_field_simple(field_type, item)
@@ -89,7 +89,7 @@ cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
             self._encode_field_complex(field_type, field_coder, item)
             self._encode_data_stream_field_complex(field_type, field_coder, item)
 
-    cpdef object _decode_field(self, CoderType coder_type, TypeName field_type,
+    cdef object _decode_field(self, CoderType coder_type, TypeName field_type,
                         FieldCoder field_coder):
         if coder_type == SIMPLE:
             decoded_obj = self._decode_field_simple(field_type)
@@ -339,15 +339,23 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                                      milliseconds % 1000 * 1000 + nanoseconds // 1000)
             return (<LocalZonedTimestampCoderImpl> field_coder).timezone.localize(
                 datetime.datetime.utcfromtimestamp(seconds).replace(microsecond=microseconds))
-        elif field_type == ARRAY:
-            # Array
+        elif field_type == BASIC_ARRAY:
+            # Basic Array
             length = self._decode_int()
-            value_coder = (<ArrayCoderImpl> field_coder).elem_coder
+            value_coder = (<BasicArrayCoderImpl> field_coder).elem_coder
             value_type = value_coder.type_name()
             value_coder_type = value_coder.coder_type()
             return [
                 self._decode_field(value_coder_type, value_type, value_coder) if self._decode_byte()
                 else None for _ in range(length)]
+        elif field_type == PRIMITIVE_ARRAY:
+            # Primitive Array
+            length = self._decode_int()
+            value_coder = (<PrimitiveArrayCoderImpl> field_coder).elem_coder
+            value_type = value_coder.type_name()
+            value_coder_type = value_coder.coder_type()
+            return [self._decode_field(value_coder_type, value_type, value_coder)
+                    for _ in range(length)]
         elif field_type == MAP:
             # Map
             key_coder = (<MapCoderImpl> field_coder).key_coder
@@ -510,10 +518,10 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             else:
                 self._encode_bigint(timestamp_milliseconds)
                 self._encode_int(nanoseconds)
-        elif field_type == ARRAY:
-            # Array
+        elif field_type == BASIC_ARRAY:
+            # Basic Array
             length = len(item)
-            value_coder = (<ArrayCoderImpl> field_coder).elem_coder
+            value_coder = (<BasicArrayCoderImpl> field_coder).elem_coder
             value_type = value_coder.type_name()
             value_coder_type = value_coder.coder_type()
             self._encode_int(length)
@@ -524,6 +532,16 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                 else:
                     self._encode_byte(True)
                     self._encode_field(value_coder_type, value_type, value_coder, value)
+        elif field_type == PRIMITIVE_ARRAY:
+            # Primitive Array
+            length = len(item)
+            value_coder = (<PrimitiveArrayCoderImpl> field_coder).elem_coder
+            value_type = value_coder.type_name()
+            value_coder_type = value_coder.coder_type()
+            self._encode_int(length)
+            for i in range(length):
+                value = item[i]
+                self._encode_field(value_coder_type, value_type, value_coder, value)
         elif field_type == MAP:
             # Map
             length = len(item)
@@ -771,7 +789,7 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cpdef TypeName type_name(self):
         return LOCAL_ZONED_TIMESTAMP
 
-cdef class ArrayCoderImpl(FieldCoder):
+cdef class BasicArrayCoderImpl(FieldCoder):
     def __cinit__(self, elem_coder):
         self.elem_coder = elem_coder
 
@@ -779,7 +797,17 @@ cdef class ArrayCoderImpl(FieldCoder):
         return COMPLEX
 
     cpdef TypeName type_name(self):
-        return ARRAY
+        return BASIC_ARRAY
+
+cdef class PrimitiveArrayCoderImpl(FieldCoder):
+    def __cinit__(self, elem_coder):
+        self.elem_coder = elem_coder
+
+    cpdef CoderType coder_type(self):
+        return COMPLEX
+
+    cpdef TypeName type_name(self):
+        return PRIMITIVE_ARRAY
 
 cdef class MapCoderImpl(FieldCoder):
     def __cinit__(self, key_coder, value_coder):
