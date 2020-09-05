@@ -40,6 +40,8 @@ The following example shows how to define your own Python hash code function, re
 Note that you can configure your scalar function via a constructor before it is registered:
 
 {% highlight python %}
+from pyflink.table.expressions import call 
+
 class HashCode(ScalarFunction):
   def __init__(self):
     self.factor = 12
@@ -52,13 +54,13 @@ table_env = BatchTableEnvironment.create(env)
 # configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# register the Python function
-table_env.register_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # use the Python function in Python Table API
-my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
+my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
 
 # use the Python function in SQL API
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
@@ -81,6 +83,7 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
+from pyflink.table.expressions import call
 
 table_env = BatchTableEnvironment.create(env)
 
@@ -88,10 +91,10 @@ table_env = BatchTableEnvironment.create(env)
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Java function
-table_env.register_java_function("hash_code", "my.java.function.HashCode")
+table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # use the Java function in Python Table API
-my_table.select("string.hash_code(), hash_code(string)")
+my_table.select(call('hash_code', my_table.string))
 
 # use the Java function in SQL API
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
@@ -135,9 +138,12 @@ def partial_add(i, j, k):
 add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 
 # register the Python function
-table_env.register_function("add", add)
+table_env.create_temporary_function("add", add)
 # use the function in Python Table API
 my_table.select("add(a, b)")
+
+# You can also use the Python function in Python Table API directly
+my_table.select(add(my_table.a, my_table.b))
 {% endhighlight %}
 
 ## Table Functions
@@ -163,13 +169,14 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # register the Python Table Function
-table_env.register_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # use the Python Table Function in Python Table API
-my_table.join_lateral("split(a) as (word, length)")
-my_table.left_outer_join_lateral("split(a) as (word, length)")
+my_table.join_lateral(split(my_table.a).alias("word, length"))
+my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
 
 # use the Python Table function in SQL API
+table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
@@ -197,6 +204,7 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
+from pyflink.table.expressions import call
 
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
@@ -206,11 +214,11 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # Register the java function.
-table_env.register_java_function("split", "my.java.function.Split")
+table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# Use the table function in the Python Table API. "as" specifies the field names of the table.
-my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
-my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
+# Use the table function in the Python Table API. "alias" specifies the field names of the table.
+my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
 # Register the python function.
 
@@ -246,9 +254,4 @@ def iterator_func(x):
 def iterable_func(x):
       result = [1, 2, 3]
       return result
-
-table_env.register_function("iterable_func", iterable_func)
-table_env.register_function("iterator_func", iterator_func)
-table_env.register_function("generator_func", generator_func)
-
 {% endhighlight %}

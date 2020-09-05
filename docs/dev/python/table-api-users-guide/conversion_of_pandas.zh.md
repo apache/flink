@@ -71,7 +71,7 @@ import numpy as np
 
 # 创建PyFlink Table
 pdf = pd.DataFrame(np.random.rand(1000, 2))
-table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
+table = t_env.from_pandas(pdf, ["a", "b"]).filter(col('a') > 0.5)
 
 # 转换PyFlink Table为Pandas DataFrame
 pdf = table.to_pandas()

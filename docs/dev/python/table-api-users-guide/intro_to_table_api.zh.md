@@ -70,7 +70,7 @@ source_table = table_env.from_path("datagen")
 # or create a Table from a SQL query:
 source_table = table_env.sql_query("SELECT * FROM datagen")
 
-result_table = source_table.select("id + 1, data")
+result_table = source_table.select(source_table.id + 1, source_table.data)
 
 # 5. emit query result to sink table
 # emit a Table API result Table to a sink table:
@@ -305,10 +305,10 @@ orders = table_env.from_elements([('Jack', 'FRANCE', 10), ('Rose', 'ENGLAND', 30
 
 # compute revenue for all customers from France
 revenue = orders \
-    .select("name, country, revenue") \
-    .where("country === 'FRANCE'") \
-    .group_by("name") \
-    .select("name, revenue.sum AS rev_sum")
+    .select(orders.name, orders.country, orders.revenue) \
+    .where(orders.country == 'FRANCE') \
+    .group_by(orders.name) \
+    .select(orders.name, orders.revenue.sum.alias('rev_sum'))
     
 revenue.to_pandas()
 
@@ -614,7 +614,7 @@ table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 table1 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table2 = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table = table1 \
-    .where("LIKE(data, 'H%')") \
+    .where(table1.data.like('H%')) \
     .union_all(table2)
 print(table.explain())
 
@@ -687,7 +687,7 @@ table_env.execute_sql("""
 
 statement_set = table_env.create_statement_set()
 
-statement_set.add_insert("print_sink_table", table1.where("LIKE(data, 'H%')"))
+statement_set.add_insert("print_sink_table", table1.where(table1.data.like('H%')))
 statement_set.add_insert("black_hole_sink_table", table2)
 
 print(statement_set.explain())
