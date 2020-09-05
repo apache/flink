@@ -67,6 +67,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -92,17 +93,17 @@ public class ExecutionContextTest {
 		Configuration conf = tableConfig.getConfiguration();
 
 		assertEquals(1, conf.getInteger(CoreOptions.DEFAULT_PARALLELISM));
-		assertEquals(16, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
+		assertEquals(128, conf.getInteger(PipelineOptions.MAX_PARALLELISM));
 
 		assertEquals(TimeCharacteristic.EventTime, conf.get(StreamPipelineOptions.TIME_CHARACTERISTIC));
-		assertEquals(Duration.ofMillis(99), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
+		assertEquals(Duration.ofMillis(200), conf.get(PipelineOptions.AUTO_WATERMARK_INTERVAL));
 
-		assertEquals("failure-rate", conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
-		assertEquals(10, conf.getInteger(
+		assertNull(conf.getString(RestartStrategyOptions.RESTART_STRATEGY));
+		assertEquals(1, conf.getInteger(
 				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL));
-		assertEquals(Duration.ofMillis(99_000), conf.get(
+		assertEquals(Duration.ofMinutes(1), conf.get(
 				RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL));
-		assertEquals(Duration.ofMillis(1_000), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
+		assertEquals(Duration.ofSeconds(1), conf.get(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY));
 	}
 
 	@Test
