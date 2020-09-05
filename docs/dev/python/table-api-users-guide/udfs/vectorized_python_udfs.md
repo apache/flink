@@ -58,13 +58,11 @@ table_env = BatchTableEnvironment.create(env)
 # configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# register the vectorized Python scalar function
-table_env.register_function("add", add)
-
 # use the vectorized Python scalar function in Python Table API
-my_table.select("add(bigint, bigint)")
+my_table.select(add(my_table.bigint, my_table.bigint))
 
 # use the vectorized Python scalar function in SQL API
+table_env.create_temporary_function("add", add)
 table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 {% endhighlight %}
 
