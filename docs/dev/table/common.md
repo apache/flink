@@ -561,9 +561,9 @@ table_env = # see "Create a TableEnvironment" section
 orders = table_env.from_path("Orders")
 # compute revenue for all customers from France
 revenue = orders \
-    .filter("cCountry === 'FRANCE'") \
-    .group_by("cID, cName") \
-    .select("cID, cName, revenue.sum AS revSum")
+    .filter(orders.cCountry == 'FRANCE') \
+    .group_by(orders.cID, orders.cName) \
+    .select(orders.cID, orders.cName, orders.revenue.sum.alias('revSum'))
 
 # emit or convert Table
 # execute query
@@ -1489,7 +1489,7 @@ t_env = StreamTableEnvironment.create(env)
 table1 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table2 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table = table1 \
-    .where("LIKE(word, 'F%')") \
+    .where(table1.word.like('F%')) \
     .union_all(table2)
 print(table.explain())
 
@@ -1647,7 +1647,7 @@ t_env.connect(FileSystem().path("/sink/path2")))
     
 stmt_set = t_env.create_statement_set()
 
-table1 = t_env.from_path("MySource1").where("LIKE(word, 'F%')")
+table1 = t_env.from_path("MySource1").where(col('word').like('F%'))
 stmt_set.add_insert("MySink1", table1)
 
 table2 = table1.union_all(t_env.from_path("MySource2"))

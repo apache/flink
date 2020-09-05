@@ -39,6 +39,8 @@ Python标量函数的行为由名为`eval`的方法定义，eval方法支持可�
 以下示例显示了如何定义自己的Python哈希函数、如何在TableEnvironment中注册它以及如何在作业中使用它。
 
 {% highlight python %}
+from pyflink.table.expressions import call 
+
 class HashCode(ScalarFunction):
   def __init__(self):
     self.factor = 12
@@ -51,13 +53,13 @@ table_env = BatchTableEnvironment.create(env)
 # Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
-# 注册Python自定义函数
-table_env.register_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
+hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # 在Python Table API中使用Python自定义函数
-my_table.select("string, bigint, bigint.hash_code(), hash_code(bigint)")
+my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), call(hash_code, my_table.bigint))
 
 # 在SQL API中使用Python自定义函数
+table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
 
@@ -80,6 +82,7 @@ public class HashCode extends ScalarFunction {
   }
 }
 '''
+from pyflink.table.expressions import call
 
 table_env = BatchTableEnvironment.create(env)
 
@@ -87,10 +90,10 @@ table_env = BatchTableEnvironment.create(env)
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # 注册Java函数
-table_env.register_java_function("hash_code", "my.java.function.HashCode")
+table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
 # 在Python Table API中使用Java函数
-my_table.select("string.hash_code(), hash_code(string)")
+my_table.select(call('hash_code', my_table.string))
 
 # 在SQL API中使用Java函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
@@ -133,9 +136,12 @@ def partial_add(i, j, k):
 add = udf(functools.partial(partial_add, k=1), result_type=DataTypes.BIGINT())
 
 # 注册Python自定义函数
-table_env.register_function("add", add)
+table_env.create_temporary_function("add", add)
 # 在Python Table API中使用Python自定义函数
 my_table.select("add(a, b)")
+
+# 也可以在Python Table API中直接使用Python自定义函数
+my_table.select(add(my_table.a, my_table.b))
 {% endhighlight %}
 
 ## 表值函数
@@ -158,13 +164,14 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # 注册Python表值函数
-table_env.register_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
+split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
 # 在Python Table API中使用Python表值函数
-my_table.join_lateral("split(a) as (word, length)")
-my_table.left_outer_join_lateral("split(a) as (word, length)")
+my_table.join_lateral(split(my_table.a).alias("word, length"))
+my_table.left_outer_join_lateral(split(my_table.a).alias("word, length"))
 
 # 在SQL API中使用Python表值函数
+table_env.create_temporary_function("split", udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()]))
 table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
@@ -192,6 +199,7 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
     }
 }
 '''
+from pyflink.table.expressions import call
 
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
@@ -201,11 +209,11 @@ my_table = ...  # type: Table, table schema: [a: String]
 table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
 
 # 注册java自定义函数。
-table_env.register_java_function("split", "my.java.function.Split")
+table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# 在Python Table API中使用表值函数。 "as"指定表的字段名称。
-my_table.join_lateral("split(a) as (word, length)").select("a, word, length")
-my_table.left_outer_join_lateral("split(a) as (word, length)").select("a, word, length")
+# 在Python Table API中使用表值函数。 "alias"指定表的字段名称。
+my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
 # 注册python函数。
 
@@ -241,9 +249,4 @@ def iterator_func(x):
 def iterable_func(x):
       result = [1, 2, 3]
       return result
-
-table_env.register_function("iterable_func", iterable_func)
-table_env.register_function("iterator_func", iterator_func)
-table_env.register_function("generator_func", generator_func)
-
 {% endhighlight %}

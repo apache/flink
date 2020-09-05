@@ -518,12 +518,17 @@ class Expression(Generic[T]):
     def sign(self) -> 'Expression[T]':
         """
         Calculates the signum of a given number.
+
+        e.g. `lit(1.23).sign` leads to `1.00`, `lit(-1.23).sign` leads to `-1.00`.
         """
         return _unary_op("sign")(self)
 
     def round(self, places: Union[int, 'Expression[int]']):
         """
         Rounds the given number to integer places right to the decimal point.
+
+        e.g. `lit(646.646).round(2)` leads to `646.65`, `lit(646.646).round(3)` leads to `646.646`,
+        `lit(646.646).round(0)` leads to `647`, `lit(646.646).round(-2)` leads to `600`.
         """
         return _binary_op("round")(self, places)
 
@@ -532,6 +537,10 @@ class Expression(Generic[T]):
         Returns true if the given expression is between lower_bound and upper_bound
         (both inclusive). False otherwise. The parameters must be numeric types or identical
         comparable types.
+
+        e.g. `lit(2.1).between(2.1, 2.1)` leads to `true`,
+        `lit("2018-05-05").to_date.between(lit("2018-05-01").to_date, lit("2018-05-10").to_date)`
+        leads to `true`.
 
         :param lower_bound: numeric or comparable expression
         :param upper_bound: numeric or comparable expression
@@ -545,6 +554,10 @@ class Expression(Generic[T]):
         Returns true if the given expression is not between lower_bound and upper_bound
         (both inclusive). False otherwise. The parameters must be numeric types or identical
         comparable types.
+
+        e.g. `lit(2.1).not_between(2.1, 2.1)` leads to `false`,
+        `lit("2018-05-05").to_date.not_between(lit("2018-05-01").to_date,
+        lit("2018-05-10").to_date)` leads to `false`.
 
         :param lower_bound: numeric or comparable expression
         :param upper_bound: numeric or comparable expression
@@ -894,6 +907,8 @@ class Expression(Generic[T]):
         """
         Returns a new string which replaces all the occurrences of the search target
         with the replacement string (non-overlapping).
+
+        e.g. `lit('This is a test String.').replace(' ', '_')` leads to `This_is_a_test_String.`
         """
         return _ternary_op("replace")(self, search, replacement)
 
@@ -1068,14 +1083,26 @@ class Expression(Generic[T]):
     @property
     def to_date(self) -> 'Expression':
         """
-        Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
+        Parses a date string in the form "yyyy-MM-dd" to a SQL Date. It's equivalent to
+        `col.cast(DataTypes.DATE())`.
+
+        Example:
+        ::
+
+            >>> lit("2016-06-15").to_date
         """
         return _unary_op("toDate")(self)
 
     @property
     def to_time(self) -> 'Expression':
         """
-        Parses a time string in the form "HH:mm:ss" to a SQL Time.
+        Parses a time string in the form "HH:mm:ss" to a SQL Time. It's equivalent to
+        `col.cast(DataTypes.TIME())`.
+
+        Example:
+        ::
+
+            >>> lit("3:30:00").to_time
         """
         return _unary_op("toTime")(self)
 
@@ -1083,6 +1110,12 @@ class Expression(Generic[T]):
     def to_timestamp(self) -> 'Expression':
         """
         Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
+        It's equivalent to `col.cast(DataTypes.TIMESTAMP(3))`.
+
+        Example:
+        ::
+
+            >>> lit('2016-06-15 3:30:00.001').to_timestamp
         """
         return _unary_op("toTimestamp")(self)
 
