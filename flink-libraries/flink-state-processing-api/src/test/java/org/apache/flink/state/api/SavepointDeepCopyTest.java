@@ -192,8 +192,8 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
 			.map(path -> path.getFileName().toString())
 			.collect(Collectors.toSet());
 
-		// check every state file in savepoint1 are also in savepoint2
-		assertThat(stateFiles1, everyItem(isIn(stateFiles2)));
+		assertThat("At least one state file in savepoint1 are not in savepoint2",
+			stateFiles1, everyItem(isIn(stateFiles2)));
 
 		// Try to load savepoint2 and read the state of "Operator1" (which has not been touched/changed when savepoint2
 		// was created) and make sure the number of keys remain same
