@@ -1564,7 +1564,7 @@ public class StreamExecutionEnvironment {
 					ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL + " ms.");
 
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval, readConsistencyOffset);
+			new ContinuousFileMonitoringFunction<>(inputFormat, monitoringMode, getParallelism(), interval, Long.MIN_VALUE, readConsistencyOffset);
 
 		ContinuousFileReaderOperatorFactory<OUT, TimestampedFileInputSplit> factory =
 				new ContinuousFileReaderOperatorFactory<>(inputFormat);

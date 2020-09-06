@@ -102,18 +102,18 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** Which new data to process (see {@link FileProcessingMode}. */
 	private final FileProcessingMode watchType;
 
-	/** The offset interval back from the latest file modification timestamp to scan for our-of-order files.
+	/** The offset interval back from the latest file modification timestamp to scan for out-of-order files.
 	 *  Valid value for this is from 0 to Long.MAX_VALUE.
 	 *
-	 *  <p><b>NOTE: </b>: Files with (modTime > Long.MIN_VALUE + readConsistencyOffset) will NOT be read.
+	 *  <p><b>NOTE: </b>: Files with (modTime < Long.MIN_VALUE + readConsistencyOffset) will NOT be read.
 	 */
 	private final long readConsistencyOffset;
 
 	/** The current modification time watermark. */
-	private volatile long globalModificationTime = Long.MIN_VALUE;
+	private volatile long globalModificationTime;
 
 	/** The maximum file modification time seen so far. */
-	private volatile long maxProcessedTime = Long.MIN_VALUE;
+	private volatile long maxProcessedTime;
 
 	/** The list of processed files having modification time within the period from globalModificationTime
 	 *  to maxProcessedTime in the form of a Map&lt;filePath, lastModificationTime&gt;. */
@@ -132,7 +132,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 		FileProcessingMode watchType,
 		int readerParallelism,
 		long interval) {
-		this(format, watchType, readerParallelism, interval, 0L);
+		this(format, watchType, readerParallelism, interval, Long.MIN_VALUE, 0L);
 	}
 
 	public ContinuousFileMonitoringFunction(
@@ -140,6 +140,16 @@ public class ContinuousFileMonitoringFunction<OUT>
 		FileProcessingMode watchType,
 		int readerParallelism,
 		long interval,
+		long globalModificationTime) {
+		this(format, watchType, readerParallelism, interval, globalModificationTime, 0L);
+	}
+
+	public ContinuousFileMonitoringFunction(
+		FileInputFormat<OUT> format,
+		FileProcessingMode watchType,
+		int readerParallelism,
+		long interval,
+		long globalModificationTime,
 		long readConsistencyOffset) {
 
 		Preconditions.checkArgument(
@@ -166,8 +176,11 @@ public class ContinuousFileMonitoringFunction<OUT>
 		this.watchType = watchType;
 		this.readerParallelism = Math.max(readerParallelism, 1);
 		this.readConsistencyOffset = readConsistencyOffset;
-		this.globalModificationTime = Long.MIN_VALUE;
-		this.maxProcessedTime = Long.MIN_VALUE + this.readConsistencyOffset;
+		this.globalModificationTime = globalModificationTime;
+		if (globalModificationTime < Long.MAX_VALUE - readConsistencyOffset)
+			this.maxProcessedTime = globalModificationTime + readConsistencyOffset;
+		else
+			this.maxProcessedTime = Long.MAX_VALUE;
 		this.processedFiles = new HashMap<>();
 	}
 
@@ -331,7 +344,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 				LOG.info("Forwarding split: " + split);
 				context.collect(split);
 			}
-			// update the global modification time
+			// update the current max processed time
 			maxProcessedTime = Math.max(maxProcessedTime, modificationTime);
 		}
 		// Populate processed files.

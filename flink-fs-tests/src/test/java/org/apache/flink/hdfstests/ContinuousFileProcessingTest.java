@@ -1103,7 +1103,7 @@ public class ContinuousFileProcessingTest {
 	 */
 	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, READ_CONSISTENCY_OFFSET_INTERVAL);
+			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, Long.MIN_VALUE, READ_CONSISTENCY_OFFSET_INTERVAL);
 		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 		return monitoringFunction;
 	}
@@ -1113,7 +1113,7 @@ public class ContinuousFileProcessingTest {
 	 */
 	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode, long readConsistencyOffset) {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, readConsistencyOffset);
+			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, Long.MIN_VALUE, readConsistencyOffset);
 		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 		return monitoringFunction;
 	}

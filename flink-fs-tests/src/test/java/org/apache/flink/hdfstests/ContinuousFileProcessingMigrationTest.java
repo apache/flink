@@ -290,7 +290,7 @@ public class ContinuousFileProcessingMigrationTest {
 		TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL, READ_CONSISTENCY_OFFSET_INTERVAL);
+			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL, Long.MIN_VALUE, READ_CONSISTENCY_OFFSET_INTERVAL);
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
 			new StreamSource<>(monitoringFunction);
