@@ -15,6 +15,7 @@
 # #  See the License for the specific language governing permissions and
 # # limitations under the License.
 ################################################################################
+import datetime
 import glob
 import os
 import pathlib
@@ -35,7 +36,7 @@ from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
-from pyflink.table.types import RowType
+from pyflink.table.types import RowType, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase, \
     PyFlinkBlinkBatchTableTestCase
@@ -453,6 +454,46 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         expected = ["(True, <Row(1, 'Hello')>)", "(False, <Row(1, 'Hello')>)",
                     "(True, <Row(2, 'Hello')>)"]
         self.assertEqual(result, expected)
+
+    def test_collect_for_all_data_types(self):
+
+        def collect_from_source(element_data, expected_output):
+            source = self.t_env.from_elements(element_data, ["a"])
+            result = source.execute().collect()
+            collected_result = []
+            for i in result:
+                collected_result.append(i)
+            self.assertEqual(expected_output, collected_result)
+
+        data_in_different_types = [True, 1, "a", u"a", datetime.date(1970, 1, 1),
+                                   datetime.time(0, 0, 0), 1.0, [1], (1,), {"a": 1}, bytearray(1)]
+        expected_results = [Row([True]), Row([1]), Row(['a']), Row(['a']),
+                            Row([datetime.date(1970, 1, 1)]), Row([datetime.time(0, 0)]),
+                            Row([1.0]), Row([[1]]), Row([Row([1])]), Row([{'a': 1}]),
+                            Row([bytearray(b'\x00')])]
+        zipped_datas = zip(data_in_different_types, expected_results)
+        for data, expected_data in zipped_datas:
+            element_data = [Row(data) for _ in range(2)]
+            expected_output = [expected_data for _ in range(2)]
+            collect_from_source(element_data, expected_output)
+
+    def test_collect_with_retract(self):
+        element_data = [(1, 2, 'a'),
+                        (3, 4, 'b'),
+                        (5, 6, 'a'),
+                        (7, 8, 'b')]
+
+        source = self.t_env.from_elements(element_data, ["a", "b", "c"])
+        result = self.t_env.execute_sql("SELECT SUM(a), c FROM %s group by c" % source).collect()
+        collected_result = []
+        for i in result:
+            collected_result.append(i)
+        # The result contains one delete row and an insert row in retract operation for each key.
+        expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
+                           Row([3, 'b']), Row([10, 'b'])]
+        collected_result.sort()
+        expected_result.sort()
+        self.assertEqual(expected_result, collected_result)
 
     def test_set_jars(self):
         self.verify_set_java_dependencies("pipeline.jars", self.execute_with_t_env)

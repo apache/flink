@@ -2372,10 +2372,6 @@ def to_arrow_type(data_type):
         raise ValueError("field_type %s is not supported." % data_type)
 
 
-def get_data_type_from_java_type(j_java_types):
-    return [_from_java_type(j_java_type) for j_java_type in j_java_types]
-
-
 class DataTypes(object):
     """
     A :class:`DataType` can be used to declare input and/or output types of operations.

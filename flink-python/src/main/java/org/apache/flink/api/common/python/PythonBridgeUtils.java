@@ -36,9 +36,8 @@ import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.sql.Date;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -197,10 +196,10 @@ public final class PythonBridgeUtils {
 				pickledRowBytes.add(new byte[0]);
 			} else {
 				if (dataTypes[i] instanceof DateType) {
-					long time = ((LocalDate) fieldData).toEpochDay();
+					long time = ((Date) fieldData).toLocalDate().toEpochDay();
 					pickledRowBytes.add(pickler.dumps(time));
 				} else if (dataTypes[i] instanceof TimeType) {
-					long time = ((LocalTime) fieldData).toNanoOfDay();
+					long time = ((Time) fieldData).toLocalTime().toNanoOfDay();
 					time = time / 1000;
 					pickledRowBytes.add(pickler.dumps(time));
 				} else if (dataTypes[i] instanceof RowType) {

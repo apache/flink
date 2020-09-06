@@ -158,12 +158,14 @@ class TableResult(object):
         Get the result contents as a closeable row iterator.
 
         :return: A CloseableIterator.
+
+        .. versionadded:: 1.12.0
         """
-        data_types = self._j_table_result.getTableSchema().getFieldDataTypes()
+        field_data_types = self._j_table_result.getTableSchema().getFieldDataTypes()
 
         j_iter = self._j_table_result.collect()
 
-        return CloseableIterator(j_iter, data_types)
+        return CloseableIterator(j_iter, field_data_types)
 
     def print(self):
         """

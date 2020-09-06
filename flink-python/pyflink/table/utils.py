@@ -16,14 +16,11 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, LocalZonedTimestampType
+from pyflink.table.types import DataType, LocalZonedTimestampType, _from_java_type, Row, RowType, \
+    TimeType, DateType, ArrayType, MapType
 from pyflink.util.utils import to_jarray
 import datetime
 import pickle
-
-from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, LocalZonedTimestampType, Row, \
-    get_data_type_from_java_type, RowType, TimeType, DateType, ArrayType, MapType
 
 
 def pandas_to_arrow(schema, timezone, field_types, series):
@@ -88,9 +85,9 @@ class CloseableIterator(object):
     """
     Representing an Iterator that is also auto closeable.
     """
-    def __init__(self, j_closeable_iterator, result_types):
+    def __init__(self, j_closeable_iterator, field_data_types):
         self._j_closeable_iterator = j_closeable_iterator
-        self._j_result_types = result_types
+        self._j_field_data_types = field_data_types
 
     def __iter__(self):
         return self
@@ -101,9 +98,10 @@ class CloseableIterator(object):
         gateway = get_gateway()
         pickle_bytes = gateway.jvm.PythonBridgeUtils. \
             getPickledBytesFromRow(self._j_closeable_iterator.next(),
-                                   self._j_result_types)
+                                   self._j_field_data_types)
         pickle_bytes = list(pickle_bytes)
-        data_types = get_data_type_from_java_type(self._j_result_types)
+        data_types = [_from_java_type(j_field_data_type)
+                      for j_field_data_type in self._j_field_data_types]
         field_data = zip(pickle_bytes, data_types)
         fields = []
         for data, field_type in field_data:
