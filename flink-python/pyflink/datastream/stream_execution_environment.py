@@ -553,44 +553,38 @@ class StreamExecutionEnvironment(object):
             .getEnvironmentConfig(self._j_stream_execution_environment)
         env_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
-    def add_jars(self, *jars_path: List[str]):
+    def add_jars(self, *jars_path: str):
         """
         Adds a list of jar files that will be uploaded to the cluster and referenced by the job.
 
-        :param jars_path: Path of jars that delimited by ';'.
+        :param jars_path: Path of jars.
         """
         add_jars_to_context_class_loader(*jars_path)
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
-        set_jar_paths = env_config.getString(jars_key, None)
-        if set_jar_paths is None:
-            set_jar_paths = ''
+        set_jar_paths = env_config.getString(jars_key, '')
         jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join(*jars_path)
-        python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([set_jar_paths,
-                                                                      jars_path])
-        env_config.setString(jars_key, python_files)
+        jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join([set_jar_paths, jars_path])
+        env_config.setString(jars_key, jars_path)
 
-    def add_classpaths(self, *classpaths: List[str]):
+    def add_classpaths(self, *classpaths: str):
         """
         Adds a list of URLs that are added to the classpath of each user code classloader of the
         program. Paths must specify a protocol (e.g. file://) and be accessible on all nodes
 
-        :param classpaths: Classpaths that delimited by ';'.
+        :param classpaths: Classpaths that will be added.
         """
         add_jars_to_context_class_loader(*classpaths)
         jvm = get_gateway().jvm
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
-        set_classpaths = env_config.getString(classpaths_key, None)
-        if set_classpaths is None:
-            set_classpaths = ''
+        set_classpaths = env_config.getString(classpaths_key, '')
         classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join(*classpaths)
-        python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([set_classpaths,
-                                                                      classpaths])
-        env_config.setString(classpaths_key, python_files)
+        classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join([set_classpaths, classpaths])
+        env_config.setString(classpaths_key, classpaths)
 
     def get_default_local_parallelism(self):
         """
