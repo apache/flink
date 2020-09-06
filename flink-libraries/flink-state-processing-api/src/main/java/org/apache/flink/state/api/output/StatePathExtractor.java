@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.functions;
+package org.apache.flink.state.api.output;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.core.fs.Path;
