@@ -49,6 +49,7 @@ public class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskMan
 			ResourceID.generate(),
 			UUID.randomUUID().toString(),
 			random.nextInt(),
+			random.nextInt(),
 			random.nextLong(),
 			random.nextInt(),
 			random.nextInt(),
