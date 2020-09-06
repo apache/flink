@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.output;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -32,6 +33,7 @@ import org.apache.flink.util.Collector;
 /**
  * Extracts all file paths that are part of the provided {@link OperatorState}.
  */
+@Internal
 public class StatePathExtractor implements FlatMapFunction<OperatorState, String> {
 
 	private static final long serialVersionUID = 1L;

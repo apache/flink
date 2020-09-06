@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.output;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
@@ -28,6 +29,7 @@ import java.nio.file.Paths;
 /**
  * This mapper copies files from an existing savepoint into a new directory.
  */
+@Internal
 public final class FileCopyMapFunction implements MapFunction<String, String> {
 
 	private static final long serialVersionUID = 1L;
