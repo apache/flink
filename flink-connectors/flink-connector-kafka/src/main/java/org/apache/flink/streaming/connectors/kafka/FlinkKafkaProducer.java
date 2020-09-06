@@ -89,6 +89,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.PropertiesUtil.getLong;
 
 /**
  * Flink Sink to produce data into a Kafka topic. By default producer
@@ -236,7 +237,24 @@ public class FlinkKafkaProducer<IN>
 	/**
 	 * Partitions of each topic.
 	 */
-	protected final Map<String, int[]> topicPartitionsMap;
+	protected volatile Map<String, int[]> topicPartitionsMap;
+
+	/**
+	 * The default interval to execute partition discovery,
+	 * in milliseconds ({@code Long.MIN_VALUE}, i.e. disabled by default).
+	 */
+	public static final long PARTITION_DISCOVERY_DISABLED = Long.MIN_VALUE;
+
+	/**
+	 * Configuration key to define the producer's partition discovery interval, in milliseconds.
+	 */
+	public static final String KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS = "flink.partition-discovery.interval-millis";
+
+	/** Flag indicating whether the producer discovery partition thread is still running. */
+	private volatile boolean running = true;
+
+	/** Discovery partition loop, executed in a separate thread. */
+	private transient volatile Thread discoveryPartitionLoopThread;
 
 	/**
 	 * Max number of producers in the pool. If all producers are in use, snapshoting state will throw an exception.
@@ -864,7 +882,11 @@ public class FlinkKafkaProducer<IN>
 
 	@Override
 	public void close() throws FlinkKafkaException {
-		// First close the producer for current transaction.
+		running = false;
+		if (discoveryPartitionLoopThread != null){
+			discoveryPartitionLoopThread.interrupt();
+		}
+		// Close the producer for current transaction.
 		try {
 			final KafkaTransactionState currentTransaction = currentTransaction();
 			if (currentTransaction != null) {
@@ -1243,6 +1265,13 @@ public class FlinkKafkaProducer<IN>
 			contextAwareSchema.setNumParallelInstances(ctx.getNumberOfParallelSubtasks());
 		}
 
+		long discoveryIntervalMillis = getLong(
+			checkNotNull(producerConfig, "producerConfig"),
+			KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED);
+		if (discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
+			startPartitionDiscoveryLoop(discoveryIntervalMillis, producer, ctx);
+		}
+
 		LOG.info("Starting FlinkKafkaInternalProducer ({}/{}) to produce into default topic {}",
 			ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicId);
 
@@ -1284,6 +1313,31 @@ public class FlinkKafkaProducer<IN>
 				"Failed to send data to Kafka: " + e.getMessage(),
 				e);
 		}
+	}
+
+	private void startPartitionDiscoveryLoop(long discoveryIntervalMillis, Producer producer, RuntimeContext ctx) {
+		discoveryPartitionLoopThread = new Thread(() -> {
+			// --------------------- partition discovery loop ---------------------
+
+			LOG.info("getRuntimeContext().getTaskNameWithSubtasks() {}", getRuntimeContext().getTaskNameWithSubtasks());
+			while (running) {
+				Set<String> targetTopics = topicPartitionsMap.keySet();
+				for (String targetTopic : targetTopics) {
+					int[] partitions = getPartitionsByTopic(targetTopic, producer);
+					topicPartitionsMap.put(targetTopic, partitions);
+				}
+
+				// do not waste any time sleeping if we're not running anymore
+				if (running && discoveryIntervalMillis > 0) {
+					try {
+						Thread.sleep(discoveryIntervalMillis);
+					} catch (InterruptedException iex) {
+					}
+				}
+			}
+		}, "Kafka producer partition discovery " + ctx.getIndexOfThisSubtask());
+
+		discoveryPartitionLoopThread.start();
 	}
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
