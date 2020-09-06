@@ -792,8 +792,20 @@ public class FlinkKafkaProducer<IN>
 			};
 		}
 
+		RuntimeContext ctx = getRuntimeContext();
+
+		if (flinkKafkaPartitioner != null) {
+			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
+		}
+
+		if (kafkaSchema instanceof KafkaContextAware) {
+			KafkaContextAware<IN> contextAwareSchema = (KafkaContextAware<IN>) kafkaSchema;
+			contextAwareSchema.setParallelInstanceId(ctx.getIndexOfThisSubtask());
+			contextAwareSchema.setNumParallelInstances(ctx.getNumberOfParallelSubtasks());
+		}
+
 		if (kafkaSchema != null) {
-			kafkaSchema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+			kafkaSchema.open(() -> ctx.getMetricGroup().addGroup("user"));
 		}
 
 		super.open(configuration);
@@ -1229,22 +1241,8 @@ public class FlinkKafkaProducer<IN>
 	private FlinkKafkaInternalProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
 		FlinkKafkaInternalProducer<byte[], byte[]> producer = createProducer();
 
-		RuntimeContext ctx = getRuntimeContext();
-
-		if (flinkKafkaPartitioner != null) {
-			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
-		}
-
-		if (kafkaSchema instanceof KafkaContextAware) {
-			KafkaContextAware<IN> contextAwareSchema =
-					(KafkaContextAware<IN>) kafkaSchema;
-
-			contextAwareSchema.setParallelInstanceId(ctx.getIndexOfThisSubtask());
-			contextAwareSchema.setNumParallelInstances(ctx.getNumberOfParallelSubtasks());
-		}
-
 		LOG.info("Starting FlinkKafkaInternalProducer ({}/{}) to produce into default topic {}",
-			ctx.getIndexOfThisSubtask() + 1, ctx.getNumberOfParallelSubtasks(), defaultTopicId);
+			getRuntimeContext().getIndexOfThisSubtask() + 1, getRuntimeContext().getNumberOfParallelSubtasks(), defaultTopicId);
 
 		// register Kafka metrics to Flink accumulators
 		if (registerMetrics && !Boolean.parseBoolean(producerConfig.getProperty(KEY_DISABLE_METRICS, "false"))) {
