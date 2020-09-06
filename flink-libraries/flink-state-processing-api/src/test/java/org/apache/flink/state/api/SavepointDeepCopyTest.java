@@ -61,6 +61,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
 
 	private static final String TEXT = "The quick brown fox jumps over the lazy dog";
 	private static final String RANDOM_VALUE = RandomStringUtils.randomAlphanumeric(120);
+	private static final int FILE_STATE_SIZE_THRESHOLD = 1024;
 
 	private final StateBackend backend;
 
@@ -74,11 +75,10 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
 	@Parameterized.Parameters(name = "State Backend: {0}")
 	public static Collection<StateBackend> data() {
 		// set the threshold to 1024 bytes to allow generate additional state data files with a small state
-		int fileStateSizeThreshold = 1024;
 		return Arrays.asList(
-			new FsStateBackend(new Path("file:///tmp").toUri(), fileStateSizeThreshold),
+			new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD),
 			new RocksDBStateBackend(
-				(StateBackend) new FsStateBackend(new Path("file:///tmp").toUri(), fileStateSizeThreshold)
+				(StateBackend) new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD)
 			)
 		);
 	}
