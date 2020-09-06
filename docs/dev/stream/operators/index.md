@@ -346,43 +346,6 @@ connectedStreams.flatMap(new CoFlatMapFunction<Integer, String, String>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Split</strong><br>DataStream &rarr; SplitStream</td>
-          <td>
-            <p>
-                Split the stream into two or more streams according to some criterion.
-{% highlight java %}
-SplitStream<Integer> split = someDataStream.split(new OutputSelector<Integer>() {
-    @Override
-    public Iterable<String> select(Integer value) {
-        List<String> output = new ArrayList<String>();
-        if (value % 2 == 0) {
-            output.add("even");
-        }
-        else {
-            output.add("odd");
-        }
-        return output;
-    }
-});
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Select</strong><br>SplitStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Select one or more streams from a split stream.
-{% highlight java %}
-SplitStream<Integer> split;
-DataStream<Integer> even = split.select("even");
-DataStream<Integer> odd = split.select("odd");
-DataStream<Integer> all = split.select("even","odd");
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream &rarr; DataStream</td>
           <td>
             <p>
@@ -634,37 +597,6 @@ connectedStreams.flatMap(
     (_ : String) => false
 )
 {% endhighlight %}
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Split</strong><br>DataStream &rarr; SplitStream</td>
-          <td>
-            <p>
-                Split the stream into two or more streams according to some criterion.
-{% highlight scala %}
-val split = someDataStream.split(
-  (num: Int) =>
-    (num % 2) match {
-      case 0 => List("even")
-      case 1 => List("odd")
-    }
-)
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Select</strong><br>SplitStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Select one or more streams from a split stream.
-{% highlight scala %}
-
-val even = split select "even"
-val odd = split select "odd"
-val all = split.select("even","odd")
-{% endhighlight %}
-            </p>
           </td>
         </tr>
         <tr>
