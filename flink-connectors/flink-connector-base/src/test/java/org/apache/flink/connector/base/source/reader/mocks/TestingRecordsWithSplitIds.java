@@ -18,48 +18,22 @@
 
 package org.apache.flink.connector.base.source.reader.mocks;
 
+import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A mock implementation of {@link RecordsWithSplitIds} that returns a given set of records.
  */
-public class TestingRecordsWithSplitIds<E> implements RecordsWithSplitIds<E> {
-
-	private final Map<String, Collection<E>> records;
-
-	private final String splitId;
+public class TestingRecordsWithSplitIds<E> extends RecordsBySplits<E> {
 
 	private volatile boolean isRecycled;
 
 	@SafeVarargs
 	public TestingRecordsWithSplitIds(String splitId, E... records) {
-		this.splitId = checkNotNull(splitId);
-		this.records = new HashMap<>();
-		this.records.put(splitId, Arrays.asList(records));
-	}
-
-	@Override
-	public Collection<String> splitIds() {
-		return Collections.singleton(splitId);
-	}
-
-	@Override
-	public Map<String, Collection<E>> recordsBySplits() {
-		return records;
-	}
-
-	@Override
-	public Set<String> finishedSplits() {
-		return Collections.emptySet();
+		super(Collections.singletonMap(splitId, Arrays.asList(records)), Collections.emptySet());
 	}
 
 	@Override

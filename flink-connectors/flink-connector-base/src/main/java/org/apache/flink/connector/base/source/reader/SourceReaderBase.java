@@ -35,13 +35,18 @@ import org.apache.flink.core.io.InputStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An abstract implementation of {@link SourceReader} which provides some sychronization between
@@ -81,8 +86,10 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	/** The context of this source reader. */
 	protected SourceReaderContext context;
 
-	/** The last element to ensure it is fully handled. */
-	private SplitsRecordIterator<E> splitIter;
+	/** The latest fetched batch of records-by-split from the split reader. */
+	@Nullable private RecordsWithSplitIds<E> currentFetch;
+	@Nullable private SplitContext<T, SplitStateT> currentSplitContext;
+	@Nullable private SourceOutput<T> currentSplitOutput;
 
 	/** Indicating whether the SourceReader will be assigned more splits or not.*/
 	private boolean noMoreSplitsAssignment;
@@ -99,7 +106,6 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		this.splitFetcherManager = splitFetcherManager;
 		this.recordEmitter = recordEmitter;
 		this.splitStates = new HashMap<>();
-		this.splitIter = null;
 		this.options = new SourceReaderOptions(config);
 		this.config = config;
 		this.context = context;
@@ -107,58 +113,85 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Override
-	public void start() {
-
-	}
+	public void start() {}
 
 	@Override
 	public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
 		splitFetcherManager.checkErrors();
-		// poll from the queue if the last element was successfully handled. Otherwise
-		// just pass the last element again.
-		RecordsWithSplitIds<E> recordsWithSplitId = null;
-		boolean newFetch = splitIter == null || !splitIter.hasNext();
-		if (newFetch) {
-			recordsWithSplitId = elementsQueue.poll();
+
+		// make sure we have a fetch we are working on, or move to the next
+		final RecordsWithSplitIds<E> recordsWithSplitId = getCurrentOrNewFetch(output);
+		if (recordsWithSplitId == null) {
+			return trace(finishedOrAvailableLater());
 		}
 
-		InputStatus status;
-		if (newFetch && recordsWithSplitId == null) {
-			// No element available, set to available later if needed.
-			status = finishedOrAvailableLater();
-		} else {
-			// Update the record iterator if it is a new fetch.
-			if (newFetch) {
-				splitIter = new SplitsRecordIterator<>(recordsWithSplitId);
-			}
+		// we need to loop here, because we may have to go across splits
+		while (true) {
 			// Process one record.
-			if (splitIter.hasNext()) {
+			final E record = recordsWithSplitId.nextRecordFromSplit();
+			if (record != null) {
 				// emit the record.
-				final E record = splitIter.next();
-				final SplitContext<T, SplitStateT> splitContext = splitStates.get(splitIter.currentSplitId());
-				final SourceOutput<T> splitOutput = splitContext.getOrCreateSplitOutput(output);
-				recordEmitter.emitRecord(record, splitOutput, splitContext.state);
+				recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
 				LOG.trace("Emitted record: {}", record);
+				return trace(InputStatus.MORE_AVAILABLE);
 			}
-			// Do some cleanup if the all the records in the current splitIter have been processed.
-			if (!splitIter.hasNext()) {
-				// First remove the state of the split.
-				splitIter.finishedSplitIds().forEach((id) -> {
-					splitStates.remove(id);
-					output.releaseOutputForSplit(id);
-				});
-				// Handle the finished splits.
-				onSplitFinished(splitIter.finishedSplitIds());
-				splitIter.dispose();
-				// Prepare the return status based on the availability of the next element.
-				status = finishedOrAvailableLater();
-			} else {
-				// There are more records from the current splitIter.
-				status = InputStatus.MORE_AVAILABLE;
+			else if (!moveToNextSplit(recordsWithSplitId, output)) {
+				return trace(finishedOrAvailableLater());
 			}
+			// else fall through the loop
 		}
+	}
+
+	private InputStatus trace(InputStatus status) {
 		LOG.trace("Source reader status: {}", status);
 		return status;
+	}
+
+	@Nullable
+	private RecordsWithSplitIds<E> getCurrentOrNewFetch(final ReaderOutput<T> output) {
+		RecordsWithSplitIds<E> recordsWithSplitId = this.currentFetch;
+		if (recordsWithSplitId != null) {
+			return recordsWithSplitId;
+		}
+
+		recordsWithSplitId = elementsQueue.poll();
+		if (recordsWithSplitId == null || !moveToNextSplit(recordsWithSplitId, output)) {
+			// No element available, set to available later if needed.
+			return null;
+		}
+
+		currentFetch = recordsWithSplitId;
+		return recordsWithSplitId;
+	}
+
+	private void finishCurrentFetch(final RecordsWithSplitIds<E> fetch, final ReaderOutput<T> output) {
+		currentFetch = null;
+		currentSplitContext = null;
+		currentSplitOutput = null;
+
+		final Set<String> finishedSplits = fetch.finishedSplits();
+		if (!finishedSplits.isEmpty()) {
+			for (String finishedSplitId : finishedSplits) {
+				splitStates.remove(finishedSplitId);
+				output.releaseOutputForSplit(finishedSplitId);
+			}
+			onSplitFinished(finishedSplits);
+		}
+
+		fetch.recycle();
+	}
+
+	private boolean moveToNextSplit(RecordsWithSplitIds<E> recordsWithSplitIds, ReaderOutput<T> output) {
+		final String nextSplitId = recordsWithSplitIds.nextSplit();
+		if (nextSplitId == null) {
+			finishCurrentFetch(recordsWithSplitIds, output);
+			return false;
+		}
+
+		currentSplitContext = splitStates.get(nextSplitId);
+		checkState(currentSplitContext != null, "Have records for a split that was not registered");
+		currentSplitOutput = currentSplitContext.getOrCreateSplitOutput(output);
+		return true;
 	}
 
 	@Override
@@ -235,7 +268,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	private InputStatus finishedOrAvailableLater() {
 		boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
-		boolean allElementsEmitted = elementsQueue.isEmpty() && (splitIter == null || !splitIter.hasNext());
+		boolean allElementsEmitted = elementsQueue.isEmpty();
 		if (noMoreSplitsAssignment && allFetchersHaveShutdown && allElementsEmitted) {
 			return InputStatus.END_OF_INPUT;
 		} else {

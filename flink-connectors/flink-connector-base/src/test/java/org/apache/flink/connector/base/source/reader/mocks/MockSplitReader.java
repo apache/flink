@@ -81,7 +81,8 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	}
 
 	private RecordsBySplits<int[]> getRecords() {
-		RecordsBySplits<int[]> records = new RecordsBySplits<>();
+		final RecordsBySplits.Builder<int[]> records = new RecordsBySplits.Builder<>();
+
 		try {
 			for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
 				MockSourceSplit split = entry.getValue();
@@ -102,6 +103,6 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 				throw new RuntimeException("Caught unexpected interrupted exception.");
 			}
 		}
-		return records;
+		return records.build();
 	}
 }
