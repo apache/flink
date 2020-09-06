@@ -95,9 +95,13 @@ public class SplitFetcherTest {
 			interrupter.start();
 
 			while (recordsRead.size() < NUM_SPLITS * NUM_RECORDS_PER_SPLIT) {
-				elementQueue.take().recordsBySplits().values().forEach(records ->
-						// Ensure there is no duplicate records.
-						records.forEach(arr -> assertTrue(recordsRead.add(arr[0]))));
+				final RecordsWithSplitIds<int[]> nextBatch = elementQueue.take();
+				while (nextBatch.nextSplit() != null) {
+					int[] arr;
+					while ((arr = nextBatch.nextRecordFromSplit()) != null) {
+						assertTrue(recordsRead.add(arr[0]));
+					}
+				}
 			}
 
 			assertEquals(NUM_TOTAL_RECORDS, recordsRead.size());
