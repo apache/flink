@@ -31,10 +31,9 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureNotif
 
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -47,7 +46,7 @@ public class SourceReaderBaseUnitTest {
 	@Test
 	public void recordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
 		final TestingRecordsWithSplitIds<String> records = new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
-		final SourceReader<?, ?> reader = createReaderAndAwaitAvailable(records);
+		final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
 
 		reader.pollNext(new TestingReaderOutput<>());
 
@@ -57,8 +56,10 @@ public class SourceReaderBaseUnitTest {
 	@Test
 	public void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
 		final TestingRecordsWithSplitIds<String> records = new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
-		final SourceReader<?, ?> reader = createReaderAndAwaitAvailable(records);
+		final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
 
+		// poll thrice: twice to get all records, one more to trigger recycle and moving to the next split
+		reader.pollNext(new TestingReaderOutput<>());
 		reader.pollNext(new TestingReaderOutput<>());
 		reader.pollNext(new TestingReaderOutput<>());
 
@@ -69,8 +70,9 @@ public class SourceReaderBaseUnitTest {
 	//  Testing Setup Helpers
 	// ------------------------------------------------------------------------
 
-	@SafeVarargs
-	private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(RecordsWithSplitIds<E>... records) throws Exception {
+	private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(
+			final String splitId,
+			final RecordsWithSplitIds<E> records) throws Exception {
 
 		final FutureNotifier futureNotifier = new FutureNotifier();
 		final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue =
@@ -101,10 +103,7 @@ public class SourceReaderBaseUnitTest {
 
 		reader.start();
 
-		final List<TestingSourceSplit> splits = Arrays.stream(records)
-			.flatMap((record) -> record.splitIds().stream())
-			.map(TestingSourceSplit::new)
-			.collect(Collectors.toList());
+		final List<TestingSourceSplit> splits = Collections.singletonList(new TestingSourceSplit(splitId));
 		reader.addSplits(splits);
 
 		reader.isAvailable().get();
