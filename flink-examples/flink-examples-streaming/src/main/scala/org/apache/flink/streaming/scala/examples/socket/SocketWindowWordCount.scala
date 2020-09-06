@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.windowing.time.Time
  * The easiest way to try this out is to open a text sever (at port 12345) 
  * using the ''netcat'' tool via
  * {{{
- * nc -l 12345
+ * nc -l 12345 on Linux or nc -l -p 12345 on Windows
  * }}}
  * and run this example with the hostname and the port as arguments..
  */
@@ -67,7 +67,7 @@ object SocketWindowWordCount {
     val windowCounts = text
           .flatMap { w => w.split("\\s") }
           .map { w => WordWithCount(w, 1) }
-          .keyBy("word")
+          .keyBy(_.word)
           .timeWindow(Time.seconds(5))
           .sum("count")
 

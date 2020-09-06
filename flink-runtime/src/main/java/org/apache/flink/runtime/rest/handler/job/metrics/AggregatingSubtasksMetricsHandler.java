@@ -58,7 +58,7 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 			Time timeout,
 			Map<String, String> responseHeaders,
 			Executor executor,
-			MetricFetcher<?> fetcher) {
+			MetricFetcher fetcher) {
 		super(leaderRetriever, timeout, responseHeaders, AggregatedSubtaskMetricsHeaders.getInstance(), executor, fetcher);
 	}
 

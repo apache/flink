@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
@@ -40,8 +42,10 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -94,7 +98,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link Client}.
  */
-public class ClientTest {
+public class ClientTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientTest.class);
 
@@ -630,13 +634,17 @@ public class ClientTest {
 		dummyEnv.setKvStateRegistry(dummyRegistry);
 
 		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID()));
+			dummyEnv,
+			new JobID(),
+			"test_op",
+			IntSerializer.INSTANCE,
+			numKeyGroups,
+			new KeyGroupRange(0, 0),
+			dummyRegistry.createTaskRegistry(new JobID(), new JobVertexID()),
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 
 		final FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -666,7 +674,7 @@ public class ClientTest {
 				registry[i] = new KvStateRegistry();
 				serverStats[i] = new AtomicKvStateRequestStats();
 				server[i] = new KvStateServerImpl(
-						InetAddress.getLocalHost(),
+						InetAddress.getLocalHost().getHostName(),
 						Collections.singletonList(0).iterator(),
 						numServerEventLoopThreads,
 						numServerQueryThreads,

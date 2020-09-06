@@ -18,16 +18,14 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
@@ -72,21 +70,9 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static final int NUMBER_OF_KAFKA_SERVERS = 3;
 
-	protected static final int NUM_TMS = 1;
-
-	protected static final int TM_SLOTS = 8;
-
 	protected static String brokerConnectionStrings;
 
 	protected static Properties standardProps;
-
-	@ClassRule
-	public static MiniClusterWithClientResource flink = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getFlinkConfiguration())
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(TM_SLOTS)
-			.build());
 
 	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -102,11 +88,11 @@ public abstract class KafkaTestBase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		prepare(true);
 	}
 
-	public static void prepare(boolean hideKafkaBehindProxy) throws ClassNotFoundException {
+	public static void prepare(boolean hideKafkaBehindProxy) throws Exception {
 		LOG.info("-------------------------------------------------------------------------");
 		LOG.info("    Starting KafkaTestBase ");
 		LOG.info("-------------------------------------------------------------------------");
@@ -132,32 +118,34 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	protected static Configuration getFlinkConfiguration() {
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "5 s");
-		flinkConfig.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "1 s");
-		flinkConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
-		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
+		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		flinkConfig.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		return flinkConfig;
 	}
 
-	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws ClassNotFoundException {
+	protected static void startClusters() throws Exception {
+		startClusters(KafkaTestEnvironment.createConfig().setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS));
+	}
 
-		// dynamically load the implementation for the test
-		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
-		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
-
-		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
-
-		kafkaServer.prepare(kafkaServer.createConfig()
+	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws Exception {
+		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(secureMode)
 			.setHideKafkaBehindProxy(hideKafkaBehindProxy));
+	}
+
+	protected static void startClusters(KafkaTestEnvironment.Config environmentConfig) throws Exception {
+		kafkaServer = constructKafkaTestEnvionment();
+
+		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
+
+		kafkaServer.prepare(environmentConfig);
 
 		standardProps = kafkaServer.getStandardProperties();
 
 		brokerConnectionStrings = kafkaServer.getBrokerConnectionString();
 
-		if (secureMode) {
+		if (environmentConfig.isSecureMode()) {
 			if (!kafkaServer.isSecureRunSupported()) {
 				throw new IllegalStateException(
 					"Attempting to test in secure mode but secure mode not supported by the KafkaTestEnvironment.");
@@ -166,12 +154,19 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 	}
 
+	protected static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
+		return (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
+	}
+
 	protected static void shutdownClusters() throws Exception {
 		if (secureProps != null) {
 			secureProps.clear();
 		}
 
-		kafkaServer.shutdown();
+		if (kafkaServer != null) {
+			kafkaServer.shutdown();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -224,6 +219,10 @@ public abstract class KafkaTestBase extends TestLogger {
 		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
 			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
 			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+			// We need to set these two properties so that they are lower than request.timeout.ms. This is
+			// required for some old KafkaConsumer versions.
+			properties.put("session.timeout.ms", "2000");
+			properties.put("heartbeat.interval.ms", "500");
 
 			// query kafka for new records ...
 			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
@@ -288,6 +287,15 @@ public abstract class KafkaTestBase extends TestLogger {
 			}
 		}
 
-		fail(String.format("Expected number of elements: <%s>, but was: <%s>", expectedElements.size(), actualElements.size()));
+		fail(String.format("Expected %s, but was: %s", formatElements(expectedElements), formatElements(actualElements)));
+	}
+
+	private String formatElements(List<Integer> elements) {
+		if (elements.size() > 50) {
+			return String.format("number of elements: <%s>", elements.size());
+		}
+		else {
+			return String.format("elements: <%s>", elements);
+		}
 	}
 }

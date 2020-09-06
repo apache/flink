@@ -20,18 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -41,34 +33,32 @@ import java.util.function.Function;
  */
 class TestingDispatcher extends Dispatcher {
 
+	private final CompletableFuture<Void> startFuture;
+
 	TestingDispatcher(
-		RpcService rpcService,
-		String endpointId,
-		Configuration configuration,
-		HighAvailabilityServices highAvailabilityServices,
-		ResourceManagerGateway resourceManagerGateway,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		JobManagerRunnerFactory jobManagerRunnerFactory,
-		FatalErrorHandler fatalErrorHandler) throws Exception {
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			DispatcherBootstrap dispatcherBootstrap,
+			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
-			endpointId,
-			configuration,
-			highAvailabilityServices,
-			highAvailabilityServices.getSubmittedJobGraphStore(),
-			resourceManagerGateway,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroup,
-			metricQueryServicePath,
-			archivedExecutionGraphStore,
-			jobManagerRunnerFactory,
-			fatalErrorHandler,
-			VoidHistoryServerArchivist.INSTANCE);
+			fencingToken,
+			dispatcherBootstrap,
+			dispatcherServices);
+
+		this.startFuture = new CompletableFuture<>();
+	}
+
+	@Override
+	public void onStart() throws Exception {
+		try {
+			super.onStart();
+		} catch (Exception e) {
+			startFuture.completeExceptionally(e);
+			throw e;
+		}
+
+		startFuture.complete(null);
 	}
 
 	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
@@ -82,9 +72,13 @@ class TestingDispatcher extends Dispatcher {
 			timeout).thenCompose(Function.identity());
 	}
 
-	CompletableFuture<Void> getRecoverOperationFuture(@Nonnull Time timeout) {
+	CompletableFuture<Integer> getNumberJobs(Time timeout) {
 		return callAsyncWithoutFencing(
-			this::getRecoveryOperation,
-			timeout).thenCompose(Function.identity());
+			() -> listJobs(timeout).get().size(),
+			timeout);
+	}
+
+	void waitUntilStarted() {
+		startFuture.join();
 	}
 }

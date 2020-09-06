@@ -23,12 +23,12 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-gelly-examples_${scala.binary.version}</artifactId>
-	<name>flink-gelly-examples</name>
+	<name>Flink : Libraries : Gelly Examples</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -84,14 +84,20 @@
 		<!--             logs when executing in the IDE            -->
 
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
 			<scope>compile</scope>
 		</dependency>
 
@@ -106,9 +112,10 @@
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_${scala.binary.version}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 	</dependencies>
 
@@ -200,7 +207,6 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
 				<executions>
 					<!-- Add src/main/scala to eclipse build path -->
 					<execution>

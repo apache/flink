@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.configuration.Configuration;
 
+import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -31,6 +32,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	private final String insertQuery;
 	private transient PreparedStatement ps;
+	private final boolean ignoreNullFields;
 
 	public AbstractCassandraTupleSink(
 			String insertQuery,
@@ -39,6 +41,7 @@ public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<I
 			CassandraFailureHandler failureHandler) {
 		super(builder, config, failureHandler);
 		this.insertQuery = insertQuery;
+		this.ignoreNullFields = config.getIgnoreNullFields();
 	}
 
 	@Override
@@ -50,7 +53,19 @@ public abstract class AbstractCassandraTupleSink<IN> extends CassandraSinkBase<I
 	@Override
 	public ListenableFuture<ResultSet> send(IN value) {
 		Object[] fields = extract(value);
-		return session.executeAsync(ps.bind(fields));
+		return session.executeAsync(bind(fields));
+	}
+
+	private BoundStatement bind(Object[] fields) {
+		BoundStatement bs = ps.bind(fields);
+		if (ignoreNullFields) {
+			for (int i = 0; i < fields.length; i++) {
+				if (fields[i] == null) {
+					bs.unset(i);
+				}
+			}
+		}
+		return bs;
 	}
 
 	protected abstract Object[] extract(IN record);

@@ -81,27 +81,23 @@ abstract class CaseClassSerializer[T <: Product](
     createInstance(fields)
   }
 
-  override def createSerializerInstance(
-      tupleClass: Class[T],
-      fieldSerializers: Array[TypeSerializer[_]]): TupleSerializerBase[T] = {
-    this.getClass
-      .getConstructors()(0)
-      .newInstance(tupleClass, fieldSerializers)
-      .asInstanceOf[CaseClassSerializer[T]]
-  }
-
   def copy(from: T, reuse: T): T = {
     copy(from)
   }
 
   def copy(from: T): T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
-      i += 1
+    if (from == null) {
+      null.asInstanceOf[T]
     }
-    createInstance(fields)
+    else {
+      initArray()
+      var i = 0
+      while (i < arity) {
+        fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
+        i += 1
+      }
+      createInstance(fields)
+    }
   }
 
   def serialize(value: T, target: DataOutputView) {

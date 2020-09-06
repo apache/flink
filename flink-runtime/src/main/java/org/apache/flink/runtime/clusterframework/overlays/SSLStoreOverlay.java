@@ -64,7 +64,7 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_KEYSTORE_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(SecurityOptions.SSL_KEYSTORE, TARGET_KEYSTORE_PATH.getPath());
+			container.getFlinkConfiguration().setString(SecurityOptions.SSL_KEYSTORE, TARGET_KEYSTORE_PATH.getPath());
 		}
 		if(truststore != null) {
 			container.getArtifacts().add(ContainerSpecification.Artifact.newBuilder()
@@ -72,7 +72,7 @@ public class SSLStoreOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_TRUSTSTORE_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(SecurityOptions.SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
+			container.getFlinkConfiguration().setString(SecurityOptions.SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
 		}
 	}
 

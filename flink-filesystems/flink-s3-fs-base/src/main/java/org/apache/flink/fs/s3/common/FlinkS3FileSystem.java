@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common;
 import org.apache.flink.core.fs.EntropyInjectingFileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedTmpFileCreator;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.fs.s3.common.writer.S3RecoverableWriter;
@@ -57,7 +57,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem implements EntropyInject
 
 	private final String localTmpDir;
 
-	private final FunctionWithException<File, RefCountedFile, IOException> tmpFileCreator;
+	private final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileCreator;
 
 	@Nullable
 	private final S3AccessHelper s3AccessHelper;

@@ -35,10 +35,10 @@
 
 (def default-flink-dist-url "https://archive.apache.org/dist/flink/flink-1.6.0/flink-1.6.0-bin-hadoop28-scala_2.11.tgz")
 (def hadoop-dist-url "https://archive.apache.org/dist/hadoop/common/hadoop-2.8.3/hadoop-2.8.3.tar.gz")
-(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.0.1/kafka_2.11-2.0.1.tgz")
-(def deb-zookeeper-package "3.4.9-3+deb8u1")
-(def deb-mesos-package "1.5.0-2.0.2")
-(def deb-marathon-package "1.6.322")
+(def kafka-dist-url "http://mirror.funkfreundelandshut.de/apache/kafka/2.2.2/kafka_2.11-2.2.2.tgz")
+(def deb-zookeeper-package "3.4.9-3+deb9u2")
+(def deb-mesos-package "1.5.0-2.0.1")
+(def marathon-dist-url "https://downloads.mesosphere.io/marathon/builds/1.7.189-48bfd6000/marathon-1.7.189-48bfd6000.tgz")
 
 (def dbs
   {:flink-yarn-job           (fdb/yarn-job-db)
@@ -47,7 +47,7 @@
    :flink-mesos-session      (fdb/flink-mesos-app-master)
    :hadoop                   (hadoop/db hadoop-dist-url)
    :kafka                    (kafka/db kafka-dist-url)
-   :mesos                    (mesos/db deb-mesos-package deb-marathon-package)
+   :mesos                    (mesos/db deb-mesos-package marathon-dist-url)
    :zookeeper                (zk/db deb-zookeeper-package)})
 
 (def poll-jobs-running {:type :invoke, :f :jobs-running?, :value nil})
@@ -84,9 +84,6 @@
             :os        debian/os
             :db        (fdb/combined-db dbs)
             :nemesis   (fn/nemesis)
-            :model     (flink-checker/job-running-within-grace-period
-                         job-running-healthy-threshold
-                         job-recovery-grace-period)
             :generator (let [stop (atom nil)]
                          (->> (fg/stoppable-generator stop (client-gen))
                               (gen/nemesis
@@ -95,7 +92,8 @@
                                                    job-running-healthy-threshold
                                                    job-recovery-grace-period))))
             :client    (create-client)
-            :checker   (flink-checker/job-running-checker)})
+            :checker   (flink-checker/job-running-checker job-running-healthy-threshold
+                                                          job-recovery-grace-period)})
          (assoc opts :concurrency 1)))
 
 (defn- keys->allowed-values-help-text
@@ -122,14 +120,13 @@
                      :parse-fn read-test-spec
                      :validate [#(->> % :dbs (map dbs) (every? (complement nil?)))
                                 (str "Invalid :dbs specification. " (keys->allowed-values-help-text dbs))]]
-                    [nil "--ha-storage-dir DIR" "high-availability.storageDir"]
-                    [nil "--nemesis-gen GEN" (str "Which nemesis should be used?"
+                    [nil "--nemesis-gen GEN" (str "Which nemesis should be used? "
                                                   (keys->allowed-values-help-text fn/nemesis-generator-factories))
                      :parse-fn keyword
                      :default :kill-task-managers
                      :validate [#(fn/nemesis-generator-factories %)
                                 (keys->allowed-values-help-text fn/nemesis-generator-factories)]]
-                    [nil "--client-gen GEN" (str "Which client should be used?"
+                    [nil "--client-gen GEN" (str "Which client should be used? "
                                                  (keys->allowed-values-help-text client-gens))
                      :parse-fn keyword
                      :default :poll-job-running

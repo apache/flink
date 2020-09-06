@@ -20,6 +20,9 @@ package org.apache.flink.streaming.api;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -31,6 +34,7 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
 
@@ -87,12 +91,12 @@ public class StreamExecutionEnvironmentTest {
 
 			dataStream2.addSink(new DiscardingSink<Integer>());
 
-			env.getExecutionPlan();
+			final StreamGraph streamGraph = env.getStreamGraph();
+			streamGraph.getStreamingPlanAsJSON();
 
-			assertEquals("Parallelism of collection source must be 1.", 1, env.getStreamGraph().getStreamNode(dataStream1.getId()).getParallelism());
+			assertEquals("Parallelism of collection source must be 1.", 1, streamGraph.getStreamNode(dataStream1.getId()).getParallelism());
 			assertEquals("Parallelism of parallel collection source must be 4.",
-					4,
-					env.getStreamGraph().getStreamNode(dataStream2.getId()).getParallelism());
+					4, streamGraph.getStreamNode(dataStream2.getId()).getParallelism());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -177,12 +181,12 @@ public class StreamExecutionEnvironmentTest {
 		Assert.assertEquals(1 << 15, operator.getParallelism());
 
 		// default value after generating
-		env.getStreamGraph().getJobGraph();
+		env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
 		Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
 		// configured value after generating
 		env.setMaxParallelism(42);
-		env.getStreamGraph().getJobGraph();
+		env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
 		Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
 
 		// bounds configured parallelism 1
@@ -222,8 +226,47 @@ public class StreamExecutionEnvironmentTest {
 		Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
 
 		// override config
-		env.getStreamGraph().getJobGraph();
+		env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
 		Assert.assertEquals(1 << 15 , operator.getTransformation().getMaxParallelism());
+	}
+
+	@Test
+	public void testGetStreamGraph() {
+		try {
+			TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+			DataStreamSource<Integer> dataStream1 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream1.addSink(new DiscardingSink<Integer>());
+			assertEquals(2, env.getStreamGraph().getStreamNodes().size());
+
+			DataStreamSource<Integer> dataStream2 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream2.addSink(new DiscardingSink<Integer>());
+			assertEquals(2, env.getStreamGraph().getStreamNodes().size());
+
+			DataStreamSource<Integer> dataStream3 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream3.addSink(new DiscardingSink<Integer>());
+			// Does not clear the transformations.
+			env.getExecutionPlan();
+			DataStreamSource<Integer> dataStream4 = env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
+			dataStream4.addSink(new DiscardingSink<Integer>());
+			assertEquals(4, env.getStreamGraph("TestJob").getStreamNodes().size());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testAddSourceWithUserDefinedTypeInfo() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Row> source1 = env.addSource(new RowSourceFunction(), Types.ROW(Types.STRING));
+		// the source type information should be the user defined type
+		assertEquals(Types.ROW(Types.STRING), source1.getType());
+
+		DataStreamSource<Row> source2 = env.addSource(new RowSourceFunction());
+		// the source type information should be derived from RowSourceFunction#getProducedType
+		assertEquals(new GenericTypeInfo<>(Row.class), source2.getType());
 	}
 
 	/////////////////////////////////////////////////////////////
@@ -286,6 +329,23 @@ public class StreamExecutionEnvironmentTest {
 	private static class SubClass extends ParentClass{
 		public SubClass(int num, String string) {
 			super(num, string);
+		}
+	}
+
+	private static class RowSourceFunction implements SourceFunction<Row>, ResultTypeQueryable<Row> {
+		private static final long serialVersionUID = 5216362688122691404L;
+
+		@Override
+		public TypeInformation<Row> getProducedType() {
+			return TypeInformation.of(Row.class);
+		}
+
+		@Override
+		public void run(SourceContext<Row> ctx) throws Exception {
+		}
+
+		@Override
+		public void cancel() {
 		}
 	}
 }

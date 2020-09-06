@@ -25,14 +25,15 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.CreateBuilder;
-import org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.CreateBuilder;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+
 import org.apache.curator.test.TestingServer;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,6 +43,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -175,7 +178,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 			for (int i = 0; i < num; i++) {
 				leaderElectionService[i] = ZooKeeperUtils.createLeaderElectionService(client, configuration);
-				contenders[i] = new TestingContender(TEST_URL + "_" + i, leaderElectionService[i]);
+				contenders[i] = new TestingContender(createAddress(i), leaderElectionService[i]);
 
 				LOG.debug("Start leader election service for contender #{}.", i);
 
@@ -199,7 +202,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 					TestingContender contender = contenders[index];
 
 					// check that the retrieval service has retrieved the correct leader
-					if (address.equals(contender.getAddress()) && listener.getLeaderSessionID().equals(contender.getLeaderSessionID())) {
+					if (address.equals(createAddress(index)) && listener.getLeaderSessionID().equals(contender.getLeaderSessionID())) {
 						// kill the election service of the leader
 						LOG.debug("Stop leader election service of contender #{}.", numberSeenLeaders);
 						leaderElectionService[index].stop();
@@ -226,6 +229,11 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 				}
 			}
 		}
+	}
+
+	@Nonnull
+	private String createAddress(int i) {
+		return TEST_URL + "_" + i;
 	}
 
 	/**
@@ -367,7 +375,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 			}
 
 			assertEquals(listener2.getLeaderSessionID(), contender.getLeaderSessionID());
-			assertEquals(listener2.getAddress(), contender.getAddress());
+			assertEquals(listener2.getAddress(), TEST_URL);
 
 		} finally {
 			if (leaderElectionService != null) {
@@ -402,23 +410,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 		try {
 			client = spy(ZooKeeperUtils.startCuratorFramework(configuration));
 
-			Answer<CreateBuilder> answer = new Answer<CreateBuilder>() {
-				private int counter = 0;
-
-				@Override
-				public CreateBuilder answer(InvocationOnMock invocation) throws Throwable {
-					counter++;
-
-					// at first we have to create the leader latch, there it mustn't fail yet
-					if (counter < 2) {
-						return (CreateBuilder) invocation.callRealMethod();
-					} else {
-						return mockCreateBuilder;
-					}
-				}
-			};
-
-			doAnswer(answer).when(client).create();
+			doAnswer(invocation -> mockCreateBuilder).when(client).create();
 
 			when(
 				mockCreateBuilder

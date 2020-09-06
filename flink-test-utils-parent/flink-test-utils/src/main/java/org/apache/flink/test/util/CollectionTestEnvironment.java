@@ -43,11 +43,6 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute() throws Exception {
-		return execute("test job");
-	}
-
-	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		JobExecutionResult result = super.execute(jobName);
 		this.lastJobExecutionResult = result;

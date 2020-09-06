@@ -22,6 +22,7 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.GroupPattern;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -32,8 +33,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
-import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
+import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
 
@@ -96,7 +97,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, b1, a2, b2, d)
 		));
 	}
@@ -152,7 +153,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d),
 			Lists.newArrayList(c, a1, b, d)
 		));
@@ -205,7 +206,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d)
 		));
 	}
@@ -263,7 +264,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, b1, d),
 			Lists.newArrayList(c, a1, b1, a2, b2, d)
 		));
@@ -322,7 +323,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d),
 			Lists.newArrayList(c, a1, b1, d),
 			Lists.newArrayList(c, a1, b1, a2, b2, d)
@@ -386,7 +387,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, b1, a2, b2, d),
 			Lists.newArrayList(c, a1, b1, a3, b3, d),
 			Lists.newArrayList(c, a2, b2, a3, b3, d)
@@ -450,7 +451,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d),
 			Lists.newArrayList(c, a1, b1, a2, b2, d),
 			Lists.newArrayList(c, a2, b2, a3, b3, d)
@@ -514,7 +515,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, b1, d),
 			Lists.newArrayList(c, a2, b2, d),
 			Lists.newArrayList(c, a3, b3, d),
@@ -581,7 +582,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, d),
 			Lists.newArrayList(c, a1, b1, d),
 			Lists.newArrayList(c, a1, b1, a2, b2, d),
@@ -651,7 +652,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a2, b2, e)
 		));
 	}
@@ -718,7 +719,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a2, b2, e)
 		));
 	}
@@ -785,7 +786,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(d, e),
 			Lists.newArrayList(d, a1, e),
 			Lists.newArrayList(d, a1, b1, c1, e),
@@ -873,7 +874,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(d, e),
 			Lists.newArrayList(d, a1, b1, c1, b2, c2, b3, c3, e),
 			Lists.newArrayList(d, a2, b4, c4, b5, c5, b6, c6, e),
@@ -962,7 +963,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(d, e),
 			Lists.newArrayList(d, a1, b1, c1, b2, c2, b3, c3, e)
 		));
@@ -1012,7 +1013,7 @@ public class GroupITCase extends TestLogger {
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(a1, b1, d),
 			Lists.newArrayList(a2, b2, d),
 			Lists.newArrayList(a1, b1, a2, b2, d)
@@ -1077,9 +1078,10 @@ public class GroupITCase extends TestLogger {
 
 		NFAState nfaState = nfa.createInitialNFAState();
 
-		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
+		NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).withNFAState(nfaState).build();
+		final List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(inputEvents);
 
-		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		comparePatterns(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(c, a1, b1, d),
 			Lists.newArrayList(c, a1, b1, a2, b2, d)
 		));

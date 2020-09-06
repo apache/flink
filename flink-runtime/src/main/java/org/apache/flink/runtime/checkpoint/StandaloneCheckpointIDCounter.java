@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -41,6 +41,11 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 	@Override
 	public long getAndIncrement() throws Exception {
 		return checkpointIdCounter.getAndIncrement();
+	}
+
+	@Override
+	public long get() {
+		return checkpointIdCounter.get();
 	}
 
 	@Override

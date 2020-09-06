@@ -31,6 +31,10 @@ import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests to guard {@link RocksDBWriteBatchWrapper}.
@@ -51,7 +55,7 @@ public class RocksDBWriteBatchWrapperTest {
 		try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
 			WriteOptions options = new WriteOptions().setDisableWAL(true);
 			ColumnFamilyHandle handle = db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
-			RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, options, 200)) {
+			RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, options, 200, WRITE_BATCH_SIZE.defaultValue().getBytes())) {
 
 			// insert data
 			for (Tuple2<byte[], byte[]> item : data) {
@@ -63,6 +67,54 @@ public class RocksDBWriteBatchWrapperTest {
 			for (Tuple2<byte[], byte[]> item : data) {
 				Assert.assertArrayEquals(item.f1, db.get(handle, item.f0));
 			}
+		}
+	}
+
+	/**
+	 * Tests that {@link RocksDBWriteBatchWrapper} flushes after the memory consumed exceeds the preconfigured value.
+	 */
+	@Test
+	public void testWriteBatchWrapperFlushAfterMemorySizeExceed() throws Exception {
+		try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+			WriteOptions options = new WriteOptions().setDisableWAL(true);
+			ColumnFamilyHandle handle = db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
+			RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, options, 200, 50)) {
+
+			long initBatchSize = writeBatchWrapper.getDataSize();
+			byte[] dummy = new byte[6];
+			ThreadLocalRandom.current().nextBytes(dummy);
+			// will add 1 + 1 + 1 + 6 + 1 + 6 = 16 bytes for each KV
+			// format is [handleType|kvType|keyLen|key|valueLen|value]
+			// more information please ref write_batch.cc in RocksDB
+			writeBatchWrapper.put(handle, dummy, dummy);
+			assertEquals(initBatchSize + 16, writeBatchWrapper.getDataSize());
+			writeBatchWrapper.put(handle, dummy, dummy);
+			assertEquals(initBatchSize + 32, writeBatchWrapper.getDataSize());
+			writeBatchWrapper.put(handle, dummy, dummy);
+			// will flush all, then an empty write batch
+			assertEquals(initBatchSize, writeBatchWrapper.getDataSize());
+		}
+	}
+
+	/**
+	 * Tests that {@link RocksDBWriteBatchWrapper} flushes after the kv count exceeds the preconfigured value.
+	 */
+	@Test
+	public void testWriteBatchWrapperFlushAfterCountExceed() throws Exception {
+		try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+			WriteOptions options = new WriteOptions().setDisableWAL(true);
+			ColumnFamilyHandle handle = db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
+			RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(db, options, 100, 50000)) {
+			long initBatchSize = writeBatchWrapper.getDataSize();
+			byte[] dummy = new byte[2];
+			ThreadLocalRandom.current().nextBytes(dummy);
+			for (int i = 1; i < 100; ++i) {
+				writeBatchWrapper.put(handle, dummy, dummy);
+				// each kv consumes 8 bytes
+				assertEquals(initBatchSize + 8 * i, writeBatchWrapper.getDataSize());
+			}
+			writeBatchWrapper.put(handle, dummy, dummy);
+			assertEquals(initBatchSize, writeBatchWrapper.getDataSize());
 		}
 	}
 }

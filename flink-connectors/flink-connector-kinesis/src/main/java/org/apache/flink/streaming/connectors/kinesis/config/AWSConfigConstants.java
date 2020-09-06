@@ -48,7 +48,10 @@ public class AWSConfigConstants {
 		/** Create AWS credentials by assuming a role. The credentials for assuming the role must be supplied. **/
 		ASSUME_ROLE,
 
-		/** A credentials provider chain will be used that searches for credentials in this order: ENV_VARS, SYS_PROPS, PROFILE in the AWS instance metadata. **/
+		/** Use AWS WebIdentityToken in order to assume a role. A token file and role details can be supplied as configuration or environment variables. **/
+		WEB_IDENTITY_TOKEN,
+
+		/** A credentials provider chain will be used that searches for credentials in this order: ENV_VARS, SYS_PROPS, WEB_IDENTITY_TOKEN, PROFILE in the AWS instance metadata. **/
 		AUTO,
 	}
 
@@ -70,14 +73,17 @@ public class AWSConfigConstants {
 	/** Optional configuration for profile name if credential provider type is set to be PROFILE. */
 	public static final String AWS_PROFILE_NAME = profileName(AWS_CREDENTIALS_PROVIDER);
 
-	/** The role ARN to use when credential provider type is set to ASSUME_ROLE. */
+	/** The role ARN to use when credential provider type is set to ASSUME_ROLE or WEB_IDENTITY_TOKEN. */
 	public static final String AWS_ROLE_ARN = roleArn(AWS_CREDENTIALS_PROVIDER);
 
-	/** The role session name to use when credential provider type is set to ASSUME_ROLE. */
+	/** The role session name to use when credential provider type is set to ASSUME_ROLE or WEB_IDENTITY_TOKEN. */
 	public static final String AWS_ROLE_SESSION_NAME = roleSessionName(AWS_CREDENTIALS_PROVIDER);
 
 	/** The external ID to use when credential provider type is set to ASSUME_ROLE. */
 	public static final String AWS_ROLE_EXTERNAL_ID = externalId(AWS_CREDENTIALS_PROVIDER);
+
+	/** The absolute path to the web identity token file that should be used if provider type is set to WEB_IDENTITY_TOKEN. */
+	public static final String AWS_WEB_IDENTITY_TOKEN_FILE = webIdentityTokenFile(AWS_CREDENTIALS_PROVIDER);
 
 	/**
 	 * The credentials provider that provides credentials for assuming the role when credential
@@ -119,5 +125,9 @@ public class AWSConfigConstants {
 
 	public static String roleCredentialsProvider(String prefix) {
 		return prefix + ".role.provider";
+	}
+
+	public static String webIdentityTokenFile(String prefix) {
+		return prefix + ".webIdentityToken.file";
 	}
 }

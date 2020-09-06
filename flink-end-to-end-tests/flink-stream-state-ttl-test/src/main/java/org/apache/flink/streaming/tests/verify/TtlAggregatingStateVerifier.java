@@ -34,7 +34,7 @@ import java.util.List;
 class TtlAggregatingStateVerifier extends AbstractTtlStateVerifier<
 	AggregatingStateDescriptor<Integer, Long, String>, AggregatingState<Integer, String>, Long, Integer, String> {
 	TtlAggregatingStateVerifier() {
-		super(new AggregatingStateDescriptor<>("TtlAggregatingStateVerifier", AGG_FUNC, LongSerializer.INSTANCE));
+		super(new AggregatingStateDescriptor<>(TtlAggregatingStateVerifier.class.getSimpleName(), AGG_FUNC, LongSerializer.INSTANCE));
 	}
 
 	@Override

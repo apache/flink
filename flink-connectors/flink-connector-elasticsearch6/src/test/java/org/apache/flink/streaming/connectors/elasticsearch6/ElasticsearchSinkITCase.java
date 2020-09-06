@@ -32,16 +32,17 @@ import java.util.List;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
- *
- * <p>The Elasticsearch ITCases for 6.x CANNOT be executed in the IDE directly, since it is required that the
- * Log4J-to-SLF4J adapter dependency must be excluded from the test classpath for the Elasticsearch embedded
- * node used in the tests to work properly.
  */
 public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
 
 	@Test
 	public void testElasticsearchSink() throws Exception {
 		runElasticsearchSinkTest();
+	}
+
+	@Test
+	public void testElasticsearchSinkWithSmile() throws Exception {
+		runElasticsearchSinkSmileTest();
 	}
 
 	@Test

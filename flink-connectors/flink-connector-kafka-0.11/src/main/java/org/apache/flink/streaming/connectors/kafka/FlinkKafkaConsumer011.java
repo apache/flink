@@ -19,8 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 
 import java.util.Collections;
 import java.util.List;
@@ -68,7 +67,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	/**
 	 * Creates a new Kafka streaming source consumer for Kafka 0.11.x
 	 *
-	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KafkaDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param topic
@@ -78,7 +77,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 * @param props
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
-	public FlinkKafkaConsumer011(String topic, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer011(String topic, KafkaDeserializationSchema<T> deserializer, Properties props) {
 		this(Collections.singletonList(topic), deserializer, props);
 	}
 
@@ -95,7 +94,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer011(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		this(topics, new KafkaDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	/**
@@ -110,7 +109,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 * @param props
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
-	public FlinkKafkaConsumer011(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer011(List<String> topics, KafkaDeserializationSchema<T> deserializer, Properties props) {
 		super(topics, deserializer, props);
 	}
 
@@ -131,7 +130,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer011(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+		this(subscriptionPattern, new KafkaDeserializationSchemaWrapper<>(valueDeserializer), props);
 	}
 
 	/**
@@ -142,7 +141,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 * {@link FlinkKafkaConsumer011#KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS} in the properties), topics
 	 * with names matching the pattern will also be subscribed to as they are created on the fly.
 	 *
-	 * <p>This constructor allows passing a {@see KeyedDeserializationSchema} for reading key/value
+	 * <p>This constructor allows passing a {@see KafkaDeserializationSchema} for reading key/value
 	 * pairs, offsets, and topic names from Kafka.
 	 *
 	 * @param subscriptionPattern
@@ -153,7 +152,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	@PublicEvolving
-	public FlinkKafkaConsumer011(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
+	public FlinkKafkaConsumer011(Pattern subscriptionPattern, KafkaDeserializationSchema<T> deserializer, Properties props) {
 		super(subscriptionPattern, deserializer, props);
 	}
 }

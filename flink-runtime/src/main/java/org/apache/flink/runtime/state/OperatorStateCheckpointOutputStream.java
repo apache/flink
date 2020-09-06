@@ -56,7 +56,7 @@ public final class OperatorStateCheckpointOutputStream
 	 */
 	@Override
 	OperatorStateHandle closeAndGetHandle() throws IOException {
-		StreamStateHandle streamStateHandle = delegate.closeAndGetHandle();
+		StreamStateHandle streamStateHandle = super.closeAndGetHandleAfterLeasesReleased();
 
 		if (null == streamStateHandle) {
 			return null;

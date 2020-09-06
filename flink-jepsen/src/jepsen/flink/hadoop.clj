@@ -115,17 +115,36 @@
     (info "Start DataNode")
     (c/exec (str install-dir "/sbin/hadoop-daemon.sh") :--config hadoop-conf-dir :--script :hdfs :start :datanode)))
 
+(defn stop-data-node!
+  []
+  (c/exec (str install-dir "/sbin/hadoop-daemon.sh") :--config hadoop-conf-dir :--script :hdfs :stop :datanode))
+
 (defn start-resource-manager!
   [test node]
   (when (= node (resource-manager (:nodes test)))
     (info "Start ResourceManager")
     (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :start :resourcemanager)))
 
+(defn stop-resource-manager!
+  []
+  (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :stop :resourcemanager))
+
 (defn start-node-manager!
   [test node]
   (when (some #{node} (data-nodes (:nodes test)))
     (info "Start NodeManager")
     (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :start :nodemanager)))
+
+(defn stop-node-manager!
+  []
+  (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :stop :nodemanager))
+
+(defn stop-all!
+  []
+  (stop-name-node!)
+  (stop-data-node!)
+  (stop-resource-manager!)
+  (stop-node-manager!))
 
 (defn db
   [url]
@@ -143,7 +162,7 @@
     (teardown! [_ _ _]
       (info "Teardown Hadoop")
       (c/su
-        (cu/grepkill! "hadoop")
+        (stop-all!)
         (c/exec :rm :-rf install-dir)))
 
     db/LogFiles

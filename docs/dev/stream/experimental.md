@@ -43,10 +43,10 @@ makes the second job embarrassingly parallel, which can be helpful for a fine-gr
 This re-interpretation functionality is exposed through `DataStreamUtils`:
 
 {% highlight java %}
-	static <T, K> KeyedStream<T, K> reinterpretAsKeyedStream(
-		DataStream<T> stream,
-		KeySelector<T, K> keySelector,
-		TypeInformation<K> typeInfo)
+static <T, K> KeyedStream<T, K> reinterpretAsKeyedStream(
+    DataStream<T> stream,
+    KeySelector<T, K> keySelector,
+    TypeInformation<K> typeInfo)
 {% endhighlight %}
 
 Given a base stream, a key selector, and type information,
@@ -57,25 +57,25 @@ Code example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Integer> source = ...
-        DataStreamUtils.reinterpretAsKeyedStream(source, (in) -> in, TypeInformation.of(Integer.class))
-            .timeWindow(Time.seconds(1))
-            .reduce((a, b) -> a + b)
-            .addSink(new DiscardingSink<>());
-        env.execute();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+DataStreamSource<Integer> source = ...
+DataStreamUtils.reinterpretAsKeyedStream(source, (in) -> in, TypeInformation.of(Integer.class))
+    .timeWindow(Time.seconds(1))
+    .reduce((a, b) -> a + b)
+    .addSink(new DiscardingSink<>());
+env.execute();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(1)
-    val source = ...
-    new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
-      .timeWindow(Time.seconds(1))
-      .reduce((a, b) => a + b)
-      .addSink(new DiscardingSink[Int])
-    env.execute()
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+env.setParallelism(1)
+val source = ...
+new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
+  .timeWindow(Time.seconds(1))
+  .reduce((a, b) => a + b)
+  .addSink(new DiscardingSink[Int])
+env.execute()
 {% endhighlight %}
 
 {% top %}

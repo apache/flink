@@ -20,6 +20,8 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 
@@ -47,18 +49,16 @@ public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public TypeSerializerSchemaCompatibility<C> resolveSchemaCompatibility(TypeSerializer<C> newSerializer) {
-		if (newSerializer instanceof ListSerializer) {
-			ListSerializer<T> newListSerializer = (ListSerializer<T>) newSerializer;
-			ListSerializerSnapshot<T> listSerializerSnapshot = new ListSerializerSnapshot<>(newListSerializer);
-
-			@SuppressWarnings("unchecked")
-			TypeSerializerSchemaCompatibility<C> result = (TypeSerializerSchemaCompatibility<C>)
-				listSerializerSnapshot.resolveSchemaCompatibility(newListSerializer);
-			return result;
-		} else {
+		if (!(newSerializer instanceof ListSerializer)) {
 			return super.resolveSchemaCompatibility(newSerializer);
 		}
+
+		return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+			newSerializer,
+			(CompositeTypeSerializerSnapshot<C, ? extends TypeSerializer>) new ListSerializerSnapshot<>(),
+			getSingleNestedSerializerAndConfig().f1);
 	}
 
 	@Override

@@ -27,7 +27,6 @@ under the License.
 	<packaging>jar</packaging>
 
 	<name>Flink Quickstart Job</name>
-	<url>http://www.myorganization.org</url>
 
 	<repositories>
 		<repository>
@@ -48,6 +47,7 @@ under the License.
 		<flink.version>@project.version@</flink.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<scala.version>2.11.12</scala.version>
+		<log4j.version>@log4j.version@</log4j.version>
 	</properties>
 
 	<dependencies>
@@ -62,6 +62,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
+			<version>${flink.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -80,7 +86,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-kafka_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		-->
@@ -88,15 +94,21 @@ under the License.
 		<!-- Add logging framework, to produce console output when running in the IDE. -->
 		<!-- These dependencies are excluded from the application JAR by default. -->
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<version>1.7.7</version>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
+			<version>${log4j.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.17</version>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>${log4j.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>${log4j.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
@@ -108,7 +120,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.0.0</version>
+				<version>3.1.1</version>
 				<executions>
 					<!-- Run shade goal on package phase -->
 					<execution>
@@ -122,7 +134,7 @@ under the License.
 									<exclude>org.apache.flink:force-shading</exclude>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
 									<exclude>org.slf4j:*</exclude>
-									<exclude>log4j:*</exclude>
+									<exclude>org.apache.logging.log4j:*</exclude>
 								</excludes>
 							</artifactSet>
 							<filters>
@@ -171,6 +183,11 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<args>
+						<arg>-nobootcp</arg>
+					</args>
+				</configuration>
 			</plugin>
 
 			<!-- Eclipse Scala Integration -->
@@ -236,41 +253,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-	<!-- This profile helps to make things run out of the box in IntelliJ -->
-	<!-- Its adds Flink's core classes to the runtime class path. -->
-	<!-- Otherwise they are missing in IntelliJ, because the dependency is 'provided' -->
-	<profiles>
-		<profile>
-			<id>add-dependencies-for-IDEA</id>
-
-			<activation>
-				<property>
-					<name>idea.version</name>
-				</property>
-			</activation>
-
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-scala_${scala.binary.version}</artifactId>
-					<version>${flink.version}</version>
-					<scope>compile</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
-					<version>${flink.version}</version>
-					<scope>compile</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.scala-lang</groupId>
-					<artifactId>scala-library</artifactId>
-					<version>${scala.version}</version>
-					<scope>compile</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
-
 </project>

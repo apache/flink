@@ -46,6 +46,8 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 
 	protected abstract void verifyResultsWhenReScaling(S sink, int startElementCounter, int endElementCounter) throws Exception;
 
+	private final int maxParallelism = 10;
+
 	@Test
 	public void testIdealCircumstances() throws Exception {
 		S sink = createSink();
@@ -173,12 +175,12 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 	public void testScalingDown() throws Exception {
 		S sink1 = createSink();
 		OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
-			new OneInputStreamOperatorTestHarness<>(sink1, 10, 2, 0);
+			new OneInputStreamOperatorTestHarness<>(sink1, maxParallelism, 2, 0);
 		testHarness1.open();
 
 		S sink2 = createSink();
 		OneInputStreamOperatorTestHarness<IN, IN> testHarness2 =
-			new OneInputStreamOperatorTestHarness<>(sink2, 10, 2, 1);
+			new OneInputStreamOperatorTestHarness<>(sink2, maxParallelism, 2, 1);
 		testHarness2.open();
 
 		int elementCounter = 1;
@@ -208,12 +210,15 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 		// and create a third instance that operates alone but
 		// has the merged state of the previous 2 instances
 
+		OperatorSubtaskState initState = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			mergedSnapshot, maxParallelism, 2, 1, 0);
+
 		S sink3 = createSink();
 		OneInputStreamOperatorTestHarness<IN, IN> mergedTestHarness =
-			new OneInputStreamOperatorTestHarness<>(sink3, 10, 1, 0);
+			new OneInputStreamOperatorTestHarness<>(sink3, maxParallelism, 1, 0);
 
 		mergedTestHarness.setup();
-		mergedTestHarness.initializeState(mergedSnapshot);
+		mergedTestHarness.initializeState(initState);
 		mergedTestHarness.open();
 
 		for (int x = 0; x < 12; x++) {
@@ -234,7 +239,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 
 		S sink1 = createSink();
 		OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
-			new OneInputStreamOperatorTestHarness<>(sink1, 10, 1, 0);
+			new OneInputStreamOperatorTestHarness<>(sink1, maxParallelism, 1, 0);
 
 		int elementCounter = 1;
 		int snapshotCount = 0;
@@ -265,14 +270,20 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 		// we will create two operator instances, testHarness2 and testHarness3,
 		// that will share the state of testHarness1
 
+		OperatorSubtaskState initState1 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot, maxParallelism, 1, 2, 0);
+
+		OperatorSubtaskState initState2 = AbstractStreamOperatorTestHarness.repartitionOperatorState(
+			snapshot, maxParallelism, 1, 2, 1);
+
 		++snapshotCount;
 
 		S sink2 = createSink();
 		OneInputStreamOperatorTestHarness<IN, IN> testHarness2 =
-			new OneInputStreamOperatorTestHarness<>(sink2, 10, 2, 0);
+			new OneInputStreamOperatorTestHarness<>(sink2, maxParallelism, 2, 0);
 
 		testHarness2.setup();
-		testHarness2.initializeState(snapshot);
+		testHarness2.initializeState(initState1);
 		testHarness2.open();
 
 		testHarness2.notifyOfCompletedCheckpoint(snapshotCount);
@@ -281,10 +292,10 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 
 		S sink3 = createSink();
 		OneInputStreamOperatorTestHarness<IN, IN> testHarness3 =
-			new OneInputStreamOperatorTestHarness<>(sink3, 10, 2, 1);
+			new OneInputStreamOperatorTestHarness<>(sink3, maxParallelism, 2, 1);
 
 		testHarness3.setup();
-		testHarness3.initializeState(snapshot);
+		testHarness3.initializeState(initState2);
 		testHarness3.open();
 
 		// add some more elements to verify that everything functions normally from now on...

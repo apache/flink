@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -200,7 +201,8 @@ public class IterateITCase extends AbstractTestBase {
 		assertEquals(2, graph.getIterationSourceSinkPairs().size());
 
 		for (Tuple2<StreamNode, StreamNode> sourceSinkPair: graph.getIterationSourceSinkPairs()) {
-			assertEquals(sourceSinkPair.f0.getOutEdges().get(0).getTargetVertex(), sourceSinkPair.f1.getInEdges().get(0).getSourceVertex());
+			assertEquals(graph.getTargetVertex(sourceSinkPair.f0.getOutEdges().get(0)),
+				graph.getSourceVertex(sourceSinkPair.f1.getInEdges().get(0)));
 		}
 	}
 
@@ -244,9 +246,9 @@ public class IterateITCase extends AbstractTestBase {
 		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 
 		for (StreamEdge edge : itSource.getOutEdges()) {
-			if (edge.getTargetVertex().getOperatorName().equals("IterRebalanceMap")) {
+			if (graph.getTargetVertex(edge).getOperatorName().equals("IterRebalanceMap")) {
 				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-			} else if (edge.getTargetVertex().getOperatorName().equals("IterForwardMap")) {
+			} else if (graph.getTargetVertex(edge).getOperatorName().equals("IterForwardMap")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 			}
 		}
@@ -331,16 +333,16 @@ public class IterateITCase extends AbstractTestBase {
 		assertEquals(itSource.getParallelism(), itSink.getParallelism());
 
 		for (StreamEdge edge : itSource.getOutEdges()) {
-			if (edge.getTargetVertex().getOperatorName().equals("map1")) {
+			if (graph.getTargetVertex(edge).getOperatorName().equals("map1")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
-				assertEquals(4, edge.getTargetVertex().getParallelism());
-			} else if (edge.getTargetVertex().getOperatorName().equals("shuffle")) {
+				assertEquals(4, graph.getTargetVertex(edge).getParallelism());
+			} else if (graph.getTargetVertex(edge).getOperatorName().equals("shuffle")) {
 				assertTrue(edge.getPartitioner() instanceof RebalancePartitioner);
-				assertEquals(2, edge.getTargetVertex().getParallelism());
+				assertEquals(2, graph.getTargetVertex(edge).getParallelism());
 			}
 		}
 		for (StreamEdge edge : itSink.getInEdges()) {
-			String tailName = edge.getSourceVertex().getOperatorName();
+			String tailName = graph.getSourceVertex(edge).getOperatorName();
 			if (tailName.equals("split")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 				assertTrue(edge.getSelectedNames().contains("even"));
@@ -483,7 +485,11 @@ public class IterateITCase extends AbstractTestBase {
 
 				head.addSink(new TestSink()).setParallelism(1);
 
-				assertEquals(1, env.getStreamGraph().getIterationSourceSinkPairs().size());
+				assertEquals(
+						1,
+						env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
+								.getIterationSourceSinkPairs()
+								.size());
 
 				env.execute();
 
@@ -587,16 +593,8 @@ public class IterateITCase extends AbstractTestBase {
 			try {
 				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-				env.enableCheckpointing();
-
-				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
-						.map(noOpBoolMap).name("ParallelizeMap");
-
-				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
-
-				iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
-
 				try {
+					createIteration(env, timeoutScale);
 					env.execute();
 
 					// this statement should never be reached
@@ -608,7 +606,11 @@ public class IterateITCase extends AbstractTestBase {
 				// Test force checkpointing
 
 				try {
-					env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, false);
+					createIteration(env, timeoutScale);
+					env.enableCheckpointing(
+						CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+						CheckpointingMode.EXACTLY_ONCE,
+						false);
 					env.execute();
 
 					// this statement should never be reached
@@ -617,7 +619,11 @@ public class IterateITCase extends AbstractTestBase {
 					// expected behaviour
 				}
 
-				env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, true);
+				createIteration(env, timeoutScale);
+				env.enableCheckpointing(
+					CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+					CheckpointingMode.EXACTLY_ONCE,
+					true);
 				env.getStreamGraph().getJobGraph();
 
 				break; // success
@@ -631,6 +637,17 @@ public class IterateITCase extends AbstractTestBase {
 				}
 			}
 		}
+	}
+
+	private void createIteration(StreamExecutionEnvironment env, int timeoutScale) {
+		env.enableCheckpointing();
+
+		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
+				.map(noOpBoolMap).name("ParallelizeMap");
+
+		IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
+
+		iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
 	}
 
 	private static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {

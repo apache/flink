@@ -227,7 +227,7 @@ asynchronous I/O operator. That means concretely the following for the two order
     That means that in the presence of watermarks, the *unordered* mode introduces some of the same latency and management
     overhead as the *ordered* mode does. The amount of that overhead depends on the watermark frequency.
 
-  - **Ordered**: Order of watermarks an records is preserved, just like order between records is preserved. There is no
+  - **Ordered**: Order of watermarks and records is preserved, just like order between records is preserved. There is no
     significant change in overhead, compared to working with *processing time*.
 
 Please recall that *Ingestion Time* is a special case of *event time* with automatically generated watermarks that
@@ -265,5 +265,13 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
   - Using a database client whose lookup/query method call blocks until the result has been received back
 
   - Blocking/waiting on the future-type objects returned by an asynchronous client inside the `asyncInvoke(...)` method
+  
+**The operator for AsyncFunction (AsyncWaitOperator) must currently be at the head of operator chains for consistency reasons**
+
+For the reasons given in issue `FLINK-13063`, we currently must break operator chains for the `AsyncWaitOperator` to prevent 
+potential consistency problems. This is a change to the previous behavior that supported chaining. User that
+require the old behavior and accept potential violations of the consistency guarantees can instantiate and add the 
+`AsyncWaitOperator` manually to the job graph and set the chaining strategy back to chaining via 
+`AsyncWaitOperator#setChainingStrategy(ChainingStrategy.ALWAYS)`.
 
 {% top %}

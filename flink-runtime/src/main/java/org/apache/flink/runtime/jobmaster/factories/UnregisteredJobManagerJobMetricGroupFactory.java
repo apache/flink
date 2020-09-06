@@ -28,10 +28,10 @@ import javax.annotation.Nonnull;
  * {@link JobManagerJobMetricGroupFactory} which returns an unregistered {@link JobManagerJobMetricGroup}.
  */
 public enum UnregisteredJobManagerJobMetricGroupFactory implements JobManagerJobMetricGroupFactory {
-	INSTANCE {
-		@Override
-		public JobManagerJobMetricGroup create(@Nonnull JobGraph jobGraph) {
-			return UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-		}
+	INSTANCE;
+
+	@Override
+	public JobManagerJobMetricGroup create(@Nonnull JobGraph jobGraph) {
+		return UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
 	}
 }

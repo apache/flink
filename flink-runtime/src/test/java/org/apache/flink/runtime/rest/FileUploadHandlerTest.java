@@ -38,8 +38,13 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.util.LinkedHashSet;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files and/or json are properly
@@ -126,7 +131,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testUploadDirectoryRegeneration() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
 
@@ -136,11 +141,13 @@ public class FileUploadHandlerTest extends TestLogger {
 		try (Response response = client.newCall(fileRequest).execute()) {
 			assertEquals(fileHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
 	public void testMixedMultipart() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartMixedHandler mixedHandler = MULTIPART_UPLOAD_RESOURCE.getMixedHandler();
 
@@ -162,11 +169,13 @@ public class FileUploadHandlerTest extends TestLogger {
 			assertEquals(mixedHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 			assertEquals(json, mixedHandler.lastReceivedRequest);
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
 	public void testJsonMultipart() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartJsonHandler jsonHandler = MULTIPART_UPLOAD_RESOURCE.getJsonHandler();
 
@@ -188,11 +197,13 @@ public class FileUploadHandlerTest extends TestLogger {
 			// FileUploads are outright forbidden
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
 	public void testFileMultipart() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
 
@@ -212,17 +223,21 @@ public class FileUploadHandlerTest extends TestLogger {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	@Test
 	public void testUploadCleanupOnUnknownAttribute() throws IOException {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		Request request = buildMixedRequestWithUnknownAttribute(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
 	}
 
 	/**
@@ -230,7 +245,7 @@ public class FileUploadHandlerTest extends TestLogger {
 	 */
 	@Test
 	public void testUploadCleanupOnFailure() throws IOException {
-		OkHttpClient client = new OkHttpClient();
+		OkHttpClient client = createOkHttpClientWithNoTimeouts();
 
 		Request request = buildMalformedRequest(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
@@ -238,5 +253,34 @@ public class FileUploadHandlerTest extends TestLogger {
 			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
 		}
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
+
+		verifyNoFileIsRegisteredToDeleteOnExitHook();
+	}
+
+	private OkHttpClient createOkHttpClientWithNoTimeouts() {
+		// don't fail if some OkHttpClient operations take longer. See FLINK-17725
+		return new OkHttpClient.Builder()
+			.connectTimeout(0, TimeUnit.MILLISECONDS)
+			.writeTimeout(0, TimeUnit.MILLISECONDS)
+			.readTimeout(0, TimeUnit.MILLISECONDS)
+			.build();
+	}
+
+	/**
+	 * DiskAttribute and DiskFileUpload class of netty store post chunks and file chunks as temp files on local disk.
+	 * By default, netty will register these temp files to java.io.DeleteOnExitHook which may lead to memory leak.
+	 * {@link FileUploadHandler} disables the shutdown hook registration so no file should be registered. Note that
+	 * clean up of temp files is handed over to {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}.
+	 */
+	private void verifyNoFileIsRegisteredToDeleteOnExitHook() {
+		try {
+			Class<?> clazz = Class.forName("java.io.DeleteOnExitHook");
+			Field field = clazz.getDeclaredField("files");
+			field.setAccessible(true);
+			LinkedHashSet files = (LinkedHashSet) field.get(null);
+			assertTrue(files.isEmpty());
+		} catch (ClassNotFoundException | IllegalAccessException | NoSuchFieldException e) {
+			fail("This should never happen.");
+		}
 	}
 }

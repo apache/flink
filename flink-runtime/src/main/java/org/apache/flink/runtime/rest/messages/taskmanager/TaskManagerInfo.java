@@ -19,11 +19,14 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.rest.messages.ResourceProfileInfo;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.ResourceIDSerializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -51,7 +54,13 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
 	public static final String FIELD_NAME_NUMBER_AVAILABLE_SLOTS = "freeSlots";
 
+	public static final String FIELD_NAME_TOTAL_RESOURCE = "totalResource";
+
+	public static final String FIELD_NAME_AVAILABLE_RESOURCE = "freeResource";
+
 	public static final String FIELD_NAME_HARDWARE = "hardware";
+
+	public static final String FIELD_NAME_MEMORY = "memoryConfiguration";
 
 	private static final long serialVersionUID = 1L;
 
@@ -74,8 +83,17 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 	@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS)
 	private final int numberAvailableSlots;
 
+	@JsonProperty(FIELD_NAME_TOTAL_RESOURCE)
+	private final ResourceProfileInfo totalResource;
+
+	@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE)
+	private final ResourceProfileInfo freeResource;
+
 	@JsonProperty(FIELD_NAME_HARDWARE)
 	private final HardwareDescription hardwareDescription;
+
+	@JsonProperty(FIELD_NAME_MEMORY)
+	private final TaskExecutorMemoryConfiguration memoryConfiguration;
 
 	@JsonCreator
 	public TaskManagerInfo(
@@ -85,14 +103,43 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
 			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
-			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription) {
+			@JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
+			@JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
+			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
+			@JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration) {
 		this.resourceId = Preconditions.checkNotNull(resourceId);
 		this.address = Preconditions.checkNotNull(address);
 		this.dataPort = dataPort;
 		this.lastHeartbeat = lastHeartbeat;
 		this.numberSlots = numberSlots;
 		this.numberAvailableSlots = numberAvailableSlots;
+		this.totalResource = totalResource;
+		this.freeResource = freeResource;
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+		this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
+	}
+
+	public TaskManagerInfo(
+			ResourceID resourceId,
+			String address,
+			int dataPort,
+			long lastHeartbeat,
+			int numberSlots,
+			int numberAvailableSlots,
+			ResourceProfile totalResource,
+			ResourceProfile freeResource,
+			HardwareDescription hardwareDescription,
+			TaskExecutorMemoryConfiguration memoryConfiguration) {
+		this(resourceId,
+			address,
+			dataPort,
+			lastHeartbeat,
+			numberSlots,
+			numberAvailableSlots,
+			ResourceProfileInfo.fromResrouceProfile(totalResource),
+			ResourceProfileInfo.fromResrouceProfile(freeResource),
+			hardwareDescription,
+			memoryConfiguration);
 	}
 
 	public ResourceID getResourceId() {
@@ -119,8 +166,20 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 		return numberAvailableSlots;
 	}
 
+	public ResourceProfileInfo getTotalResource() {
+		return totalResource;
+	}
+
+	public ResourceProfileInfo getFreeResource() {
+		return freeResource;
+	}
+
 	public HardwareDescription getHardwareDescription() {
 		return hardwareDescription;
+	}
+
+	public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+		return memoryConfiguration;
 	}
 
 	@Override
@@ -136,9 +195,12 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			lastHeartbeat == that.lastHeartbeat &&
 			numberSlots == that.numberSlots &&
 			numberAvailableSlots == that.numberAvailableSlots &&
+			Objects.equals(totalResource, that.totalResource) &&
+			Objects.equals(freeResource, that.freeResource) &&
 			Objects.equals(resourceId, that.resourceId) &&
 			Objects.equals(address, that.address) &&
-			Objects.equals(hardwareDescription, that.hardwareDescription);
+			Objects.equals(hardwareDescription, that.hardwareDescription) &&
+			Objects.equals(memoryConfiguration, that.memoryConfiguration);
 	}
 
 	@Override
@@ -150,6 +212,9 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 			lastHeartbeat,
 			numberSlots,
 			numberAvailableSlots,
-			hardwareDescription);
+			totalResource,
+			freeResource,
+			hardwareDescription,
+			memoryConfiguration);
 	}
 }

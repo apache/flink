@@ -20,8 +20,8 @@ package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.StateBackendFactory;
 
 /**
@@ -31,10 +31,10 @@ import org.apache.flink.runtime.state.StateBackendFactory;
 public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend> {
 
 	@Override
-	public FsStateBackend createFromConfig(Configuration config) throws IllegalConfigurationException {
+	public FsStateBackend createFromConfig(ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException {
 		// we need to explicitly read the checkpoint directory here, because that
 		// is a required constructor parameter
-		final String checkpointDir = config.getString(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
+		final String checkpointDir = config.get(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
 		if (checkpointDir == null) {
 			throw new IllegalConfigurationException(
 					"Cannot create the file system state backend: The configuration does not specify the " +
@@ -42,7 +42,7 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 		}
 
 		try {
-			return new FsStateBackend(checkpointDir).configure(config);
+			return new FsStateBackend(checkpointDir).configure(config, classLoader);
 		}
 		catch (IllegalArgumentException e) {
 			throw new IllegalConfigurationException("Invalid configuration for the state backend", e);

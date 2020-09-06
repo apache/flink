@@ -37,7 +37,7 @@ class TtlFoldingStateVerifier extends AbstractTtlStateVerifier<
 
 	TtlFoldingStateVerifier() {
 		super(new FoldingStateDescriptor<>(
-			"TtlFoldingStateVerifier", INIT_VAL, (v, acc) -> acc + v, LongSerializer.INSTANCE));
+			TtlFoldingStateVerifier.class.getSimpleName(), INIT_VAL, (v, acc) -> acc + v, LongSerializer.INSTANCE));
 	}
 
 	@Override

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -96,7 +99,7 @@ public class KvStateServerTest {
 			KvStateRequestStats stats = new AtomicKvStateRequestStats();
 
 			server = new KvStateServerImpl(
-					InetAddress.getLocalHost(),
+					InetAddress.getLocalHost().getHostName(),
 					Collections.singletonList(0).iterator(),
 					1,
 					1,
@@ -117,7 +120,11 @@ public class KvStateServerTest {
 				IntSerializer.INSTANCE,
 				numKeyGroups,
 				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(jobId, new JobVertexID()));
+				registry.createTaskRegistry(jobId, new JobVertexID()),
+				TtlTimeProvider.DEFAULT,
+				new UnregisteredMetricsGroup(),
+				Collections.emptyList(),
+				new CloseableRegistry());
 
 			final KvStateServerHandlerTest.TestRegistryListener registryListener =
 					new KvStateServerHandlerTest.TestRegistryListener();

@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.history.FsJobArchivist;
-import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
-import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -31,56 +29,29 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.regex.Pattern;
+
+import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
- * This test must reside in flink-runtime-web since the {@link FsJobArchivist} relies on
- * {@link WebRuntimeMonitor#getJsonArchivists()}.
+ * Tests for the {@link FsJobArchivist}.
  */
 public class FsJobArchivistTest {
 
 	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	@Test
 	public void testArchiveJob() throws Exception {
-		Path tmpPath = new Path(tmpFolder.getRoot().getAbsolutePath());
+		final Path tmpPath = new Path(tmpFolder.getRoot().getAbsolutePath());
+		final JobID jobId = new JobID();
 
-		AccessExecutionGraph graph = ArchivedJobGenerationUtils.getTestJob();
+		final Collection<ArchivedJson> toArchive = new ArrayList<>(2);
+		toArchive.add(new ArchivedJson("dir1", "hello"));
+		toArchive.add(new ArchivedJson("dir1/dir11", "world"));
 
-		Collection<ArchivedJson> expected = new ArrayList<>();
-		for (JsonArchivist archivist : WebRuntimeMonitor.getJsonArchivists()) {
-			for (ArchivedJson archive : archivist.archiveJsonWithPath(graph)) {
-				expected.add(archive);
-			}
-		}
+		final Path archive = FsJobArchivist.archiveJob(tmpPath, jobId, toArchive);
+		final Collection<ArchivedJson> restored = FsJobArchivist.getArchivedJsons(archive);
 
-		Path archivePath = FsJobArchivist.archiveJob(tmpPath, graph);
-		Collection<ArchivedJson> actual = FsJobArchivist.getArchivedJsons(archivePath);
-
-		Assert.assertEquals(expected.size(), actual.size());
-
-		Iterator<ArchivedJson> eI = expected.iterator();
-		Iterator<ArchivedJson> aI = actual.iterator();
-
-		// several jsons contain a dynamic "now" field that depends on the time of creation, so we can't easily compare
-		// the json and only check the path
-		// /jobs/:jobid
-		// /jobs/:jobid/vertices
-		// /jobs/:jobid/vertices/:vertexid
-		// /jobs/:jobid/vertices/:vertexid/subtasktimes
-		// /jobs/:jobid/vertices/:vertexid/taskmanagers
-		Pattern jobDetailsPattern = Pattern.compile("/jobs/[a-fA-F0-9]{32}(/vertices(/[a-fA-F0-9]{32}(/(subtasktimes|taskmanagers))?)?)?");
-		while (eI.hasNext() && aI.hasNext()) {
-			// technically there isn't guarantee that the order is identical, but as it stands this is the case
-			ArchivedJson exp = eI.next();
-			ArchivedJson act = aI.next();
-			if (jobDetailsPattern.matcher(exp.getPath()).matches()) {
-				Assert.assertEquals(exp.getPath(), act.getPath());
-			} else {
-				Assert.assertEquals(exp, act);
-			}
-		}
+		Assert.assertThat(restored, containsInAnyOrder(toArchive.toArray()));
 	}
 }

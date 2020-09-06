@@ -30,10 +30,14 @@ import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.NFAState;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -64,10 +68,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
+import static org.apache.flink.cep.utils.EventBuilder.event;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.validateMockitoUsage;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link CepOperator}.
@@ -97,6 +107,31 @@ public class CEPOperatorTest extends TestLogger {
 			verifyWatermark(harness.getOutput().poll(), 42L);
 		} finally {
 			harness.close();
+		}
+	}
+
+	@Test
+	public void testProcessingTimestampisPassedToNFA() throws Exception {
+
+		final NFA<Event> nfa = NFACompiler.compileFactory(Pattern.<Event>begin("begin"), true).createNFA();
+		final NFA<Event> spyNFA = spy(nfa);
+
+		try (
+			OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+				CepOperatorTestUtilities.getCepTestHarness(createOperatorForNFA(spyNFA).build())) {
+
+			long timestamp = 5;
+			harness.open();
+			harness.setProcessingTime(timestamp);
+			StreamRecord<Event> event = event().withTimestamp(3).asStreamRecord();
+			harness.processElement(event);
+			verify(spyNFA).process(
+				any(SharedBufferAccessor.class),
+				any(NFAState.class),
+				eq(event.getValue()),
+				eq(timestamp),
+				any(AfterMatchSkipStrategy.class),
+				any(TimerService.class));
 		}
 	}
 
@@ -751,6 +786,31 @@ public class CEPOperatorTest extends TestLogger {
 
 			List<Event> expected = Lists.newArrayList(middle1Event1, middle1Event2);
 			Assert.assertArrayEquals(expected.toArray(), late.toArray());
+		}
+	}
+
+	@Test
+	public void testCEPOperatorLateRecordsMetric() throws Exception {
+		Event startEvent = new Event(41, "c", 1.0);
+		Event middle1Event1 = new Event(41, "a", 2.0);
+		Event middle1Event2 = new Event(41, "a", 3.0);
+		Event middle1Event3 = new Event(41, "a", 4.0);
+
+		CepOperator<Event, Integer, Map<String, List<Event>>> operator = getKeyedCepOperator(false);
+		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+		try {
+			harness.open();
+			harness.processWatermark(0);
+			harness.processElement(startEvent, 1L);
+			harness.processWatermark(2L);
+			harness.processElement(middle1Event1, 1L);
+			harness.processElement(middle1Event2, 3L);
+			harness.processWatermark(4L);
+			harness.processElement(middle1Event3, 3L);
+
+			assertEquals(2L, operator.getLateRecordsNumber());
+		} finally {
+			harness.close();
 		}
 	}
 

@@ -30,6 +30,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Arrays;
 
+import static org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot.OuterSchemaCompatibility;
+
 /**
  * Test suite for the {@link CompositeTypeSerializerSnapshot}.
  */
@@ -41,7 +43,6 @@ public class CompositeTypeSerializerSnapshotTest {
 
 	@Test
 	public void testIncompatiblePrecedence() throws IOException {
-		final String OUTER_CONFIG = "outer-config";
 		final TypeSerializer<?>[] testNestedSerializers = {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AFTER_MIGRATION),
@@ -52,15 +53,14 @@ public class CompositeTypeSerializerSnapshotTest {
 		TypeSerializerSchemaCompatibility<String> compatibility =
 			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
 				testNestedSerializers,
-				OUTER_CONFIG,
-				OUTER_CONFIG);
+				testNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AS_IS);
 
 		Assert.assertTrue(compatibility.isIncompatible());
 	}
 
 	@Test
 	public void testCompatibleAfterMigrationPrecedence() throws IOException {
-		final String OUTER_CONFIG = "outer-config";
 		TypeSerializer<?>[] testNestedSerializers = {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AFTER_MIGRATION),
@@ -71,15 +71,14 @@ public class CompositeTypeSerializerSnapshotTest {
 		TypeSerializerSchemaCompatibility<String> compatibility =
 			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
 				testNestedSerializers,
-				OUTER_CONFIG,
-				OUTER_CONFIG);
+				testNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AS_IS);
 
 		Assert.assertTrue(compatibility.isCompatibleAfterMigration());
 	}
 
 	@Test
 	public void testCompatibleWithReconfiguredSerializerPrecedence() throws IOException {
-		final String OUTER_CONFIG = "outer-config";
 		TypeSerializer<?>[] testNestedSerializers = {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_WITH_RECONFIGURED_SERIALIZER),
@@ -89,8 +88,8 @@ public class CompositeTypeSerializerSnapshotTest {
 		TypeSerializerSchemaCompatibility<String> compatibility =
 			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
 				testNestedSerializers,
-				OUTER_CONFIG,
-				OUTER_CONFIG);
+				testNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AS_IS);
 
 		Assert.assertTrue(compatibility.isCompatibleWithReconfiguredSerializer());
 
@@ -105,7 +104,6 @@ public class CompositeTypeSerializerSnapshotTest {
 
 	@Test
 	public void testCompatibleAsIsPrecedence() throws IOException {
-		final String OUTER_CONFIG = "outer-config";
 		TypeSerializer<?>[] testNestedSerializers = {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
@@ -114,16 +112,14 @@ public class CompositeTypeSerializerSnapshotTest {
 		TypeSerializerSchemaCompatibility<String> compatibility =
 			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
 				testNestedSerializers,
-				OUTER_CONFIG,
-				OUTER_CONFIG);
+				testNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AS_IS);
 
 		Assert.assertTrue(compatibility.isCompatibleAsIs());
 	}
 
 	@Test
-	public void testOuterSnapshotCompatibilityPrecedence() throws IOException {
-		final String INIT_OUTER_CONFIG = "outer-config";
-		final String INCOMPAT_OUTER_CONFIG = "incompat-outer-config";
+	public void testOuterSnapshotIncompatiblePrecedence() throws IOException {
 		TypeSerializer<?>[] testNestedSerializers = {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
 		};
@@ -131,20 +127,59 @@ public class CompositeTypeSerializerSnapshotTest {
 		TypeSerializerSchemaCompatibility<String> compatibility =
 			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
 				testNestedSerializers,
-				INIT_OUTER_CONFIG,
-				INCOMPAT_OUTER_CONFIG);
+				testNestedSerializers,
+				OuterSchemaCompatibility.INCOMPATIBLE);
 
 		// even though nested serializers are compatible, incompatibility of the outer
 		// snapshot should have higher precedence in the final result
 		Assert.assertTrue(compatibility.isIncompatible());
 	}
 
+	@Test
+	public void testOuterSnapshotRequiresMigrationPrecedence() throws IOException {
+		TypeSerializer<?>[] testNestedSerializers = {
+			new NestedSerializer(TargetCompatibility.COMPATIBLE_WITH_RECONFIGURED_SERIALIZER),
+		};
+
+		TypeSerializerSchemaCompatibility<String> compatibility =
+			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
+				testNestedSerializers,
+				testNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION);
+
+		// even though nested serializers can be compatible with reconfiguration, the outer
+		// snapshot requiring migration should have higher precedence in the final result
+		Assert.assertTrue(compatibility.isCompatibleAfterMigration());
+	}
+
+	@Test
+	public void testNestedFieldSerializerArityMismatchPrecedence() throws IOException {
+		final TypeSerializer<?>[] initialNestedSerializers = {
+			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
+		};
+
+		final TypeSerializer<?>[] newNestedSerializers = {
+			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
+			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
+			new NestedSerializer(TargetCompatibility.COMPATIBLE_AS_IS),
+		};
+
+		TypeSerializerSchemaCompatibility<String> compatibility =
+			snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
+				initialNestedSerializers,
+				newNestedSerializers,
+				OuterSchemaCompatibility.COMPATIBLE_AS_IS);
+
+		// arity mismatch in the nested serializers should return incompatible as the result
+		Assert.assertTrue(compatibility.isIncompatible());
+	}
+
 	private TypeSerializerSchemaCompatibility<String> snapshotCompositeSerializerAndGetSchemaCompatibilityAfterRestore(
-			TypeSerializer<?>[] testNestedSerializers,
-			String initialOuterConfiguration,
-			String newOuterConfiguration) throws IOException {
+			TypeSerializer<?>[] initialNestedSerializers,
+			TypeSerializer<?>[] newNestedSerializer,
+			OuterSchemaCompatibility mockOuterSchemaCompatibilityResult) throws IOException {
 		TestCompositeTypeSerializer testSerializer =
-			new TestCompositeTypeSerializer(initialOuterConfiguration, testNestedSerializers);
+			new TestCompositeTypeSerializer(initialNestedSerializers);
 
 		TypeSerializerSnapshot<String> testSerializerSnapshot = testSerializer.snapshotConfiguration();
 
@@ -156,7 +191,7 @@ public class CompositeTypeSerializerSnapshotTest {
 			in, Thread.currentThread().getContextClassLoader());
 
 		TestCompositeTypeSerializer newTestSerializer =
-			new TestCompositeTypeSerializer(newOuterConfiguration, testNestedSerializers);
+			new TestCompositeTypeSerializer(mockOuterSchemaCompatibilityResult, newNestedSerializer);
 		return testSerializerSnapshot.resolveSchemaCompatibility(newTestSerializer);
 	}
 
@@ -174,7 +209,7 @@ public class CompositeTypeSerializerSnapshotTest {
 			new NestedSerializer(TargetCompatibility.COMPATIBLE_AFTER_MIGRATION)
 		};
 
-		TestCompositeTypeSerializer testSerializer = new TestCompositeTypeSerializer("outer-config", testNestedSerializers);
+		TestCompositeTypeSerializer testSerializer = new TestCompositeTypeSerializer(testNestedSerializers);
 
 		TypeSerializerSnapshot<String> testSerializerSnapshot = testSerializer.snapshotConfiguration();
 
@@ -207,19 +242,24 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		private static final StringSerializer delegateSerializer = StringSerializer.INSTANCE;
 
-		private final String outerConfiguration;
+		private final OuterSchemaCompatibility mockOuterSchemaCompatibility;
 
 		private final TypeSerializer<?>[] nestedSerializers;
 
-		TestCompositeTypeSerializer(
-				String outerConfiguration,
-				TypeSerializer<?>[] nestedSerializers) {
-			this.outerConfiguration = outerConfiguration;
+		TestCompositeTypeSerializer(TypeSerializer<?>[] nestedSerializers) {
+			this.mockOuterSchemaCompatibility = OuterSchemaCompatibility.COMPATIBLE_AS_IS;
 			this.nestedSerializers = nestedSerializers;
 		}
 
-		public String getOuterConfiguration() {
-			return outerConfiguration;
+		TestCompositeTypeSerializer(
+				OuterSchemaCompatibility mockOuterSchemaCompatibility,
+				TypeSerializer<?>[] nestedSerializers) {
+			this.mockOuterSchemaCompatibility = mockOuterSchemaCompatibility;
+			this.nestedSerializers = nestedSerializers;
+		}
+
+		public OuterSchemaCompatibility getMockOuterSchemaCompatibility() {
+			return mockOuterSchemaCompatibility;
 		}
 
 		TypeSerializer<?>[] getNestedSerializers() {
@@ -287,7 +327,7 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (canEqual(obj)) {
+			if (obj instanceof TestCompositeTypeSerializer) {
 				return Arrays.equals(nestedSerializers, ((TestCompositeTypeSerializer) obj).getNestedSerializers());
 			}
 			return false;
@@ -297,11 +337,6 @@ public class CompositeTypeSerializerSnapshotTest {
 		public int hashCode() {
 			return Arrays.hashCode(nestedSerializers);
 		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof TestCompositeTypeSerializer;
-		}
 	}
 
 	/**
@@ -309,7 +344,7 @@ public class CompositeTypeSerializerSnapshotTest {
 	 */
 	public static class TestCompositeTypeSerializerSnapshot extends CompositeTypeSerializerSnapshot<String, TestCompositeTypeSerializer> {
 
-		private String outerConfiguration;
+		private OuterSchemaCompatibility mockOuterSchemaCompatibility;
 
 		public TestCompositeTypeSerializerSnapshot() {
 			super(TestCompositeTypeSerializer.class);
@@ -317,12 +352,12 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		TestCompositeTypeSerializerSnapshot(TestCompositeTypeSerializer serializer) {
 			super(serializer);
-			this.outerConfiguration = serializer.getOuterConfiguration();
+			this.mockOuterSchemaCompatibility = serializer.getMockOuterSchemaCompatibility();
 		}
 
 		@Override
 		protected TestCompositeTypeSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-			return new TestCompositeTypeSerializer(outerConfiguration, nestedSerializers);
+			return new TestCompositeTypeSerializer(mockOuterSchemaCompatibility, nestedSerializers);
 		}
 
 		@Override
@@ -332,18 +367,18 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		@Override
 		protected void writeOuterSnapshot(DataOutputView out) throws IOException {
-			out.writeUTF(outerConfiguration);
+			out.writeInt(mockOuterSchemaCompatibility.ordinal());
 		}
 
 		@Override
 		public void readOuterSnapshot(int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 			Assert.assertEquals(getCurrentOuterSnapshotVersion(), readOuterSnapshotVersion);
-			this.outerConfiguration = in.readUTF();
+			this.mockOuterSchemaCompatibility = OuterSchemaCompatibility.values()[in.readInt()];
 		}
 
 		@Override
-		protected boolean isOuterSnapshotCompatible(TestCompositeTypeSerializer newSerializer) {
-			return outerConfiguration.equals(newSerializer.getOuterConfiguration());
+		protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(TestCompositeTypeSerializer newSerializer) {
+			return newSerializer.getMockOuterSchemaCompatibility();
 		}
 
 		@Override
@@ -438,20 +473,12 @@ public class CompositeTypeSerializerSnapshotTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (canEqual(obj)) {
-				return targetCompatibility == ((NestedSerializer) obj).targetCompatibility;
-			}
-			return false;
+			return targetCompatibility == ((NestedSerializer) obj).targetCompatibility;
 		}
 
 		@Override
 		public int hashCode() {
 			return targetCompatibility.hashCode();
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof NestedSerializer;
 		}
 	}
 

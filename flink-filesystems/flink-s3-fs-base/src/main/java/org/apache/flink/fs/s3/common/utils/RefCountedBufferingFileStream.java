@@ -24,15 +24,12 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link RefCountedFile} that also uses an in-memory buffer for buffering small writes.
+ * A {@link RefCountedFileWithStream} that also uses an in-memory buffer for buffering small writes.
  * This is done to avoid frequent 'flushes' of the file stream to disk.
  */
 @Internal
@@ -40,7 +37,7 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 
 	public static final int BUFFER_SIZE = 4096;
 
-	private final RefCountedFile currentTmpFile;
+	private final RefCountedFileWithStream currentTmpFile;
 
 	/** The write buffer. */
 	private final byte[] buffer;
@@ -52,7 +49,7 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 
 	@VisibleForTesting
 	public RefCountedBufferingFileStream(
-			final RefCountedFile file,
+			final RefCountedFileWithStream file,
 			final int bufferSize) {
 
 		checkArgument(bufferSize > 0L);
@@ -64,8 +61,8 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 	}
 
 	@Override
-	public InputStream getInputStream() throws IOException {
-		return Files.newInputStream(currentTmpFile.getFile().toPath(), StandardOpenOption.READ);
+	public File getInputFile() {
+		return currentTmpFile.getFile();
 	}
 
 	@Override
@@ -168,7 +165,7 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 	// ------------------------- Factory Methods -------------------------
 
 	public static RefCountedBufferingFileStream openNew(
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileProvider) throws IOException {
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileProvider) throws IOException {
 
 		return new RefCountedBufferingFileStream(
 				tmpFileProvider.apply(null),
@@ -176,7 +173,7 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
 	}
 
 	public static RefCountedBufferingFileStream restore(
-			final FunctionWithException<File, RefCountedFile, IOException> tmpFileProvider,
+			final FunctionWithException<File, RefCountedFileWithStream, IOException> tmpFileProvider,
 			final File initialTmpFile) throws IOException {
 
 		return new RefCountedBufferingFileStream(

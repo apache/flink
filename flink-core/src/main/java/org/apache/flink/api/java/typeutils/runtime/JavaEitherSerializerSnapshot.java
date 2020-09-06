@@ -25,7 +25,7 @@ import org.apache.flink.types.Either;
 /**
  * Snapshot class for the {@link EitherSerializer}.
  */
-public class JavaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializerSnapshot<Either<L, R>, EitherSerializer> {
+public class JavaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializerSnapshot<Either<L, R>, EitherSerializer<L, R>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -50,12 +50,18 @@ public class JavaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializerS
 	}
 
 	@Override
-	protected EitherSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-		return new EitherSerializer<>(nestedSerializers[0], nestedSerializers[1]);
+	protected EitherSerializer<L, R> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+		@SuppressWarnings("unchecked")
+		TypeSerializer<L> leftSerializer = (TypeSerializer<L>) nestedSerializers[0];
+
+		@SuppressWarnings("unchecked")
+		TypeSerializer<R> rightSerializer = (TypeSerializer<R>) nestedSerializers[1];
+
+		return new EitherSerializer<>(leftSerializer, rightSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(EitherSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(EitherSerializer<L, R> outerSerializer) {
 		return new TypeSerializer<?>[]{ outerSerializer.getLeftSerializer(), outerSerializer.getRightSerializer() };
 	}
 }

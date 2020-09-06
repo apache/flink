@@ -19,23 +19,26 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -58,23 +61,14 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
-	 * Stop the given job.
-	 *
-	 * @param jobId identifying the job to stop
-	 * @param timeout of the operation
-	 * @return A future acknowledge if the stopping succeeded
-	 */
-	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
-
-	/**
-	 * Requests the {@link AccessExecutionGraph} for the given jobId. If there is no such graph, then
+	 * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph, then
 	 * the future is completed with a {@link FlinkJobNotFoundException}.
 	 *
-	 * @param jobId identifying the job whose AccessExecutionGraph is requested
+	 * @param jobId identifying the job whose {@link ArchivedExecutionGraph} is requested
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
+	 * @return Future containing the {@link ArchivedExecutionGraph} for the given jobId, otherwise {@link FlinkJobNotFoundException}
 	 */
-	CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
 	 * Requests the {@link JobResult} of a job specified by the given jobId.
@@ -103,20 +97,20 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<ClusterOverview> requestClusterOverview(@RpcTimeout Time timeout);
 
 	/**
-	 * Requests the paths for the {@link MetricQueryService} to query.
+	 * Requests the addresses of the {@link MetricQueryService} to query.
 	 *
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the collection of metric query service paths to query
+	 * @return Future containing the collection of metric query service addresses to query
 	 */
-	CompletableFuture<Collection<String>> requestMetricQueryServicePaths(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<String>> requestMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
 	/**
-	 * Requests the paths for the TaskManager's {@link MetricQueryService} to query.
+	 * Requests the addresses for the TaskManagers' {@link MetricQueryService} to query.
 	 *
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the collection of instance ids and the corresponding metric query service path
+	 * @return Future containing the collection of instance ids and the corresponding metric query service address
 	 */
-	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
+	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServiceAddresses(@RpcTimeout Time timeout);
 
 	/**
 	 * Triggers a savepoint with the given savepoint directory as a target.
@@ -132,6 +126,25 @@ public interface RestfulGateway extends RpcGateway {
 			String targetDirectory,
 			boolean cancelJob,
 			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Stops the job with a savepoint.
+	 *
+	 * @param jobId ID of the job for which the savepoint should be triggered.
+	 * @param targetDirectory to which to write the savepoint data or null if the
+	 *                           default savepoint directory should be used
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the savepoint path once completed
+	 */
+	default CompletableFuture<String> stopWithSavepoint(
+			final JobID jobId,
+			final String targetDirectory,
+			final boolean advanceToEndOfEventTime,
+			@RpcTimeout final Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -166,8 +179,7 @@ public interface RestfulGateway extends RpcGateway {
 	 *
 	 * @param jobId       Job for which the stats are requested.
 	 * @param jobVertexId JobVertex for which the stats are requested.
-	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
-	 * not available (yet).
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse}.
 	 */
 	default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
 			JobID jobId,
@@ -175,24 +187,27 @@ public interface RestfulGateway extends RpcGateway {
 		throw new UnsupportedOperationException();
 	}
 
-	/**
-	 * Trigger rescaling of the given job.
-	 *
-	 * @param jobId specifying the job to rescale
-	 * @param newParallelism new parallelism of the job
-	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
-	 * @param timeout of this operation
-	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
-	 */
-	default CompletableFuture<Acknowledge> rescaleJob(
-			JobID jobId,
-			int newParallelism,
-			RescalingBehaviour rescalingBehaviour,
-			@RpcTimeout Time timeout) {
+	default CompletableFuture<Acknowledge> shutDownCluster() {
 		throw new UnsupportedOperationException();
 	}
 
-	default CompletableFuture<Acknowledge> shutDownCluster() {
+	/**
+	 * Deliver a coordination request to a specified coordinator and return the response.
+	 *
+	 * @param jobId identifying the job which the coordinator belongs to
+	 * @param operatorId identifying the coordinator to receive the request
+	 * @param serializedRequest serialized request to deliver
+	 * @param timeout RPC timeout
+	 * @return A future containing the response.
+	 *         The response will fail with a {@link org.apache.flink.util.FlinkException}
+	 *         if the task is not running, or no operator/coordinator exists for the given ID,
+	 *         or the coordinator cannot handle client events.
+	 */
+	default CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+			JobID jobId,
+			OperatorID operatorId,
+			SerializedValue<CoordinationRequest> serializedRequest,
+			@RpcTimeout Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 }

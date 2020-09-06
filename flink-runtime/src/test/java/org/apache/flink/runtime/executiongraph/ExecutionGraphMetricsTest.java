@@ -18,32 +18,23 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
-import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -52,18 +43,16 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class ExecutionGraphMetricsTest extends TestLogger {
+
+	private final ComponentMainThreadExecutor mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 	/**
 	 * This test tests that the restarting time metric correctly displays restarting times.
 	 */
 	@Test
-	public void testExecutionGraphRestartTimeMetric() throws JobException, IOException, InterruptedException {
+	public void testExecutionGraphRestartTimeMetric() throws Exception {
 		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 		try {
 			// setup execution graph with mocked scheduling logic
@@ -74,33 +63,29 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			jobVertex.setInvokableClass(NoOpInvokable.class);
 			JobGraph jobGraph = new JobGraph("Test Job", jobVertex);
 
-			Configuration jobConfig = new Configuration();
-			Time timeout = Time.seconds(10L);
-			Scheduler scheduler = mock(Scheduler.class);
+			CompletableFuture<LogicalSlot> slotFuture1 = CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
+			CompletableFuture<LogicalSlot> slotFuture2 = CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
+			ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
+			slotFutures.addLast(slotFuture1);
+			slotFutures.addLast(slotFuture2);
 
-			CompletableFuture<LogicalSlot> slotFuture1 = CompletableFuture.completedFuture(new TestingLogicalSlot());
-			CompletableFuture<LogicalSlot> slotFuture2 = CompletableFuture.completedFuture(new TestingLogicalSlot());
-			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), anyBoolean(), any(SlotProfile.class), any(Time.class))).thenReturn(slotFuture1, slotFuture2);
+			TestRestartStrategy testingRestartStrategy = TestRestartStrategy.manuallyTriggered();
 
-			TestingRestartStrategy testingRestartStrategy = new TestingRestartStrategy();
+			ExecutionGraph executionGraph = TestingExecutionGraphBuilder
+				.newBuilder()
+				.setJobGraph(jobGraph)
+				.setFutureExecutor(executor)
+				.setIoExecutor(executor)
+				.setRestartStrategy(testingRestartStrategy)
+				.setSlotProvider(new TestingSlotProvider(ignore -> slotFutures.removeFirst()))
+				.build();
 
-			ExecutionGraph executionGraph = new ExecutionGraph(
-				executor,
-				executor,
-				jobGraph.getJobID(),
-				jobGraph.getName(),
-				jobConfig,
-				new SerializedValue<>(null),
-				timeout,
-				testingRestartStrategy,
-				scheduler);
+			executionGraph.start(mainThreadExecutor);
 
 			RestartTimeGauge restartingTime = new RestartTimeGauge(executionGraph);
 
 			// check that the restarting time is 0 since it's the initial start
 			assertEquals(0L, restartingTime.getValue().longValue());
-
-			executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 
 			// start execution
 			executionGraph.scheduleForExecution();
@@ -108,7 +93,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			List<ExecutionAttemptID> executionIDs = new ArrayList<>();
 
-			for (ExecutionVertex executionVertex: executionGraph.getAllExecutionVertices()) {
+			for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
 				executionIDs.add(executionVertex.getCurrentExecutionAttempt().getAttemptId());
 			}
 
@@ -149,11 +134,11 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			assertTrue(previousRestartingTime > 0);
 
 			// restart job
-			testingRestartStrategy.restartExecutionGraph();
+			testingRestartStrategy.triggerAll().join();
 
 			executionIDs.clear();
 
-			for (ExecutionVertex executionVertex: executionGraph.getAllExecutionVertices()) {
+			for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
 				executionIDs.add(executionVertex.getCurrentExecutionAttempt().getAttemptId());
 			}
 
@@ -206,7 +191,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			// now lets fail the job while it is in restarting and see whether the restarting time then stops to increase
 			// for this to work, we have to use a SuppressRestartException
 			executionGraph.failGlobal(new SuppressRestartsException(new Exception()));
-	
+
 			assertEquals(JobStatus.FAILED, executionGraph.getState());
 
 			previousRestartingTime = restartingTime.getValue();
@@ -221,24 +206,4 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			executor.shutdownNow();
 		}
 	}
-
-	static class TestingRestartStrategy implements RestartStrategy {
-
-		private RestartCallback restarter;
-
-		@Override
-		public boolean canRestart() {
-			return true;
-		}
-
-		@Override
-		public void restart(RestartCallback restarter, ScheduledExecutor executor) {
-			this.restarter = restarter;
-		}
-
-		public void restartExecutionGraph() {
-			restarter.triggerFullRecovery();
-		}
-	}
-
 }

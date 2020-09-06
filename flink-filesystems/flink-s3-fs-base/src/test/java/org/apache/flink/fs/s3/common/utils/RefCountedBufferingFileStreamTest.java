@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -121,7 +122,7 @@ public class RefCountedBufferingFileStreamTest {
 		Assert.assertEquals(contentToWrite.length, stream.getPos());
 
 		final byte[] contentRead = new byte[contentToWrite.length];
-		stream.getInputStream().read(contentRead, 0, contentRead.length);
+		new FileInputStream(stream.getInputFile()).read(contentRead, 0, contentRead.length);
 		Assert.assertTrue(Arrays.equals(contentToWrite, contentRead));
 
 		stream.release();
@@ -133,11 +134,11 @@ public class RefCountedBufferingFileStreamTest {
 		return new RefCountedBufferingFileStream(getRefCountedFileWithContent(), BUFFER_SIZE);
 	}
 
-	private RefCountedFile getRefCountedFileWithContent() throws IOException {
+	private RefCountedFileWithStream getRefCountedFileWithContent() throws IOException {
 		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
 		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 
-		return RefCountedFile.newFile(newFile, out);
+		return RefCountedFileWithStream.newFile(newFile, out);
 	}
 
 	private static byte[] bytesOf(String str) {

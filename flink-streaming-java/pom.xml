@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-	<name>flink-streaming-java</name>
+	<name>Flink : Streaming Java</name>
 
 	<packaging>jar</packaging>
 
@@ -42,8 +42,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
@@ -54,7 +52,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -70,6 +68,14 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -92,6 +98,13 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes combine.children="append">
+							<exclude>org.apache.flink.streaming.api.datastream.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
 			</plugin>
 
 			<!-- disable fork reuse for the streaming project, because of

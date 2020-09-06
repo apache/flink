@@ -21,10 +21,10 @@ package org.apache.flink.api.java.operators;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Base class of all operators in the Java API.
@@ -119,8 +119,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 * @return The operator with set parallelism.
 	 */
 	public O setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
-				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+		OperatorValidationUtils.validateParallelism(parallelism);
 
 		this.parallelism = parallelism;
 
@@ -143,11 +142,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 * @return The operator with set minimum and preferred resources.
 	 */
 	private O setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
-		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
-
-		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
-				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 
 		this.minResources = minResources;
 		this.preferredResources = preferredResources;
@@ -164,8 +159,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 * @return The operator with set minimum and preferred resources.
 	 */
 	private O setResources(ResourceSpec resources) {
-		Preconditions.checkNotNull(resources, "The resources must be not null.");
-		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+		OperatorValidationUtils.validateResources(resources);
 
 		this.minResources = resources;
 		this.preferredResources = resources;

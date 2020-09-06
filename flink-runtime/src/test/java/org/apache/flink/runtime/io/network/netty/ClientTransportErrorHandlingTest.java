@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
@@ -56,7 +56,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isA;
@@ -79,8 +78,7 @@ public class ClientTransportErrorHandlingTest {
 
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				true) {
+				mock(TaskEventDispatcher.class)) {
 
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
@@ -113,7 +111,7 @@ public class ClientTransportErrorHandlingTest {
 			}
 		});
 
-		PartitionRequestClient requestClient = new PartitionRequestClient(
+		PartitionRequestClient requestClient = new NettyPartitionRequestClient(
 				ch, handler, mock(ConnectionID.class), mock(PartitionRequestClientFactory.class));
 
 		// Create input channels
@@ -134,21 +132,19 @@ public class ClientTransportErrorHandlingTest {
 		}).when(rich[1]).onError(isA(LocalTransportException.class));
 
 		// First request is successful
-		ChannelFuture f = requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[0], 0);
-		assertTrue(f.await().isSuccess());
+		requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[0], 0);
 
 		// Second request is *not* successful
-		f = requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[1], 0);
-		assertFalse(f.await().isSuccess());
+		requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[1], 0);
 
-		// Only the second channel should be notified about the error
-		verify(rich[0], times(0)).onError(any(LocalTransportException.class));
-
-		// Wait for the notification
+		// Wait for the notification and it could confirm all the request operations are done
 		if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
 			fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
 					" ms to be notified about the channel error.");
 		}
+
+		// Only the second channel should be notified about the error
+		verify(rich[0], times(0)).onError(any(LocalTransportException.class));
 
 		shutdown(serverAndClient);
 	}
@@ -215,8 +211,7 @@ public class ClientTransportErrorHandlingTest {
 
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				true) {
+				mock(TaskEventDispatcher.class)) {
 
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
@@ -377,8 +372,7 @@ public class ClientTransportErrorHandlingTest {
 	private EmbeddedChannel createEmbeddedChannel() {
 		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
-				mock(TaskEventDispatcher.class),
-				true);
+				mock(TaskEventDispatcher.class));
 
 		return new EmbeddedChannel(protocol.getClientChannelHandlers());
 	}

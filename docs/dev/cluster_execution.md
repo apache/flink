@@ -62,7 +62,7 @@ The following illustrates the use of the `RemoteEnvironment`:
 {% highlight java %}
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment
-        .createRemoteEnvironment("flink-master", 8081, "/home/user/udfs.jar");
+        .createRemoteEnvironment("flink-jobmanager", 8081, "/home/user/udfs.jar");
 
     DataSet<String> data = env.readTextFile("hdfs://path/to/file");
 

@@ -24,12 +24,12 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -115,13 +115,12 @@ public class Kafka010FetcherTest {
 		SourceContext<String> sourceContext = mock(SourceContext.class);
 		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		KafkaDeserializationSchema<String> schema = new KafkaDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic assigner */
-				null, /* punctuated assigner */
+				null, /* watermark strategy */
 				new TestProcessingTimeService(),
 				10,
 				getClass().getClassLoader(),
@@ -131,7 +130,7 @@ public class Kafka010FetcherTest {
 				0L,
 				new UnregisteredMetricsGroup(),
 				new UnregisteredMetricsGroup(),
-				false);
+				false, null);
 
 		// ----- run the fetcher -----
 
@@ -252,13 +251,12 @@ public class Kafka010FetcherTest {
 		SourceContext<String> sourceContext = mock(SourceContext.class);
 		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		KafkaDeserializationSchema<String> schema = new KafkaDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic assigner */
-				null, /* punctuated assigner */
+				null, /* watermark strategy */
 				new TestProcessingTimeService(),
 				10,
 				getClass().getClassLoader(),
@@ -268,7 +266,7 @@ public class Kafka010FetcherTest {
 				0L,
 				new UnregisteredMetricsGroup(),
 				new UnregisteredMetricsGroup(),
-				false);
+				false, null);
 
 		// ----- run the fetcher -----
 
@@ -367,13 +365,12 @@ public class Kafka010FetcherTest {
 		BlockingSourceContext<String> sourceContext = new BlockingSourceContext<>();
 		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
 			Collections.singletonMap(new KafkaTopicPartition(topic, partition), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
+		KafkaDeserializationSchema<String> schema = new KafkaDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
 		final Kafka010Fetcher<String> fetcher = new Kafka010Fetcher<>(
 				sourceContext,
 				partitionsWithInitialOffsets,
-				null, /* periodic watermark extractor */
-				null, /* punctuated watermark extractor */
+				null, /* watermark strategy */
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
@@ -383,7 +380,7 @@ public class Kafka010FetcherTest {
 				0L,
 				new UnregisteredMetricsGroup(),
 				new UnregisteredMetricsGroup(),
-				false);
+				false, null);
 
 		// ----- run the fetcher -----
 

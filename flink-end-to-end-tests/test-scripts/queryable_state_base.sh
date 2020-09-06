@@ -18,21 +18,9 @@
 ################################################################################
 
 function link_queryable_state_lib {
-    echo "Moving flink-queryable-state-runtime from opt/ to lib/"
-    mv ${FLINK_DIR}/opt/flink-queryable-state-runtime* ${FLINK_DIR}/lib/
-    if [ $? != 0 ]; then
-        echo "Failed to move flink-queryable-state-runtime from opt/ to lib/. Exiting"
-        exit 1
-    fi
-}
-
-function unlink_queryable_state_lib {
-    echo "Moving flink-queryable-state-runtime from lib/ to opt/"
-    mv ${FLINK_DIR}/lib/flink-queryable-state-runtime* ${FLINK_DIR}/opt/
-    if [ $? != 0 ]; then
-        echo "Failed to move flink-queryable-state-runtime from lib/ to opt/. Exiting"
-        exit 1
-    fi
+    echo "Adding flink-queryable-state-runtime to lib/"
+    add_optional_lib "queryable-state-runtime"
+    set_config_key "queryable-state.enable" "true"
 }
 
 # Returns the ip address of the queryable state server
@@ -40,7 +28,7 @@ function get_queryable_state_server_ip {
     local ip=$(cat ${FLINK_DIR}/log/flink*taskexecutor*log \
         | grep "Started Queryable State Server" \
         | head -1 \
-        | awk '{split($11, a, "/"); split(a[2], b, ":"); print b[1]}')
+        | grep -Eo  "\.*[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.*")
 
     printf "${ip} \n"
 }
@@ -50,7 +38,7 @@ function get_queryable_state_proxy_port {
     local port=$(cat ${FLINK_DIR}/log/flink*taskexecutor*log \
         | grep "Started Queryable State Proxy Server" \
         | head -1 \
-        | awk '{split($12, a, "/"); split(a[2], b, ":"); split(b[2], c, "."); print c[1]}')
+        | grep -Eo  "\.*\:([0-9]{3,5})\.*" | tr -d ":.")
 
     printf "${port} \n"
 }

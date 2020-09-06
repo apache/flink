@@ -18,46 +18,76 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.ConfigGroup;
-import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LineBreakElement.linebreak;
 import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * The set of configuration options relating to security.
  */
-@PublicEvolving
-@ConfigGroups(groups = {
-	@ConfigGroup(name = "Kerberos", keyPrefix = "security.kerberos"),
-	@ConfigGroup(name = "ZooKeeper", keyPrefix = "zookeeper")
-})
 public class SecurityOptions {
+
+	// ------------------------------------------------------------------------
+	//  Custom Security Service Loader
+	// ------------------------------------------------------------------------
+
+	public static final ConfigOption<List<String>> SECURITY_CONTEXT_FACTORY_CLASSES =
+		key("security.context.factory.classes")
+			.stringType()
+			.asList()
+			.defaultValues(
+					"org.apache.flink.runtime.security.contexts.HadoopSecurityContextFactory",
+					"org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory")
+				.withDescription(
+						"List of factories that should be used to instantiate a security context. " +
+								"If multiple are configured, Flink will use the first compatible " +
+								"factory. You should have a NoOpSecurityContextFactory in this list " +
+								"as a fallback.");
+
+	public static final ConfigOption<List<String>> SECURITY_MODULE_FACTORY_CLASSES =
+		key("security.module.factory.classes")
+			.stringType()
+			.asList()
+			.defaultValues(
+				"org.apache.flink.runtime.security.modules.HadoopModuleFactory",
+				"org.apache.flink.runtime.security.modules.JaasModuleFactory",
+				"org.apache.flink.runtime.security.modules.ZookeeperModuleFactory")
+			.withDescription("List of factories that should be used to instantiate security " +
+					"modules. All listed modules will be installed. Keep in mind that the " +
+					"configured security context might rely on some modules being present.");
 
 	// ------------------------------------------------------------------------
 	//  Kerberos Options
 	// ------------------------------------------------------------------------
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
 	public static final ConfigOption<String> KERBEROS_LOGIN_PRINCIPAL =
 		key("security.kerberos.login.principal")
 			.noDefaultValue()
 			.withDeprecatedKeys("security.principal")
 			.withDescription("Kerberos principal name associated with the keytab.");
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
 	public static final ConfigOption<String> KERBEROS_LOGIN_KEYTAB =
 		key("security.kerberos.login.keytab")
 			.noDefaultValue()
 			.withDeprecatedKeys("security.keytab")
 			.withDescription("Absolute path to a Kerberos keytab file that contains the user credentials.");
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
 	public static final ConfigOption<Boolean> KERBEROS_LOGIN_USETICKETCACHE =
 		key("security.kerberos.login.use-ticket-cache")
 			.defaultValue(true)
 			.withDescription("Indicates whether to read from your Kerberos ticket cache.");
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
 	public static final ConfigOption<String> KERBEROS_LOGIN_CONTEXTS =
 		key("security.kerberos.login.contexts")
 			.noDefaultValue()
@@ -70,14 +100,17 @@ public class SecurityOptions {
 	//  ZooKeeper Security Options
 	// ------------------------------------------------------------------------
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_ZOOKEEPER)
 	public static final ConfigOption<Boolean> ZOOKEEPER_SASL_DISABLE =
 		key("zookeeper.sasl.disable")
 			.defaultValue(false);
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_ZOOKEEPER)
 	public static final ConfigOption<String> ZOOKEEPER_SASL_SERVICE_NAME =
 		key("zookeeper.sasl.service-name")
 			.defaultValue("zookeeper");
 
+	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_ZOOKEEPER)
 	public static final ConfigOption<String> ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME =
 		key("zookeeper.sasl.login-context-name")
 			.defaultValue("Client");
@@ -103,7 +136,7 @@ public class SecurityOptions {
 	/**
 	 * Enable SSL for internal communication (akka rpc, netty data transport, blob server).
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<Boolean> SSL_INTERNAL_ENABLED =
 			key("security.ssl.internal.enabled")
 			.defaultValue(false)
@@ -114,7 +147,7 @@ public class SecurityOptions {
 	/**
 	 * Enable SSL for external REST endpoints.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<Boolean> SSL_REST_ENABLED =
 			key("security.ssl.rest.enabled")
 			.defaultValue(false)
@@ -123,6 +156,7 @@ public class SecurityOptions {
 	/**
 	 * Enable mututal SSL authentication for external REST endpoints.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<Boolean> SSL_REST_AUTHENTICATION_ENABLED =
 		key("security.ssl.rest.authentication-enabled")
 			.defaultValue(false)
@@ -133,6 +167,7 @@ public class SecurityOptions {
 	/**
 	 * The Java keystore file containing the flink endpoint key and certificate.
 	 */
+	@Documentation.ExcludeFromDocumentation("The SSL Setup encourages separate configs for internal and REST security.")
 	public static final ConfigOption<String> SSL_KEYSTORE =
 		key("security.ssl.keystore")
 			.noDefaultValue()
@@ -141,6 +176,7 @@ public class SecurityOptions {
 	/**
 	 * Secret to decrypt the keystore file.
 	 */
+	@Documentation.ExcludeFromDocumentation("The SSL Setup encourages separate configs for internal and REST security.")
 	public static final ConfigOption<String> SSL_KEYSTORE_PASSWORD =
 		key("security.ssl.keystore-password")
 			.noDefaultValue()
@@ -149,6 +185,7 @@ public class SecurityOptions {
 	/**
 	 * Secret to decrypt the server key.
 	 */
+	@Documentation.ExcludeFromDocumentation("The SSL Setup encourages separate configs for internal and REST security.")
 	public static final ConfigOption<String> SSL_KEY_PASSWORD =
 		key("security.ssl.key-password")
 			.noDefaultValue()
@@ -157,6 +194,7 @@ public class SecurityOptions {
 	/**
 	 * The truststore file containing the public CA certificates to verify the ssl peers.
 	 */
+	@Documentation.ExcludeFromDocumentation("The SSL Setup encourages separate configs for internal and REST security.")
 	public static final ConfigOption<String> SSL_TRUSTSTORE =
 		key("security.ssl.truststore")
 			.noDefaultValue()
@@ -166,6 +204,7 @@ public class SecurityOptions {
 	/**
 	 * Secret to decrypt the truststore.
 	 */
+	@Documentation.ExcludeFromDocumentation("The SSL Setup encourages separate configs for internal and REST security.")
 	public static final ConfigOption<String> SSL_TRUSTSTORE_PASSWORD =
 		key("security.ssl.truststore-password")
 			.noDefaultValue()
@@ -176,6 +215,7 @@ public class SecurityOptions {
 	/**
 	 * For internal SSL, the Java keystore file containing the private key and certificate.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_INTERNAL_KEYSTORE =
 			key("security.ssl.internal.keystore")
 					.noDefaultValue()
@@ -185,6 +225,7 @@ public class SecurityOptions {
 	/**
 	 * For internal SSL, the password to decrypt the keystore file containing the certificate.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_INTERNAL_KEYSTORE_PASSWORD =
 			key("security.ssl.internal.keystore-password")
 					.noDefaultValue()
@@ -194,6 +235,7 @@ public class SecurityOptions {
 	/**
 	 * For internal SSL, the password to decrypt the private key.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_INTERNAL_KEY_PASSWORD =
 			key("security.ssl.internal.key-password")
 					.noDefaultValue()
@@ -203,6 +245,7 @@ public class SecurityOptions {
 	/**
 	 * For internal SSL, the truststore file containing the public CA certificates to verify the ssl peers.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_INTERNAL_TRUSTSTORE =
 			key("security.ssl.internal.truststore")
 					.noDefaultValue()
@@ -212,17 +255,30 @@ public class SecurityOptions {
 	/**
 	 * For internal SSL, the secret to decrypt the truststore.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_INTERNAL_TRUSTSTORE_PASSWORD =
 			key("security.ssl.internal.truststore-password")
 					.noDefaultValue()
 					.withDescription("The password to decrypt the truststore " +
 							"for Flink's internal endpoints (rpc, data transport, blob server).");
 
+	/**
+	 * For internal SSL, the sha1 fingerprint of the internal certificate to verify the client.
+	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
+	public static final ConfigOption<String> SSL_INTERNAL_CERT_FINGERPRINT =
+		key("security.ssl.internal.cert.fingerprint")
+			.noDefaultValue()
+			.withDescription("The sha1 fingerprint of the internal certificate. " +
+				"This further protects the internal communication to present the exact certificate used by Flink." +
+				"This is necessary where one cannot use private CA(self signed) or there is internal firm wide CA is required");
+
 	// ----------------------- certificates (external) ------------------------
 
 	/**
 	 * For external (REST) SSL, the Java keystore file containing the private key and certificate.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_REST_KEYSTORE =
 			key("security.ssl.rest.keystore")
 					.noDefaultValue()
@@ -232,6 +288,7 @@ public class SecurityOptions {
 	/**
 	 * For external (REST) SSL, the password to decrypt the keystore file containing the certificate.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_REST_KEYSTORE_PASSWORD =
 			key("security.ssl.rest.keystore-password")
 					.noDefaultValue()
@@ -241,6 +298,7 @@ public class SecurityOptions {
 	/**
 	 * For external (REST) SSL, the password to decrypt the private key.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_REST_KEY_PASSWORD =
 			key("security.ssl.rest.key-password")
 					.noDefaultValue()
@@ -250,6 +308,7 @@ public class SecurityOptions {
 	/**
 	 * For external (REST) SSL, the truststore file containing the public CA certificates to verify the ssl peers.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_REST_TRUSTSTORE =
 			key("security.ssl.rest.truststore")
 					.noDefaultValue()
@@ -259,17 +318,30 @@ public class SecurityOptions {
 	/**
 	 * For external (REST) SSL, the secret to decrypt the truststore.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_REST_TRUSTSTORE_PASSWORD =
 			key("security.ssl.rest.truststore-password")
 					.noDefaultValue()
 					.withDescription("The password to decrypt the truststore " +
 							"for Flink's external REST endpoints.");
 
+	/**
+	 * For external (REST) SSL, the sha1 fingerprint of the rest client certificate to verify.
+	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
+	public static final ConfigOption<String> SSL_REST_CERT_FINGERPRINT =
+		key("security.ssl.rest.cert.fingerprint")
+			.noDefaultValue()
+			.withDescription("The sha1 fingerprint of the rest certificate. " +
+				"This further protects the rest REST endpoints to present certificate which is only used by proxy server" +
+				"This is necessary where once uses public CA or internal firm wide CA");
+
 	// ------------------------ ssl parameters --------------------------------
 
 	/**
 	 * SSL protocol version to be supported.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_PROTOCOL =
 		key("security.ssl.protocol")
 			.defaultValue("TLSv1.2")
@@ -281,6 +353,7 @@ public class SecurityOptions {
 	 *
 	 * <p>More options here - http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<String> SSL_ALGORITHMS =
 		key("security.ssl.algorithms")
 			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA")
@@ -294,16 +367,53 @@ public class SecurityOptions {
 	/**
 	 * Flag to enable/disable hostname verification for the ssl connections.
 	 */
+	@Documentation.Section(Documentation.Sections.SECURITY_SSL)
 	public static final ConfigOption<Boolean> SSL_VERIFY_HOSTNAME =
 		key("security.ssl.verify-hostname")
 			.defaultValue(true)
 			.withDescription("Flag to enable peer’s hostname verification during ssl handshake.");
+
+	/**
+	 * SSL engine provider.
+	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
+	public static final ConfigOption<String> SSL_PROVIDER =
+		key("security.ssl.provider")
+			.defaultValue("JDK")
+			.withDescription(Description.builder()
+					.text("The SSL engine provider to use for the ssl transport:")
+					.list(
+						text("%s: default Java-based SSL engine", code("JDK")),
+						text("%s: openSSL-based SSL engine using system libraries",
+							code("OPENSSL"))
+					)
+					.text("%s is based on %s and comes in two flavours:",
+						code("OPENSSL"),
+						link("http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4", "netty-tcnative"))
+					.list(
+						text("dynamically linked: This will use your system's openSSL libraries " +
+							"(if compatible) and requires %s to be copied to %s",
+							code("opt/flink-shaded-netty-tcnative-dynamic-*.jar"),
+							code("lib/")),
+						text("statically linked: Due to potential licensing issues with " +
+								"openSSL (see %s), we cannot ship pre-built libraries. However, " +
+								"you can build the required library yourself and put it into %s:%s%s",
+							link("https://issues.apache.org/jira/browse/LEGAL-393", "LEGAL-393"),
+							code("lib/"),
+							linebreak(),
+							code("git clone https://github.com/apache/flink-shaded.git && " +
+								"cd flink-shaded && " +
+								"mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static"))
+					)
+					.build()
+				);
 
 	// ------------------------ ssl parameters --------------------------------
 
 	/**
 	 * SSL session cache size.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
 	public static final ConfigOption<Integer> SSL_INTERNAL_SESSION_CACHE_SIZE =
 		key("security.ssl.internal.session-cache-size")
 			.defaultValue(-1)
@@ -316,6 +426,7 @@ public class SecurityOptions {
 	/**
 	 * SSL session timeout.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
 	public static final ConfigOption<Integer> SSL_INTERNAL_SESSION_TIMEOUT =
 		key("security.ssl.internal.session-timeout")
 			.defaultValue(-1)
@@ -325,6 +436,7 @@ public class SecurityOptions {
 	/**
 	 * SSL session timeout during handshakes.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
 	public static final ConfigOption<Integer> SSL_INTERNAL_HANDSHAKE_TIMEOUT =
 		key("security.ssl.internal.handshake-timeout")
 			.defaultValue(-1)
@@ -334,6 +446,7 @@ public class SecurityOptions {
 	/**
 	 * SSL session timeout after flushing the <tt>close_notify</tt> message.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
 	public static final ConfigOption<Integer> SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT =
 		key("security.ssl.internal.close-notify-flush-timeout")
 			.defaultValue(-1)

@@ -26,8 +26,9 @@ import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.zookeeper.data.Stat;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,10 +43,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
@@ -683,6 +687,18 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 		Stat stat = ZOOKEEPER.getClient().checkExists().forPath("/");
 
 		assertEquals(0, stat.getNumChildren());
+	}
+
+	@Test
+	public void testDeleteAllShouldRemoveAllPaths() throws Exception {
+		final ZooKeeperStateHandleStore<Long> zkStore = new ZooKeeperStateHandleStore<>(
+			ZooKeeperUtils.useNamespaceAndEnsurePath(ZOOKEEPER.getClient(), "/path"),
+			new LongStateStorage());
+
+		zkStore.addAndLock("/state", 1L);
+		zkStore.deleteChildren();
+
+		assertThat(zkStore.getAllPaths(), is(empty()));
 	}
 
 	// ---------------------------------------------------------------------------------------------

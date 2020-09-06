@@ -38,11 +38,11 @@ import org.apache.flink.runtime.jobmanager.Tasks.ExceptionReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.ExceptionSender;
 import org.apache.flink.runtime.jobmanager.Tasks.Forwarder;
 import org.apache.flink.runtime.jobmanager.Tasks.InstantiationErrorSender;
-import org.apache.flink.runtime.jobmanager.Tasks.Receiver;
-import org.apache.flink.runtime.jobmanager.Tasks.Sender;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
+import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
@@ -52,10 +52,13 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -66,11 +69,12 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -78,17 +82,18 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		final int parallelism = 23;
+		final int numOfTMs = 3;
+		final int slotsPerTM = 7;
 
 		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setNumTaskManagers(1)
-			.setNumSlotsPerTaskManager(parallelism)
+			.setNumTaskManagers(numOfTMs)
+			.setNumSlotsPerTaskManager(slotsPerTM)
 			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(getDefaultConfiguration())
 			.build();
@@ -96,7 +101,7 @@ public class MiniClusterITCase extends TestLogger {
 		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
 			miniCluster.start();
 
-			miniCluster.executeJobBlocking(getSimpleJob(parallelism));
+			miniCluster.executeJobBlocking(getSimpleJob(numOfTMs * slotsPerTM));
 		}
 	}
 
@@ -108,7 +113,12 @@ public class MiniClusterITCase extends TestLogger {
 		} catch (JobExecutionException e) {
 			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
 			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, "Slots required: 2, slots allocated: 1").isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Slots required: 2, slots allocated: 1";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
 		}
 	}
 
@@ -120,7 +130,12 @@ public class MiniClusterITCase extends TestLogger {
 		} catch (JobExecutionException e) {
 			assertTrue(findThrowableWithMessage(e, "Job execution failed.").isPresent());
 			assertTrue(findThrowable(e, NoResourceAvailableException.class).isPresent());
-			assertTrue(findThrowableWithMessage(e, "Could not allocate enough slots").isPresent());
+
+			//TODO: remove the legacy scheduler message check once legacy scheduler is removed
+			final String legacySchedulerErrorMessage = "Could not allocate enough slots";
+			final String ngSchedulerErrorMessage = "Could not allocate the required slot within slot request timeout";
+			assertTrue(findThrowableWithMessage(e, legacySchedulerErrorMessage).isPresent() ||
+				findThrowableWithMessage(e, ngSchedulerErrorMessage).isPresent());
 		}
 	}
 
@@ -317,7 +332,7 @@ public class MiniClusterITCase extends TestLogger {
 			receiver.setInvokableClass(AgnosticReceiver.class);
 			receiver.setParallelism(parallelism);
 
-			final SlotSharingGroup sharingGroup = new SlotSharingGroup(sender.getID(), receiver.getID());
+			final SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			sender.setSlotSharingGroup(sharingGroup);
 			forwarder.setSlotSharingGroup(sharingGroup);
 			receiver.setSlotSharingGroup(sharingGroup);
@@ -563,13 +578,93 @@ public class MiniClusterITCase extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testOutOfMemoryErrorMessageEnrichmentInJobVertexFinalization() throws Exception {
+		final int parallelism = 1;
+
+		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(1)
+				.setNumSlotsPerTaskManager(parallelism)
+				.setConfiguration(getDefaultConfiguration())
+				.build();
+
+		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+			miniCluster.start();
+
+			final JobVertex failingJobVertex = new JobVertex("FailingInFinalization") {
+
+				@Override
+				public void finalizeOnMaster(ClassLoader loader) {
+					throw new OutOfMemoryError("Java heap space");
+				}
+			};
+			failingJobVertex.setInvokableClass(NoOpInvokable.class);
+			failingJobVertex.setParallelism(parallelism);
+
+			final JobGraph jobGraph = new JobGraph("JobGraphWithFailingJobVertex", failingJobVertex);
+
+			final CompletableFuture<JobSubmissionResult> submissionFuture = miniCluster.submitJob(jobGraph);
+
+			final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
+					(JobSubmissionResult ignored) -> miniCluster.requestJobResult(jobGraph.getJobID()));
+
+			try {
+				jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
+			} catch (JobExecutionException e) {
+				assertTrue(findThrowable(e, OutOfMemoryError.class).isPresent());
+				assertThat(findThrowable(e, OutOfMemoryError.class).map(OutOfMemoryError::getMessage).get(),
+						startsWith("Java heap space. A heap space-related out-of-memory error has occurred."));
+			}
+		}
+	}
+
+	@Test
+	public void testOutOfMemoryErrorMessageEnrichmentInJobVertexInitialization() throws Exception {
+		final int parallelism = 1;
+
+		final MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(1)
+				.setNumSlotsPerTaskManager(parallelism)
+				.setConfiguration(getDefaultConfiguration())
+				.build();
+
+		try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+			miniCluster.start();
+
+			final JobVertex failingJobVertex = new JobVertex("FailingInFinalization") {
+
+				@Override
+				public void initializeOnMaster(ClassLoader loader) {
+					throw new OutOfMemoryError("Java heap space");
+				}
+			};
+			failingJobVertex.setInvokableClass(NoOpInvokable.class);
+			failingJobVertex.setParallelism(parallelism);
+
+			final JobGraph jobGraph = new JobGraph("JobGraphWithFailingJobVertex", failingJobVertex);
+
+			final CompletableFuture<JobSubmissionResult> submissionFuture = miniCluster.submitJob(jobGraph);
+
+			final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
+					(JobSubmissionResult ignored) -> miniCluster.requestJobResult(jobGraph.getJobID()));
+
+			try {
+				jobResultFuture.get();
+			} catch (ExecutionException e) {
+				assertTrue(findThrowable(e, OutOfMemoryError.class).isPresent());
+				assertThat(findThrowable(e, OutOfMemoryError.class).map(OutOfMemoryError::getMessage).get(),
+						startsWith("Java heap space. A heap space-related out-of-memory error has occurred."));
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
 	private Configuration getDefaultConfiguration() {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(RestOptions.PORT, 0);
+		configuration.setString(RestOptions.BIND_PORT, "0");
 
 		return configuration;
 	}

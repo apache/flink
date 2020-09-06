@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.api.dag.Transformation;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -30,18 +30,18 @@ import java.util.List;
 
 /**
  * This represents a feedback point in a topology. The type of the feedback elements need not match
- * the type of the upstream {@code StreamTransformation} because the only allowed operations
+ * the type of the upstream {@code Transformation} because the only allowed operations
  * after a {@code CoFeedbackTransformation} are
  * {@link org.apache.flink.streaming.api.transformations.TwoInputTransformation TwoInputTransformations}.
- * The upstream {@code StreamTransformation} will be connected to the first input of the Co-Transform
+ * The upstream {@code Transformation} will be connected to the first input of the Co-Transform
  * while the feedback edges will be connected to the second input.
  *
  * <p>Both the partitioning of the input and the feedback edges is preserved. They can also have
  * differing partitioning strategies. This requires, however, that the parallelism of the feedback
- * {@code StreamTransformations} must match the parallelism of the input
- * {@code StreamTransformation}.
+ * {@code Transformations} must match the parallelism of the input
+ * {@code Transformation}.
  *
- * <p>The upstream {@code StreamTransformation} is not wired to this {@code CoFeedbackTransformation}.
+ * <p>The upstream {@code Transformation} is not wired to this {@code CoFeedbackTransformation}.
  * It is instead directly wired to the {@code TwoInputTransformation} after this
  * {@code CoFeedbackTransformation}.
  *
@@ -52,16 +52,16 @@ import java.util.List;
  *
  */
 @Internal
-public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
+public class CoFeedbackTransformation<F> extends Transformation<F> {
 
-	private final List<StreamTransformation<F>> feedbackEdges;
+	private final List<Transformation<F>> feedbackEdges;
 
 	private final Long waitTime;
 
 	/**
 	 * Creates a new {@code CoFeedbackTransformation} from the given input.
 	 *
-	 * @param parallelism The parallelism of the upstream {@code StreamTransformation} and the
+	 * @param parallelism The parallelism of the upstream {@code Transformation} and the
 	 *                    feedback edges.
 	 * @param feedbackType The type of the feedback edges
 	 * @param waitTime The wait time of the feedback operator. After the time expires
@@ -76,13 +76,13 @@ public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 	}
 
 	/**
-	 * Adds a feedback edge. The parallelism of the {@code StreamTransformation} must match
-	 * the parallelism of the input {@code StreamTransformation} of the upstream
-	 * {@code StreamTransformation}.
+	 * Adds a feedback edge. The parallelism of the {@code Transformation} must match
+	 * the parallelism of the input {@code Transformation} of the upstream
+	 * {@code Transformation}.
 	 *
-	 * @param transform The new feedback {@code StreamTransformation}.
+	 * @param transform The new feedback {@code Transformation}.
 	 */
-	public void addFeedbackEdge(StreamTransformation<F> transform) {
+	public void addFeedbackEdge(Transformation<F> transform) {
 
 		if (transform.getParallelism() != this.getParallelism()) {
 			throw new UnsupportedOperationException(
@@ -95,9 +95,9 @@ public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 	}
 
 	/**
-	 * Returns the list of feedback {@code StreamTransformations}.
+	 * Returns the list of feedback {@code Transformations}.
 	 */
-	public List<StreamTransformation<F>> getFeedbackEdges() {
+	public List<Transformation<F>> getFeedbackEdges() {
 		return feedbackEdges;
 	}
 
@@ -111,13 +111,8 @@ public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 	}
 
 	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on Split Transformation.");
-	}
-
-	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		return Collections.<StreamTransformation<?>>singleton(this);
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		return Collections.<Transformation<?>>singleton(this);
 	}
 }
 

@@ -19,8 +19,11 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration parameters for REST communication.
@@ -28,37 +31,62 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @Internal
 public class RestOptions {
 
+	private static final String REST_PORT_KEY = "rest.port";
+
 	/**
 	 * The address that the server binds itself to.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
 	public static final ConfigOption<String> BIND_ADDRESS =
 		key("rest.bind-address")
 			.noDefaultValue()
-			.withDeprecatedKeys(WebOptions.ADDRESS.key(), ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
+			.withFallbackKeys(WebOptions.ADDRESS.key())
+			.withDeprecatedKeys(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
 			.withDescription("The address that the server binds itself.");
+
+	/**
+	 * The port range that the server could bind itself to.
+	 */
+	@Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
+	public static final ConfigOption<String> BIND_PORT =
+		key("rest.bind-port")
+			.defaultValue("8081")
+			.withFallbackKeys(REST_PORT_KEY)
+			.withDeprecatedKeys(WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
+			.withDescription("The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges" +
+				" (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid" +
+				" collisions when multiple Rest servers are running on the same machine.");
+
 
 	/**
 	 * The address that should be used by clients to connect to the server.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
 	public static final ConfigOption<String> ADDRESS =
 		key("rest.address")
 			.noDefaultValue()
-			.withDeprecatedKeys(JobManagerOptions.ADDRESS.key())
+			.withFallbackKeys(JobManagerOptions.ADDRESS.key())
 			.withDescription("The address that should be used by clients to connect to the server.");
 
 	/**
-	 * The port that the server listens on / the client connects to.
+	 * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
+	 * has not been specified.
 	 */
+	@Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
 	public static final ConfigOption<Integer> PORT =
-		key("rest.port")
+		key(REST_PORT_KEY)
 			.defaultValue(8081)
-			.withDeprecatedKeys("web.port")
-			.withDescription("The port that the server listens on / the client connects to.");
+			.withDeprecatedKeys(WebOptions.PORT.key())
+			.withDescription(
+				Description.builder()
+					.text("The port that the client connects to. If %s has not been specified, then the REST server will bind to this port.", text(BIND_PORT.key()))
+					.build());
 
 	/**
 	 * The time in ms that the client waits for the leader address, e.g., Dispatcher or
 	 * WebMonitorEndpoint.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Long> AWAIT_LEADER_TIMEOUT =
 		key("rest.await-leader-timeout")
 			.defaultValue(30_000L)
@@ -69,6 +97,7 @@ public class RestOptions {
 	 * The number of retries the client will attempt if a retryable operations fails.
 	 * @see #RETRY_DELAY
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Integer> RETRY_MAX_ATTEMPTS =
 		key("rest.retry.max-attempts")
 			.defaultValue(20)
@@ -79,6 +108,7 @@ public class RestOptions {
 	 * The time in ms that the client waits between retries.
 	 * @see #RETRY_MAX_ATTEMPTS
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Long> RETRY_DELAY =
 		key("rest.retry.delay")
 			.defaultValue(3_000L)
@@ -88,6 +118,7 @@ public class RestOptions {
 	/**
 	 * The maximum time in ms for the client to establish a TCP connection.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Long> CONNECTION_TIMEOUT =
 		key("rest.connection-timeout")
 			.defaultValue(15_000L)
@@ -96,6 +127,7 @@ public class RestOptions {
 	/**
 	 * The maximum time in ms for a connection to stay idle before failing.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Long> IDLENESS_TIMEOUT =
 		key("rest.idleness-timeout")
 			.defaultValue(5L * 60L * 1_000L) // 5 minutes
@@ -104,6 +136,7 @@ public class RestOptions {
 	/**
 	 * The maximum content length that the server will handle.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Integer> SERVER_MAX_CONTENT_LENGTH =
 		key("rest.server.max-content-length")
 			.defaultValue(104_857_600)
@@ -112,16 +145,19 @@ public class RestOptions {
 	/**
 	 * The maximum content length that the client will handle.
 	 */
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Integer> CLIENT_MAX_CONTENT_LENGTH =
 		key("rest.client.max-content-length")
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the client will handle.");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Integer> SERVER_NUM_THREADS =
 		key("rest.server.numThreads")
 			.defaultValue(4)
 			.withDescription("The number of threads for the asynchronous processing of requests.");
 
+	@Documentation.Section(Documentation.Sections.EXPERT_REST)
 	public static final ConfigOption<Integer> SERVER_THREAD_PRIORITY = key("rest.server.thread-priority")
 		.defaultValue(Thread.NORM_PRIORITY)
 		.withDescription("Thread priority of the REST server's executor for processing asynchronous requests. " +

@@ -31,7 +31,8 @@ import java.util.ArrayList;
  * @param <IN>
  *            Input tuple type
  *
- * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
+ * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ * for writing to files from a streaming program.
  */
 @PublicEvolving
 @Deprecated
@@ -46,7 +47,7 @@ public class WriteFormatAsCsv<IN> extends WriteFormat<IN> {
 				outStream.println(strTuple.substring(1, strTuple.length() - 1));
 			}
 		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while writing file " + path, e);
+			throw new RuntimeException("Exception occurred while writing file " + path, e);
 		}
 	}
 

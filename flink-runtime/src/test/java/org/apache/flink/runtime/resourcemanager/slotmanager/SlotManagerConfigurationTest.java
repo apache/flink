@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -44,7 +45,7 @@ public class SlotManagerConfigurationTest extends TestLogger {
 
 		final Configuration configuration = new Configuration();
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotIdleTimeout);
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration);
+		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
 
 		assertThat(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(), is(equalTo(slotIdleTimeout)));
 	}
@@ -60,7 +61,7 @@ public class SlotManagerConfigurationTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		configuration.setLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT, legacySlotIdleTimeout);
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 300000L);
-		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration);
+		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
 
 		assertThat(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(), is(equalTo(legacySlotIdleTimeout)));
 	}

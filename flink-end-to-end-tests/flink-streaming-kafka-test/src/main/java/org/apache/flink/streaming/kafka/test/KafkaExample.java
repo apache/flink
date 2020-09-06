@@ -22,12 +22,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.kafka.test.base.CustomWatermarkExtractor;
 import org.apache.flink.streaming.kafka.test.base.KafkaEvent;
 import org.apache.flink.streaming.kafka.test.base.KafkaEventSchema;
 import org.apache.flink.streaming.kafka.test.base.KafkaExampleUtil;
 import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
 /**
  * A simple example that shows how to read from and write to modern Kafka. This will read String messages
@@ -40,7 +40,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWra
  *
  * <p>Example usage:
  * 	--input-topic test-input --output-topic test-output --bootstrap.servers localhost:9092
- * 	--zookeeper.connect localhost:2181 --group.id myconsumer
+ * 	--group.id myconsumer
  */
 public class KafkaExample extends KafkaExampleUtil {
 

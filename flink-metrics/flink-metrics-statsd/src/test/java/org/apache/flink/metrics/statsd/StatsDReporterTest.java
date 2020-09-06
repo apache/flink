@@ -23,19 +23,24 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.util.TestCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -45,6 +50,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -81,20 +87,18 @@ public class StatsDReporterTest extends TestLogger {
 		String taskManagerId = "tas:kMana::ger";
 		String counterName = "testCounter";
 
-		configuration.setString(
-				ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
-				"org.apache.flink.metrics.statsd.StatsDReporterTest$TestingStatsDReporter");
-
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
-		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration),
+			Collections.singletonList(ReporterSetup.forReporter("test", new TestingStatsDReporter())));
 
 		char delimiter = metricRegistry.getDelimiter();
 
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(metricRegistry, hostname, taskManagerId);
 		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(metricRegistry, tmMetricGroup, new JobID(), jobName);
-		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new JobVertexID(), new AbstractID(), taskName, 0, 0);
+		TaskMetricGroup taskMetricGroup = new TaskMetricGroup(metricRegistry, tmJobMetricGroup, new JobVertexID(), new ExecutionAttemptID(), taskName, 0, 0);
 
 		SimpleCounter myCounter = new SimpleCounter();
 
@@ -132,72 +136,50 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testStatsDHistogramReporting() throws Exception {
-		MetricRegistryImpl registry = null;
-		DatagramSocketReceiver receiver = null;
-		Thread receiverThread = null;
-		long timeout = 5000;
-		long joinTimeout = 30000;
+		Set<String> expectedLines = new HashSet<>(6);
+		expectedLines.add("metric.count:1|g");
+		expectedLines.add("metric.mean:4.0|g");
+		expectedLines.add("metric.min:7|g");
+		expectedLines.add("metric.max:6|g");
+		expectedLines.add("metric.stddev:5.0|g");
+		expectedLines.add("metric.p75:0.75|g");
+		expectedLines.add("metric.p98:0.98|g");
+		expectedLines.add("metric.p99:0.99|g");
+		expectedLines.add("metric.p999:0.999|g");
+		expectedLines.add("metric.p95:0.95|g");
+		expectedLines.add("metric.p50:0.5|g");
 
-		String histogramName = "histogram";
+		testMetricAndAssert(new TestHistogram(), "metric", expectedLines);
+	}
 
-		try {
-			receiver = new DatagramSocketReceiver();
+	@Test
+	public void testStatsDHistogramReportingOfNegativeValues() throws Exception {
+		TestHistogram histogram = new TestHistogram();
+		histogram.setCount(-101);
+		histogram.setMean(-104);
+		histogram.setMin(-107);
+		histogram.setMax(-106);
+		histogram.setStdDev(-105);
 
-			receiverThread = new Thread(receiver);
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric.count:0|g");
+		expectedLines.add("metric.count:-101|g");
+		expectedLines.add("metric.mean:0|g");
+		expectedLines.add("metric.mean:-104.0|g");
+		expectedLines.add("metric.min:0|g");
+		expectedLines.add("metric.min:-107|g");
+		expectedLines.add("metric.max:0|g");
+		expectedLines.add("metric.max:-106|g");
+		expectedLines.add("metric.stddev:0|g");
+		expectedLines.add("metric.stddev:-105.0|g");
+		expectedLines.add("metric.p75:0.75|g");
+		expectedLines.add("metric.p98:0.98|g");
+		expectedLines.add("metric.p99:0.99|g");
+		expectedLines.add("metric.p999:0.999|g");
+		expectedLines.add("metric.p95:0.95|g");
+		expectedLines.add("metric.p50:0.5|g");
 
-			receiverThread.start();
-
-			int port = receiver.getPort();
-
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
-
-			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
-
-			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
-
-			TestingHistogram histogram = new TestingHistogram();
-
-			metricGroup.histogram(histogramName, histogram);
-
-			receiver.waitUntilNumLines(11, timeout);
-
-			Set<String> lines = receiver.getLines();
-
-			String prefix = metricGroup.getMetricIdentifier(histogramName);
-
-			Set<String> expectedLines = new HashSet<>();
-
-			expectedLines.add(prefix + ".count:1|g");
-			expectedLines.add(prefix + ".mean:3.0|g");
-			expectedLines.add(prefix + ".min:6|g");
-			expectedLines.add(prefix + ".max:5|g");
-			expectedLines.add(prefix + ".stddev:4.0|g");
-			expectedLines.add(prefix + ".p75:0.75|g");
-			expectedLines.add(prefix + ".p98:0.98|g");
-			expectedLines.add(prefix + ".p99:0.99|g");
-			expectedLines.add(prefix + ".p999:0.999|g");
-			expectedLines.add(prefix + ".p95:0.95|g");
-			expectedLines.add(prefix + ".p50:0.5|g");
-
-			assertEquals(expectedLines, lines);
-
-		} finally {
-			if (registry != null) {
-				registry.shutdown().get();
-			}
-
-			if (receiver != null) {
-				receiver.stop();
-			}
-
-			if (receiverThread != null) {
-				receiverThread.join(joinTimeout);
-			}
-		}
+		testMetricAndAssert(histogram, "metric", expectedLines);
 	}
 
 	/**
@@ -205,13 +187,67 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testStatsDMetersReporting() throws Exception {
-		MetricRegistryImpl registry = null;
+		Set<String> expectedLines = new HashSet<>(4);
+		expectedLines.add("metric.rate:5.0|g");
+		expectedLines.add("metric.count:100|g");
+
+		testMetricAndAssert(new TestMeter(), "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDMetersReportingOfNegativeValues() throws Exception {
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric.rate:0|g");
+		expectedLines.add("metric.rate:-5.3|g");
+		expectedLines.add("metric.count:0|g");
+		expectedLines.add("metric.count:-50|g");
+
+		testMetricAndAssert(new TestMeter(-50, -5.3), "metric", expectedLines);
+	}
+
+	/**
+	 * Tests that counter are properly reported via the StatsD reporter.
+	 */
+	@Test
+	public void testStatsDCountersReporting() throws Exception {
+		Set<String> expectedLines = new HashSet<>(2);
+		expectedLines.add("metric:100|g");
+
+		testMetricAndAssert(new TestCounter(100), "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDCountersReportingOfNegativeValues() throws Exception {
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric:0|g");
+		expectedLines.add("metric:-51|g");
+
+		testMetricAndAssert(new TestCounter(-51), "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDGaugesReporting() throws Exception {
+		Set<String> expectedLines = new HashSet<>(2);
+		expectedLines.add("metric:75|g");
+
+		testMetricAndAssert((Gauge) () -> 75, "metric", expectedLines);
+	}
+
+	@Test
+	public void testStatsDGaugesReportingOfNegativeValues() throws Exception {
+		Set<String> expectedLines = new HashSet<>();
+		expectedLines.add("metric:0|g");
+		expectedLines.add("metric:-12345|g");
+
+		testMetricAndAssert((Gauge) () -> -12345, "metric", expectedLines);
+	}
+
+	private void testMetricAndAssert(Metric metric, String metricName, Set<String> expectation) throws Exception {
+		StatsDReporter reporter = null;
 		DatagramSocketReceiver receiver = null;
 		Thread receiverThread = null;
 		long timeout = 5000;
 		long joinTimeout = 30000;
-
-		String meterName = "meter";
 
 		try {
 			receiver = new DatagramSocketReceiver();
@@ -222,32 +258,23 @@ public class StatsDReporterTest extends TestLogger {
 
 			int port = receiver.getPort();
 
-			Configuration config = new Configuration();
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, StatsDReporter.class.getName());
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 SECONDS");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
-			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
+			MetricConfig config = new MetricConfig();
+			config.setProperty("host", "localhost");
+			config.setProperty("port", String.valueOf(port));
 
-			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
-			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
-			TestMeter meter = new TestMeter();
-			metricGroup.meter(meterName, meter);
-			String prefix = metricGroup.getMetricIdentifier(meterName);
+			reporter = new StatsDReporter();
+			ReporterSetup.forReporter("test", config, reporter);
+			MetricGroup metricGroup = new UnregisteredMetricsGroup();
 
-			Set<String> expectedLines = new HashSet<>();
+			reporter.notifyOfAddedMetric(metric, metricName, metricGroup);
+			reporter.report();
 
-			expectedLines.add(prefix + ".rate:5.0|g");
-			expectedLines.add(prefix + ".count:100|g");
-
-			receiver.waitUntilNumLines(expectedLines.size(), timeout);
-
-			Set<String> lines = receiver.getLines();
-
-			assertEquals(expectedLines, lines);
+			receiver.waitUntilNumLines(expectation.size(), timeout);
+			assertEquals(expectation, receiver.getLines());
 
 		} finally {
-			if (registry != null) {
-				registry.shutdown().get();
+			if (reporter != null) {
+				reporter.close();
 			}
 
 			if (receiver != null) {
@@ -271,59 +298,6 @@ public class StatsDReporterTest extends TestLogger {
 
 		public Map<Counter, String> getCounters() {
 			return counters;
-		}
-	}
-
-	private static class TestingHistogram implements Histogram {
-
-		@Override
-		public void update(long value) {
-
-		}
-
-		@Override
-		public long getCount() {
-			return 1;
-		}
-
-		@Override
-		public HistogramStatistics getStatistics() {
-			return new HistogramStatistics() {
-				@Override
-				public double getQuantile(double quantile) {
-					return quantile;
-				}
-
-				@Override
-				public long[] getValues() {
-					return new long[0];
-				}
-
-				@Override
-				public int size() {
-					return 2;
-				}
-
-				@Override
-				public double getMean() {
-					return 3;
-				}
-
-				@Override
-				public double getStdDev() {
-					return 4;
-				}
-
-				@Override
-				public long getMax() {
-					return 5;
-				}
-
-				@Override
-				public long getMin() {
-					return 6;
-				}
-			};
 		}
 	}
 
@@ -353,8 +327,8 @@ public class StatsDReporterTest extends TestLogger {
 			long endTimeout = System.currentTimeMillis() + timeout;
 			long remainingTimeout = timeout;
 
-			while (numberLines > lines.size() && remainingTimeout > 0) {
-				synchronized (lines) {
+			synchronized (lines) {
+				while (numberLines > lines.size() && remainingTimeout > 0) {
 					try {
 						lines.wait(remainingTimeout);
 					} catch (InterruptedException e) {

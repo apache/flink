@@ -25,14 +25,13 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.ContentDump;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.logging.TestLoggerResource;
 
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.spi.LoggingEvent;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.event.Level;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -45,12 +44,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -70,17 +69,11 @@ public class TwoPhaseCommitSinkFunctionTest {
 
 	private SettableClock clock;
 
-	private Logger logger;
-
-	private AppenderSkeleton testAppender;
-
-	private List<LoggingEvent> loggingEvents;
+	@Rule
+	public final TestLoggerResource testLoggerResource = new TestLoggerResource(TwoPhaseCommitSinkFunction.class, Level.WARN);
 
 	@Before
 	public void setUp() throws Exception {
-		loggingEvents = new ArrayList<>();
-		setupLogger();
-
 		targetDirectory = new ContentDump();
 		tmpDirectory = new ContentDump();
 		clock = new SettableClock();
@@ -91,41 +84,6 @@ public class TwoPhaseCommitSinkFunctionTest {
 	@After
 	public void tearDown() throws Exception {
 		closeTestHarness();
-		if (logger != null) {
-			logger.removeAppender(testAppender);
-		}
-		loggingEvents = null;
-	}
-
-	/**
-	 * Setup {@link org.apache.log4j.Logger}, the default logger implementation for tests,
-	 * to append {@link LoggingEvent}s to {@link #loggingEvents} so that we can assert if
-	 * the right messages were logged.
-	 *
-	 * @see #testLogTimeoutAlmostReachedWarningDuringCommit
-	 * @see #testLogTimeoutAlmostReachedWarningDuringRecovery
-	 */
-	private void setupLogger() {
-		Logger.getRootLogger().removeAllAppenders();
-		logger = Logger.getLogger(TwoPhaseCommitSinkFunction.class);
-		testAppender = new AppenderSkeleton() {
-			@Override
-			protected void append(LoggingEvent event) {
-				loggingEvents.add(event);
-			}
-
-			@Override
-			public void close() {
-
-			}
-
-			@Override
-			public boolean requiresLayout() {
-				return false;
-			}
-		};
-		logger.addAppender(testAppender);
-		logger.setLevel(Level.WARN);
 	}
 
 	private void setUpTestHarness() throws Exception {
@@ -136,6 +94,26 @@ public class TwoPhaseCommitSinkFunctionTest {
 
 	private void closeTestHarness() throws Exception {
 		harness.close();
+	}
+
+	/**
+	 * This can happen if savepoint and checkpoint are triggered one after another and checkpoints completes first.
+	 * See FLINK-10377 and FLINK-14979 for more details.
+	 **/
+	@Test
+	public void testSubsumedNotificationOfPreviousCheckpoint() throws Exception {
+		harness.open();
+		harness.processElement("42", 0);
+		harness.snapshot(0, 1);
+		harness.processElement("43", 2);
+		harness.snapshot(1, 3);
+		harness.processElement("44", 4);
+		harness.snapshot(2, 5);
+		harness.notifyOfCompletedCheckpoint(2);
+		harness.notifyOfCompletedCheckpoint(1);
+
+		assertExactlyOnce(Arrays.asList("42", "43", "44"));
+		assertEquals(1, tmpDirectory.listFiles().size()); // one for currentTransaction
 	}
 
 	@Test
@@ -167,7 +145,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 			harness.snapshot(2, 5);
 			fail("something should fail");
 		} catch (Exception ex) {
-			if (!(ex.getCause() instanceof ContentDump.NotWritableException)) {
+			if (!findSerializedThrowable(ex, ContentDump.NotWritableException.class, ClassLoader.getSystemClassLoader()).isPresent()) {
 				throw ex;
 			}
 			// ignore
@@ -232,11 +210,8 @@ public class TwoPhaseCommitSinkFunctionTest {
 		clock.setEpochMilli(elapsedTime);
 		harness.notifyOfCompletedCheckpoint(1);
 
-		final List<String> logMessages =
-			loggingEvents.stream().map(LoggingEvent::getRenderedMessage).collect(Collectors.toList());
-
 		assertThat(
-			logMessages,
+			testLoggerResource.getMessages(),
 			hasItem(containsString("has been open for 502 ms. " +
 				"This is close to or even exceeding the transaction timeout of 1000 ms.")));
 	}
@@ -264,13 +239,10 @@ public class TwoPhaseCommitSinkFunctionTest {
 		harness.initializeState(snapshot);
 		harness.open();
 
-		final List<String> logMessages =
-			loggingEvents.stream().map(LoggingEvent::getRenderedMessage).collect(Collectors.toList());
-
 		closeTestHarness();
 
 		assertThat(
-			logMessages,
+			testLoggerResource.getMessages(),
 			hasItem(containsString("has been open for 502 ms. " +
 				"This is close to or even exceeding the transaction timeout of 1000 ms.")));
 	}

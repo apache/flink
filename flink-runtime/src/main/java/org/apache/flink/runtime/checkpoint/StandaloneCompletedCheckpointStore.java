@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import org.slf4j.Logger;
@@ -74,11 +74,6 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
 		}
-	}
-
-	@Override
-	public CompletedCheckpoint getLatestCheckpoint() {
-		return checkpoints.isEmpty() ? null : checkpoints.getLast();
 	}
 
 	@Override

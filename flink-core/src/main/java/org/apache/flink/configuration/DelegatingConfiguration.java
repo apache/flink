@@ -29,8 +29,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+
+import static org.apache.flink.configuration.FallbackKey.createDeprecatedKey;
 
 /**
  * A configuration that manages a subset of keys with a common prefix from a given configuration.
@@ -243,6 +246,11 @@ public final class DelegatingConfiguration extends Configuration {
 	}
 
 	@Override
+	public <T extends Enum<T>> T getEnum(final Class<T> enumClass, final ConfigOption<String> configOption) {
+		return this.backingConfig.getEnum(enumClass, prefixOption(configOption, prefix));
+	}
+
+	@Override
 	public void addAllToProperties(Properties props) {
 		// only add keys with our prefix
 		synchronized (backingConfig.confData) {
@@ -302,11 +310,13 @@ public final class DelegatingConfiguration extends Configuration {
 	@Override
 	public Map<String, String> toMap() {
 		Map<String, String> map = backingConfig.toMap();
-		Map<String, String> prefixed = new HashMap<>(map.size());
+		Map<String, String> prefixed = new HashMap<>();
 		for (Map.Entry<String, String> entry : map.entrySet()) {
-			prefixed.put(prefix + entry.getKey(), entry.getValue());
+			if (entry.getKey().startsWith(prefix)) {
+				String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+				prefixed.put(keyWithoutPrefix, entry.getValue());
+			}
 		}
-
 		return prefixed;
 	}
 
@@ -323,6 +333,21 @@ public final class DelegatingConfiguration extends Configuration {
 	@Override
 	public boolean contains(ConfigOption<?> configOption) {
 		return backingConfig.contains(prefixOption(configOption, prefix));
+	}
+
+	@Override
+	public <T> T get(ConfigOption<T> option) {
+		return backingConfig.get(prefixOption(option, prefix));
+	}
+
+	@Override
+	public <T> Optional<T> getOptional(ConfigOption<T> option) {
+		return backingConfig.getOptional(prefixOption(option, prefix));
+	}
+
+	@Override
+	public <T> Configuration set(ConfigOption<T> option, T value) {
+		return backingConfig.set(prefixOption(option, prefix), value);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -361,20 +386,23 @@ public final class DelegatingConfiguration extends Configuration {
 	private static <T> ConfigOption<T> prefixOption(ConfigOption<T> option, String prefix) {
 		String key = prefix + option.key();
 
-		List<String> deprecatedKeys;
-		if (option.hasDeprecatedKeys()) {
+		List<FallbackKey> deprecatedKeys;
+		if (option.hasFallbackKeys()) {
 			deprecatedKeys = new ArrayList<>();
-			for (String dk : option.deprecatedKeys()) {
-				deprecatedKeys.add(prefix + dk);
+			for (FallbackKey dk : option.fallbackKeys()) {
+				deprecatedKeys.add(createDeprecatedKey(prefix + dk.getKey()));
 			}
 		} else {
 			deprecatedKeys = Collections.emptyList();
 		}
 
-		String[] deprecated = deprecatedKeys.toArray(new String[deprecatedKeys.size()]);
-		return new ConfigOption<>(key,
+		FallbackKey[] deprecated = deprecatedKeys.toArray(new FallbackKey[0]);
+		return new ConfigOption<T>(
+			key,
+			option.getClazz(),
 			option.description(),
 			option.defaultValue(),
+			option.isList(),
 			deprecated);
 	}
 }

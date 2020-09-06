@@ -107,6 +107,12 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 	 */
 	public static final class Summary {
 
+		/**
+		 * The accurate name of this field should be 'checkpointed_data_size',
+		 * keep it as before to not break backwards compatibility for old web UI.
+		 *
+		 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+		 */
 		public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
 		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
@@ -114,6 +120,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 		public static final String FIELD_NAME_CHECKPOINT_DURATION = "checkpoint_duration";
 
 		public static final String FIELD_NAME_ALIGNMENT = "alignment";
+
+		public static final String FIELD_NAME_START_DELAY = "start_delay";
 
 		@JsonProperty(FIELD_NAME_STATE_SIZE)
 		private final MinMaxAvgStatistics stateSize;
@@ -127,16 +135,21 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 		@JsonProperty(FIELD_NAME_ALIGNMENT)
 		private final CheckpointAlignment checkpointAlignment;
 
+		@JsonProperty(FIELD_NAME_START_DELAY)
+		private final MinMaxAvgStatistics checkpointStartDelay;
+
 		@JsonCreator
 		public Summary(
 				@JsonProperty(FIELD_NAME_STATE_SIZE) MinMaxAvgStatistics stateSize,
 				@JsonProperty(FIELD_NAME_DURATION) MinMaxAvgStatistics duration,
 				@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment checkpointAlignment) {
+				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment checkpointAlignment,
+				@JsonProperty(FIELD_NAME_START_DELAY) MinMaxAvgStatistics checkpointStartDelay) {
 			this.stateSize = Preconditions.checkNotNull(stateSize);
 			this.duration = Preconditions.checkNotNull(duration);
 			this.checkpointDuration = Preconditions.checkNotNull(checkpointDuration);
 			this.checkpointAlignment = Preconditions.checkNotNull(checkpointAlignment);
+			this.checkpointStartDelay = Preconditions.checkNotNull(checkpointStartDelay);
 		}
 
 		public MinMaxAvgStatistics getStateSize() {
@@ -155,6 +168,10 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			return checkpointAlignment;
 		}
 
+		public MinMaxAvgStatistics getCheckpointStartDelay() {
+			return checkpointStartDelay;
+		}
+
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -167,12 +184,18 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
 			return Objects.equals(stateSize, summary.stateSize) &&
 				Objects.equals(duration, summary.duration) &&
 				Objects.equals(checkpointDuration, summary.checkpointDuration) &&
-				Objects.equals(checkpointAlignment, summary.checkpointAlignment);
+				Objects.equals(checkpointAlignment, summary.checkpointAlignment) &&
+				Objects.equals(checkpointStartDelay, summary.checkpointStartDelay);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(stateSize, duration, checkpointDuration, checkpointAlignment);
+			return Objects.hash(
+				stateSize,
+				duration,
+				checkpointDuration,
+				checkpointAlignment,
+				checkpointStartDelay);
 		}
 	}
 

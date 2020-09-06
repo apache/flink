@@ -25,25 +25,36 @@ import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.messages.TaskBackPressureResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
+import org.apache.flink.util.SerializedValue;
 
+import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link TaskExecutor} RPC gateway interface.
  */
-public interface TaskExecutorGateway extends RpcGateway {
+public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEventGateway {
 
 	/**
 	 * Requests a slot from the TaskManager.
@@ -51,6 +62,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param slotId slot id for the request
 	 * @param jobId for which to request a slot
 	 * @param allocationId id for the request
+	 * @param resourceProfile of requested slot, used only for dynamic slot allocation and will be ignored otherwise
 	 * @param targetAddress to which to offer the requested slots
 	 * @param resourceManagerId current leader id of the ResourceManager
 	 * @param timeout for the operation
@@ -60,16 +72,14 @@ public interface TaskExecutorGateway extends RpcGateway {
 		SlotID slotId,
 		JobID jobId,
 		AllocationID allocationId,
+		ResourceProfile resourceProfile,
 		String targetAddress,
 		ResourceManagerId resourceManagerId,
 		@RpcTimeout Time timeout);
 
-	CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+	CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
 		ExecutionAttemptID executionAttemptId,
-		int sampleId,
-		int numSamples,
-		Time delayBetweenSamples,
-		int maxStackTraceDepth,
+		int requestId,
 		@RpcTimeout Time timeout);
 
 	/**
@@ -99,11 +109,21 @@ public interface TaskExecutorGateway extends RpcGateway {
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Fail all intermediate result partitions of the given task.
-	 *
-	 * @param executionAttemptID identifying the task
+	 * Batch release/promote intermediate result partitions.
+	 * @param jobId id of the job that the partitions belong to
+	 * @param partitionToRelease partition ids to release
+	 * @param partitionsToPromote partitions ids to promote
 	 */
-	void failPartition(ExecutionAttemptID executionAttemptID);
+	void releaseOrPromotePartitions(JobID jobId, Set<ResultPartitionID> partitionToRelease, Set<ResultPartitionID> partitionsToPromote);
+
+	/**
+	 * Releases all cluster partitions belong to any of the given data sets.
+	 *
+	 * @param dataSetsToRelease data sets for which all cluster partitions should be released
+	 * @param timeout for the partitions release operation
+	 * @return Future acknowledge that the request was received
+	 */
+	CompletableFuture<Acknowledge> releaseClusterPartitions(Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
 
 	/**
 	 * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID
@@ -113,9 +133,16 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param checkpointID unique id for the checkpoint
 	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
 	 * @param checkpointOptions for performing the checkpoint
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
 	 * @return Future acknowledge if the checkpoint has been successfully triggered
 	 */
-	CompletableFuture<Acknowledge> triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointID, long checkpointTimestamp, CheckpointOptions checkpointOptions);
+	CompletableFuture<Acknowledge> triggerCheckpoint(
+			ExecutionAttemptID executionAttemptID,
+			long checkpointID,
+			long checkpointTimestamp,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime);
 
 	/**
 	 * Confirm a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
@@ -129,13 +156,15 @@ public interface TaskExecutorGateway extends RpcGateway {
 	CompletableFuture<Acknowledge> confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
 
 	/**
-	 * Stop the given task.
+	 * Abort a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
+	 * and the checkpoint timestamp.
 	 *
 	 * @param executionAttemptID identifying the task
-	 * @param timeout for the stop operation
-	 * @return Future acknowledge if the task is successfully stopped
+	 * @param checkpointId unique id for the checkpoint
+	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+	 * @return Future acknowledge if the checkpoint has been successfully confirmed
 	 */
-	CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
+	CompletableFuture<Acknowledge> abortCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
 
 	/**
 	 * Cancel the given task.
@@ -151,7 +180,7 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *
 	 * @param heartbeatOrigin unique id of the job manager
 	 */
-	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
+	void heartbeatFromJobManager(ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport);
 
 	/**
 	 * Heartbeat request from the resource manager.
@@ -195,12 +224,49 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param timeout for the asynchronous operation
 	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
 	 */
-	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
+	CompletableFuture<TransientBlobKey> requestFileUploadByType(FileType fileType, @RpcTimeout Time timeout);
 
 	/**
-	 * Returns the fully qualified address of Metric Query Service on the TaskManager.
+	 * Requests the file upload of the specified name to the cluster's {@link BlobServer}.
 	 *
-	 * @return Future String with Fully qualified (RPC) address of Metric Query Service on the TaskManager.
+	 * @param fileName to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+	 */
+	CompletableFuture<TransientBlobKey> requestFileUploadByName(String fileName, @RpcTimeout Time timeout);
+
+	/**
+	 * Returns the gateway of Metric Query Service on the TaskManager.
+	 *
+	 * @return Future gateway of Metric Query Service on the TaskManager.
 	 */
 	CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(@RpcTimeout Time timeout);
+
+	/**
+	 * Checks whether the task executor can be released. It cannot be released if there're unconsumed result partitions.
+	 *
+	 * @return Future flag indicating whether the task executor can be released.
+	 */
+	CompletableFuture<Boolean> canBeReleased();
+
+	/**
+	 * Requests for the historical log file names on the TaskManager.
+	 *
+	 * @return A Tuple2 Array with all log file names with its length.
+	 */
+	CompletableFuture<Collection<LogInfo>> requestLogList(@RpcTimeout Time timeout);
+
+	@Override
+	CompletableFuture<Acknowledge> sendOperatorEventToTask(
+			ExecutionAttemptID task,
+			OperatorID operator,
+			SerializedValue<OperatorEvent> evt);
+
+	/**
+	 * Requests the thread dump from this TaskManager.
+	 *
+	 * @param timeout timeout for the asynchronous operation
+	 * @return the {@link ThreadDumpInfo} for this TaskManager.
+	 */
+	CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
 }

@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -29,7 +32,8 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -50,10 +54,40 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * thread, we don't have to reason about concurrent accesses, in the same way in the Actor Model
  * of Erlang or Akka.
  *
- * <p>The RPC endpoint provides provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
+ * <p>The RPC endpoint provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
+ *
+ * <h1>Lifecycle</h1>
+ *
+ * <p>The RPC endpoint has the following stages:
+ * <ul>
+ *    <li>
+ *        The RPC endpoint is created in a non-running state and does not serve any RPC requests.
+ *    </li>
+ *    <li>
+ *        Calling the {@link #start()} method triggers the start of the RPC endpoint and schedules overridable
+ *        {@link #onStart()} method call to the main thread.
+ *    </li>
+ *    <li>
+ *        When the start operation ends the RPC endpoint is moved to the running state
+ *        and starts to serve and complete RPC requests.
+ *    </li>
+ *    <li>
+ *        Calling the {@link #closeAsync()} method triggers the termination of the RPC endpoint and schedules overridable
+ *        {@link #onStop()} method call to the main thread.
+ *    </li>
+ *    <li>
+ *        When {@link #onStop()} method is called, it triggers an asynchronous stop operation.
+ *        The RPC endpoint is not in the running state anymore but it continues to serve RPC requests.
+ *    </li>
+ *    <li>
+ *        When the asynchronous stop operation ends, the RPC endpoint terminates completely
+ *        and does not serve RPC requests anymore.
+ *    </li>
+ * </ul>
+ * The running state can be queried in a RPC method handler or in the main thread by calling {@link #isRunning()} method.
  */
-public abstract class RpcEndpoint implements RpcGateway {
+public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -76,6 +110,13 @@ public abstract class RpcEndpoint implements RpcGateway {
 	private final MainThreadExecutor mainThreadExecutor;
 
 	/**
+	 * Indicates whether the RPC endpoint is started and not stopped or being stopped.
+	 *
+	 * <p>IMPORTANT: the running state is not thread safe and can be used only in the main thread of the rpc endpoint.
+	 */
+	private boolean isRunning;
+
+	/**
 	 * Initializes the RPC endpoint.
 	 *
 	 * @param rpcService The RPC server that dispatches calls to this RPC endpoint.
@@ -87,7 +128,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 
 		this.rpcServer = rpcService.startServer(this);
 
-		this.mainThreadExecutor = new MainThreadExecutor(rpcServer);
+		this.mainThreadExecutor = new MainThreadExecutor(rpcServer, this::validateRunsInMainThread);
 	}
 
 	/**
@@ -108,25 +149,56 @@ public abstract class RpcEndpoint implements RpcGateway {
 		return endpointId;
 	}
 
+	/**
+	 * Returns whether the RPC endpoint is started and not stopped or being stopped.
+	 *
+	 * @return whether the RPC endpoint is started and not stopped or being stopped.
+	 */
+	protected boolean isRunning() {
+		validateRunsInMainThread();
+		return isRunning;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Start & shutdown & lifecycle callbacks
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Starts the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
+	 * Triggers start of the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
 	 * to process remote procedure calls.
-	 *
-	 * <p>IMPORTANT: Whenever you override this method, call the parent implementation to enable
-	 * rpc processing. It is advised to make the parent call last.
-	 *
-	 * @throws Exception indicating that something went wrong while starting the RPC endpoint
 	 */
-	public void start() throws Exception {
+	public final void start() {
 		rpcServer.start();
 	}
 
 	/**
-	 * Stops the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is
+	 * Internal method which is called by the RpcService implementation to start the RpcEndpoint.
+	 *
+	 * @throws Exception indicating that the rpc endpoint could not be started. If an exception occurs,
+	 * then the rpc endpoint will automatically terminate.
+	 */
+	public final void internalCallOnStart() throws Exception {
+		validateRunsInMainThread();
+		isRunning = true;
+		onStart();
+	}
+
+	/**
+	 * User overridable callback which is called from {@link #internalCallOnStart()}.
+	 *
+	 * <p>This method is called when the RpcEndpoint is being started. The method is guaranteed
+	 * to be executed in the main thread context and can be used to start the rpc endpoint in the
+	 * context of the rpc endpoint's main thread.
+	 *
+	 * <p>IMPORTANT: This method should never be called directly by the user.
+	 *
+	 * @throws Exception indicating that the rpc endpoint could not be started. If an exception occurs,
+	 * then the rpc endpoint will automatically terminate.
+	 */
+	protected void onStart() throws Exception {}
+
+	/**
+	 * Triggers stop of the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is
 	 * no longer ready to process remote procedure calls.
 	 */
 	protected final void stop() {
@@ -134,7 +206,20 @@ public abstract class RpcEndpoint implements RpcGateway {
 	}
 
 	/**
-	 * User overridable callback.
+	 * Internal method which is called by the RpcService implementation to stop the RpcEndpoint.
+	 *
+	 * @return Future which is completed once all post stop actions are completed. If an error
+	 * occurs this future is completed exceptionally
+	 */
+	public final CompletableFuture<Void> internalCallOnStop() {
+		validateRunsInMainThread();
+		CompletableFuture<Void> stopFuture = onStop();
+		isRunning = false;
+		return stopFuture;
+	}
+
+	/**
+	 * User overridable callback which is called from {@link #internalCallOnStop()}.
 	 *
 	 * <p>This method is called when the RpcEndpoint is being shut down. The method is guaranteed
 	 * to be executed in the main thread context and can be used to clean up internal state.
@@ -144,7 +229,9 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * @return Future which is completed once all post stop actions are completed. If an error
 	 * occurs this future is completed exceptionally
 	 */
-	public abstract CompletableFuture<Void> postStop();
+	protected CompletableFuture<Void> onStop() {
+		return CompletableFuture.completedFuture(null);
+	}
 
 	/**
 	 * Triggers the shut down of the rpc endpoint. The shut down is executed asynchronously.
@@ -152,8 +239,10 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * <p>In order to wait on the completion of the shut down, obtain the termination future
 	 * via {@link #getTerminationFuture()}} and wait on its completion.
 	 */
-	public final void shutDown() {
+	@Override
+	public final CompletableFuture<Void> closeAsync() {
 		rpcService.stopServer(rpcServer);
+		return getTerminationFuture();
 	}
 
 	// ------------------------------------------------------------------------
@@ -236,7 +325,6 @@ public abstract class RpcEndpoint implements RpcGateway {
 	//  Asynchronous executions
 	// ------------------------------------------------------------------------
 
-
 	/**
 	 * Execute the runnable in the main thread of the underlying RPC endpoint.
 	 *
@@ -302,7 +390,7 @@ public abstract class RpcEndpoint implements RpcGateway {
 	 * }</pre>
 	 */
 	public void validateRunsInMainThread() {
-		assert currentMainThread.get() == Thread.currentThread();
+		assert MainThreadValidatorUtil.isRunningInExpectedThread(currentMainThread.get());
 	}
 
 	// ------------------------------------------------------------------------
@@ -312,17 +400,54 @@ public abstract class RpcEndpoint implements RpcGateway {
 	/**
 	 * Executor which executes runnables in the main thread context.
 	 */
-	protected static class MainThreadExecutor implements Executor {
+	protected static class MainThreadExecutor implements ComponentMainThreadExecutor {
 
 		private final MainThreadExecutable gateway;
+		private final Runnable mainThreadCheck;
 
-		MainThreadExecutor(MainThreadExecutable gateway) {
+		MainThreadExecutor(MainThreadExecutable gateway, Runnable mainThreadCheck) {
 			this.gateway = Preconditions.checkNotNull(gateway);
+			this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
+		}
+
+		public void runAsync(Runnable runnable) {
+			gateway.runAsync(runnable);
+		}
+
+		public void scheduleRunAsync(Runnable runnable, long delayMillis) {
+			gateway.scheduleRunAsync(runnable, delayMillis);
+		}
+
+		public void execute(@Nonnull Runnable command) {
+			runAsync(command);
 		}
 
 		@Override
-		public void execute(@Nonnull Runnable runnable) {
-			gateway.runAsync(runnable);
+		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			final long delayMillis = TimeUnit.MILLISECONDS.convert(delay, unit);
+			FutureTask<Void> ft = new FutureTask<>(command, null);
+			scheduleRunAsync(ft, delayMillis);
+			return new ScheduledFutureAdapter<>(ft, delayMillis, TimeUnit.MILLISECONDS);
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+			throw new UnsupportedOperationException("Not implemented because the method is currently not required.");
+		}
+
+		@Override
+		public void assertRunningInMainThread() {
+			mainThreadCheck.run();
 		}
 	}
 }

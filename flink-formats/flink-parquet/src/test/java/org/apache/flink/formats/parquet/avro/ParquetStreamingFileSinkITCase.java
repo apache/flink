@@ -39,7 +39,9 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -61,6 +63,9 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("serial")
 public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
+
+	@Rule
+	public final Timeout timeoutPerTest = Timeout.seconds(20);
 
 	@Test
 	public void testWriteParquetAvroSpecific() throws Exception {
@@ -169,12 +174,13 @@ public class ParquetStreamingFileSinkITCase extends AbstractTestBase {
 
 	private static <T> List<T> readParquetFile(File file, GenericData dataModel) throws IOException {
 		InputFile inFile = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(file.toURI()), new Configuration());
-		ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build();
 
 		ArrayList<T> results = new ArrayList<>();
-		T next;
-		while ((next = reader.read()) != null) {
-			results.add(next);
+		try (ParquetReader<T> reader = AvroParquetReader.<T>builder(inFile).withDataModel(dataModel).build()) {
+			T next;
+			while ((next = reader.read()) != null) {
+				results.add(next);
+			}
 		}
 
 		return results;

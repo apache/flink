@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
@@ -84,11 +85,9 @@ public class MassiveStringValueSorting {
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
 			MemoryManager mm = null;
-			IOManager ioMan = null;
 
-			try {
-				mm = new MemoryManager(1024 * 1024, 1);
-				ioMan = new IOManagerAsync();
+			try (IOManager ioMan = new IOManagerAsync()) {
+				mm = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 
 				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
 				TypeComparator<StringValue> comparator = new CopyableValueComparator<StringValue>(true, StringValue.class);
@@ -128,9 +127,6 @@ public class MassiveStringValueSorting {
 				}
 				if (mm != null) {
 					mm.shutdown();
-				}
-				if (ioMan != null) {
-					ioMan.shutdown();
 				}
 			}
 		}
@@ -186,11 +182,9 @@ public class MassiveStringValueSorting {
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
 			MemoryManager mm = null;
-			IOManager ioMan = null;
 
-			try {
-				mm = new MemoryManager(1024 * 1024, 1);
-				ioMan = new IOManagerAsync();
+			try (IOManager ioMan = new IOManagerAsync()) {
+				mm = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
 						new TypeHint<Tuple2<StringValue, StringValue[]>>(){}.getTypeInfo();
@@ -259,9 +253,6 @@ public class MassiveStringValueSorting {
 				}
 				if (mm != null) {
 					mm.shutdown();
-				}
-				if (ioMan != null) {
-					ioMan.shutdown();
 				}
 			}
 		}

@@ -27,7 +27,7 @@ import scala.util.Either;
  * Configuration snapshot for serializers of Scala's {@link Either} type,
  * containing configuration snapshots of the Left and Right serializers.
  */
-public class ScalaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializerSnapshot<Either<L, R>, EitherSerializer> {
+public class ScalaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializerSnapshot<Either<L, R>, EitherSerializer<L, R>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -51,7 +51,7 @@ public class ScalaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializer
 	}
 
 	@Override
-	protected EitherSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected EitherSerializer<L, R> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<L> leftSerializer = (TypeSerializer<L>) nestedSerializers[0];
 
@@ -62,7 +62,7 @@ public class ScalaEitherSerializerSnapshot<L, R> extends CompositeTypeSerializer
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(EitherSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(EitherSerializer<L, R> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getLeftSerializer(), outerSerializer.getRightSerializer() };
 	}
 }

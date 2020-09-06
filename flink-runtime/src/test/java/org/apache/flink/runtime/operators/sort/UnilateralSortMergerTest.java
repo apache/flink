@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
@@ -51,11 +52,13 @@ public class UnilateralSortMergerTest extends TestLogger {
 		final TestingInMemorySorterFactory<Tuple2<Integer, Integer>> inMemorySorterFactory = new TestingInMemorySorterFactory<>();
 
 		final int numPages = 32;
-		final MemoryManager memoryManager = new MemoryManager(MemoryManager.DEFAULT_PAGE_SIZE * numPages, 1);
-		final IOManagerAsync ioManager = new IOManagerAsync();
+		final MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MemoryManager.DEFAULT_PAGE_SIZE * numPages)
+			.build();
 		final DummyInvokable parentTask = new DummyInvokable();
 
-		try {
+		try (final IOManagerAsync ioManager = new IOManagerAsync()) {
 			final List<MemorySegment> memory = memoryManager.allocatePages(parentTask, numPages);
 			final UnilateralSortMerger<Tuple2<Integer, Integer>> unilateralSortMerger = new UnilateralSortMerger<>(
 				memoryManager,
@@ -85,7 +88,6 @@ public class UnilateralSortMergerTest extends TestLogger {
 				assertThat(inMemorySorter.isDisposed(), is(true));
 			}
 		} finally {
-			ioManager.shutdown();
 			memoryManager.shutdown();
 		}
 	}

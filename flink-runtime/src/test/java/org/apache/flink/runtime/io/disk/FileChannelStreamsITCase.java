@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.disk;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
@@ -67,15 +67,17 @@ public class FileChannelStreamsITCase extends TestLogger {
 
 	@Before
 	public void beforeTest() {
-		memManager = new MemoryManager(NUM_MEMORY_SEGMENTS * MEMORY_PAGE_SIZE, 1,
-				MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
+		memManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(NUM_MEMORY_SEGMENTS * MEMORY_PAGE_SIZE)
+			.setPageSize(MEMORY_PAGE_SIZE)
+			.build();
 		ioManager = new IOManagerAsync();
 	}
 
 	@After
-	public void afterTest() {
-		ioManager.shutdown();
-		assertTrue("I/O Manager was not properly shut down.", ioManager.isProperlyShutDown());
+	public void afterTest() throws Exception {
+		ioManager.close();
 		assertTrue("The memory has not been properly released", memManager.verifyEmpty());
 	}
 

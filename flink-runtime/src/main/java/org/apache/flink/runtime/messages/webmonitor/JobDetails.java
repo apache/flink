@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.messages.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -94,7 +94,7 @@ public class JobDetails implements Serializable {
 		this.status = checkNotNull(status);
 		this.lastUpdateTime = lastUpdateTime;
 		Preconditions.checkArgument(tasksPerState.length == ExecutionState.values().length, 
-			"tasksPerState argument must be of size {}.", ExecutionState.values().length);
+			"tasksPerState argument must be of size %s.", ExecutionState.values().length);
 		this.tasksPerState = checkNotNull(tasksPerState);
 		this.numTasks = numTasks;
 	}

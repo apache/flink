@@ -20,8 +20,10 @@ package org.apache.flink.util.function;
 
 import org.apache.flink.util.ExceptionUtils;
 
+import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Utility class for Flink's functions.
@@ -93,6 +95,35 @@ public class FunctionUtils {
 			} catch (Throwable t) {
 				ExceptionUtils.rethrow(t);
 			}
+		};
+	}
+
+	/**
+	 * Converts a {@link SupplierWithException} into a {@link Supplier} which throws all checked exceptions
+	 * as unchecked.
+	 *
+	 * @param supplierWithException to convert into a {@link Supplier}
+	 * @return {@link Supplier} which throws all checked exceptions as unchecked.
+	 */
+	public static <T> Supplier<T> uncheckedSupplier(SupplierWithException<T, ?> supplierWithException) {
+		return () -> {
+			T result = null;
+			try {
+				result = supplierWithException.get();
+			} catch (Throwable t) {
+				ExceptionUtils.rethrow(t);
+			}
+			return result;
+		};
+	}
+
+	/**
+	 * Converts {@link RunnableWithException} into a {@link Callable} that will return the {@code result}.
+	 */
+	public static <T> Callable<T> asCallable(RunnableWithException command, T result) {
+		return () -> {
+			command.run();
+			return result;
 		};
 	}
 }

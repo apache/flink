@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.memory;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -83,8 +84,6 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 		else {
 			this.fileSystem = checkpointsBaseDirectory.getFileSystem();
 			this.checkpointsDirectory = getCheckpointDirectoryForJob(checkpointsBaseDirectory, jobId);
-
-			fileSystem.mkdirs(checkpointsDirectory);
 		}
 	}
 
@@ -99,6 +98,11 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 		return maxStateSize;
 	}
 
+	@VisibleForTesting
+	Path getCheckpointsDirectory() {
+		return checkpointsDirectory;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Checkpoint Storage
 	// ------------------------------------------------------------------------
@@ -106,6 +110,12 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	@Override
 	public boolean supportsHighlyAvailableStorage() {
 		return checkpointsDirectory != null;
+	}
+
+	@Override
+	public void initializeBaseLocations() {
+		// since 'checkpointDir' which under 'checkpointsDirectory' would be created when calling
+		// #initializeLocationForCheckpoint, we could also avoid to call mkdirs for the 'checkpointsDirectory' here.
 	}
 
 	@Override
@@ -133,7 +143,7 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	@Override
 	public CheckpointStreamFactory resolveCheckpointStorageLocation(
 			long checkpointId,
-			CheckpointStorageLocationReference reference) throws IOException {
+			CheckpointStorageLocationReference reference) {
 
 		// no matter where the checkpoint goes, we always return the storage location that stores
 		// state inline with the state handles.
@@ -141,12 +151,12 @@ public class MemoryBackendCheckpointStorage extends AbstractFsCheckpointStorage 
 	}
 
 	@Override
-	public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
+	public CheckpointStateOutputStream createTaskOwnedStateStream() {
 		return new MemoryCheckpointOutputStream(maxStateSize);
 	}
 
 	@Override
-	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) throws IOException {
+	protected CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) {
 		return new PersistentMetadataCheckpointStorageLocation(fs, location, maxStateSize);
 	}
 

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -320,6 +320,12 @@ public class CompletedCheckpoint implements Serializable {
 
 	@Override
 	public String toString() {
-		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
+		return String.format(
+			"%s %d @ %d for %s located at %s",
+			props.getCheckpointType().getName(),
+			checkpointID,
+			timestamp,
+			job,
+			externalPointer);
 	}
 }

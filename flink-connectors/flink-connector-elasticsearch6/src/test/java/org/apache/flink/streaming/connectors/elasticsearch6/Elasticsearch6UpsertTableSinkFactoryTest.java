@@ -22,14 +22,14 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase;
@@ -37,6 +37,8 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTa
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.Host;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkBase.SinkOption;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchUpsertTableSinkFactoryTestBase;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
+import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
 import org.apache.flink.streaming.connectors.elasticsearch6.Elasticsearch6UpsertTableSink.DefaultRestClientFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
@@ -61,6 +63,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 	@Test
 	public void testBuilder() {
 		final TableSchema schema = createTestSchema();
+		final IndexGenerator indexGenerator = IndexGeneratorFactory.createIndexGenerator(INDEX, schema);
 
 		final TestElasticsearch6UpsertTableSink testSink = new TestElasticsearch6UpsertTableSink(
 			false,
@@ -70,7 +73,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			DOC_TYPE,
 			KEY_DELIMITER,
 			KEY_NULL_LITERAL,
-			new JsonRowSerializationSchema(schema.toRowType()),
+			JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 			XContentType.JSON,
 			new DummyFailureHandler(),
 			createTestSinkOptions());
@@ -79,16 +82,16 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 				new StreamExecutionEnvironmentMock(),
 				Types.TUPLE(Types.BOOLEAN, schema.toRowType()));
 
-		testSink.emitDataStream(dataStreamMock);
+		testSink.consumeDataStream(dataStreamMock);
 
 		final ElasticsearchSink.Builder<Tuple2<Boolean, Row>> expectedBuilder = new ElasticsearchSink.Builder<>(
 			Collections.singletonList(new HttpHost(HOSTNAME, PORT, SCHEMA)),
 			new ElasticsearchUpsertSinkFunction(
-				INDEX,
+				indexGenerator,
 				DOC_TYPE,
 				KEY_DELIMITER,
 				KEY_NULL_LITERAL,
-				new JsonRowSerializationSchema(schema.toRowType()),
+				JsonRowSerializationSchema.builder().withTypeInfo(schema.toRowType()).build(),
 				XContentType.JSON,
 				Elasticsearch6UpsertTableSink.UPDATE_REQUEST_FACTORY,
 				new int[0]));
@@ -101,7 +104,6 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		expectedBuilder.setBulkFlushMaxActions(1000);
 		expectedBuilder.setBulkFlushMaxSizeMb(1);
 		expectedBuilder.setRestClientFactory(new DefaultRestClientFactory(100, "/myapp"));
-
 		assertEquals(expectedBuilder, testSink.builder);
 	}
 
@@ -122,7 +124,8 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			SerializationSchema<Row> serializationSchema,
 			XContentType contentType,
 			ActionRequestFailureHandler failureHandler,
-			Map<SinkOption, String> sinkOptions) {
+			Map<SinkOption, String> sinkOptions,
+			IndexGenerator indexGenerator) {
 		return new Elasticsearch6UpsertTableSink(
 			isAppendOnly,
 			schema,
@@ -184,7 +187,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 	private static class StreamExecutionEnvironmentMock extends StreamExecutionEnvironment {
 
 		@Override
-		public JobExecutionResult execute(String jobName) {
+		public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 	}
@@ -194,7 +197,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		public SinkFunction<?> sinkFunction;
 
 		public DataStreamMock(StreamExecutionEnvironment environment, TypeInformation<Tuple2<Boolean, Row>> outType) {
-			super(environment, new StreamTransformationMock("name", outType, 1));
+			super(environment, new TransformationMock("name", outType, 1));
 		}
 
 		@Override
@@ -204,19 +207,14 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		}
 	}
 
-	private static class StreamTransformationMock extends StreamTransformation<Tuple2<Boolean, Row>> {
+	private static class TransformationMock extends Transformation<Tuple2<Boolean, Row>> {
 
-		public StreamTransformationMock(String name, TypeInformation<Tuple2<Boolean, Row>> outputType, int parallelism) {
+		public TransformationMock(String name, TypeInformation<Tuple2<Boolean, Row>> outputType, int parallelism) {
 			super(name, outputType, parallelism);
 		}
 
 		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-			// do nothing
-		}
-
-		@Override
-		public Collection<StreamTransformation<?>> getTransitivePredecessors() {
+		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return null;
 		}
 	}

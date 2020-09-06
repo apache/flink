@@ -86,7 +86,8 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 			MemorySegmentFactory
 				.allocateUnpooledSegment(Math.min(maxCapacity, MAX_CAPACITY_UPPER_BOUND));
 
-		NetworkBuffer buffer = new NetworkBuffer(segment, recycler, isBuffer);
+		Buffer.DataType dataType = isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
+		NetworkBuffer buffer = new NetworkBuffer(segment, recycler, dataType);
 		buffer.capacity(length);
 		buffer.setAllocator(NETTY_BUFFER_POOL);
 
@@ -118,7 +119,7 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
 	private static void testTagAsEvent(boolean isBuffer) {
 		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
-		buffer.tagAsEvent();
+		buffer.setDataType(Buffer.DataType.EVENT_BUFFER);
 		assertFalse(buffer.isBuffer());
 	}
 
@@ -134,7 +135,8 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
 	private static void testGetMemorySegment(boolean isBuffer) {
 		final MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
-		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, isBuffer);
+		Buffer.DataType dataType = isBuffer ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
+		NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
 		assertSame(segment, buffer.getMemorySegment());
 	}
 
@@ -216,7 +218,6 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
 		assertEquals(0, slice.getReaderIndex());
 		assertEquals(10, slice.getSize());
-		assertEquals(10, slice.getSizeUnsafe());
 		assertSame(buffer, slice.unwrap().unwrap());
 
 		// slice indices should be independent:
@@ -224,7 +225,6 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 		buffer.setReaderIndex(2);
 		assertEquals(0, slice.getReaderIndex());
 		assertEquals(10, slice.getSize());
-		assertEquals(10, slice.getSizeUnsafe());
 	}
 
 	@Test
@@ -244,7 +244,6 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 
 		assertEquals(0, slice.getReaderIndex());
 		assertEquals(10, slice.getSize());
-		assertEquals(10, slice.getSizeUnsafe());
 		assertSame(buffer, slice.unwrap().unwrap());
 
 		// slice indices should be independent:
@@ -252,7 +251,6 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 		buffer.setReaderIndex(2);
 		assertEquals(0, slice.getReaderIndex());
 		assertEquals(10, slice.getSize());
-		assertEquals(10, slice.getSizeUnsafe());
 	}
 
 	@Test
@@ -312,13 +310,11 @@ public class NetworkBufferTest extends AbstractByteBufTest {
 		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
 
 		assertEquals(0, buffer.getSize()); // initially 0
-		assertEquals(0, buffer.getSizeUnsafe());
 		assertEquals(buffer.writerIndex(), buffer.getSize());
 		assertEquals(0, buffer.readerIndex()); // initially 0
 
 		buffer.setSize(10);
 		assertEquals(10, buffer.getSize());
-		assertEquals(10, buffer.getSizeUnsafe());
 		assertEquals(buffer.writerIndex(), buffer.getSize());
 		assertEquals(0, buffer.readerIndex()); // independent
 	}

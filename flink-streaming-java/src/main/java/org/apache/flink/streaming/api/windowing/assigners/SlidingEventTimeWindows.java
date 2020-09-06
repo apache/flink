@@ -54,8 +54,9 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	private final long offset;
 
 	protected SlidingEventTimeWindows(long size, long slide, long offset) {
-		if (offset < 0 || offset >= slide || size <= 0) {
-			throw new IllegalArgumentException("SlidingEventTimeWindows parameters must satisfy 0 <= offset < slide and size > 0");
+		if (Math.abs(offset) >= slide || size <= 0) {
+			throw new IllegalArgumentException("SlidingEventTimeWindows parameters must satisfy " +
+				"abs(offset) < slide and size > 0");
 		}
 
 		this.size = size;
@@ -130,8 +131,7 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 	 * @return The time policy.
 	 */
 	public static SlidingEventTimeWindows of(Time size, Time slide, Time offset) {
-		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(),
-			offset.toMilliseconds() % slide.toMilliseconds());
+		return new SlidingEventTimeWindows(size.toMilliseconds(), slide.toMilliseconds(), offset.toMilliseconds());
 	}
 
 	@Override

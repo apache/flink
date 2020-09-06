@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -26,6 +27,8 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get
@@ -41,11 +44,28 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			int maxParallelism,
 			int numSubtasks,
 			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, numSubtasks, subtaskIndex);
+		this(SimpleOperatorFactory.of(operator), keySelector, keyType, maxParallelism, numSubtasks, subtaskIndex);
+	}
 
-		ClosureCleaner.clean(keySelector, false);
+	public KeyedOneInputStreamOperatorTestHarness(
+			StreamOperatorFactory<OUT> operatorFactory,
+			final KeySelector<IN, K> keySelector,
+			TypeInformation<K> keyType,
+			int maxParallelism,
+			int numSubtasks,
+			int subtaskIndex) throws Exception {
+		super(operatorFactory, maxParallelism, numSubtasks, subtaskIndex);
+
+		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+	}
+
+	public KeyedOneInputStreamOperatorTestHarness(
+		StreamOperatorFactory<OUT> operatorFactory,
+		final KeySelector<IN, K> keySelector,
+		TypeInformation<K> keyType) throws Exception {
+		this(operatorFactory, keySelector, keyType, 1, 1, 0);
 	}
 
 	public KeyedOneInputStreamOperatorTestHarness(
@@ -57,13 +77,12 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
 	public KeyedOneInputStreamOperatorTestHarness(
 			final OneInputStreamOperator<IN, OUT> operator,
-			final  KeySelector<IN, K> keySelector,
+			final KeySelector<IN, K> keySelector,
 			final TypeInformation<K> keyType,
 			final MockEnvironment environment) throws Exception {
-
 		super(operator, environment);
 
-		ClosureCleaner.clean(keySelector, false);
+		ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
 		config.setStatePartitioner(0, keySelector);
 		config.setStateKeySerializer(keyType.createSerializer(executionConfig));
 	}

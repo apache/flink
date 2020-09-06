@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,53 +36,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NettyConfig {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyConfig.class);
-
-	// - Config keys ----------------------------------------------------------
-
-	public static final ConfigOption<Integer> NUM_ARENAS = ConfigOptions
-			.key("taskmanager.network.netty.num-arenas")
-			.defaultValue(-1)
-			.withDeprecatedKeys("taskmanager.net.num-arenas")
-			.withDescription("The number of Netty arenas.");
-
-	public static final ConfigOption<Integer> NUM_THREADS_SERVER = ConfigOptions
-			.key("taskmanager.network.netty.server.numThreads")
-			.defaultValue(-1)
-			.withDeprecatedKeys("taskmanager.net.server.numThreads")
-			.withDescription("The number of Netty server threads.");
-
-	public static final ConfigOption<Integer> NUM_THREADS_CLIENT = ConfigOptions
-			.key("taskmanager.network.netty.client.numThreads")
-			.defaultValue(-1)
-			.withDeprecatedKeys("taskmanager.net.client.numThreads")
-			.withDescription("The number of Netty client threads.");
-
-	public static final ConfigOption<Integer> CONNECT_BACKLOG = ConfigOptions
-			.key("taskmanager.network.netty.server.backlog")
-			.defaultValue(0) // default: 0 => Netty's default
-			.withDeprecatedKeys("taskmanager.net.server.backlog")
-			.withDescription("The netty server connection backlog.");
-
-	public static final ConfigOption<Integer> CLIENT_CONNECT_TIMEOUT_SECONDS = ConfigOptions
-			.key("taskmanager.network.netty.client.connectTimeoutSec")
-			.defaultValue(120) // default: 120s = 2min
-			.withDeprecatedKeys("taskmanager.net.client.connectTimeoutSec")
-			.withDescription("The Netty client connection timeout.");
-
-	public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE = ConfigOptions
-			.key("taskmanager.network.netty.sendReceiveBufferSize")
-			.defaultValue(0) // default: 0 => Netty's default
-			.withDeprecatedKeys("taskmanager.net.sendReceiveBufferSize")
-			.withDescription("The Netty send and receive buffer size. This defaults to the system buffer size" +
-				" (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.");
-
-	public static final ConfigOption<String> TRANSPORT_TYPE = ConfigOptions
-			.key("taskmanager.network.netty.transport")
-			.defaultValue("nio")
-			.withDeprecatedKeys("taskmanager.net.transport")
-			.withDescription("The Netty transport type, either \"nio\" or \"epoll\"");
-
-	// ------------------------------------------------------------------------
 
 	enum TransportType {
 		NIO, EPOLL, AUTO
@@ -112,7 +64,7 @@ public class NettyConfig {
 
 		this.serverAddress = checkNotNull(serverAddress);
 
-		checkArgument(serverPort >= 0 && serverPort <= 65536, "Invalid port number.");
+		checkArgument(NetUtils.isValidHostPort(serverPort), "Invalid port number.");
 		this.serverPort = serverPort;
 
 		checkArgument(memorySegmentSize > 0, "Invalid memory segment size.");
@@ -134,50 +86,46 @@ public class NettyConfig {
 		return serverPort;
 	}
 
-	int getMemorySegmentSize() {
-		return memorySegmentSize;
-	}
-
-	public int getNumberOfSlots() {
-		return numberOfSlots;
-	}
-
 	// ------------------------------------------------------------------------
 	// Getters
 	// ------------------------------------------------------------------------
 
 	public int getServerConnectBacklog() {
-		return config.getInteger(CONNECT_BACKLOG);
+		return config.getInteger(NettyShuffleEnvironmentOptions.CONNECT_BACKLOG);
 	}
 
 	public int getNumberOfArenas() {
 		// default: number of slots
-		final int configValue = config.getInteger(NUM_ARENAS);
+		final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS);
 		return configValue == -1 ? numberOfSlots : configValue;
 	}
 
 	public int getServerNumThreads() {
 		// default: number of task slots
-		final int configValue = config.getInteger(NUM_THREADS_SERVER);
+		final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER);
 		return configValue == -1 ? numberOfSlots : configValue;
 	}
 
 	public int getClientNumThreads() {
 		// default: number of task slots
-		final int configValue = config.getInteger(NUM_THREADS_CLIENT);
+		final int configValue = config.getInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT);
 		return configValue == -1 ? numberOfSlots : configValue;
 	}
 
 	public int getClientConnectTimeoutSeconds() {
-		return config.getInteger(CLIENT_CONNECT_TIMEOUT_SECONDS);
+		return config.getInteger(NettyShuffleEnvironmentOptions.CLIENT_CONNECT_TIMEOUT_SECONDS);
+	}
+
+	public int getNetworkRetries() {
+		return config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_RETRIES);
 	}
 
 	public int getSendAndReceiveBufferSize() {
-		return config.getInteger(SEND_RECEIVE_BUFFER_SIZE);
+		return config.getInteger(NettyShuffleEnvironmentOptions.SEND_RECEIVE_BUFFER_SIZE);
 	}
 
 	public TransportType getTransportType() {
-		String transport = config.getString(TRANSPORT_TYPE);
+		String transport = config.getString(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE);
 
 		switch (transport) {
 			case "nio":
@@ -204,12 +152,8 @@ public class NettyConfig {
 	}
 
 	public boolean getSSLEnabled() {
-		return config.getBoolean(TaskManagerOptions.DATA_SSL_ENABLED)
+		return config.getBoolean(NettyShuffleEnvironmentOptions.DATA_SSL_ENABLED)
 			&& SSLUtils.isInternalSSLEnabled(config);
-	}
-
-	public boolean isCreditBasedEnabled() {
-		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
 	}
 
 	public Configuration getConfig() {

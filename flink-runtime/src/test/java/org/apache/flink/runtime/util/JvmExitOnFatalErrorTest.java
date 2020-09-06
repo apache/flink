@@ -24,62 +24,62 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.net.InetAddress;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Test that verifies the behavior of blocking shutdown hooks and of the
@@ -162,20 +162,19 @@ public class JvmExitOnFatalErrorTest {
 				final TaskInformation taskInformation = new TaskInformation(
 						jobVertexId, "Test Task", 1, 1, OomInvokable.class.getName(), new Configuration());
 
-				final MemoryManager memoryManager = new MemoryManager(1024 * 1024, 1);
+				final MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 				final IOManager ioManager = new IOManagerAsync();
 
-				final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-				when(networkEnvironment.createKvStateTaskRegistry(jid, jobVertexId)).thenReturn(mock(TaskKvStateRegistry.class));
-				TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-				when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+				final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
-				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig);
+				final Configuration copiedConf = new Configuration(taskManagerConfig);
+				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration
+					.fromConfiguration(
+						taskManagerConfig,
+						TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(copiedConf),
+						InetAddress.getLoopbackAddress().getHostAddress());
 
 				final Executor executor = Executors.newCachedThreadPool();
-
-				BlobCacheService blobService =
-					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				final TaskLocalStateStore localStateStore =
 					new TaskLocalStateStoreImpl(
@@ -206,18 +205,19 @@ public class JvmExitOnFatalErrorTest {
 						0,       // targetSlotNumber
 						memoryManager,
 						ioManager,
-						networkEnvironment,
+						shuffleEnvironment,
+						new KvStateService(new KvStateRegistry(), null, null),
 						new BroadcastVariableManager(),
+						new TaskEventDispatcher(),
+						ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 						slotStateManager,
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
-						new NoOpCheckpointResponder(),
-						blobService,
-						new BlobLibraryCacheManager(
-							blobService.getPermanentBlobService(),
-							FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-							new String[0]),
-						new FileCache(tmInfo.getTmpDirectories(), blobService.getPermanentBlobService()),
+						NoOpCheckpointResponder.INSTANCE,
+						new NoOpTaskOperatorEventGateway(),
+						new TestGlobalAggregateManager(),
+						TestingClassLoaderLease.newBuilder().build(),
+						new FileCache(tmInfo.getTmpDirectories(), VoidPermanentBlobService.INSTANCE),
 						tmInfo,
 						UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 						new NoOpResultPartitionConsumableNotifier(),
@@ -257,22 +257,6 @@ public class JvmExitOnFatalErrorTest {
 			}
 		}
 
-		private static final class NoOpCheckpointResponder implements CheckpointResponder {
-
-			@Override
-			public void acknowledgeCheckpoint(JobID j, ExecutionAttemptID e, long i, CheckpointMetrics c, TaskStateSnapshot s) {}
-
-			@Override
-			public void declineCheckpoint(JobID j, ExecutionAttemptID e, long l, Throwable t) {}
-		}
-
-		private static final class NoOpPartitionProducerStateChecker implements PartitionProducerStateChecker {
-
-			@Override
-			public CompletableFuture<ExecutionState> requestPartitionProducerState(
-					JobID jobId, IntermediateDataSetID intermediateDataSetId, ResultPartitionID r) {
-				return null;
-			}
-		}
 	}
+
 }

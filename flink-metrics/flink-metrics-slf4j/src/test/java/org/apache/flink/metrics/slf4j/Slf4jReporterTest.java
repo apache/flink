@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.slf4j;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
@@ -32,14 +31,22 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.event.Level;
 
+import java.util.Collections;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -58,16 +65,17 @@ public class Slf4jReporterTest extends TestLogger {
 	private static TaskMetricGroup taskMetricGroup;
 	private static Slf4jReporter reporter;
 
+	@Rule
+	public final TestLoggerResource testLoggerResource = new TestLoggerResource(Slf4jReporter.class, Level.INFO);
+
 	@BeforeClass
 	public static void setUp() {
-		TestUtils.addTestAppenderForRootLogger();
-
 		Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "slf4j." +
-			ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, Slf4jReporter.class.getName());
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 
-		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+		registry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration),
+			Collections.singletonList(ReporterSetup.forReporter("slf4j", new Slf4jReporter())));
 		delimiter = registry.getDelimiter();
 
 		taskMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER_ID)
@@ -94,7 +102,9 @@ public class Slf4jReporterTest extends TestLogger {
 			+ reporter.filterCharacters(counterName) + ": 0";
 
 		reporter.report();
-		TestUtils.checkForLogString(expectedCounterReport);
+		assertThat(
+			testLoggerResource.getMessages(),
+			hasItem(containsString(expectedCounterReport)));
 	}
 
 	@Test
@@ -113,7 +123,9 @@ public class Slf4jReporterTest extends TestLogger {
 			+ reporter.filterCharacters(gaugeName) + ": null";
 
 		reporter.report();
-		TestUtils.checkForLogString(expectedGaugeReport);
+		assertThat(
+			testLoggerResource.getMessages(),
+			hasItem(containsString(expectedGaugeReport)));
 	}
 
 	@Test
@@ -128,7 +140,9 @@ public class Slf4jReporterTest extends TestLogger {
 			+ reporter.filterCharacters(meterName) + ": 0.0";
 
 		reporter.report();
-		TestUtils.checkForLogString(expectedMeterReport);
+		assertThat(
+			testLoggerResource.getMessages(),
+			hasItem(containsString(expectedMeterReport)));
 	}
 
 	@Test
@@ -143,7 +157,9 @@ public class Slf4jReporterTest extends TestLogger {
 			+ reporter.filterCharacters(histogramName);
 
 		reporter.report();
-		TestUtils.checkForLogString(expectedHistogramName);
+		assertThat(
+			testLoggerResource.getMessages(),
+			hasItem(containsString(expectedHistogramName)));
 	}
 
 	@Test

@@ -61,7 +61,7 @@ If no version is specified Flink will default to the *oldest* version supporting
 
 Querying unsupported/non-existing versions will return a 404 error.
 
-<span class="label label-danger">Attention</span> REST API versioning is *not* active if the cluster runs in [legacy mode](../ops/config.html#mode). For this case please refer to the legacy API below.
+There exist several async operations among these APIs, e.g. `trigger savepoint`, `rescale a job`. They would return a `triggerid` to identify the operation you just POST and then you need to use that `triggerid` to query for the status of the operation.
 
 <div class="codetabs" markdown="1">
 

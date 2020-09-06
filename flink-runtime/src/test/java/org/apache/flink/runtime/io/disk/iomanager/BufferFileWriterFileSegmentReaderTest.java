@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
+import org.apache.flink.util.IOUtils;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -60,8 +61,8 @@ public class BufferFileWriterFileSegmentReaderTest {
 	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
 
 	@AfterClass
-	public static void shutdown() {
-		ioManager.shutdown();
+	public static void shutdown() throws Exception {
+		ioManager.close();
 	}
 
 	@Before
@@ -73,13 +74,7 @@ public class BufferFileWriterFileSegmentReaderTest {
 			reader = (AsynchronousBufferFileSegmentReader) ioManager.createBufferFileSegmentReader(channel, new QueuingCallback<>(returnedFileSegments));
 		}
 		catch (IOException e) {
-			if (writer != null) {
-				writer.deleteChannel();
-			}
-
-			if (reader != null) {
-				reader.deleteChannel();
-			}
+			tearDownWriterAndReader();
 
 			fail("Failed to setup writer and reader.");
 		}
@@ -88,10 +83,16 @@ public class BufferFileWriterFileSegmentReaderTest {
 	@After
 	public void tearDownWriterAndReader() {
 		if (writer != null) {
+			if (!writer.isClosed()) {
+				IOUtils.closeQuietly(() -> writer.close());
+			}
 			writer.deleteChannel();
 		}
 
 		if (reader != null) {
+			if (!reader.isClosed()) {
+				IOUtils.closeQuietly(() -> reader.close());
+			}
 			reader.deleteChannel();
 		}
 

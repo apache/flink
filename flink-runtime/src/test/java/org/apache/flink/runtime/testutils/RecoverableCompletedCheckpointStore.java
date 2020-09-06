@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -72,11 +72,6 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 	public void removeOldestCheckpoint() throws Exception {
 		CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
 		checkpointToSubsume.discardOnSubsume();
-	}
-
-	@Override
-	public CompletedCheckpoint getLatestCheckpoint() throws Exception {
-		return checkpoints.isEmpty() ? null : checkpoints.getLast();
 	}
 
 	@Override

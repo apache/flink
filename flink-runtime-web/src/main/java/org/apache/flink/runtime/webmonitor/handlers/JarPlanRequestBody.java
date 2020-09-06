@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -34,7 +35,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JarPlanRequestBody extends JarRequestBody {
 	JarPlanRequestBody() {
-		super(null, null, null, null);
+		super(null, null, null, null, null);
 	}
 
 	@JsonCreator
@@ -42,7 +43,8 @@ public class JarPlanRequestBody extends JarRequestBody {
 		@Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
 		@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
 		@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST) List<String> programArgumentsList,
-		@Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism) {
-		super(entryClassName, programArguments, programArgumentsList, parallelism);
+		@Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
+		@Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId) {
+		super(entryClassName, programArguments, programArgumentsList, parallelism, jobId);
 	}
 }

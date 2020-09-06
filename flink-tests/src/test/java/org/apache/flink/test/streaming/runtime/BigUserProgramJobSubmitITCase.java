@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -91,8 +92,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 			StandaloneClusterId.getInstance());
 
 		try {
-			restClusterClient.setDetached(false);
-			restClusterClient.submitJob(jobGraph, BigUserProgramJobSubmitITCase.class.getClassLoader());
+			submitJobAndWaitForResult(restClusterClient, jobGraph, getClass().getClassLoader());
 
 			List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
 
@@ -103,7 +103,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 			assertEquals(expected, result);
 		} finally {
-			restClusterClient.shutdown();
+			restClusterClient.close();
 		}
 	}
 

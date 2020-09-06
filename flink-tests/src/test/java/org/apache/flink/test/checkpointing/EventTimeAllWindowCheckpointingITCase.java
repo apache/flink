@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -67,7 +68,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("48m"));
 		config.setString(AkkaOptions.LOOKUP_TIMEOUT, "60 s");
 		config.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 		return config;
@@ -87,7 +88,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -148,7 +148,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))
@@ -208,7 +207,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -277,7 +275,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -346,7 +343,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))

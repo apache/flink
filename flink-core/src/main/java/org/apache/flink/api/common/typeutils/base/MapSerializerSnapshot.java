@@ -20,13 +20,14 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 import java.util.Map;
 
 /**
  * Snapshot class for the {@link MapSerializer}.
  */
-public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer> {
+public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer<K, V>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -50,7 +51,7 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
 	}
 
 	@Override
-	protected MapSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected MapSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<K> keySerializer = (TypeSerializer<K>) nestedSerializers[0];
 
@@ -61,7 +62,12 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(MapSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(MapSerializer<K, V> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getKeySerializer(), outerSerializer.getValueSerializer() };
+	}
+
+	@SuppressWarnings("unchecked")
+	public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
+		return (TypeSerializerSnapshot<K>) getNestedSerializerSnapshots()[0];
 	}
 }

@@ -57,7 +57,11 @@ under the License.
   <body>
     {% if site.show_outdated_warning %}
     <div style="position:fixed; bottom:0; left:0; z-index:99999; width:100%; text-align:center; padding:15px; border-top:5px solid #ECCCD1; background:#F2DEDE; color:#AD433F; font-weight:bold">
-       This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.
+      {% if page.language == "en" %}
+        This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.
+      {% else if page.language == "zh" %}
+        本文档是 Apache Flink 的旧版本。建议访问 <a href="https://ci.apache.org/projects/flink/flink-docs-stable/zh">最新的稳定版本</a>。
+      {% endif %}
     </div>
     {% endif %}
 
@@ -72,14 +76,17 @@ under the License.
           {% include sidenav.html %}
         </div>
         <div class="col-lg-9 content" id="contentcol">
-          {% if page.mathjax %}
-          {% include latex_commands.html %}
-          {% endif %}
+          {%- if page.mathjax -%}
+          {%- include latex_commands.html -%}
+          {%- endif %}
 
           {{ content }}
         </div>
       </div>
     </div><!-- /.container -->
+
+    <!-- default code tab -->
+    <script>var defaultCodeTab = "{{ page.code_tab }}";</script>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="{{ site.baseurl }}/page/js/jquery.min.js"></script>

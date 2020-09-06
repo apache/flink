@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
@@ -28,8 +29,8 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
@@ -143,7 +144,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		requireNonNull(defaultTopicId, "TopicID not set");
 		requireNonNull(serializationSchema, "serializationSchema not set");
 		requireNonNull(producerConfig, "producerConfig not set");
-		ClosureCleaner.clean(customPartitioner, true);
+		ClosureCleaner.clean(customPartitioner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 		ClosureCleaner.ensureSerializable(serializationSchema);
 
 		this.defaultTopicId = defaultTopicId;
@@ -211,16 +212,16 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * Initializes the connection to Kafka.
 	 */
 	@Override
-	public void open(Configuration configuration) {
+	public void open(Configuration configuration) throws Exception {
+		if (schema instanceof KeyedSerializationSchemaWrapper) {
+			((KeyedSerializationSchemaWrapper<IN>) schema).getSerializationSchema()
+				.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
+		}
 		producer = getKafkaProducer(this.producerConfig);
 
 		RuntimeContext ctx = getRuntimeContext();
 
 		if (null != flinkKafkaPartitioner) {
-			if (flinkKafkaPartitioner instanceof FlinkKafkaDelegatePartitioner) {
-				((FlinkKafkaDelegatePartitioner) flinkKafkaPartitioner).setPartitions(
-						getPartitionsByTopic(this.defaultTopicId, this.producer));
-			}
 			flinkKafkaPartitioner.open(ctx.getIndexOfThisSubtask(), ctx.getNumberOfParallelSubtasks());
 		}
 

@@ -53,10 +53,8 @@ public class RocksDBStateBackendMigrationTest extends StateBackendMigrationTestB
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 
 		Configuration configuration = new Configuration();
-		configuration.setString(
-			RocksDBOptions.TIMER_SERVICE_FACTORY,
-			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-		backend = backend.configure(configuration);
+		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}

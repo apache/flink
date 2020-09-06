@@ -18,17 +18,24 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullFieldException;
 
+import java.io.IOException;
+
+import static org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot;
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 @Internal
-public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
+public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> implements SelfResolvingTypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -99,6 +106,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
 	@Override
 	public T copy(T from) {
+		if (from == null) {
+			return null;
+		}
+
 		T target = instantiateRaw();
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy(from.getField(i));
@@ -109,6 +120,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	
 	@Override
 	public T copy(T from, T reuse) {
+		if (from == null) {
+			return null;
+		}
+
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy((Object)from.getField(i), reuse.getField(i));
 			reuse.setField(copy, i);
@@ -147,7 +162,12 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 		}
 		return reuse;
 	}
-	
+
+	@Override
+	public TypeSerializerSnapshot<T> snapshotConfiguration() {
+		return new TupleSerializerSnapshot<>(this);
+	}
+
 	private T instantiateRaw() {
 		try {
 			return tupleClass.newInstance();
@@ -158,7 +178,16 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	}
 
 	@Override
-	protected TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		return new TupleSerializer<>(tupleClass, fieldSerializers);
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(TypeSerializerConfigSnapshot<T> deprecatedConfigSnapshot) {
+		checkArgument(deprecatedConfigSnapshot instanceof TupleSerializerConfigSnapshot);
+
+		final TupleSerializerConfigSnapshot<T> configSnapshot = (TupleSerializerConfigSnapshot<T>) deprecatedConfigSnapshot;
+		TypeSerializerSnapshot[] nestedSnapshots = configSnapshot.getNestedSerializersAndConfigs()
+			.stream()
+			.map(t -> t.f1)
+			.toArray(TypeSerializerSnapshot[]::new);
+
+		TupleSerializerSnapshot<T> newCompositeSnapshot = new TupleSerializerSnapshot<>(configSnapshot.getTupleClass());
+		return delegateCompatibilityCheckToNewSnapshot(this, newCompositeSnapshot, nestedSnapshots);
 	}
 }

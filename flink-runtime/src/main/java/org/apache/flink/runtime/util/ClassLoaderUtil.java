@@ -38,6 +38,9 @@ public final class ClassLoaderUtil {
 	 * 
 	 * <p>NOTE: This method makes a best effort to provide information about the classloader, and
 	 * never throws an exception.</p>
+	 *
+	 * <p>NOTE: Passing {@code ClassLoader.getSystemClassLoader()} on Java 9+ will not return
+	 * anything interesting.
 	 * 
 	 * @param loader The classloader to get the info string for.
 	 * @return The classloader information string.
@@ -102,6 +105,11 @@ public final class ClassLoaderUtil {
 				return "Cannot access classloader info due to an exception.\n"
 						+ ExceptionUtils.stringifyException(t);
 			}
+		}
+		else if (loader == ClassLoader.getSystemClassLoader()) {
+			// this branch is only reachable on Java9+
+			// where the system classloader is no longer a URLClassLoader
+			return "System ClassLoader";
 		}
 		else {
 			return "No user code ClassLoader";

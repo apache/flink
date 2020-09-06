@@ -58,25 +58,28 @@
 (defn find-files!
   "Lists files recursively given a directory. If the directory does not exist, an empty collection
   is returned."
-  [dir]
+  ([dir] (find-files! dir "*"))
+  ([dir name]
   (let [files (try
-                (c/exec :find dir :-type :f)
+                (c/exec :find dir :-type :f :-name (c/lit (str "\"" name "\"")))
                 (catch Exception e
                   (if (.contains (.getMessage e) "No such file or directory")
                     ""
                     (throw e))))]
     (->>
       (clojure.string/split files #"\n")
-      (remove clojure.string/blank?))))
+      (remove clojure.string/blank?)))))
 
 ;;; runit process supervisor (http://smarden.org/runit/)
 
-(def runit-version "2.1.2-3")
+(def runit-version "2.1.2-9.2")
+(def runit-systemd-version "2.1.2-9.2")
 
 (defn- install-process-supervisor!
   "Installs the process supervisor."
   []
-  (debian/install {:runit runit-version}))
+  (debian/install {:runit         runit-version
+                   :runit-systemd runit-systemd-version}))
 
 (defn create-supervised-service!
   "Registers a service with the process supervisor and starts it."
@@ -91,6 +94,7 @@
                                                "exec 2>&1"
                                                (str "exec " cmd)]) :> run-script)
       (c/exec :chmod :+x run-script)
+      (c/exec :mkdir :-p "/etc/service")
       (c/exec :ln :-sfT service-dir (str "/etc/service/" service-name)))))
 
 (defn stop-supervised-service!
@@ -108,4 +112,37 @@
     ;; HACK:
     ;; Remove all symlinks in /etc/service except sshd.
     ;; This is only relevant when tests are run in Docker because there sshd is started using runit.
-    (meh (c/exec :find (c/lit (str "/etc/service -maxdepth 1 -type l ! -name 'sshd' -delete"))))))
+    (meh (c/exec :find (c/lit (str "/etc/service -mindepth 1 -maxdepth 1 -type l -not -name 'sshd' -delete"))))))
+
+;;; jstack
+
+(defn- includes-any?
+  [s substrs]
+  (some #(clojure.string/includes? s %) substrs))
+
+(defn- jps!
+  ([]
+   (map #(clojure.string/split % #"\s")
+        (-> (c/exec :jps)
+            (clojure.string/trim)
+            (clojure.string/split #"\n"))))
+
+  ([class-name-patterns]
+   (->> (jps!)
+        (filter #(= 2 (count %)))
+        (filter (fn [[_ class-name]] (includes-any? class-name class-name-patterns))))))
+
+(defn- write-jstack!
+  [pid out-path]
+  (try
+    (c/exec :jstack :-l pid :> out-path)
+    (catch Exception e
+      (warn e "Failed to invoke jstack on pid" pid))))
+
+(defn dump-jstack-by-pattern!
+  "Dumps the output of jstack for all JVMs that match one of the specified patterns."
+  [out-dir & class-name-patterns]
+  (let [pid-class-names (jps! class-name-patterns)]
+    (doseq [[pid class-name] pid-class-names]
+      (let [out-path (str out-dir "/jstack_" pid "_" class-name)]
+        (write-jstack! pid out-path)))))

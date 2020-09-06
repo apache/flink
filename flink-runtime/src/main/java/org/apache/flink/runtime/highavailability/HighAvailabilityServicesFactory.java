@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
 
 import java.util.concurrent.Executor;
 
@@ -28,7 +29,7 @@ import java.util.concurrent.Executor;
 public interface HighAvailabilityServicesFactory {
 
 	/**
-	 * Creates an {@link HighAvailabilityServices} instance.
+	 * Creates a {@link HighAvailabilityServices} instance.
 	 *
 	 * @param configuration Flink configuration
 	 * @param executor background task executor
@@ -36,4 +37,15 @@ public interface HighAvailabilityServicesFactory {
 	 * @throws Exception when HAServices cannot be created
 	 */
 	HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) throws Exception;
+
+	/**
+	 * Create a {@link ClientHighAvailabilityServices} instance.
+	 *
+	 * @param configuration Flink configuration
+	 * @return instance of {@link ClientHighAvailabilityServices}
+	 * @throws Exception when ClientHAServices cannot be created
+	 */
+	default ClientHighAvailabilityServices createClientHAServices(Configuration configuration) throws Exception {
+		return createHAServices(configuration, UnsupportedOperationExecutor.INSTANCE);
+	}
 }

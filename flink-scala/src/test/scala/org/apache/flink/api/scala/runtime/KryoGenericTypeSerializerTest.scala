@@ -102,14 +102,14 @@ class KryoGenericTypeSerializerTest {
   def testScalaListSerialization(): Unit = {
     val a = List(42,1,49,1337)
 
-    runTests(a)
+    runTests(Seq(a))
   }
 
   @Test
   def testScalaMutablelistSerialization(): Unit = {
     val a = scala.collection.mutable.ListBuffer(42,1,49,1337)
 
-    runTests(a)
+    runTests(Seq(a))
   }
 
   @Test
@@ -133,7 +133,7 @@ class KryoGenericTypeSerializerTest {
     val c = ComplexType("1337", 1, List(1))
     val list = List(a, b, c)
 
-    runTests(list)
+    runTests(Seq(list))
   }
 
   @Test
@@ -143,7 +143,7 @@ class KryoGenericTypeSerializerTest {
     val c = new DerivedType2("bar", "foo")
     val list = List(a,b,c)
 
-    runTests(list)
+    runTests(Seq(list))
   }
 
 

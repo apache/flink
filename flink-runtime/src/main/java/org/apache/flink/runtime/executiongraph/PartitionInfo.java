@@ -18,34 +18,36 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.io.Serializable;
 
 /**
  * Contains information where to find a partition. The partition is defined by the
- * {@link IntermediateDataSetID} and the partition location is specified by
- * {@link InputChannelDeploymentDescriptor}.
+ * {@link IntermediateDataSetID} and the partition is specified by
+ * {@link ShuffleDescriptor}.
  */
 public class PartitionInfo implements Serializable {
 
 	private static final long serialVersionUID = 1724490660830968430L;
 
 	private final IntermediateDataSetID intermediateDataSetID;
-	private final InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor;
 
-	public PartitionInfo(IntermediateDataSetID intermediateResultPartitionID, InputChannelDeploymentDescriptor inputChannelDeploymentDescriptor) {
-		this.intermediateDataSetID = Preconditions.checkNotNull(intermediateResultPartitionID);
-		this.inputChannelDeploymentDescriptor = Preconditions.checkNotNull(inputChannelDeploymentDescriptor);
+	private final ShuffleDescriptor shuffleDescriptor;
+
+	public PartitionInfo(
+			IntermediateDataSetID intermediateResultPartitionID,
+			ShuffleDescriptor shuffleDescriptor) {
+		this.intermediateDataSetID = intermediateResultPartitionID;
+		this.shuffleDescriptor = shuffleDescriptor;
 	}
 
 	public IntermediateDataSetID getIntermediateDataSetID() {
 		return intermediateDataSetID;
 	}
 
-	public InputChannelDeploymentDescriptor getInputChannelDeploymentDescriptor() {
-		return inputChannelDeploymentDescriptor;
+	public ShuffleDescriptor getShuffleDescriptor() {
+		return shuffleDescriptor;
 	}
 }

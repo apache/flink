@@ -27,7 +27,7 @@ under the License.
 
 ## What is a Savepoint? How is a Savepoint different from a Checkpoint?
 
-A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html). You can use Savepoints to stop-and-resume, fork,
+A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({{ site.baseurl }}/learn-flink/fault_tolerance.html). You can use Savepoints to stop-and-resume, fork,
 or update your Flink jobs. Savepoints consist of two parts: a directory with (typically large) binary files on stable storage (e.g. HDFS, S3, ...) and a (relatively small) meta data file. The files on stable storage represent the net data of the job's execution state
 image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of absolute paths.
 
@@ -44,7 +44,7 @@ In contrast to all this, Savepoints are created, owned, and deleted by the user.
 changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore and focus
 more on portability and support for the previously mentioned changes to the job.
 
-Those conceptual differences aside, the current implementations of Checkpoints and Savepoints are basically using the same code and produce the same „format". However, there is currently one exception from this, and we might
+Those conceptual differences aside, the current implementations of Checkpoints and Savepoints are basically using the same code and produce the same format. However, there is currently one exception from this, and we might
 introduce more differences in the future. The exception are incremental checkpoints with the RocksDB state backend. They are using some RocksDB internal format instead of Flink’s native savepoint format. This makes them the
 first instance of a more lightweight checkpointing mechanism, compared to Savepoints.
 

@@ -33,7 +33,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -58,6 +60,9 @@ public class SequenceStreamingFileSinkITCase extends AbstractTestBase {
 			new Tuple2<>(2L, "b"),
 			new Tuple2<>(3L, "c")
 	);
+
+	@Rule
+	public final Timeout timeoutPerTest = Timeout.seconds(20);
 
 	@Test
 	public void testWriteSequenceFile() throws Exception {

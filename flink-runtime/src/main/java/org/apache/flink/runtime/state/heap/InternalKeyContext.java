@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
+
+import javax.annotation.Nonnull;
 
 /**
  * This interface is the current context of a keyed state. It provides information about the currently selected key in
@@ -53,8 +54,17 @@ public interface InternalKeyContext<K> {
 	KeyGroupRange getKeyGroupRange();
 
 	/**
-	 * {@link TypeSerializer} for the state backend key type.
+	 * Set current key of the context.
+	 *
+	 * @param currentKey the current key to set to.
 	 */
-	TypeSerializer<K> getKeySerializer();
+	void setCurrentKey(@Nonnull K currentKey);
+
+	/**
+	 * Set current key group index of the context.
+	 *
+	 * @param currentKeyGroupIndex the current key group index to set to.
+	 */
+	void setCurrentKeyGroupIndex(int currentKeyGroupIndex);
 
 }

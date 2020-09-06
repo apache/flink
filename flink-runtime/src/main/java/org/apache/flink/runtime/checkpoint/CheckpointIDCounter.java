@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 
 /**
  * A checkpoint ID counter.
@@ -46,6 +46,13 @@ public interface CheckpointIDCounter {
 	 * @return The previous checkpoint ID
 	 */
 	long getAndIncrement() throws Exception;
+
+	/**
+	 * Atomically gets the current checkpoint ID.
+	 *
+	 * @return The current checkpoint ID
+	 */
+	long get();
 
 	/**
 	 * Sets the current checkpoint ID.

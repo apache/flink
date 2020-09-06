@@ -98,6 +98,7 @@ public class DynamicProcessingTimeSessionWindows<T> extends MergingWindowAssigne
 	/**
 	 * Merge overlapping {@link TimeWindow}s.
 	 */
+	@Override
 	public void mergeWindows(Collection<TimeWindow> windows, MergeCallback<TimeWindow> c) {
 		TimeWindow.mergeWindows(windows, c);
 	}

@@ -20,16 +20,18 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import scala.concurrent.duration.Duration;
 
 /**
  * Configuration for the {@link SlotManager}.
@@ -41,14 +43,36 @@ public class SlotManagerConfiguration {
 	private final Time taskManagerRequestTimeout;
 	private final Time slotRequestTimeout;
 	private final Time taskManagerTimeout;
+	private final boolean waitResultConsumedBeforeRelease;
+	private final SlotMatchingStrategy slotMatchingStrategy;
+	private final WorkerResourceSpec defaultWorkerResourceSpec;
+	private final int numSlotsPerWorker;
+	private final int maxSlotNum;
+	private final int redundantTaskManagerNum;
 
 	public SlotManagerConfiguration(
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
-			Time taskManagerTimeout) {
+			Time taskManagerTimeout,
+			boolean waitResultConsumedBeforeRelease,
+			SlotMatchingStrategy slotMatchingStrategy,
+			WorkerResourceSpec defaultWorkerResourceSpec,
+			int numSlotsPerWorker,
+			int maxSlotNum,
+			int redundantTaskManagerNum) {
+
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
+		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
+		this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
+		this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
+		Preconditions.checkState(numSlotsPerWorker > 0);
+		Preconditions.checkState(maxSlotNum > 0);
+		this.numSlotsPerWorker = numSlotsPerWorker;
+		this.maxSlotNum = maxSlotNum;
+		Preconditions.checkState(redundantTaskManagerNum >= 0);
+		this.redundantTaskManagerNum = redundantTaskManagerNum;
 	}
 
 	public Time getTaskManagerRequestTimeout() {
@@ -63,13 +87,38 @@ public class SlotManagerConfiguration {
 		return taskManagerTimeout;
 	}
 
-	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
-		final String strTimeout = configuration.getString(AkkaOptions.ASK_TIMEOUT);
-		final Time rpcTimeout;
+	public boolean isWaitResultConsumedBeforeRelease() {
+		return waitResultConsumedBeforeRelease;
+	}
 
+	public SlotMatchingStrategy getSlotMatchingStrategy() {
+		return slotMatchingStrategy;
+	}
+
+	public WorkerResourceSpec getDefaultWorkerResourceSpec() {
+		return defaultWorkerResourceSpec;
+	}
+
+	public int getNumSlotsPerWorker() {
+		return numSlotsPerWorker;
+	}
+
+	public int getMaxSlotNum() {
+		return maxSlotNum;
+	}
+
+	public int getRedundantTaskManagerNum() {
+		return redundantTaskManagerNum;
+	}
+
+	public static SlotManagerConfiguration fromConfiguration(
+			Configuration configuration,
+			WorkerResourceSpec defaultWorkerResourceSpec) throws ConfigurationException {
+
+		final Time rpcTimeout;
 		try {
-			rpcTimeout = Time.milliseconds(Duration.apply(strTimeout).toMillis());
-		} catch (NumberFormatException e) {
+			rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
+		} catch (IllegalArgumentException e) {
 			throw new ConfigurationException("Could not parse the resource manager's timeout " +
 				"value " + AkkaOptions.ASK_TIMEOUT + '.', e);
 		}
@@ -78,7 +127,29 @@ public class SlotManagerConfiguration {
 		final Time taskManagerTimeout = Time.milliseconds(
 				configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
-		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout);
+		boolean waitResultConsumedBeforeRelease =
+			configuration.getBoolean(ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
+
+		boolean evenlySpreadOutSlots = configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+		final SlotMatchingStrategy slotMatchingStrategy = evenlySpreadOutSlots ?
+			LeastUtilizationSlotMatchingStrategy.INSTANCE : AnyMatchingSlotMatchingStrategy.INSTANCE;
+
+		int numSlotsPerWorker = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+
+		int maxSlotNum = configuration.getInteger(ResourceManagerOptions.MAX_SLOT_NUM);
+
+		int redundantTaskManagerNum = configuration.getInteger(ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM);
+
+		return new SlotManagerConfiguration(
+			rpcTimeout,
+			slotRequestTimeout,
+			taskManagerTimeout,
+			waitResultConsumedBeforeRelease,
+			slotMatchingStrategy,
+			defaultWorkerResourceSpec,
+			numSlotsPerWorker,
+			maxSlotNum,
+			redundantTaskManagerNum);
 	}
 
 	private static Time getSlotRequestTimeout(final Configuration configuration) {

@@ -52,15 +52,17 @@ public class FsStateBackendEntropyTest {
 
 	@Test
 	public void testEntropyInjection() throws Exception {
+		final int fileSizeThreshold = 1024;
 		final FileSystem fs = new TestEntropyAwareFs();
 
 		final Path checkpointDir = new Path(Path.fromLocalFile(tmp.newFolder()), ENTROPY_MARKER + "/checkpoints");
 		final String checkpointDirStr = checkpointDir.toString();
 
-		FsCheckpointStorage storage = new FsCheckpointStorage(
-				fs, checkpointDir, null, new JobID(), 1024);
+		final FsCheckpointStorage storage = new FsCheckpointStorage(
+				fs, checkpointDir, null, new JobID(), fileSizeThreshold, 4096);
+		storage.initializeBaseLocations();
 
-		FsCheckpointStorageLocation location = (FsCheckpointStorageLocation)
+		final FsCheckpointStorageLocation location = (FsCheckpointStorageLocation)
 				storage.initializeLocationForCheckpoint(96562);
 
 		assertThat(location.getCheckpointDirectory().toString(), startsWith(checkpointDirStr));
@@ -70,7 +72,7 @@ public class FsStateBackendEntropyTest {
 
 		// check entropy in task-owned state
 		try (CheckpointStateOutputStream stream = storage.createTaskOwnedStateStream()) {
-			stream.flush();
+			stream.write(new byte[fileSizeThreshold + 1], 0, fileSizeThreshold + 1);
 			FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
 
 			assertNotNull(handle);
@@ -81,8 +83,8 @@ public class FsStateBackendEntropyTest {
 		// check entropy in the exclusive/shared state
 		try (CheckpointStateOutputStream stream =
 				location.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)) {
+			stream.write(new byte[fileSizeThreshold + 1], 0, fileSizeThreshold + 1);
 
-			stream.flush();
 			FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
 
 			assertNotNull(handle);
@@ -108,7 +110,7 @@ public class FsStateBackendEntropyTest {
 		}
 	}
 
-	private static class TestEntropyAwareFs extends LocalFileSystem implements EntropyInjectingFileSystem {
+	static class TestEntropyAwareFs extends LocalFileSystem implements EntropyInjectingFileSystem {
 
 		@Override
 		public String getEntropyInjectionKey() {

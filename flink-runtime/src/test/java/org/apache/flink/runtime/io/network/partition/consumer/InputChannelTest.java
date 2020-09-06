@@ -128,6 +128,10 @@ public class InputChannelTest {
 		}
 
 		@Override
+		public void resumeConsumption() {
+		}
+
+		@Override
 		void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		}
 
@@ -143,10 +147,6 @@ public class InputChannelTest {
 		@Override
 		boolean isReleased() {
 			return false;
-		}
-
-		@Override
-		void notifySubpartitionConsumed() throws IOException {
 		}
 
 		@Override

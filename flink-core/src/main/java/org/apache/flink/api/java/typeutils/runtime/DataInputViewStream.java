@@ -52,17 +52,17 @@ public class DataInputViewStream extends InputStream {
 
 	@Override
 	public long skip(long n) throws IOException {
-		long counter = n;
-		while(counter > Integer.MAX_VALUE) {
+		long toSkipRemaining = n;
+		while(toSkipRemaining > Integer.MAX_VALUE) {
 			int skippedBytes = inputView.skipBytes(Integer.MAX_VALUE);
 
 			if (skippedBytes == 0) {
-				return n - counter;
+				return n - toSkipRemaining;
 			}
 
-			counter -= skippedBytes;
+			toSkipRemaining -= skippedBytes;
 		}
-		return n - counter - inputView.skipBytes((int) counter);
+		return n - (toSkipRemaining - inputView.skipBytes((int) toSkipRemaining));
 	}
 
 	@Override

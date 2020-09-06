@@ -33,11 +33,11 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,12 +51,10 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * {@link MapState} implementation that stores state in RocksDB.
- *
- * <p>{@link RocksDBStateBackend} must ensure that we set the
- * {@link org.rocksdb.StringAppendOperator} on the column family that we use for our state since
- * we use the {@code merge()} call.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -140,7 +138,7 @@ class RocksDBMapState<K, N, UK, UV>
 			return;
 		}
 
-		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions)) {
+		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions, backend.getWriteBatchSize())) {
 			for (Map.Entry<UK, UV> entry : map.entrySet()) {
 				byte[] rawKeyBytes = serializeCurrentKeyWithGroupAndNamespacePlusUserKey(entry.getKey(), userKeySerializer);
 				byte[] rawValueBytes = serializeValueNullSensitive(entry.getValue(), userValueSerializer);
@@ -166,14 +164,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
-		final Iterator<Map.Entry<UK, UV>> iterator = iterator();
-
-		// Return null to make the behavior consistent with other states.
-		if (!iterator.hasNext()) {
-			return null;
-		} else {
-			return () -> iterator;
-		}
+		return this::iterator;
 	}
 
 	@Override
@@ -204,6 +195,32 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public void migrateSerializedValue(
+		DataInputDeserializer serializedOldValueInput,
+		DataOutputSerializer serializedMigratedValueOutput,
+		TypeSerializer<Map<UK, UV>> priorSerializer,
+		TypeSerializer<Map<UK, UV>> newSerializer) throws StateMigrationException {
+
+		checkArgument(priorSerializer instanceof MapSerializer);
+		checkArgument(newSerializer instanceof MapSerializer);
+
+		TypeSerializer<UV> priorMapValueSerializer = ((MapSerializer<UK, UV>) priorSerializer).getValueSerializer();
+		TypeSerializer<UV> newMapValueSerializer = ((MapSerializer<UK, UV>) newSerializer).getValueSerializer();
+
+		try {
+			boolean isNull = serializedOldValueInput.readBoolean();
+			UV mapUserValue = null;
+			if (!isNull) {
+				mapUserValue = priorMapValueSerializer.deserialize(serializedOldValueInput);
+			}
+			serializedMigratedValueOutput.writeBoolean(mapUserValue == null);
+			newMapValueSerializer.serialize(mapUserValue, serializedMigratedValueOutput);
+		} catch (Exception e) {
+			throw new StateMigrationException("Error while trying to migrate RocksDB map state.", e);
+		}
+	}
+
+	@Override
 	public Iterator<Map.Entry<UK, UV>> iterator() {
 		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
@@ -216,10 +233,22 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public boolean isEmpty() {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+
+		try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily, backend.getReadOptions())) {
+
+			iterator.seek(prefixBytes);
+
+			return !iterator.isValid() || !startWithKeyPrefix(prefixBytes, iterator.key());
+		}
+	}
+
+	@Override
 	public void clear() {
 		try {
-			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(backend.db, columnFamily);
-				WriteBatch writeBatch = new WriteBatch(128)) {
+			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily, backend.getReadOptions());
+				RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, backend.getWriteOptions(), backend.getWriteBatchSize())) {
 
 				final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 				iterator.seek(keyPrefixBytes);
@@ -227,14 +256,12 @@ class RocksDBMapState<K, N, UK, UV>
 				while (iterator.isValid()) {
 					byte[] keyBytes = iterator.key();
 					if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
-						writeBatch.remove(columnFamily, keyBytes);
+						rocksDBWriteBatchWrapper.remove(columnFamily, keyBytes);
 					} else {
 						break;
 					}
 					iterator.next();
 				}
-
-				backend.db.write(writeOptions, writeBatch);
 			}
 		} catch (Exception e) {
 			LOG.warn("Error while cleaning the state.", e);
@@ -543,7 +570,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 			// use try-with-resources to ensure RocksIterator can be release even some runtime exception
 			// occurred in the below code block.
-			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(db, columnFamily)) {
+			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(db, columnFamily, backend.getReadOptions())) {
 
 				/*
 				 * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,

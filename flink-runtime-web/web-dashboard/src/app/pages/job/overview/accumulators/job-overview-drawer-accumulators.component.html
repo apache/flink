@@ -1,0 +1,75 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<nz-tabset [nzTabBarGutter]="4" [nzSize]="'small'">
+  <nz-tab nzTitle="Vertex Accumulators">
+    <nz-table
+      class="no-border small full-height"
+      [nzSize]="'small'"
+      [nzLoading]="isLoading"
+      [nzData]="listOfAccumulator"
+      [nzScroll]="{y:'calc( 100% - 72px )'}"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false">
+      <thead>
+        <tr>
+          <th nzWidth="33.33%">Name</th>
+          <th nzWidth="33.33%">Type</th>
+          <th nzWidth="33.33%">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let accumulator of listOfAccumulator; trackBy:trackAccumulatorBy;">
+          <td>{{ accumulator.name }}</td>
+          <td>{{ accumulator.type }}</td>
+          <td>{{ (accumulator.value | number:'1.0-3' ) || accumulator.value }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+  </nz-tab>
+  <nz-tab nzTitle="SubTask Accumulators">
+    <nz-table
+      class="no-border small full-height"
+      [nzSize]="'small'"
+      [nzLoading]="isLoading"
+      [nzData]="listOfSubTaskAccumulator"
+      [nzScroll]="{x:'800px',y:'calc( 100% - 72px )'}"
+      [nzFrontPagination]="false"
+      [nzShowPagination]="false">
+      <thead>
+        <tr>
+          <th nzWidth="200px" nzLeft="0px">SubTask</th>
+          <th nzWidth="300px">Name</th>
+          <th nzWidth="100px">Type</th>
+          <th nzWidth="200px" nzRight="0px">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let accumulator of listOfSubTaskAccumulator; trackBy:trackSubtaskBy;">
+          <tr *ngFor="let data of accumulator['user-accumulators']; trackBy:trackAccumulatorBy;">
+            <td nzLeft="0px">({{ accumulator.subtask }}) {{ accumulator.host }}, attempt: {{ accumulator.attempt + 1 }}</td>
+            <td>{{ data.name }}</td>
+            <td>{{ data.type }}</td>
+            <td nzRight="0px">{{ data.value }}</td>
+          </tr>
+        </ng-container>
+
+      </tbody>
+    </nz-table>
+  </nz-tab>
+</nz-tabset>

@@ -19,7 +19,6 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -77,7 +76,6 @@ class RocksDBListState<K, N, V>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param valueSerializer The serializer for the state.
 	 * @param defaultValue The default value for the state.
-	 * @param elementSerializer The serializer for elements of the list state.
 	 * @param backend The backend for which this state is bind to.
 	 */
 	private RocksDBListState(
@@ -85,11 +83,12 @@ class RocksDBListState<K, N, V>
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<List<V>> valueSerializer,
 			List<V> defaultValue,
-			TypeSerializer<V> elementSerializer,
 			RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
-		this.elementSerializer = elementSerializer;
+
+		ListSerializer<V> castedListSerializer = (ListSerializer<V>) valueSerializer;
+		this.elementSerializer = castedListSerializer.getElementSerializer();
 	}
 
 	@Override
@@ -149,7 +148,7 @@ class RocksDBListState<K, N, V>
 				return element;
 			}
 		} catch (IOException e) {
-			throw new FlinkRuntimeException("Unexpected list element deserialization failure");
+			throw new FlinkRuntimeException("Unexpected list element deserialization failure", e);
 		}
 		return null;
 	}
@@ -188,9 +187,9 @@ class RocksDBListState<K, N, V>
 					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
 
 					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
+						backend.db.delete(columnFamily, writeOptions, sourceKey);
 						backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);
 					}
 				}
@@ -210,8 +209,6 @@ class RocksDBListState<K, N, V>
 	public void updateInternal(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
-		clear();
-
 		if (!values.isEmpty()) {
 			try {
 				backend.db.put(
@@ -222,6 +219,8 @@ class RocksDBListState<K, N, V>
 			} catch (IOException | RocksDBException e) {
 				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
+		} else {
+			clear();
 		}
 	}
 
@@ -281,7 +280,6 @@ class RocksDBListState<K, N, V>
 			registerResult.f1.getNamespaceSerializer(),
 			(TypeSerializer<List<E>>) registerResult.f1.getStateSerializer(),
 			(List<E>) stateDesc.getDefaultValue(),
-			((ListStateDescriptor<E>) stateDesc).getElementSerializer(),
 			backend);
 	}
 
@@ -330,7 +328,7 @@ class RocksDBListState<K, N, V>
 		byte[] serializeValueList(
 			List<T> valueList,
 			TypeSerializer<T> elementSerializer,
-			byte delimiter) throws IOException {
+			@SuppressWarnings("SameParameterValue") byte delimiter) throws IOException {
 
 			out.clear();
 			boolean first = true;

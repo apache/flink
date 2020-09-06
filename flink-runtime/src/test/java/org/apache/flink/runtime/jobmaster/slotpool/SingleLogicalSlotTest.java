@@ -19,17 +19,17 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -74,10 +74,19 @@ public class SingleLogicalSlotTest extends TestLogger {
 	private SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner) {
 		return new SingleLogicalSlot(
 			new SlotRequestId(),
-			new DummySlotContext(),
+			createSlotContext(),
 			null,
 			Locality.LOCAL,
 			slotOwner);
+	}
+
+	private static SlotContext createSlotContext() {
+		return new SimpleSlotContext(
+			new AllocationID(),
+			new LocalTaskManagerLocation(),
+			0,
+			new SimpleAckingTaskManagerGateway(),
+			ResourceProfile.ANY);
 	}
 
 	@Test
@@ -110,7 +119,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link AllocatedSlot.Payload#release(Throwable)} does not wait
+	 * Tests that the {@link PhysicalSlot.Payload#release(Throwable)} does not wait
 	 * for the payload to reach a terminal state.
 	 */
 	@Test
@@ -240,9 +249,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			counter.incrementAndGet();
-			return CompletableFuture.completedFuture(true);
 		}
 	}
 
@@ -280,44 +288,8 @@ public class SingleLogicalSlotTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		public void returnLogicalSlot(LogicalSlot logicalSlot) {
 			returnAllocatedSlotFuture.complete(logicalSlot);
-			return returnAllocatedSlotResponse;
-		}
-	}
-
-	private static final class DummySlotContext implements SlotContext {
-
-		private final AllocationID allocationId;
-
-		private final TaskManagerLocation taskManagerLocation;
-
-		private final TaskManagerGateway taskManagerGateway;
-
-		DummySlotContext() {
-			allocationId = new AllocationID();
-			taskManagerLocation = new LocalTaskManagerLocation();
-			taskManagerGateway = new SimpleAckingTaskManagerGateway();
-		}
-
-		@Override
-		public AllocationID getAllocationId() {
-			return allocationId;
-		}
-
-		@Override
-		public TaskManagerLocation getTaskManagerLocation() {
-			return taskManagerLocation;
-		}
-
-		@Override
-		public int getPhysicalSlotNumber() {
-			return 0;
-		}
-
-		@Override
-		public TaskManagerGateway getTaskManagerGateway() {
-			return taskManagerGateway;
 		}
 	}
 }

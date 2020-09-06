@@ -30,7 +30,7 @@ public final class HadoopFileStatus implements FileStatus {
 	private org.apache.hadoop.fs.FileStatus fileStatus;
 
 	/**
-	 * Creates a new file status from a HDFS file status.
+	 * Creates a new file status from an HDFS file status.
 	 *
 	 * @param fileStatus
 	 *        the HDFS file status

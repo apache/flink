@@ -27,7 +27,7 @@ import org.junit.Test;
 @SuppressWarnings("serial")
 public class Kafka011ProducerExactlyOnceITCase extends KafkaProducerTestBase {
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		KafkaProducerTestBase.prepare();
 		((KafkaTestEnvironmentImpl) kafkaServer).setProducerSemantic(FlinkKafkaProducer011.Semantic.EXACTLY_ONCE);
 	}

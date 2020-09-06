@@ -52,7 +52,6 @@ public class TaskStateStatsTest {
 		assertArrayEquals(subtasks, taskStats.getSubtaskStats());
 
 		long stateSize = 0;
-		long alignmentBuffered = 0;
 
 		// Hand in some subtasks
 		for (int i = 0; i < subtasks.length; i++) {
@@ -66,7 +65,6 @@ public class TaskStateStatsTest {
 				rand.nextInt(128));
 
 			stateSize += subtasks[i].getStateSize();
-			alignmentBuffered += subtasks[i].getAlignmentBuffered();
 
 			assertTrue(taskStats.reportSubtaskStats(subtasks[i]));
 			assertEquals(i + 1, taskStats.getNumberOfAcknowledgedSubtasks());
@@ -75,7 +73,6 @@ public class TaskStateStatsTest {
 			int duration = rand.nextInt(128);
 			assertEquals(duration, taskStats.getEndToEndDuration(subtasks[i].getAckTimestamp() - duration));
 			assertEquals(stateSize, taskStats.getStateSize());
-			assertEquals(alignmentBuffered, taskStats.getAlignmentBuffered());
 		}
 
 		assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0)));
@@ -88,7 +85,6 @@ public class TaskStateStatsTest {
 		assertEquals(subtasks.length, summary.getAckTimestampStats().getCount());
 		assertEquals(subtasks.length, summary.getSyncCheckpointDurationStats().getCount());
 		assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
-		assertEquals(subtasks.length, summary.getAlignmentBufferedStats().getCount());
 		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
 	}
 
@@ -100,7 +96,6 @@ public class TaskStateStatsTest {
 		TaskStateStats taskStats = new TaskStateStats(jobVertexId, subtasks.length);
 
 		long stateSize = 0;
-		long alignmentBuffered = 0;
 
 		for (int i = 0; i < subtasks.length; i++) {
 			subtasks[i] = new SubtaskStateStats(
@@ -113,7 +108,6 @@ public class TaskStateStatsTest {
 				rand.nextInt(128));
 
 			stateSize += subtasks[i].getStateSize();
-			alignmentBuffered += subtasks[i].getAlignmentBuffered();
 
 			taskStats.reportSubtaskStats(subtasks[i]);
 		}
@@ -121,14 +115,12 @@ public class TaskStateStatsTest {
 		TaskStateStats copy = CommonTestUtils.createCopySerializable(taskStats);
 
 		assertEquals(stateSize, copy.getStateSize());
-		assertEquals(alignmentBuffered, copy.getAlignmentBuffered());
 
 		TaskStateStats.TaskStateStatsSummary summary = copy.getSummaryStats();
 		assertEquals(subtasks.length, summary.getStateSizeStats().getCount());
 		assertEquals(subtasks.length, summary.getAckTimestampStats().getCount());
 		assertEquals(subtasks.length, summary.getSyncCheckpointDurationStats().getCount());
 		assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
-		assertEquals(subtasks.length, summary.getAlignmentBufferedStats().getCount());
 		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
 	}
 

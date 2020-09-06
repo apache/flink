@@ -28,14 +28,13 @@ under the License.
 		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
 		<suppress files="org[\\/]apache[\\/]calcite.*" checks="[a-zA-Z0-9]*"/>
 
-		<!-- Python streaming API follows python naming conventions -->
-		<suppress
-			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]api[\\/].*.java"
-			checks="MethodNameCheck|ParameterName"/>
-		<suppress
-			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]connectors[\\/].*.java"
-		checks="MethodNameCheck|ParameterName"/>
+		<!-- Temporarily fix TM Metaspace memory leak caused by Apache Beam sdk harness. -->
+		<suppress files="org[\\/]apache[\\/]beam.*.java" checks="[a-zA-Z0-9]*"/>
 
+	    <!-- Have to use guava directly -->
+	    <suppress
+			files="OverConvertRule.java|CustomizedConvertRule.java"
+			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress
 			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormatBase.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java|CassandraPojoOutputFormat.java"
@@ -54,8 +53,12 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]hadoop[\\/]util[\\/]VersionInfo.java"
 			checks=".*"/>
-		<!-- This file is generated in the flink-python build process -->
+		<!-- Classes copied from AWS -->
 		<suppress
-			files="python-source.zip"
+			files="com[\\/]amazonaws[\\/]services[\\/]s3[\\/]model[\\/]transform[\\/]XmlResponsesSaxParser.java"
+			checks=".*"/>
+		<!-- target directory is not relevant for checkstyle -->
+		<suppress
+			files="[\\/]target[\\/]"
 			checks=".*"/>
 </suppressions>

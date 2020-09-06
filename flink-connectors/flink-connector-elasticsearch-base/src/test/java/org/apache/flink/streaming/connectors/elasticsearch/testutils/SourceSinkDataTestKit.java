@@ -27,8 +27,12 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.junit.Assert;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -66,28 +70,47 @@ public class SourceSinkDataTestKit {
 		}
 	}
 
-	/**
-	 * A {@link ElasticsearchSinkFunction} that indexes each element it receives to a specified Elasticsearch index.
-	 */
-	public static class TestElasticsearchSinkFunction implements ElasticsearchSinkFunction<Tuple2<Integer, String>> {
+	public static ElasticsearchSinkFunction<Tuple2<Integer, String>> getCborSinkFunction(String index) {
+		return new TestElasticsearchSinkFunction(index, XContentFactory::cborBuilder);
+	}
+
+	public static ElasticsearchSinkFunction<Tuple2<Integer, String>> getJsonSinkFunction(String index) {
+		return new TestElasticsearchSinkFunction(index, XContentFactory::jsonBuilder);
+	}
+
+	public static ElasticsearchSinkFunction<Tuple2<Integer, String>> getSmileSinkFunction(String index) {
+		return new TestElasticsearchSinkFunction(index, XContentFactory::smileBuilder);
+	}
+
+	public static ElasticsearchSinkFunction<Tuple2<Integer, String>> getYamlSinkFunction(String index) {
+		return new TestElasticsearchSinkFunction(index, XContentFactory::yamlBuilder);
+	}
+
+	private static class TestElasticsearchSinkFunction implements ElasticsearchSinkFunction<Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 
 		private final String index;
+		private final XContentBuilderProvider contentBuilderProvider;
 
 		/**
 		 * Create the sink function, specifying a target Elasticsearch index.
 		 *
 		 * @param index Name of the target Elasticsearch index.
 		 */
-		public TestElasticsearchSinkFunction(String index) {
+		public TestElasticsearchSinkFunction(String index, XContentBuilderProvider contentBuilderProvider) {
 			this.index = index;
+			this.contentBuilderProvider = contentBuilderProvider;
 		}
 
 		public IndexRequest createIndexRequest(Tuple2<Integer, String> element) {
-			Map<String, Object> json = new HashMap<>();
-			json.put(DATA_FIELD_NAME, element.f1);
+			Map<String, Object> document = new HashMap<>();
+			document.put(DATA_FIELD_NAME, element.f1);
 
-			return new IndexRequest(index, TYPE_NAME, element.f0.toString()).source(json);
+			try {
+				return new IndexRequest(index, TYPE_NAME, element.f0.toString()).source(contentBuilderProvider.getBuilder().map(document));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		@Override
@@ -108,6 +131,11 @@ public class SourceSinkDataTestKit {
 			GetResponse response = client.get(new GetRequest(index, TYPE_NAME, Integer.toString(i))).actionGet();
 			Assert.assertEquals(DATA_PREFIX + i, response.getSource().get(DATA_FIELD_NAME));
 		}
+	}
+
+	@FunctionalInterface
+	private interface XContentBuilderProvider extends Serializable {
+		XContentBuilder getBuilder() throws IOException;
 	}
 
 }

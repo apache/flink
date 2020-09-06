@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -25,9 +26,12 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -48,6 +52,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 class LocalBufferPool implements BufferPool {
 	private static final Logger LOG = LoggerFactory.getLogger(LocalBufferPool.class);
 
+	private static final int UNKNOWN_CHANNEL = -1;
+
 	/** Global network buffer pool to get buffers from. */
 	private final NetworkBufferPool networkBufferPool;
 
@@ -61,7 +67,7 @@ class LocalBufferPool implements BufferPool {
 	 * <p><strong>BEWARE:</strong> Take special care with the interactions between this lock and
 	 * locks acquired before entering this class vs. locks being acquired during calls to external
 	 * code inside this class, e.g. with
-	 * {@link org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel#bufferQueue}
+	 * {@link org.apache.flink.runtime.io.network.partition.consumer.BufferManager#bufferQueue}
 	 * via the {@link #registeredListeners} callback.
 	 */
 	private final ArrayDeque<MemorySegment> availableMemorySegments = new ArrayDeque<MemorySegment>();
@@ -84,9 +90,20 @@ class LocalBufferPool implements BufferPool {
 	 */
 	private int numberOfRequestedMemorySegments;
 
+	private final int maxBuffersPerChannel;
+
+	private final int[] subpartitionBuffersCount;
+
+	private final BufferRecycler[] subpartitionBufferRecyclers;
+
+	private int unavailableSubpartitionsCount = 0;
+
 	private boolean isDestroyed;
 
-	private final Optional<BufferPoolOwner> owner;
+	@Nullable
+	private final BufferPoolOwner bufferPoolOwner;
+
+	private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	/**
 	 * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal number of
@@ -98,7 +115,13 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, Integer.MAX_VALUE, Optional.empty());
+		this(
+			networkBufferPool,
+			numberOfRequiredMemorySegments,
+			Integer.MAX_VALUE,
+			null,
+			0,
+			Integer.MAX_VALUE);
 	}
 
 	/**
@@ -114,7 +137,13 @@ class LocalBufferPool implements BufferPool {
 	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments,
 			int maxNumberOfMemorySegments) {
-		this(networkBufferPool, numberOfRequiredMemorySegments, maxNumberOfMemorySegments, Optional.empty());
+		this(
+			networkBufferPool,
+			numberOfRequiredMemorySegments,
+			maxNumberOfMemorySegments,
+			null,
+			0,
+			Integer.MAX_VALUE);
 	}
 
 	/**
@@ -127,14 +156,20 @@ class LocalBufferPool implements BufferPool {
 	 * 		minimum number of network buffers
 	 * @param maxNumberOfMemorySegments
 	 * 		maximum number of network buffers to allocate
-	 * 	@param owner
-	 * 		the optional owner of this buffer pool to release memory when needed
+	 * @param bufferPoolOwner
+	 * 		the owner of this buffer pool to release memory when needed
+	 * @param numberOfSubpartitions
+	 * 		number of subpartitions
+	 * @param maxBuffersPerChannel
+	 * 		maximum number of buffers to use for each channel
 	 */
 	LocalBufferPool(
-		NetworkBufferPool networkBufferPool,
-		int numberOfRequiredMemorySegments,
-		int maxNumberOfMemorySegments,
-		Optional<BufferPoolOwner> owner) {
+			NetworkBufferPool networkBufferPool,
+			int numberOfRequiredMemorySegments,
+			int maxNumberOfMemorySegments,
+			@Nullable BufferPoolOwner bufferPoolOwner,
+			int numberOfSubpartitions,
+			int maxBuffersPerChannel) {
 		checkArgument(maxNumberOfMemorySegments >= numberOfRequiredMemorySegments,
 			"Maximum number of memory segments (%s) should not be smaller than minimum (%s).",
 			maxNumberOfMemorySegments, numberOfRequiredMemorySegments);
@@ -150,7 +185,20 @@ class LocalBufferPool implements BufferPool {
 		this.numberOfRequiredMemorySegments = numberOfRequiredMemorySegments;
 		this.currentPoolSize = numberOfRequiredMemorySegments;
 		this.maxNumberOfMemorySegments = maxNumberOfMemorySegments;
-		this.owner = owner;
+		this.bufferPoolOwner = bufferPoolOwner;
+
+		if (numberOfSubpartitions > 0) {
+			checkArgument(maxBuffersPerChannel > 0,
+				"Maximum number of buffers for each channel (%s) should be larger than 0.",
+				maxBuffersPerChannel);
+		}
+
+		this.subpartitionBuffersCount = new int[numberOfSubpartitions];
+		subpartitionBufferRecyclers = new BufferRecycler[numberOfSubpartitions];
+		for (int i = 0; i < subpartitionBufferRecyclers.length; i++) {
+			subpartitionBufferRecyclers[i] = new SubpartitionBufferRecycler(i, this);
+		}
+		this.maxBuffersPerChannel = maxBuffersPerChannel;
 	}
 
 	// ------------------------------------------------------------------------
@@ -162,11 +210,6 @@ class LocalBufferPool implements BufferPool {
 		synchronized (availableMemorySegments) {
 			return isDestroyed;
 		}
-	}
-
-	@Override
-	public int getMemorySegmentSize() {
-		return networkBufferPool.getMemorySegmentSize();
 	}
 
 	@Override
@@ -200,22 +243,27 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public Buffer requestBuffer() throws IOException {
-		try {
-			return toBuffer(requestMemorySegment(false));
-		}
-		catch (InterruptedException e) {
-			throw new IOException(e);
-		}
+		return toBuffer(requestMemorySegment());
 	}
 
 	@Override
-	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		return toBuffer(requestMemorySegment(true));
+	public BufferBuilder requestBufferBuilder() throws IOException {
+		return toBufferBuilder(requestMemorySegment(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+		return toBufferBuilder(requestMemorySegment(targetChannel), targetChannel);
 	}
 
 	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
-		return toBufferBuilder(requestMemorySegment(true));
+		return toBufferBuilder(requestMemorySegmentBlocking(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+		return toBufferBuilder(requestMemorySegmentBlocking(targetChannel), targetChannel);
 	}
 
 	private Buffer toBuffer(MemorySegment memorySegment) {
@@ -225,70 +273,125 @@ class LocalBufferPool implements BufferPool {
 		return new NetworkBuffer(memorySegment, this);
 	}
 
-	private BufferBuilder toBufferBuilder(MemorySegment memorySegment) {
+	private BufferBuilder toBufferBuilder(MemorySegment memorySegment, int targetChannel) {
 		if (memorySegment == null) {
 			return null;
 		}
-		return new BufferBuilder(memorySegment, this);
+
+		if (targetChannel == UNKNOWN_CHANNEL) {
+			return new BufferBuilder(memorySegment, this);
+		} else {
+			return new BufferBuilder(memorySegment, subpartitionBufferRecyclers[targetChannel]);
+		}
 	}
 
-	private MemorySegment requestMemorySegment(boolean isBlocking) throws InterruptedException, IOException {
+	private MemorySegment requestMemorySegmentBlocking(int targetChannel) throws InterruptedException, IOException {
+		MemorySegment segment;
+		while ((segment = requestMemorySegment(targetChannel)) == null) {
+			try {
+				// wait until available
+				getAvailableFuture().get();
+			} catch (ExecutionException e) {
+				LOG.error("The available future is completed exceptionally.", e);
+				ExceptionUtils.rethrow(e);
+			}
+		}
+		return segment;
+	}
+
+	@Nullable
+	private MemorySegment requestMemorySegment(int targetChannel) throws IOException {
+		MemorySegment segment = null;
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
 
-			boolean askToRecycle = owner.isPresent();
-
-			// fill availableMemorySegments with at least one element, wait if required
-			while (availableMemorySegments.isEmpty()) {
-				if (isDestroyed) {
-					throw new IllegalStateException("Buffer pool is destroyed.");
-				}
-
-				if (numberOfRequestedMemorySegments < currentPoolSize) {
-					final MemorySegment segment = networkBufferPool.requestMemorySegment();
-
-					if (segment != null) {
-						numberOfRequestedMemorySegments++;
-						return segment;
-					}
-				}
-
-				if (askToRecycle) {
-					owner.get().releaseMemory(1);
-				}
-
-				if (isBlocking) {
-					availableMemorySegments.wait(2000);
-				}
-				else {
-					return null;
-				}
+			if (availableMemorySegments.isEmpty()) {
+				segment = requestMemorySegmentFromGlobal();
+			}
+			// segment may have been released by buffer pool owner
+			if (segment == null) {
+				segment = availableMemorySegments.poll();
+			}
+			if (segment == null) {
+				availabilityHelper.resetUnavailable();
 			}
 
-			return availableMemorySegments.poll();
+			if (segment != null && targetChannel != UNKNOWN_CHANNEL) {
+				if (subpartitionBuffersCount[targetChannel]++ == maxBuffersPerChannel) {
+					unavailableSubpartitionsCount++;
+					availabilityHelper.resetUnavailable();
+				}
+			}
 		}
+		return segment;
+	}
+
+	@Nullable
+	private MemorySegment requestMemorySegment() throws IOException {
+		return requestMemorySegment(UNKNOWN_CHANNEL);
+	}
+
+	@Nullable
+	private MemorySegment requestMemorySegmentFromGlobal() throws IOException {
+		assert Thread.holdsLock(availableMemorySegments);
+
+		if (isDestroyed) {
+			throw new IllegalStateException("Buffer pool is destroyed.");
+		}
+
+		if (numberOfRequestedMemorySegments < currentPoolSize) {
+			final MemorySegment segment = networkBufferPool.requestMemorySegment();
+			if (segment != null) {
+				numberOfRequestedMemorySegments++;
+				return segment;
+			}
+		}
+
+		if (bufferPoolOwner != null) {
+			bufferPoolOwner.releaseMemory(1);
+		}
+
+		return null;
 	}
 
 	@Override
 	public void recycle(MemorySegment segment) {
+		recycle(segment, UNKNOWN_CHANNEL);
+	}
+
+	private void recycle(MemorySegment segment, int channel) {
 		BufferListener listener;
+		CompletableFuture<?> toNotify = null;
 		NotificationResult notificationResult = NotificationResult.BUFFER_NOT_USED;
 		while (!notificationResult.isBufferUsed()) {
 			synchronized (availableMemorySegments) {
+				final int oldUnavailableSubpartitionsCount = unavailableSubpartitionsCount;
+				if (channel != UNKNOWN_CHANNEL) {
+					if (--subpartitionBuffersCount[channel] == maxBuffersPerChannel) {
+						unavailableSubpartitionsCount--;
+					}
+				}
+
 				if (isDestroyed || numberOfRequestedMemorySegments > currentPoolSize) {
 					returnMemorySegment(segment);
 					return;
 				} else {
 					listener = registeredListeners.poll();
 					if (listener == null) {
+						boolean wasUnavailable = availableMemorySegments.isEmpty() || oldUnavailableSubpartitionsCount > 0;
 						availableMemorySegments.add(segment);
-						availableMemorySegments.notify();
-						return;
+						// only need to check unavailableSubpartitionsCount here because availableMemorySegments is not empty
+						if (wasUnavailable && unavailableSubpartitionsCount == 0) {
+							toNotify = availabilityHelper.getUnavailableToResetAvailable();
+						}
+						break;
 					}
 				}
 			}
 			notificationResult = fireBufferAvailableNotification(listener, segment);
 		}
+
+		mayNotifyAvailable(toNotify);
 	}
 
 	private NotificationResult fireBufferAvailableNotification(BufferListener listener, MemorySegment segment) {
@@ -315,6 +418,7 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void lazyDestroy() {
 		// NOTE: if you change this logic, be sure to update recycle() as well!
+		CompletableFuture<?> toNotify = null;
 		synchronized (availableMemorySegments) {
 			if (!isDestroyed) {
 				MemorySegment segment;
@@ -327,9 +431,15 @@ class LocalBufferPool implements BufferPool {
 					listener.notifyBufferDestroyed();
 				}
 
+				if (!isAvailable()) {
+					toNotify = availabilityHelper.getAvailableFuture();
+				}
+
 				isDestroyed = true;
 			}
 		}
+
+		mayNotifyAvailable(toNotify);
 
 		try {
 			networkBufferPool.destroyBufferPool(this);
@@ -353,6 +463,7 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
 		int numExcessBuffers;
+		CompletableFuture<?> toNotify = null;
 		synchronized (availableMemorySegments) {
 			checkArgument(numBuffers >= numberOfRequiredMemorySegments,
 					"Buffer pool needs at least %s buffers, but tried to set to %s",
@@ -367,12 +478,28 @@ class LocalBufferPool implements BufferPool {
 			returnExcessMemorySegments();
 
 			numExcessBuffers = numberOfRequestedMemorySegments - currentPoolSize;
+			if (numExcessBuffers < 0 && availableMemorySegments.isEmpty() && networkBufferPool.isAvailable()) {
+				toNotify = availabilityHelper.getUnavailableToResetUnavailable();
+			}
 		}
+
+		mayNotifyAvailable(toNotify);
 
 		// If there is a registered owner and we have still requested more buffers than our
 		// size, trigger a recycle via the owner.
-		if (owner.isPresent() && numExcessBuffers > 0) {
-			owner.get().releaseMemory(numExcessBuffers);
+		if (bufferPoolOwner != null && numExcessBuffers > 0) {
+			bufferPoolOwner.releaseMemory(numExcessBuffers);
+		}
+	}
+
+	@Override
+	public CompletableFuture<?> getAvailableFuture() {
+		if (numberOfRequestedMemorySegments >= currentPoolSize || unavailableSubpartitionsCount > 0) {
+			return availabilityHelper.getAvailableFuture();
+		} else if (availabilityHelper.isApproximatelyAvailable() || networkBufferPool.isApproximatelyAvailable()) {
+			return AVAILABLE;
+		} else {
+			return CompletableFuture.anyOf(availabilityHelper.getAvailableFuture(), networkBufferPool.getAvailableFuture());
 		}
 	}
 
@@ -380,13 +507,25 @@ class LocalBufferPool implements BufferPool {
 	public String toString() {
 		synchronized (availableMemorySegments) {
 			return String.format(
-				"[size: %d, required: %d, requested: %d, available: %d, max: %d, listeners: %d, destroyed: %s]",
+				"[size: %d, required: %d, requested: %d, available: %d, max: %d, listeners: %d," +
+						"subpartitions: %d, maxBuffersPerChannel: %d, destroyed: %s]",
 				currentPoolSize, numberOfRequiredMemorySegments, numberOfRequestedMemorySegments,
-				availableMemorySegments.size(), maxNumberOfMemorySegments, registeredListeners.size(), isDestroyed);
+				availableMemorySegments.size(), maxNumberOfMemorySegments, registeredListeners.size(),
+					subpartitionBuffersCount.length, maxBuffersPerChannel, isDestroyed);
 		}
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Notifies the potential segment consumer of the new available segments by
+	 * completing the previous uncompleted future.
+	 */
+	private void mayNotifyAvailable(@Nullable CompletableFuture<?> toNotify) {
+		if (toNotify != null) {
+			toNotify.complete(null);
+		}
+	}
 
 	private void returnMemorySegment(MemorySegment segment) {
 		assert Thread.holdsLock(availableMemorySegments);
@@ -405,6 +544,28 @@ class LocalBufferPool implements BufferPool {
 			}
 
 			returnMemorySegment(segment);
+		}
+	}
+
+	@VisibleForTesting
+	@Override
+	public BufferRecycler[] getSubpartitionBufferRecyclers() {
+		return subpartitionBufferRecyclers;
+	}
+
+	private static class SubpartitionBufferRecycler implements BufferRecycler {
+
+		private int channel;
+		private LocalBufferPool bufferPool;
+
+		SubpartitionBufferRecycler(int channel, LocalBufferPool bufferPool) {
+			this.channel = channel;
+			this.bufferPool = bufferPool;
+		}
+
+		@Override
+		public void recycle(MemorySegment memorySegment) {
+			bufferPool.recycle(memorySegment, channel);
 		}
 	}
 }

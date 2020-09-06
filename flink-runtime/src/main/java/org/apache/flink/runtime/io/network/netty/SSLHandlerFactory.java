@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import static java.util.Objects.requireNonNull;
@@ -30,15 +31,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class SSLHandlerFactory {
 
-	private final SSLContext sslContext;
-
-	private final String[] enabledProtocols;
-
-	private final String[] enabledCipherSuites;
-
-	private final boolean clientMode;
-
-	private final boolean clientAuthentication;
+	private final SslContext sslContext;
 
 	private final int handshakeTimeoutMs;
 
@@ -54,29 +47,21 @@ public class SSLHandlerFactory {
 	 * 		default)
 	 */
 	public SSLHandlerFactory(
-			final SSLContext sslContext,
-			final String[] enabledProtocols,
-			final String[] enabledCipherSuites,
-			final boolean clientMode,
-			final boolean clientAuthentication,
+			final SslContext sslContext,
 			final int handshakeTimeoutMs,
 			final int closeNotifyFlushTimeoutMs) {
 
 		this.sslContext = requireNonNull(sslContext, "sslContext must not be null");
-		this.enabledProtocols = requireNonNull(enabledProtocols, "enabledProtocols must not be null");
-		this.enabledCipherSuites = requireNonNull(enabledCipherSuites, "cipherSuites must not be null");
-		this.clientMode = clientMode;
-		this.clientAuthentication = clientAuthentication;
 		this.handshakeTimeoutMs = handshakeTimeoutMs;
 		this.closeNotifyFlushTimeoutMs = closeNotifyFlushTimeoutMs;
 	}
 
-	public SslHandler createNettySSLHandler() {
-		return createNettySSLHandler(createSSLEngine());
+	public SslHandler createNettySSLHandler(ByteBufAllocator allocator) {
+		return createNettySSLHandler(createSSLEngine(allocator));
 	}
 
-	public SslHandler createNettySSLHandler(String hostname, int port) {
-		return createNettySSLHandler(createSSLEngine(hostname, port));
+	public SslHandler createNettySSLHandler(ByteBufAllocator allocator, String hostname, int port) {
+		return createNettySSLHandler(createSSLEngine(allocator, hostname, port));
 	}
 
 	private SslHandler createNettySSLHandler(SSLEngine sslEngine) {
@@ -91,24 +76,11 @@ public class SSLHandlerFactory {
 		return sslHandler;
 	}
 
-	private SSLEngine createSSLEngine() {
-		final SSLEngine sslEngine = sslContext.createSSLEngine();
-		configureSSLEngine(sslEngine);
-		return sslEngine;
+	private SSLEngine createSSLEngine(ByteBufAllocator allocator) {
+		return sslContext.newEngine(allocator);
 	}
 
-	private SSLEngine createSSLEngine(String hostname, int port) {
-		final SSLEngine sslEngine = sslContext.createSSLEngine(hostname, port);
-		configureSSLEngine(sslEngine);
-		return sslEngine;
-	}
-
-	private void configureSSLEngine(SSLEngine sslEngine) {
-		sslEngine.setEnabledProtocols(enabledProtocols);
-		sslEngine.setEnabledCipherSuites(enabledCipherSuites);
-		sslEngine.setUseClientMode(clientMode);
-		if (!clientMode) {
-			sslEngine.setNeedClientAuth(clientAuthentication);
-		}
+	private SSLEngine createSSLEngine(ByteBufAllocator allocator, String hostname, int port) {
+		return sslContext.newEngine(allocator, hostname, port);
 	}
 }

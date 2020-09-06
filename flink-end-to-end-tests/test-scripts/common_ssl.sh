@@ -22,6 +22,8 @@
 
 function _set_conf_ssl_helper {
     local type=$1 # 'internal' or external 'rest'
+    local provider=$2 # 'JDK' or 'OPENSSL'
+    local provider_lib=$3 # if using OPENSSL, choose: 'dynamic' or 'static' (how openSSL is linked to our packaged jar)
     local ssl_dir="${TEST_DATA_DIR}/ssl/${type}"
     local password="${type}.password"
 
@@ -29,6 +31,16 @@ function _set_conf_ssl_helper {
         echo "Unknown type of ssl connectivity: ${type}. It can be either 'internal' or external 'rest'"
         exit 1
     fi
+    if [ "${provider}" != "JDK" ] && [ "${provider}" != "OPENSSL" ]; then
+        echo "Unknown SSL provider: ${provider}. It can be either 'JDK' or 'OPENSSL'"
+        exit 1
+    fi
+    if [ "${provider_lib}" != "dynamic" ] && [ "${provider_lib}" != "static" ]; then
+        echo "Unknown library type for openSSL: ${provider_lib}. It can be either 'dynamic' or 'static'"
+        exit 1
+    fi
+
+    echo "Setting up SSL with: ${type} ${provider} ${provider_lib}"
 
     # clean up the dir that will be used for SSL certificates and trust stores
     if [ -e "${ssl_dir}" ]; then
@@ -58,15 +70,30 @@ function _set_conf_ssl_helper {
     # keystore is converted into a pem format to use it as node.pem with curl in Flink REST API queries, see also $CURL_SSL_ARGS
     openssl pkcs12 -passin pass:${password} -in "${ssl_dir}/node.keystore" -out "${ssl_dir}/node.pem" -nodes
 
+    if [ "${provider}" = "OPENSSL" -a "${provider_lib}" = "dynamic" ]; then
+        cp $FLINK_DIR/opt/flink-shaded-netty-tcnative-dynamic-*.jar $FLINK_DIR/lib/
+    elif [ "${provider}" = "OPENSSL" -a "${provider_lib}" = "static" ]; then
+        # Flink is not providing the statically-linked library because of potential licensing issues
+        # -> we need to build it ourselves
+        FLINK_SHADED_VERSION=$(cat ${END_TO_END_DIR}/../pom.xml | sed -n 's/.*<flink.shaded.version>\(.*\)<\/flink.shaded.version>/\1/p')
+        echo "BUILDING flink-shaded-netty-tcnative-static"
+        git clone https://github.com/apache/flink-shaded.git
+        cd flink-shaded
+        git checkout "release-${FLINK_SHADED_VERSION}"
+        run_mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static
+        cp flink-shaded-netty-tcnative-static/target/flink-shaded-netty-tcnative-static-*.jar $FLINK_DIR/lib/
+        cd ..
+        rm -rf flink-shaded
+    fi
+
     # adapt config
-    # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
-    # external communication channels)
-    set_conf security.ssl.${type}.enabled true
-    set_conf security.ssl.${type}.keystore ${ssl_dir}/node.keystore
-    set_conf security.ssl.${type}.keystore-password ${password}
-    set_conf security.ssl.${type}.key-password ${password}
-    set_conf security.ssl.${type}.truststore ${ssl_dir}/ca.truststore
-    set_conf security.ssl.${type}.truststore-password ${password}
+    set_config_key security.ssl.provider ${provider}
+    set_config_key security.ssl.${type}.enabled true
+    set_config_key security.ssl.${type}.keystore ${ssl_dir}/node.keystore
+    set_config_key security.ssl.${type}.keystore-password ${password}
+    set_config_key security.ssl.${type}.key-password ${password}
+    set_config_key security.ssl.${type}.truststore ${ssl_dir}/ca.truststore
+    set_config_key security.ssl.${type}.truststore-password ${password}
 }
 
 function _set_conf_mutual_rest_ssl {
@@ -78,13 +105,15 @@ function _set_conf_mutual_rest_ssl {
         mutual="true";
     fi
     echo "Mutual ssl auth: ${mutual}"
-    set_conf security.ssl.rest.authentication-enabled ${mutual}
+    set_config_key security.ssl.rest.authentication-enabled ${mutual}
 }
 
 function set_conf_rest_ssl {
     local auth="${1:-server}" # only 'server' or 'mutual'
+    local provider="${2:-JDK}" # 'JDK' or 'OPENSSL'
+    local provider_lib="${3:-dynamic}" # for OPENSSL: 'dynamic' or 'static'
     local ssl_dir="${TEST_DATA_DIR}/ssl/rest"
-    _set_conf_ssl_helper "rest"
+    _set_conf_ssl_helper "rest" "${provider}" "${provider_lib}"
     _set_conf_mutual_rest_ssl ${auth}
     REST_PROTOCOL="https"
     CURL_SSL_ARGS="${CURL_SSL_ARGS} --cacert ${ssl_dir}/node.pem"
@@ -92,6 +121,12 @@ function set_conf_rest_ssl {
 
 function set_conf_ssl {
     local auth="${1:-server}" # only 'server' or 'mutual'
-    _set_conf_ssl_helper "internal"
-    set_conf_rest_ssl ${auth}
+    local provider="${2:-JDK}" # 'JDK' or 'OPENSSL'
+    local provider_lib="${3:-dynamic}" # for OPENSSL: 'dynamic' or 'static'
+    _set_conf_ssl_helper "internal" "${provider}" "${provider_lib}"
+    set_conf_rest_ssl ${auth} "${provider}" "${provider_lib}"
+}
+
+function rollback_openssl_lib() {
+  rm $FLINK_DIR/lib/flink-shaded-netty-tcnative-{dynamic,static}-*.jar
 }

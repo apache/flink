@@ -18,54 +18,112 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 
-import java.io.IOException;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 
 /**
- * Utility for creating {@link CheckpointBarrierHandler} based on checkpoint mode
- * for {@link StreamInputProcessor} and {@link StreamTwoInputProcessor}.
+ * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
+ * for {@link StreamOneInputProcessor} and {@link StreamTwoInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {
+	@SuppressWarnings("unchecked")
+	public static CheckpointedInputGate createCheckpointedInputGate(
+			AbstractInvokable toNotifyOnCheckpoint,
+			StreamConfig config,
+			SubtaskCheckpointCoordinator checkpointCoordinator,
+			IndexedInputGate[] inputGates,
+			TaskIOMetricGroup taskIOMetricGroup,
+			String taskName) {
+		CheckpointedInputGate[] checkpointedInputGates = createCheckpointedMultipleInputGate(
+			toNotifyOnCheckpoint,
+			config,
+			checkpointCoordinator,
+			taskIOMetricGroup,
+			taskName,
+			Arrays.asList(inputGates));
+		return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
+	}
 
-	public static CheckpointBarrierHandler createCheckpointBarrierHandler(
-			StreamTask<?, ?> checkpointedTask,
-			CheckpointingMode checkpointMode,
-			IOManager ioManager,
-			InputGate inputGate,
-			Configuration taskManagerConfig) throws IOException {
+	/**
+	 * @return a pair of {@link CheckpointedInputGate} created for two corresponding
+	 * {@link InputGate}s supplied as parameters.
+	 */
+	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
+			AbstractInvokable toNotifyOnCheckpoint,
+			StreamConfig config,
+			SubtaskCheckpointCoordinator checkpointCoordinator,
+			TaskIOMetricGroup taskIOMetricGroup,
+			String taskName,
+			List<IndexedInputGate>... inputGates) {
 
-		CheckpointBarrierHandler barrierHandler;
-		if (checkpointMode == CheckpointingMode.EXACTLY_ONCE) {
-			long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
-			if (!(maxAlign == -1 || maxAlign > 0)) {
-				throw new IllegalConfigurationException(
-					TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT.key()
-					+ " must be positive or -1 (infinite)");
+		IndexedInputGate[] sortedInputGates = Arrays.stream(inputGates)
+			.flatMap(Collection::stream)
+			.sorted(Comparator.comparing(IndexedInputGate::getGateIndex))
+			.toArray(IndexedInputGate[]::new);
+		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
+			config,
+			sortedInputGates,
+			checkpointCoordinator,
+			taskName,
+			toNotifyOnCheckpoint);
+		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
+
+		InputGate[] unionedInputGates = Arrays.stream(inputGates)
+			.map(InputGateUtil::createInputGate)
+			.toArray(InputGate[]::new);
+		barrierHandler.getBufferReceivedListener().ifPresent(listener -> {
+			for (final InputGate inputGate : unionedInputGates) {
+				inputGate.registerBufferReceivedListener(listener);
 			}
+		});
 
-			if (taskManagerConfig.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL)) {
-				barrierHandler = new BarrierBuffer(inputGate, new CachedBufferBlocker(inputGate.getPageSize()), maxAlign);
-			} else {
-				barrierHandler = new BarrierBuffer(inputGate, new BufferSpiller(ioManager, inputGate.getPageSize()), maxAlign);
-			}
-		} else if (checkpointMode == CheckpointingMode.AT_LEAST_ONCE) {
-			barrierHandler = new BarrierTracker(inputGate);
-		} else {
-			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
+		return Arrays.stream(unionedInputGates)
+			.map(unionedInputGate -> new CheckpointedInputGate(unionedInputGate, barrierHandler))
+			.toArray(CheckpointedInputGate[]::new);
+	}
+
+	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
+			StreamConfig config,
+			InputGate[] inputGates,
+			SubtaskCheckpointCoordinator checkpointCoordinator,
+			String taskName,
+			AbstractInvokable toNotifyOnCheckpoint) {
+		switch (config.getCheckpointMode()) {
+			case EXACTLY_ONCE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					return new AlternatingCheckpointBarrierHandler(
+						new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputGates),
+						new CheckpointBarrierUnaligner(checkpointCoordinator, taskName, toNotifyOnCheckpoint, inputGates),
+						toNotifyOnCheckpoint);
+				}
+				return new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputGates);
+			case AT_LEAST_ONCE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					throw new IllegalStateException("Cannot use unaligned checkpoints with AT_LEAST_ONCE " +
+						"checkpointing mode");
+				}
+				int numInputChannels = Arrays.stream(inputGates).mapToInt(InputGate::getNumberOfInputChannels).sum();
+				return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint);
+			default:
+				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
 		}
+	}
 
-		if (checkpointedTask != null) {
-			barrierHandler.registerCheckpointEventHandler(checkpointedTask);
-		}
-
-		return barrierHandler;
+	private static void registerCheckpointMetrics(TaskIOMetricGroup taskIOMetricGroup, CheckpointBarrierHandler barrierHandler) {
+		taskIOMetricGroup.gauge(MetricNames.CHECKPOINT_ALIGNMENT_TIME, barrierHandler::getAlignmentDurationNanos);
+		taskIOMetricGroup.gauge(MetricNames.CHECKPOINT_START_DELAY_TIME, barrierHandler::getCheckpointStartDelayNanos);
 	}
 }

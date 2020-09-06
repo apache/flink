@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.commons.lang3.BooleanUtils;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+
+import org.apache.commons.lang3.BooleanUtils;
 
 import javax.annotation.Nonnull;
 
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * This class is a wrapper over multiple alternative {@link OperatorSubtaskState} that are (partial) substitutes for
@@ -59,20 +63,28 @@ public class PrioritizedOperatorSubtaskState {
 	/** List of prioritized snapshot alternatives for raw keyed state. */
 	private final List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState;
 
+	private final List<StateObjectCollection<InputChannelStateHandle>> prioritizedInputChannelState;
+
+	private final List<StateObjectCollection<ResultSubpartitionStateHandle>> prioritizedResultSubpartitionState;
+
 	/** Signal flag if this represents state for a restored operator. */
 	private final boolean restored;
 
 	PrioritizedOperatorSubtaskState(
-		@Nonnull List<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState,
-		@Nonnull List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState,
-		@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedManagedOperatorState,
-		@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedRawOperatorState,
-		boolean restored) {
+			@Nonnull List<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState,
+			@Nonnull List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState,
+			@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedManagedOperatorState,
+			@Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedRawOperatorState,
+			@Nonnull List<StateObjectCollection<InputChannelStateHandle>> prioritizedInputChannelState,
+			@Nonnull List<StateObjectCollection<ResultSubpartitionStateHandle>> prioritizedResultSubpartitionState,
+			boolean restored) {
 
 		this.prioritizedManagedOperatorState = prioritizedManagedOperatorState;
 		this.prioritizedRawOperatorState = prioritizedRawOperatorState;
 		this.prioritizedManagedKeyedState = prioritizedManagedKeyedState;
 		this.prioritizedRawKeyedState = prioritizedRawKeyedState;
+		this.prioritizedInputChannelState = prioritizedInputChannelState;
+		this.prioritizedResultSubpartitionState = prioritizedResultSubpartitionState;
 		this.restored = restored;
 	}
 
@@ -152,6 +164,16 @@ public class PrioritizedOperatorSubtaskState {
 		return lastElement(prioritizedRawKeyedState);
 	}
 
+	@Nonnull
+	public StateObjectCollection<InputChannelStateHandle> getPrioritizedInputChannelState() {
+		return lastElement(prioritizedInputChannelState);
+	}
+
+	@Nonnull
+	public StateObjectCollection<ResultSubpartitionStateHandle> getPrioritizedResultSubpartitionState() {
+		return lastElement(prioritizedResultSubpartitionState);
+	}
+
 	// -----------------------------------------------------------------------------------------------------------------
 
 	/**
@@ -161,7 +183,6 @@ public class PrioritizedOperatorSubtaskState {
 	public boolean isRestored() {
 		return restored;
 	}
-
 
 	private static <T extends StateObject> StateObjectCollection<T> lastElement(List<StateObjectCollection<T>> list) {
 		return list.get(list.size() - 1);
@@ -174,6 +195,9 @@ public class PrioritizedOperatorSubtaskState {
 		return EMPTY_NON_RESTORED_INSTANCE;
 	}
 
+	/**
+	 * A builder for PrioritizedOperatorSubtaskState.
+	 */
 	@Internal
 	public static class Builder {
 
@@ -210,6 +234,8 @@ public class PrioritizedOperatorSubtaskState {
 			List<StateObjectCollection<KeyedStateHandle>> managedKeyedAlternatives = new ArrayList<>(size);
 			List<StateObjectCollection<OperatorStateHandle>> rawOperatorAlternatives = new ArrayList<>(size);
 			List<StateObjectCollection<KeyedStateHandle>> rawKeyedAlternatives = new ArrayList<>(size);
+			List<StateObjectCollection<InputChannelStateHandle>> inputChannelStateAlternatives = new ArrayList<>(size);
+			List<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartitionStateAlternatives = new ArrayList<>(size);
 
 			for (OperatorSubtaskState subtaskState : alternativesByPriority) {
 
@@ -218,34 +244,36 @@ public class PrioritizedOperatorSubtaskState {
 					rawKeyedAlternatives.add(subtaskState.getRawKeyedState());
 					managedOperatorAlternatives.add(subtaskState.getManagedOperatorState());
 					rawOperatorAlternatives.add(subtaskState.getRawOperatorState());
+					inputChannelStateAlternatives.add(subtaskState.getInputChannelState());
+					resultSubpartitionStateAlternatives.add(subtaskState.getResultSubpartitionState());
 				}
 			}
-
-			// Key-groups should match.
-			BiFunction<KeyedStateHandle, KeyedStateHandle, Boolean> keyedStateApprover =
-				(ref, alt) -> ref.getKeyGroupRange().equals(alt.getKeyGroupRange());
-
-			// State meta data should match.
-			BiFunction<OperatorStateHandle, OperatorStateHandle, Boolean> operatorStateApprover =
-				(ref, alt) -> ref.getStateNameToPartitionOffsets().equals(alt.getStateNameToPartitionOffsets());
 
 			return new PrioritizedOperatorSubtaskState(
 				resolvePrioritizedAlternatives(
 					jobManagerState.getManagedKeyedState(),
 					managedKeyedAlternatives,
-					keyedStateApprover),
+					eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getRawKeyedState(),
 					rawKeyedAlternatives,
-					keyedStateApprover),
+					eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getManagedOperatorState(),
 					managedOperatorAlternatives,
-					operatorStateApprover),
+					eqStateApprover(OperatorStateHandle::getStateNameToPartitionOffsets)),
 				resolvePrioritizedAlternatives(
 					jobManagerState.getRawOperatorState(),
 					rawOperatorAlternatives,
-					operatorStateApprover),
+					eqStateApprover(OperatorStateHandle::getStateNameToPartitionOffsets)),
+				resolvePrioritizedAlternatives(
+					jobManagerState.getInputChannelState(),
+					inputChannelStateAlternatives,
+					eqStateApprover(InputChannelStateHandle::getInfo)),
+				resolvePrioritizedAlternatives(
+					jobManagerState.getResultSubpartitionState(),
+					resultSubpartitionStateAlternatives,
+					eqStateApprover(ResultSubpartitionStateHandle::getInfo)),
 				restored);
 		}
 
@@ -293,5 +321,9 @@ public class PrioritizedOperatorSubtaskState {
 			approved.add(jobManagerState);
 			return Collections.unmodifiableList(approved);
 		}
+	}
+
+	private static <T, E> BiFunction<T, T, Boolean> eqStateApprover(Function<T, E> identityExtractor) {
+		return (ref, alt) -> identityExtractor.apply(ref).equals(identityExtractor.apply(alt));
 	}
 }

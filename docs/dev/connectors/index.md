@@ -1,9 +1,9 @@
 ---
-title: "Streaming Connectors"
+title: "DataStream Connectors"
 nav-id: connectors
-nav-title: Connectors
-nav-parent_id: streaming
-nav-pos: 30
+nav-title: DataStream Connectors
+nav-parent_id: connectors-root
+nav-pos: 1
 nav-show_overview: true
 ---
 <!--
@@ -47,6 +47,8 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [RabbitMQ](rabbitmq.html) (source/sink)
  * [Apache NiFi](nifi.html) (source/sink)
  * [Twitter Streaming API](twitter.html) (source)
+ * [Google PubSub](pubsub.html) (source/sink)
+ * [JDBC](jdbc.html) (sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.

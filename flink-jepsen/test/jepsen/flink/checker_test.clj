@@ -30,11 +30,10 @@
     (is (= [false true false] (all-jobs-running?-history history)))))
 
 (deftest job-running-checker-test
-  (let [checker (job-running-checker)
+  (let [checker (job-running-checker 3 60 10)
         test {}
-        model (job-running-within-grace-period 3 60 10)
         opts {}
-        check (fn [history] (checker/check checker test model history opts))
+        check (fn [history] (checker/check checker test history opts))
         job-running-value {"3886d6b547969c3f15c53896bb496b8f" true}
         job-not-running-value {"3886d6b547969c3f15c53896bb496b8f" false}]
     (testing "Model should be inconsistent if job is not running after grace period."

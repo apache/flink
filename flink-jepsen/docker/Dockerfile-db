@@ -16,12 +16,34 @@
 # limitations under the License.
 ################################################################################
 
-FROM debian:jessie
+FROM debian:stretch
 
-RUN echo "deb http://http.debian.net/debian jessie-backports main" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y -t jessie-backports openjdk-8-jdk && \
-    apt-get install -y apt-utils bzip2 curl faketime iproute iptables iputils-ping less libzip2 logrotate man man-db net-tools ntpdate psmisc python rsyslog runit sudo sysvinit sysvinit-core sysvinit-utils tar unzip vim wget
+RUN apt-get update && \
+    apt-get install -qqy \
+            apt-utils \
+            bzip2 \
+            curl \
+            faketime \
+            gnupg \
+            iproute \
+            iptables \
+            iputils-ping \
+            less \
+            libzip4 \
+            logrotate \
+            man \
+            man-db \
+            net-tools \
+            ntpdate \
+            openjdk-8-jdk \
+            psmisc python \
+            rsyslog \
+            runit \
+            sudo \
+            tar \
+            unzip \
+            vim \
+            wget
 
 RUN apt-get update && \
     apt-get -y install openssh-server && \

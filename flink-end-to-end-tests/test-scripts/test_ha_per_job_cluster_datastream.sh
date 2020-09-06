@@ -25,19 +25,16 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/${TEST_
 FLINK_LIB_DIR=${FLINK_DIR}/lib
 JOB_ID="00000000000000000000000000000000"
 
-function ha_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
+#
+# NOTE: This script requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
+#
 
+function ha_cleanup() {
   stop_watchdogs
-  kill_all 'StandaloneJobClusterEntryPoint'
-  rm ${FLINK_LIB_DIR}/${TEST_PROGRAM_JAR_NAME}
+  kill_all 'StandaloneApplicationClusterEntryPoint'
 }
 
-trap ha_cleanup INT
-trap ha_cleanup EXIT
+on_exit ha_cleanup
 
 function run_job() {
     local PARALLELISM=$1
@@ -64,12 +61,11 @@ function run_job() {
 }
 
 function verify_logs_per_job() {
-    local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
     local EXIT_CODE=0
 
     # verify that we have no alerts
-    if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
+    if ! check_logs_for_non_empty_out_files; then
         echo "FAILURE: Alerts found at the general purpose job."
         EXIT_CODE=1
     fi
@@ -102,6 +98,7 @@ function run_ha_test() {
     local BACKEND=$2
     local ASYNC=$3
     local INCREM=$4
+    local ZOOKEEPER_VERSION=$5
 
     local JM_KILLS=3
 
@@ -115,11 +112,12 @@ function run_ha_test() {
 
     # change the pid dir to start log files always from 0, this is important for checks in the
     # jm killing loop
-    set_conf "env.pid.dir" "${TEST_DATA_DIR}"
+    set_config_key "env.pid.dir" "${TEST_DATA_DIR}"
 
+    setup_flink_shaded_zookeeper ${ZOOKEEPER_VERSION}
     start_local_zk
 
-    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, and incremSnapshots=${INCREM}."
+    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, incremSnapshots=${INCREM} and zk=${ZOOKEEPER_VERSION}."
 
     # submit a job in detached mode and let it run
     run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
@@ -131,7 +129,7 @@ function run_ha_test() {
     wait_job_running ${JOB_ID}
 
     # start the watchdog that keeps the number of JMs stable
-    start_ha_jm_watchdog 1 "StandaloneJobClusterEntryPoint" run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
+    start_ha_jm_watchdog 1 "StandaloneApplicationClusterEntryPoint" run_job ${PARALLELISM} ${BACKEND} ${ASYNC} ${INCREM}
 
     # start the watchdog that keeps the number of TMs stable
     start_ha_tm_watchdog ${JOB_ID} ${neededTaskmanagers}
@@ -142,7 +140,7 @@ function run_ha_test() {
     for (( c=1; c<=${JM_KILLS}; c++ )); do
         # kill the JM and wait for watchdog to
         # create a new one which will take over
-        kill_single 'StandaloneJobClusterEntryPoint'
+        kill_single 'StandaloneApplicationClusterEntryPoint'
         # let the job start and take some checkpoints
         wait_num_of_occurence_in_logs "Completed checkpoint [1-9]* for job ${JOB_ID}" 2 "standalonejob-${c}"
     done
@@ -155,5 +153,6 @@ function run_ha_test() {
 STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
+ZOOKEEPER_VERSION=${4:-3.4}
 
-run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}
+run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}

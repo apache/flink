@@ -1,0 +1,256 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testSingleRowNotEquiJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 < cnt]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1])
++- LogicalFilter(condition=[<($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      +- LogicalAggregate(group=[{}], cnt=[COUNT($0)])
+         +- LogicalProject(a1=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1, a2])
++- NestedLoopJoin(joinType=[InnerJoin], where=[<(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_COUNT(a1) AS count$0])
+               +- Calc(select=[a1])
+                  +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftSingleRightJoinEqualPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$1])
++- LogicalJoin(condition=[=($0, $2)], joinType=[right])
+   :- LogicalAggregate(group=[{}], cnt=[COUNT()])
+   :  +- LogicalProject($f0=[0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1])
++- NestedLoopJoin(joinType=[RightOuterJoin], where=[=(cnt, a2)], select=[cnt, a1, a2], build=[left], singleRowJoin=[true])
+   :- Exchange(distribution=[broadcast])
+   :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
+   :     +- Exchange(distribution=[single])
+   :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+   :           +- Calc(select=[0 AS $f0])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftSingleRightJoinNotEqualPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt < a2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$1])
++- LogicalJoin(condition=[<($0, $2)], joinType=[right])
+   :- LogicalAggregate(group=[{}], cnt=[COUNT()])
+   :  +- LogicalProject($f0=[0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a1])
++- NestedLoopJoin(joinType=[RightOuterJoin], where=[<(cnt, a2)], select=[cnt, a1, a2], build=[left], singleRowJoin=[true])
+   :- Exchange(distribution=[broadcast])
+   :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
+   :     +- Exchange(distribution=[single])
+   :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+   :           +- Calc(select=[0 AS $f0])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightSingleLeftJoinNotEqualPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x ON a1 > cnt]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a2=[$1])
++- LogicalJoin(condition=[>($0, $2)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a2])
++- NestedLoopJoin(joinType=[LeftOuterJoin], where=[>(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+               +- Calc(select=[0 AS $f0])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleRowCrossJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, a_sum FROM A, (SELECT SUM(a1) + SUM(a2) AS a_sum FROM A)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a_sum=[$2])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   +- LogicalProject(a_sum=[+($0, $1)])
+      +- LogicalAggregate(group=[{}], agg#0=[SUM($0)], agg#1=[SUM($1)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, a_sum], build=[right], singleRowJoin=[true])
+:- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:  +- Calc(select=[a1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=[+($f0, $f1) AS a_sum])
+      +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0, Partial_SUM(a2) AS sum$1])
+               +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightSingleLeftJoinEqualPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a2=[$1])
++- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+   +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+      +- LogicalProject($f0=[0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a2])
++- NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+               +- Calc(select=[0 AS $f0])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleRowJoinWithComplexPredicate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a1, a2, b1, b2 FROM A,
+  (SELECT min(b1) AS b1, max(b2) AS b2 FROM B)
+WHERE a1 < b1 AND a2 = b2
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
++- LogicalFilter(condition=[AND(<($0, $2), =($1, $3))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+      +- LogicalAggregate(group=[{}], b1=[MIN($0)], b2=[MAX($1)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[AND(<(a1, b1), =(a2, b2))], select=[a1, a2, b1, b2], build=[right], singleRowJoin=[true])
+:- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
++- Exchange(distribution=[broadcast])
+   +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS b1, Final_MAX(max$1) AS b2])
+      +- Exchange(distribution=[single])
+         +- LocalHashAggregate(select=[Partial_MIN(b1) AS min$0, Partial_MAX(b2) AS max$1])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleRowJoinInnerJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalFilter(condition=[>($1, $SCALAR_QUERY({
+LogicalProject(EXPR$0=[*($0, 0.1:DECIMAL(2, 1))])
+  LogicalAggregate(group=[{}], agg#0=[SUM($0)])
+    LogicalProject(a1=[$0])
+      LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+}))])
++- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+   +- LogicalProject(a2=[$1], a1=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a2, EXPR$1])
++- NestedLoopJoin(joinType=[InnerJoin], where=[>(EXPR$1, $f0)], select=[a2, EXPR$1, $f0], build=[right], singleRowJoin=[true])
+   :- HashAggregate(isMerge=[true], groupBy=[a2], select=[a2, Final_SUM(sum$0) AS EXPR$1])
+   :  +- Exchange(distribution=[hash[a2]])
+   :     +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
+   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- SortAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
+         +- Calc(select=[*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0])
+            +- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
+               +- Exchange(distribution=[single])
+                  +- LocalSortAggregate(select=[Partial_SUM(a1) AS sum$0])
+                     +- Calc(select=[a1])
+                        +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

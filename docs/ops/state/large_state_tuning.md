@@ -85,113 +85,81 @@ To prevent such a situation, applications can define a *minimum duration between
 This duration is the minimum time interval that must pass between the end of the latest checkpoint and the beginning
 of the next. The figure below illustrates how this impacts checkpointing.
 
-<img src="../../fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
+<img src="{{ site.baseurl }}/fig/checkpoint_tuning.svg" class="center" width="80%" alt="Illustration how the minimum-time-between-checkpoints parameter affects checkpointing behavior."/>
 
 *Note:* Applications can be configured (via the `CheckpointConfig`) to allow multiple checkpoints to be in progress at
 the same time. For applications with large state in Flink, this often ties up too many resources into the checkpointing.
 When a savepoint is manually triggered, it may be in process concurrently with an ongoing checkpoint.
 
 
-## Tuning Network Buffers
-
-Before Flink 1.3, an increased number of network buffers also caused increased checkpointing times since
-keeping more in-flight data meant that checkpoint barriers got delayed. Since Flink 1.3, the
-number of network buffers used per outgoing/incoming channel is limited and thus network buffers
-may be configured without affecting checkpoint times
-(see [network buffer configuration](../config.html#configuring-the-network-buffers)).
-
-## Make state checkpointing Asynchronous where possible
-
-When state is *asynchronously* snapshotted, the checkpoints scale better than when the state is *synchronously* snapshotted.
-Especially in more complex streaming applications with multiple joins, Co-functions, or windows, this may have a profound
-impact.
-
-To get state to be snapshotted asynchronously, applications have to do two things:
-
-  1. Use state that is [managed by Flink](../../dev/stream/state/state.html): Managed state means that Flink provides the data
-     structure in which the state is stored. Currently, this is true for *keyed state*, which is abstracted behind the
-     interfaces like `ValueState`, `ListState`, `ReducingState`, ...
-
-  2. Use a state backend that supports asynchronous snapshots. In Flink 1.2, only the RocksDB state backend uses
-     fully asynchronous snapshots. Starting from Flink 1.3, heap-based state backends also support asynchronous snapshots.
-
-The above two points imply that large state should generally be kept as keyed state, not as operator state.
-
 ## Tuning RocksDB
 
 The state storage workhorse of many large scale Flink streaming applications is the *RocksDB State Backend*.
 The backend scales well beyond main memory and reliably stores large [keyed state](../../dev/stream/state/state.html).
 
-Unfortunately, RocksDB's performance can vary with configuration, and there is little documentation on how to tune
-RocksDB properly. For example, the default configuration is tailored towards SSDs and performs suboptimal
-on spinning disks.
+RocksDB's performance can vary with configuration, this section outlines some best-practices for tuning jobs that use the RocksDB State Backend.
 
-**Incremental Checkpoints**
+### Incremental Checkpoints
 
-Incremental checkpoints can dramatically reduce the checkpointing time in comparison to full checkpoints, at the cost of a (potentially) longer
-recovery time. The core idea is that incremental checkpoints only record all changes to the previous completed checkpoint, instead of
-producing a full, self-contained backup of the state backend. Like this, incremental checkpoints build upon previous checkpoints. Flink leverages
-RocksDB's internal backup mechanism in a way that is self-consolidating over time. As a result, the incremental checkpoint history in Flink
-does not grow indefinitely, and old checkpoints are eventually subsumed and pruned automatically. `
+When it comes to reducing the time that checkpoints take, activating incremental checkpoints should be one of the first considerations.
+Incremental checkpoints can dramatically reduce the checkpointing time in comparison to full checkpoints, because incremental checkpoints only record the changes compared to the previous completed checkpoint, instead of producing a full, self-contained backup of the state backend.
 
-While we strongly encourage the use of incremental checkpoints for large state, please note that this is a new feature and currently not enabled 
-by default. To enable this feature, users can instantiate a `RocksDBStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
+See [Incremental Checkpoints in RocksDB]({{ site.baseurl }}/ops/state/state_backends.html#incremental-checkpoints) for more background information.
+
+### Timers in RocksDB or on JVM Heap
+
+Timers are stored in RocksDB by default, which is the more robust and scalable choice.
+
+When performance-tuning jobs that have few timers only (no windows, not using timers in ProcessFunction), putting those timers on the heap can increase performance.
+Use this feature carefully, as heap-based timers may increase checkpointing times and naturally cannot scale beyond memory.
+
+See [this section]({{ site.baseurl }}/ops/state/state_backends.html#timers-heap-vs-rocksdb) for details on how to configure heap-based timers.
+
+### Tuning RocksDB Memory
+
+The performance of the RocksDB State Backend much depends on the amount of memory that it has available. To increase performance, adding memory can help a lot, or adjusting to which functions memory goes.
+
+By default, the RocksDB State Backend uses Flink's managed memory budget for RocksDBs buffers and caches (`state.backend.rocksdb.memory.managed: true`). Please refer to the [RocksDB Memory Management]({{ site.baseurl }}/ops/state/state_backends.html#memory-management) for background on how that mechanism works.
+
+To tune memory-related performance issues, the following steps may be helpful:
+
+  - The first step to try and increase performance should be to increase the amount of managed memory. This usually improves the situation a lot, without opening up the complexity of tuning low-level RocksDB options.
+    
+    Especially with large container/process sizes, much of the total memory can typically go to RocksDB, unless the application logic requires a lot of JVM heap itself. The default managed memory fraction *(0.4)* is conservative and can often be increased when using TaskManagers with multi-GB process sizes.
+
+  - The number of write buffers in RocksDB depends on the number of states you have in your application (states across all operators in the pipeline). Each state corresponds to one ColumnFamily, which needs its own write buffers. Hence, applications with many states typically need more memory for the same performance.
+
+  - You can try and compare the performance of RocksDB with managed memory to RocksDB with per-column-family memory by setting `state.backend.rocksdb.memory.managed: false`. Especially to test against a baseline (assuming no- or gracious container memory limits) or to test for regressions compared to earlier versions of Flink, this can be useful.
+  
+    Compared to the managed memory setup (constant memory pool), not using managed memory means that RocksDB allocates memory proportional to the number of states in the application (memory footprint changes with application changes). As a rule of thumb, the non-managed mode has (unless ColumnFamily options are applied) an upper bound of roughly "140MB * num-states-across-all-tasks * num-slots". Timers count as state as well!
+
+  - If your application has many states and you see frequent MemTable flushes (write-side bottleneck), but you cannot give more memory you can increase the ratio of memory going to the write buffers (`state.backend.rocksdb.memory.write-buffer-ratio`). See [RocksDB Memory Management]({{ site.baseurl }}/ops/state/state_backends.html#memory-management) for details.
+
+  - An advanced option (*expert mode*) to reduce the number of MemTable flushes in setups with many states, is to tune RocksDB's ColumnFamily options (arena block size, max background flush threads, etc.) via a `RocksDBOptionsFactory`:
 
 {% highlight java %}
-    RocksDBStateBackend backend =
-        new RocksDBStateBackend(filebackend, true);
-{% endhighlight %}
-
-**RocksDB Timers**
-
-For RocksDB, a user can chose whether timers are stored on the heap (default) or inside RocksDB. Heap-based timers can have a better performance for smaller numbers of
-timers, while storing timers inside RocksDB offers higher scalability as the number of timers in RocksDB can exceed the available main memory (spilling to disk).
-
-When using RockDB as state backend, the type of timer storage can be selected through Flink's configuration via option key `state.backend.rocksdb.timer-service.factory`.
-Possible choices are `heap` (to store timers on the heap, default) and `rocksdb` (to store timers in RocksDB).
-
-<span class="label label-info">Note</span> *The combination RocksDB state backend / with incremental checkpoint / with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
-Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
-
-**Passing Options to RocksDB**
-
-{% highlight java %}
-RocksDBStateBackend.setOptions(new MyOptions());
-
-public class MyOptions implements OptionsFactory {
+public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
     @Override
-    public DBOptions createDBOptions() {
-        return new DBOptions()
-            .setIncreaseParallelism(4)
-            .setUseFsync(false)
-            .setDisableDataSync(true);
+    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+        // increase the max background flush threads when we have many states in one operator,
+        // which means we would have many column families in one DB instance.
+        return currentOptions.setMaxBackgroundFlushes(4);
     }
 
     @Override
-    public ColumnFamilyOptions createColumnOptions() {
+    public ColumnFamilyOptions createColumnOptions(
+        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+        // decrease the arena block size from default 8MB to 1MB. 
+        return currentOptions.setArenaBlockSize(1024 * 1024);
+    }
 
-        return new ColumnFamilyOptions()
-            .setTableFormatConfig(
-                new BlockBasedTableConfig()
-                    .setBlockCacheSize(256 * 1024 * 1024)  // 256 MB
-                    .setBlockSize(128 * 1024));            // 128 KB
+    @Override
+    public OptionsFactory configure(Configuration configuration) {
+        return this;
     }
 }
 {% endhighlight %}
-
-**Predefined Options**
-
-Flink provides some predefined collections of option for RocksDB for different settings, which can be set for example via
-`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)`.
-
-We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
-found a set of options that work well and seem representative for certain workloads.
-
-<span class="label label-info">Note</span> RocksDB is a native library that allocates memory directly from the process,
-and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
-of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
-allocating more memory than configured.
 
 ## Capacity Planning
 
@@ -237,8 +205,8 @@ each key-group can be decompressed individually, which is important for rescalin
 Compression can be activated through the `ExecutionConfig`:
 
 {% highlight java %}
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setUseSnapshotCompression(true);
+ExecutionConfig executionConfig = new ExecutionConfig();
+executionConfig.setUseSnapshotCompression(true);
 {% endhighlight %}
 
 <span class="label label-info">Note</span> The compression option has no impact on incremental snapshots, because they are using RocksDB's internal
@@ -278,7 +246,7 @@ Please note that this can come at some additional costs per checkpoint for creat
 chosen state backend and checkpointing strategy. For example, in most cases the implementation will simply duplicate the writes to the distributed
 store to a local file.
 
-<img src="../../fig/local_recovery.png" class="center" width="80%" alt="Illustration of checkpointing with task-local recovery."/>
+<img src="{{ site.baseurl }}/fig/local_recovery.png" class="center" width="80%" alt="Illustration of checkpointing with task-local recovery."/>
 
 ### Relationship of primary (distributed store) and secondary (task-local) state snapshots
 
@@ -310,6 +278,8 @@ that the task-local state is an in-memory consisting of heap objects, and not st
 Task-local recovery is *deactivated by default* and can be activated through Flink's configuration with the key `state.backend.local-recovery` as specified
 in `CheckpointingOptions.LOCAL_RECOVERY`. The value for this setting can either be *true* to enable or *false* (default) to disable local recovery.
 
+Note that [unaligned checkpoints]({% link ops/state/checkpoints.md %}#unaligned-checkpoints) currently do not support task-local recovery.
+
 ### Details on task-local recovery for different state backends
 
 ***Limitation**: Currently, task-local recovery only covers keyed state backends. Keyed state is typically by far the largest part of the state. In the near future, we will
@@ -335,7 +305,5 @@ allocation and *requests the exact same slot* to restart in recovery. If this sl
 if a task manager is no longer available, a task that cannot return to its previous location *will not drive other recovering tasks out of their previous slots*. Our reasoning is
 that the previous slot can only disappear when a task manager is no longer available, and in this case *some* tasks have to request a new slot anyways. With our scheduling strategy
 we give the maximum number of tasks a chance to recover from their local state and avoid the cascading effect of tasks stealing their previous slots from one another.
-
-Allocation-preserving scheduling does not work with Flink's legacy mode.
 
 {% top %}

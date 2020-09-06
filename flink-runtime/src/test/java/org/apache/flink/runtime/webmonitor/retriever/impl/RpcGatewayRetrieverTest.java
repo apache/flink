@@ -106,10 +106,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 			assertEquals(dummyRpcEndpoint2.getAddress(), dummyGateway2.getAddress());
 			assertEquals(expectedValue2, dummyGateway2.foobar(TIMEOUT).get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS));
 		} finally {
-			dummyRpcEndpoint.shutDown();
-			dummyRpcEndpoint2.shutDown();
-			dummyRpcEndpoint.getTerminationFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
-			dummyRpcEndpoint2.getTerminationFuture().get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoints(TIMEOUT, dummyRpcEndpoint, dummyRpcEndpoint2);
 		}
 	}
 
@@ -137,11 +134,6 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		@Override
 		public UUID getFencingToken() {
 			return HighAvailabilityServices.DEFAULT_LEADER_ID;
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 	}
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,12 +27,13 @@ import org.apache.flink.streaming.api.functions.source.MessageAcknowledgingSourc
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.Delivery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,10 +128,38 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	/**
 	 * Initializes the connection to RMQ with a default connection factory. The user may override
-	 * this method to setup and configure their own ConnectionFactory.
+	 * this method to setup and configure their own {@link ConnectionFactory}.
 	 */
 	protected ConnectionFactory setupConnectionFactory() throws Exception {
 		return rmqConnectionConfig.getConnectionFactory();
+	}
+
+	/**
+	 * Initializes the connection to RMQ using the default connection factory from {@link #setupConnectionFactory()}.
+	 * The user may override this method to setup and configure their own {@link Connection}.
+	 */
+	@VisibleForTesting
+	protected Connection setupConnection() throws Exception {
+		return setupConnectionFactory().newConnection();
+	}
+
+	/**
+	 * Initializes the consumer's {@link Channel}. If a prefetch count has been set in {@link RMQConnectionConfig},
+	 * the new channel will be use it for {@link Channel#basicQos(int)}.
+	 *
+	 * @param connection the consumer's {@link Connection}.
+	 * @return the channel.
+	 * @throws Exception if there is an issue creating or configuring the channel.
+	 */
+	private Channel setupChannel(Connection connection) throws Exception {
+		Channel chan = connection.createChannel();
+		if (rmqConnectionConfig.getPrefetchCount().isPresent()) {
+			// set the global flag for the entire channel, though shouldn't make a difference
+			// since there is only one consumer, and each parallel instance of the source will
+			// create a new connection (and channel)
+			chan.basicQos(rmqConnectionConfig.getPrefetchCount().get(), true);
+		}
+		return chan;
 	}
 
 	/**
@@ -137,17 +167,17 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * this method to have a custom setup for the queue (i.e. binding the queue to an exchange or
 	 * defining custom queue parameters)
 	 */
+	@VisibleForTesting
 	protected void setupQueue() throws IOException {
-		channel.queueDeclare(queueName, true, false, false, null);
+		Util.declareQueueDefaults(channel, queueName);
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		ConnectionFactory factory = setupConnectionFactory();
 		try {
-			connection = factory.newConnection();
-			channel = connection.createChannel();
+			connection = setupConnection();
+			channel = setupChannel(connection);
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
@@ -171,12 +201,32 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 			throw new RuntimeException("Cannot create RMQ connection with " + queueName + " at "
 					+ rmqConnectionConfig.getHost(), e);
 		}
+		this.schema.open(() -> getRuntimeContext().getMetricGroup().addGroup("user"));
 		running = true;
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
+
+		try {
+			if (consumer != null && channel != null) {
+				channel.basicCancel(consumer.getConsumerTag());
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Error while cancelling RMQ consumer on " + queueName
+				+ " at " + rmqConnectionConfig.getHost(), e);
+		}
+
+		try {
+			if (channel != null) {
+				channel.close();
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Error while closing RMQ channel with " + queueName
+				+ " at " + rmqConnectionConfig.getHost(), e);
+		}
+
 		try {
 			if (connection != null) {
 				connection.close();
@@ -189,17 +239,11 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 	@Override
 	public void run(SourceContext<OUT> ctx) throws Exception {
+		final RMQCollector collector = new RMQCollector(ctx);
 		while (running) {
-			QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+			Delivery delivery = consumer.nextDelivery();
 
 			synchronized (ctx.getCheckpointLock()) {
-
-				OUT result = schema.deserialize(delivery.getBody());
-
-				if (schema.isEndOfStream(result)) {
-					break;
-				}
-
 				if (!autoAck) {
 					final long deliveryTag = delivery.getEnvelope().getDeliveryTag();
 					if (usesCorrelationId) {
@@ -215,8 +259,41 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 					sessionIds.add(deliveryTag);
 				}
 
-				ctx.collect(result);
+				schema.deserialize(delivery.getBody(), collector);
+				if (collector.isEndOfStreamSignalled()) {
+					this.running = false;
+					return;
+				}
 			}
+		}
+	}
+
+	private class RMQCollector implements Collector<OUT> {
+
+		private final SourceContext<OUT> ctx;
+		private boolean endOfStreamSignalled = false;
+
+		private RMQCollector(SourceContext<OUT> ctx) {
+			this.ctx = ctx;
+		}
+
+		@Override
+		public void collect(OUT record) {
+			if (endOfStreamSignalled || schema.isEndOfStream(record)) {
+				this.endOfStreamSignalled = true;
+				return;
+			}
+
+			ctx.collect(record);
+		}
+
+		public boolean isEndOfStreamSignalled() {
+			return endOfStreamSignalled;
+		}
+
+		@Override
+		public void close() {
+
 		}
 	}
 

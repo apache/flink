@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -53,16 +53,16 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -103,8 +103,9 @@ public class WebFrontendITCase extends TestLogger {
 		} catch (Exception e) {
 			throw new AssertionError("Could not setup test.", e);
 		}
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
-		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+
+		// !!DO NOT REMOVE!! next line is required for tests
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("12m"));
 
 		return config;
 	}
@@ -115,15 +116,9 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
-	public void getFrontPage() {
-		try {
-			String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
-			String text = "Apache Flink Dashboard";
-			assertTrue("Startpage should contain " + text, fromHTTP.contains(text));
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public void getFrontPage() throws Exception {
+		String fromHTTP = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/index.html");
+		assertThat(fromHTTP, containsString("Apache Flink Web Dashboard"));
 	}
 
 	private int getRestPort() {
@@ -141,7 +136,7 @@ public class WebFrontendITCase extends TestLogger {
 			// error!
 			InputStream is = taskManagerConnection.getErrorStream();
 			String errorMessage = IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
-			throw new RuntimeException(errorMessage);
+			fail(errorMessage);
 		}
 
 		// we don't set the content-encoding header
@@ -158,29 +153,24 @@ public class WebFrontendITCase extends TestLogger {
 			Assert.assertNull(notFoundJobConnection.getContentEncoding());
 			Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
 		} else {
-			throw new RuntimeException("Request for non-existing job did not return an error.");
+			fail("Request for non-existing job did not return an error.");
 		}
 	}
 
 	@Test
-	public void getNumberOfTaskManagers() {
-		try {
-			String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
+	public void getNumberOfTaskManagers() throws Exception {
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode response = mapper.readTree(json);
-			ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode response = mapper.readTree(json);
+		ArrayNode taskManagers = (ArrayNode) response.get("taskmanagers");
 
-			assertNotNull(taskManagers);
-			assertEquals(NUM_TASK_MANAGERS, taskManagers.size());
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		assertNotNull(taskManagers);
+		assertEquals(NUM_TASK_MANAGERS, taskManagers.size());
 	}
 
 	@Test
-	public void getTaskmanagers() throws Exception {
+	public void getTaskManagers() throws Exception {
 		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 
 		ObjectMapper mapper = new ObjectMapper();
@@ -202,57 +192,61 @@ public class WebFrontendITCase extends TestLogger {
 
 		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
 		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/log");
-		assertTrue(logs.contains("job manager log"));
+		assertThat(logs, containsString("job manager log"));
 
 		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
 		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/stdout");
-		assertTrue(logs.contains("job manager out"));
+		assertThat(logs, containsString("job manager out"));
 	}
 
 	@Test
-	public void getTaskManagerLogAndStdoutFiles() {
-		try {
-			String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
+	public void getCustomLogFiles() throws Exception {
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
 
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode parsed = mapper.readTree(json);
-			ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
-			JsonNode taskManager = taskManagers.get(0);
-			String id = taskManager.get("id").asText();
+		String customFileName = "test.log";
+		final String logDir = logFiles.logFile.getParent();
+		final String expectedLogContent = "job manager custom log";
+		FileUtils.writeStringToFile(new File(logDir, customFileName), expectedLogContent);
 
-			WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
-
-			//we check for job manager log files, since no separate taskmanager logs exist
-			FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
-			String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
-			assertTrue(logs.contains("job manager log"));
-
-			FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
-			logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
-			assertTrue(logs.contains("job manager out"));
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/logs/" + customFileName);
+		assertThat(logs, containsString(expectedLogContent));
 	}
 
 	@Test
-	public void getConfiguration() {
-		try {
-			String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
+	public void getTaskManagerLogAndStdoutFiles() throws Exception {
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/");
 
-			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
-			assertEquals(
-				CLUSTER_CONFIGURATION.getString(ConfigConstants.LOCAL_START_WEBSERVER, null),
-				conf.get(ConfigConstants.LOCAL_START_WEBSERVER));
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode parsed = mapper.readTree(json);
+		ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+		JsonNode taskManager = taskManagers.get(0);
+		String id = taskManager.get("id").asText();
+
+		WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(CLUSTER_CONFIGURATION);
+
+		//we check for job manager log files, since no separate taskmanager logs exist
+		FileUtils.writeStringToFile(logFiles.logFile, "job manager log");
+		String logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/log");
+		assertThat(logs, containsString("job manager log"));
+
+		FileUtils.writeStringToFile(logFiles.stdOutFile, "job manager out");
+		logs = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/taskmanagers/" + id + "/stdout");
+		assertThat(logs, containsString("job manager out"));
 	}
 
 	@Test
-	public void testStop() throws Exception {
+	public void getConfiguration() throws Exception {
+		String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
+		Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
+
+		MemorySize expected = CLUSTER_CONFIGURATION.get(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		MemorySize actual = MemorySize.parse(conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key()));
+
+		assertEquals(expected, actual);
+	}
+
+	@Test
+	public void testCancel() throws Exception {
 		// this only works if there is no active job at this point
 		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
 
@@ -265,8 +259,7 @@ public class WebFrontendITCase extends TestLogger {
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		clusterClient.setDetached(true);
-		clusterClient.submitJob(jobGraph, WebFrontendITCase.class.getClassLoader());
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait for job to show up
 		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
@@ -276,13 +269,13 @@ public class WebFrontendITCase extends TestLogger {
 		// wait for tasks to be properly running
 		BlockingInvokable.latch.await();
 
-		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
-		final Deadline deadline = testTimeout.fromNow();
+		final Duration testTimeout = Duration.ofMinutes(2);
+		final LocalTime deadline = LocalTime.now().plus(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			// stop the job
-			client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
-			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
+			// cancel the job
+			client.sendPatchRequest("/jobs/" + jid + "/", getTimeLeft(deadline));
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -296,7 +289,7 @@ public class WebFrontendITCase extends TestLogger {
 
 		// ensure we can access job details when its finished (FLINK-4011)
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
-			FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+			Duration timeout = Duration.ofSeconds(30);
 			client.sendGetRequest("/jobs/" + jid + "/config", timeout);
 			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
 
@@ -304,14 +297,14 @@ public class WebFrontendITCase extends TestLogger {
 			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{\"jid\":\"" + jid + "\",\"name\":\"Stoppable streaming test job\"," +
 				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\"," +
-				"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
+				"\"job-parallelism\":1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
 		}
 
 		BlockingInvokable.reset();
 	}
 
 	@Test
-	public void testStopYarn() throws Exception {
+	public void testCancelYarn() throws Exception {
 		// this only works if there is no active job at this point
 		assertTrue(getRunningJobs(CLUSTER.getClusterClient()).isEmpty());
 
@@ -324,8 +317,7 @@ public class WebFrontendITCase extends TestLogger {
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
-		clusterClient.setDetached(true);
-		clusterClient.submitJob(jobGraph, WebFrontendITCase.class.getClassLoader());
+		clusterClient.submitJob(jobGraph).get();
 
 		// wait for job to show up
 		while (getRunningJobs(CLUSTER.getClusterClient()).isEmpty()) {
@@ -335,15 +327,14 @@ public class WebFrontendITCase extends TestLogger {
 		// wait for tasks to be properly running
 		BlockingInvokable.latch.await();
 
-		final FiniteDuration testTimeout = new FiniteDuration(2, TimeUnit.MINUTES);
-		final Deadline deadline = testTimeout.fromNow();
+		final Duration testTimeout = Duration.ofMinutes(2);
+		final LocalTime deadline = LocalTime.now().plus(testTimeout);
 
 		try (HttpTestClient client = new HttpTestClient("localhost", getRestPort())) {
 			// Request the file from the web server
-			client.sendGetRequest("/jobs/" + jid + "/yarn-stop", deadline.timeLeft());
+			client.sendGetRequest("/jobs/" + jid + "/yarn-cancel", getTimeLeft(deadline));
 
-			HttpTestClient.SimpleHttpResponse response = client
-				.getNextResponse(deadline.timeLeft());
+			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(getTimeLeft(deadline));
 
 			assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
@@ -366,10 +357,14 @@ public class WebFrontendITCase extends TestLogger {
 			.collect(Collectors.toList());
 	}
 
+	private static Duration getTimeLeft(LocalTime deadline) {
+		return Duration.between(LocalTime.now(), deadline);
+	}
+
 	/**
-	 * Test invokable that is stoppable and allows waiting for all subtasks to be running.
+	 * Test invokable that allows waiting for all subtasks to be running.
 	 */
-	public static class BlockingInvokable extends AbstractInvokable implements StoppableTask {
+	public static class BlockingInvokable extends AbstractInvokable {
 
 		private static CountDownLatch latch = new CountDownLatch(2);
 
@@ -388,7 +383,7 @@ public class WebFrontendITCase extends TestLogger {
 		}
 
 		@Override
-		public void stop() {
+		public void cancel() {
 			this.isRunning = false;
 		}
 

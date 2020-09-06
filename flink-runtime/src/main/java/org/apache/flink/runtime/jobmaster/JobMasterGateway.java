@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -30,20 +32,22 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
@@ -57,7 +61,8 @@ public interface JobMasterGateway extends
 	CheckpointCoordinatorGateway,
 	FencedRpcGateway<JobMasterId>,
 	KvStateLocationOracle,
-	KvStateRegistryGateway {
+	KvStateRegistryGateway,
+	JobMasterOperatorEventGateway {
 
 	/**
 	 * Cancels the currently executed job.
@@ -66,42 +71,6 @@ public interface JobMasterGateway extends
 	 * @return Future acknowledge of the operation
 	 */
 	CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
-
-	/**
-	 * Cancel the currently executed job.
-	 *
-	 * @param timeout of this operation
-	 * @return Future acknowledge if the cancellation was successful
-	 */
-	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
-
-	/**
-	 * Triggers rescaling of the executed job.
-	 *
-	 * @param newParallelism new parallelism of the job
-	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
-	 * @param timeout of this operation
-	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
-	 */
-	CompletableFuture<Acknowledge> rescaleJob(
-		int newParallelism,
-		RescalingBehaviour rescalingBehaviour,
-		@RpcTimeout Time timeout);
-
-	/**
-	 * Triggers rescaling of the given set of operators.
-	 *
-	 * @param operators set of operators which shall be rescaled
-	 * @param newParallelism new parallelism of the given set of operators
-	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
-	 * @param timeout of this operation
-	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
-	 */
-	CompletableFuture<Acknowledge> rescaleOperators(
-		Collection<JobVertexID> operators,
-		int newParallelism,
-		RescalingBehaviour rescalingBehaviour,
-		@RpcTimeout Time timeout);
 
 	/**
 	 * Updates the task execution state for a given task.
@@ -175,11 +144,6 @@ public interface JobMasterGateway extends
 		final Exception cause);
 
 	/**
-	 * Request the classloading props of this job.
-	 */
-	CompletableFuture<ClassloadingProps> requestClassloadingProps();
-
-	/**
 	 * Offers the given slots to the job manager. The response contains the set of accepted slots.
 	 *
 	 * @param taskManagerId identifying the task manager
@@ -207,24 +171,24 @@ public interface JobMasterGateway extends
 	 * Registers the task manager at the job manager.
 	 *
 	 * @param taskManagerRpcAddress the rpc address of the task manager
-	 * @param taskManagerLocation   location of the task manager
+	 * @param unresolvedTaskManagerLocation   unresolved location of the task manager
 	 * @param timeout               for the rpc call
 	 * @return Future registration response indicating whether the registration was successful or not
 	 */
 	CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
-			final TaskManagerLocation taskManagerLocation,
+			final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
 			@RpcTimeout final Time timeout);
 
 	/**
 	 * Sends the heartbeat to job manager from task manager.
 	 *
 	 * @param resourceID unique id of the task manager
-	 * @param accumulatorReport report containing accumulator updates
+	 * @param payload report payload
 	 */
 	void heartbeatFromTaskManager(
 		final ResourceID resourceID,
-		final AccumulatorReport accumulatorReport);
+		final TaskExecutorToJobManagerHeartbeatPayload payload);
 
 	/**
 	 * Sends heartbeat request from the resource manager.
@@ -271,11 +235,25 @@ public interface JobMasterGateway extends
 		@RpcTimeout final Time timeout);
 
 	/**
+	 * Stops the job with a savepoint.
+	 *
+	 * @param targetDirectory to which to write the savepoint data or null if the
+	 *                           default savepoint directory should be used
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
+	 * @param timeout for the rpc call
+	 * @return Future which is completed with the savepoint path once completed
+	 */
+	CompletableFuture<String> stopWithSavepoint(
+		@Nullable final String targetDirectory,
+		final boolean advanceToEndOfEventTime,
+		@RpcTimeout final Time timeout);
+
+	/**
 	 * Requests the statistics on operator back pressure.
 	 *
 	 * @param jobVertexId JobVertex for which the stats are requested.
-	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
-	 * not available (yet).
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse}.
 	 */
 	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
 
@@ -286,4 +264,30 @@ public interface JobMasterGateway extends
 	 * @param cause the reason that the allocation failed
 	 */
 	void notifyAllocationFailure(AllocationID allocationID, Exception cause);
+
+	/**
+	 * Update the aggregate and return the new value.
+	 *
+	 * @param aggregateName The name of the aggregate to update
+	 * @param aggregand The value to add to the aggregate
+	 * @param serializedAggregationFunction The function to apply to the current aggregate and aggregand to
+	 * obtain the new aggregate value, this should be of type {@link AggregateFunction}
+	 * @return The updated aggregate
+	 */
+	CompletableFuture<Object> updateGlobalAggregate(String aggregateName, Object aggregand, byte[] serializedAggregationFunction);
+
+	/**
+	 * Deliver a coordination request to a specified coordinator and return the response.
+	 *
+	 * @param operatorId identifying the coordinator to receive the request
+	 * @param serializedRequest serialized request to deliver
+	 * @return A future containing the response.
+	 *         The response will fail with a {@link org.apache.flink.util.FlinkException}
+	 *         if the task is not running, or no operator/coordinator exists for the given ID,
+	 *         or the coordinator cannot handle client events.
+	 */
+	CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
+		OperatorID operatorId,
+		SerializedValue<CoordinationRequest> serializedRequest,
+		@RpcTimeout Time timeout);
 }

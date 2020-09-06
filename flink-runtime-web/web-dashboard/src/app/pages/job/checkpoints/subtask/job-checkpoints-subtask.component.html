@@ -1,0 +1,115 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<div class="subtasks">
+  <strong>SubTasks:</strong>
+  <nz-table
+    class="no-border small"
+    [nzData]="subTaskCheckPoint && subTaskCheckPoint['summary'] ? [''] : []"
+    [nzSize]="'small'"
+    [nzLoading]="isLoading"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false">
+    <thead>
+      <tr>
+        <th></th>
+        <th><strong>End to End Duration</strong></th>
+        <th><strong>Checkpointed Data Size</strong></th>
+        <th><strong>Sync Duration</strong></th>
+        <th><strong>Async Duration</strong></th>
+        <th><strong>Alignment Buffered</strong></th>
+        <th><strong>Alignment Duration</strong></th>
+        <th><strong>Start Delay</strong></th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngIf="subTaskCheckPoint && subTaskCheckPoint['summary']">
+        <tr>
+          <td><strong>Minimum</strong></td>
+          <td>{{ subTaskCheckPoint['summary']['end_to_end_duration']['min'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['state_size']['min'] | humanizeBytes }}</td>
+          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['sync']['min'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['min'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['alignment']['buffered']['min'] | humanizeBytes }}</td>
+          <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['min'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['min'] | humanizeDuration}}</td>
+        </tr>
+        <tr>
+          <td><strong>Average</strong></td>
+          <td>{{ subTaskCheckPoint['summary']['end_to_end_duration']['avg'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['state_size']['avg'] | humanizeBytes }}</td>
+          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['sync']['avg'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['avg'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['alignment']['buffered']['avg'] | humanizeBytes }}</td>
+          <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['avg'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['avg'] | humanizeDuration}}</td>
+        </tr>
+        <tr>
+          <td><strong>Maximum</strong></td>
+          <td>{{ subTaskCheckPoint['summary']['end_to_end_duration']['max'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['state_size']['max'] | humanizeBytes }}</td>
+          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['sync']['max'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['max'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['alignment']['buffered']['max'] | humanizeBytes }}</td>
+          <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['max'] | humanizeDuration}}</td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['max'] | humanizeDuration}}</td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </nz-table>
+
+  <nz-table
+    class="no-border small"
+    [nzData]="listOfSubTaskCheckPoint"
+    [nzSize]="'small'"
+    [nzLoading]="isLoading"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false">
+    <thead (nzSortChange)="sort($event)" nzSingleSort>
+      <tr>
+        <th><strong>ID</strong></th>
+        <th nzSortKey="ack_timestamp" nzShowSort><strong>Acknowledged</strong></th>
+        <th nzSortKey="end_to_end_duration" nzShowSort><strong>End to End Duration</strong></th>
+        <th nzSortKey="state_size" nzShowSort><strong>Checkpointed Data Size</strong></th>
+        <th nzSortKey="checkpoint.sync" nzShowSort><strong>Sync Duration</strong></th>
+        <th nzSortKey="checkpoint.async" nzShowSort><strong>Async Duration</strong></th>
+        <th nzSortKey="alignment.buffered" nzShowSort><strong>Alignment Buffered</strong></th>
+        <th nzSortKey="alignment.duration" nzShowSort><strong>Alignment Duration</strong></th>
+        <th nzSortKey="start_delay" nzShowSort><strong>Start Delay</strong></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let subTask of listOfSubTaskCheckPoint">
+        <td>{{ subTask['index'] + 1 }}</td>
+        <ng-container *ngIf="subTask['status'] == 'completed'">
+          <td >{{ subTask['ack_timestamp'] | date:'HH:mm:ss' }}</td>
+          <td>{{ subTask['end_to_end_duration'] | humanizeDuration}}</td>
+          <td>{{ subTask['state_size'] | humanizeBytes }}</td>
+          <td>{{ subTask['checkpoint']['sync'] | humanizeDuration}}</td>
+          <td>{{ subTask['checkpoint']['async'] | humanizeDuration}}</td>
+          <td>{{ subTask['alignment']['buffered'] | humanizeBytes}}</td>
+          <td>{{ subTask['alignment']['duration'] | humanizeDuration}}</td>
+          <td>{{ subTask['start_delay'] | humanizeDuration}}</td>
+        </ng-container>
+        <ng-container *ngIf="subTask['status'] == 'pending_or_failed'">
+          <td colspan="7">n/a</td>
+        </ng-container>
+      </tr>
+    </tbody>
+  </nz-table>
+</div>

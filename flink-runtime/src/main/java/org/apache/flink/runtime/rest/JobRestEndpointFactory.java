@@ -25,13 +25,13 @@ import org.apache.flink.runtime.jobmaster.MiniDispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * {@link RestEndpointFactory} which creates a {@link MiniDispatcherRestEndpoint}.
@@ -45,8 +45,8 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			TransientBlobService transientBlobService,
-			ExecutorService executor,
-			MetricQueryServiceRetriever metricQueryServiceRetriever,
+			ScheduledExecutorService executor,
+			MetricFetcher metricFetcher,
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
@@ -59,8 +59,9 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
 			resourceManagerGatewayRetriever,
 			transientBlobService,
 			executor,
-			metricQueryServiceRetriever,
+			metricFetcher,
 			leaderElectionService,
+			RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
 			fatalErrorHandler);
 	}
 }

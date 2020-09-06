@@ -23,11 +23,9 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -179,17 +177,6 @@ public class CepRuntimeContextTest extends TestLogger {
 		}
 
 		try {
-			runtimeContext.getFoldingState(new FoldingStateDescriptor<>(
-				"foobar",
-				0,
-				mock(FoldFunction.class),
-				Integer.class));
-			fail("Expected getFoldingState to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
 			runtimeContext.getMapState(new MapStateDescriptor<>("foobar", Integer.class, String.class));
 			fail("Expected getMapState to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
@@ -206,13 +193,6 @@ public class CepRuntimeContextTest extends TestLogger {
 		try {
 			runtimeContext.getAccumulator("foobar");
 			fail("Expected getAccumulator to fail with unsupported operation exception.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
-			runtimeContext.getAllAccumulators();
-			fail("Expected getAllAccumulators to fail with unsupported operation exception.");
 		} catch (UnsupportedOperationException e) {
 			// expected
 		}

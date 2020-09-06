@@ -19,14 +19,44 @@
 package org.apache.flink.runtime.checkpoint;
 
 /**
- *  The type of checkpoint to perform.
+ * The type of checkpoint to perform.
  */
 public enum CheckpointType {
 
 	/** A checkpoint, full or incremental. */
-	CHECKPOINT,
+	CHECKPOINT(false, false, "Checkpoint"),
 
-	/** A savepoint. */
-	SAVEPOINT;
+	/** A regular savepoint. */
+	SAVEPOINT(true, false, "Savepoint"),
 
+	/** A savepoint taken while suspending/terminating the job. */
+	SYNC_SAVEPOINT(true, true, "Synchronous Savepoint");
+
+	private final boolean isSavepoint;
+
+	private final boolean isSynchronous;
+
+	private final String name;
+
+	CheckpointType(
+			final boolean isSavepoint,
+			final boolean isSynchronous,
+			final String name) {
+
+		this.isSavepoint = isSavepoint;
+		this.isSynchronous = isSynchronous;
+		this.name = name;
+	}
+
+	public boolean isSavepoint() {
+		return isSavepoint;
+	}
+
+	public boolean isSynchronous() {
+		return isSynchronous;
+	}
+
+	public String getName() {
+		return name;
+	}
 }

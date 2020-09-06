@@ -18,18 +18,31 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
 /**
  * A buffer-oriented runtime result writer API for producing results.
+ *
+ * <p>If {@link ResultPartitionWriter#close()} is called before {@link ResultPartitionWriter#fail(Throwable)} or
+ * {@link ResultPartitionWriter#finish()}, it abruptly triggers failure and cancellation of production.
+ * In this case {@link ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release
+ * all resources associated the the partition and propagate failure cause to the consumer if possible.
  */
-public interface ResultPartitionWriter {
+public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvider {
 
-	BufferProvider getBufferProvider();
+	/**
+	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
+	 */
+	void setup() throws IOException;
 
 	ResultPartitionID getPartitionId();
 
@@ -38,18 +51,50 @@ public interface ResultPartitionWriter {
 	int getNumTargetKeyGroups();
 
 	/**
-	 * Adds the bufferConsumer to the subpartition with the given index.
+	 * Requests a {@link BufferBuilder} from this partition for writing data.
+	 */
+	BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException;
+
+
+	/**
+	 * Try to request a {@link BufferBuilder} from this partition for writing data.
 	 *
-	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
-	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
+	 * <p>Returns <code>null</code> if no buffer is available or the buffer provider has been destroyed.
+	 */
+	BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException;
+
+	/**
+	 * Adds the bufferConsumer to the subpartition with the given index.
 	 *
 	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
 	 * it's resources.
 	 *
 	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
 	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
+	 *
+	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 */
-	void addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException;
+	boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex, boolean isPriorityEvent) throws IOException;
+
+	/**
+	 * Adds the bufferConsumer to the subpartition with the given index.
+	 *
+	 * <p>This method takes the ownership of the passed {@code bufferConsumer} and thus is responsible for releasing
+	 * it's resources.
+	 *
+	 * <p>To avoid problems with data re-ordering, before adding new {@link BufferConsumer} the previously added one
+	 * the given {@code subpartitionIndex} must be marked as {@link BufferConsumer#isFinished()}.
+	 *
+	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
+	 */
+	default boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
+		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+	}
+
+	/**
+	 * Returns a reader for the subpartition with the given index.
+	 */
+	ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException;
 
 	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all subpartitions.
@@ -60,4 +105,22 @@ public interface ResultPartitionWriter {
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
 	 */
 	void flush(int subpartitionIndex);
+
+	/**
+	 * Fail the production of the partition.
+	 *
+	 * <p>This method propagates non-{@code null} failure causes to consumers on a best-effort basis. This call also
+	 * leads to the release of all resources associated with the partition. Closing of the partition is still needed
+	 * afterwards if it has not been done before.
+	 *
+	 * @param throwable failure cause
+	 */
+	void fail(@Nullable Throwable throwable);
+
+	/**
+	 * Successfully finish the production of the partition.
+	 *
+	 * <p>Closing of partition is still needed afterwards.
+	 */
+	void finish() throws IOException;
 }

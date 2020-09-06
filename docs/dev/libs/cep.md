@@ -38,7 +38,7 @@ library makes when [dealing with lateness](#handling-lateness-in-event-time) in 
 
 ## Getting Started
 
-If you want to jump right in, [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html) and
+If you want to jump right in, [set up a Flink program]({{ site.baseurl }}/dev/project-configuration.html) and
 add the FlinkCEP dependency to the `pom.xml` of your project.
 
 <div class="codetabs" markdown="1">
@@ -63,7 +63,7 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 </div>
 </div>
 
-{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{site.baseurl}}/dev/linking.html).
+{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{site.baseurl}}/dev/project-configuration.html).
 
 Now you can start writing your first CEP program using the Pattern API.
 
@@ -167,96 +167,99 @@ You can make looping patterns greedy using the `pattern.greedy()` method, but yo
 
 For a pattern named `start`, the following are valid quantifiers:
 
- <div class="codetabs" markdown="1">
- <div data-lang="java" markdown="1">
- {% highlight java %}
- // expecting 4 occurrences
- start.times(4);
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// expecting 4 occurrences
+start.times(4);
 
- // expecting 0 or 4 occurrences
- start.times(4).optional();
+// expecting 0 or 4 occurrences
+start.times(4).optional();
 
- // expecting 2, 3 or 4 occurrences
- start.times(2, 4);
+// expecting 2, 3 or 4 occurrences
+start.times(2, 4);
 
- // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy();
+// expecting 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).greedy();
 
- // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional();
+// expecting 0, 2, 3 or 4 occurrences
+start.times(2, 4).optional();
 
- // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy();
+// expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).optional().greedy();
 
- // expecting 1 or more occurrences
- start.oneOrMore();
+// expecting 1 or more occurrences
+start.oneOrMore();
 
- // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy();
+// expecting 1 or more occurrences and repeating as many as possible
+start.oneOrMore().greedy();
 
- // expecting 0 or more occurrences
- start.oneOrMore().optional();
+// expecting 0 or more occurrences
+start.oneOrMore().optional();
 
- // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy();
+// expecting 0 or more occurrences and repeating as many as possible
+start.oneOrMore().optional().greedy();
 
- // expecting 2 or more occurrences
- start.timesOrMore(2);
+// expecting 2 or more occurrences
+start.timesOrMore(2);
 
- // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy();
+// expecting 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).greedy();
 
- // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy();
- {% endhighlight %}
- </div>
+// expecting 0, 2 or more occurrences
+start.timesOrMore(2).optional()
 
- <div data-lang="scala" markdown="1">
- {% highlight scala %}
- // expecting 4 occurrences
- start.times(4)
+// expecting 0, 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).optional().greedy();
+{% endhighlight %}
+</div>
 
- // expecting 0 or 4 occurrences
- start.times(4).optional()
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// expecting 4 occurrences
+start.times(4)
 
- // expecting 2, 3 or 4 occurrences
- start.times(2, 4)
+// expecting 0 or 4 occurrences
+start.times(4).optional()
 
- // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy()
+// expecting 2, 3 or 4 occurrences
+start.times(2, 4)
 
- // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional()
+// expecting 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).greedy()
 
- // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy()
+// expecting 0, 2, 3 or 4 occurrences
+start.times(2, 4).optional()
 
- // expecting 1 or more occurrences
- start.oneOrMore()
+// expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
+start.times(2, 4).optional().greedy()
 
- // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy()
+// expecting 1 or more occurrences
+start.oneOrMore()
 
- // expecting 0 or more occurrences
- start.oneOrMore().optional()
+// expecting 1 or more occurrences and repeating as many as possible
+start.oneOrMore().greedy()
 
- // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy()
+// expecting 0 or more occurrences
+start.oneOrMore().optional()
 
- // expecting 2 or more occurrences
- start.timesOrMore(2)
+// expecting 0 or more occurrences and repeating as many as possible
+start.oneOrMore().optional().greedy()
 
- // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy()
+// expecting 2 or more occurrences
+start.timesOrMore(2)
 
- // expecting 0, 2 or more occurrences
- start.timesOrMore(2).optional()
+// expecting 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).greedy()
 
- // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy()
- {% endhighlight %}
- </div>
- </div>
+// expecting 0, 2 or more occurrences
+start.timesOrMore(2).optional()
+
+// expecting 0, 2 or more occurrences and repeating as many as possible
+start.timesOrMore(2).optional().greedy()
+{% endhighlight %}
+</div>
+</div>
 
 #### Conditions
 
@@ -310,6 +313,8 @@ middle.oneOrMore()
 {% warn Attention %} The call to `ctx.getEventsForPattern(...)` finds all the
 previously accepted events for a given potential match. The cost of this operation can vary, so when implementing
 your condition, try to minimize its use.
+
+Described context gives one access to event time characteristics as well. For more info see [Time context](#time-context).
 
 **Simple Conditions:** This type of condition extends the aforementioned `IterativeCondition` class and decides
 whether to accept an event or not, based *only* on properties of the event itself.
@@ -1272,9 +1277,10 @@ pattern.within(Time.seconds(10))
 
 ### After Match Skip Strategy
 
-For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are four types of skip strategies, listed as follows:
+For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are five types of skip strategies, listed as follows:
 
 * <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
+* <strong>*SKIP_TO_NEXT*</strong>: Discards every partial match that started with the same event, emitted match was started.
 * <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that started after the match started but before it ended.
 * <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that started after the match started but before the first event of *PatternName* occurred.
 * <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that started after the match started but before the last event of *PatternName* occurred.
@@ -1508,6 +1514,7 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 
 The `PatternProcessFunction` gives access to a `Context` object. Thanks to it, one can access time related
 characteristics such as `currentProcessingTime` or `timestamp` of current match (which is the timestamp of the last element assigned to the match).
+For more info see [Time context](#time-context).
 Through this context one can also emit results to a [side-output]({{ site.baseurl }}/dev/stream/side_output.html).
 
 
@@ -1588,13 +1595,15 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(
         out.collect(ComplexEvent())
 }
 
-val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
+val timeoutResult: DataStream[TimeoutEvent] = result.getSideOutput(outputTag)
 {% endhighlight %}
 
 </div>
 </div>
 
-## Handling Lateness in Event Time
+## Time in CEP library
+
+### Handling Lateness in Event Time
 
 In `CEP` the order in which elements are processed matters. To guarantee that elements are processed in the correct order when working in event time, an incoming element is initially put in a buffer where elements are *sorted in ascending order based on their timestamp*, and when a watermark arrives, all the elements in this buffer with timestamps smaller than that of the watermark are processed. This implies that elements between watermarks are processed in event-time order.
 
@@ -1620,7 +1629,6 @@ SingleOutputStreamOperator<ComplexEvent> result = patternStream
 
 DataStream<String> lateData = result.getSideOutput(lateDataOutputTag);
 
-
 {% endhighlight %}
 
 </div>
@@ -1639,12 +1647,45 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream
           pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
       }
 
-val lateData: DataStream<String> = result.getSideOutput(lateDataOutputTag)
+val lateData: DataStream[String] = result.getSideOutput(lateDataOutputTag)
 
 {% endhighlight %}
 
 </div>
 </div>
+
+### Time context
+
+In [PatternProcessFunction](#selecting-from-patterns) as well as in [IterativeCondition](#conditions) user has access to a context
+that implements `TimeContext` as follows:
+
+{% highlight java %}
+/**
+ * Enables access to time related characteristics such as current processing time or timestamp of
+ * currently processed element. Used in {@link PatternProcessFunction} and
+ * {@link org.apache.flink.cep.pattern.conditions.IterativeCondition}
+ */
+@PublicEvolving
+public interface TimeContext {
+
+	/**
+	 * Timestamp of the element currently being processed.
+	 *
+	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this
+	 * will be set to the time when event entered the cep operator.
+	 */
+	long timestamp();
+
+	/** Returns the current processing time. */
+	long currentProcessingTime();
+}
+{% endhighlight %}
+
+This context gives user access to time characteristics of processed events (incoming records in case of `IterativeCondition` and matches in case of `PatternProcessFunction`).
+Call to `TimeContext#currentProcessingTime` always gives you the value of current processing time and this call should be preferred to e.g. calling `System.currentTimeMillis()`.
+
+In case of `TimeContext#timestamp()` the returned value is equal to assigned timestamp in case of `EventTime`. In `ProcessingTime` this will equal to the point of time when said event entered
+cep operator (or when the match was generated in case of `PatternProcessFunction`). This means that the value will be consistent across multiple calls to that method.
 
 ## Examples
 
@@ -1707,7 +1748,7 @@ val pattern = Pattern.begin[Event]("start")
 
 val patternStream = CEP.pattern(partitionedInput, pattern)
 
-val alerts = patternStream.select(createAlert(_)))
+val alerts = patternStream.select(createAlert(_))
 {% endhighlight %}
 </div>
 </div>

@@ -85,11 +85,6 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	}
 
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof FloatSerializer;
-	}
-
-	@Override
 	public TypeSerializerSnapshot<Float> snapshotConfiguration() {
 		return new FloatSerializerSnapshot();
 	}
@@ -99,10 +94,11 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	/**
 	 * Serializer configuration snapshot for compatibility and format evolution.
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public static final class FloatSerializerSnapshot extends SimpleTypeSerializerSnapshot<Float> {
 
 		public FloatSerializerSnapshot() {
-			super(FloatSerializer.class);
+			super(() -> INSTANCE);
 		}
 	}
 }

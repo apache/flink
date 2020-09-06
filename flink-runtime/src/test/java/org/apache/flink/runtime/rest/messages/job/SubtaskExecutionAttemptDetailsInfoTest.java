@@ -57,7 +57,8 @@ public class SubtaskExecutionAttemptDetailsInfoTest extends RestResponseMarshall
 			Math.abs(random.nextLong()),
 			Math.abs(random.nextLong()),
 			Math.abs(random.nextLong()),
-			ioMetricsInfo
+			ioMetricsInfo,
+			"taskmanagerId"
 		);
 	}
 }

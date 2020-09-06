@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -38,8 +39,6 @@ import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.rest.RestStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -69,8 +68,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends RichSinkFunction<T> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = -1007596293618451942L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkBase.class);
 
 	// ------------------------------------------------------------------------
 	//  Internal bulk processor configuration
@@ -166,6 +163,9 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
 	private transient RequestIndexer requestIndexer;
 
+	/** Provided to the {@link ActionRequestFailureHandler} to allow users to re-index failed requests. */
+	private transient BufferingNoOpRequestIndexer failureRequestIndexer;
+
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
 	// ------------------------------------------------------------------------
@@ -200,7 +200,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
 
 	public ElasticsearchSinkBase(
-		ElasticsearchApiCallBridge callBridge,
+		ElasticsearchApiCallBridge<C> callBridge,
 		Map<String, String> userConfig,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
 		ActionRequestFailureHandler failureHandler) {
@@ -208,7 +208,6 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		this.callBridge = checkNotNull(callBridge);
 		this.elasticsearchSinkFunction = checkNotNull(elasticsearchSinkFunction);
 		this.failureHandler = checkNotNull(failureHandler);
-
 		// we eagerly check if the user-provided sink function and failure handler is serializable;
 		// otherwise, if they aren't serializable, users will merely get a non-informative error message
 		// "ElasticsearchSinkBase is not serializable"
@@ -294,15 +293,16 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
+		callBridge.verifyClientConnection(client);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
+		failureRequestIndexer = new BufferingNoOpRequestIndexer();
+		elasticsearchSinkFunction.open();
 	}
 
 	@Override
-	public void invoke(T value) throws Exception {
-		// if bulk processor callbacks have previously reported an error, we rethrow the error and fail the sink
-		checkErrorAndRethrow();
-
+	public void invoke(T value, Context context) throws Exception {
+		checkAsyncErrorsAndRequests();
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
 	}
 
@@ -313,18 +313,19 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		checkErrorAndRethrow();
+		checkAsyncErrorsAndRequests();
 
 		if (flushOnCheckpoint) {
-			do {
+			while (numPendingRequests.get() != 0) {
 				bulkProcessor.flush();
-				checkErrorAndRethrow();
-			} while (numPendingRequests.get() != 0);
+				checkAsyncErrorsAndRequests();
+			}
 		}
 	}
 
 	@Override
 	public void close() throws Exception {
+		elasticsearchSinkFunction.close();
 		if (bulkProcessor != null) {
 			bulkProcessor.close();
 			bulkProcessor = null;
@@ -380,7 +381,13 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		}
 	}
 
+	private void checkAsyncErrorsAndRequests() {
+		checkErrorAndRethrow();
+		failureRequestIndexer.processBufferedRequests(requestIndexer);
+	}
+
 	private class BulkProcessorListener implements BulkProcessor.Listener {
+
 		@Override
 		public void beforeBulk(long executionId, BulkRequest request) { }
 
@@ -390,19 +397,27 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 				BulkItemResponse itemResponse;
 				Throwable failure;
 				RestStatus restStatus;
+				DocWriteRequest actionRequest;
 
 				try {
 					for (int i = 0; i < response.getItems().length; i++) {
 						itemResponse = response.getItems()[i];
 						failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
 						if (failure != null) {
-							LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
-
 							restStatus = itemResponse.getFailure().getStatus();
+							actionRequest = request.requests().get(i);
 							if (restStatus == null) {
-								failureHandler.onFailure(request.requests().get(i), failure, -1, requestIndexer);
+								if (actionRequest instanceof ActionRequest) {
+									failureHandler.onFailure((ActionRequest) actionRequest, failure, -1, failureRequestIndexer);
+								} else {
+									throw new UnsupportedOperationException("The sink currently only supports ActionRequests");
+								}
 							} else {
-								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), requestIndexer);
+								if (actionRequest instanceof ActionRequest) {
+									failureHandler.onFailure((ActionRequest) actionRequest, failure, restStatus.getStatus(), failureRequestIndexer);
+								} else {
+									throw new UnsupportedOperationException("The sink currently only supports ActionRequests");
+								}
 							}
 						}
 					}
@@ -420,11 +435,13 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 		@Override
 		public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-			LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
-
 			try {
-				for (ActionRequest action : request.requests()) {
-					failureHandler.onFailure(action, failure, -1, requestIndexer);
+				for (DocWriteRequest writeRequest : request.requests()) {
+					if (writeRequest instanceof ActionRequest) {
+						failureHandler.onFailure((ActionRequest) writeRequest, failure, -1, failureRequestIndexer);
+					} else {
+						throw new UnsupportedOperationException("The sink currently only supports ActionRequests");
+					}
 				}
 			} catch (Throwable t) {
 				// fail the sink and skip the rest of the items

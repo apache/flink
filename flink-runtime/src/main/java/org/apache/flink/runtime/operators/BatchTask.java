@@ -39,7 +39,8 @@ import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -508,10 +509,11 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				stubOpen = false;
 			}
 
-			this.output.close();
-
 			// close all chained tasks letting them report failure
 			BatchTask.closeChainedTasks(this.chainedTasks, this);
+
+			// close the output collector
+			this.output.close();
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
@@ -678,7 +680,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else if (groupSize > 1){
 				// union case
-				InputGate[] readers = new InputGate[groupSize];
+				IndexedInputGate[] readers = new IndexedInputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
@@ -721,7 +723,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 						getEnvironment().getTaskManagerInfo().getTmpDirectories());
 			} else if (groupSize > 1){
 				// union case
-				InputGate[] readers = new InputGate[groupSize];
+				IndexedInputGate[] readers = new IndexedInputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
 					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
@@ -1033,7 +1035,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		Environment env = getEnvironment();
 
 		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
+				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics, env.getExternalResourceInfoProvider());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1250,8 +1252,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup, comparator, partitioner, dataDist);
 			}
 
-			final RecordWriter<SerializationDelegate<T>> recordWriter =
-					new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
+			final RecordWriter<SerializationDelegate<T>> recordWriter = new RecordWriterBuilder()
+				.setChannelSelector(oe)
+				.setTaskName(task.getEnvironment().getTaskInfo().getTaskName())
+				.build(task.getEnvironment().getWriter(outputOffset + i));
 
 			recordWriter.setMetricGroup(task.getEnvironment().getMetricGroup().getIOMetricGroup());
 

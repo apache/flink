@@ -17,17 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.NetUtils;
 
-import kafka.common.KafkaException;
 import kafka.metrics.KafkaMetricsReporter;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
@@ -40,6 +38,7 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -49,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.BindException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,7 +59,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import scala.collection.mutable.ArraySeq;
 
@@ -73,10 +76,10 @@ import static org.junit.Assert.fail;
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestEnvironmentImpl.class);
+	private final List<KafkaServer> brokers = new ArrayList<>();
 	private File tmpZkDir;
 	private File tmpKafkaParent;
 	private List<File> tmpKafkaDirs;
-	private List<KafkaServer> brokers;
 	private TestingServer zookeeper;
 	private String zookeeperConnectionString;
 	private String brokerConnectionString = "";
@@ -85,13 +88,14 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	// 6 seconds is default. Seems to be too small for travis. 30 seconds
 	private int zkTimeout = 30000;
 	private Config config;
+	private static final int DELETE_TIMEOUT_SECONDS = 30;
 
 	public void setProducerSemantic(FlinkKafkaProducer.Semantic producerSemantic) {
 		this.producerSemantic = producerSemantic;
 	}
 
 	@Override
-	public void prepare(Config config) {
+	public void prepare(Config config) throws Exception {
 		//increase the timeout since in Travis ZK connection takes long time for secure connection.
 		if (config.isSecureMode()) {
 			//run only one kafka server to avoid multiple ZK connections from many instances - Travis timeout
@@ -115,33 +119,25 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		zookeeper = null;
-		brokers = null;
+		brokers.clear();
 
-		try {
-			zookeeper = new TestingServer(-1, tmpZkDir);
-			zookeeperConnectionString = zookeeper.getConnectString();
-			LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
+		zookeeper = new TestingServer(-1, tmpZkDir);
+		zookeeperConnectionString = zookeeper.getConnectString();
+		LOG.info("Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
 
-			LOG.info("Starting KafkaServer");
-			brokers = new ArrayList<>(config.getKafkaServersNumber());
+		LOG.info("Starting KafkaServer");
 
-			ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
-			for (int i = 0; i < config.getKafkaServersNumber(); i++) {
-				KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
-				brokers.add(kafkaServer);
-				brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
-				brokerConnectionString +=  ",";
-			}
-
-			LOG.info("ZK and KafkaServer started.");
+		ListenerName listenerName = ListenerName.forSecurityProtocol(config.isSecureMode() ? SecurityProtocol.SASL_PLAINTEXT : SecurityProtocol.PLAINTEXT);
+		for (int i = 0; i < config.getKafkaServersNumber(); i++) {
+			KafkaServer kafkaServer = getKafkaServer(i, tmpKafkaDirs.get(i));
+			brokers.add(kafkaServer);
+			brokerConnectionString += hostAndPortToUrlString(KAFKA_HOST, kafkaServer.socketServer().boundPort(listenerName));
+			brokerConnectionString +=  ",";
 		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("Test setup failed: " + t.getMessage());
-		}
+
+		LOG.info("ZK and KafkaServer started.");
 
 		standardProps = new Properties();
-		standardProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		standardProps.setProperty("bootstrap.servers", brokerConnectionString);
 		standardProps.setProperty("group.id", "flink-tests");
 		standardProps.setProperty("enable.auto.commit", "false");
@@ -154,11 +150,33 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	@Override
 	public void deleteTestTopic(String topic) {
 		LOG.info("Deleting topic {}", topic);
-		try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
-			adminClient.deleteTopics(Collections.singleton(topic)).all().get();
+		Properties props = getSecureProperties();
+		props.putAll(getStandardProperties());
+		String clientId = Long.toString(new Random().nextLong());
+		props.put("client.id", clientId);
+		AdminClient adminClient = AdminClient.create(props);
+		// We do not use a try-catch clause here so we can apply a timeout to the admin client closure.
+		try {
+			tryDelete(adminClient, topic);
 		} catch (Exception e) {
 			e.printStackTrace();
-			fail("Delete test topic : " + topic + " failed, " + e.getMessage());
+			fail(String.format("Delete test topic : %s failed, %s", topic, e.getMessage()));
+		} finally {
+			adminClient.close(Duration.ofMillis(5000L));
+			maybePrintDanglingThreadStacktrace(clientId);
+		}
+	}
+
+	private void tryDelete(AdminClient adminClient, String topic)
+			throws Exception {
+		try {
+			adminClient.deleteTopics(Collections.singleton(topic)).all().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+		} catch (TimeoutException e) {
+			LOG.info("Did not receive delete topic response within {} seconds. Checking if it succeeded",
+				DELETE_TIMEOUT_SECONDS);
+			if (adminClient.listTopics().names().get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS).contains(topic)) {
+				throw new Exception("Topic still exists after timeout");
+			}
 		}
 	}
 
@@ -211,7 +229,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
+	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KafkaDeserializationSchema<T> readSchema, Properties props) {
 		return new FlinkKafkaConsumer<T>(topics, readSchema, props);
 	}
 
@@ -244,12 +262,16 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> StreamSink<T> getProducerSink(String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
-		return new StreamSink<>(new FlinkKafkaProducer<T>(
+	public <T> StreamSink<T> getProducerSink(
+			String topic,
+			SerializationSchema<T> serSchema,
+			Properties props,
+			FlinkKafkaPartitioner<T> partitioner) {
+		return new StreamSink<>(new FlinkKafkaProducer<>(
 			topic,
 			serSchema,
 			props,
-			Optional.ofNullable(partitioner),
+			partitioner,
 			producerSemantic,
 			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
 	}
@@ -266,18 +288,28 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
-		FlinkKafkaProducer<T> prod = new FlinkKafkaProducer<T>(
+	public <T> DataStreamSink<T> produceIntoKafka(
+			DataStream<T> stream,
+			String topic,
+			SerializationSchema<T> serSchema,
+			Properties props,
+			FlinkKafkaPartitioner<T> partitioner) {
+		return stream.addSink(new FlinkKafkaProducer<T>(
 			topic,
 			serSchema,
 			props,
-			Optional.of(new FlinkFixedPartitioner<>()),
+			partitioner,
 			producerSemantic,
-			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
+			FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
+	}
 
-		prod.setWriteTimestampToKafka(true);
-
-		return stream.addSink(prod);
+	@Override
+	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KafkaSerializationSchema<T> serSchema, Properties props) {
+		return stream.addSink(new FlinkKafkaProducer<T>(
+				topic,
+				serSchema,
+				props,
+				producerSemantic));
 	}
 
 	@Override
@@ -344,6 +376,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 				// ignore
 			}
 		}
+		super.shutdown();
 	}
 
 	protected KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws Exception {

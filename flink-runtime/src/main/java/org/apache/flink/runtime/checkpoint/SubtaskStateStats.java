@@ -36,7 +36,6 @@ public class SubtaskStateStats implements Serializable {
 
 	private static final long serialVersionUID = 8928594531621862214L;
 
-	/** Index of this sub task. */
 	private final int subtaskIndex;
 
 	/**
@@ -54,31 +53,20 @@ public class SubtaskStateStats implements Serializable {
 	/** Checkpoint duration at the operator (async part) in milliseconds. */
 	private final long asyncCheckpointDuration;
 
-	/** Number of buffered bytes during alignment. */
-	private final long alignmentBuffered;
-
-	/** Alignment duration in . */
+	/** Alignment duration in milliseconds. */
 	private final long alignmentDuration;
 
-	/**
-	 * Creates the stats for a single subtask.
-	 *
-	 * @param subtaskIndex Index of the subtask.
-	 * @param ackTimestamp Timestamp when the acknowledgement of this subtask was received at the coordinator.
-	 * @param stateSize Size of the checkpointed state at this subtask.
-	 * @param syncCheckpointDuration Checkpoint duration at the task (synchronous part)
-	 * @param asyncCheckpointDuration  Checkpoint duration at the task (asynchronous part)
-	 * @param alignmentBuffered Bytes buffered during stream alignment (for exactly-once only).
-	 * @param alignmentDuration Duration of the stream alignment (for exactly-once only).
-	 */
+	/** Checkpoint start delay in milliseconds. */
+	private final long checkpointStartDelay;
+
 	SubtaskStateStats(
 			int subtaskIndex,
 			long ackTimestamp,
 			long stateSize,
 			long syncCheckpointDuration,
 			long asyncCheckpointDuration,
-			long alignmentBuffered,
-			long alignmentDuration) {
+			long alignmentDuration,
+			long checkpointStartDelay) {
 
 		checkArgument(subtaskIndex >= 0, "Negative subtask index");
 		this.subtaskIndex = subtaskIndex;
@@ -87,15 +75,10 @@ public class SubtaskStateStats implements Serializable {
 		this.ackTimestamp = ackTimestamp;
 		this.syncCheckpointDuration = syncCheckpointDuration;
 		this.asyncCheckpointDuration = asyncCheckpointDuration;
-		this.alignmentBuffered = alignmentBuffered;
 		this.alignmentDuration = alignmentDuration;
+		this.checkpointStartDelay = checkpointStartDelay;
 	}
 
-	/**
-	 * Returns the subtask index.
-	 *
-	 * @return Subtask index.
-	 */
 	public int getSubtaskIndex() {
 		return subtaskIndex;
 	}
@@ -133,48 +116,30 @@ public class SubtaskStateStats implements Serializable {
 	}
 
 	/**
-	 * Returns the duration of the synchronous part of the checkpoint.
-	 *
-	 * <p>Can return <code>-1</code> if the runtime did not report this.
-	 *
-	 * @return Duration of the synchronous part of the checkpoint or <code>-1</code>.
+	 * @return Duration of the synchronous part of the checkpoint or <code>-1</code> if the runtime
+	 * did not report this.
 	 */
 	public long getSyncCheckpointDuration() {
 		return syncCheckpointDuration;
 	}
 
 	/**
-	 * Returns the duration of the asynchronous part of the checkpoint.
-	 *
-	 * <p>Can return <code>-1</code> if the runtime did not report this.
-	 *
-	 * @return Duration of the asynchronous part of the checkpoint or <code>-1</code>.
+	 * @return Duration of the asynchronous part of the checkpoint or <code>-1</code> if the runtime
+	 * did not report this.
 	 */
 	public long getAsyncCheckpointDuration() {
 		return asyncCheckpointDuration;
 	}
 
 	/**
-	 * Returns the number of bytes buffered during stream alignment (for
-	 * exactly-once only).
-	 *
-	 * <p>Can return <code>-1</code> if the runtime did not report this.
-	 *
-	 * @return Number of bytes buffered during stream alignment or <code>-1</code>.
-	 */
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
-	}
-
-	/**
-	 * Returns the duration of the stream alignment (for exactly-once only).
-	 *
-	 * <p>Can return <code>-1</code> if the runtime did not report this.
-	 *
-	 * @return Duration of the stream alignment or <code>-1</code>.
+	 * @return Duration of the stream alignment (for exactly-once only) or <code>-1</code> if the
+	 * runtime did not report this.
 	 */
 	public long getAlignmentDuration() {
 		return alignmentDuration;
 	}
 
+	public long getCheckpointStartDelay() {
+		return checkpointStartDelay;
+	}
 }

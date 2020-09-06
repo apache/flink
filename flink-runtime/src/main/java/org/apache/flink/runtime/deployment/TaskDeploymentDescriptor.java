@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -34,8 +35,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Files;
-import java.util.Collection;
+import java.util.List;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.
@@ -134,10 +134,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final int attemptNumber;
 
 	/** The list of produced intermediate result partition deployment descriptors. */
-	private final Collection<ResultPartitionDeploymentDescriptor> producedPartitions;
+	private final List<ResultPartitionDeploymentDescriptor> producedPartitions;
 
 	/** The list of consumed intermediate result partitions. */
-	private final Collection<InputGateDeploymentDescriptor> inputGates;
+	private final List<InputGateDeploymentDescriptor> inputGates;
 
 	/** Slot number to run the sub task in on the target machine. */
 	private final int targetSlotNumber;
@@ -156,8 +156,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		int attemptNumber,
 		int targetSlotNumber,
 		@Nullable JobManagerTaskRestore taskRestore,
-		Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
-		Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
+		List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
+		List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 
 		this.jobId = Preconditions.checkNotNull(jobId);
 
@@ -185,10 +185,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/**
 	 * Return the sub task's serialized job information.
 	 *
-	 * @return serialized job information (may be <tt>null</tt> before a call to {@link
-	 * #loadBigData(PermanentBlobService)}).
+	 * @return serialized job information (may throw {@link IllegalStateException} if {@link
+	 * #loadBigData(PermanentBlobService)} is not called beforehand).
+	 * @throws IllegalStateException If job information is offloaded to BLOB store.
 	 */
-	@Nullable
 	public SerializedValue<JobInformation> getSerializedJobInformation() {
 		if (serializedJobInformation instanceof NonOffloaded) {
 			NonOffloaded<JobInformation> jobInformation =
@@ -203,15 +203,15 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/**
 	 * Return the sub task's serialized task information.
 	 *
-	 * @return serialized task information (may be <tt>null</tt> before a call to {@link
-	 * #loadBigData(PermanentBlobService)}).
+	 * @return serialized task information (may throw {@link IllegalStateException} if {@link
+	 * #loadBigData(PermanentBlobService)} is not called beforehand)).
+	 * @throws IllegalStateException If job information is offloaded to BLOB store.
 	 */
-	@Nullable
 	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
-		if (serializedJobInformation instanceof NonOffloaded) {
-			NonOffloaded<TaskInformation> jobInformation =
+		if (serializedTaskInformation instanceof NonOffloaded) {
+			NonOffloaded<TaskInformation> taskInformation =
 				(NonOffloaded<TaskInformation>) serializedTaskInformation;
-			return jobInformation.serializedValue;
+			return taskInformation.serializedValue;
 		} else {
 			throw new IllegalStateException(
 				"Trying to work with offloaded serialized job information.");
@@ -256,11 +256,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return targetSlotNumber;
 	}
 
-	public Collection<ResultPartitionDeploymentDescriptor> getProducedPartitions() {
+	public List<ResultPartitionDeploymentDescriptor> getProducedPartitions() {
 		return producedPartitions;
 	}
 
-	public Collection<InputGateDeploymentDescriptor> getInputGates() {
+	public List<InputGateDeploymentDescriptor> getInputGates() {
 		return inputGates;
 	}
 
@@ -300,7 +300,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			//       (it is deleted automatically on the BLOB server and cache when the job
 			//       enters a terminal state)
 			SerializedValue<JobInformation> serializedValue =
-				SerializedValue.fromBytes(Files.readAllBytes(dataFile.toPath()));
+				SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath()));
 			serializedJobInformation = new NonOffloaded<>(serializedValue);
 		}
 
@@ -315,7 +315,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			//       (it is deleted automatically on the BLOB server and cache when the job
 			//       enters a terminal state)
 			SerializedValue<TaskInformation> serializedValue =
-				SerializedValue.fromBytes(Files.readAllBytes(dataFile.toPath()));
+				SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath()));
 			serializedTaskInformation = new NonOffloaded<>(serializedValue);
 		}
 

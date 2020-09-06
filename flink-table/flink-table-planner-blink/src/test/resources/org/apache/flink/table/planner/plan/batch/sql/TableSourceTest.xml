@@ -1,0 +1,79 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testNestedProject">
+    <Resource name="sql">
+      <![CDATA[
+SELECT id,
+    deepNested.nested1.name AS nestedName,
+    nested.`value` AS nestedValue,
+    deepNested.nested2.flag AS nestedFlag,
+    deepNested.nested2.num AS nestedNum
+FROM NestedTable
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[id, deepNested.nested1.name AS nestedName, nested.value AS nestedValue, deepNested.nested2.flag AS nestedFlag, deepNested.nested2.num AS nestedNum])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested, nested]]], fields=[id, deepNested, nested])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutInputRef">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(1) FROM ProjectableTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[]]], fields=[])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

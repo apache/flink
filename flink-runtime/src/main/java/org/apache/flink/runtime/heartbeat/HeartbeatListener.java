@@ -20,8 +20,6 @@ package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * Interface for the interaction with the {@link HeartbeatManager}. The heartbeat listener is used
  * for the following things:
@@ -54,11 +52,10 @@ public interface HeartbeatListener<I, O> {
 	void reportPayload(ResourceID resourceID, I payload);
 
 	/**
-	 * Retrieves the payload value for the next heartbeat message. Since the operation can happen
-	 * asynchronously, the result is returned wrapped in a future.
+	 * Retrieves the payload value for the next heartbeat message.
 	 *
 	 * @param resourceID Resource ID identifying the receiver of the payload
-	 * @return Future containing the next payload for heartbeats
+	 * @return The payload for the next heartbeat
 	 */
-	CompletableFuture<O> retrievePayload(ResourceID resourceID);
+	O retrievePayload(ResourceID resourceID);
 }

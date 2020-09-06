@@ -38,7 +38,7 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 
 	private static final String ADDRESS = "123.123.123.123";
 	private static final String BIND_ADDRESS = "023.023.023.023";
-	private static final int PORT = 7282;
+	private static final String BIND_PORT = "7282";
 	private static final int CONTENT_LENGTH = 1234;
 
 	@Rule
@@ -49,14 +49,14 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 		Configuration originalConfig = new Configuration();
 		originalConfig.setString(RestOptions.ADDRESS, ADDRESS);
 		originalConfig.setString(RestOptions.BIND_ADDRESS, BIND_ADDRESS);
-		originalConfig.setInteger(RestOptions.PORT, PORT);
+		originalConfig.setString(RestOptions.BIND_PORT, BIND_PORT);
 		originalConfig.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, CONTENT_LENGTH);
 		originalConfig.setString(WebOptions.TMP_DIR, temporaryFolder.getRoot().getAbsolutePath());
 
 		final RestServerEndpointConfiguration result = RestServerEndpointConfiguration.fromConfiguration(originalConfig);
 		Assert.assertEquals(ADDRESS, result.getRestAddress());
 		Assert.assertEquals(BIND_ADDRESS, result.getRestBindAddress());
-		Assert.assertEquals(PORT, result.getRestBindPort());
+		Assert.assertEquals(BIND_PORT, result.getRestBindPortRange());
 		Assert.assertEquals(CONTENT_LENGTH, result.getMaxContentLength());
 		Assert.assertThat(
 			result.getUploadDir().toAbsolutePath().toString(),

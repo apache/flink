@@ -20,7 +20,6 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
 import org.junit.After;
@@ -56,7 +55,11 @@ public class MemorySegmentSimpleTest {
 	@Before
 	public void setUp() throws Exception{
 		try {
-			this.manager = new MemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+			this.manager = MemoryManagerBuilder
+				.newBuilder()
+				.setMemorySize(MANAGED_MEMORY_SIZE)
+				.setPageSize(PAGE_SIZE)
+				.build();
 			this.segment = manager.allocatePages(new DummyInvokable(), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {

@@ -265,6 +265,11 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		}
 
 		@Override
+		protected String getAsyncOperationDescription() {
+			return "";
+		}
+
+		@Override
 		public Class<EmptyRequestBody> getRequestClass() {
 			return EmptyRequestBody.class;
 		}
@@ -292,7 +297,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		private TestingStatusMessageHeaders() {}
 
 		@Override
-		protected Class<OperationResult> getValueClass() {
+		public Class<OperationResult> getValueClass() {
 			return OperationResult.class;
 		}
 

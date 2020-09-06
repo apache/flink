@@ -37,12 +37,12 @@ class TtlMapStatePerElementTestContext extends TtlMapStateTestContext<String, St
 	}
 
 	@Override
-	void update(String value) throws Exception {
+	public void update(String value) throws Exception {
 		ttlState.put(TEST_KEY, value);
 	}
 
 	@Override
-	String get() throws Exception {
+	public String get() throws Exception {
 		String value = ttlState.get(TEST_KEY);
 		assert (getOriginal() == null && !ttlState.contains(TEST_KEY)) ||
 			(getOriginal() != null && ttlState.contains(TEST_KEY));
@@ -50,7 +50,7 @@ class TtlMapStatePerElementTestContext extends TtlMapStateTestContext<String, St
 	}
 
 	@Override
-	Object getOriginal() throws Exception {
+	public Object getOriginal() throws Exception {
 		return ttlState.original.get(TEST_KEY);
 	}
 }

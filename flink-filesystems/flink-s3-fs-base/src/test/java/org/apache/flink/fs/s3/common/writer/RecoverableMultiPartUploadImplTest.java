@@ -19,7 +19,8 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
@@ -35,8 +36,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -319,7 +320,7 @@ public class RecoverableMultiPartUploadImplTest {
 		final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
 
 		final RefCountedBufferingFileStream testStream =
-				new RefCountedBufferingFileStream(RefCountedFile.newFile(newFile, out), BUFFER_SIZE);
+				new RefCountedBufferingFileStream(RefCountedFileWithStream.newFile(newFile, out), BUFFER_SIZE);
 
 		testStream.write(content, 0, content.length);
 		return testStream;
@@ -361,25 +362,25 @@ public class RecoverableMultiPartUploadImplTest {
 		}
 
 		@Override
-		public UploadPartResult uploadPart(String key, String uploadId, int partNumber, InputStream file, long length) throws IOException {
-			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
+		public UploadPartResult uploadPart(String key, String uploadId, int partNumber, File inputFile, long length) throws IOException {
+			final byte[] content = getFileContentBytes(inputFile, MathUtils.checkedDownCast(length));
 			return storeAndGetUploadPartResult(key, partNumber, content);
 		}
 
 		@Override
-		public PutObjectResult putObject(String key, InputStream file, long length) throws IOException {
-			final byte[] content = getFileContentBytes(file, MathUtils.checkedDownCast(length));
+		public PutObjectResult putObject(String key, File inputFile) throws IOException {
+			final byte[] content = getFileContentBytes(inputFile, MathUtils.checkedDownCast(inputFile.length()));
 			return storeAndGetPutObjectResult(key, content);
 		}
 
 		@Override
 		public boolean deleteObject(String key) throws IOException {
-			return false;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public long getObject(String key, File targetLocation) throws IOException {
-			return 0;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -394,12 +395,12 @@ public class RecoverableMultiPartUploadImplTest {
 
 		@Override
 		public ObjectMetadata getObjectMetadata(String key) throws IOException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
-		private byte[] getFileContentBytes(InputStream file, int length) throws IOException {
+		private byte[] getFileContentBytes(File file, int length) throws IOException {
 			final byte[] content = new byte[length];
-			file.read(content, 0, length);
+			IOUtils.readFully(new FileInputStream(file), content, 0, length);
 			return content;
 		}
 

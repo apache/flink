@@ -150,7 +150,7 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
       outputs.getOrElseUpdate(outputTag, ListBuffer.empty).append(value)
     }
 
-    override def timestamp(): lang.Long = null
+    override def timestamp(): Long = 0
 
     override def currentProcessingTime(): Long = System.currentTimeMillis()
   }

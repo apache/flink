@@ -177,4 +177,12 @@ public class TypeSerializerSchemaCompatibility<T> {
 	public boolean isIncompatible() {
 		return resultType == Type.INCOMPATIBLE;
 	}
+
+	@Override
+	public String toString() {
+		return "TypeSerializerSchemaCompatibility{" +
+				"resultType=" + resultType +
+				", reconfiguredNewSerializer=" + reconfiguredNewSerializer +
+				'}';
+	}
 }

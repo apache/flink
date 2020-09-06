@@ -24,15 +24,32 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.net.ssl.SSLServerSocket;
 
+import java.io.File;
+import java.io.InputStream;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.security.KeyStore;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -43,6 +60,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link SSLUtils}.
  */
+@RunWith(Parameterized.class)
 public class SSLUtilsTest extends TestLogger {
 
 	private static final String TRUST_STORE_PATH = SSLUtilsTest.class.getResource("/local127.truststore").getFile();
@@ -51,6 +69,26 @@ public class SSLUtilsTest extends TestLogger {
 	private static final String TRUST_STORE_PASSWORD = "password";
 	private static final String KEY_STORE_PASSWORD = "password";
 	private static final String KEY_PASSWORD = "password";
+
+	public static final List<String> AVAILABLE_SSL_PROVIDERS;
+	static {
+		if (System.getProperty("flink.tests.with-openssl") != null) {
+			assertTrue(
+				"openSSL not available but required (property 'flink.tests.with-openssl' is set)",
+				OpenSsl.isAvailable());
+			AVAILABLE_SSL_PROVIDERS = Arrays.asList("JDK", "OPENSSL");
+		} else {
+			AVAILABLE_SSL_PROVIDERS = Collections.singletonList("JDK");
+		}
+	}
+
+	@Parameterized.Parameter
+	public String sslProvider;
+
+	@Parameterized.Parameters(name = "SSL provider = {0}")
+	public static List<String> parameters() {
+		return AVAILABLE_SSL_PROVIDERS;
+	}
 
 	/**
 	 * Tests whether activation of internal / REST SSL evaluates the config flags correctly.
@@ -253,6 +291,15 @@ public class SSLUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testInternalSSLWithSSLPinning() throws Exception {
+		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, getCertificateFingerprint(config, "flink.test"));
+
+		assertNotNull(SSLUtils.createInternalServerSSLEngineFactory(config));
+		assertNotNull(SSLUtils.createInternalClientSSLEngineFactory(config));
+	}
+
+	@Test
 	public void testInternalSSLDisables() throws Exception {
 		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, false);
@@ -380,66 +427,131 @@ public class SSLUtilsTest extends TestLogger {
 	@Test
 	public void testCreateSSLEngineFactory() throws Exception {
 		Configuration serverConfig = createInternalSslConfigWithKeyAndTrustStores();
+		final String[] sslAlgorithms;
+		final String[] expectedSslProtocols;
+		if (sslProvider.equalsIgnoreCase("OPENSSL")) {
+			// openSSL does not support the same set of cipher algorithms!
+			sslAlgorithms = new String[] {"TLS_RSA_WITH_AES_128_GCM_SHA256", "TLS_RSA_WITH_AES_256_GCM_SHA384"};
+			expectedSslProtocols = new String[] {"SSLv2Hello", "TLSv1"};
+		} else {
+			sslAlgorithms = new String[] {"TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"};
+			expectedSslProtocols = new String[] {"TLSv1"};
+		}
 
 		// set custom protocol and cipher suites
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
-		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
+		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, String.join(",", sslAlgorithms));
 
 		final SSLHandlerFactory serverSSLHandlerFactory = SSLUtils.createInternalServerSSLEngineFactory(serverConfig);
-		final SslHandler sslHandler = serverSSLHandlerFactory.createNettySSLHandler();
+		final SslHandler sslHandler = serverSSLHandlerFactory.createNettySSLHandler(UnpooledByteBufAllocator.DEFAULT);
 
-		assertEquals(1, sslHandler.engine().getEnabledProtocols().length);
-		assertEquals("TLSv1", sslHandler.engine().getEnabledProtocols()[0]);
+		assertEquals(expectedSslProtocols.length, sslHandler.engine().getEnabledProtocols().length);
+		assertThat(
+			sslHandler.engine().getEnabledProtocols(),
+			arrayContainingInAnyOrder(expectedSslProtocols));
 
-		assertEquals(2, sslHandler.engine().getEnabledCipherSuites().length);
-		assertThat(sslHandler.engine().getEnabledCipherSuites(), arrayContainingInAnyOrder(
-				"TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
+		assertEquals(sslAlgorithms.length, sslHandler.engine().getEnabledCipherSuites().length);
+		assertThat(
+			sslHandler.engine().getEnabledCipherSuites(),
+			arrayContainingInAnyOrder(sslAlgorithms));
+	}
+
+	@Test
+	public void testInvalidFingerprintParsing() throws Exception {
+		final Configuration config = createInternalSslConfigWithKeyAndTrustStores();
+		final String fingerprint = getCertificateFingerprint(config, "flink.test");
+
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, fingerprint.substring(0, fingerprint.length() - 3));
+
+		try {
+			SSLUtils.createInternalServerSSLEngineFactory(config);
+			fail("expected exception");
+		}
+		catch (IllegalArgumentException e) {
+			assertThat(e.getMessage(), containsString("malformed fingerprint"));
+		}
 	}
 
 	// ------------------------------- utils ----------------------------------
 
-	public static Configuration createRestSslConfigWithKeyStore() {
+	private Configuration createRestSslConfigWithKeyStore() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		addSslProviderConfig(config, sslProvider);
 		addRestKeyStoreConfig(config);
 		return config;
 	}
 
-	public static Configuration createRestSslConfigWithTrustStore() {
+	private Configuration createRestSslConfigWithTrustStore() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		addSslProviderConfig(config, sslProvider);
 		addRestTrustStoreConfig(config);
 		return config;
 	}
 
-	public static Configuration createRestSslConfigWithKeyAndTrustStores() {
+	public static Configuration createRestSslConfigWithKeyAndTrustStores(String sslProvider) {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		addSslProviderConfig(config, sslProvider);
 		addRestKeyStoreConfig(config);
 		addRestTrustStoreConfig(config);
 		return config;
 	}
 
-	public static Configuration createInternalSslConfigWithKeyStore() {
+	private Configuration createInternalSslConfigWithKeyStore() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+		addSslProviderConfig(config, sslProvider);
 		addInternalKeyStoreConfig(config);
 		return config;
 	}
 
-	public static Configuration createInternalSslConfigWithTrustStore() {
+	private Configuration createInternalSslConfigWithTrustStore() {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+		addSslProviderConfig(config, sslProvider);
 		addInternalTrustStoreConfig(config);
 		return config;
 	}
 
-	public static Configuration createInternalSslConfigWithKeyAndTrustStores() {
+	private Configuration createInternalSslConfigWithKeyAndTrustStores() {
+		return createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+	}
+
+	public static Configuration createInternalSslConfigWithKeyAndTrustStores(String sslProvider) {
 		final Configuration config = new Configuration();
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+		addSslProviderConfig(config, sslProvider);
 		addInternalKeyStoreConfig(config);
 		addInternalTrustStoreConfig(config);
 		return config;
+	}
+
+	public static String getCertificateFingerprint(Configuration config, String certificateAlias) throws Exception {
+		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		try (InputStream keyStoreFile = Files.newInputStream(new File(config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE)).toPath())) {
+			keyStore.load(keyStoreFile, config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD).toCharArray());
+		}
+		return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+	}
+
+	public static String getRestCertificateFingerprint(Configuration config, String certificateAlias) throws Exception {
+		KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+		try (InputStream keyStoreFile = Files.newInputStream(new File(config.getString(SecurityOptions.SSL_REST_KEYSTORE)).toPath())) {
+			keyStore.load(keyStoreFile, config.getString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD).toCharArray());
+		}
+		return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+	}
+
+	private static void addSslProviderConfig(Configuration config, String sslProvider) {
+		if (sslProvider.equalsIgnoreCase("OPENSSL")) {
+			assertTrue("openSSL not available", OpenSsl.isAvailable());
+
+			// Flink's default algorithm set is not available for openSSL - choose a different one:
+			config.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+		}
+		config.setString(SecurityOptions.SSL_PROVIDER, sslProvider);
 	}
 
 	private static void addRestKeyStoreConfig(Configuration config) {
@@ -462,5 +574,34 @@ public class SSLUtilsTest extends TestLogger {
 	private static void addInternalTrustStoreConfig(Configuration config) {
 		config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_PATH);
 		config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
+	}
+
+	private static String getSha1Fingerprint(Certificate cert) {
+		if (cert == null) {
+			return null;
+		}
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA1");
+			return toHexadecimalString(digest.digest(cert.getEncoded()));
+		} catch (NoSuchAlgorithmException | CertificateEncodingException e) {
+			// ignore
+		}
+		return null;
+	}
+
+	private static String toHexadecimalString(byte[] value) {
+		StringBuilder sb = new StringBuilder();
+		int len = value.length;
+		for (int i = 0; i < len; i++) {
+			int num = ((int) value[i]) & 0xff;
+			if (num < 0x10) {
+				sb.append('0');
+			}
+			sb.append(Integer.toHexString(num));
+			if (i < len - 1) {
+				sb.append(':');
+			}
+		}
+		return sb.toString().toUpperCase(Locale.US);
 	}
 }

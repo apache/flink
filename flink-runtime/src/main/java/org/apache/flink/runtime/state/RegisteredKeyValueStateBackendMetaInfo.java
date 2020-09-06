@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
@@ -48,8 +49,8 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	private final StateSerializerProvider<N> namespaceSerializerProvider;
 	@Nonnull
 	private final StateSerializerProvider<S> stateSerializerProvider;
-	@Nullable
-	private StateSnapshotTransformer<S> snapshotTransformer;
+	@Nonnull
+	private StateSnapshotTransformFactory<S> stateSnapshotTransformFactory;
 
 	public RegisteredKeyValueStateBackendMetaInfo(
 		@Nonnull StateDescriptor.Type stateType,
@@ -62,7 +63,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			name,
 			StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
 			StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
-			null);
+			StateSnapshotTransformFactory.noTransform());
 	}
 
 	public RegisteredKeyValueStateBackendMetaInfo(
@@ -70,14 +71,14 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		@Nonnull String name,
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull TypeSerializer<S> stateSerializer,
-		@Nullable StateSnapshotTransformer<S> snapshotTransformer) {
+		@Nonnull StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
 
 		this(
 			stateType,
 			name,
 			StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
 			StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
-			snapshotTransformer);
+			stateSnapshotTransformFactory);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -91,7 +92,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			StateSerializerProvider.fromPreviousSerializerSnapshot(
 				(TypeSerializerSnapshot<S>) Preconditions.checkNotNull(
 					snapshot.getTypeSerializerSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER))),
-			null);
+			StateSnapshotTransformFactory.noTransform());
 
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
 	}
@@ -101,13 +102,13 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		@Nonnull String name,
 		@Nonnull StateSerializerProvider<N> namespaceSerializerProvider,
 		@Nonnull StateSerializerProvider<S> stateSerializerProvider,
-		@Nullable StateSnapshotTransformer<S> snapshotTransformer) {
+		@Nonnull StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
 
 		super(name);
 		this.stateType = stateType;
 		this.namespaceSerializerProvider = namespaceSerializerProvider;
 		this.stateSerializerProvider = stateSerializerProvider;
-		this.snapshotTransformer = snapshotTransformer;
+		this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
 	}
 
 	@Nonnull
@@ -146,12 +147,17 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	}
 
 	@Nullable
-	public StateSnapshotTransformer<S> getSnapshotTransformer() {
-		return snapshotTransformer;
+	public TypeSerializerSnapshot<S> getPreviousStateSerializerSnapshot() {
+		return stateSerializerProvider.previousSerializerSnapshot;
 	}
 
-	public void updateSnapshotTransformer(StateSnapshotTransformer<S> snapshotTransformer) {
-		this.snapshotTransformer = snapshotTransformer;
+	@Nonnull
+	public StateSnapshotTransformFactory<S> getStateSnapshotTransformFactory() {
+		return stateSnapshotTransformFactory;
+	}
+
+	public void updateSnapshotTransformFactory(StateSnapshotTransformFactory<S> stateSnapshotTransformFactory) {
+		this.stateSnapshotTransformFactory = stateSnapshotTransformFactory;
 	}
 
 	@Override

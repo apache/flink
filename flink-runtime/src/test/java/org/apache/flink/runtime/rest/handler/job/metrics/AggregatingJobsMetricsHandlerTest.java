@@ -67,7 +67,7 @@ public class AggregatingJobsMetricsHandlerTest extends AggregatingMetricsHandler
 	}
 
 	@Override
-	protected AggregatingJobsMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher<?> fetcher) {
+	protected AggregatingJobsMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher fetcher) {
 		return new AggregatingJobsMetricsHandler(
 			leaderRetriever,
 			timeout,

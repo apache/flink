@@ -24,9 +24,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -36,23 +34,23 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -65,7 +63,11 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -86,14 +88,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * This test checks that task restores that get stuck in the presence of interrupts
@@ -180,11 +181,7 @@ public class InterruptSensitiveRestoreTest {
 			StreamStateHandle state,
 			int mode) throws IOException {
 
-		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
-		NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
-		when(networkEnvironment.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class)))
-				.thenReturn(mock(TaskKvStateRegistry.class));
-		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+		ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
 
 		Collection<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
 		Collection<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
@@ -251,9 +248,6 @@ public class InterruptSensitiveRestoreTest {
 			SourceStreamTask.class.getName(),
 			taskConfig);
 
-		BlobCacheService blobService =
-			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
-
 		TestTaskStateManager taskStateManager = new TestTaskStateManager();
 		taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
 		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
@@ -273,19 +267,20 @@ public class InterruptSensitiveRestoreTest {
 			0,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
-			networkEnvironment,
+			shuffleEnvironment,
+			new KvStateService(new KvStateRegistry(), null, null),
 			mock(BroadcastVariableManager.class),
+			new TaskEventDispatcher(),
+			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
 			taskStateManager,
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
-			blobService,
-			new BlobLibraryCacheManager(
-				blobService.getPermanentBlobService(),
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
-				new String[0]),
+			new NoOpTaskOperatorEventGateway(),
+			new TestGlobalAggregateManager(),
+			TestingClassLoaderLease.newBuilder().build(),
 			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() },
-				blobService.getPermanentBlobService()),
+				VoidPermanentBlobService.INSTANCE),
 			new TestingTaskManagerRuntimeInfo(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 			new NoOpResultPartitionConsumableNotifier(),
@@ -332,6 +327,11 @@ public class InterruptSensitiveRestoreTest {
 			};
 
 			return is;
+		}
+
+		@Override
+		public Optional<byte[]> asBytesIfInMemory() {
+			return Optional.empty();
 		}
 
 		private void block() {

@@ -101,9 +101,9 @@ object TopSpeedWindowing {
         })
       }
 
-    val topSeed = cars
+    val topSpeeds = cars
       .assignAscendingTimestamps( _.time )
-      .keyBy("carId")
+      .keyBy(_.carId)
       .window(GlobalWindows.create)
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
       .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {
@@ -115,10 +115,10 @@ object TopSpeedWindowing {
       .maxBy("speed")
 
     if (params.has("output")) {
-      topSeed.writeAsText(params.get("output"))
+      topSpeeds.writeAsText(params.get("output"))
     } else {
       println("Printing result to stdout. Use --output to specify output path.")
-      topSeed.print()
+      topSpeeds.print()
     }
 
     env.execute("TopSpeedWindowing")

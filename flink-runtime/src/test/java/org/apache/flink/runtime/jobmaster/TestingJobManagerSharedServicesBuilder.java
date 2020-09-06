@@ -18,17 +18,16 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
-import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureRequestCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import java.util.concurrent.ScheduledExecutorService;
-
-import static org.mockito.Mockito.mock;
 
 /**
  * Builder for the {@link JobManagerSharedServices}.
@@ -39,18 +38,18 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	private LibraryCacheManager libraryCacheManager;
 
-	private RestartStrategyFactory restartStrategyFactory;
-
-	private StackTraceSampleCoordinator stackTraceSampleCoordinator;
+	private BackPressureRequestCoordinator backPressureSampleCoordinator;
 
 	private BackPressureStatsTracker backPressureStatsTracker;
 
+	private BlobWriter blobWriter;
+
 	public TestingJobManagerSharedServicesBuilder() {
 		scheduledExecutorService = TestingUtils.defaultExecutor();
-		libraryCacheManager = mock(LibraryCacheManager.class);
-		restartStrategyFactory = new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();
-		stackTraceSampleCoordinator = mock(StackTraceSampleCoordinator.class);
+		libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
+		backPressureSampleCoordinator = new BackPressureRequestCoordinator(Runnable::run, 10000);
 		backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
+		blobWriter = VoidBlobWriter.getInstance();
 	}
 
 	public TestingJobManagerSharedServicesBuilder setScheduledExecutorService(ScheduledExecutorService scheduledExecutorService) {
@@ -64,13 +63,8 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	}
 
-	public TestingJobManagerSharedServicesBuilder setRestartStrategyFactory(RestartStrategyFactory restartStrategyFactory) {
-		this.restartStrategyFactory = restartStrategyFactory;
-		return this;
-	}
-
-	public TestingJobManagerSharedServicesBuilder setStackTraceSampleCoordinator(StackTraceSampleCoordinator stackTraceSampleCoordinator) {
-		this.stackTraceSampleCoordinator = stackTraceSampleCoordinator;
+	public TestingJobManagerSharedServicesBuilder setBackPressureSampleCoordinator(BackPressureRequestCoordinator backPressureSampleCoordinator) {
+		this.backPressureSampleCoordinator = backPressureSampleCoordinator;
 		return this;
 	}
 
@@ -80,12 +74,16 @@ public class TestingJobManagerSharedServicesBuilder {
 
 	}
 
+	public void setBlobWriter(BlobWriter blobWriter) {
+		this.blobWriter = blobWriter;
+	}
+
 	public JobManagerSharedServices build() {
 		return new JobManagerSharedServices(
 			scheduledExecutorService,
 			libraryCacheManager,
-			restartStrategyFactory,
-			stackTraceSampleCoordinator,
-			backPressureStatsTracker);
+			backPressureSampleCoordinator,
+			backPressureStatsTracker,
+			blobWriter);
 	}
 }

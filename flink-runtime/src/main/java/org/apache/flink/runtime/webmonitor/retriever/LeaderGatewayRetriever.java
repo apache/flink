@@ -97,24 +97,14 @@ public abstract class LeaderGatewayRetriever<T extends RpcGateway> extends Leade
 
 		final CompletableFuture<T> oldGatewayFuture = atomicGatewayFuture.getAndSet(newGatewayFuture);
 
-		// check if the old gateway future was the initial future
-		if (oldGatewayFuture == initialGatewayFuture) {
-			// we have to complete it because a caller might wait on the initial future
-			newGatewayFuture.whenComplete(
-				(t, throwable) -> {
-					if (throwable != null) {
-						oldGatewayFuture.completeExceptionally(throwable);
-					} else {
-						oldGatewayFuture.complete(t);
-					}
-				});
-
-			// free the initial gateway future
-			initialGatewayFuture = null;
-		} else {
-			// try to cancel old gateway retrieval operation
-			oldGatewayFuture.cancel(false);
-		}
+		newGatewayFuture.whenComplete(
+			(t, throwable) -> {
+				if (throwable != null) {
+					oldGatewayFuture.completeExceptionally(throwable);
+				} else {
+					oldGatewayFuture.complete(t);
+				}
+			});
 	}
 
 	protected abstract CompletableFuture<T> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture);

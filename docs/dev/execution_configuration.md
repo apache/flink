@@ -42,8 +42,9 @@ var executionConfig = env.getConfig
 
 The following configuration options are available: (the default is bold)
 
-- **`enableClosureCleaner()`** / `disableClosureCleaner()`. The closure cleaner is enabled by default. The closure cleaner removes unneeded references to the surrounding class of anonymous functions inside Flink programs.
-With the closure cleaner disabled, it might happen that an anonymous user function is referencing the surrounding class, which is usually not Serializable. This will lead to exceptions by the serializer.
+- `setClosureCleanerLevel()`. The closure cleaner level is set to `ClosureCleanerLevel.RECURSIVE` by default. The closure cleaner removes unneeded references to the surrounding class of anonymous functions inside Flink programs.
+With the closure cleaner disabled, it might happen that an anonymous user function is referencing the surrounding class, which is usually not Serializable. This will lead to exceptions by the serializer. The settings are:
+`NONE`: disable the closure cleaner completely, `TOP_LEVEL`: clean only the top-level class without recursing into fields, `RECURSIVE`: clean all the fields recursively.
 
 - `getParallelism()` / `setParallelism(int parallelism)` Set the default parallelism for the job.
 
@@ -57,11 +58,9 @@ With the closure cleaner disabled, it might happen that an anonymous user functi
 
 - `enableForceKryo()` / **`disableForceKryo`**. Kryo is not forced by default. Forces the GenericTypeInformation to use the Kryo serializer for POJOs even though we could analyze them as a POJO. In some cases this might be preferable. For example, when Flink's internal serializers fail to handle a POJO properly.
 
-- `enableForceAvro()` / **`disableForceAvro()`**. Avro is not forced by default. Forces the Flink AvroTypeInformation to use the Avro serializer instead of Kryo for serializing Avro POJOs.
+- `enableForceAvro()` / **`disableForceAvro()`**. Avro is not forced by default. Forces the Flink AvroTypeInfo to use the Avro serializer instead of Kryo for serializing Avro POJOs.
 
 - `enableObjectReuse()` / **`disableObjectReuse()`** By default, objects are not reused in Flink. Enabling the object reuse mode will instruct the runtime to reuse user objects for better performance. Keep in mind that this can lead to bugs when the user-code function of an operation is not aware of this behavior.
-
-- **`enableSysoutLogging()`** / `disableSysoutLogging()` JobManager status updates are printed to `System.out` by default. This setting allows to disable this behavior.
 
 - `getGlobalJobParameters()` / `setGlobalJobParameters()` This method allows users to set custom objects as a global configuration for the job. Since the `ExecutionConfig` is accessible in all user defined functions, this is an easy method for making configuration globally available in a job.
 

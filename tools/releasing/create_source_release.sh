@@ -62,10 +62,14 @@ git clone ${FLINK_DIR} ${CLONE_DIR}
 cd ${CLONE_DIR}
 
 rsync -a \
-  --exclude ".git" --exclude ".gitignore" --exclude ".gitattributes" --exclude ".travis.yml" \
+  --exclude ".git" --exclude ".gitignore" --exclude ".gitattributes" --exclude "azure-pipelines.yml" --exclude ".asf.yaml" \
   --exclude "CHANGELOG" --exclude ".github" --exclude "target" \
   --exclude ".idea" --exclude "*.iml" --exclude ".DS_Store" --exclude "build-target" \
   --exclude "docs/content" --exclude ".rubydeps" \
+  --exclude "flink-python/lib/pyflink.zip"  --exclude "flink-python/build" \
+  --exclude "flink-python/dist" --exclude "flink-python/apache_flink.egg-info" \
+  --exclude "flink-python/.tox" --exclude "flink-python/.cache" \
+  --exclude "flink-python/.pytest_cache" \
   . flink-$RELEASE_VERSION
 
 tar czf ${RELEASE_DIR}/flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION

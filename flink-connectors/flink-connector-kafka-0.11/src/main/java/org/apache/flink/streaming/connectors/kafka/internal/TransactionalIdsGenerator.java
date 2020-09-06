@@ -91,6 +91,6 @@ public class TransactionalIdsGenerator {
 	}
 
 	private String generateTransactionalId(long transactionalId) {
-		return String.format(prefix + "-%d", transactionalId);
+		return prefix + "-" + transactionalId;
 	}
 }

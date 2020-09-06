@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -41,28 +42,34 @@ public class BufferOrEvent {
 	 */
 	private boolean moreAvailable;
 
-	private int channelIndex;
+	private InputChannelInfo channelInfo;
 
-	BufferOrEvent(Buffer buffer, int channelIndex, boolean moreAvailable) {
+	private final int size;
+
+	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo, boolean moreAvailable) {
 		this.buffer = checkNotNull(buffer);
 		this.event = null;
-		this.channelIndex = channelIndex;
+		this.channelInfo = channelInfo;
 		this.moreAvailable = moreAvailable;
+		this.size = buffer.getSize();
 	}
 
-	BufferOrEvent(AbstractEvent event, int channelIndex, boolean moreAvailable) {
+	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo, boolean moreAvailable, int size) {
 		this.buffer = null;
 		this.event = checkNotNull(event);
-		this.channelIndex = channelIndex;
+		this.channelInfo = channelInfo;
 		this.moreAvailable = moreAvailable;
+		this.size = size;
 	}
 
-	public BufferOrEvent(Buffer buffer, int channelIndex) {
-		this(buffer, channelIndex, true);
+	@VisibleForTesting
+	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo) {
+		this(buffer, channelInfo, true);
 	}
 
-	public BufferOrEvent(AbstractEvent event, int channelIndex) {
-		this(event, channelIndex, true);
+	@VisibleForTesting
+	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo) {
+		this(event, channelInfo, true, 0);
 	}
 
 	public boolean isBuffer() {
@@ -81,26 +88,29 @@ public class BufferOrEvent {
 		return event;
 	}
 
-	public int getChannelIndex() {
-		return channelIndex;
+	public InputChannelInfo getChannelInfo() {
+		return channelInfo;
 	}
 
-	public void setChannelIndex(int channelIndex) {
-		checkArgument(channelIndex >= 0);
-		this.channelIndex = channelIndex;
+	public void setChannelInfo(InputChannelInfo channelInfo) {
+		this.channelInfo = channelInfo;
 	}
 
-	boolean moreAvailable() {
+	public boolean moreAvailable() {
 		return moreAvailable;
 	}
 
 	@Override
 	public String toString() {
-		return String.format("BufferOrEvent [%s, channelIndex = %d]",
-				isBuffer() ? buffer : event, channelIndex);
+		return String.format("BufferOrEvent [%s, channelInfo = %s, size = %d]",
+				isBuffer() ? buffer : event, channelInfo, size);
 	}
 
 	public void setMoreAvailable(boolean moreAvailable) {
 		this.moreAvailable = moreAvailable;
+	}
+
+	public int getSize() {
+		return size;
 	}
 }

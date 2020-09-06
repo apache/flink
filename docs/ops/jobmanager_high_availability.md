@@ -23,14 +23,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* Toc
+{:toc}
+
+## Overview
+
 The JobManager coordinates every Flink deployment. It is responsible for both *scheduling* and *resource management*.
 
 By default, there is a single JobManager instance per Flink cluster. This creates a *single point of failure* (SPOF): if the JobManager crashes, no new programs can be submitted and running programs fail.
 
 With JobManager High Availability, you can recover from JobManager failures and thereby eliminate the *SPOF*. You can configure high availability for both **standalone** and **YARN clusters**.
 
-* Toc
-{:toc}
+See more HA implementation details in [JobManager High Availability](https://cwiki.apache.org/confluence/display/FLINK/JobManager+High+Availability) in the Flink wiki.
 
 ## Standalone Cluster High Availability
 
@@ -44,7 +48,7 @@ As an example, consider the following setup with three JobManager instances:
 
 To enable JobManager High Availability you have to set the **high-availability mode** to *zookeeper*, configure a **ZooKeeper quorum** and set up a **masters file** with all JobManagers hosts and their web UI ports.
 
-Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/trunk/zookeeperStarted.html) for more information about ZooKeeper. Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
+Flink leverages **[ZooKeeper](http://zookeeper.apache.org)** for *distributed coordination* between all running JobManager instances. ZooKeeper is a separate service from Flink, which provides highly reliable distributed coordination via leader election and light-weight consistent state storage. Check out [ZooKeeper's Getting Started Guide](http://zookeeper.apache.org/doc/current/zookeeperStarted.html) for more information about ZooKeeper. Flink includes scripts to [bootstrap a simple ZooKeeper](#bootstrap-zookeeper) installation.
 
 #### Masters File (masters)
 
@@ -133,17 +137,17 @@ Starting zookeeper daemon on host localhost.</pre>
    <pre>
 $ bin/start-cluster.sh
 Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
-Starting jobmanager daemon on host localhost.
-Starting jobmanager daemon on host localhost.
-Starting taskmanager daemon on host localhost.</pre>
+Starting standalonesession daemon on host localhost.
+Starting standalonesession daemon on host localhost.
+Starting taskexecutor daemon on host localhost.</pre>
 
 6. **Stop ZooKeeper quorum and cluster**:
 
    <pre>
 $ bin/stop-cluster.sh
-Stopping taskmanager daemon (pid: 7647) on localhost.
-Stopping jobmanager daemon (pid: 7495) on host localhost.
-Stopping jobmanager daemon (pid: 7349) on host localhost.
+Stopping taskexecutor daemon (pid: 7647) on localhost.
+Stopping standalonesession daemon (pid: 7495) on host localhost.
+Stopping standalonesession daemon (pid: 7349) on host localhost.
 $ bin/stop-zookeeper-quorum.sh
 Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
 
@@ -224,6 +228,15 @@ zookeeper.sasl.login-context-name: Client  # default is "Client". The value need
 
 For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
 You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
+
+## Zookeeper Versions
+
+Flink ships with separate Zookeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution
+and thus used by default, whereas 3.5 is placed in the `opt` directory.
+
+The 3.5 client allows you to secure the Zookeeper connection via SSL, but _may_ not work with 3.4- Zookeeper installations.
+
+You can control which version is used by Flink by placing either jar in the `lib` directory.
 
 ## Bootstrap ZooKeeper
 

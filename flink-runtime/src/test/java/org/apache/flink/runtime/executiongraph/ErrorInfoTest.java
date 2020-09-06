@@ -19,12 +19,11 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertEquals;
 
@@ -50,10 +49,8 @@ public class ErrorInfoTest {
 
 		private static final long serialVersionUID = 42L;
 
-		private static final ClassLoader CUSTOM_LOADER = new URLClassLoader(new URL[0]);
-
 		@SuppressWarnings("unused")
-		private final Serializable outOfClassLoader = CommonTestUtils.createObjectForClassNotInClassPath(CUSTOM_LOADER);
+		private final Serializable outOfClassLoader = ClassLoaderUtils.createSerializableObjectFromNewClassLoader().getObject();
 
 		public ExceptionWithCustomClassLoader() {
 			super("tada");

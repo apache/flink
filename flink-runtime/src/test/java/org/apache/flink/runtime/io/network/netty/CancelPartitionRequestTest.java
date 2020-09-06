@@ -92,8 +92,7 @@ public class CancelPartitionRequestTest {
 					}
 				});
 
-			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class), true);
+			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -109,7 +108,6 @@ public class CancelPartitionRequestTest {
 			}
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -143,8 +141,7 @@ public class CancelPartitionRequestTest {
 						}
 					});
 
-			NettyProtocol protocol = new NettyProtocol(
-					partitions, mock(TaskEventDispatcher.class), true);
+			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
 			serverAndClient = initServerAndClient(protocol);
 
@@ -168,7 +165,6 @@ public class CancelPartitionRequestTest {
 			NettyTestUtil.awaitClose(ch);
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -190,10 +186,14 @@ public class CancelPartitionRequestTest {
 
 		@Nullable
 		@Override
-		public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
-			Buffer buffer = bufferProvider.requestBufferBlocking();
-			buffer.setSize(buffer.getMaxCapacity()); // fake some data
-			return new BufferAndBacklog(buffer, true, 0, false);
+		public BufferAndBacklog getNextBuffer() throws IOException {
+			Buffer buffer = bufferProvider.requestBuffer();
+			if (buffer != null) {
+				buffer.setSize(buffer.getMaxCapacity()); // fake some data
+				return new BufferAndBacklog(buffer, true, 0, false);
+			} else {
+				return null;
+			}
 		}
 
 		@Override
@@ -206,22 +206,22 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public void notifySubpartitionConsumed() throws IOException {
-		}
-
-		@Override
 		public boolean isReleased() {
 			return false;
 		}
 
 		@Override
-		public boolean nextBufferIsEvent() {
-			return false;
+		public void resumeConsumption() {
 		}
 
 		@Override
-		public boolean isAvailable() {
+		public boolean isAvailable(int numCreditsAvailable) {
 			return true;
+		}
+
+		@Override
+		public int unsynchronizedGetNumberOfQueuedBuffers() {
+			return 0;
 		}
 
 		@Override

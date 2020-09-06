@@ -51,4 +51,17 @@ public class WrappingRuntimeException extends FlinkRuntimeException {
 		Throwable cause = getCause();
 		return (cause instanceof WrappingRuntimeException) ? ((WrappingRuntimeException) cause).unwrap() : cause;
 	}
+
+	/**
+	 * Ensures that any throwable can be thrown as a checked exception by potentially wrapping it.
+	 *
+	 * @return a runtime exception wrapping the throwable if checked or by returning the throwable if it's a runtime
+	 * exception.
+	 */
+	public static RuntimeException wrapIfNecessary(Throwable throwable) {
+		if (throwable instanceof RuntimeException) {
+			return (RuntimeException) throwable;
+		}
+		return new WrappingRuntimeException(throwable);
+	}
 }

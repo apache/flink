@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,8 +42,8 @@ import java.util.concurrent.TimeUnit;
 public class DatadogHttpClient {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpClient.class);
 
-	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.com/api/v1/series?api_key=%s";
-	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.com/api/v1/validate?api_key=%s";
+	private static final String SERIES_URL_FORMAT = "https://app.datadoghq.%s/api/v1/series?api_key=%s";
+	private static final String VALIDATE_URL_FORMAT = "https://app.datadoghq.%s/api/v1/validate?api_key=%s";
 	private static final MediaType MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
 	private static final int TIMEOUT = 3;
 	private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -51,21 +53,40 @@ public class DatadogHttpClient {
 	private final OkHttpClient client;
 	private final String apiKey;
 
-	public DatadogHttpClient(String dgApiKey) {
+	private final String proxyHost;
+	private final int proxyPort;
+
+	public DatadogHttpClient(String dgApiKey, String dgProxyHost, int dgProxyPort, DataCenter dataCenter, boolean validateApiKey) {
 		if (dgApiKey == null || dgApiKey.isEmpty()) {
 			throw new IllegalArgumentException("Invalid API key:" + dgApiKey);
 		}
-
 		apiKey = dgApiKey;
+		proxyHost = dgProxyHost;
+		proxyPort = dgProxyPort;
+
+		Proxy proxy = getProxy();
+
 		client = new OkHttpClient.Builder()
 			.connectTimeout(TIMEOUT, TimeUnit.SECONDS)
 			.writeTimeout(TIMEOUT, TimeUnit.SECONDS)
 			.readTimeout(TIMEOUT, TimeUnit.SECONDS)
+			.proxy(proxy)
 			.build();
 
-		seriesUrl = String.format(SERIES_URL_FORMAT, apiKey);
-		validateUrl = String.format(VALIDATE_URL_FORMAT, apiKey);
-		validateApiKey();
+		seriesUrl = String.format(SERIES_URL_FORMAT, dataCenter.getDomain(), apiKey);
+		validateUrl = String.format(VALIDATE_URL_FORMAT, dataCenter.getDomain(), apiKey);
+
+		if (validateApiKey) {
+			validateApiKey();
+		}
+	}
+
+	Proxy getProxy() {
+		if (proxyHost == null) {
+			return Proxy.NO_PROXY;
+		} else {
+			return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
+		}
 	}
 
 	private void validateApiKey() {
@@ -81,8 +102,8 @@ public class DatadogHttpClient {
 		}
 	}
 
-	public void send(DatadogHttpReporter.DatadogHttpRequest request) throws Exception {
-		String postBody = serialize(request.getSeries());
+	public void send(DSeries request) throws Exception {
+		String postBody = serialize(request);
 
 		Request r = new Request.Builder()
 			.url(seriesUrl)
@@ -101,7 +122,11 @@ public class DatadogHttpClient {
 		client.connectionPool().evictAll();
 	}
 
-	private static class EmptyCallback implements Callback {
+	/**
+	 * A handler for OkHttpClient callback.  In case of error or failure it logs the error at warning level.
+	 */
+	protected static class EmptyCallback implements Callback {
+
 		private static final EmptyCallback singleton = new EmptyCallback();
 
 		public static Callback getEmptyCallback() {
@@ -110,11 +135,15 @@ public class DatadogHttpClient {
 
 		@Override
 		public void onFailure(Call call, IOException e) {
-			LOGGER.debug("Failed sending request to Datadog" , e);
+			LOGGER.warn("Failed sending request to Datadog", e);
 		}
 
 		@Override
 		public void onResponse(Call call, Response response) throws IOException {
+			if (!response.isSuccessful()) {
+				LOGGER.warn("Failed to send request to Datadog (response was {})", response);
+			}
+
 			response.close();
 		}
 	}

@@ -35,6 +35,9 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Test for CheckpointStreamWithResultProvider.
+ */
 public class CheckpointStreamWithResultProviderTest extends TestLogger {
 
 	private static TemporaryFolder temporaryFolder;

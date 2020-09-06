@@ -22,9 +22,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +39,9 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link AvroSchemaConverter}.
  */
 public class AvroSchemaConverterTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testAvroClassConversion() {
@@ -43,6 +52,46 @@ public class AvroSchemaConverterTest {
 	public void testAvroSchemaConversion() {
 		final String schema = User.getClassSchema().toString(true);
 		validateUserSchema(AvroSchemaConverter.convertToTypeInfo(schema));
+	}
+
+	@Test
+	public void testConvertAvroSchemaToDataType() {
+		final String schema = User.getClassSchema().toString(true);
+		validateUserSchema(AvroSchemaConverter.convertToDataType(schema));
+	}
+
+	@Test
+	public void testInvalidRawTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("a", DataTypes.STRING())
+			.field("b", DataTypes.RAW(Types.GENERIC(AvroSchemaConverterTest.class)))
+			.build().toRowDataType().getLogicalType();
+		thrown.expect(UnsupportedOperationException.class);
+		thrown.expectMessage("Unsupported to derive Schema for type: RAW");
+		AvroSchemaConverter.convertToSchema(rowType);
+	}
+
+	@Test
+	public void testInvalidTimestampTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("a", DataTypes.STRING())
+			.field("b", DataTypes.TIMESTAMP(9))
+			.build().toRowDataType().getLogicalType();
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Avro does not support TIMESTAMP type with precision: 9, " +
+			"it only supports precision less than 3.");
+		AvroSchemaConverter.convertToSchema(rowType);
+	}
+
+	@Test
+	public void testInvalidTimeTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("a", DataTypes.STRING())
+			.field("b", DataTypes.TIME(6))
+			.build().toRowDataType().getLogicalType();
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
+		AvroSchemaConverter.convertToSchema(rowType);
 	}
 
 	private void validateUserSchema(TypeInformation<?> actual) {
@@ -112,5 +161,47 @@ public class AvroSchemaConverterTest {
 
 		final RowTypeInfo userRowInfo = (RowTypeInfo) user;
 		assertTrue(userRowInfo.schemaEquals(actual));
+	}
+
+	private void validateUserSchema(DataType actual) {
+		final DataType address = DataTypes.ROW(
+				DataTypes.FIELD("num", DataTypes.INT().notNull()),
+				DataTypes.FIELD("street", DataTypes.STRING().notNull()),
+				DataTypes.FIELD("city", DataTypes.STRING().notNull()),
+				DataTypes.FIELD("state", DataTypes.STRING().notNull()),
+				DataTypes.FIELD("zip", DataTypes.STRING().notNull()));
+
+		final DataType user = DataTypes.ROW(
+				DataTypes.FIELD("name", DataTypes.STRING().notNull()),
+				DataTypes.FIELD("favorite_number", DataTypes.INT()),
+				DataTypes.FIELD("favorite_color", DataTypes.STRING()),
+				DataTypes.FIELD("type_long_test", DataTypes.BIGINT()),
+				DataTypes.FIELD("type_double_test", DataTypes.DOUBLE().notNull()),
+				DataTypes.FIELD("type_null_test", DataTypes.NULL()),
+				DataTypes.FIELD("type_bool_test", DataTypes.BOOLEAN().notNull()),
+				DataTypes.FIELD("type_array_string",
+						DataTypes.ARRAY(DataTypes.STRING().notNull()).notNull()),
+				DataTypes.FIELD("type_array_boolean",
+						DataTypes.ARRAY(DataTypes.BOOLEAN().notNull()).notNull()),
+				DataTypes.FIELD("type_nullable_array", DataTypes.ARRAY(DataTypes.STRING().notNull())),
+				DataTypes.FIELD("type_enum", DataTypes.STRING().notNull()),
+				DataTypes.FIELD("type_map",
+						DataTypes.MAP(DataTypes.STRING().notNull(), DataTypes.BIGINT().notNull()).notNull()),
+				DataTypes.FIELD("type_fixed", DataTypes.VARBINARY(16)),
+				DataTypes.FIELD("type_union", DataTypes.RAW(Types.GENERIC(Object.class)).notNull()),
+				DataTypes.FIELD("type_nested", address),
+				DataTypes.FIELD("type_bytes", DataTypes.ARRAY(DataTypes.TINYINT().bridgedTo(Byte.class)).notNull()),
+				DataTypes.FIELD("type_date", DataTypes.DATE().bridgedTo(java.sql.Date.class).notNull()),
+				DataTypes.FIELD("type_time_millis", DataTypes.TIME().bridgedTo(java.sql.Time.class).notNull()),
+				DataTypes.FIELD("type_time_micros", DataTypes.INT().notNull()),
+				DataTypes.FIELD("type_timestamp_millis",
+						DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class).notNull()),
+				DataTypes.FIELD("type_timestamp_micros",
+						DataTypes.TIMESTAMP(6).bridgedTo(java.sql.Timestamp.class).notNull()),
+				DataTypes.FIELD("type_decimal_bytes", DataTypes.DECIMAL(4, 2).notNull()),
+				DataTypes.FIELD("type_decimal_fixed", DataTypes.DECIMAL(4, 2).notNull()))
+				.notNull();
+
+		assertEquals(user, actual);
 	}
 }

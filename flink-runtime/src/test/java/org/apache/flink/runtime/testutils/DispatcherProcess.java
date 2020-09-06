@@ -120,7 +120,7 @@ public class DispatcherProcess extends TestJvmProcess {
 				LOG.info("Configuration: {}.", config);
 
 				config.setInteger(JobManagerOptions.PORT, 0);
-				config.setInteger(RestOptions.PORT, 0);
+				config.setString(RestOptions.BIND_PORT, "0");
 
 				final StandaloneSessionClusterEntrypoint clusterEntrypoint = new StandaloneSessionClusterEntrypoint(config);
 

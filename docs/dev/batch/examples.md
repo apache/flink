@@ -1,7 +1,7 @@
 ---
 title:  "Batch Examples"
 nav-title: Batch Examples
-nav-parent_id: examples
+nav-parent_id: batch
 nav-pos: 20
 ---
 <!--
@@ -270,7 +270,7 @@ val result = finalRanks
 result.writeAsCsv(outputPath, "\n", " ")
 {% endhighlight %}
 
-he {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
+The {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
 It requires the following parameters to run: `--pages <path> --links <path> --output <path> --numPages <n> --iterations <n>`.
 </div>
 </div>

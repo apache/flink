@@ -22,7 +22,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
 import org.apache.flink.fs.s3.common.utils.RefCountedFSOutputStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFile;
+import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
@@ -39,8 +39,8 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
@@ -314,10 +314,9 @@ public class S3RecoverableFsDataOutputStreamTest {
 
 	private static byte[] readFileContents(RefCountedFSOutputStream file) throws IOException {
 		final byte[] content = new byte[MathUtils.checkedDownCast(file.getPos())];
-		try (InputStream inputStream = file.getInputStream()) {
-			int bytesRead = inputStream.read(content, 0, content.length); // TODO: 10/2/18 see if closed in download
-			Assert.assertEquals(file.getPos(), bytesRead);
-		}
+		File inputFile = file.getInputFile();
+		long bytesRead = new FileInputStream(inputFile).read(content, 0,  MathUtils.checkedDownCast(inputFile.length()));
+		Assert.assertEquals(file.getPos(), bytesRead);
 		return content;
 	}
 
@@ -484,7 +483,7 @@ public class S3RecoverableFsDataOutputStreamTest {
 		}
 	}
 
-	private static class TestFileProvider implements FunctionWithException<File, RefCountedFile, IOException> {
+	private static class TestFileProvider implements FunctionWithException<File, RefCountedFileWithStream, IOException> {
 
 		private final TemporaryFolder folder;
 
@@ -493,16 +492,16 @@ public class S3RecoverableFsDataOutputStreamTest {
 		}
 
 		@Override
-		public RefCountedFile apply(@Nullable File file) throws IOException {
+		public RefCountedFileWithStream apply(@Nullable File file) throws IOException {
 			while (true) {
 				try {
 					if (file == null) {
 						final File newFile = new File(folder.getRoot(), ".tmp_" + UUID.randomUUID());
 						final OutputStream out = Files.newOutputStream(newFile.toPath(), StandardOpenOption.CREATE_NEW);
-						return RefCountedFile.newFile(newFile, out);
+						return RefCountedFileWithStream.newFile(newFile, out);
 					} else {
 						final OutputStream out = Files.newOutputStream(file.toPath(), StandardOpenOption.APPEND);
-						return RefCountedFile.restoredFile(file, out, file.length());
+						return RefCountedFileWithStream.restoredFile(file, out, file.length());
 					}
 				} catch (FileAlreadyExistsException e) {
 					// fall through the loop and retry

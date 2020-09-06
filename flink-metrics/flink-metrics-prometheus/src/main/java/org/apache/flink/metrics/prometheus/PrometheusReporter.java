@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
@@ -35,6 +36,7 @@ import java.util.Iterator;
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus.
  */
 @PublicEvolving
+@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.prometheus.PrometheusReporterFactory")
 public class PrometheusReporter extends AbstractPrometheusReporter {
 
 	static final String ARG_PORT = "port";
@@ -51,6 +53,8 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 
 	@Override
 	public void open(MetricConfig config) {
+		super.open(config);
+
 		String portsConfig = config.getString(ARG_PORT, DEFAULT_PORT);
 		Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 

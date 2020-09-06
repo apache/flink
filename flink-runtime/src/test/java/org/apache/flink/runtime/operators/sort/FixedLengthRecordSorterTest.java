@@ -24,7 +24,6 @@ import java.util.Random;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.RandomIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
@@ -66,20 +66,24 @@ public class FixedLengthRecordSorterTest {
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
+		this.memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MEMORY_SIZE)
+			.setPageSize(MEMORY_PAGE_SIZE)
+			.build();
 		this.ioManager = new IOManagerAsync();
 		this.serializer = new IntPairSerializer();
 		this.comparator = new IntPairComparator();
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
 		if (!this.memoryManager.verifyEmpty()) {
 			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
 		}
 
 		if (this.ioManager != null) {
-			ioManager.shutdown();
+			ioManager.close();
 			ioManager = null;
 		}
 		

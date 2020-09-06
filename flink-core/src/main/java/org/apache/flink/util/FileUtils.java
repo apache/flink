@@ -28,12 +28,30 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -46,8 +64,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class FileUtils {
 
-	/** Global lock to prevent concurrent directory deletes under Windows. */
-	private static final Object WINDOWS_DELETE_LOCK = new Object();
+	/** Global lock to prevent concurrent directory deletes under Windows and MacOS. */
+	private static final Object DELETE_LOCK = new Object();
 
 	/** The alphabet to construct the random part of the filename from. */
 	private static final char[] ALPHABET =
@@ -56,11 +74,38 @@ public final class FileUtils {
 	/** The length of the random part of the filename. */
 	private static final int RANDOM_FILE_NAME_LENGTH = 12;
 
+	/**
+	 * The maximum size of array to allocate for reading. See
+	 * {@code MAX_BUFFER_SIZE} in {@link java.nio.file.Files} for more.
+	 */
+	private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+
+	/** The size of the buffer used for reading. */
+	private static final int BUFFER_SIZE = 4096;
+
+	private static final String JAR_FILE_EXTENSION = "jar";
+
+	public static final String CLASS_FILE_EXTENSION = "class";
+
+	public static final String PACKAGE_SEPARATOR = ".";
+
+
 	// ------------------------------------------------------------------------
 
 	public static void writeCompletely(WritableByteChannel channel, ByteBuffer src) throws IOException {
 		while (src.hasRemaining()) {
 			channel.write(src);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Lists the given directory in a resource-leak-safe way.
+	 */
+	public static java.nio.file.Path[] listDirectory(java.nio.file.Path directory) throws IOException {
+		try (Stream<java.nio.file.Path> stream = Files.list(directory)) {
+			return stream.toArray(java.nio.file.Path[]::new);
 		}
 	}
 
@@ -90,7 +135,7 @@ public final class FileUtils {
 	// ------------------------------------------------------------------------
 
 	public static String readFile(File file, String charsetName) throws IOException {
-		byte[] bytes = Files.readAllBytes(file.toPath());
+		byte[] bytes = readAllBytes(file.toPath());
 		return new String(bytes, charsetName);
 	}
 
@@ -105,6 +150,89 @@ public final class FileUtils {
 
 	public static void writeFileUtf8(File file, String contents) throws IOException {
 		writeFile(file, contents, "UTF-8");
+	}
+
+	/**
+	 * Reads all the bytes from a file. The method ensures that the file is
+	 * closed when all bytes have been read or an I/O error, or other runtime
+	 * exception, is thrown.
+	 *
+	 * <p>This is an implementation that follow {@link java.nio.file.Files#readAllBytes(java.nio.file.Path)},
+	 * and the difference is that it limits the size of the direct buffer to avoid
+	 * direct-buffer OutOfMemoryError. When {@link java.nio.file.Files#readAllBytes(java.nio.file.Path)}
+	 * or other interfaces in java API can do this in the future, we should remove it.
+	 *
+	 * @param path
+	 *        the path to the file
+	 * @return a byte array containing the bytes read from the file
+	 *
+	 * @throws IOException
+	 *         if an I/O error occurs reading from the stream
+	 * @throws OutOfMemoryError
+	 *         if an array of the required size cannot be allocated, for
+	 *         example the file is larger that {@code 2GB}
+	 */
+	public static byte[] readAllBytes(java.nio.file.Path path) throws IOException {
+		try (SeekableByteChannel channel = Files.newByteChannel(path);
+			InputStream in = Channels.newInputStream(channel)) {
+
+			long size = channel.size();
+			if (size > (long) MAX_BUFFER_SIZE) {
+				throw new OutOfMemoryError("Required array size too large");
+			}
+
+			return read(in, (int) size);
+		}
+	}
+
+	/**
+	 * Reads all the bytes from an input stream. Uses {@code initialSize} as a hint
+	 * about how many bytes the stream will have and uses {@code directBufferSize}
+	 * to limit the size of the direct buffer used to read.
+	 *
+	 * @param source
+	 *        the input stream to read from
+	 * @param initialSize
+	 *        the initial size of the byte array to allocate
+	 * @return a byte array containing the bytes read from the file
+	 *
+	 * @throws IOException
+	 *         if an I/O error occurs reading from the stream
+	 * @throws OutOfMemoryError
+	 *         if an array of the required size cannot be allocated
+	 */
+	private static byte[] read(InputStream source, int initialSize) throws IOException {
+		int capacity = initialSize;
+		byte[] buf = new byte[capacity];
+		int nread = 0;
+		int n;
+
+		for (; ;) {
+			// read to EOF which may read more or less than initialSize (eg: file
+			// is truncated while we are reading)
+			while ((n = source.read(buf, nread, Math.min(capacity - nread, BUFFER_SIZE))) > 0) {
+				nread += n;
+			}
+
+			// if last call to source.read() returned -1, we are done
+			// otherwise, try to read one more byte; if that failed we're done too
+			if (n < 0 || (n = source.read()) < 0) {
+				break;
+			}
+
+			// one more byte was read; need to allocate a larger buffer
+			if (capacity <= MAX_BUFFER_SIZE - capacity) {
+				capacity = Math.max(capacity << 1, BUFFER_SIZE);
+			} else {
+				if (capacity == MAX_BUFFER_SIZE) {
+					throw new OutOfMemoryError("Required array size too large");
+				}
+				capacity = MAX_BUFFER_SIZE;
+			}
+			buf = Arrays.copyOf(buf, capacity);
+			buf[nread++] = (byte) n;
+		}
+		return (capacity == nread) ? buf : Arrays.copyOf(buf, nread);
 	}
 
 	// ------------------------------------------------------------------------
@@ -127,7 +255,7 @@ public final class FileUtils {
 	public static void deleteFileOrDirectory(File file) throws IOException {
 		checkNotNull(file, "file");
 
-		guardIfWindows(FileUtils::deleteFileOrDirectoryInternal, file);
+		guardIfNotThreadSafe(FileUtils::deleteFileOrDirectoryInternal, file);
 	}
 
 	/**
@@ -145,7 +273,7 @@ public final class FileUtils {
 	public static void deleteDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
-		guardIfWindows(FileUtils::deleteDirectoryInternal, directory);
+		guardIfNotThreadSafe(FileUtils::deleteDirectoryInternal, directory);
 	}
 
 	/**
@@ -183,7 +311,7 @@ public final class FileUtils {
 	public static void cleanDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
-		guardIfWindows(FileUtils::cleanDirectoryInternal, directory);
+		guardIfNotThreadSafe(FileUtils::cleanDirectoryInternal, directory);
 	}
 
 	private static void deleteFileOrDirectoryInternal(File file) throws IOException {
@@ -226,6 +354,10 @@ public final class FileUtils {
 	}
 
 	private static void cleanDirectoryInternal(File directory) throws IOException {
+		if (Files.isSymbolicLink(directory.toPath())) {
+			// the user directories which symbolic links point to should not be cleaned.
+			return;
+		}
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
 
@@ -254,35 +386,61 @@ public final class FileUtils {
 		}
 	}
 
-	private static void guardIfWindows(ThrowingConsumer<File, IOException> toRun, File file) throws IOException {
-		if (!OperatingSystem.isWindows()) {
-			toRun.accept(file);
+	private static void guardIfNotThreadSafe(ThrowingConsumer<File, IOException> toRun, File file) throws IOException {
+		if (OperatingSystem.isWindows()) {
+			guardIfWindows(toRun, file);
+			return;
 		}
-		else {
-			// for windows, we synchronize on a global lock, to prevent concurrent delete issues
-			// >
-			// in the future, we may want to find either a good way of working around file visibility
-			// in Windows under concurrent operations (the behavior seems completely unpredictable)
-			// or  make this locking more fine grained, for example  on directory path prefixes
-			synchronized (WINDOWS_DELETE_LOCK) {
-				for (int attempt = 1; attempt <= 10; attempt++) {
-					try {
-						toRun.accept(file);
-						break;
-					}
-					catch (AccessDeniedException e) {
-						// ah, windows...
-					}
+		if (OperatingSystem.isMac()) {
+			guardIfMac(toRun, file);
+			return;
+		}
 
-					// briefly wait and fall through the loop
-					try {
-						Thread.sleep(1);
-					} catch (InterruptedException e) {
-						// restore the interruption flag and error out of the method
-						Thread.currentThread().interrupt();
-						throw new IOException("operation interrupted");
-					}
+		toRun.accept(file);
+	}
+
+	// for Windows, we synchronize on a global lock, to prevent concurrent delete issues
+	// >
+	// in the future, we may want to find either a good way of working around file visibility
+	// under concurrent operations (the behavior seems completely unpredictable)
+	// or  make this locking more fine grained, for example  on directory path prefixes
+	private static void guardIfWindows(ThrowingConsumer<File, IOException> toRun, File file) throws IOException{
+		synchronized (DELETE_LOCK) {
+			for (int attempt = 1; attempt <= 10; attempt++) {
+				try {
+					toRun.accept(file);
+					break;
 				}
+				catch (AccessDeniedException e) {
+					// ah, windows...
+				}
+
+				// briefly wait and fall through the loop
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					// restore the interruption flag and error out of the method
+					Thread.currentThread().interrupt();
+					throw new IOException("operation interrupted");
+				}
+			}
+		}
+	}
+
+
+	// Guard Mac for the same reason we guard windows. Refer to guardIfWindows for details.
+	// The difference to guardIfWindows is that we don't swallow the AccessDeniedException because
+	// doing that would lead to wrong behaviour.
+	private static void guardIfMac(ThrowingConsumer<File, IOException> toRun, File file) throws IOException{
+		synchronized (DELETE_LOCK) {
+			toRun.accept(file);
+			// briefly wait and fall through the loop
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// restore the interruption flag and error out of the method
+				Thread.currentThread().interrupt();
+				throw new IOException("operation interrupted");
 			}
 		}
 	}
@@ -377,8 +535,10 @@ public final class FileUtils {
 		FileSystem sourceFs = directory.getFileSystem();
 		FileSystem targetFs = target.getFileSystem();
 
-		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
-			addToZip(directory, sourceFs, directory.getParent(), out);
+		Path absolutePath = absolutizePath(directory);
+		Path absoluteTargetPath = absolutizePath(target);
+		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(absoluteTargetPath, FileSystem.WriteMode.NO_OVERWRITE))) {
+			addToZip(absolutePath, sourceFs, absolutePath.getParent(), out);
 		}
 		return target;
 	}
@@ -427,6 +587,140 @@ public final class FileUtils {
 			}
 		}
 		return new Path(targetDirectory, rootDir);
+	}
+
+	/**
+	 * List the {@code directory} recursively and return the files that satisfy the {@code fileFilter}.
+	 *
+	 * @param directory the directory to be listed
+	 * @param fileFilter a file filter
+	 * @return a collection of {@code File}s
+	 *
+	 * @throws IOException if an I/O error occurs while listing the files in the given directory
+	 */
+	public static Collection<java.nio.file.Path> listFilesInDirectory(final java.nio.file.Path directory, final Predicate<java.nio.file.Path> fileFilter) throws IOException {
+		checkNotNull(directory, "directory");
+		checkNotNull(fileFilter, "fileFilter");
+
+		if (!Files.exists(directory)) {
+			throw new IllegalArgumentException(String.format("The directory %s dose not exist.", directory));
+		}
+		if (!Files.isDirectory(directory)) {
+			throw new IllegalArgumentException(String.format("The %s is not a directory.", directory));
+		}
+
+		final FilterFileVisitor filterFileVisitor = new FilterFileVisitor(fileFilter);
+
+		Files.walkFileTree(
+			directory,
+			EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+			Integer.MAX_VALUE,
+			filterFileVisitor);
+
+		return filterFileVisitor.getFiles();
+	}
+
+	/**
+	 * Absolutize the given path if it is relative.
+	 *
+	 * @param pathToAbsolutize path which is being absolutized if it is a relative path
+	 * @return the absolutized path
+	 */
+	public static Path absolutizePath(Path pathToAbsolutize) throws IOException {
+		if (!pathToAbsolutize.isAbsolute()) {
+			FileSystem fs = pathToAbsolutize.getFileSystem();
+			return new Path(fs.getWorkingDirectory(), pathToAbsolutize);
+		} else {
+			return pathToAbsolutize;
+		}
+	}
+
+	/**
+	 * Relativize the given path with respect to the given base path if it is absolute.
+	 *
+	 * @param basePath to relativize against
+	 * @param pathToRelativize path which is being relativized if it is an absolute path
+	 * @return the relativized path
+	 */
+	public static java.nio.file.Path relativizePath(java.nio.file.Path basePath, java.nio.file.Path pathToRelativize) {
+		if (pathToRelativize.isAbsolute()) {
+			return basePath.relativize(pathToRelativize);
+		} else {
+			return pathToRelativize;
+		}
+	}
+
+	/**
+	 * Returns the current working directory as specified by the {@code user.dir} system property.
+	 *
+	 * @return current working directory
+	 */
+	public static java.nio.file.Path getCurrentWorkingDirectory() {
+		return Paths.get(System.getProperty("user.dir"));
+	}
+
+
+	/**
+	 * Checks whether the given file has a jar extension.
+	 *
+	 * @param file to check
+	 * @return true if the file has a jar extension, otherwise false
+	 */
+	public static boolean isJarFile(java.nio.file.Path file) {
+		return JAR_FILE_EXTENSION.equals(org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(file.toString()));
+	}
+
+	/**
+	 * Remove the extension of the file name.
+	 * @param fileName to strip
+	 * @return the file name without extension
+	 */
+	public static String stripFileExtension(String fileName) {
+		final String extension = org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(fileName);
+		if (!extension.isEmpty()) {
+			return fileName.substring(0, fileName.lastIndexOf(extension) - 1);
+		}
+		return fileName;
+	}
+
+	/**
+	 * Converts the given {@link java.nio.file.Path} into a file {@link URL}. The resulting url is
+	 * relative iff the given path is relative.
+	 *
+	 * @param path to convert into a {@link URL}.
+	 * @return URL
+	 * @throws MalformedURLException if the path could not be converted into a file {@link URL}
+	 */
+	public static URL toURL(java.nio.file.Path path) throws MalformedURLException {
+		final String scheme = path.toUri().getScheme();
+		return new URL(scheme, null, -1, path.toString());
+	}
+
+	private static final class FilterFileVisitor extends SimpleFileVisitor<java.nio.file.Path> {
+
+		private final Predicate<java.nio.file.Path> fileFilter;
+
+		private final List<java.nio.file.Path> files;
+
+		FilterFileVisitor(Predicate<java.nio.file.Path> fileFilter) {
+			this.fileFilter = checkNotNull(fileFilter);
+			this.files = new ArrayList<>();
+		}
+
+		@Override
+		public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+			FileVisitResult fileVisitResult = super.visitFile(file, attrs);
+
+			if (fileFilter.test(file)) {
+				files.add(file);
+			}
+
+			return fileVisitResult;
+		}
+
+		Collection<java.nio.file.Path> getFiles() {
+			return Collections.unmodifiableCollection(files);
+		}
 	}
 
 	// ------------------------------------------------------------------------

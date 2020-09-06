@@ -130,8 +130,7 @@ public class HashTablePerformanceComparison {
 	
 	@Test
 	public void testMutableHashMapPerformance() {
-		final IOManager ioManager = new IOManagerAsync();
-		try {
+		try (IOManager ioManager = new IOManagerAsync()) {
 			final int NUM_MEM_PAGES = SIZE * NUM_PAIRS / PAGE_SIZE;
 			
 			MutableObjectIterator<IntPair> buildInput = new UniformIntPairGenerator(NUM_PAIRS, 1, false);
@@ -206,8 +205,6 @@ public class HashTablePerformanceComparison {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail("Error: " + e.getMessage());
-		} finally {
-			ioManager.shutdown();
 		}
 	}
 

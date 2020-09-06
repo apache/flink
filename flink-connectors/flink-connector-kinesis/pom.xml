@@ -26,17 +26,18 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.8-SNAPSHOT</version>
+		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
-	<name>flink-connector-kinesis</name>
+	<name>Flink : Connectors : Kinesis</name>
 	<properties>
-		<aws.sdk.version>1.11.319</aws.sdk.version>
-		<aws.kinesis-kcl.version>1.9.0</aws.kinesis-kcl.version>
-		<aws.kinesis-kpl.version>0.12.9</aws.kinesis-kpl.version>
-		<aws.dynamodbstreams-kinesis-adapter.version>1.4.0</aws.dynamodbstreams-kinesis-adapter.version>
+		<aws.sdk.version>1.11.754</aws.sdk.version>
+		<aws.sdkv2.version>2.13.52</aws.sdkv2.version>
+		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
+		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
+		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -46,6 +47,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -66,7 +74,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-tests_${scala.binary.version}</artifactId>
+			<artifactId>flink-tests</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -82,15 +90,19 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Note:
-			The below dependencies are licenced under the Amazon Software License.
-			Flink includes the "flink-connector-kinesis" only as an optional dependency for that reason.
-		-->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>amazon-kinesis-aggregator</artifactId>
+			<version>1.0.3</version>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
@@ -141,7 +153,52 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<dependency>
+			<!-- KPL requires jaxb-api for javax.xml.bind.DatatypeConverter -->
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+			<!-- packaged in flink-dist -->
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Amazon AWS SDK v2.x dependencies -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>kinesis</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>netty-nio-client</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+		</dependency>
+
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -153,6 +210,11 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<includes>
+								<include>**/org/apache/flink/streaming/connectors/kinesis/testutils/**</include>
+							</includes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>
@@ -174,10 +236,17 @@ under the License.
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
+									<include>software.amazon.awssdk:*</include>
+									<include>software.amazon.eventstream:*</include>
+									<include>software.amazon.ion:*</include>
+									<include>org.reactivestreams:*</include>
+									<include>io.netty:*</include>
+									<include>com.typesafe.netty:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
-								<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
+								<!-- Do not relocate guava because it is exposed in the Kinesis API (KinesisProducer#addUserRecord).
+								 	Users may be using other affected API's, so relocations may break user-code -->
 								<relocation>
 									<pattern>com.google.protobuf</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.google.protobuf</shadedPattern>
@@ -190,7 +259,37 @@ under the License.
 									<pattern>org.apache.http</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>software.amazon</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.software.amazon</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.typesafe.netty</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.typesafe.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.reactivestreams</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.reactivestreams</shadedPattern>
+								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>com.amazonaws:amazon-kinesis-producer</artifact>
+									<excludes>
+										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>software.amazon.awssdk:*</artifact>
+									<excludes>
+										<exclude>META-INF/services/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>

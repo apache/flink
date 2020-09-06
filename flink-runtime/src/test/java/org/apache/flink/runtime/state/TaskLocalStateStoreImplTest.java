@@ -154,6 +154,21 @@ public class TaskLocalStateStoreImplTest {
 	}
 
 	/**
+	 * Tests pruning of target previous checkpoints if that checkpoint is aborted.
+	 */
+	@Test
+	public void abortCheckpoint() throws Exception {
+
+		final int chkCount = 4;
+		final int aborted = chkCount - 2;
+		List<TaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
+		taskLocalStateStore.abortCheckpoint(aborted);
+		checkPrunedAndDiscarded(taskStateSnapshots, aborted, aborted + 1);
+		checkStoredAsExpected(taskStateSnapshots, 0, aborted);
+		checkStoredAsExpected(taskStateSnapshots, aborted + 1, chkCount);
+	}
+
+	/**
 	 * Tests that disposal of a {@link TaskLocalStateStoreImpl} works and discards all local states.
 	 */
 	@Test
@@ -167,16 +182,16 @@ public class TaskLocalStateStoreImplTest {
 		checkPrunedAndDiscarded(taskStateSnapshots, 0, chkCount);
 	}
 
-	private void checkStoredAsExpected(List<TaskStateSnapshot> history, int off, int len) throws Exception {
-		for (int i = off; i < len; ++i) {
+	private void checkStoredAsExpected(List<TaskStateSnapshot> history, int start, int end) throws Exception {
+		for (int i = start; i < end; ++i) {
 			TaskStateSnapshot expected = history.get(i);
 			Assert.assertTrue(expected == taskLocalStateStore.retrieveLocalState(i));
 			Mockito.verify(expected, Mockito.never()).discardState();
 		}
 	}
 
-	private void checkPrunedAndDiscarded(List<TaskStateSnapshot> history, int off, int len) throws Exception {
-		for (int i = off; i < len; ++i) {
+	private void checkPrunedAndDiscarded(List<TaskStateSnapshot> history, int start, int end) throws Exception {
+		for (int i = start; i < end; ++i) {
 			Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
 			Mockito.verify(history.get(i)).discardState();
 		}

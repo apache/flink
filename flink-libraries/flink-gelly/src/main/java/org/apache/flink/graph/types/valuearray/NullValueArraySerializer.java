@@ -18,6 +18,8 @@
 
 package org.apache.flink.graph.types.valuearray;
 
+import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -78,8 +80,21 @@ public final class NullValueArraySerializer extends TypeSerializerSingleton<Null
 		target.write(source, getLength());
 	}
 
+	// -----------------------------------------------------------------------------------
+
 	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof NullValueArraySerializer;
+	public TypeSerializerSnapshot<NullValueArray> snapshotConfiguration() {
+		return new NullValueArraySerializerSnapshot();
+	}
+
+	/**
+	 * Serializer configuration snapshot for compatibility and format evolution.
+	 */
+	@SuppressWarnings("WeakerAccess")
+	public static final class NullValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<NullValueArray> {
+
+		public NullValueArraySerializerSnapshot() {
+			super(NullValueArraySerializer::new);
+		}
 	}
 }

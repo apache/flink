@@ -21,6 +21,8 @@ package org.apache.flink.core.io;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
+
 /**
  * An input split assigner distributes the {@link InputSplit}s among the instances on which a
  * data source exists.
@@ -38,4 +40,11 @@ public interface InputSplitAssigner {
 	 */
 	InputSplit getNextInputSplit(String host, int taskId);
 
+	/**
+	 * Return the splits to assigner if the task failed to process it.
+	 *
+	 * @param splits The list of input splits to be returned.
+	 * @param taskId The id of the task that failed to process the input splits.
+	 * */
+	void returnInputSplit(List<InputSplit> splits, int taskId);
 }

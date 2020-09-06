@@ -25,9 +25,6 @@ import java.util.Collection;
 
 /**
  * Interface for all classes that want to participate in the archiving of job-related json responses.
- *
- * <p>Note that all JsonArchivists that are to be used for the history server must be added
- * to {@link WebRuntimeMonitor#getArchivers()}.
  */
 public interface JsonArchivist {
 

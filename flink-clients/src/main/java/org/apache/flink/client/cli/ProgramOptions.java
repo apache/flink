@@ -19,6 +19,11 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -34,27 +39,27 @@ import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
+import static org.apache.flink.client.cli.ProgramOptionsUtils.containsPythonDependencyOptions;
+import static org.apache.flink.client.cli.ProgramOptionsUtils.createPythonProgramOptions;
+import static org.apache.flink.client.cli.ProgramOptionsUtils.isPythonEntryPoint;
 
 /**
  * Base class for command line options that refer to a JAR file program.
  */
-public abstract class ProgramOptions extends CommandLineOptions {
+public class ProgramOptions extends CommandLineOptions {
 
-	private final String jarFilePath;
+	private String jarFilePath;
 
-	private final String entryPointClass;
+	protected String entryPointClass;
 
 	private final List<URL> classpaths;
 
 	private final String[] programArgs;
 
 	private final int parallelism;
-
-	private final boolean stdoutLogging;
 
 	private final boolean detachedMode;
 
@@ -65,22 +70,13 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	protected ProgramOptions(CommandLine line) throws CliArgsException {
 		super(line);
 
-		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
-				line.getOptionValues(ARGS_OPTION.getOpt()) :
-				line.getArgs();
+		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
+			line.getOptionValue(CLASS_OPTION.getOpt()) : null;
 
-		if (line.hasOption(JAR_OPTION.getOpt())) {
-			this.jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
-		}
-		else if (args.length > 0) {
-			jarFilePath = args[0];
-			args = Arrays.copyOfRange(args, 1, args.length);
-		}
-		else {
-			jarFilePath = null;
-		}
+		this.jarFilePath = line.hasOption(JAR_OPTION.getOpt()) ?
+			line.getOptionValue(JAR_OPTION.getOpt()) : null;
 
-		this.programArgs = args;
+		this.programArgs = extractProgramArgs(line);
 
 		List<URL> classpaths = new ArrayList<URL>();
 		if (line.hasOption(CLASSPATH_OPTION.getOpt())) {
@@ -93,9 +89,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			}
 		}
 		this.classpaths = classpaths;
-
-		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
-				line.getOptionValue(CLASS_OPTION.getOpt()) : null;
 
 		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
 			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
@@ -113,12 +106,30 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 		}
 
-		stdoutLogging = !line.hasOption(LOGGING_OPTION.getOpt());
-		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(
-			YARN_DETACHED_OPTION.getOpt());
+		detachedMode = line.hasOption(DETACHED_OPTION.getOpt()) || line.hasOption(YARN_DETACHED_OPTION.getOpt());
 		shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
 		this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
+	}
+
+	protected String[] extractProgramArgs(CommandLine line) {
+		String[] args = line.hasOption(ARGS_OPTION.getOpt()) ?
+			line.getOptionValues(ARGS_OPTION.getOpt()) :
+			line.getArgs();
+
+		if (args.length > 0 && !line.hasOption(JAR_OPTION.getOpt())) {
+			jarFilePath = args[0];
+			args = Arrays.copyOfRange(args, 1, args.length);
+		}
+
+		return args;
+	}
+
+	public void validate() throws CliArgsException {
+		// Java program should be specified a JAR file
+		if (getJarFilePath() == null) {
+			throw new CliArgsException("Java program should be specified a JAR file.");
+		}
 	}
 
 	public String getJarFilePath() {
@@ -141,10 +152,6 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		return parallelism;
 	}
 
-	public boolean getStdoutLogging() {
-		return stdoutLogging;
-	}
-
 	public boolean getDetachedMode() {
 		return detachedMode;
 	}
@@ -155,5 +162,24 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public SavepointRestoreSettings getSavepointRestoreSettings() {
 		return savepointSettings;
+	}
+
+	public void applyToConfiguration(Configuration configuration) {
+		if (getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT) {
+			configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
+		}
+
+		configuration.setBoolean(DeploymentOptions.ATTACHED, !getDetachedMode());
+		configuration.setBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
+		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, getClasspaths(), URL::toString);
+		SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(), configuration);
+	}
+
+	public static ProgramOptions create(CommandLine line) throws CliArgsException {
+		if (isPythonEntryPoint(line) || containsPythonDependencyOptions(line)) {
+			return createPythonProgramOptions(line);
+		} else {
+			return new ProgramOptions(line);
+		}
 	}
 }

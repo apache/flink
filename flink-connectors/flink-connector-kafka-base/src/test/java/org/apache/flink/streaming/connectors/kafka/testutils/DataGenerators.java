@@ -24,19 +24,18 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
 import java.util.Collection;
 import java.util.Properties;
@@ -55,8 +54,7 @@ public class DataGenerators {
 			final int numElements,
 			final boolean randomizeOrder) throws Exception {
 		env.setParallelism(numPartitions);
-		env.getConfig().disableSysoutLogging();
-		env.setRestartStrategy(RestartStrategies.noRestart());
+				env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> stream = env.addSource(
 				new RichParallelSourceFunction<Integer>() {
@@ -105,10 +103,12 @@ public class DataGenerators {
 		if (secureProps != null) {
 			props.putAll(testServer.getSecureProperties());
 		}
+		// Ensure the producer enables idempotence.
+		props.putAll(testServer.getIdempotentProducerConfig());
 
 		stream = stream.rebalance();
 		testServer.produceIntoKafka(stream, topic,
-				new KeyedSerializationSchemaWrapper<>(new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig())),
+				new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, env.getConfig()),
 				props,
 				new FlinkKafkaPartitioner<Integer>() {
 					@Override
@@ -148,14 +148,14 @@ public class DataGenerators {
 			try {
 				Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(server.getBrokerConnectionString());
 				producerProperties.setProperty("retries", "3");
-				StreamTransformation<String> mockTransform = new MockStreamTransformation();
+				Transformation<String> mockTransform = new MockTransformation();
 				DataStream<String> stream = new DataStream<>(new DummyStreamExecutionEnvironment(), mockTransform);
 
 				StreamSink<String> sink = server.getProducerSink(
 						topic,
-						new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()),
+						new SimpleStringSchema(),
 						producerProperties,
-						new FlinkFixedPartitioner<String>());
+						new FlinkFixedPartitioner<>());
 
 				OneInputStreamOperatorTestHarness<String, Object> testHarness =
 						new OneInputStreamOperatorTestHarness<>(sink);
@@ -201,18 +201,13 @@ public class DataGenerators {
 			return this.error;
 		}
 
-		private static class MockStreamTransformation extends StreamTransformation<String> {
-			public MockStreamTransformation() {
+		private static class MockTransformation extends Transformation<String> {
+			public MockTransformation() {
 				super("MockTransform", BasicTypeInfo.STRING_TYPE_INFO, 1);
 			}
 
 			@Override
-			public void setChainingStrategy(ChainingStrategy strategy) {
-
-			}
-
-			@Override
-			public Collection<StreamTransformation<?>> getTransitivePredecessors() {
+			public Collection<Transformation<?>> getTransitivePredecessors() {
 				return null;
 			}
 		}
@@ -220,7 +215,7 @@ public class DataGenerators {
 		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 			@Override
-			public JobExecutionResult execute(String jobName) throws Exception {
+			public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 				return null;
 			}
 		}

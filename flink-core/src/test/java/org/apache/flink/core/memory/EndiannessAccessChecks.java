@@ -20,7 +20,6 @@ package org.apache.flink.core.memory;
 
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -38,12 +37,17 @@ public class EndiannessAccessChecks {
 
 	@Test
 	public void testHybridOnHeapSegment() {
-		testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(new byte[11111]));
+		testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.wrap(new byte[11111]));
 	}
 
 	@Test
 	public void testHybridOffHeapSegment() {
-		testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(ByteBuffer.allocateDirect(11111)));
+		testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateUnpooledOffHeapMemory(11111));
+	}
+
+	@Test
+	public void testHybridOffHeapUnsafeSegment() {
+		testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateOffHeapUnsafeMemory(11111));
 	}
 
 	private void testBigAndLittleEndianAccessUnaligned(MemorySegment segment) {

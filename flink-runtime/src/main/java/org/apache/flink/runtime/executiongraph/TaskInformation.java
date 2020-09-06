@@ -32,35 +32,35 @@ public class TaskInformation implements Serializable {
 
 	private static final long serialVersionUID = -9006218793155953789L;
 
-	/** Job vertex id of the associated job vertex */
+	/** Job vertex id of the associated job vertex. */
 	private final JobVertexID jobVertexId;
 
-	/** Name of the task */
+	/** Name of the task. */
 	private final String taskName;
 
-	/** The number of subtasks for this operator */
+	/** The number of subtasks for this operator. */
 	private final int numberOfSubtasks;
 
-	/** The maximum parallelism == number of key groups */
-	private final int maxNumberOfSubtaks;
+	/** The maximum parallelism == number of key groups. */
+	private final int maxNumberOfSubtasks;
 
-	/** Class name of the invokable to run */
+	/** Class name of the invokable to run. */
 	private final String invokableClassName;
 
-	/** Configuration for the task */
+	/** Configuration for the task. */
 	private final Configuration taskConfiguration;
 
 	public TaskInformation(
 			JobVertexID jobVertexId,
 			String taskName,
 			int numberOfSubtasks,
-			int maxNumberOfSubtaks,
+			int maxNumberOfSubtasks,
 			String invokableClassName,
 			Configuration taskConfiguration) {
 		this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
 		this.taskName = Preconditions.checkNotNull(taskName);
-		this.numberOfSubtasks = Preconditions.checkNotNull(numberOfSubtasks);
-		this.maxNumberOfSubtaks = Preconditions.checkNotNull(maxNumberOfSubtaks);
+		this.numberOfSubtasks = numberOfSubtasks;
+		this.maxNumberOfSubtasks = maxNumberOfSubtasks;
 		this.invokableClassName = Preconditions.checkNotNull(invokableClassName);
 		this.taskConfiguration = Preconditions.checkNotNull(taskConfiguration);
 	}
@@ -77,8 +77,8 @@ public class TaskInformation implements Serializable {
 		return numberOfSubtasks;
 	}
 
-	public int getMaxNumberOfSubtaks() {
-		return maxNumberOfSubtaks;
+	public int getMaxNumberOfSubtasks() {
+		return maxNumberOfSubtasks;
 	}
 
 	public String getInvokableClassName() {

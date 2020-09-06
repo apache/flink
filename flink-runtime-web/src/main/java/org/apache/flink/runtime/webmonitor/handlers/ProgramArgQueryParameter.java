@@ -20,11 +20,9 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 
-import java.io.File;
-
 /**
  * Query parameter specifying one or more arguments for the program.
- * @see org.apache.flink.client.program.PackagedProgram#PackagedProgram(File, String, String...)
+ * @see org.apache.flink.client.program.PackagedProgram.Builder#setArguments(String...)
  */
 public class ProgramArgQueryParameter extends StringQueryParameter {
 	static final String PROGRAM_ARG_PARAMETER_NAME = "programArg";

@@ -81,7 +81,7 @@ public class IterateExample {
 
 		// create an iterative data stream from the input with 5 second timeout
 		IterativeStream<Tuple5<Integer, Integer, Integer, Integer, Integer>> it = inputStream.map(new InputMap())
-				.iterate(5000);
+				.iterate(5000L);
 
 		// apply the step function to get the next Fibonacci number
 		// increment the counter and split the output with the output selector
@@ -115,7 +115,7 @@ public class IterateExample {
 	// *************************************************************************
 
 	/**
-	 * Generate BOUND number of random integer pairs from the range from 0 to BOUND/2.
+	 * Generate BOUND number of random integer pairs from the range from 1 to BOUND/2.
 	 */
 	private static class RandomFibonacciSource implements SourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;

@@ -18,33 +18,78 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.util.AbstractID;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Unique identifier for the attempt to execute a tasks. Multiple attempts happen
  * in cases of failures and recovery.
  */
-public class ExecutionAttemptID extends AbstractID {
+public class ExecutionAttemptID implements java.io.Serializable {
 
 	private static final long serialVersionUID = -1169683445778281344L;
 
+	private final ExecutionVertexID executionVertexId;
+	private final int attemptNumber;
+
+	/**
+	 * Get a random execution attempt id.
+	 */
 	public ExecutionAttemptID() {
+		this(new ExecutionVertexID(new JobVertexID(), 0), 0);
 	}
 
-	public ExecutionAttemptID(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
+	public ExecutionAttemptID(ExecutionVertexID executionVertexId, int attemptNumber) {
+		Preconditions.checkState(attemptNumber >= 0);
+		this.executionVertexId = Preconditions.checkNotNull(executionVertexId);
+		this.attemptNumber = attemptNumber;
 	}
 
 	public void writeTo(ByteBuf buf) {
-		buf.writeLong(this.lowerPart);
-		buf.writeLong(this.upperPart);
+		executionVertexId.writeTo(buf);
+		buf.writeInt(this.attemptNumber);
 	}
 
 	public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
-		long lower = buf.readLong();
-		long upper = buf.readLong();
-		return new ExecutionAttemptID(lower, upper);
+		final ExecutionVertexID executionVertexId = ExecutionVertexID.fromByteBuf(buf);
+		final int attemptNumber = buf.readInt();
+		return new ExecutionAttemptID(executionVertexId, attemptNumber);
+	}
+
+	@VisibleForTesting
+	public int getAttemptNumber() {
+		return attemptNumber;
+	}
+
+	@VisibleForTesting
+	public ExecutionVertexID getExecutionVertexId() {
+		return executionVertexId;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		} else if (obj != null && obj.getClass() == getClass()) {
+			ExecutionAttemptID that = (ExecutionAttemptID) obj;
+			return that.executionVertexId.equals(this.executionVertexId)
+				&& that.attemptNumber == this.attemptNumber;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return this.executionVertexId.hashCode() * 31 + this.attemptNumber;
+	}
+
+	@Override
+	public String toString() {
+		return executionVertexId.toString() + "_" + attemptNumber;
 	}
 }

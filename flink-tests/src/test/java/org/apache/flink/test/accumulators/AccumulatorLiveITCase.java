@@ -59,6 +59,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+
 /**
  * Tests the availability of accumulator results during runtime.
  */
@@ -144,7 +146,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 		final CheckedThread submissionThread = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				client.submitJob(jobGraph, AccumulatorLiveITCase.class.getClassLoader());
+				submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
 			}
 		};
 
@@ -156,7 +158,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 			FutureUtils.retrySuccessfulWithDelay(
 				() -> {
 					try {
-						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()));
+						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()).get());
 					} catch (Exception e) {
 						return FutureUtils.completedExceptionally(e);
 					}
@@ -165,7 +167,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 				deadline,
 				accumulators -> accumulators.size() == 1
 					&& accumulators.containsKey(ACCUMULATOR_NAME)
-					&& (int) accumulators.get(ACCUMULATOR_NAME).getUnchecked() == NUM_ITERATIONS,
+					&& (int) accumulators.get(ACCUMULATOR_NAME) == NUM_ITERATIONS,
 				TestingUtils.defaultScheduledExecutor()
 			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 

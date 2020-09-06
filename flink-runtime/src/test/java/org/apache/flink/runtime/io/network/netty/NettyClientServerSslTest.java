@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.util.NetUtils;
@@ -28,16 +29,20 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.net.ssl.SSLSessionContext;
 
 import java.net.InetAddress;
+import java.util.List;
 
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT;
@@ -52,7 +57,16 @@ import static org.junit.Assert.assertTrue;
  * Tests for the SSL connection between Netty Server and Client used for the
  * data plane.
  */
+@RunWith(Parameterized.class)
 public class NettyClientServerSslTest extends TestLogger {
+
+	@Parameterized.Parameter
+	public String sslProvider;
+
+	@Parameterized.Parameters(name = "SSL provider = {0}")
+	public static List<String> parameters() {
+		return SSLUtilsTest.AVAILABLE_SSL_PROVIDERS;
+	}
 
 	/**
 	 * Verify valid ssl configuration and connection.
@@ -77,25 +91,46 @@ public class NettyClientServerSslTest extends TestLogger {
 	}
 
 	private void testValidSslConnection(Configuration sslConfig) throws Exception {
+		OneShotLatch serverChannelInitComplete = new OneShotLatch();
+		final SslHandler[] serverSslHandler = new SslHandler[1];
+
 		NettyProtocol protocol = new NoOpProtocol();
 
 		NettyConfig nettyConfig = createNettyConfig(sslConfig);
 
-		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+		final NettyBufferPool bufferPool = new NettyBufferPool(1);
+		final NettyServer server = NettyTestUtil.initServer(
+			nettyConfig,
+			bufferPool,
+			sslHandlerFactory ->
+				new TestingServerChannelInitializer(
+					protocol,
+					sslHandlerFactory,
+					serverChannelInitComplete,
+					serverSslHandler));
+		final NettyClient client = NettyTestUtil.initClient(nettyConfig, protocol, bufferPool);
+		final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
 
 		Channel ch = NettyTestUtil.connect(serverAndClient);
 
-		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_HANDSHAKE_TIMEOUT, sslHandler.getHandshakeTimeoutMillis());
-		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, sslHandler.getCloseNotifyFlushTimeoutMillis());
+		SslHandler clientSslHandler = (SslHandler) ch.pipeline().get("ssl");
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_HANDSHAKE_TIMEOUT, clientSslHandler.getHandshakeTimeoutMillis());
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, clientSslHandler.getCloseNotifyFlushTimeoutMillis());
 
 		// should be able to send text data
 		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
-		assertTrue(ch.writeAndFlush("test").await().isSuccess());
+		ch.writeAndFlush("test").sync();
 
 		// session context is only be available after a session was setup -> this should be true after data was sent
-		SSLSessionContext sessionContext = sslHandler.engine().getSession().getSessionContext();
+		serverChannelInitComplete.await();
+		assertNotNull(serverSslHandler[0]);
+
+		// verify server parameters
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_HANDSHAKE_TIMEOUT, serverSslHandler[0].getHandshakeTimeoutMillis());
+		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT, serverSslHandler[0].getCloseNotifyFlushTimeoutMillis());
+		SSLSessionContext sessionContext = serverSslHandler[0].engine().getSession().getSessionContext();
 		assertNotNull("bug in unit test setup: session context not available", sessionContext);
+		// note: can't verify session cache setting at the client - delegate to server instead (with our own channel initializer)
 		assertEqualsOrDefault(sslConfig, SSL_INTERNAL_SESSION_CACHE_SIZE, sessionContext.getSessionCacheSize());
 		int sessionTimeout = sslConfig.getInteger(SSL_INTERNAL_SESSION_TIMEOUT);
 		if (sessionTimeout != -1) {
@@ -194,8 +229,50 @@ public class NettyClientServerSslTest extends TestLogger {
 		NettyTestUtil.shutdown(serverAndClient);
 	}
 
-	private static Configuration createSslConfig() {
-		return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores();
+	@Test
+	public void testSslPinningForValidFingerprint() throws Exception {
+		NettyProtocol protocol = new NoOpProtocol();
+
+		Configuration config = createSslConfig();
+
+		// pin the certificate based on internal cert
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
+
+		NettyConfig nettyConfig = createNettyConfig(config);
+
+		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+
+		Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		assertTrue(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	@Test
+	public void testSslPinningForInvalidFingerprint() throws Exception {
+		NettyProtocol protocol = new NoOpProtocol();
+
+		Configuration config = createSslConfig();
+
+		// pin the certificate based on internal cert
+		config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT, SSLUtilsTest.getCertificateFingerprint(config, "flink.test").replaceAll("[0-9A-Z]", "0"));
+
+		NettyConfig nettyConfig = createNettyConfig(config);
+
+		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+
+		Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	private Configuration createSslConfig() {
+		return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(sslProvider);
 	}
 
 	private static NettyConfig createNettyConfig(Configuration config) {
@@ -210,7 +287,7 @@ public class NettyClientServerSslTest extends TestLogger {
 	private static final class NoOpProtocol extends NettyProtocol {
 
 		NoOpProtocol() {
-			super(null, null, true);
+			super(null, null);
 		}
 
 		@Override
@@ -221,6 +298,36 @@ public class NettyClientServerSslTest extends TestLogger {
 		@Override
 		public ChannelHandler[] getClientChannelHandlers() {
 			return new ChannelHandler[0];
+		}
+	}
+
+	/**
+	 * Wrapper around {@link NettyServer.ServerChannelInitializer} making the server's SSL handler
+	 * available for the tests.
+	 */
+	private static class TestingServerChannelInitializer extends NettyServer.ServerChannelInitializer {
+		private final OneShotLatch latch;
+		private final SslHandler[] serverHandler;
+
+		TestingServerChannelInitializer(
+			NettyProtocol protocol,
+			SSLHandlerFactory sslHandlerFactory,
+			OneShotLatch latch,
+			SslHandler[] serverHandler) {
+			super(protocol, sslHandlerFactory);
+			this.latch = latch;
+			this.serverHandler = serverHandler;
+		}
+
+		@Override
+		public void initChannel(SocketChannel channel) throws Exception {
+			super.initChannel(channel);
+
+			SslHandler sslHandler = (SslHandler) channel.pipeline().get("ssl");
+			assertNotNull(sslHandler);
+			serverHandler[0] = sslHandler;
+
+			latch.trigger();
 		}
 	}
 }

@@ -37,7 +37,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * A series of tests (reusing one FlinkMiniCluster) where tasks fail (one or more time)
+ * A series of tests (reusing one MiniCluster) where tasks fail (one or more time)
  * and the recovery should restart them to verify job completion.
  */
 @SuppressWarnings("serial")
@@ -55,7 +55,6 @@ public abstract class SimpleRecoveryITCaseBase {
 
 				env.setParallelism(4);
 				env.setRestartStrategy(RestartStrategies.noRestart());
-				env.getConfig().disableSysoutLogging();
 
 				env.generateSequence(1, 10)
 						.rebalance()
@@ -84,7 +83,6 @@ public abstract class SimpleRecoveryITCaseBase {
 
 				env.setParallelism(4);
 				env.setRestartStrategy(RestartStrategies.noRestart());
-				env.getConfig().disableSysoutLogging();
 
 				env.generateSequence(1, 10)
 						.rebalance()
@@ -136,7 +134,6 @@ public abstract class SimpleRecoveryITCaseBase {
 
 			env.setParallelism(4);
 			// the default restart strategy should be taken
-			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.rebalance()
@@ -174,7 +171,6 @@ public abstract class SimpleRecoveryITCaseBase {
 
 			env.setParallelism(4);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(5, 100));
-			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.rebalance()

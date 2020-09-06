@@ -20,11 +20,8 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-
-import javax.annotation.Nullable;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * An invokable that does nothing.
@@ -35,17 +32,8 @@ public class DummyInvokable extends AbstractInvokable {
 		super(new DummyEnvironment("test", 1, 0));
 	}
 
-	public DummyInvokable(Environment environment, @Nullable TaskStateSnapshot initialState) {
-		super(environment);
-	}
-
 	@Override
 	public void invoke() {}
-
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return getClass().getClassLoader();
-	}
 
 	@Override
 	public int getCurrentNumberOfSubtasks() {
@@ -58,11 +46,6 @@ public class DummyInvokable extends AbstractInvokable {
 	}
 
 	@Override
-	public final Configuration getTaskConfiguration() {
-		return new Configuration();
-	}
-
-	@Override
 	public final Configuration getJobConfiguration() {
 		return new Configuration();
 	}
@@ -70,5 +53,13 @@ public class DummyInvokable extends AbstractInvokable {
 	@Override
 	public ExecutionConfig getExecutionConfig() {
 		return new ExecutionConfig();
+	}
+
+	@Override
+	public <E extends Exception> void executeInTaskThread(
+			ThrowingRunnable<E> runnable,
+			String descriptionFormat,
+			Object... descriptionArgs) throws E {
+		runnable.run();
 	}
 }

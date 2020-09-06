@@ -52,8 +52,8 @@ function run_test() {
     local PORT="9069" # port of queryable state server
 
     # speeds up TM loss detection
-    set_conf "heartbeat.interval" "2000"
-    set_conf "heartbeat.timeout" "10000"
+    set_config_key "heartbeat.interval" "2000"
+    set_config_key "heartbeat.timeout" "10000"
 
     link_queryable_state_lib
     start_cluster
@@ -90,9 +90,6 @@ function run_test() {
 
     latest_snapshot_count=$(cat $FLINK_DIR/log/*out* | grep "on snapshot" | tail -n 1 | awk '{print $4}')
     echo "Latest snapshot count was ${latest_snapshot_count}"
-
-    # wait until the TM loss was detected
-    wait_for_job_state_transition ${JOB_ID} "RESTARTING" "CREATED"
 
     start_and_wait_for_tm
 
@@ -164,9 +161,4 @@ function get_completed_number_of_checkpoints {
         sed 's/,.*//'     # 24
 }
 
-function test_cleanup {
-    unlink_queryable_state_lib
-}
-
-trap test_cleanup EXIT
 run_test

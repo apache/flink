@@ -52,9 +52,17 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractSt
 		twoInputOperator.processElement1(element);
 	}
 
+	public void processElement1(IN1 value, long timestamp) throws Exception {
+		processElement1(new StreamRecord<>(value, timestamp));
+	}
+
 	public void processElement2(StreamRecord<IN2> element) throws Exception {
 		twoInputOperator.setKeyContextElement2(element);
 		twoInputOperator.processElement2(element);
+	}
+
+	public void processElement2(IN2 value, long timestamp) throws Exception {
+		processElement2(new StreamRecord<>(value, timestamp));
 	}
 
 	public void processWatermark1(Watermark mark) throws Exception {
@@ -62,6 +70,11 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractSt
 	}
 
 	public void processWatermark2(Watermark mark) throws Exception {
+		twoInputOperator.processWatermark2(mark);
+	}
+
+	public void processBothWatermarks(Watermark mark) throws Exception {
+		twoInputOperator.processWatermark1(mark);
 		twoInputOperator.processWatermark2(mark);
 	}
 }

@@ -87,6 +87,7 @@ public class LocalRecoveryITCase extends TestLogger {
 
 	private void executeTest(EventTimeWindowCheckpointingITCase delegate) throws Exception {
 		delegate.name = testName;
+		delegate.stateBackendEnum = backendEnum;
 		try {
 			delegate.setupTestCluster();
 			try {
@@ -94,6 +95,7 @@ public class LocalRecoveryITCase extends TestLogger {
 				delegate.stopTestCluster();
 			} catch (Exception e) {
 				delegate.stopTestCluster();
+				throw new RuntimeException(e);
 			}
 
 			delegate.setupTestCluster();
@@ -102,9 +104,10 @@ public class LocalRecoveryITCase extends TestLogger {
 				delegate.stopTestCluster();
 			} catch (Exception e) {
 				delegate.stopTestCluster();
+				throw new RuntimeException(e);
 			}
 		} finally {
-			delegate.tempFolder.delete();
+			EventTimeWindowCheckpointingITCase.tempFolder.delete();
 		}
 	}
 }

@@ -26,7 +26,7 @@ bin=`cd "$bin"; pwd`
 CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
 
 log=flink-taskmanager.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlog4j.configurationFile=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
 
 # Add precomputed memory JVM options
 if [ -z "${FLINK_ENV_JAVA_OPTS_MEM}" ]; then
@@ -36,10 +36,6 @@ export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_MEM}"
 
 # Add TaskManager-specific JVM options
 export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
-
-export FLINK_CONF_DIR
-export FLINK_BIN_DIR
-export FLINK_LIB_DIR
 
 ENTRY_POINT=org.apache.flink.mesos.entrypoint.MesosTaskExecutorRunner
 

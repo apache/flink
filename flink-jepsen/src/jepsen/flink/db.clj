@@ -36,13 +36,14 @@
 
 (def taskmanager-slots 3)
 
-(defn flink-configuration
+(defn- default-flink-configuration
   [test node]
   {:high-availability                  "zookeeper"
    :high-availability.zookeeper.quorum (zookeeper-quorum test)
-   :high-availability.storageDir       (str (:ha-storage-dir test) "/ha")
+   :high-availability.storageDir       "hdfs:///flink/ha"
+   :jobmanager.memory.process.size     "2048m"
    :jobmanager.rpc.address             node
-   :state.savepoints.dir               (str (:ha-storage-dir test) "/savepoints")
+   :state.savepoints.dir               "hdfs:///flink/savepoints"
    :rest.address                       node
    :rest.port                          8081
    :rest.bind-address                  "0.0.0.0"
@@ -50,7 +51,14 @@
    :yarn.application-attempts          99999
    :slotmanager.taskmanager-timeout    10000
    :state.backend.local-recovery       "true"
+   :taskmanager.memory.process.size    "2048m"
    :taskmanager.registration.timeout   "30 s"})
+
+(defn flink-configuration
+  [test node]
+  (let [additional-config (-> test :test-spec :flink-config)]
+    (merge (default-flink-configuration test node)
+           additional-config)))
 
 (defn write-configuration!
   "Writes the flink-conf.yaml to the flink conf directory"
@@ -59,7 +67,7 @@
                                          (seq (flink-configuration test node))))]
     (c/exec :echo c :> conf-file)
     ;; TODO: write log4j.properties properly
-    (c/exec (c/lit (str "sed -i'.bak' -e '/log4j.rootLogger=/ s/=.*/=DEBUG, file/' " install-dir "/conf/log4j.properties")))))
+    (c/exec (c/lit (str "sed -i'.bak' -e '/rootLogger\\.level/ s/=.*/= DEBUG/' " install-dir "/conf/log4j.properties")))))
 
 (defn- file-name
   [path]
@@ -81,7 +89,7 @@
     (info "Installing Flink from" url)
     (cu/install-archive! url install-dir)
     (info "Enable S3 FS")
-    (c/exec (c/lit (str "ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/lib")))
+    (c/exec (c/lit (str "mkdir " install-dir "/plugins/s3-fs-hadoop && ls " install-dir "/opt/flink-s3-fs-hadoop* | xargs -I {} mv {} " install-dir "/plugins/s3-fs-hadoop")))
     (upload-job-jars! (->> test :test-spec :jobs (map :job-jar)))
     (write-configuration! test node)))
 
@@ -101,7 +109,7 @@
     (teardown! [_ test node]
       (c/su
         (try
-          (doseq [db dbs] (db/teardown! db test node))
+          (doseq [db (reverse dbs)] (db/teardown! db test node))
           (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]
@@ -123,7 +131,12 @@
 
                         db/LogFiles
                         (log-files [_ _ _]
-                          (fu/find-files! log-dir)))]
+                          (c/su
+                            (fu/dump-jstack-by-pattern! log-dir
+                                                        "TaskExecutor"
+                                                        "TaskManager"
+                                                        "ClusterEntrypoint")
+                            (fu/find-files! log-dir))))]
     (combined-db [flink-base-db db])))
 
 (defn- sorted-nodes
@@ -243,9 +256,7 @@
   []
   (fu/join-space (hadoop-env-vars)
                  (str install-dir "/bin/yarn-session.sh")
-                 "-d"
-                 "-jm 2048m"
-                 "-tm 2048m"))
+                 "-d"))
 
 (defn- start-yarn-session!
   []
@@ -270,7 +281,7 @@
 (defn- start-yarn-job!
   [test]
   (c/su
-    (submit-job-with-retry! test ["-m yarn-cluster" "-yjm 2048m" "-ytm 2048m"])))
+    (submit-job-with-retry! test ["-m yarn-cluster"])))
 
 (defn yarn-job-db
   []
@@ -290,11 +301,10 @@
     (str install-dir "/bin/mesos-appmaster.sh")
     (str "-Dmesos.master=" (zookeeper-uri test mesos/zk-namespace))
     "-Djobmanager.rpc.address=$(hostname -f)"
-    "-Djobmanager.heap.mb=2048"
     "-Djobmanager.rpc.port=6123"
-    "-Dmesos.resourcemanager.tasks.mem=2048"
-    "-Dtaskmanager.heap.mb=2048"
     "-Dmesos.resourcemanager.tasks.cpus=1"
+    "-Dcontainerized.taskmanager.env.HADOOP_CLASSPATH=$(/opt/hadoop/bin/hadoop classpath)"
+    "-Dtaskmanager.memory.process.size=2048m"
     "-Drest.bind-address=$(hostname -f)"))
 
 (defn- start-mesos-session!

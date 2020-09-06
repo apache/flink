@@ -34,7 +34,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
@@ -53,6 +52,7 @@ import static org.mockito.Mockito.mock;
 public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBase {
 
 	private static final int FILE_SIZE_THRESHOLD = 1024;
+	private static final int WRITE_BUFFER_SIZE = 4096;
 
 	// ------------------------------------------------------------------------
 	//  General Fs-based checkpoint storage tests, inherited
@@ -60,12 +60,12 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 
 	@Override
 	protected CheckpointStorage createCheckpointStorage(Path checkpointDir) throws Exception {
-		return new FsCheckpointStorage(checkpointDir, null, new JobID(), FILE_SIZE_THRESHOLD);
+		return new FsCheckpointStorage(checkpointDir, null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 	}
 
 	@Override
 	protected CheckpointStorage createCheckpointStorageWithSavepointDir(Path checkpointDir, Path savepointDir) throws Exception {
-		return new FsCheckpointStorage(checkpointDir, savepointDir, new JobID(), FILE_SIZE_THRESHOLD);
+		return new FsCheckpointStorage(checkpointDir, savepointDir, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 	}
 
 	// ------------------------------------------------------------------------
@@ -77,7 +77,7 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		final Path defaultSavepointDir = Path.fromLocalFile(tmp.newFolder());
 
 		final FsCheckpointStorage storage = new FsCheckpointStorage(
-				Path.fromLocalFile(tmp.newFolder()), defaultSavepointDir, new JobID(), FILE_SIZE_THRESHOLD);
+				Path.fromLocalFile(tmp.newFolder()), defaultSavepointDir, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 
 		final FsCheckpointStorageLocation savepointLocation = (FsCheckpointStorageLocation)
 				storage.initializeLocationForSavepoint(52452L, null);
@@ -96,7 +96,7 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		final Path savepointDir = Path.fromLocalFile(tmp.newFolder());
 
 		final FsCheckpointStorage storage = new FsCheckpointStorage(
-				Path.fromLocalFile(tmp.newFolder()), null, new JobID(), FILE_SIZE_THRESHOLD);
+				Path.fromLocalFile(tmp.newFolder()), null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 
 		final FsCheckpointStorageLocation savepointLocation = (FsCheckpointStorageLocation)
 				storage.initializeLocationForSavepoint(52452L, savepointDir.toString());
@@ -116,7 +116,7 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 
 		// we chose a small size threshold here to force the state to disk
 		final FsCheckpointStorage storage = new FsCheckpointStorage(
-				Path.fromLocalFile(tmp.newFolder()),  null, new JobID(), 10);
+				Path.fromLocalFile(tmp.newFolder()),  null, new JobID(), 10, WRITE_BUFFER_SIZE);
 
 		final StreamStateHandle stateHandle;
 
@@ -152,7 +152,8 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 				sharedStateDir,
 				randomTempPath(),
 				CheckpointStorageLocationReference.getDefault(),
-				FILE_SIZE_THRESHOLD);
+				FILE_SIZE_THRESHOLD,
+				WRITE_BUFFER_SIZE);
 
 		assertNotEquals(storageLocation.getCheckpointDirectory(), storageLocation.getSharedStateDirectory());
 
@@ -161,11 +162,11 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 
 		// create exclusive state
 
-		CheckpointStateOutputStream exclusiveStream =
+		FsCheckpointStateOutputStream exclusiveStream =
 				storageLocation.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
 		exclusiveStream.write(42);
-		exclusiveStream.flush();
+		exclusiveStream.flushToFile();
 		StreamStateHandle exclusiveHandle = exclusiveStream.closeAndGetHandle();
 
 		assertEquals(1, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
@@ -173,11 +174,11 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 
 		// create shared state
 
-		CheckpointStateOutputStream sharedStream =
+		FsCheckpointStateOutputStream sharedStream =
 				storageLocation.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
 
 		sharedStream.write(42);
-		sharedStream.flush();
+		sharedStream.flushToFile();
 		StreamStateHandle sharedHandle = sharedStream.closeAndGetHandle();
 
 		assertEquals(1, fs.listStatus(storageLocation.getCheckpointDirectory()).length);
@@ -190,15 +191,24 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 	}
 
 	/**
-	 * This test checks that no mkdirs is called by the checkpoint storage location when resolved.
+	 * This test checks that the expected mkdirs action for checkpoint storage,
+	 * only be called when initializeBaseLocations and not called when resolveCheckpointStorageLocation.
 	 */
 	@Test
-	public void testStorageLocationDoesNotMkdirs() throws Exception {
+	public void testStorageLocationMkdirs() throws Exception {
 		FsCheckpointStorage storage = new FsCheckpointStorage(
-				randomTempPath(), null, new JobID(), FILE_SIZE_THRESHOLD);
+				randomTempPath(), null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 
-		File baseDir =  new File(storage.getCheckpointsDirectory().getPath());
+		File baseDir = new File(storage.getCheckpointsDirectory().getPath());
+		assertFalse(baseDir.exists());
+
+		// mkdirs would only be called when initializeBaseLocations
+		storage.initializeBaseLocations();
 		assertTrue(baseDir.exists());
+
+		// mkdir would not be called when resolveCheckpointStorageLocation
+		storage = new FsCheckpointStorage(
+				randomTempPath(), null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
 
 		FsCheckpointStorageLocation location = (FsCheckpointStorageLocation)
 				storage.resolveCheckpointStorageLocation(177, CheckpointStorageLocationReference.getDefault());
@@ -215,7 +225,8 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 			new TestingPath("hdfs:///checkpoint/", checkpointFileSystem),
 			null,
 			new JobID(),
-			FILE_SIZE_THRESHOLD);
+			FILE_SIZE_THRESHOLD,
+			WRITE_BUFFER_SIZE);
 
 		final FsCheckpointStorageLocation checkpointStreamFactory =
 			(FsCheckpointStorageLocation) storage.resolveCheckpointStorageLocation(1L, CheckpointStorageLocationReference.getDefault());
@@ -253,7 +264,7 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		}
 
 		@Override
-		public FileSystem getFileSystem() throws IOException {
+		public FileSystem getFileSystem() {
 			return fileSystem;
 		}
 	}

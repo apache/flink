@@ -98,7 +98,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
 	/**
 	 * Initialize defaults for input format. Needs to be a static method because it is configured for local
-	 * cluster execution, see LocalFlinkMiniCluster.
+	 * cluster execution.
 	 * @param configuration The configuration to load defaults from
 	 */
 	private static void initDefaultsFromConfiguration(Configuration configuration) {
@@ -222,7 +222,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	protected long openTimeout = DEFAULT_OPENING_TIMEOUT;
 	
 	/**
-	 * Some file input formats are not splittable on a block level (avro, deflate)
+	 * Some file input formats are not splittable on a block level (deflate)
 	 * Therefore, the FileInputFormat can only read whole files.
 	 */
 	protected boolean unsplittable = false;

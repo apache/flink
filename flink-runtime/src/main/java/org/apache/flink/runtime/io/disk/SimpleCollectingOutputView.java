@@ -76,7 +76,7 @@ public class SimpleCollectingOutputView extends AbstractPagedOutputView {
 			this.segmentNum++;
 			return next;
 		} else {
-			throw new EOFException();
+			throw new EOFException("Can't collect further: memorySource depleted");
 		}
 	}
 	

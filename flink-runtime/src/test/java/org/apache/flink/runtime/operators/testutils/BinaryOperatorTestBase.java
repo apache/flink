@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.Driver;
@@ -102,7 +103,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
 		this.perSortMem = perSortMemory;
 		this.perSortFractionMem = (double) perSortMemory / totalMem;
 		this.ioManager = new IOManagerAsync();
-		this.memManager = totalMem > 0 ? new MemoryManager(totalMem, 1) : null;
+		this.memManager = totalMem > 0 ? MemoryManagerBuilder.newBuilder().setMemorySize(totalMem).build() : null;
 		
 		this.inputs = new ArrayList<>();
 		this.comparators = new ArrayList<>();
@@ -388,9 +389,8 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
 		this.sorters.clear();
 		
 		// 2nd, shutdown I/O
-		this.ioManager.shutdown();
-		Assert.assertTrue("I/O Manager has not properly shut down.", this.ioManager.isProperlyShutDown());
-		
+		this.ioManager.close();
+
 		// last, verify all memory is returned and shutdown mem manager
 		MemoryManager memMan = getMemoryManager();
 		if (memMan != null) {

@@ -23,14 +23,14 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.data.Stat;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -327,7 +327,6 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	 * @return True if the state handle could be released
 	 * @throws Exception If the ZooKeeper operation or discarding the state handle fails
 	 */
-	@Nullable
 	public boolean releaseAndTryRemove(String pathInZooKeeper) throws Exception {
 		checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
 
@@ -422,6 +421,17 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		if (exception != null) {
 			throw new Exception("Could not properly release all state nodes.", exception);
 		}
+	}
+
+	/**
+	 * Recursively deletes all children.
+	 *
+	 * @throws Exception ZK errors
+	 */
+	public void deleteChildren() throws Exception {
+		final String path = "/" + client.getNamespace();
+		LOG.info("Removing {} from ZooKeeper", path);
+		ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, true);
 	}
 
 	// ---------------------------------------------------------------------------------------------------------

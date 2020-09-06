@@ -40,7 +40,9 @@ import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
+import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -83,6 +85,8 @@ public class CepOperator<IN, KEY, OUT>
 		implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
 	private static final long serialVersionUID = -4166778210774160757L;
+
+	private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
 
 	private final boolean isProcessingTime;
 
@@ -130,6 +134,15 @@ public class CepOperator<IN, KEY, OUT>
 	/** Wrapped RuntimeContext that limits the underlying context features. */
 	private transient CepRuntimeContext cepRuntimeContext;
 
+	/** Thin context passed to NFA that gives access to time related characteristics. */
+	private transient TimerService cepTimerService;
+
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+
+	private transient Counter numLateRecordsDropped;
+
 	public CepOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
@@ -167,9 +180,9 @@ public class CepOperator<IN, KEY, OUT>
 
 		// initializeState through the provided context
 		computationStates = context.getKeyedStateStore().getState(
-				new ValueStateDescriptor<>(
-						NFA_STATE_NAME,
-						NFAStateSerializer.INSTANCE));
+			new ValueStateDescriptor<>(
+				NFA_STATE_NAME,
+				new NFAStateSerializer()));
 
 		partialMatches = new SharedBuffer<>(context.getKeyedStateStore(), inputSerializer);
 
@@ -216,12 +229,18 @@ public class CepOperator<IN, KEY, OUT>
 
 		context = new ContextFunctionImpl();
 		collector = new TimestampedCollector<>(output);
+		cepTimerService = new TimerServiceImpl();
+
+		// metrics
+		this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 	}
 
 	@Override
 	public void close() throws Exception {
 		super.close();
-		nfa.close();
+		if (nfa != null) {
+			nfa.close();
+		}
 	}
 
 	@Override
@@ -262,6 +281,8 @@ public class CepOperator<IN, KEY, OUT>
 
 			} else if (lateDataOutputTag != null) {
 				output.collect(lateDataOutputTag, element);
+			} else {
+				numLateRecordsDropped.inc();
 			}
 		}
 	}
@@ -285,12 +306,7 @@ public class CepOperator<IN, KEY, OUT>
 			elementsForTimestamp = new ArrayList<>();
 		}
 
-		if (getExecutionConfig().isObjectReuseEnabled()) {
-			// copy the StreamRecord so that it cannot be changed
-			elementsForTimestamp.add(inputSerializer.copy(event));
-		} else {
-			elementsForTimestamp.add(event);
-		}
+		elementsForTimestamp.add(event);
 		elementQueueState.put(currentTime, elementsForTimestamp);
 	}
 
@@ -415,7 +431,7 @@ public class CepOperator<IN, KEY, OUT>
 	private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
 		try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
 			Collection<Map<String, List<IN>>> patterns =
-				nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy);
+				nfa.process(sharedBufferAccessor, nfaState, event, timestamp, afterMatchSkipStrategy, cepTimerService);
 			processMatchedSequences(patterns, timestamp);
 		}
 	}
@@ -459,8 +475,22 @@ public class CepOperator<IN, KEY, OUT>
 	private void setTimestamp(long timestamp) {
 		if (!isProcessingTime) {
 			collector.setAbsoluteTimestamp(timestamp);
-			context.setTimestamp(timestamp);
 		}
+
+		context.setTimestamp(timestamp);
+	}
+
+	/**
+	 * Gives {@link NFA} access to {@link InternalTimerService} and tells if {@link CepOperator} works in
+	 * processing time. Should be instantiated once per operator.
+	 */
+	private class TimerServiceImpl implements TimerService {
+
+		@Override
+		public long currentProcessingTime() {
+			return timerService.currentProcessingTime();
+		}
+
 	}
 
 	/**
@@ -493,12 +523,8 @@ public class CepOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		public Long timestamp() {
-			if (isProcessingTime) {
-				return null;
-			} else {
-				return timestamp;
-			}
+		public long timestamp() {
+			return timestamp;
 		}
 
 		@Override
@@ -518,7 +544,7 @@ public class CepOperator<IN, KEY, OUT>
 	@VisibleForTesting
 	boolean hasNonEmptyPQ(KEY key) throws Exception {
 		setCurrentKey(key);
-		return elementQueueState.keys().iterator().hasNext();
+		return !elementQueueState.isEmpty();
 	}
 
 	@VisibleForTesting
@@ -529,5 +555,10 @@ public class CepOperator<IN, KEY, OUT>
 			counter += elements.size();
 		}
 		return counter;
+	}
+
+	@VisibleForTesting
+	long getLateRecordsNumber() {
+		return numLateRecordsDropped.getCount();
 	}
 }

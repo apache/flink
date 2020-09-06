@@ -1,0 +1,147 @@
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  %logicalSourceNode0%
+  %logicalSourceNode1%
+
+== Optimized Logical Plan ==
+DataSetUnion(all=[true], union=[count, word])
+  %sourceNode0%
+  %sourceNode1%
+
+== Physical Execution Plan ==
+Stage 3 : Data Source
+	content : collect elements with CollectionInputFormat
+	Partitioning : RANDOM_PARTITIONED
+	Partitioning Order : (none)
+	Uniqueness : not unique
+	Order : (none)
+	Grouping : not grouped
+	Uniqueness : not unique
+	Est. Output Size : (unknown)
+	Est. Cardinality : (unknown)
+	Network : 0.0
+	Disk I/O : 0.0
+	CPU : 0.0
+	Cumulative Network : 0.0
+	Cumulative Disk I/O : 0.0
+	Cumulative CPU : 0.0
+	Output Size (bytes) : (none)
+	Output Cardinality : (none)
+	Avg. Output Record Size (bytes) : (none)
+	Filter Factor : (none)
+
+	Stage 2 : Map
+		content : from: (count, word)
+		ship_strategy : Forward
+		exchange_mode : PIPELINED
+		driver_strategy : Map
+		Partitioning : RANDOM_PARTITIONED
+		Partitioning Order : (none)
+		Uniqueness : not unique
+		Order : (none)
+		Grouping : not grouped
+		Uniqueness : not unique
+		Est. Output Size : (unknown)
+		Est. Cardinality : (unknown)
+		Network : 0.0
+		Disk I/O : 0.0
+		CPU : 0.0
+		Cumulative Network : 0.0
+		Cumulative Disk I/O : 0.0
+		Cumulative CPU : 0.0
+		Output Size (bytes) : (none)
+		Output Cardinality : (none)
+		Avg. Output Record Size (bytes) : (none)
+		Filter Factor : (none)
+
+Stage 5 : Data Source
+	content : collect elements with CollectionInputFormat
+	Partitioning : RANDOM_PARTITIONED
+	Partitioning Order : (none)
+	Uniqueness : not unique
+	Order : (none)
+	Grouping : not grouped
+	Uniqueness : not unique
+	Est. Output Size : (unknown)
+	Est. Cardinality : (unknown)
+	Network : 0.0
+	Disk I/O : 0.0
+	CPU : 0.0
+	Cumulative Network : 0.0
+	Cumulative Disk I/O : 0.0
+	Cumulative CPU : 0.0
+	Output Size (bytes) : (none)
+	Output Cardinality : (none)
+	Avg. Output Record Size (bytes) : (none)
+	Filter Factor : (none)
+
+	Stage 4 : Map
+		content : from: (count, word)
+		ship_strategy : Forward
+		exchange_mode : PIPELINED
+		driver_strategy : Map
+		Partitioning : RANDOM_PARTITIONED
+		Partitioning Order : (none)
+		Uniqueness : not unique
+		Order : (none)
+		Grouping : not grouped
+		Uniqueness : not unique
+		Est. Output Size : (unknown)
+		Est. Cardinality : (unknown)
+		Network : 0.0
+		Disk I/O : 0.0
+		CPU : 0.0
+		Cumulative Network : 0.0
+		Cumulative Disk I/O : 0.0
+		Cumulative CPU : 0.0
+		Output Size (bytes) : (none)
+		Output Cardinality : (none)
+		Avg. Output Record Size (bytes) : (none)
+		Filter Factor : (none)
+
+		Stage 1 : Union
+			content : 
+			ship_strategy : Redistribute
+			exchange_mode : PIPELINED
+			Partitioning : RANDOM_PARTITIONED
+			Partitioning Order : (none)
+			Uniqueness : not unique
+			Order : (none)
+			Grouping : not grouped
+			Uniqueness : not unique
+			Est. Output Size : (unknown)
+			Est. Cardinality : (unknown)
+			Network : 0.0
+			Disk I/O : 0.0
+			CPU : 0.0
+			Cumulative Network : (unknown)
+			Cumulative Disk I/O : 0.0
+			Cumulative CPU : 0.0
+			Output Size (bytes) : (none)
+			Output Cardinality : (none)
+			Avg. Output Record Size (bytes) : (none)
+			Filter Factor : (none)
+
+			Stage 0 : Data Sink
+				content : org.apache.flink.api.java.io.DiscardingOutputFormat
+				ship_strategy : Forward
+				exchange_mode : PIPELINED
+				Partitioning : RANDOM_PARTITIONED
+				Partitioning Order : (none)
+				Uniqueness : not unique
+				Order : (none)
+				Grouping : not grouped
+				Uniqueness : not unique
+				Est. Output Size : (unknown)
+				Est. Cardinality : (unknown)
+				Network : 0.0
+				Disk I/O : 0.0
+				CPU : 0.0
+				Cumulative Network : (unknown)
+				Cumulative Disk I/O : 0.0
+				Cumulative CPU : 0.0
+				Output Size (bytes) : (none)
+				Output Cardinality : (none)
+				Avg. Output Record Size (bytes) : (none)
+				Filter Factor : (none)
+

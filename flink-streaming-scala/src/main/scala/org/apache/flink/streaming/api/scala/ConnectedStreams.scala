@@ -21,9 +21,8 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction, CoProcessFunction}
+import org.apache.flink.streaming.api.functions.co._
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.util.Collector
 
@@ -97,7 +96,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]    
-    asScalaStream(javaStream.map(coMapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(javaStream.map(coMapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -108,10 +107,6 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * or more output elements. Contrary to the [[flatMap(CoFlatMapFunction)]] function,
    * this function can also query the time and set timers. When reacting to the firing of set
    * timers the function can directly emit elements and/or register yet more timers.
-   *
-   * A [[RichCoProcessFunction]]
-   * can be used to gain access to features provided by the
-   * [[org.apache.flink.api.common.functions.RichFunction]] interface.
    *
    * @param coProcessFunction The [[CoProcessFunction]] that is called for each element
     *                    in the stream.
@@ -128,6 +123,31 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
 
     asScalaStream(javaStream.process(coProcessFunction, outType))
+  }
+
+  /**
+    * Applies the given [[KeyedCoProcessFunction]] on the connected input keyed streams,
+    * thereby creating a transformed output stream.
+    *
+    * The function will be called for every element in the input keyed streams and can produce
+    * zero or more output elements. Contrary to the [[flatMap(CoFlatMapFunction)]] function, this
+    * function can also query the time and set timers. When reacting to the firing of set timers
+    * the function can directly emit elements and/or register yet more timers.
+    *
+    * @param keyedCoProcessFunction The [[KeyedCoProcessFunction]] that is called for each element
+    *                               in the stream.
+    * @return The transformed [[DataStream]].
+    */
+  @PublicEvolving
+  def process[K, R: TypeInformation](
+      keyedCoProcessFunction: KeyedCoProcessFunction[K, IN1, IN2, R]) : DataStream[R] = {
+    if (keyedCoProcessFunction == null) {
+      throw new NullPointerException("KeyedCoProcessFunction function must not be null.")
+    }
+
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+
+    asScalaStream(javaStream.process(keyedCoProcessFunction, outType))
   }
 
 
@@ -155,7 +175,7 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.flatMap(coFlatMapper).returns(outType).asInstanceOf[JavaStream[R]])
+    asScalaStream(javaStream.flatMap(coFlatMapper, outType).asInstanceOf[JavaStream[R]])
   }
 
   /**
@@ -279,19 +299,18 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * @param fun2 The second stream's key function
    * @return The key-grouped connected streams
    */
-  def keyBy[K1: TypeInformation, K2: TypeInformation](fun1: IN1 => K1, fun2: IN2 => K2):
+  def keyBy[KEY: TypeInformation](fun1: IN1 => KEY, fun2: IN2 => KEY):
       ConnectedStreams[IN1, IN2] = {
 
-    val keyType1 = implicitly[TypeInformation[K1]]
-    val keyType2 = implicitly[TypeInformation[K2]]
-    
+    val keyType = implicitly[TypeInformation[KEY]]
+
     val cleanFun1 = clean(fun1)
     val cleanFun2 = clean(fun2)
-    
-    val keyExtractor1 = new KeySelectorWithType[IN1, K1](cleanFun1, keyType1)
-    val keyExtractor2 = new KeySelectorWithType[IN2, K2](cleanFun2, keyType2)
-    
-    asScalaStream(javaStream.keyBy(keyExtractor1, keyExtractor2))
+
+    val keyExtractor1 = new JavaKeySelector[IN1, KEY](cleanFun1)
+    val keyExtractor2 = new JavaKeySelector[IN2, KEY](cleanFun2)
+
+    asScalaStream(javaStream.keyBy(keyExtractor1, keyExtractor2, keyType))
   }
 
   /**
@@ -311,12 +330,6 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 }
 
 @Internal
-class KeySelectorWithType[IN, K](
-        private[this] val fun: IN => K,
-        private[this] val info: TypeInformation[K])
-  extends KeySelector[IN, K] with ResultTypeQueryable[K] {
-  
+class JavaKeySelector[IN, K](private[this] val fun: IN => K) extends KeySelector[IN, K] {
   override def getKey(value: IN): K = fun(value)
-
-  override def getProducedType: TypeInformation[K] = info
 }

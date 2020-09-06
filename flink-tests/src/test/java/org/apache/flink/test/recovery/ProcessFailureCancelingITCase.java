@@ -32,6 +32,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -41,8 +42,9 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
-import org.apache.flink.runtime.entrypoint.component.SessionDispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -52,13 +54,15 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.impl.VoidMetricQueryServiceRetriever;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
+import org.apache.flink.test.recovery.AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint;
+import org.apache.flink.test.util.TestProcessBuilder;
+import org.apache.flink.test.util.TestProcessBuilder.TestProcess;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -66,16 +70,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.StringWriter;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertFalse;
@@ -101,11 +103,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
 	@Test
 	public void testCancelingOnProcessFailure() throws Exception {
-		final StringWriter processOutput = new StringWriter();
 		final Time timeout = Time.minutes(2L);
 
 		RestClusterClient<String> clusterClient = null;
-		Process taskManagerProcess = null;
+		TestProcess taskManagerProcess = null;
 		final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
 		Configuration config = new Configuration();
@@ -115,40 +116,39 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
+		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
+		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
+		config.set(TaskManagerOptions.CPU_CORES, 1.0);
 		config.setInteger(RestOptions.PORT, 0);
 
-		final RpcService rpcService = AkkaRpcServiceUtils.createRpcService("localhost", 0, config);
+		final RpcService rpcService = AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
 		final int jobManagerPort = rpcService.getPort();
 		config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
-		final SessionDispatcherResourceManagerComponentFactory resourceManagerComponentFactory = new SessionDispatcherResourceManagerComponentFactory(
-			StandaloneResourceManagerFactory.INSTANCE);
-		DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent = null;
+		final DispatcherResourceManagerComponentFactory resourceManagerComponentFactory = DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+			StandaloneResourceManagerFactory.getInstance());
+		DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
 
+		final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
 		final HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
 			config,
-			TestingUtils.defaultExecutor(),
+			ioExecutor,
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
 
 			// check that we run this test only if the java command
 			// is available on this machine
-			String javaCommand = getJavaCommandPath();
-			if (javaCommand == null) {
+			if (getJavaCommandPath() == null) {
 				System.out.println("---- Skipping Process Failure test : Could not find java executable ----");
 				return;
 			}
 
-			// create a logging file for the process
-			File tempLogFile = File.createTempFile(getClass().getSimpleName() + "-", "-log4j.properties");
-			tempLogFile.deleteOnExit();
-			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
-
 			dispatcherResourceManagerComponent = resourceManagerComponentFactory.create(
 				config,
+				ioExecutor,
 				rpcService,
 				haServices,
 				blobServerResource.getBlobServer(),
@@ -161,24 +161,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			final Map<String, String> keyValues = config.toMap();
 			final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
 
-			// the TaskManager java command
-			commands.add(javaCommand);
-			commands.add("-Dlog.level=DEBUG");
-			commands.add("-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath());
-			commands.add("-Xms80m");
-			commands.add("-Xmx80m");
-			commands.add("-classpath");
-			commands.add(getCurrentClasspath());
-			commands.add(AbstractTaskManagerProcessFailureRecoveryTest.TaskExecutorProcessEntryPoint.class.getName());
+			TestProcessBuilder taskManagerProcessBuilder = new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
+			taskManagerProcessBuilder.addConfigAsMainClassArgs(config);
 
-			for (Map.Entry<String, String> keyValue: keyValues.entrySet()) {
-				commands.add("--" + keyValue.getKey());
-				commands.add(keyValue.getValue());
-			}
-
-			// start the first two TaskManager processes
-			taskManagerProcess = new ProcessBuilder(commands).start();
-			new CommonTestUtils.PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
+			taskManagerProcess = taskManagerProcessBuilder.start();
 
 			final Throwable[] errorRef = new Throwable[1];
 
@@ -190,7 +176,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, config);
 						env.setParallelism(2);
 						env.setRestartStrategy(RestartStrategies.noRestart());
-						env.getConfig().disableSysoutLogging();
 
 						env.generateSequence(0, Long.MAX_VALUE)
 
@@ -235,7 +220,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			taskManagerProcess = null;
 
 			// try to cancel the job
-			clusterClient.cancel(jobId);
+			clusterClient.cancel(jobId).get();
 
 			// we should see a failure within reasonable time (10s is the ask timeout).
 			// since the CI environment is often slow, we conservatively give it up to 2 minutes,
@@ -248,15 +233,15 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			Throwable error = errorRef[0];
 			assertNotNull("The program did not fail properly", error);
 
-			assertTrue(error instanceof ProgramInvocationException);
+			assertTrue(error.getCause() instanceof ProgramInvocationException);
 			// all seems well :-)
 		}
 		catch (Exception e) {
-			printProcessLog("TaskManager", processOutput.toString());
+			printProcessLog("TaskManager", taskManagerProcess.getErrorOutput().toString());
 			throw e;
 		}
 		catch (Error e) {
-			printProcessLog("TaskManager 1", processOutput.toString());
+			printProcessLog("TaskManager 1", taskManagerProcess.getErrorOutput().toString());
 			throw e;
 		}
 		finally {
@@ -264,17 +249,17 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				taskManagerProcess.destroy();
 			}
 			if (clusterClient != null) {
-				clusterClient.shutdown();
+				clusterClient.close();
 			}
 			if (dispatcherResourceManagerComponent != null) {
 				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
 			}
 
-			haServices.closeAndCleanupAllData();
-
 			fatalErrorHandler.rethrowError();
 
 			RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+
+			haServices.closeAndCleanupAllData();
 		}
 	}
 
@@ -287,11 +272,13 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	 * @throws Exception if something goes wrong
 	 */
 	static DispatcherGateway retrieveDispatcherGateway(RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
-		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), Time.seconds(10L));
+		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+			haServices.getDispatcherLeaderRetriever(),
+			Duration.ofSeconds(10L));
 
 		return rpcService.connect(
 			leaderConnectionInfo.getAddress(),
-			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionID()),
+			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
 			DispatcherGateway.class).get();
 	}
 

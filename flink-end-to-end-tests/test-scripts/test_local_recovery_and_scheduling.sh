@@ -45,12 +45,9 @@ function check_logs {
     fi
 }
 
-# This function does a cleanup after the test. The configuration is restored, the watchdog is terminated and temporary
+# This function does a cleanup after the test. The watchdog is terminated and temporary
 # files and folders are deleted.
 function cleanup_after_test {
-    # Reset the configurations
-    sed -i -e 's/log4j.rootLogger=.*/log4j.rootLogger=INFO, file/' "$FLINK_DIR/conf/log4j.properties"
-    #
     kill ${watchdog_pid} 2> /dev/null
     wait ${watchdog_pid} 2> /dev/null
 }
@@ -81,12 +78,12 @@ function run_local_recovery_test {
     create_ha_config
 
     # Enable debug logging
-    sed -i -e 's/log4j.rootLogger=.*/log4j.rootLogger=DEBUG, file/' "$FLINK_DIR/conf/log4j.properties"
+    sed -i -e 's/rootLogger.level = .*/rootLogger.level = DEBUG/' "$FLINK_DIR/conf/log4j.properties"
 
     # Enable local recovery
-    set_conf "state.backend.local-recovery" "true"
+    set_config_key "state.backend.local-recovery" "true"
     # Ensure that each TM only has one operator(chain)
-    set_conf "taskmanager.numberOfTaskSlots" "1"
+    set_config_key "taskmanager.numberOfTaskSlots" "1"
 
     rm $FLINK_DIR/log/* 2> /dev/null
 

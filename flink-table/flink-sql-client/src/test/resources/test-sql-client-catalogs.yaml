@@ -1,0 +1,161 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+#==============================================================================
+# TEST ENVIRONMENT FILE
+# General purpose default environment file.
+#==============================================================================
+
+# this file has variables that can be filled with content by replacing $VAR_XXX
+
+tables:
+  - name: TableNumber1
+    type: source-table
+    $VAR_UPDATE_MODE
+    schema:
+      - name: IntegerField1
+        type: INT
+      - name: StringField1
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_SOURCE_PATH1"
+    format:
+      type: csv
+      fields:
+        - name: IntegerField1
+          type: INT
+        - name: StringField1
+          type: VARCHAR
+      line-delimiter: "\n"
+      comment-prefix: "#"
+  - name: TestView1
+    type: view
+    query: SELECT scalarUDF(IntegerField1) FROM default_catalog.default_database.TableNumber1
+  - name: TableNumber2
+    # Test backwards compatibility ("source" -> "source-table")
+    type: source
+    $VAR_UPDATE_MODE
+    schema:
+      - name: IntegerField2
+        type: INT
+      - name: StringField2
+        type: VARCHAR
+      - name: TimestampField3
+        type: TIMESTAMP
+    connector:
+      type: filesystem
+      path: "$VAR_SOURCE_PATH2"
+    format:
+      type: csv
+      fields:
+        - name: IntegerField2
+          type: INT
+        - name: StringField2
+          type: VARCHAR
+        - name: TimestampField3
+          type: TIMESTAMP
+      line-delimiter: "\n"
+      comment-prefix: "#"
+  - name: TestView2
+    type: view
+    query: SELECT * FROM default_catalog.default_database.TestView1
+  - name: TableNumber3
+    type: source-table
+    $VAR_UPDATE_MODE
+    schema:
+      - name: DecimalField
+        type: DECIMAL
+      - name: StringField
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_SOURCE_PATH2"
+    format:
+      type: csv
+      fields:
+        - name: DecimalField
+          type: DECIMAL
+        - name: StringField
+          type: VARCHAR
+      line-delimiter: "\n"
+      comment-prefix: "#"
+
+functions:
+  - name: scalarUDF
+    from: class
+    class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$ScalarUDF
+    constructor:
+      - 5
+  - name: aggregateUDF
+    from: class
+    class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$AggregateUDF
+    constructor:
+      - StarryName
+      - false
+      - class: java.lang.Integer
+        constructor:
+          - class: java.lang.String
+            constructor:
+              - type: VARCHAR
+                value: 3
+  - name: tableUDF
+    from: class
+    class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$TableUDF
+    constructor:
+      - type: LONG
+        value: 5
+
+execution:
+  planner: "$VAR_PLANNER"
+  type: "$VAR_EXECUTION_TYPE"
+  time-characteristic: event-time
+  periodic-watermarks-interval: 99
+  parallelism: 1
+  max-parallelism: 16
+  min-idle-state-retention: 0
+  max-idle-state-retention: 0
+  result-mode: "$VAR_RESULT_MODE"
+  max-table-result-rows: "$VAR_MAX_ROWS"
+  restart-strategy:
+    type: failure-rate
+    max-failures-per-interval: 10
+    failure-rate-interval: 99000
+    delay: 1000
+  current-catalog: inmemorycatalog
+  current-database: mydatabase
+
+deployment:
+  response-timeout: 5000
+
+catalogs:
+  - name: catalog1
+    type: DependencyTest
+  - name: catalog2
+    type: DependencyTest
+    default-database: mydatabase
+  - name: inmemorycatalog
+    type: generic_in_memory
+    default-database: mydatabase
+  - name: hivecatalog
+    type: hive
+    test: test
+    hive-version: 2.3.4
+  - name: hivedefaultversion
+    type: hive
+    test: test

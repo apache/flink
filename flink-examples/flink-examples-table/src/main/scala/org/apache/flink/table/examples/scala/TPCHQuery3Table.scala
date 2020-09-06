@@ -18,8 +18,8 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 
 /**
   * This program implements a modified version of the TPC-H query 3. The
@@ -84,7 +84,7 @@ object TPCHQuery3Table {
 
     // get execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = BatchTableEnvironment.create(env)
 
     val lineitems = getLineitemDataSet(env)
       .toTable(tEnv, 'id, 'extdPrice, 'discount, 'shipDate)

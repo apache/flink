@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -38,6 +39,8 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 
 	private final int maxParallelism;
 
+	private final ResourceProfile resourceProfile;
+
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
 
 	public ArchivedExecutionJobVertex(ExecutionJobVertex jobVertex) {
@@ -52,6 +55,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 		this.name = jobVertex.getJobVertex().getName();
 		this.parallelism = jobVertex.getParallelism();
 		this.maxParallelism = jobVertex.getMaxParallelism();
+		this.resourceProfile = jobVertex.getResourceProfile();
 	}
 
 	public ArchivedExecutionJobVertex(
@@ -60,12 +64,14 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 			String name,
 			int parallelism,
 			int maxParallelism,
+			ResourceProfile resourceProfile,
 			StringifiedAccumulatorResult[] archivedUserAccumulators) {
 		this.taskVertices = taskVertices;
 		this.id = id;
 		this.name = name;
 		this.parallelism = parallelism;
 		this.maxParallelism = maxParallelism;
+		this.resourceProfile = resourceProfile;
 		this.archivedUserAccumulators = archivedUserAccumulators;
 	}
 
@@ -86,6 +92,11 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 	@Override
 	public int getMaxParallelism() {
 		return maxParallelism;
+	}
+
+	@Override
+	public ResourceProfile getResourceProfile() {
+		return resourceProfile;
 	}
 
 	@Override

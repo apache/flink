@@ -19,7 +19,6 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -30,16 +29,15 @@ import org.apache.flink.formats.avro.utils.TestDataGenerator;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
-import java.util.function.Function;
 
+import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAfterMigration;
+import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAsIs;
+import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isIncompatible;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -183,42 +181,6 @@ public class AvroSerializerSnapshotTest {
 		specificSerializer.snapshotConfiguration();
 
 		assertThat(genericSnapshot.resolveSchemaCompatibility(specificSerializer), isCompatibleAsIs());
-	}
-
-	// ---------------------------------------------------------------------------------------------------------------
-	// Matchers
-	// ---------------------------------------------------------------------------------------------------------------
-
-	private Matcher<TypeSerializerSchemaCompatibility> isCompatibleAsIs() {
-		return matcher(TypeSerializerSchemaCompatibility::isCompatibleAsIs, "compatible as is");
-	}
-
-	private Matcher<TypeSerializerSchemaCompatibility> isCompatibleAfterMigration() {
-		return matcher(TypeSerializerSchemaCompatibility::isCompatibleAfterMigration,
-			"compatible after migration");
-	}
-
-	private Matcher<TypeSerializerSchemaCompatibility> isIncompatible() {
-		return matcher(TypeSerializerSchemaCompatibility::isIncompatible,
-			"incompatible");
-	}
-
-	private static <T> Matcher<T> matcher(Function<T, Boolean> predicate, String message) {
-		return new TypeSafeDiagnosingMatcher<T>() {
-
-			@Override
-			protected boolean matchesSafely(T item, Description mismatchDescription) {
-				if (predicate.apply(item)) {
-					return true;
-				}
-				mismatchDescription.appendText("not ").appendText(message);
-				return false;
-			}
-
-			@Override
-			public void describeTo(Description description) {
-			}
-		};
 	}
 
 	// ---------------------------------------------------------------------------------------------------------------

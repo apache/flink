@@ -26,7 +26,7 @@ import java.util.ArrayList;
 /**
  * Snapshot class for the {@link ArrayListSerializer}.
  */
-public class ArrayListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ArrayList<T>, ArrayListSerializer> {
+public class ArrayListSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ArrayList<T>, ArrayListSerializer<T>> {
 
 	private static final int CURRENT_VERSION = 1;
 
@@ -50,14 +50,14 @@ public class ArrayListSerializerSnapshot<T> extends CompositeTypeSerializerSnaps
 	}
 
 	@Override
-	protected ArrayListSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected ArrayListSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
 		TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
 		return new ArrayListSerializer<>(elementSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(ArrayListSerializer outerSerializer) {
+	protected TypeSerializer<?>[] getNestedSerializers(ArrayListSerializer<T> outerSerializer) {
 		return new TypeSerializer<?>[] { outerSerializer.getElementSerializer() };
 	}
 }

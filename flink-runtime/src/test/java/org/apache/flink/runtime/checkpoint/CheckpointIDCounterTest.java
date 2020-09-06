@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -98,8 +100,10 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		@Override
 		protected CheckpointIDCounter createCompletedCheckpoints() throws Exception {
-			return new ZooKeeperCheckpointIDCounter(ZooKeeper.getClient(),
-					"/checkpoint-id-counter");
+			return new ZooKeeperCheckpointIDCounter(
+				ZooKeeper.getClient(),
+				"/checkpoint-id-counter",
+				new DefaultLastStateConnectionStateListener());
 		}
 	}
 
@@ -116,8 +120,11 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			counter.start();
 
 			assertEquals(1, counter.getAndIncrement());
+			assertEquals(2, counter.get());
 			assertEquals(2, counter.getAndIncrement());
+			assertEquals(3, counter.get());
 			assertEquals(3, counter.getAndIncrement());
+			assertEquals(4, counter.get());
 			assertEquals(4, counter.getAndIncrement());
 		}
 		finally {
@@ -177,6 +184,7 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 			}
 
 			// The final count
+			assertEquals(expectedTotal + 1, counter.get());
 			assertEquals(expectedTotal + 1, counter.getAndIncrement());
 		}
 		finally {
@@ -198,7 +206,9 @@ public abstract class CheckpointIDCounterTest extends TestLogger {
 
 		// Test setCount
 		counter.setCount(1337);
+		assertEquals(1337, counter.get());
 		assertEquals(1337, counter.getAndIncrement());
+		assertEquals(1338, counter.get());
 		assertEquals(1338, counter.getAndIncrement());
 
 		counter.shutdown(JobStatus.FINISHED);

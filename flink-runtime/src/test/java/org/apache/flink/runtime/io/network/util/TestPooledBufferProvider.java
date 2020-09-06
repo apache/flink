@@ -31,6 +31,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
@@ -66,7 +67,20 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilder() throws IOException {
+		Buffer buffer = requestBuffer();
+		if (buffer != null) {
+			return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
+		}
+		return null;
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+		return requestBufferBuilder();
+	}
+
+	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
 		Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
@@ -87,6 +101,11 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+		return requestBufferBuilderBlocking();
+	}
+
+	@Override
 	public boolean addBufferListener(BufferListener listener) {
 		return bufferRecycler.registerListener(listener);
 	}
@@ -97,8 +116,8 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public int getMemorySegmentSize() {
-		return bufferFactory.getBufferSize();
+	public CompletableFuture<?> getAvailableFuture() {
+		return AVAILABLE;
 	}
 
 	public int getNumberOfAvailableBuffers() {

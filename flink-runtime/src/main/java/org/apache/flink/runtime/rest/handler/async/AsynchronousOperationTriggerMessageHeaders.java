@@ -35,4 +35,16 @@ public abstract class AsynchronousOperationTriggerMessageHeaders<R extends Reque
 	public Class<TriggerResponse> getResponseClass() {
 		return TriggerResponse.class;
 	}
+
+	@Override
+	public String getDescription() {
+		return getAsyncOperationDescription() + " This async operation would return a 'triggerid' for further query identifier.";
+	}
+
+	/**
+	 * Returns the description for this async operation header.
+	 *
+	 * @return the description for this async operation header.
+	 */
+	protected abstract String getAsyncOperationDescription();
 }

@@ -33,8 +33,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.streaming.util.migration.MigrationTestUtil;
-import org.apache.flink.streaming.util.migration.MigrationVersion;
+import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.junit.Ignore;
 import org.junit.Test;
@@ -64,6 +63,7 @@ public class CEPMigrationTest {
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
+	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
 	 */
 	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
@@ -76,7 +76,11 @@ public class CEPMigrationTest {
 			MigrationVersion.v1_4,
 			MigrationVersion.v1_5,
 			MigrationVersion.v1_6,
-			MigrationVersion.v1_7);
+			MigrationVersion.v1_7,
+			MigrationVersion.v1_8,
+			MigrationVersion.v1_9,
+			MigrationVersion.v1_10,
+			MigrationVersion.v1_11);
 	}
 
 	public CEPMigrationTest(MigrationVersion migrateVersion) {
@@ -157,10 +161,8 @@ public class CEPMigrationTest {
 		try {
 			harness.setup();
 
-			MigrationTestUtil.restoreFromSnapshot(
-				harness,
-				OperatorSnapshotUtil.getResourceFilename("cep-migration-after-branching-flink" + migrateVersion + "-snapshot"),
-				migrateVersion);
+			harness.initializeState(
+				OperatorSnapshotUtil.getResourceFilename("cep-migration-after-branching-flink" + migrateVersion + "-snapshot"));
 
 			harness.open();
 
@@ -319,10 +321,9 @@ public class CEPMigrationTest {
 		try {
 			harness.setup();
 
-			MigrationTestUtil.restoreFromSnapshot(
-				harness,
-				OperatorSnapshotUtil.getResourceFilename("cep-migration-starting-new-pattern-flink" + migrateVersion + "-snapshot"),
-				migrateVersion);
+			harness.initializeState(
+				OperatorSnapshotUtil.getResourceFilename(
+					"cep-migration-starting-new-pattern-flink" + migrateVersion + "-snapshot"));
 
 			harness.open();
 
@@ -485,10 +486,9 @@ public class CEPMigrationTest {
 		try {
 			harness.setup();
 
-			MigrationTestUtil.restoreFromSnapshot(
-				harness,
-				OperatorSnapshotUtil.getResourceFilename("cep-migration-single-pattern-afterwards-flink" + migrateVersion + "-snapshot"),
-				migrateVersion);
+			harness.initializeState(
+				OperatorSnapshotUtil.getResourceFilename(
+					"cep-migration-single-pattern-afterwards-flink" + migrateVersion + "-snapshot"));
 
 			harness.open();
 
@@ -578,10 +578,9 @@ public class CEPMigrationTest {
 		try {
 			harness.setup();
 
-			MigrationTestUtil.restoreFromSnapshot(
-				harness,
-				OperatorSnapshotUtil.getResourceFilename("cep-migration-conditions-flink" + migrateVersion + "-snapshot"),
-				migrateVersion);
+			harness.initializeState(
+				OperatorSnapshotUtil.getResourceFilename(
+					"cep-migration-conditions-flink" + migrateVersion + "-snapshot"));
 
 			harness.open();
 

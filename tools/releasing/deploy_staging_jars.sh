@@ -21,6 +21,7 @@
 ## Variables with defaults (if not overwritten by environment)
 ##
 MVN=${MVN:-mvn}
+CUSTOM_OPTIONS=${CUSTOM_OPTIONS:-}
 
 # fail immediately
 set -o errexit
@@ -40,11 +41,10 @@ cd ..
 
 echo "Deploying to repository.apache.org"
 
-COMMON_OPTIONS="-Prelease,docs-and-source -DskipTests -DretryFailedDeploymentCount=10"
+COMMON_OPTIONS="-Prelease,docs-and-source -DskipTests -DretryFailedDeploymentCount=10 $CUSTOM_OPTIONS"
 
 echo "Deploying Scala 2.11 version"
 $MVN clean deploy $COMMON_OPTIONS -Dscala-2.11
 
 echo "Deploying Scala 2.12 version"
 $MVN clean deploy $COMMON_OPTIONS -Dscala-2.12
-
