@@ -430,7 +430,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         jars_abs_path = flink_source_root + '/flink-connectors/flink-sql-connector-kafka'
         specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
         specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
-        specific_jars = ';'.join(specific_jars)
 
         self.env.add_jars(specific_jars)
         source_topic = 'test_source_topic'
@@ -452,7 +451,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         jars_abs_path = flink_source_root + '/flink-connectors/flink-sql-connector-kafka'
         specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
         specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
-        specific_jars = ';'.join(specific_jars)
 
         self.env.add_classpaths(specific_jars)
         source_topic = 'test_source_topic'
