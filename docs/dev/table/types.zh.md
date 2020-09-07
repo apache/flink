@@ -252,7 +252,8 @@ N/A
 | `MAP` | |
 | `ROW` | |
 | `RAW` | |
-| stuctured types | 暂只能在用户自定义函数里使用。 |
+| structured types | 暂只能在用户自定义函数里使用。 |
+
 </div>
 <div data-lang="Python" markdown="1">
 N/A
@@ -1192,6 +1193,8 @@ DataTypes.ARRAY(t)
 | Java 类型                              | 输入  | 输出   | 备注                              |
 |:---------------------------------------|:-----:|:------:|:----------------------------------|
 |*t*`[]`                                 | (X)   | (X)    | 依赖于子类型。 *缺省*             |
+| `java.util.List<t>`                    | X     | X      |                                   |
+| `java.util.List<t>` 的*子类型*          | X     |        |                                   |
 |`org.apache.flink.table.data.ArrayData` | X     | X      | 内部数据结构。                    |
 
 </div>
@@ -1584,7 +1587,13 @@ DataTypes.NULL()
 <div data-lang="Java/Scala" markdown="1">
 Flink API 经常尝试使用反射自动从类信息中提取数据类型，以避免重复的手动定义模式工作。然而以反射方式提取数据类型并不总是成功的，因为可能会丢失逻辑信息。因此，可能有必要在类或字段声明附近添加额外信息以支持提取逻辑。
 
-下表列出了可以隐式映射到数据类型而无需额外信息的类：
+下表列出了可以隐式映射到数据类型而无需额外信息的类。
+
+If you intend to implement classes in Scala, *it is recommended to use boxed types* (e.g. `java.lang.Integer`)
+instead of Scala's primitives. Scala's primitives (e.g. `Int` or `Double`) are compiled to JVM primitives (e.g.
+`int`/`double`) and result in `NOT NULL` semantics as shown in the table below. Furthermore, Scala primitives that
+are used in generics (e.g. `java.lang.Map[Int, Double]`) are erased during compilation and lead to class
+information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
 
 | 类                          | 数据类型                            |
 |:----------------------------|:------------------------------------|
