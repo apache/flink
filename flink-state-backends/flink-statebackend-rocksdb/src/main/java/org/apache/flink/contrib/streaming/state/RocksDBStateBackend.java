@@ -557,8 +557,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend imple
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry
-		)
+			cancelStreamRegistry)
 			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
 			.setNativeMetricOptions(resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))

@@ -545,7 +545,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				StateSnapshotTransformFactory.noTransform());
 
 			newRocksStateInfo = RocksDBOperationUtils.createStateInfo(
-				newMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
+				newMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager,
+				optionsContainer.getWriteBufferManagerCapacity());
 			RocksDBOperationUtils.registerKvStateInformation(this.kvStateInformation, this.nativeMetricMonitor,
 				stateDesc.getName(), newRocksStateInfo);
 		}
