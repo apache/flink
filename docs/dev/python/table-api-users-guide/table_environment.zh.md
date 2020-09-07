@@ -38,16 +38,20 @@ The recommended way to create a `TableEnvironment` is to create from an `Environ
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
 
 # create a blink streaming TableEnvironment
-table_env = StreamTableEnvironment.create(environment_settings=EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build())
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
 # create a blink batch TableEnvironment
-table_env = BatchTableEnvironment.create(environment_settings=EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build())
+env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 # create a flink streaming TableEnvironment
-table_env = StreamTableEnvironment.create(environment_settings=EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build())
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
+table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
 # create a flink batch TableEnvironment
-table_env = BatchTableEnvironment.create(environment_settings=EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build())
+env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build()
+table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 {% endhighlight %}
 
@@ -70,10 +74,6 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_config = TableConfig()  # you can add configuration options in it
 table_env = StreamTableEnvironment.create(env, table_config)
 
-# create a flink streaming TableEnvironment from a StreamExecutionEnvironment
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env, environment_settings=EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build())
-
 # create a flink batch TableEnvironment from an ExecutionEnvironment
 env = ExecutionEnvironment.get_execution_environment()
 table_env = BatchTableEnvironment.create(env)
@@ -83,6 +83,10 @@ env = ExecutionEnvironment.get_execution_environment()
 table_config = TableConfig()  # you can add configuration options in it
 table_env = BatchTableEnvironment.create(env, table_config)
 
+# create a flink streaming TableEnvironment from a StreamExecutionEnvironment
+env = StreamExecutionEnvironment.get_execution_environment()
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
+table_env = StreamTableEnvironment.create(env, environment_settings=env_settings)
 {% endhighlight %}
 
 **Note:** Almost all the configurations in `ExecutionEnvironment`/`StreamExecutionEnvironment` can be configured via `TableEnvironment.get_config()` now, see [Configuration]({% link ops/config.zh.md %}) for more details.
@@ -131,7 +135,7 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>from_path(path)</strong>
       </td>
       <td>
-        Reads a registered table from catalog and returns the resulting `Table` object. 
+        Creates a table from a registered table under the specified path, e.g. tables registered via `create_temporary_view`. 
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_path">link</a>
@@ -164,7 +168,7 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>drop_temporary_view(view_path)</strong>
       </td>
       <td>
-        Drops a temporary view registered in the given path. 
+        Drops a temporary view registered under the given path. 
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_view">link</a>
@@ -188,9 +192,9 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td>
         Execute the given single statement, and return the execution result.
-        The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE.
-        Note that for "INSERT INTO" statement this is an async operation.
-        This is usually expected when submitting a job to a remote cluster. However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to the following code: <br>
+        The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE. <br> <br>
+        Note that for "INSERT INTO" statement this is an asynchronous operation, which is usually expected when submitting a job to a remote cluster.
+        However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to <a href="{{ site.baseurl }}/zh/dev/python/faq.html#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">this solution</a>: <br>
 {% highlight python %}
 table_env.execute_sql(stmt).get_job_client().get_job_execution_result().result()
 {% endhighlight %}
@@ -314,7 +318,7 @@ table_env.execute_sql(stmt).get_job_client().get_job_execution_result().result()
 
 ### Execute/Explain Jobs
 
-These APIs are used to explain/execute jobs. Note that the API `execute_sql` can also be used to execute job.
+These APIs are used to explain/execute jobs. Note that the API `execute_sql` can also be used to execute jobs.
 
 <table class="table table-bordered">
   <thead>
@@ -330,7 +334,7 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         <strong>explain_sql(stmt, *extra_details)</strong>
       </td>
       <td>
-        Returns the AST of the specified statement and the execution plan.
+        Returns the AST and the execution plan of the specified statement.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.explain_sql">link</a>
@@ -398,7 +402,7 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
 
 These APIs are used to register UDFs or remove the registered UDFs. 
 Note that the API `execute_sql` can also be used to register/remove UDFs.
-For more introduction about different kinds of UDF, please refer to [User Defined Functions]({% link dev/table/functions/index.zh.md %}).
+For more details about the different kinds of UDF, please refer to [User Defined Functions]({% link dev/table/functions/index.zh.md %}).
 
 <table class="table table-bordered">
   <thead>
@@ -414,7 +418,7 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>create_temporary_function(path, function)</strong>
       </td>
       <td>
-        Registers a python user defined function class as a temporary catalog function.
+        Registers a Python user defined function class as a temporary catalog function.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_function">link</a>
@@ -425,7 +429,7 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>create_temporary_system_function(name, function)</strong>
       </td>
       <td>
-        Registers a python user defined function class as a temporary system function.
+        Registers a Python user defined function class as a temporary system function.
         If the name of a temporary system function is the same as a temporary catalog function,
         the temporary system function takes precedence.
       </td>
@@ -438,8 +442,8 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>create_java_function(path, function_class_name, ignore_if_exists=None)</strong>
       </td>
       <td>
-        Registers a java user defined function class as a catalog function in the given path.
-        If the catalog is persistent, the register catalog function can be used across multiple Flink sessions and clusters.
+        Registers a Java user defined function class as a catalog function in the given path.
+        If the catalog is persistent, the registered catalog function can be used across multiple Flink sessions and clusters.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_function">link</a>
@@ -450,7 +454,7 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>create_java_temporary_function(path, function_class_name)</strong>
       </td>
       <td>
-        Registers a java user defined function class as a temporary catalog function.
+        Registers a Java user defined function class as a temporary catalog function.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_function">link</a>
@@ -461,7 +465,7 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>create_java_temporary_system_function(name, function_class_name)</strong>
       </td>
       <td>
-        Registers a java user defined function class as a temporary system function.
+        Registers a Java user defined function class as a temporary system function.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_system_function">link</a>
@@ -519,7 +523,7 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>register_function(name, function)</strong>
       </td>
       <td>
-        Registers a python user-defined function under a unique name. 
+        Registers a Python user-defined function under a unique name. 
         Replaces already existing user-defined function under this name.
         It can be replaced by "create_temporary_system_function".
       </td>
@@ -532,7 +536,7 @@ For more introduction about different kinds of UDF, please refer to [User Define
         <strong>register_java_function(name, function_class_name)</strong>
       </td>
       <td>
-        Registers a java user defined function under a unique name. 
+        Registers a Java user defined function under a unique name. 
         Replaces already existing user-defined functions under this name.
         It can be replaced by "create_java_temporary_system_function".
       </td>
@@ -545,8 +549,8 @@ For more introduction about different kinds of UDF, please refer to [User Define
 
 ### Dependency Management
 
-These APIs are used to upload the python dependencies which are necessary for running the Python UDFs remotely.
-For more details please see the [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency) document.
+These APIs are used to upload the Python dependencies which are necessary for running the Python UDFs remotely.
+For more details, please see the [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency) document.
 
 <table class="table table-bordered">
   <thead>
@@ -562,8 +566,8 @@ For more details please see the [Dependency Management]({% link dev/python/table
         <strong>add_python_file(file_path)</strong>
       </td>
       <td>
-        Adds a python dependency which could be python files, python packages or local directories. 
-        They will be added to the PYTHONPATH of the python UDF worker.
+        Adds a Python dependency which could be Python files, Python packages or local directories. 
+        They will be added to the PYTHONPATH of the Python UDF worker.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_file">link</a>
@@ -575,7 +579,7 @@ For more details please see the [Dependency Management]({% link dev/python/table
       </td>
       <td>
         Specifies a requirements.txt file which defines the third-party dependencies.
-        These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the python UDF worker.
+        These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the Python UDF worker.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.set_python_requirements">link</a>
@@ -586,7 +590,7 @@ For more details please see the [Dependency Management]({% link dev/python/table
         <strong>add_python_archive(archive_path, target_dir=None)</strong>
       </td>
       <td>
-        Adds a python archive file. The file will be extracted to the working directory of python UDF worker.
+        Adds a Python archive file. The file will be extracted to the working directory of Python UDF worker.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_archive">link</a>
@@ -613,7 +617,13 @@ For more details please see the [Dependency Management]({% link dev/python/table
       <td>
         Returns the table config to define the runtime behavior of the Table API.
         You can find all the available configuration options in <a href="{{ site.baseurl }}/zh/ops/config.html">Configuration</a> and
-        <a href="{{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html">Python Configuation</a>.
+        <a href="{{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html">Python Configuation</a>. <br> <br>
+        The following code is an example showing how to set the configuration options through this API:
+{% highlight python %}
+# set the parallelism to 8
+table_env.get_config().get_configuration().set_string(
+    "parallelism.default", "8")
+{% endhighlight %}
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_config">link</a>
@@ -835,4 +845,24 @@ Statebackend, Checkpoint and Restart Strategy
 ---------------------------------------------
 
 Before Flink 1.10 you can configure the statebackend, checkpointing and restart strategy via the `StreamExecutionEnvironment`.
-And now you can configure them by setting key-value options in `TableConfig`, see [Fault Tolerance]({% link ops/config.zh.md %}#fault-tolerance) and [Checkpoints and State Backends]({% link ops/config.zh.md %}#checkpoints-and-state-backends) for more details.
+And now you can configure them by setting key-value options in `TableConfig`, see [Fault Tolerance]({% link ops/config.zh.md %}#fault-tolerance), [State Backends]({% link ops/config.zh.md %}#checkpoints-and-state-backends) and [Checkpointing]({% link ops/config.zh.md %}#checkpointing) for more details.
+
+The following code is an example showing how to configure the statebackend, checkpoint and restart strategy through the Table API:
+{% highlight python %}
+# set the restart strategy to "fixed-delay"
+table_env.get_config().get_configuration().set_string("restart-strategy", "fixed-delay")
+table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.attempts", "3")
+table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.delay", "30s")
+
+# set the checkpoint mode to EXACTLY_ONCE
+table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "3min")
+
+# set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
+# you can also set the full qualified Java class name of the StateBackendFactory to this option
+# e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
+table_env.get_config().get_configuration().set_string("state.backend", "rocksdb")
+
+# set the checkpoint directory, which is required by the RocksDB statebackend
+table_env.get_config().get_configuration().set_string("state.checkpoints.dir", "file:///tmp/checkpoints/")
+{% endhighlight %}

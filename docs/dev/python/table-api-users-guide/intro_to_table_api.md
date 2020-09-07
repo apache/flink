@@ -109,7 +109,7 @@ table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 {% endhighlight %}
 
-For more details about different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({% link dev/python/table-api-users-guide/table_environment.md %}#create-a-tableenvironment).
+For more details about the different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({% link dev/python/table-api-users-guide/table_environment.md %}#create-a-tableenvironment).
 
 The `TableEnvironment` is responsible for:
 
