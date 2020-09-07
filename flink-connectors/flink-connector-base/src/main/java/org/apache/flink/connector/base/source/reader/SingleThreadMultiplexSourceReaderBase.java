@@ -37,21 +37,21 @@ import java.util.function.Supplier;
  * @param <SplitStateT>
  */
 public abstract class SingleThreadMultiplexSourceReaderBase<E, T, SplitT extends SourceSplit, SplitStateT>
-		extends SourceReaderBase<E, T, SplitT, SplitStateT> {
+	extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
 	public SingleThreadMultiplexSourceReaderBase(
-			FutureNotifier futureNotifier,
-			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-			Supplier<SplitReader<E, SplitT>> splitFetcherSupplier,
-			RecordEmitter<E, T, SplitStateT> recordEmitter,
-			Configuration config,
-			SourceReaderContext context) {
+		FutureNotifier futureNotifier,
+		FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+		Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+		RecordEmitter<E, T, SplitStateT> recordEmitter,
+		Configuration config,
+		SourceReaderContext context) {
 		super(
-				futureNotifier,
-				elementsQueue,
-				new SingleThreadFetcherManager<>(futureNotifier, elementsQueue, splitFetcherSupplier),
-				recordEmitter,
-				config,
-				context);
+			futureNotifier,
+			elementsQueue,
+			new SingleThreadFetcherManager<>(futureNotifier, elementsQueue, splitReaderSupplier),
+			recordEmitter,
+			config,
+			context);
 	}
 }
