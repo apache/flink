@@ -18,15 +18,29 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.NetUtils;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+
+import java.net.InetSocketAddress;
+
+import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConfig;
 
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
 public class DefaultCLI extends AbstractCustomCommandLine {
+
+	private static final Option addressOption = new Option("m", "jobmanager", true,
+		"Address of the JobManager to which to connect. " +
+			"Use this flag to connect to a different JobManager than the one specified in the configuration. " +
+			"Attention: This option is respected only if the high-availability configuration is NONE.");
 
 	public static final String ID = "default";
 
@@ -41,6 +55,19 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 	}
 
 	@Override
+	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+
+		final Configuration resultingConfiguration = super.applyCommandLineOptionsToConfiguration(commandLine);
+		if (commandLine.hasOption(addressOption.getOpt())) {
+			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
+			InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
+			setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
+		}
+		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+		return resultingConfiguration;
+	}
+
+	@Override
 	public String getId() {
 		return ID;
 	}
@@ -48,5 +75,6 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 	@Override
 	public void addGeneralOptions(Options baseOptions) {
 		super.addGeneralOptions(baseOptions);
+		baseOptions.addOption(addressOption);
 	}
 }
