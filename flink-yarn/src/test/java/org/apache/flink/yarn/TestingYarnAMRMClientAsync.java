@@ -141,14 +141,7 @@ public class TestingYarnAMRMClientAsync extends AMRMClientAsyncImpl<AMRMClient.C
 		private BiConsumer<ContainerId, CallbackHandler> releaseAssignedContainerConsumer = (ignored1, ignored2) -> {};
 		private Consumer<Integer> setHeartbeatIntervalConsumer = (ignored) -> {};
 		private TriFunction<String, Integer, String, RegisterApplicationMasterResponse> registerApplicationMasterFunction =
-			(ignored1, ignored2, ignored3) -> RegisterApplicationMasterResponse.newInstance(
-				Resource.newInstance(0, 0),
-				Resource.newInstance(Integer.MAX_VALUE, Integer.MAX_VALUE),
-				Collections.emptyMap(),
-				null,
-				Collections.emptyList(),
-				null,
-				Collections.emptyList());
+			(ignored1, ignored2, ignored3) -> new TestingRegisterApplicationMasterResponse(Collections::emptyList);
 		private TriConsumer<FinalApplicationStatus, String, String> unregisterApplicationMasterConsumer = (ignored1, ignored2, ignored3) -> {};
 
 		private Builder() {}
