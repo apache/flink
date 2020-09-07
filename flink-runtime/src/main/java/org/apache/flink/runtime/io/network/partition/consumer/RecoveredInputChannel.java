@@ -57,7 +57,7 @@ public abstract class RecoveredInputChannel extends InputChannel {
 	private boolean isReleased;
 
 	/** The buffer number of recovered buffers. Starts at MIN_VALUE to have no collisions with actual buffer numbers. */
-	private int bufferNumber = Integer.MIN_VALUE;
+	private int sequenceNumber = Integer.MIN_VALUE;
 
 	RecoveredInputChannel(
 			SingleInputGate inputGate,
@@ -152,7 +152,7 @@ public abstract class RecoveredInputChannel extends InputChannel {
 			stateConsumedFuture.complete(null);
 			return null;
 		} else {
-			return new BufferAndAvailability(next, nextDataType, 0, bufferNumber++);
+			return new BufferAndAvailability(next, nextDataType, 0, sequenceNumber++);
 		}
 	}
 

@@ -85,6 +85,25 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 	}
 
 	/**
+	 * Convenience method for adding an element with optional priority and prior removal.
+	 *
+	 * @param element the element to add
+	 * @param priority flag indicating if it's a priority or non-priority element
+	 * @param prioritize flag that hints that the element is already in this deque, potentially as non-priority element.
+	 */
+	public void add(T element, boolean priority, boolean prioritize) {
+		if (!priority) {
+			add(element);
+		} else {
+			if (prioritize) {
+				prioritize(element);
+			} else {
+				addPriorityElement(element);
+			}
+		}
+	}
+
+	/**
 	 * Prioritizes an already existing element. Note that this method assumes identity.
 	 *
 	 * <p>{@implNote Since this method removes the element and reinserts it in a priority position in general, some
