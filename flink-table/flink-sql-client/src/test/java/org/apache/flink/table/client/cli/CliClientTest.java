@@ -123,7 +123,7 @@ public class CliClientTest extends TestLogger {
 		String sessionId = executor.openSession(session);
 
 		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
-			 CliClient client = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath())) {
+			CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
 			client.open();
 			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		}
@@ -142,7 +142,7 @@ public class CliClientTest extends TestLogger {
 		String sessionId = executor.openSession(sessionContext);
 
 		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
-			 CliClient client = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath())) {
+			CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
 			client.open();
 			assertThat(executor.getNumExecuteSqlCalls(), is(1));
 		}
@@ -159,7 +159,7 @@ public class CliClientTest extends TestLogger {
 		String sessionId = executor.openSession(sessionContext);
 
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
-			 CliClient client = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath())) {
+			CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
 			client.open();
 			String output = new String(outputStream.toByteArray());
 			assertTrue(output.contains("No match found for function signature proctimee()"));
@@ -223,9 +223,10 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 
 		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
-		Path historyFilePath = File.createTempFile("history", "tmp").toPath();
+		Path historyFilePath = historyTempFile();
 		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
-			 CliClient client = new CliClient(terminal, sessionId, mockExecutor, historyFilePath)) {
+			CliClient client = new CliClient(terminal, sessionId,
+				mockExecutor, historyFilePath)) {
 			client.open();
 			List<String> content = Files.readAllLines(historyFilePath);
 			assertEquals(2, content.size());
@@ -286,7 +287,7 @@ public class CliClientTest extends TestLogger {
 		String sessionId = executor.openSession(sessionContext);
 
 		try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
-			 CliClient client = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath())) {
+			CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
 			client.open();
 			return new String(outputStream.toByteArray());
 		}
@@ -303,7 +304,7 @@ public class CliClientTest extends TestLogger {
 			TerminalUtils.createDummyTerminal(),
 			sessionId,
 			mockExecutor,
-			File.createTempFile("history", "tmp").toPath())) {
+			historyTempFile())) {
 			if (testFailure) {
 				assertFalse(cli.submitUpdate(statement));
 			} else {
@@ -342,6 +343,10 @@ public class CliClientTest extends TestLogger {
 			results.retainAll(notExpectedHints);
 			assertEquals(0, results.size());
 		}
+	}
+
+	private Path historyTempFile() throws IOException {
+		return File.createTempFile("history", "tmp").toPath();
 	}
 
 	// --------------------------------------------------------------------------------------------
