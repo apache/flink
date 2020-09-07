@@ -30,7 +30,7 @@ under the License.
 
 Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入数据。Flink Kafka Consumer 集成了 Flink 的 Checkpoint 机制，可提供 exactly-once 的处理语义。为此，Flink 并不完全依赖于跟踪 Kafka 消费组的偏移量，而是在内部跟踪和检查偏移量。
 
-根据你的用例和环境选择相应的包（maven artifact id）和类名。对于大多数用户来说，使用 `FlinkKafkaConsumer010`（ `flink-connector-kafka` 的一部分）是比较合适的。
+根据你的用例和环境选择相应的包（maven artifact id）和类名。对于大多数用户来说，使用 `FlinkKafkaConsumer`（ `flink-connector-kafka` 的一部分）是比较合适的。
 
 <table class="table table-bordered">
   <thead>
@@ -43,22 +43,6 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
     </tr>
   </thead>
   <tbody>
-    <tr>
-        <td>flink-connector-kafka-0.10{{ site.scala_version_suffix }}</td>
-        <td>1.2.0</td>
-        <td>FlinkKafkaConsumer010<br>
-        FlinkKafkaProducer010</td>
-        <td>0.10.x</td>
-        <td>这个连接器支持 <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message">带有时间戳的 Kafka 消息</a>，用于生产和消费。</td>
-    </tr>
-    <tr>
-        <td>flink-connector-kafka-0.11{{ site.scala_version_suffix }}</td>
-        <td>1.4.0</td>
-        <td>FlinkKafkaConsumer011<br>
-        FlinkKafkaProducer011</td>
-        <td>0.11.x</td>
-        <td>Kafka 从 0.11.x 版本开始不支持 Scala 2.10。此连接器支持了 <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka 事务性的消息传递</a>来为生产者提供 Exactly once 语义。</td>
-    </tr>
     <tr>
         <td>flink-connector-kafka{{ site.scala_version_suffix }}</td>
         <td>1.7.0</td>
@@ -126,7 +110,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 
 ## Kafka Consumer
 
-Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer010`（或适用于 Kafka 0.11.0.x 版本的 `FlinkKafkaConsumer011`，或适用于 Kafka >= 1.0.0 的版本的 `FlinkKafkaConsumer`）。它提供对一个或多个 Kafka topics 的访问。
+Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer`。它提供对一个或多个 Kafka topics 的访问。
 
 构造函数接受以下参数：
 
@@ -145,7 +129,7 @@ Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "test");
 DataStream<String> stream = env
-  .addSource(new FlinkKafkaConsumer010<>("topic", new SimpleStringSchema(), properties));
+  .addSource(new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -154,7 +138,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 stream = env
-    .addSource(new FlinkKafkaConsumer010[String]("topic", new SimpleStringSchema(), properties))
+    .addSource(new FlinkKafkaConsumer[String]("topic", new SimpleStringSchema(), properties))
     .print()
 {% endhighlight %}
 </div>
@@ -220,7 +204,7 @@ Flink Kafka Consumer 允许通过配置来确定 Kafka 分区的起始位置。
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010<>(...);
+FlinkKafkaConsumer<String> myConsumer = new FlinkKafkaConsumer<>(...);
 myConsumer.setStartFromEarliest();     // 尽可能从最早的记录开始
 myConsumer.setStartFromLatest();       // 从最新的记录开始
 myConsumer.setStartFromTimestamp(...); // 从指定的时间开始（毫秒）
@@ -234,7 +218,7 @@ DataStream<String> stream = env.addSource(myConsumer);
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 
-val myConsumer = new FlinkKafkaConsumer010[String](...)
+val myConsumer = new FlinkKafkaConsumer[String](...)
 myConsumer.setStartFromEarliest()      // 尽可能从最早的记录开始
 myConsumer.setStartFromLatest()        // 从最新的记录开始
 myConsumer.setStartFromTimestamp(...)  // 从指定的时间开始（毫秒）
@@ -350,7 +334,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer010[String](
+val myConsumer = new FlinkKafkaConsumer[String](
   java.util.regex.Pattern.compile("test-topic-[0-9]"),
   new SimpleStringSchema,
   properties)
@@ -392,8 +376,8 @@ Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
 properties.setProperty("group.id", "test");
 
-FlinkKafkaConsumer010<String> myConsumer =
-    new FlinkKafkaConsumer010<>("topic", new SimpleStringSchema(), properties);
+FlinkKafkaConsumer<String> myConsumer =
+    new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
 
 DataStream<String> stream = env
@@ -407,7 +391,7 @@ val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
 properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer010[String]("topic", new SimpleStringSchema(), properties)
+val myConsumer = new FlinkKafkaConsumer[String]("topic", new SimpleStringSchema(), properties)
 myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter())
 stream = env
     .addSource(myConsumer)
@@ -422,7 +406,7 @@ stream = env
 
 ## Kafka Producer
 
-Flink Kafka Producer 被称为 `FlinkKafkaProducer011`（或适用于 Kafka 0.10.0.x 版本的 `FlinkKafkaProducer010`，或适用于 Kafka >= 1.0.0 版本的 `FlinkKafkaProducer`）。它允许将消息流写入一个或多个 Kafka topic。
+Flink Kafka Producer 被称为 `FlinkKafkaProducer`。它允许将消息流写入一个或多个 Kafka topic。
 
 示例：
 
@@ -431,7 +415,7 @@ Flink Kafka Producer 被称为 `FlinkKafkaProducer011`（或适用于 Kafka 0.10
 {% highlight java %}
 DataStream<String> stream = ...;
 
-FlinkKafkaProducer011<String> myProducer = new FlinkKafkaProducer011<String>(
+FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<String>(
         "localhost:9092",            // broker 列表
         "my-topic",                  // 目标 topic
         new SimpleStringSchema());   // 序列化 schema
@@ -447,7 +431,7 @@ stream.addSink(myProducer);
 {% highlight scala %}
 val stream: DataStream[String] = ...
 
-val myProducer = new FlinkKafkaProducer011[String](
+val myProducer = new FlinkKafkaProducer[String](
         "localhost:9092",         // broker 列表
         "my-topic",               // 目标 topic
         new SimpleStringSchema)   // 序列化 schema
@@ -480,37 +464,12 @@ stream.addSink(myProducer)
 
 ### Kafka Producer 和容错
 
-#### Kafka 0.10
-
-启用 Flink 的 checkpointing 后，`FlinkKafkaProducer010` 可以提供至少一次的语义。
-
-除了启用 Flink 的 checkpointing 之外，还应该适当地配置 setter 方法，`setLogFailuresOnly(boolean)` 和 `setFlushOnCheckpoint(boolean)`。
-
- * `setLogFailuresOnly(boolean)`：默认情况下，此值设置为 `false`。启用这个选项将使 producer 仅记录失败而不是捕获和重新抛出它们。这基本上是记录了成功的记录，即使它从未写入目标 Kafka topic。对 at-least-once 的语义，这个方法必须禁用。
- * `setFlushOnCheckpoint(boolean)`：默认情况下，此值设置为 `true`。启用此功能后，Flink 的 checkpoint 将在 checkpoint 成功之前等待 Kafka 确认 checkpoint 时的任意即时记录。这样可确保 checkpoint 之前的所有记录都已写入 Kafka。对 at-least-once 的语义，这个方法必须启用。
-
-总之，默认情况下，Kafka producer 中，`setLogFailureOnly` 设置为 `false` 及  `setFlushOnCheckpoint` 设置为 `true`  会为 0.10 版本提供 at-least-once 语义。
-
-**注意**：默认情况下，重试次数设置为 0。这意味着当 `setLogFailuresOnly` 设置为 `false` 时，producer 会立即失败，包括 leader 更改。该值默认设置为 0，以避免重试导致目标 topic 中出现重复的消息。对于大多数频繁更改 broker 的生产环境，我们建议将重试次数设置为更高的值。
-
-**注意**：目前还没有 Kafka 的事务 producer，所以 Flink 不能保证写入 Kafka topic 的精准一次语义。
-
-#### Kafka 0.11 和更新的版本
-
-启用 Flink 的 checkpointing 后，`FlinkKafkaProducer011`（适用于 Kafka >= 1.0.0 版本的 `FlinkKafkaProducer`）可以提供精准一次的语义保证。
-
-除了启用 Flink 的 checkpointing，还可以通过将适当的 `semantic` 参数传递给 `FlinkKafkaProducer011`（适用于 Kafka >= 1.0.0 版本的 `FlinkKafkaProducer`）来选择三种不同的操作模式：
-
- * `Semantic.NONE`：Flink 不会有任何语义的保证，产生的记录可能会丢失或重复。
- * `Semantic.AT_LEAST_ONCE`（默认设置）：类似 `FlinkKafkaProducer010` 中的 `setFlushOnCheckpoint(true)`，这可以保证不会丢失任何记录（虽然记录可能会重复）。
- * `Semantic.EXACTLY_ONCE`：使用 Kafka 事务提供精准一次的语义。无论何时，在使用事务写入 Kafka 时，都要记得为所有消费 Kafka 消息的应用程序设置所需的 `isolation.level`（ `read_committed` 或 `read_uncommitted`  - 后者是默认值）。
-
 ##### 注意事项
 
 `Semantic.EXACTLY_ONCE` 模式依赖于事务提交的能力。事务提交发生于触发 checkpoint 之前，以及从 checkpoint 恢复之后。如果从 Flink 应用程序崩溃到完全重启的时间超过了 Kafka 的事务超时时间，那么将会有数据丢失（Kafka 会自动丢弃超出超时时间的事务）。考虑到这一点，请根据预期的宕机时间来合理地配置事务超时时间。
 
 默认情况下，Kafka broker 将 `transaction.max.timeout.ms` 设置为 15 分钟。此属性不允许为大于其值的 producer 设置事务超时时间。
-默认情况下，`FlinkKafkaProducer011` 将 producer config 中的 `transaction.timeout.ms` 属性设置为 1 小时，因此在使用 `Semantic.EXACTLY_ONCE` 模式之前应该增加 `transaction.max.timeout.ms` 的值。
+默认情况下，`FlinkKafkaProducer` 将 producer config 中的 `transaction.timeout.ms` 属性设置为 1 小时，因此在使用 `Semantic.EXACTLY_ONCE` 模式之前应该增加 `transaction.max.timeout.ms` 的值。
 
 在 `KafkaConsumer` 的 `read_committed` 模式中，任何未结束（既未中止也未完成）的事务将阻塞来自给定 Kafka topic 的未结束事务之后的所有读取数据。
 换句话说，在遵循如下一系列事件之后：
@@ -524,37 +483,9 @@ stream.addSink(myProducer)
  * 首先，在 Flink 应用程序的正常工作期间，用户可以预料 Kafka 主题中生成的记录的可见性会延迟，相当于已完成 checkpoint 之间的平均时间。
  * 其次，在 Flink 应用程序失败的情况下，此应用程序正在写入的供消费者读取的主题将被阻塞，直到应用程序重新启动或配置的事务超时时间过去后，才恢复正常。此标注仅适用于有多个 agent 或者应用程序写入同一 Kafka 主题的情况。
 
-**注意**：`Semantic.EXACTLY_ONCE` 模式为每个 `FlinkKafkaProducer011` 实例使用固定大小的 KafkaProducer 池。每个 checkpoint 使用其中一个 producer。如果并发 checkpoint 的数量超过池的大小，`FlinkKafkaProducer011` 将抛出异常，并导致整个应用程序失败。请合理地配置最大池大小和最大并发 checkpoint 数量。
+**注意**：`Semantic.EXACTLY_ONCE` 模式为每个 `FlinkKafkaProducer` 实例使用固定大小的 KafkaProducer 池。每个 checkpoint 使用其中一个 producer。如果并发 checkpoint 的数量超过池的大小，`FlinkKafkaProducer` 将抛出异常，并导致整个应用程序失败。请合理地配置最大池大小和最大并发 checkpoint 数量。
 
-**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。
-
-## 在 Kafka 0.10.x 中使用 Kafka 时间戳和 Flink 事件时间
-
-自 Apache Kafka 0.10+ 以来，Kafka 的消息可以携带[时间戳](https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message)，指示事件发生的时间（请参阅 [Apache Flink 中的"事件时间"](../event_time.html)）或消息写入 Kafka broker 的时间。
-
-如果 Flink 中的时间特性设置为 `TimeCharacteristic.EventTime`（ `StreamExecutionEnvironment.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)`），则 `FlinkKafkaConsumer010` 将发出附加时间戳的记录。
-
-Kafka consumer 不会发出 watermark。为了发出 watermark，可采用上文 “Kafka Consumer 和时间戳抽取以及 watermark 发送” 章节中描述的 `assignTimestampsAndWatermarks` 方法。
-
-使用 Kafka 的时间戳时，无需定义时间戳提取器。`extractTimestamp()` 方法的 `previousElementTimestamp` 参数包含 `Kafka` 消息携带的时间戳。
-
-Kafka consumer 的时间戳提取器应该是这样的：
-{% highlight java %}
-public long extractTimestamp(Long element, long previousElementTimestamp) {
-    return previousElementTimestamp;
-}
-{% endhighlight %}
-
-
-
-只有设置了 `setWriteTimestampToKafka(true)`，则 `FlinkKafkaProducer010` 才会发出记录时间戳。
-
-{% highlight java %}
-FlinkKafkaProducer010.FlinkKafkaProducer010Configuration config = FlinkKafkaProducer010.writeToKafkaWithTimestamps(streamWithTimestamps, topic, new SimpleStringSchema(), standardProps);
-config.setWriteTimestampToKafka(true);
-{% endhighlight %}
-
-
+**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。
 
 ## Kafka 连接器指标
 
