@@ -431,7 +431,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
         specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
 
-        self.env.add_jars(specific_jars)
+        self.env.add_jars(*specific_jars)
         source_topic = 'test_source_topic'
         props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
         type_info = Types.ROW([Types.INT(), Types.STRING()])
@@ -452,7 +452,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
         specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
 
-        self.env.add_classpaths(specific_jars)
+        self.env.add_classpaths(*specific_jars)
         source_topic = 'test_source_topic'
         props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
         type_info = Types.ROW([Types.INT(), Types.STRING()])

@@ -559,14 +559,15 @@ class StreamExecutionEnvironment(object):
 
         :param jars_path: Path of jars.
         """
-        add_jars_to_context_class_loader(*jars_path)
+        add_jars_to_context_class_loader(jars_path)
         jvm = get_gateway().jvm
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
-        set_jar_paths = env_config.getString(jars_key, '')
-        jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join(*jars_path)
-        jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join([set_jar_paths, jars_path])
+        old_jar_paths = env_config.getString(jars_key, None)
+        jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join(jars_path)
+        if old_jar_paths is not None:
+            jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_jar_paths, jars_path])
         env_config.setString(jars_key, jars_path)
 
     def add_classpaths(self, *classpaths: str):
@@ -576,14 +577,15 @@ class StreamExecutionEnvironment(object):
 
         :param classpaths: Classpaths that will be added.
         """
-        add_jars_to_context_class_loader(*classpaths)
+        add_jars_to_context_class_loader(classpaths)
         jvm = get_gateway().jvm
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
-        set_classpaths = env_config.getString(classpaths_key, '')
-        classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join(*classpaths)
-        classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join([set_classpaths, classpaths])
+        old_classpaths = env_config.getString(classpaths_key, None)
+        classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join(classpaths)
+        if old_classpaths is not None:
+            classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_classpaths, classpaths])
         env_config.setString(classpaths_key, classpaths)
 
     def get_default_local_parallelism(self):
