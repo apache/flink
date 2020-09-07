@@ -96,11 +96,6 @@ flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
-flink-connectors/flink-connector-kafka-0.10,\
-flink-connectors/flink-sql-connector-kafka-0.10,\
-flink-connectors/flink-connector-kafka-0.11,\
-flink-connectors/flink-sql-connector-kafka-0.11,\
-flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
@@ -120,6 +115,7 @@ MODULES_KAFKA_GELLY="\
 flink-libraries/flink-gelly,\
 flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
+flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 

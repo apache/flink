@@ -45,8 +45,6 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 | Kafka Version       | Maven dependency                                          | SQL Client JAR         |
 | :------------------ | :-------------------------------------------------------- | :----------------------|
 | universal           | `flink-connector-kafka{{site.scala_version_suffix}}`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
-| 0.11.x              | `flink-connector-kafka-0.11{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
-| 0.10.x              | `flink-connector-kafka-0.10{{site.scala_version_suffix}}`  | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for [stable releases]({{ site.stable_baseurl }}/dev/table/connectors/kafka.html) {% endif %} |
 
 The Kafka connectors are not currently part of the binary distribution.
 See how to link with them for cluster execution [here]({% link dev/project-configuration.md %}).
@@ -96,7 +94,7 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, for Kafka the options are: <code>'kafka'</code>, <code>'kafka-0.11'</code>, <code>'kafka-0.10'</code>.</td>
+      <td>Specify what connector to use, for Kafka use <code>'kafka'</code>.</td>
     </tr>
     <tr>
       <td><h5>topic</h5></td>
@@ -184,7 +182,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">at-least-once</td>
       <td>String</td>
-      <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. <code>'kafka-0.10'</code> doesn't support this option. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
+      <td>Defines the delivery semantic for the Kafka sink. Valid enumerationns are <code>'at-lease-once'</code>, <code>'exactly-once'</code> and <code>'none'</code>. See <a href='#consistency-guarantees'>Consistency guarantees</a> for more details. </td>
     </tr>
     </tbody>
 </table>
@@ -238,7 +236,7 @@ However, it will cause a lot of network connections between all the Flink instan
 
 By default, a Kafka sink ingests data with at-least-once guarantees into a Kafka topic if the query is executed with [checkpointing enabled]({% link dev/stream/state/checkpointing.md %}#enabling-and-configuring-checkpointing).
 
-With Flink's checkpointing enabled, the `kafka` and `kafka-0.11` connectors can provide exactly-once delivery guarantees.
+With Flink's checkpointing enabled, the `kafka` connector can provide exactly-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you can also choose three different modes of operating chosen by passing appropriate `sink.semantic` option:
 

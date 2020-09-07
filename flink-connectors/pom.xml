@@ -39,8 +39,6 @@ under the License.
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-hcatalog</module>
 		<module>flink-connector-kafka-base</module>
-		<module>flink-connector-kafka-0.10</module>
-		<module>flink-connector-kafka-0.11</module>
 		<module>flink-connector-elasticsearch-base</module>
 		<module>flink-connector-elasticsearch5</module>
 		<module>flink-connector-elasticsearch6</module>
@@ -100,8 +98,6 @@ under the License.
 				<module>flink-sql-connector-hive-2.2.0</module>
 				<module>flink-sql-connector-hive-2.3.6</module>
 				<module>flink-sql-connector-hive-3.1.2</module>
-				<module>flink-sql-connector-kafka-0.10</module>
-				<module>flink-sql-connector-kafka-0.11</module>
 				<module>flink-sql-connector-kafka</module>
 			</modules>
 		</profile>
