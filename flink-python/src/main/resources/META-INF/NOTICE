@@ -24,7 +24,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-runners-java-fn-execution:2.23.0
 - org.apache.beam:beam-sdks-java-core:2.23.0
 - org.apache.beam:beam-sdks-java-fn-execution:2.23.0
-- org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1
+- org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1
 - org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.23.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_26_0:0.3
@@ -33,7 +33,7 @@ This project bundles the following dependencies under the BSD license.
 See bundled license files for details
 
 - net.sf.py4j:py4j:0.10.8.1
-- com.google.protobuf:protobuf-java:3.7.1
+- com.google.protobuf:protobuf-java:3.11.0
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
 See bundled license files for details.
@@ -73,5 +73,5 @@ The bundled Apache Beam dependencies bundle the following dependencies under the
 See bundled license files for details
 
 - com.google.auth:google-auth-library-credentials:0.18.0
-- com.google.protobuf:protobuf-java:3.11.1
-- com.google.protobuf:protobuf-java-util:3.11.1
+- com.google.protobuf:protobuf-java:3.11.0
+- com.google.protobuf:protobuf-java-util:3.11.0
