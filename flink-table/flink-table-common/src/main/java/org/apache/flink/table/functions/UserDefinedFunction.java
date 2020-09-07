@@ -32,7 +32,19 @@ import java.io.Serializable;
  * Base class for all user-defined functions.
  *
  * <p>User-defined functions combine the logical definition of a function for validation and planning
- * and contain a corresponding runtime implementation.
+ * (see {@link FunctionDefinition}) and contain a corresponding runtime implementation.
+ *
+ * <p>A runtime implementation might be called at two different stages:
+ * <ul>
+ *     <li>During planning (i.e. pre-flight phase): If a function is called with constant expressions
+ *     or constant expressions can be derived from the given statement, a function is pre-evaluated
+ *     for constant expression reduction and might not be executed on the cluster anymore. Use
+ *     {@link #isDeterministic()} to disable constant expression reduction in this case. For example,
+ *     the following calls to {@code ABS} are executed during planning:
+ *     {@code SELECT ABS(-1) FROM t} and {@code SELECT ABS(field) FROM t WHERE field = -1}.
+ *     <li>During runtime (i.e. cluster execution): If a function is called with non-constant expressions
+ *     or {@link #isDeterministic()} returns false.
+ * </ul>
  *
  * @see ScalarFunction
  * @see TableFunction

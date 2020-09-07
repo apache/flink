@@ -547,6 +547,25 @@ public static class LiteralFunction extends ScalarFunction {
 
 </div>
 
+### Determinism
+
+Every user-defined function class can declare whether it produces deterministic results or not by overriding
+the `isDeterministic()` method. If the function is not purely functional (like `random()`, `date()`, or `now()`),
+the method must return `false`. By default, `isDeterministic()` returns `true`.
+
+Furthermore, the `isDeterministic()` method might also influence the runtime behavior. A runtime
+implementation might be called at two different stages:
+
+**During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
+or constant expressions can be derived from the given statement, a function is pre-evaluated
+for constant expression reduction and might not be executed on the cluster anymore. Unless
+`isDeterministic()` is used to disable constant expression reduction in this case. For example,
+the following calls to `ABS` are executed during planning: `SELECT ABS(-1) FROM t` and
+`SELECT ABS(field) FROM t WHERE field = -1`; whereas `SELECT ABS(field) FROM t` is not.
+
+**During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
+or `isDeterministic()` returns `false`.
+
 ### Runtime Integration
 
 Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataStream API.
@@ -557,11 +576,15 @@ The `open()` method provides a `FunctionContext` that contains information about
 
 The following information can be obtained by calling the corresponding methods of `FunctionContext`:
 
-| Method                                | Description                                            |
-| :------------------------------------ | :----------------------------------------------------- |
-| `getMetricGroup()`                    | Metric group for this parallel subtask.                |
-| `getCachedFile(name)`                 | Local temporary file copy of a distributed cache file. |
-| `getJobParameter(name, defaultValue)` | Global job parameter value associated with given key.  |
+| Method                                   | Description                                                             |
+| :--------------------------------------- | :---------------------------------------------------------------------- |
+| `getMetricGroup()`                       | Metric group for this parallel subtask.                                 |
+| `getCachedFile(name)`                    | Local temporary file copy of a distributed cache file.                  |
+| `getJobParameter(name, defaultValue)`    | Global job parameter value associated with given key.                   |
+| `getExternalResourceInfos(resourceName)` | Returns a set of external resource infos associated with the given key. |
+
+**Note**: Depending on the context in which the function is executed, not all methods from above might be available. For example,
+during constant expression reduction adding a metric is a no-op operation.
 
 The following example snippet shows how to use `FunctionContext` in a scalar function for accessing a global job parameter:
 
