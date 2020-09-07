@@ -37,9 +37,6 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
-import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -66,6 +63,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.verification.VerificationMode;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,7 +79,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -91,7 +88,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
@@ -103,11 +99,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -2332,25 +2326,23 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		OperatorID opID1 = OperatorID.fromJobVertexID(vertex1.getJobvertexId());
 		OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
-		TaskStateSnapshot taskOperatorSubtaskStates1 = mock(TaskStateSnapshot.class);
-		TaskStateSnapshot taskOperatorSubtaskStates2 = mock(TaskStateSnapshot.class);
-		OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
-		OperatorSubtaskState subtaskState2 = mock(OperatorSubtaskState.class);
-		when(taskOperatorSubtaskStates1.getSubtaskStateByOperatorID(opID1)).thenReturn(subtaskState1);
-		when(taskOperatorSubtaskStates2.getSubtaskStateByOperatorID(opID2)).thenReturn(subtaskState2);
+		TaskStateSnapshot taskOperatorSubtaskStates1 = new TaskStateSnapshot();
+		TaskStateSnapshot taskOperatorSubtaskStates2 = new TaskStateSnapshot();
+		OperatorSubtaskState subtaskState1 = new OperatorSubtaskState();
+		OperatorSubtaskState subtaskState2 = new OperatorSubtaskState();
+		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID1, subtaskState1);
+		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID2, subtaskState2);
 
 		// Create a mock OperatorCoordinatorCheckpointContext which completes the checkpoint immediately.
 		AtomicBoolean coordCheckpointDone = new AtomicBoolean(false);
 		OperatorCoordinatorCheckpointContext coordinatorCheckpointContext =
-			mock(OperatorCoordinatorCheckpointContext.class);
-		doAnswer(invocation -> {
-			coordCheckpointDone.set(true);
-			((CompletableFuture) invocation.getArgument(1)).complete(new byte[0]);
-			return null;
-		}).when(coordinatorCheckpointContext).checkpointCoordinator(any(Long.class), any(CompletableFuture.class));
-		when(coordinatorCheckpointContext.operatorId()).thenReturn(opID1);
-		when(coordinatorCheckpointContext.currentParallelism()).thenReturn(1);
-		when(coordinatorCheckpointContext.maxParallelism()).thenReturn(1);
+			new CheckpointCoordinatorTestingUtils.MockOperatorCheckpointCoordinatorContextBuilder()
+				.setOnCallingCheckpointCoordinator((checkpointId, result) -> {
+					coordCheckpointDone.set(true);
+					result.complete(new byte[0]);
+				})
+				.setOperatorID(opID1)
+				.build();
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord = new CheckpointCoordinatorBuilder()
@@ -2371,6 +2363,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			}
 
 			@Override
+			@Nullable
 			public CompletableFuture<Integer> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {
 				assertTrue("The coordinator checkpoint should have finished.", coordCheckpointDone.get());
 				// Acknowledge the checkpoint in the master hooks so the task snapshots complete before
@@ -2392,15 +2385,22 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			@Override
 			public SimpleVersionedSerializer<Integer> createCheckpointDataSerializer() {
-				SimpleVersionedSerializer<Integer> serializer = mock(SimpleVersionedSerializer.class);
-				try {
-					when(serializer.getVersion()).thenReturn(0);
-					when(serializer.serialize(any())).thenReturn(new byte[0]);
-					when(serializer.deserialize(any(Integer.class), any(byte[].class))).thenReturn(1);
-				} catch (IOException e) {
-					// Let it go.
-				}
-				return serializer;
+				return new SimpleVersionedSerializer<Integer>() {
+					@Override
+					public int getVersion() {
+						return 0;
+					}
+
+					@Override
+					public byte[] serialize(Integer obj) throws IOException {
+						return new byte[0];
+					}
+
+					@Override
+					public Integer deserialize(int version, byte[] serialized) throws IOException {
+						return 1;
+					}
+				};
 			}
 		});
 
@@ -2421,10 +2421,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// the canceler should be removed now
 		assertEquals(0, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
-
-		// validate that the subtasks states have registered their shared states.
-		verify(subtaskState1, times(1)).registerSharedStates(any(SharedStateRegistry.class));
-		verify(subtaskState2, times(1)).registerSharedStates(any(SharedStateRegistry.class));
 
 		// validate that the relevant tasks got a confirmation message
 		long checkpointId = checkpointIdRef.get();
