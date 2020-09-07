@@ -50,8 +50,10 @@ class WorkerSpecContainerResourceAdapter {
 	private final Configuration flinkConfig;
 	private final int minMemMB;
 	private final int maxMemMB;
+	private final int unitMemMB;
 	private final int minVcore;
 	private final int maxVcore;
+	private final int unitVcore;
 	private final Map<String, Long> externalResourceConfigs;
 	private final Map<WorkerResourceSpec, InternalContainerResource> workerSpecToContainerResource;
 	private final Map<InternalContainerResource, Set<WorkerResourceSpec>> containerResourceToWorkerSpecs;
@@ -63,12 +65,16 @@ class WorkerSpecContainerResourceAdapter {
 		final int minVcore,
 		final int maxMemMB,
 		final int maxVcore,
+		final int unitMemMB,
+		final int unitVcore,
 		final Map<String, Long> externalResourceConfigs) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.minMemMB = minMemMB;
 		this.minVcore = minVcore;
 		this.maxMemMB = maxMemMB;
 		this.maxVcore = maxVcore;
+		this.unitMemMB = unitMemMB;
+		this.unitVcore = unitVcore;
 		this.externalResourceConfigs = Preconditions.checkNotNull(externalResourceConfigs);
 		workerSpecToContainerResource = new HashMap<>();
 		containerResourceToWorkerSpecs = new HashMap<>();
@@ -122,8 +128,8 @@ class WorkerSpecContainerResourceAdapter {
 		final TaskExecutorProcessSpec taskExecutorProcessSpec =
 			TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(flinkConfig, workerResourceSpec);
 		final InternalContainerResource internalContainerResource = new InternalContainerResource(
-			normalize(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(), minMemMB),
-			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore),
+			normalize(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes(), minMemMB, unitMemMB),
+			normalize(taskExecutorProcessSpec.getCpuCores().getValue().intValue(), minVcore, unitVcore),
 			externalResourceConfigs);
 
 		if (resourceWithinMaxAllocation(internalContainerResource)) {
@@ -141,10 +147,12 @@ class WorkerSpecContainerResourceAdapter {
 	}
 
 	/**
-	 * Normalize to the minimum integer that is greater or equal to 'value' and is positive integer multiple of 'unitValue'.
+	 * Normalize to the minimum integer that is greater or equal to both 'value' and 'minValue',
+	 * and is positive integer multiple of 'unitValue'.
 	 */
-	private int normalize(final int value, final int unitValue) {
-		return Math.max(MathUtils.divideRoundUp(value, unitValue), 1) * unitValue;
+	private int normalize(final int value, final int minValue, final int unitValue) {
+		int rValue = Math.max(value, minValue);
+		return Math.max(MathUtils.divideRoundUp(rValue, unitValue), 1) * unitValue;
 	}
 
 	private boolean resourceWithinMaxAllocation(final InternalContainerResource resource) {
