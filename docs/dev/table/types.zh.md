@@ -255,6 +255,7 @@ N/A
 | `ROW` | |
 | `RAW` | |
 | structured types | 暂只能在用户自定义函数里使用。 |
+
 </div>
 <div data-lang="Python" markdown="1">
 N/A
