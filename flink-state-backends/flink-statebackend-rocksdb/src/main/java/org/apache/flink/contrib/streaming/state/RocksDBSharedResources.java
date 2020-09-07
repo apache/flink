@@ -30,10 +30,12 @@ final class RocksDBSharedResources implements AutoCloseable {
 	private final Cache cache;
 
 	private final WriteBufferManager writeBufferManager;
+	private final long writeBufferManagerCapacity;
 
-	RocksDBSharedResources(Cache cache, WriteBufferManager writeBufferManager) {
+	RocksDBSharedResources(Cache cache, WriteBufferManager writeBufferManager, long writeBufferManagerCapacity) {
 		this.cache = cache;
 		this.writeBufferManager = writeBufferManager;
+		this.writeBufferManagerCapacity = writeBufferManagerCapacity;
 	}
 
 	public Cache getCache() {
@@ -42,6 +44,10 @@ final class RocksDBSharedResources implements AutoCloseable {
 
 	public WriteBufferManager getWriteBufferManager() {
 		return writeBufferManager;
+	}
+
+	public long getWriteBufferManagerCapacity() {
+		return writeBufferManagerCapacity;
 	}
 
 	@Override

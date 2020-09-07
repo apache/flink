@@ -101,7 +101,8 @@ public class StateBackendBenchmarkUtils {
 			new UnregisteredMetricsGroup(),
 			Collections.emptyList(),
 			AbstractStateBackend.getCompressionDecorator(executionConfig),
-			new CloseableRegistry());
+			new CloseableRegistry(),
+			null);
 		try {
 			return builder.build();
 		} catch (Exception e) {

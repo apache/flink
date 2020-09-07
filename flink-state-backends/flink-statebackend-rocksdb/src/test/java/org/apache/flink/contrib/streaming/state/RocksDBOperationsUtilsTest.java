@@ -32,10 +32,14 @@ import org.rocksdb.RocksDB;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -75,6 +79,60 @@ public class RocksDBOperationsUtilsTest {
 		}
 		catch (IOException e) {
 			assertThat(e.getMessage(), containsString("longer than the directory path length limit for Windows"));
+		}
+	}
+
+	@Test
+	public void testSanityCheckArenaBlockSize() {
+		List<TestData> tests = Arrays.asList(
+			new TestData(67108864, 0, 8388608, false),
+			new TestData(67108864, 8388608, 8388608, false),
+			new TestData(67108864, 0, 11184810, true),
+			new TestData(67108864, 8388608, 11184810, true)
+		);
+
+		for (TestData test : tests) {
+			long writeBufferSize = test.getWriteBufferSize();
+			long arenaBlockSizeConfigured = test.getArenaBlockSizeConfigured();
+			long writeBufferManagerCapacity = test.getWriteBufferManagerCapacity();
+			boolean expected = test.isExpected();
+
+			boolean isOk = RocksDBOperationUtils.sanityCheckArenaBlockSize(writeBufferSize, arenaBlockSizeConfigured, writeBufferManagerCapacity);
+			if (expected) {
+				assertTrue(isOk);
+			} else {
+				assertFalse(isOk);
+			}
+		}
+	}
+
+	private static class TestData {
+		private final long writeBufferSize;
+		private final long arenaBlockSizeConfigured;
+		private final long writeBufferManagerCapacity;
+		private final boolean expected;
+
+		public TestData(long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity, boolean expected) {
+			this.writeBufferSize = writeBufferSize;
+			this.arenaBlockSizeConfigured = arenaBlockSizeConfigured;
+			this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+			this.expected = expected;
+		}
+
+		public long getWriteBufferSize() {
+			return writeBufferSize;
+		}
+
+		public long getArenaBlockSizeConfigured() {
+			return arenaBlockSizeConfigured;
+		}
+
+		public long getWriteBufferManagerCapacity() {
+			return writeBufferManagerCapacity;
+		}
+
+		public boolean isExpected() {
+			return expected;
 		}
 	}
 

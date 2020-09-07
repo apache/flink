@@ -78,6 +78,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 	private final RocksDBWriteBatchWrapper writeBatchWrapper;
 	private final RocksDBNativeMetricMonitor nativeMetricMonitor;
 	private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
+	private final Long writeBufferManagerCapacity;
 
 	RocksDBPriorityQueueSetFactory(
 		KeyGroupRange keyGroupRange,
@@ -88,7 +89,8 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		ReadOptions readOptions,
 		RocksDBWriteBatchWrapper writeBatchWrapper,
 		RocksDBNativeMetricMonitor nativeMetricMonitor,
-		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
+		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+		Long writeBufferManagerCapacity) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfKeyGroups = numberOfKeyGroups;
@@ -100,6 +102,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
 		this.sharedElementOutView = new DataOutputSerializer(128);
 		this.sharedElementInView = new DataInputDeserializer();
+		this.writeBufferManagerCapacity = writeBufferManagerCapacity;
 	}
 
 	@Nonnull
@@ -154,7 +157,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 			// so no need to register compact filter when creating column family
 			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
 				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
-			stateInfo = RocksDBOperationUtils.createStateInfo(metaInfo, db, columnFamilyOptionsFactory, null);
+			stateInfo = RocksDBOperationUtils.createStateInfo(metaInfo, db, columnFamilyOptionsFactory, null, writeBufferManagerCapacity);
 			RocksDBOperationUtils.registerKvStateInformation(kvStateInformation, nativeMetricMonitor, stateName, stateInfo);
 		} else {
 			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state
