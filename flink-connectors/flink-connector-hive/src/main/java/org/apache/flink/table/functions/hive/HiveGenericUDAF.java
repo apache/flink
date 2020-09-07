@@ -48,7 +48,7 @@ import java.util.Arrays;
 @Internal
 public class HiveGenericUDAF
         extends AggregateFunction<Object, GenericUDAFEvaluator.AggregationBuffer>
-        implements HiveFunction {
+        implements HiveLegacyFunction {
 
     private final HiveFunctionWrapper hiveFunctionWrapper;
     // Flag that indicates whether a bridge between GenericUDAF and UDAF is required.

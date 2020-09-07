@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -35,14 +34,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
-import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.types.Row;
 
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -59,7 +54,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.utils.HiveFunctionUtils.isHiveFunc;
-import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /** Thin adapter between {@link SqlOperatorTable} and {@link FunctionCatalog}. */
 @Internal
@@ -125,22 +119,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
         } else if (definition instanceof TableFunctionDefinition
                 && category != null
                 && category.isTableFunction()) {
-            TableFunctionDefinition def = (TableFunctionDefinition) definition;
-            if (isHiveFunc(def.getTableFunction())) {
-                DataType returnType = fromLegacyInfoToDataType(new GenericTypeInfo<>(Row.class));
-                return Optional.of(
-                        new HiveTableSqlFunction(
-                                identifier,
-                                def.getTableFunction(),
-                                returnType,
-                                typeFactory,
-                                new DeferredTypeFlinkTableFunction(
-                                        def.getTableFunction(), returnType),
-                                HiveTableSqlFunction.operandTypeChecker(
-                                        identifier.toString(), def.getTableFunction())));
-            } else {
-                return convertTableFunction(identifier, (TableFunctionDefinition) definition);
-            }
+            return convertTableFunction(identifier, (TableFunctionDefinition) definition);
         }
         // new stack
         return convertToBridgingSqlFunction(category, identifier, definition);

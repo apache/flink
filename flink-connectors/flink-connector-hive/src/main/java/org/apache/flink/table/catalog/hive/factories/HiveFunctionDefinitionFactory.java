@@ -26,14 +26,12 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.hive.HiveFunctionWrapper;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.functions.hive.HiveGenericUDF;
 import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
-import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.exec.UDF;
@@ -100,10 +98,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
         } else if (GenericUDTF.class.isAssignableFrom(clazz)) {
             LOG.info("Transforming Hive function '{}' into a HiveGenericUDTF", name);
 
-            HiveGenericUDTF udtf =
-                    new HiveGenericUDTF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
-
-            return new TableFunctionDefinition(name, udtf, GenericTypeInfo.of(Row.class));
+            return new HiveGenericUDTF(new HiveFunctionWrapper<>(functionClassName), hiveShim);
         } else if (GenericUDAFResolver2.class.isAssignableFrom(clazz)
                 || UDAF.class.isAssignableFrom(clazz)) {
             HiveGenericUDAF udaf;

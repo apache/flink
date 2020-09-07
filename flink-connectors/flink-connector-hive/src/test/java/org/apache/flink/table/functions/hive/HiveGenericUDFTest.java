@@ -21,11 +21,10 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContext;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
@@ -47,6 +46,9 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_110_OR_LATER;
 import static org.apache.flink.table.HiveVersionTestUtil.HIVE_120_OR_LATER;
@@ -290,7 +292,12 @@ public class HiveGenericUDFTest {
         HiveGenericUDF udf =
                 new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
-        CallContext callContext = new HiveUDFCallContext(constantArgs, argTypes);
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentValues =
+                Arrays.stream(constantArgs).map(Optional::ofNullable).collect(Collectors.toList());
+        callContext.argumentLiterals =
+                Arrays.stream(constantArgs).map(Objects::nonNull).collect(Collectors.toList());
         udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
         udf.open(null);

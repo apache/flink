@@ -92,4 +92,13 @@ public interface CallContext {
     default ValidationException newValidationError(String message, Object... args) {
         return new ValidationException(String.format(message, args));
     }
+
+    /**
+     * Creates a validation error for exiting the type inference process with a meaningful exception
+     * and cause.
+     */
+    default ValidationException newValidationError(
+            Throwable cause, String message, Object... args) {
+        return new ValidationException(String.format(message, args), cause);
+    }
 }

@@ -71,8 +71,8 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 
         List<TypeInfo> typeInfos = new ArrayList<>();
 
-        for (DataType arg : argTypes) {
-            typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arg, false));
+        for (int i = 0; i < arguments.size(); i++) {
+            typeInfos.add(HiveTypeUtil.toHiveTypeInfo(arguments.getDataType(i), false));
         }
 
         try {
@@ -83,7 +83,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
                             ObjectInspectorFactory.ObjectInspectorOptions.JAVA);
             ObjectInspector[] argInspectors = new ObjectInspector[typeInfos.size()];
 
-            for (int i = 0; i < argTypes.length; i++) {
+            for (int i = 0; i < arguments.size(); i++) {
                 argInspectors[i] =
                         TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(typeInfos.get(i));
             }
@@ -93,7 +93,9 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
             for (int i = 0; i < argInspectors.length; i++) {
                 conversions[i] =
                         HiveInspectors.getConversion(
-                                argInspectors[i], argTypes[i].getLogicalType(), hiveShim);
+                                argInspectors[i],
+                                arguments.getDataType(i).getLogicalType(),
+                                hiveShim);
             }
 
             allIdentityConverter =
@@ -128,10 +130,10 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
     }
 
     @Override
-    protected DataType inferReturnType() throws UDFArgumentException {
+    public DataType inferReturnType() throws UDFArgumentException {
         List<TypeInfo> argTypeInfo = new ArrayList<>();
-        for (DataType argType : argTypes) {
-            argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(argType, false));
+        for (int i = 0; i < arguments.size(); i++) {
+            argTypeInfo.add(HiveTypeUtil.toHiveTypeInfo(arguments.getDataType(i), false));
         }
 
         Method evalMethod =
