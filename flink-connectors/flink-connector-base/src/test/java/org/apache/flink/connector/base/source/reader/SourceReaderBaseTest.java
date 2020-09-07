@@ -53,33 +53,33 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
 		FutureNotifier futureNotifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-				new FutureCompletingBlockingQueue<>(futureNotifier);
+			new FutureCompletingBlockingQueue<>(futureNotifier);
 		// We have to handle split changes first, otherwise fetch will not be called.
 		try (MockSourceReader reader = new MockSourceReader(
-				futureNotifier,
-				elementsQueue,
-				() -> new SplitReader<int[], MockSourceSplit>() {
-					@Override
-					public RecordsWithSplitIds<int[]> fetch() {
-						throw new RuntimeException(errMsg);
-					}
+			futureNotifier,
+			elementsQueue,
+			() -> new SplitReader<int[], MockSourceSplit>() {
+				@Override
+				public RecordsWithSplitIds<int[]> fetch() {
+					throw new RuntimeException(errMsg);
+				}
 
-					@Override
-					public void handleSplitsChanges(Queue<SplitsChange<MockSourceSplit>> splitsChanges) {
-						// We have to handle split changes first, otherwise fetch will not be called.
-						splitsChanges.clear();
-					}
+				@Override
+				public void handleSplitsChanges(Queue<SplitsChange<MockSourceSplit>> splitsChanges) {
+					// We have to handle split changes first, otherwise fetch will not be called.
+					splitsChanges.clear();
+				}
 
-					@Override
-					public void wakeUp() {
-					}
-				},
-				getConfig(),
-				null)) {
+				@Override
+				public void wakeUp() {
+				}
+			},
+			getConfig(),
+			null)) {
 			ValidatingSourceOutput output = new ValidatingSourceOutput();
 			reader.addSplits(Collections.singletonList(getSplit(0,
-					NUM_RECORDS_PER_SPLIT,
-					Boundedness.CONTINUOUS_UNBOUNDED)));
+				NUM_RECORDS_PER_SPLIT,
+				Boundedness.CONTINUOUS_UNBOUNDED)));
 			// This is not a real infinite loop, it is supposed to throw exception after two polls.
 			while (true) {
 				reader.pollNext(output);
@@ -95,15 +95,15 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	protected MockSourceReader createReader() {
 		FutureNotifier futureNotifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-				new FutureCompletingBlockingQueue<>(futureNotifier);
+			new FutureCompletingBlockingQueue<>(futureNotifier);
 		MockSplitReader mockSplitReader =
-				new MockSplitReader(2, true, true);
+			new MockSplitReader(2, true, true);
 		return new MockSourceReader(
-				futureNotifier,
-				elementsQueue,
-				() -> mockSplitReader,
-				getConfig(),
-				null);
+			futureNotifier,
+			elementsQueue,
+			() -> mockSplitReader,
+			getConfig(),
+			null);
 	}
 
 	@Override
@@ -130,7 +130,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 	}
 
 	@Override
-	protected long getIndex(MockSourceSplit split) {
+	protected long getNextRecordIndex(MockSourceSplit split) {
 		return split.index();
 	}
 

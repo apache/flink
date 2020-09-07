@@ -21,6 +21,7 @@ package org.apache.flink.connector.base.source.reader.splitreader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
+import java.io.IOException;
 import java.util.Queue;
 
 /**
@@ -42,8 +43,9 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
 	 * @return the Ids of the finished splits.
 	 *
 	 * @throws InterruptedException when interrupted
+	 * @throws IOException when encountered IO errors, such as deserialization failures.
 	 */
-	RecordsWithSplitIds<E> fetch() throws InterruptedException;
+	RecordsWithSplitIds<E> fetch() throws InterruptedException, IOException;
 
 	/**
 	 * Handle the split changes. This call should be non-blocking.

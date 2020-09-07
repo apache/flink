@@ -130,14 +130,13 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		ValidatingSourceOutput output = new ValidatingSourceOutput();
 		// Add a split to start the fetcher.
 		List<SplitT> splits = getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED);
-		// Poll 5 records. That means split 0 and 1 will at index 2, split 1 will at index 1.
 		try (SourceReader<Integer, SplitT> reader =
 				consumeRecords(splits, output, NUM_SPLITS * NUM_RECORDS_PER_SPLIT)) {
 			List<SplitT> state = reader.snapshotState();
 			assertEquals("The snapshot should only have 10 splits. ", NUM_SPLITS, state.size());
 			for (int i = 0; i < NUM_SPLITS; i++) {
 				assertEquals("The first four splits should have been fully consumed.",
-						NUM_RECORDS_PER_SPLIT, getIndex(state.get(i)));
+					NUM_RECORDS_PER_SPLIT, getNextRecordIndex(state.get(i)));
 			}
 		}
 	}
@@ -150,12 +149,12 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 
 	protected abstract SplitT getSplit(int splitId, int numRecords, Boundedness boundedness);
 
-	protected abstract long getIndex(SplitT split);
+	protected abstract long getNextRecordIndex(SplitT split);
 
 	private SourceReader<Integer, SplitT> consumeRecords(
-			List<SplitT> splits,
-			ValidatingSourceOutput output,
-			int n) throws Exception {
+		List<SplitT> splits,
+		ValidatingSourceOutput output,
+		int n) throws Exception {
 		SourceReader<Integer, SplitT> reader = createReader();
 		// Add splits to start the fetcher.
 		reader.addSplits(splits);
@@ -194,7 +193,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		public void validate() {
 
 			assertEquals(String.format("Should be %d distinct elements in total", TOTAL_NUM_RECORDS),
-					TOTAL_NUM_RECORDS, consumedValues.size());
+				TOTAL_NUM_RECORDS, consumedValues.size());
 			assertEquals(String.format("Should be %d elements in total", TOTAL_NUM_RECORDS), TOTAL_NUM_RECORDS, count);
 			assertEquals("The min value should be 0", 0, min);
 			assertEquals("The max value should be " + (TOTAL_NUM_RECORDS - 1), TOTAL_NUM_RECORDS - 1, max);

@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Consumer;
@@ -38,10 +39,10 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 	private volatile boolean wakeup;
 
 	FetchTask(
-			SplitReader<E, SplitT> splitReader,
-			BlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-			Consumer<Collection<String>> splitFinishedCallback,
-			Thread runningThread) {
+		SplitReader<E, SplitT> splitReader,
+		BlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+		Consumer<Collection<String>> splitFinishedCallback,
+		Thread runningThread) {
 		this.splitReader = splitReader;
 		this.elementsQueue = elementsQueue;
 		this.splitFinishedCallback = splitFinishedCallback;
@@ -51,7 +52,7 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 	}
 
 	@Override
-	public boolean run() throws InterruptedException {
+	public boolean run() throws InterruptedException, IOException {
 		try {
 			if (!isWakenUp() && lastRecords == null) {
 				lastRecords = splitReader.fetch();
