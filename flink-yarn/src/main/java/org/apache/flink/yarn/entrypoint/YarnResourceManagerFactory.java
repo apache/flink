@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.yarn.YarnResourceManager;
 import org.apache.flink.yarn.YarnWorkerNode;
+import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
 
 import javax.annotation.Nullable;
 
@@ -66,6 +67,7 @@ public class YarnResourceManagerFactory extends LegacyActiveResourceManagerFacto
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
 			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
 			Executor ioExecutor) {
+		final YarnResourceManagerConfiguration yarnResourceManagerConfiguration = new YarnResourceManagerConfiguration(System.getenv(), rpcService.getAddress(), webInterfaceUrl);
 
 		return new YarnResourceManager(
 			rpcService,
@@ -79,7 +81,7 @@ public class YarnResourceManagerFactory extends LegacyActiveResourceManagerFacto
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
-			webInterfaceUrl,
+			yarnResourceManagerConfiguration,
 			resourceManagerMetricGroup,
 			ioExecutor);
 	}

@@ -47,6 +47,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
+import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -105,8 +106,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 
 	private final YarnConfiguration yarnConfig;
 
-	@Nullable
-	private final String webInterfaceUrl;
+	private final YarnResourceManagerConfiguration yarnResourceManagerConfiguration;
 
 	/** The heartbeat interval while the resource master is waiting for containers. */
 	private final int containerRequestHeartbeatIntervalMillis;
@@ -135,7 +135,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String webInterfaceUrl,
+			YarnResourceManagerConfiguration yarnResourceManagerConfiguration,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
 			Executor ioExecutor) {
 		super(
@@ -169,7 +169,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
 		containerRequestHeartbeatIntervalMillis = flinkConfig.getInteger(YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
 
-		this.webInterfaceUrl = webInterfaceUrl;
+		this.yarnResourceManagerConfiguration = Preconditions.checkNotNull(yarnResourceManagerConfiguration);
 
 		this.workerSpecContainerResourceAdapter = Utils.createWorkerSpecContainerResourceAdapter(flinkConfig, yarnConfig);
 		this.registerApplicationMasterResponseReflector = new RegisterApplicationMasterResponseReflector(log);
@@ -264,7 +264,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			resourceManagerClient = createAndStartResourceManagerClient(
 				yarnConfig,
 				yarnHeartbeatIntervalMillis,
-				webInterfaceUrl);
+				yarnResourceManagerConfiguration.getWebInterfaceUrl());
 		} catch (Exception e) {
 			throw new ResourceManagerException("Could not start resource manager client.", e);
 		}
@@ -315,7 +315,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			log.error("Could not unregister the application master.", t);
 		}
 
-		Utils.deleteApplicationFiles(env);
+		Utils.deleteApplicationFiles(yarnResourceManagerConfiguration.getYarnFiles());
 	}
 
 	@Override
@@ -644,7 +644,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 		TaskExecutorProcessSpec taskExecutorProcessSpec) throws Exception {
 
 		// init the ContainerLaunchContext
-		final String currDir = env.get(ApplicationConstants.Environment.PWD.key());
+		final String currDir = yarnResourceManagerConfiguration.getCurrentDir();
 
 		final ContaineredTaskManagerParameters taskManagerParameters =
 				ContaineredTaskManagerParameters.create(flinkConfig, taskExecutorProcessSpec);
@@ -666,7 +666,7 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
 			flinkConfig,
 			yarnConfig,
-			env,
+			yarnResourceManagerConfiguration,
 			taskManagerParameters,
 			taskManagerDynamicProperties,
 			currDir,

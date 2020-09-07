@@ -60,6 +60,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
 import org.apache.flink.yarn.entrypoint.YarnWorkerResourceSpecFactory;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
@@ -157,6 +158,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_CLIENT_SHIP_FILES, "");
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
+		env.put(FLINK_YARN_FILES, "");
 		env.put(FLINK_DIST_JAR, new YarnLocalResourceDescriptor(
 			"flink.jar",
 			new Path("/tmp/flink.jar"),
@@ -209,7 +211,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				jobLeaderIdService,
 				clusterInformation,
 				fatalErrorHandler,
-				webInterfaceUrl,
+				new YarnResourceManagerConfiguration(env, rpcService.getAddress(), webInterfaceUrl),
 				resourceManagerMetricGroup,
 				ForkJoinPool.commonPool());
 			this.testingYarnNMClientAsyncBuilder = TestingYarnNMClientAsync.builder();
@@ -513,10 +515,9 @@ public class YarnResourceManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testDeleteApplicationFiles() throws Exception {
+		final File applicationDir = folder.newFolder(".flink");
+		env.put(FLINK_YARN_FILES, applicationDir.getCanonicalPath());
 		new Context() {{
-			final File applicationDir = folder.newFolder(".flink");
-			env.put(FLINK_YARN_FILES, applicationDir.getCanonicalPath());
-
 			runTest(() -> {
 				resourceManager.deregisterApplication(ApplicationStatus.SUCCEEDED, null);
 				assertFalse("YARN application directory was not removed", Files.exists(applicationDir.toPath()));
