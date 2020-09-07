@@ -79,10 +79,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.client.api.AMRMClient;
-import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
-import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -183,8 +179,6 @@ public class YarnResourceManagerTest extends TestLogger {
 	}
 
 	static class TestingYarnResourceManager extends YarnResourceManager {
-		final TestingYarnAMRMClientAsync.Builder testingYarnAMRMClientAsyncBuilder;
-		final TestingYarnNMClientAsync.Builder testingYarnNMClientAsyncBuilder;
 
 		TestingYarnResourceManager(
 				RpcService rpcService,
@@ -198,7 +192,9 @@ public class YarnResourceManagerTest extends TestLogger {
 				ClusterInformation clusterInformation,
 				FatalErrorHandler fatalErrorHandler,
 				@Nullable String webInterfaceUrl,
-				ResourceManagerMetricGroup resourceManagerMetricGroup) {
+				ResourceManagerMetricGroup resourceManagerMetricGroup,
+				YarnResourceManagerClientFactory yarnResourceManagerClientFactory,
+				YarnNodeManagerClientFactory yarnNodeManagerClientFactory) {
 			super(
 				rpcService,
 				resourceId,
@@ -213,9 +209,14 @@ public class YarnResourceManagerTest extends TestLogger {
 				fatalErrorHandler,
 				new YarnResourceManagerConfiguration(env, rpcService.getAddress(), webInterfaceUrl),
 				resourceManagerMetricGroup,
+				yarnResourceManagerClientFactory,
+				yarnNodeManagerClientFactory,
 				ForkJoinPool.commonPool());
-			this.testingYarnNMClientAsyncBuilder = TestingYarnNMClientAsync.builder();
-			this.testingYarnAMRMClientAsyncBuilder = TestingYarnAMRMClientAsync.builder();
+		}
+
+		@Override
+		public String getAddress() {
+			return "akka.tcp://flink@localhost:49712/user/";
 		}
 
 		<T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
@@ -224,19 +225,6 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		MainThreadExecutor getMainThreadExecutorForTesting() {
 			return super.getMainThreadExecutor();
-		}
-
-		@Override
-		protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
-				YarnConfiguration yarnConfiguration,
-				int yarnHeartbeatIntervalMillis,
-				@Nullable String webInterfaceUrl) {
-			return testingYarnAMRMClientAsyncBuilder.build(this);
-		}
-
-		@Override
-		protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
-			return testingYarnNMClientAsyncBuilder.build(this);
 		}
 	}
 
@@ -262,9 +250,13 @@ public class YarnResourceManagerTest extends TestLogger {
 
 		public String taskHost = "host1";
 
-		final TestingYarnNMClientAsync.Builder testingYarnNMClientAsyncBuilder;
+		final TestingYarnNMClientAsync.Builder testingYarnNMClientAsyncBuilder = TestingYarnNMClientAsync.builder();
 
-		final TestingYarnAMRMClientAsync.Builder testingYarnAMRMClientAsyncBuilder;
+		final TestingYarnAMRMClientAsync.Builder testingYarnAMRMClientAsyncBuilder = TestingYarnAMRMClientAsync.builder();
+
+		final TestingYarnResourceManagerClientFactory testingYarnResourceManagerClientFactory;
+
+		final TestingYarnNodeManagerClientFactory testingYarnNodeManagerClientFactory;
 
 		int containerIdx = 0;
 
@@ -286,6 +278,9 @@ public class YarnResourceManagerTest extends TestLogger {
 			rpcService = new TestingRpcService();
 			rmServices = new MockResourceManagerRuntimeServices(rpcService, TIMEOUT, slotManager);
 
+			testingYarnResourceManagerClientFactory = new TestingYarnResourceManagerClientFactory(((yarnMills, handler) -> testingYarnAMRMClientAsyncBuilder.build(handler)));
+			testingYarnNodeManagerClientFactory = new TestingYarnNodeManagerClientFactory((testingYarnNMClientAsyncBuilder::build));
+
 			// resource manager
 			rmResourceID = ResourceID.generate();
 			resourceManager =
@@ -301,10 +296,9 @@ public class YarnResourceManagerTest extends TestLogger {
 							new ClusterInformation("localhost", 1234),
 							testingFatalErrorHandler,
 							null,
-							UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
-
-			testingYarnAMRMClientAsyncBuilder = resourceManager.testingYarnAMRMClientAsyncBuilder;
-			testingYarnNMClientAsyncBuilder = resourceManager.testingYarnNMClientAsyncBuilder;
+							UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
+							testingYarnResourceManagerClientFactory,
+							testingYarnNodeManagerClientFactory);
 
 			containerResource = resourceManager.getContainerResource(workerResourceSpec).get();
 		}
