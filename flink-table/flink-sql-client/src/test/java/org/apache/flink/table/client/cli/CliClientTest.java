@@ -122,16 +122,10 @@ public class CliClientTest extends TestLogger {
 		SessionContext session = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(session);
 
-		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-
-			cliClient.open();
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
 			assertThat(executor.getNumExecuteSqlCalls(), is(1));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -144,18 +138,13 @@ public class CliClientTest extends TestLogger {
 			.build();
 
 		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
-		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
 			assertThat(executor.getNumExecuteSqlCalls(), is(1));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -166,19 +155,14 @@ public class CliClientTest extends TestLogger {
 		// proctimee() is invalid
 		InputStream inputStream = new ByteArrayInputStream("create table tbl(a int, b as proctimee());\n".getBytes());
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
 			String output = new String(outputStream.toByteArray());
 			assertTrue(output.contains("No match found for function signature proctimee()"));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -239,19 +223,14 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 
 		InputStream inputStream = new ByteArrayInputStream("help;\nuse catalog cat;\n".getBytes());
-		CliClient cliClient = null;
-		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream())) {
-			Path historyFilePath = File.createTempFile("history", "tmp").toPath();
-			cliClient = new CliClient(terminal, sessionId, mockExecutor, historyFilePath);
-			cliClient.open();
+		Path historyFilePath = historyTempFile();
+		try (Terminal terminal = new DumbTerminal(inputStream, new MockOutputStream());
+				CliClient client = new CliClient(terminal, sessionId, mockExecutor, historyFilePath)) {
+			client.open();
 			List<String> content = Files.readAllLines(historyFilePath);
 			assertEquals(2, content.size());
 			assertTrue(content.get(0).contains("help"));
 			assertTrue(content.get(1).contains("use catalog cat"));
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -303,18 +282,13 @@ public class CliClientTest extends TestLogger {
 	private String testExecuteSql(TestingExecutor executor, String sql) throws IOException {
 		InputStream inputStream = new ByteArrayInputStream((sql + "\n").getBytes());
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(256);
-		CliClient cliClient = null;
 		SessionContext sessionContext = new SessionContext("test-session", new Environment());
 		String sessionId = executor.openSession(sessionContext);
 
-		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
-			cliClient = new CliClient(terminal, sessionId, executor, File.createTempFile("history", "tmp").toPath());
-			cliClient.open();
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream);
+				CliClient client = new CliClient(terminal, sessionId, executor, historyTempFile())) {
+			client.open();
 			return new String(outputStream.toByteArray());
-		} finally {
-			if (cliClient != null) {
-				cliClient.close();
-			}
 		}
 	}
 
@@ -325,23 +299,13 @@ public class CliClientTest extends TestLogger {
 		String sessionId = mockExecutor.openSession(context);
 		mockExecutor.failExecution = failExecution;
 
-		CliClient cli = null;
-		try {
-			cli = new CliClient(
-					TerminalUtils.createDummyTerminal(),
-					sessionId,
-					mockExecutor,
-					File.createTempFile("history", "tmp").toPath());
+		try (CliClient client = new CliClient(TerminalUtils.createDummyTerminal(), sessionId, mockExecutor, historyTempFile())) {
 			if (testFailure) {
-				assertFalse(cli.submitUpdate(statement));
+				assertFalse(client.submitUpdate(statement));
 			} else {
-				assertTrue(cli.submitUpdate(statement));
+				assertTrue(client.submitUpdate(statement));
 				assertEquals(statement, mockExecutor.receivedStatement);
 				assertEquals(context, mockExecutor.receivedContext);
-			}
-		} finally {
-			if (cli != null) {
-				cli.close();
 			}
 		}
 	}
@@ -374,6 +338,10 @@ public class CliClientTest extends TestLogger {
 			results.retainAll(notExpectedHints);
 			assertEquals(0, results.size());
 		}
+	}
+
+	private Path historyTempFile() throws IOException {
+		return File.createTempFile("history", "tmp").toPath();
 	}
 
 	// --------------------------------------------------------------------------------------------
