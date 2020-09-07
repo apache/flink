@@ -44,7 +44,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
   @Test
   def testExpressionReductionWithRichUDF(): Unit = {
     util.addFunction("MyUdf", new RichFunc1)
-    util.getTableEnv.getConfig.getConfiguration.setString("int.value", "10")
+    util.getTableEnv.getConfig.addJobParameter("int.value", "10")
     util.verifyPlan("SELECT myUdf(1) FROM MyTable")
   }
 

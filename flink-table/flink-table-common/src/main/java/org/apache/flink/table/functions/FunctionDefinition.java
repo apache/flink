@@ -68,8 +68,12 @@ public interface FunctionDefinition {
 	 *
 	 * <p>It returns <code>true</code> if and only if a call to this function is guaranteed to
 	 * always return the same result given the same parameters. <code>true</code> is
-	 * assumed by default. If the function is not pure functional like <code>random(), date(), now(), ...</code>
+	 * assumed by default. If the function is not purely functional like <code>random(), date(), now(), ...</code>
 	 * this method must return <code>false</code>.
+	 *
+	 * <p>Furthermore, return <code>false</code> if the planner should always execute this function
+	 * on the cluster side. In other words: the planner should not perform constant expression reduction
+	 * during planning for constant calls to this function.
 	 */
 	default boolean isDeterministic() {
 		return true;

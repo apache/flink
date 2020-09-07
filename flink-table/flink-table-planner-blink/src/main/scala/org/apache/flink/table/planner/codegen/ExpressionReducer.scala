@@ -19,12 +19,10 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.{ConstantFunctionContext, FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
@@ -35,8 +33,6 @@ import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-
-import java.io.File
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -235,35 +231,6 @@ class ExpressionReducer(
       valueArg,
       targetType,
       true)
-  }
-}
-
-/**
-  * A [[ConstantFunctionContext]] allows to obtain user-defined configuration information set
-  * in [[TableConfig]].
-  *
-  * @param parameters User-defined configuration set in [[TableConfig]].
-  */
-class ConstantFunctionContext(parameters: Configuration) extends FunctionContext(null) {
-
-  override def getMetricGroup: MetricGroup = {
-    throw new UnsupportedOperationException("getMetricGroup is not supported when optimizing")
-  }
-
-  override def getCachedFile(name: String): File = {
-    throw new UnsupportedOperationException("getCachedFile is not supported when optimizing")
-  }
-
-  /**
-    * Gets the user-defined configuration value associated with the given key as a string.
-    *
-    * @param key          key pointing to the associated value
-    * @param defaultValue default value which is returned in case user-defined configuration
-    *                     value is null or there is no value associated with the given key
-    * @return (default) value associated with the given key
-    */
-  override def getJobParameter(key: String, defaultValue: String): String = {
-    parameters.getString(key, defaultValue)
   }
 }
 
