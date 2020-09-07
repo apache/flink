@@ -29,12 +29,16 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +81,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 	private transient ListState<TimestampedFileInputSplit> checkpointedState;
 	private transient List<TimestampedFileInputSplit> restoredReaderState;
+	private transient MailboxExecutor mailboxExecutor;
 
 	public ContinuousFileReaderOperator(FileInputFormat<OUT> format) {
 		this.format = checkNotNull(format);
@@ -146,6 +151,12 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	}
 
 	@Override
+	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+		super.setup(containingTask, config, output);
+		this.mailboxExecutor = containingTask.getMailboxExecutorFactory().createExecutor(config.getChainIndex());
+	}
+
+	@Override
 	public void processElement(StreamRecord<TimestampedFileInputSplit> element) throws Exception {
 		reader.addSplit(element.getValue());
 	}
@@ -212,6 +223,9 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		while (reader != null && reader.isAlive() && reader.isRunning()) {
 			reader.close();
 			checkpointLock.wait();
+			if (getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval() > 0) {
+				mailboxExecutor.yield(); // allow to emit watermark (FLINK-19109) (without the check, yield can block as there will be no mail)
+			}
 		}
 
 		// finally if we are operating on event or ingestion time,
@@ -329,6 +343,9 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 								nextElement = format.nextRecord(nextElement);
 								if (nextElement != null) {
 									readerContext.collect(nextElement);
+									if (shouldClose) { // allow task thread to emit watermark (FLINK-19109)
+										checkpointLock.notifyAll();
+									}
 								} else {
 									break;
 								}
