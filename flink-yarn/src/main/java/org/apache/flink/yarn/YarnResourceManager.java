@@ -123,6 +123,10 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 
 	private WorkerSpecContainerResourceAdapter.MatchingStrategy matchingStrategy;
 
+	private final YarnResourceManagerClientFactory yarnResourceManagerClientFactory;
+
+	private final YarnNodeManagerClientFactory yarnNodeManagerClientFactory;
+
 	public YarnResourceManager(
 			RpcService rpcService,
 			ResourceID resourceId,
@@ -137,6 +141,8 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			FatalErrorHandler fatalErrorHandler,
 			YarnResourceManagerConfiguration yarnResourceManagerConfiguration,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			YarnResourceManagerClientFactory yarnResourceManagerClientFactory,
+			YarnNodeManagerClientFactory yarnNodeManagerClientFactory,
 			Executor ioExecutor) {
 		super(
 			flinkConfig,
@@ -177,16 +183,17 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 		this.matchingStrategy = flinkConfig.getBoolean(YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES) ?
 			WorkerSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
 			WorkerSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
+
+		this.yarnNodeManagerClientFactory = yarnNodeManagerClientFactory;
+		this.yarnResourceManagerClientFactory = yarnResourceManagerClientFactory;
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
 			YarnConfiguration yarnConfiguration,
 			int yarnHeartbeatIntervalMillis,
 			@Nullable String webInterfaceUrl) throws Exception {
-		AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient = AMRMClientAsync.createAMRMClientAsync(
-			yarnHeartbeatIntervalMillis,
-			this);
-
+		AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient =
+			yarnResourceManagerClientFactory.createResourceManagerClient(yarnHeartbeatIntervalMillis, this);
 		resourceManagerClient.init(yarnConfiguration);
 		resourceManagerClient.start();
 
@@ -245,14 +252,6 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 		log.info("Container matching strategy: {}.", matchingStrategy);
 	}
 
-	protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
-		// create the client to communicate with the node managers
-		NMClientAsync nodeManagerClient = NMClientAsync.createNMClientAsync(this);
-		nodeManagerClient.init(yarnConfiguration);
-		nodeManagerClient.start();
-		return nodeManagerClient;
-	}
-
 	@Override
 	protected Configuration loadClientConfiguration() {
 		return GlobalConfiguration.loadConfiguration(env.get(ApplicationConstants.Environment.PWD.key()));
@@ -269,7 +268,9 @@ public class YarnResourceManager extends LegacyActiveResourceManager<YarnWorkerN
 			throw new ResourceManagerException("Could not start resource manager client.", e);
 		}
 
-		nodeManagerClient = createAndStartNodeManagerClient(yarnConfig);
+		nodeManagerClient = yarnNodeManagerClientFactory.createNodeManagerClient(this);
+		nodeManagerClient.init(yarnConfig);
+		nodeManagerClient.start();
 	}
 
 	@Override

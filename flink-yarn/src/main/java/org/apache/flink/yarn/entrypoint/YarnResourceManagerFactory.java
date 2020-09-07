@@ -33,6 +33,8 @@ import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManag
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.yarn.DefaultYarnNodeManagerClientFactory;
+import org.apache.flink.yarn.DefaultYarnResourceManagerClientFactory;
 import org.apache.flink.yarn.YarnResourceManager;
 import org.apache.flink.yarn.YarnWorkerNode;
 import org.apache.flink.yarn.configuration.YarnResourceManagerConfiguration;
@@ -83,6 +85,8 @@ public class YarnResourceManagerFactory extends LegacyActiveResourceManagerFacto
 			fatalErrorHandler,
 			yarnResourceManagerConfiguration,
 			resourceManagerMetricGroup,
+			DefaultYarnResourceManagerClientFactory.getInstance(),
+			DefaultYarnNodeManagerClientFactory.getInstance(),
 			ioExecutor);
 	}
 
