@@ -94,6 +94,10 @@ public class StreamingJobGraphGenerator {
 
 	private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
 
+	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
+
+	public static final long UNDEFINED_NETWORK_BUFFER_TIMEOUT = -1L;
+
 	// ------------------------------------------------------------------------
 
 	public static JobGraph createJobGraph(StreamGraph streamGraph) {
@@ -321,13 +325,12 @@ public class StreamingJobGraphGenerator {
 				config.setChainStart();
 				config.setChainIndex(0);
 				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
-				config.setOutEdgesInOrder(transitiveOutEdges);
-				config.setOutEdges(streamGraph.getStreamNode(currentNodeId).getOutEdges());
 
 				for (StreamEdge edge : transitiveOutEdges) {
 					connect(startNodeId, edge);
 				}
 
+				config.setOutEdgesInOrder(transitiveOutEdges);
 				config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
 			} else {
@@ -478,7 +481,6 @@ public class StreamingJobGraphGenerator {
 		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		config.setVertexID(vertexID);
-		config.setBufferTimeout(vertex.getBufferTimeout());
 
 		config.setTypeSerializerIn1(vertex.getTypeSerializerIn1());
 		config.setTypeSerializerIn2(vertex.getTypeSerializerIn2());
@@ -570,6 +572,8 @@ public class StreamingJobGraphGenerator {
 					edge.getShuffleMode() + " is not supported yet.");
 		}
 
+		checkAndResetBufferTimeout(resultPartitionType, edge);
+
 		JobEdge jobEdge;
 		if (partitioner instanceof ForwardPartitioner || partitioner instanceof RescalePartitioner) {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
@@ -588,6 +592,19 @@ public class StreamingJobGraphGenerator {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),
 					headOfChain, downStreamvertexID);
+		}
+	}
+
+	private void checkAndResetBufferTimeout(ResultPartitionType type, StreamEdge edge) {
+		long bufferTimeout = edge.getBufferTimeout();
+		if (type.isBlocking() && bufferTimeout != UNDEFINED_NETWORK_BUFFER_TIMEOUT) {
+			throw new UnsupportedOperationException(
+				"Blocking partition does not support buffer timeout " + bufferTimeout + " for src operator in edge "
+					+ edge.toString() + ". \nPlease either reset buffer timeout as -1 or use the non-blocking partition.");
+		}
+
+		if (type.isPipelined() && bufferTimeout == UNDEFINED_NETWORK_BUFFER_TIMEOUT) {
+			edge.setBufferTimeout(DEFAULT_NETWORK_BUFFER_TIMEOUT);
 		}
 	}
 

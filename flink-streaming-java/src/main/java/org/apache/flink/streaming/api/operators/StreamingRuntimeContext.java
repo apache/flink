@@ -205,14 +205,4 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public CheckpointingMode getCheckpointMode() {
 		return streamConfig.getCheckpointMode();
 	}
-
-	/**
-	 * Returns the buffer timeout of the job.
-	 *
-	 * @return buffer timeout (in milliseconds)
-	 */
-	public long getBufferTimeout() {
-		return streamConfig.getBufferTimeout();
-	}
-
 }

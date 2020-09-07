@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -37,6 +38,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamEdge implements Serializable {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final long ALWAYS_FLUSH_BUFFER_TIMEOUT = 0L;
 
 	private final String edgeId;
 
@@ -76,6 +79,8 @@ public class StreamEdge implements Serializable {
 
 	private final ShuffleMode shuffleMode;
 
+	private long bufferTimeout;
+
 	public StreamEdge(
 		StreamNode sourceVertex,
 		StreamNode targetVertex,
@@ -88,6 +93,7 @@ public class StreamEdge implements Serializable {
 			sourceVertex,
 			targetVertex,
 			typeNumber,
+			ALWAYS_FLUSH_BUFFER_TIMEOUT,
 			selectedNames,
 			outputPartitioner,
 			outputTag,
@@ -103,9 +109,31 @@ public class StreamEdge implements Serializable {
 		OutputTag outputTag,
 		ShuffleMode shuffleMode) {
 
+		this(
+			sourceVertex,
+			targetVertex,
+			typeNumber,
+			sourceVertex.getBufferTimeout(),
+			selectedNames,
+			outputPartitioner,
+			outputTag,
+			shuffleMode);
+	}
+
+	public StreamEdge(
+		StreamNode sourceVertex,
+		StreamNode targetVertex,
+		int typeNumber,
+		long bufferTimeout,
+		List<String> selectedNames,
+		StreamPartitioner<?> outputPartitioner,
+		OutputTag outputTag,
+		ShuffleMode shuffleMode) {
+
 		this.sourceId = sourceVertex.getId();
 		this.targetId = targetVertex.getId();
 		this.typeNumber = typeNumber;
+		this.bufferTimeout = bufferTimeout;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 		this.outputTag = outputTag;
@@ -147,6 +175,15 @@ public class StreamEdge implements Serializable {
 		this.outputPartitioner = partitioner;
 	}
 
+	public void setBufferTimeout(long bufferTimeout) {
+		checkArgument(bufferTimeout >= -1);
+		this.bufferTimeout = bufferTimeout;
+	}
+
+	public long getBufferTimeout() {
+		return bufferTimeout;
+	}
+
 	@Override
 	public int hashCode() {
 		return Objects.hash(edgeId, outputTag);
@@ -170,6 +207,6 @@ public class StreamEdge implements Serializable {
 	public String toString() {
 		return "(" + (sourceOperatorName + "-" + sourceId) + " -> " + (targetOperatorName + "-" + targetId)
 			+ ", typeNumber=" + typeNumber + ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-			+ ", outputTag=" + outputTag + ')';
+			+ ", bufferTimeout=" + bufferTimeout + ", outputTag=" + outputTag + ')';
 	}
 }

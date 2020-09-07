@@ -45,7 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamConfigChainer {
 	private final StreamConfig headConfig;
 	private final Map<Integer, StreamConfig> chainedConfigs = new HashMap<>();
-	private final long bufferTimeout;
 
 	private StreamConfig tailConfig;
 	private int chainIndex = 0;
@@ -53,7 +52,6 @@ public class StreamConfigChainer {
 	StreamConfigChainer(OperatorID headOperatorID, StreamConfig headConfig) {
 		this.headConfig = checkNotNull(headConfig);
 		this.tailConfig = checkNotNull(headConfig);
-		this.bufferTimeout = headConfig.getBufferTimeout();
 
 		head(headOperatorID);
 	}
@@ -62,7 +60,6 @@ public class StreamConfigChainer {
 		headConfig.setOperatorID(headOperatorID);
 		headConfig.setChainStart();
 		headConfig.setChainIndex(chainIndex);
-		headConfig.setBufferTimeout(bufferTimeout);
 	}
 
 	public <T> StreamConfigChainer chain(
@@ -128,7 +125,6 @@ public class StreamConfigChainer {
 			tailConfig.setStateKeySerializer(inputSerializer);
 		}
 		tailConfig.setChainIndex(chainIndex);
-		tailConfig.setBufferTimeout(bufferTimeout);
 
 		chainedConfigs.put(chainIndex, tailConfig);
 
