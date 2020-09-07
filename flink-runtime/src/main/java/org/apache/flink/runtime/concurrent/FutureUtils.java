@@ -1150,6 +1150,18 @@ public class FutureUtils {
 			executor);
 	}
 
+	/**
+	 * Throws the causing exception if the given future is completed exceptionally, otherwise do nothing.
+	 *
+	 * @param future the future to check.
+	 * @throws Exception when the future is completed exceptionally.
+	 */
+	public static void throwIfCompletedExceptionally(CompletableFuture<?> future) throws Exception {
+		if (future.isCompletedExceptionally()) {
+			future.get();
+		}
+	}
+
 	private static <T> BiConsumer<T, Throwable> forwardTo(CompletableFuture<T> target) {
 		return (value, throwable) -> {
 			if (throwable != null) {
