@@ -18,8 +18,6 @@
 
 package org.apache.flink.orc;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -28,6 +26,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.util.function.TriFunction;
 
 import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableMap;
 
@@ -48,28 +47,38 @@ public class OrcFilters {
 
 	private static final ImmutableMap<FunctionDefinition, Function<CallExpression, OrcSplitReader.Predicate>> FILTERS =
 			new ImmutableMap.Builder<FunctionDefinition, Function<CallExpression, OrcSplitReader.Predicate>>()
-					.put(BuiltInFunctionDefinitions.IS_NULL, createIsNullPredicateConverter())
-					.put(BuiltInFunctionDefinitions.IS_NOT_NULL, createIsNotNullPredicateConverter())
-					.put(BuiltInFunctionDefinitions.NOT, createNotPredicateConverter())
-					.put(BuiltInFunctionDefinitions.OR, createOrPredicateConverter())
-					.put(BuiltInFunctionDefinitions.EQUALS, createEqualsPredicateConverter())
-					.put(BuiltInFunctionDefinitions.NOT_EQUALS, createNotEqualsPredicateConverter())
-					.put(BuiltInFunctionDefinitions.GREATER_THAN, createGreaterThanPredicateConverter())
-					.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, createGreaterThanEqualsPredicateConverter())
-					.put(BuiltInFunctionDefinitions.LESS_THAN, createLessThanPredicateConverter())
-					.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, createLessThanEqualsPredicateConverter())
+					.put(BuiltInFunctionDefinitions.IS_NULL, OrcFilters::convertIsNull)
+					.put(BuiltInFunctionDefinitions.IS_NOT_NULL, OrcFilters::convertIsNotNull)
+					.put(BuiltInFunctionDefinitions.NOT, OrcFilters::convertNot)
+					.put(BuiltInFunctionDefinitions.OR, OrcFilters::convertOr)
+					.put(BuiltInFunctionDefinitions.EQUALS, call -> convertBinary(call, OrcFilters::convertEquals, OrcFilters::convertEquals))
+					.put(BuiltInFunctionDefinitions.NOT_EQUALS, call -> convertBinary(call, OrcFilters::convertNotEquals, OrcFilters::convertNotEquals))
+					.put(BuiltInFunctionDefinitions.GREATER_THAN, call -> convertBinary(call, OrcFilters::convertGreaterThan, OrcFilters::convertLessThanEquals))
+					.put(BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL, call -> convertBinary(call, OrcFilters::convertGreaterThanEquals, OrcFilters::convertLessThan))
+					.put(BuiltInFunctionDefinitions.LESS_THAN, call -> convertBinary(call, OrcFilters::convertLessThan, OrcFilters::convertGreaterThanEquals))
+					.put(BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL, call -> convertBinary(call, OrcFilters::convertLessThanEquals, OrcFilters::convertGreaterThan))
 					.build();
 
+	private static boolean isRef(Expression expression) {
+		return expression instanceof FieldReferenceExpression;
+	}
+
+	private static boolean isLit(Expression expression) {
+		return expression instanceof ValueLiteralExpression;
+	}
+
 	private static boolean isUnaryValid(CallExpression callExpression) {
-		return callExpression.getChildren().size() == 1 && callExpression.getChildren().get(0) instanceof FieldReferenceExpression;
+		return callExpression.getChildren().size() == 1 && isRef(callExpression.getChildren().get(0));
 	}
 
 	private static boolean isBinaryValid(CallExpression callExpression) {
-		return callExpression.getChildren().size() == 2 && ((callExpression.getChildren().get(0) instanceof FieldReferenceExpression && callExpression.getChildren().get(1) instanceof ValueLiteralExpression) ||
-				(callExpression.getChildren().get(0) instanceof ValueLiteralExpression && callExpression.getChildren().get(1) instanceof FieldReferenceExpression));
+		return callExpression.getChildren().size() == 2 && (
+				isRef(callExpression.getChildren().get(0)) && isLit(callExpression.getChildren().get(1)) ||
+						isLit(callExpression.getChildren().get(0)) && isRef(callExpression.getChildren().get(1))
+		);
 	}
 
-	private static Tuple2<String, PredicateLeaf.Type> getTuple2Args(CallExpression callExp){
+	private static OrcSplitReader.Predicate convertIsNull(CallExpression callExp) {
 		if (!isUnaryValid(callExp)) {
 			// not a valid predicate
 			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
@@ -85,10 +94,43 @@ public class OrcFilters {
 
 		String colName = getColumnName(callExp);
 
-		return Tuple2.of(colName, colType);
+		return new OrcSplitReader.IsNull(colName, colType);
 	}
 
-	private static Tuple3<String, PredicateLeaf.Type, Serializable> getTuple3Args(CallExpression callExp){
+	private static OrcSplitReader.Predicate convertIsNotNull(CallExpression callExp) {
+		return new OrcSplitReader.Not(convertIsNull(callExp));
+	}
+
+	private static OrcSplitReader.Predicate convertNot(CallExpression callExp) {
+		if (callExp.getChildren().size() != 1) {
+			// not a valid predicate
+			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
+			return null;
+		}
+
+		OrcSplitReader.Predicate c = toOrcPredicate(callExp.getChildren().get(0));
+		return c == null ? null : new OrcSplitReader.Not(c);
+	}
+
+	private static OrcSplitReader.Predicate convertOr(CallExpression callExp) {
+		if (callExp.getChildren().size() < 2) {
+			return null;
+		}
+		Expression left = callExp.getChildren().get(0);
+		Expression right = callExp.getChildren().get(1);
+
+		OrcSplitReader.Predicate c1 = toOrcPredicate(left);
+		OrcSplitReader.Predicate c2 = toOrcPredicate(right);
+		if (c1 == null || c2 == null) {
+			return null;
+		} else {
+			return new OrcSplitReader.Or(c1, c2);
+		}
+	}
+
+	public static OrcSplitReader.Predicate convertBinary(CallExpression callExp,
+			TriFunction<String, PredicateLeaf.Type, Serializable, OrcSplitReader.Predicate> func,
+			TriFunction<String, PredicateLeaf.Type, Serializable, OrcSplitReader.Predicate> reverseFunc) {
 		if (!isBinaryValid(callExp)) {
 			// not a valid predicate
 			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
@@ -118,172 +160,33 @@ public class OrcFilters {
 			return null;
 		}
 
-		return Tuple3.of(colName, litType, literal);
+		return literalOnRight(callExp) ? func.apply(colName, litType, literal) : reverseFunc.apply(colName, litType, literal);
 	}
 
-	private static Function<CallExpression, OrcSplitReader.Predicate> createIsNullPredicateConverter(){
-		return callExp -> {
-				Tuple2<String, PredicateLeaf.Type> tuple2 = getTuple2Args(callExp);
-
-				if (tuple2 == null){
-					return null;
-				}
-
-				return new OrcSplitReader.IsNull(tuple2.f0, tuple2.f1);
-		};
+	private static OrcSplitReader.Predicate convertEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new OrcSplitReader.Equals(colName, litType, literal);
 	}
 
-	private static Function<CallExpression, OrcSplitReader.Predicate> createIsNotNullPredicateConverter(){
-		return callExp -> {
-
-			Tuple2<String, PredicateLeaf.Type> tuple2 = getTuple2Args(callExp);
-
-			if (tuple2 == null){
-				return null;
-			}
-
-			return new OrcSplitReader.Not(
-					new OrcSplitReader.IsNull(tuple2.f0, tuple2.f1));
-		};
+	private static OrcSplitReader.Predicate convertNotEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new OrcSplitReader.Not(convertEquals(colName, litType, literal));
 	}
 
-	private static Function<CallExpression, OrcSplitReader.Predicate> createNotPredicateConverter(){
-		return callExp -> {
-			if (callExp.getChildren().size() != 1) {
-				// not a valid predicate
-				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
-				return null;
-			}
-
-			OrcSplitReader.Predicate c = toOrcPredicate(callExp.getChildren().get(0));
-			if (c == null) {
-				return null;
-			} else {
-				return new OrcSplitReader.Not(c);
-			}
-		};
+	private static OrcSplitReader.Predicate convertGreaterThan(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new OrcSplitReader.Not(
+				new OrcSplitReader.LessThanEquals(colName, litType, literal));
 	}
 
-	private static Function<CallExpression, OrcSplitReader.Predicate> createOrPredicateConverter(){
-		return callExp -> {
-			if (callExp.getChildren().size() < 2) {
-				return null;
-			}
-			Expression left = callExp.getChildren().get(0);
-			Expression right = callExp.getChildren().get(1);
-
-			OrcSplitReader.Predicate c1 = toOrcPredicate(left);
-			OrcSplitReader.Predicate c2 = toOrcPredicate(right);
-			if (c1 == null || c2 == null) {
-				return null;
-			} else {
-				return new OrcSplitReader.Or(c1, c2);
-			}
-		};
+	private static OrcSplitReader.Predicate convertGreaterThanEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new OrcSplitReader.Not(
+				new OrcSplitReader.LessThan(colName, litType, literal));
 	}
 
-	private static Function<CallExpression, OrcSplitReader.Predicate> createEqualsPredicateConverter(){
-		return callExp -> {
-			Tuple3<String, PredicateLeaf.Type, Serializable> tuple3 = getTuple3Args(callExp);
-
-			if (tuple3 == null){
-				return null;
-			}
-			return new OrcSplitReader.Equals(tuple3.f0, tuple3.f1, tuple3.f2);
-		};
+	private static OrcSplitReader.Predicate convertLessThan(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new OrcSplitReader.LessThan(colName, litType, literal);
 	}
 
-	private static Function<CallExpression, OrcSplitReader.Predicate> createNotEqualsPredicateConverter(){
-		return callExp -> {
-			Tuple3<String, PredicateLeaf.Type, Serializable> tuple3 = getTuple3Args(callExp);
-
-			if (tuple3 == null){
-				return null;
-			}
-
-			return new OrcSplitReader.Not(
-					new OrcSplitReader.Equals(tuple3.f0, tuple3.f1, tuple3.f2));
-		};
-	}
-
-	private static Function<CallExpression, OrcSplitReader.Predicate> createGreaterThanPredicateConverter(){
-		return callExp -> {
-
-			Tuple3<String, PredicateLeaf.Type, Serializable> tuple3 = getTuple3Args(callExp);
-
-			if (tuple3 == null){
-				return null;
-			}
-
-			boolean literalOnRight = literalOnRight(callExp);
-
-			if (literalOnRight) {
-				return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThanEquals(tuple3.f0, tuple3.f1, tuple3.f2));
-			} else {
-				return new OrcSplitReader.LessThan(tuple3.f0, tuple3.f1, tuple3.f2);
-			}
-		};
-	}
-
-	private static Function<CallExpression, OrcSplitReader.Predicate> createGreaterThanEqualsPredicateConverter(){
-		return callExp -> {
-
-			Tuple3<String, PredicateLeaf.Type, Serializable> tuple3 = getTuple3Args(callExp);
-
-			if (tuple3 == null){
-				return null;
-			}
-
-			boolean literalOnRight = literalOnRight(callExp);
-
-			if (literalOnRight) {
-				return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThan(tuple3.f0, tuple3.f1, tuple3.f2));
-			} else {
-				return new OrcSplitReader.LessThanEquals(tuple3.f0, tuple3.f1, tuple3.f2);
-			}
-		};
-	}
-
-	private static Function<CallExpression, OrcSplitReader.Predicate> createLessThanPredicateConverter(){
-		return callExp -> {
-
-			Tuple3<String, PredicateLeaf.Type, Serializable> tuple3 = getTuple3Args(callExp);
-
-			if (tuple3 == null){
-				return null;
-			}
-
-			boolean literalOnRight = literalOnRight(callExp);
-
-			if (literalOnRight) {
-				return new OrcSplitReader.LessThan(tuple3.f0, tuple3.f1, tuple3.f2);
-			} else {
-				return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThanEquals(tuple3.f0, tuple3.f1, tuple3.f2));
-			}
-		};
-	}
-
-	private static Function<CallExpression, OrcSplitReader.Predicate> createLessThanEqualsPredicateConverter(){
-		return callExp -> {
-
-			Tuple3<String, PredicateLeaf.Type, Serializable> tuple3 = getTuple3Args(callExp);
-
-			if (tuple3 == null){
-				return null;
-			}
-
-			boolean literalOnRight = literalOnRight(callExp);
-
-			if (literalOnRight) {
-				return new OrcSplitReader.LessThanEquals(tuple3.f0, tuple3.f1, tuple3.f2);
-			} else {
-				return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThan(tuple3.f0, tuple3.f1, tuple3.f2));
-			}
-		};
+	private static OrcSplitReader.Predicate convertLessThanEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new OrcSplitReader.LessThanEquals(colName, litType, literal);
 	}
 
 	public static OrcSplitReader.Predicate toOrcPredicate(Expression expression) {
@@ -313,11 +216,9 @@ public class OrcFilters {
 	private static boolean literalOnRight(CallExpression comp) {
 		if (comp.getChildren().size() == 1 && comp.getChildren().get(0) instanceof FieldReferenceExpression) {
 			return true;
-		} else if (comp.getChildren().get(0) instanceof ValueLiteralExpression
-				&& comp.getChildren().get(1) instanceof FieldReferenceExpression) {
+		} else if (isLit(comp.getChildren().get(0)) && isRef(comp.getChildren().get(1))) {
 			return false;
-		} else if (comp.getChildren().get(0) instanceof FieldReferenceExpression
-				&& comp.getChildren().get(1) instanceof ValueLiteralExpression) {
+		} else if (isRef(comp.getChildren().get(0)) && isLit(comp.getChildren().get(1))) {
 			return true;
 		} else {
 			throw new RuntimeException("Invalid binary comparison.");
@@ -344,7 +245,7 @@ public class OrcFilters {
 
 	private static PredicateLeaf.Type toOrcType(DataType type) {
 		LogicalTypeRoot ltype = type.getLogicalType().getTypeRoot();
-		switch (ltype){
+		switch (ltype) {
 			case TINYINT:
 			case SMALLINT:
 			case INTEGER:
@@ -355,15 +256,15 @@ public class OrcFilters {
 				return PredicateLeaf.Type.FLOAT;
 			case BOOLEAN:
 				return PredicateLeaf.Type.BOOLEAN;
+			case CHAR:
 			case VARCHAR:
 				return PredicateLeaf.Type.STRING;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-			case TIMESTAMP_WITH_TIME_ZONE:
 				return PredicateLeaf.Type.TIMESTAMP;
 			case DATE:
 				return PredicateLeaf.Type.DATE;
-			case BINARY:
+			case DECIMAL:
 				return PredicateLeaf.Type.DECIMAL;
 			default:
 				return null;

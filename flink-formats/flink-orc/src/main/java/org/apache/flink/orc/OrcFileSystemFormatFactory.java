@@ -86,7 +86,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		ArrayList<OrcSplitReader.Predicate> orcPredicates = new ArrayList<>();
+		List<OrcSplitReader.Predicate> orcPredicates = new ArrayList<>();
 
 		for (Expression pred : context.getPushedDownFilters()) {
 			OrcSplitReader.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
