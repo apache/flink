@@ -27,7 +27,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1
 - org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.23.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
-- org.apache.beam:beam-vendor-grpc-1_26_0:0.1
+- org.apache.beam:beam-vendor-grpc-1_26_0:0.3
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
@@ -65,13 +65,13 @@ The bundled Apache Beam dependencies bundle the following dependencies under the
 - io.netty:netty-transport-native-epoll:4.1.42.Final
 - io.netty:netty-transport-native-unix-common:4.1.42.Final
 - io.netty:netty-tcnative-boringssl-static:2.0.26.Final
-- io.opencensus:opencensus-api:0.21.0
-- io.opencensus:opencensus-contrib-grpc-metrics:0.21.0
-- net.bytebuddy:1.9.3
+- io.opencensus:opencensus-api:0.24.0
+- io.opencensus:opencensus-contrib-grpc-metrics:0.24.0
+- net.bytebuddy:1.10.8
 
 The bundled Apache Beam dependencies bundle the following dependencies under the BSD license.
 See bundled license files for details
 
-- com.google.auth:google-auth-library-credentials:0.13.0
-- com.google.protobuf:protobuf-java:3.7.1
-- com.google.protobuf:protobuf-java-util:3.7.1
+- com.google.auth:google-auth-library-credentials:0.18.0
+- com.google.protobuf:protobuf-java:3.11.1
+- com.google.protobuf:protobuf-java-util:3.11.1
