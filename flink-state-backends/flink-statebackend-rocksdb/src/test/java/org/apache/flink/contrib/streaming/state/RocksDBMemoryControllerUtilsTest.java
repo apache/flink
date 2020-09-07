@@ -37,6 +37,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -91,10 +93,43 @@ public class RocksDBMemoryControllerUtilsTest {
 		long totalMemorySize = 2048L;
 		double writeBufferRatio = 0.5;
 		double highPriPoolRatio = 0.1;
-		RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(totalMemorySize, writeBufferRatio, highPriPoolRatio);
+		RocksDBSharedResources rocksDBSharedResources = RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(totalMemorySize, writeBufferRatio, highPriPoolRatio);
 		long expectedCacheCapacity = RocksDBMemoryControllerUtils.calculateActualCacheCapacity(totalMemorySize, writeBufferRatio);
 		long expectedWbmCapacity = RocksDBMemoryControllerUtils.calculateWriteBufferManagerCapacity(totalMemorySize, writeBufferRatio);
+
 		assertThat(actualCacheCapacity.get(), is(expectedCacheCapacity));
 		assertThat(actualWbmCapacity.get(), is(expectedWbmCapacity));
+		assertThat(rocksDBSharedResources.getWriteBufferManagerCapacity(), is(expectedWbmCapacity));
+	}
+
+	@Test
+	public void testCalculateRocksDBDefaultArenaBlockSize() {
+		final long align = 4 * 1024;
+		final long writeBufferSize = 64 * 1024 * 1024;
+		final long expectArenaBlockSize = writeBufferSize / 8;
+
+		// Normal case test
+		assertThat("Arena block size calculation error for normal case",
+			RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize), is(expectArenaBlockSize));
+
+		// Alignment tests
+		assertThat("Arena block size calculation error for alignment case",
+			RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize - 1), is(expectArenaBlockSize));
+		assertThat("Arena block size calculation error for alignment case2",
+			RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize + 8), is(expectArenaBlockSize + align));
+	}
+
+	@Test
+	public void testCalculateRocksDBMutableLimit() {
+		long bufferSize = 64 * 1024 * 1024;
+		long limit = bufferSize * 7 / 8;
+		assertThat(RocksDBMemoryControllerUtils.calculateRocksDBMutableLimit(bufferSize), is(limit));
+	}
+
+	@Test
+	public void testValidateArenaBlockSize() {
+		long arenaBlockSize = 8 * 1024 * 1024;
+		assertFalse(RocksDBMemoryControllerUtils.validateArenaBlockSize(arenaBlockSize, (long) (arenaBlockSize * 0.5)));
+		assertTrue(RocksDBMemoryControllerUtils.validateArenaBlockSize(arenaBlockSize, (long) (arenaBlockSize * 1.5)));
 	}
 }

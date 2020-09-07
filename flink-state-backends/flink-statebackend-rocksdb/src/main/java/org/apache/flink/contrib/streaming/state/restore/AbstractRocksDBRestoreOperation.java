@@ -90,6 +90,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 	protected ColumnFamilyHandle defaultColumnFamilyHandle;
 	protected RocksDBNativeMetricMonitor nativeMetricMonitor;
 	protected boolean isKeySerializerCompatibilityChecked;
+	protected final Long writeBufferManagerCapacity;
 
 	protected AbstractRocksDBRestoreOperation(
 		KeyGroupRange keyGroupRange,
@@ -106,7 +107,8 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		RocksDBNativeMetricOptions nativeMetricOptions,
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
+		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		Long writeBufferManagerCapacity) {
 		this.keyGroupRange = keyGroupRange;
 		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
 		this.numberOfTransferringThreads = numberOfTransferringThreads;
@@ -125,6 +127,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
 		this.columnFamilyHandles = new ArrayList<>(1);
 		this.columnFamilyDescriptors = Collections.emptyList();
+		this.writeBufferManagerCapacity = writeBufferManagerCapacity;
 	}
 
 	void openDB() throws IOException {
@@ -159,7 +162,7 @@ public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBResto
 				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
 			if (columnFamilyHandle == null) {
 				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(
-					stateMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
+					stateMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager, writeBufferManagerCapacity);
 			} else {
 				registeredStateMetaInfoEntry = new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
 			}

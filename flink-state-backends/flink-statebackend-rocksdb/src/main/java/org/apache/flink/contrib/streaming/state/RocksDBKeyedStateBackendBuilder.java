@@ -198,8 +198,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry
-		);
+			cancelStreamRegistry);
 		this.injectedTestDB = injectedTestDB;
 		this.injectedDefaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
 	}
@@ -382,7 +381,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				nativeMetricOptions,
 				metricGroup,
 				restoreStateHandles,
-				ttlCompactFiltersManager);
+				ttlCompactFiltersManager,
+				optionsContainer.getWriteBufferManagerCapacity());
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
 		if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
@@ -403,7 +403,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				metricGroup,
 				restoreStateHandles,
 				ttlCompactFiltersManager,
-				writeBatchSize);
+				writeBatchSize,
+				optionsContainer.getWriteBufferManagerCapacity());
 		} else {
 			return new RocksDBFullRestoreOperation<>(
 				keyGroupRange,
@@ -421,7 +422,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				metricGroup,
 				restoreStateHandles,
 				ttlCompactFiltersManager,
-				writeBatchSize);
+				writeBatchSize,
+				optionsContainer.getWriteBufferManagerCapacity());
 		}
 	}
 
@@ -488,8 +490,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 					optionsContainer.getReadOptions(),
 					writeBatchWrapper,
 					nativeMetricMonitor,
-					columnFamilyOptionsFactory
-				);
+					columnFamilyOptionsFactory,
+					optionsContainer.getWriteBufferManagerCapacity());
 				break;
 			default:
 				throw new IllegalArgumentException("Unknown priority queue state type: " + priorityQueueStateType);
