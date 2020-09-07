@@ -302,7 +302,9 @@ public class SlotPoolImplTest extends TestLogger {
 
 			logicalSlot.tryAssignPayload(new DummyPayload(releaseFuture));
 
-			slotPool.releaseTaskManager(taskManagerLocation.getResourceID(), null);
+			slotPool.releaseTaskManager(
+				taskManagerLocation.getResourceID(),
+				new Exception("Releasing TaskManager in SlotPool for tests"));
 
 			releaseFuture.get();
 			assertFalse(logicalSlot.isAlive());
