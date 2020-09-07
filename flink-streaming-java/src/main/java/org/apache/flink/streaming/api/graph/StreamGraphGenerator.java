@@ -98,9 +98,6 @@ public class StreamGraphGenerator {
 
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
-	/** The default buffer timeout (max delay of records in the network stack). */
-	public static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
-
 	public static final String DEFAULT_SLOT_SHARING_GROUP = "default";
 
 	private final List<Transformation<?>> transformations;
@@ -121,7 +118,7 @@ public class StreamGraphGenerator {
 
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	private long defaultBufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
+	private long defaultBufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
 	private String jobName = DEFAULT_JOB_NAME;
 
