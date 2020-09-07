@@ -727,7 +727,8 @@ public class CheckpointBarrierUnalignerTest {
 				bufferOrEvent = new BufferOrEvent(
 					EventSerializer.toBuffer(bufferOrEvent.getEvent(), bufferOrEvent.getEvent() instanceof CheckpointBarrier),
 					bufferOrEvent.getChannelInfo(),
-					bufferOrEvent.moreAvailable());
+					bufferOrEvent.moreAvailable(),
+					bufferOrEvent.morePriorityEvents());
 			}
 			((RemoteInputChannel) inputGate.getChannel(bufferOrEvent.getChannelInfo().getInputChannelIdx())).onBuffer(
 				bufferOrEvent.getBuffer(),

@@ -80,6 +80,8 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 
 	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
+	protected final AvailabilityHelper priorityAvailabilityHelper = new AvailabilityHelper();
+
 	public abstract int getNumberOfInputChannels();
 
 	public abstract boolean isFinished();
@@ -131,17 +133,37 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	}
 
 	/**
+	 * Notifies when a priority event has been enqueued. If this future is queried from task thread, it is guaranteed
+	 * that a priority event is available and retrieved through {@link #getNext()}.
+	 */
+	public CompletableFuture<?> getPriorityEventAvailableFuture() {
+		return priorityAvailabilityHelper.getAvailableFuture();
+	}
+
+	/**
 	 * Simple pojo for INPUT, DATA and moreAvailable.
 	 */
 	protected static class InputWithData<INPUT, DATA> {
 		protected final INPUT input;
 		protected final DATA data;
 		protected final boolean moreAvailable;
+		protected final boolean morePriorityEvents;
 
-		InputWithData(INPUT input, DATA data, boolean moreAvailable) {
+		InputWithData(INPUT input, DATA data, boolean moreAvailable, boolean morePriorityEvents) {
 			this.input = checkNotNull(input);
 			this.data = checkNotNull(data);
 			this.moreAvailable = moreAvailable;
+			this.morePriorityEvents = morePriorityEvents;
+		}
+
+		@Override
+		public String toString() {
+			return "InputWithData{" +
+				"input=" + input +
+				", data=" + data +
+				", moreAvailable=" + moreAvailable +
+				", morePriorityEvents=" + morePriorityEvents +
+				'}';
 		}
 	}
 

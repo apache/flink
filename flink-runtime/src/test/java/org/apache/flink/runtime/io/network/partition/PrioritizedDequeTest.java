@@ -29,6 +29,19 @@ import static org.junit.Assert.assertArrayEquals;
 public class PrioritizedDequeTest {
 
 	@Test
+	public void testPrioritizeOnAdd() {
+		final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
+
+		deque.add(0);
+		deque.add(1);
+		deque.add(2);
+		deque.add(3);
+		deque.add(3, true, true);
+
+		assertArrayEquals(new Integer[] { 3, 0, 1, 2 }, deque.asUnmodifiableCollection().toArray(new Integer[0]));
+	}
+
+	@Test
 	public void testPrioritize() {
 		final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
 
