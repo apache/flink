@@ -69,7 +69,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
 	protected long memorySize = 1024 * 1024;
 	protected int bufferSize = 1024;
-	protected long bufferTimeout = 0;
 	protected Configuration jobConfig = new Configuration();
 	protected Configuration taskConfig = new Configuration();
 	protected StreamConfig streamConfig = new StreamConfig(taskConfig);
@@ -110,7 +109,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	}
 
 	public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
-		streamConfig.setBufferTimeout(bufferTimeout);
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
 		if (taskStateSnapshots != null) {
