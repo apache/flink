@@ -39,8 +39,6 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -332,7 +330,7 @@ public class InputGateFairnessTest {
 		private static final SupplierWithException<BufferPool, IOException> STUB_BUFFER_POOL_FACTORY =
 			NoOpBufferPool::new;
 
-		private final ArrayDeque<InputChannel> channelsWithData;
+		private final PrioritizedDeque<InputChannel> channelsWithData;
 
 		private final HashSet<InputChannel> uniquenessChecker;
 
@@ -355,14 +353,7 @@ public class InputGateFairnessTest {
 				null,
 				new UnpooledMemorySegmentProvider(32 * 1024));
 
-			try {
-				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");
-				f.setAccessible(true);
-				channelsWithData = (ArrayDeque<InputChannel>) f.get(this);
-			}
-			catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			channelsWithData = getInputChannelsWithData();
 
 			this.uniquenessChecker = new HashSet<>();
 		}
@@ -371,7 +362,7 @@ public class InputGateFairnessTest {
 		public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 			synchronized (channelsWithData) {
 				assertTrue("too many input channels", channelsWithData.size() <= getNumberOfInputChannels());
-				ensureUnique(channelsWithData);
+				ensureUnique(channelsWithData.asUnmodifiableCollection());
 			}
 
 			return super.getNext();

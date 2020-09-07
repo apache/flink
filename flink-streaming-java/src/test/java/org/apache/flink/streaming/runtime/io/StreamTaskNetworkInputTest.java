@@ -264,7 +264,7 @@ public class StreamTaskNetworkInputTest {
 		serializeRecord(42L, bufferBuilder);
 		serializeRecord(44L, bufferBuilder);
 
-		return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0), false);
+		return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
 	}
 
 	private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers, DataOutput output) {
