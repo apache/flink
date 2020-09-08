@@ -18,7 +18,10 @@
 
 package org.apache.flink.orc;
 
-import org.apache.flink.table.expressions.*;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
@@ -36,7 +39,6 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -239,14 +241,18 @@ public class OrcFilters {
 	private static Object toOrcObject(PredicateLeaf.Type litType, Object literalObj){
 		switch (litType){
 			case DATE:
-				if(literalObj instanceof LocalDate){
+				if (literalObj instanceof LocalDate){
 					LocalDate localDate = (LocalDate) literalObj;
 					return Date.valueOf(localDate);
+				} else {
+					return literalObj;
 				}
 			case TIMESTAMP:
-				if(literalObj instanceof LocalDateTime){
+				if (literalObj instanceof LocalDateTime){
 					LocalDateTime localDateTime = (LocalDateTime) literalObj;
 					return Timestamp.valueOf(localDateTime);
+				} else {
+					return literalObj;
 				}
 			default:
 				return literalObj;
