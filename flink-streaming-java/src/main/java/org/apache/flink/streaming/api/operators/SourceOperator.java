@@ -90,6 +90,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	/** The factory for timestamps and watermark generators. */
 	private final WatermarkStrategy<OUT> watermarkStrategy;
 
+	/** The Flink configuration. */
+	private final Configuration configuration;
+
+	/** Host name of the machine where the operator runs, to support locality aware work assignment. */
+	private final String localHostname;
+
 	// ---- lazily initialized fields (these fields are the "hot" fields) ----
 
 	/** The source reader that does most of the work. */
@@ -111,23 +117,22 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			OperatorEventGateway operatorEventGateway,
 			SimpleVersionedSerializer<SplitT> splitSerializer,
 			WatermarkStrategy<OUT> watermarkStrategy,
-			ProcessingTimeService timeService) {
+			ProcessingTimeService timeService,
+			Configuration configuration,
+			String localHostname) {
 
 		this.readerFactory = checkNotNull(readerFactory);
 		this.operatorEventGateway = checkNotNull(operatorEventGateway);
 		this.splitSerializer = checkNotNull(splitSerializer);
 		this.watermarkStrategy = checkNotNull(watermarkStrategy);
 		this.processingTimeService = timeService;
+		this.configuration = checkNotNull(configuration);
+		this.localHostname = checkNotNull(localHostname);
 	}
 
 	@Override
 	public void open() throws Exception {
 		final MetricGroup metricGroup = getMetricGroup();
-
-		// the overall configuration should be more directly accessible to reduce
-		// the "scope of knowledge" (law of demeter)
-		final Configuration configuration = getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
-		final String hostname = getContainingTask().getEnvironment().getTaskManagerInfo().getTaskManagerExternalAddress();
 
 		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
@@ -142,7 +147,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 
 			@Override
 			public String getLocalHostName() {
-				return hostname;
+				return localHostname;
 			}
 
 			@Override
@@ -235,9 +240,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	}
 
 	private void registerReader() {
-		final String hostname = getContainingTask().getEnvironment().getTaskManagerInfo().getTaskManagerExternalAddress();
 		operatorEventGateway.sendEventToCoordinator(new ReaderRegistrationEvent(
-				getRuntimeContext().getIndexOfThisSubtask(), hostname));
+				getRuntimeContext().getIndexOfThisSubtask(), localHostname));
 	}
 
 	// --------------- methods for unit tests ------------

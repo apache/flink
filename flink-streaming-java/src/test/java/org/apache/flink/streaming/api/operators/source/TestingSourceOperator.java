@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -71,7 +72,9 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 			eventGateway,
 			new MockSourceSplitSerializer(),
 			watermarkStrategy,
-			timeService);
+			timeService,
+			new Configuration(),
+			"localhost");
 
 		this.subtaskIndex = subtaskIndex;
 		this.parallelism = parallelism;
