@@ -277,7 +277,6 @@ public class IterateITCase extends AbstractTestBase {
 
 			if (graph.getStreamNode(edge.getSourceId()).getOperatorName().equals("EvenOddSourceMap")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
-				assertTrue(edge.getSelectedNames().contains("even"));
 			}
 		}
 
@@ -373,7 +372,6 @@ public class IterateITCase extends AbstractTestBase {
 			String tailName = graph.getSourceVertex(edge).getOperatorName();
 			if (tailName.equals("split")) {
 				assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
-				assertTrue(edge.getSelectedNames().contains("even"));
 			} else if (tailName.equals("bc")) {
 				assertTrue(edge.getPartitioner() instanceof BroadcastPartitioner);
 			} else if (tailName.equals("shuffle")) {

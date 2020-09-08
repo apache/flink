@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -45,6 +46,10 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -130,6 +135,68 @@ public class StreamGraphGeneratorTest extends TestLogger {
 					assertTrue(node.getOperator() instanceof StreamSource);
 			}
 		}
+	}
+
+	/**
+	 * This tests whether virtual Transformations behave correctly.
+	 *
+	 * <p>Verifies that partitioning, output selector, selected names are correctly set in the
+	 * StreamGraph when they are intermixed.
+	 */
+	@Test
+	public void testVirtualTransformations() throws Exception {
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.fromElements(1, 10);
+		DataStream<Integer> rebalanceMap = source.rebalance().map(new NoOpIntMap());
+
+		// verify that only the partitioning that was set last is used
+		DataStream<Integer> broadcastMap = rebalanceMap
+			.forward()
+			.global()
+			.broadcast()
+			.map(new NoOpIntMap());
+
+		broadcastMap.addSink(new DiscardingSink<>());
+
+		DataStream<Integer> broadcastOperator = rebalanceMap
+			.map(new NoOpIntMap())
+			.name("broadcast");
+
+		DataStream<Integer> map1 = broadcastOperator.broadcast();
+
+		DataStream<Integer> globalOperator = rebalanceMap
+			.map(new NoOpIntMap())
+			.name("global");
+
+		DataStream<Integer> map2 = globalOperator.global();
+
+		DataStream<Integer> shuffleOperator = rebalanceMap
+			.map(new NoOpIntMap())
+			.name("shuffle");
+
+		DataStream<Integer> map3 = shuffleOperator.shuffle();
+
+		SingleOutputStreamOperator<Integer> unionedMap = map1.union(map2).union(map3)
+			.map(new NoOpIntMap())
+			.name("union");
+
+		unionedMap.addSink(new DiscardingSink<>());
+
+		StreamGraph graph = env.getStreamGraph();
+
+		// rebalanceMap
+		assertTrue(graph.getStreamNode(rebalanceMap.getId()).getInEdges().get(0).getPartitioner() instanceof RebalancePartitioner);
+
+		// verify that only last partitioning takes precedence
+		assertTrue(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
+		assertEquals(rebalanceMap.getId(), graph.getSourceVertex(graph.getStreamNode(broadcastMap.getId()).getInEdges().get(0)).getId());
+
+		// verify that partitioning in unions is preserved
+		assertTrue(graph.getStreamNode(broadcastOperator.getId()).getOutEdges().get(0).getPartitioner() instanceof BroadcastPartitioner);
+		assertTrue(graph.getStreamNode(globalOperator.getId()).getOutEdges().get(0).getPartitioner() instanceof GlobalPartitioner);
+		assertTrue(graph.getStreamNode(shuffleOperator.getId()).getOutEdges().get(0).getPartitioner() instanceof ShufflePartitioner);
 	}
 
 	/**

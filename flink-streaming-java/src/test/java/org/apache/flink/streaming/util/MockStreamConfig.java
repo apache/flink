@@ -56,7 +56,7 @@ public class MockStreamConfig extends StreamConfig {
 		List<StreamEdge> outEdgesInOrder = new ArrayList<>(numberOfOutputs);
 		for (int i = 0; i < numberOfOutputs; i++) {
 			outEdgesInOrder.add(
-				new StreamEdge(sourceVertex, targetVertex, numberOfOutputs, new ArrayList<>(), new BroadcastPartitioner<>(), null));
+				new StreamEdge(sourceVertex, targetVertex, numberOfOutputs, new BroadcastPartitioner<>(), null));
 		}
 		setOutEdgesInOrder(outEdgesInOrder);
 		setNonChainedOutputs(outEdgesInOrder);

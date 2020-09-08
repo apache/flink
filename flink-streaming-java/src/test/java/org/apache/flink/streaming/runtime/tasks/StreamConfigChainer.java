@@ -129,7 +129,6 @@ public class StreamConfigChainer<OWNER> {
 				new StreamNode(tailConfig.getChainIndex(), null, null, (StreamOperator<?>) null, null, null),
 				new StreamNode(chainIndex, null, null, (StreamOperator<?>) null, null, null),
 				0,
-				Collections.<String>emptyList(),
 				null,
 				null)));
 		tailConfig = new StreamConfig(new Configuration());
@@ -156,7 +155,6 @@ public class StreamConfigChainer<OWNER> {
 				new StreamNode(chainIndex, null, null, (StreamOperator<?>) null, null, null),
 				new StreamNode(chainIndex , null, null, (StreamOperator<?>) null, null, null),
 				0,
-				Collections.<String>emptyList(),
 				new BroadcastPartitioner<Object>(),
 				null));
 
@@ -198,7 +196,6 @@ public class StreamConfigChainer<OWNER> {
 			sourceVertexDummy,
 			targetVertexDummy,
 			0,
-			new LinkedList<>(),
 			new BroadcastPartitioner<>(),
 			null));
 

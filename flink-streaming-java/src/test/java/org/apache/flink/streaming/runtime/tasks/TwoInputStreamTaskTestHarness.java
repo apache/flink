@@ -126,7 +126,6 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							1,
-							new LinkedList<>(),
 							new BroadcastPartitioner<>(),
 							null /* output tag */);
 
@@ -143,7 +142,6 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 					StreamEdge streamEdge = new StreamEdge(sourceVertexDummy,
 							targetVertexDummy,
 							2,
-							new LinkedList<>(),
 							new BroadcastPartitioner<>(),
 							null /* output tag */);
 

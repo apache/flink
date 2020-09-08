@@ -204,7 +204,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			sourceVertexDummy,
 			targetVertexDummy,
 			gateIndex + 1,
-			new LinkedList<>(),
 			new BroadcastPartitioner<>(),
 			null);
 
@@ -225,7 +224,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			new StreamNode(maxNodeId + inputId + 1337, null, null, (StreamOperator<?>) null, null, null),
 			mainNode,
 			0,
-			new LinkedList<>(),
 			new ForwardPartitioner<>(),
 			null);
 		outEdgesInOrder.add(sourceToMainEdge);
