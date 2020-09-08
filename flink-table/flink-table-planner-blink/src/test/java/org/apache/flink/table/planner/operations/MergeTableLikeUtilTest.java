@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
@@ -36,7 +37,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
@@ -712,9 +712,10 @@ public class MergeTableLikeUtilTest {
 	}
 
 	private SqlNode tableColumn(String name, SqlNode expression) {
-		return new SqlBasicCall(
-			new SqlAsOperator(),
-			new SqlNode[]{expression, identifier(name)},
+		return new SqlTableComputedColumn (
+			identifier(name),
+			expression,
+			null,
 			SqlParserPos.ZERO
 		);
 	}

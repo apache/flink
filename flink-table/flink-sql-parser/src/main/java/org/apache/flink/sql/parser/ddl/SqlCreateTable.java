@@ -22,8 +22,6 @@ import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
-import org.apache.calcite.sql.SqlBasicCall;
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -189,7 +187,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public boolean containsComputedColumn() {
 		for (SqlNode column : columnList) {
-			if (column instanceof SqlBasicCall) {
+			if (column instanceof SqlTableComputedColumn) {
 				return true;
 			}
 		}
@@ -239,6 +237,11 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			if (column instanceof SqlTableColumn) {
 				SqlTableColumn tableColumn = (SqlTableColumn) column;
 				tableColumn.getName().unparse(writer, 0, 0);
+			} else if (column instanceof SqlTableComputedColumn) {
+				SqlTableComputedColumn computedColumn = (SqlTableComputedColumn) column;
+				computedColumn.getExpr().unparse(writer, 0, 0);
+				writer.keyword("AS");
+				computedColumn.getIdentifier().unparse(writer, 0, 0);
 			} else {
 				column.unparse(writer, 0, 0);
 			}
@@ -264,16 +267,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
 		for (SqlNode column : columnList) {
 			printIndent(writer);
-			if (column instanceof SqlBasicCall) {
-				SqlCall call = (SqlCall) column;
-				SqlCall newCall = call.getOperator().createCall(
-					SqlParserPos.ZERO,
-					call.operand(1),
-					call.operand(0));
-				newCall.unparse(writer, leftPrec, rightPrec);
-			} else {
-				column.unparse(writer, leftPrec, rightPrec);
-			}
+			column.unparse(writer, leftPrec, rightPrec);
 		}
 		if (tableConstraints.size() > 0) {
 			for (SqlTableConstraint constraint : tableConstraints) {

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
@@ -37,7 +38,6 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -372,12 +372,11 @@ class MergeTableLikeUtil {
 			collectPhysicalFieldsTypes(derivedColumns);
 
 			for (SqlNode derivedColumn : derivedColumns) {
-
-				boolean isComputed = !(derivedColumn instanceof SqlTableColumn);
+				boolean isComputed = derivedColumn instanceof SqlTableComputedColumn;
 				final TableColumn column;
 				if (isComputed) {
-					SqlBasicCall call = (SqlBasicCall) derivedColumn;
-					String fieldName = call.operand(1).toString();
+					SqlTableComputedColumn computedColumn = (SqlTableComputedColumn) derivedColumn;
+					String fieldName = computedColumn.getIdentifier().toString();
 					if (columns.containsKey(fieldName)) {
 						if (!columns.get(fieldName).isGenerated()) {
 							throw new ValidationException(String.format(
@@ -395,7 +394,7 @@ class MergeTableLikeUtil {
 					}
 
 					SqlNode validatedExpr = sqlValidator.validateParameterizedExpression(
-						call.operand(0),
+						computedColumn.getExpr(),
 						physicalFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
 					column = TableColumn.of(
