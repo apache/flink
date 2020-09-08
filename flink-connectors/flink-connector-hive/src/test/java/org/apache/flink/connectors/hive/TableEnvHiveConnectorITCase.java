@@ -582,18 +582,22 @@ public class TableEnvHiveConnectorITCase {
 		try {
 			tableEnv.executeSql("create table db1.src (x string,y string)");
 			hiveShell.execute("create table db1.dest (x string,y string) clustered by (x) into 3 buckets stored as orc tblproperties ('transactional'='true')");
+			List<Exception> exceptions = new ArrayList<>();
 			try {
 				TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.src select * from db1.dest");
 			} catch (Exception e) {
-				assertTrue(e instanceof FlinkHiveException);
-				assertEquals("Reading or writing ACID table db1.dest is not supported.", e.getMessage());
+				exceptions.add(e);
 			}
 			try {
 				TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
 			} catch (Exception e) {
+				exceptions.add(e);
+			}
+			assertEquals(2, exceptions.size());
+			exceptions.forEach(e -> {
 				assertTrue(e instanceof FlinkHiveException);
 				assertEquals("Reading or writing ACID table db1.dest is not supported.", e.getMessage());
-			}
+			});
 		} finally {
 			tableEnv.executeSql("drop database db1 cascade");
 		}
