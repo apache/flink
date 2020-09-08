@@ -63,13 +63,15 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
 	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
+	private static final InternalTypeInfo<RowData> ROW_TYPE_INFO = InternalTypeInfo.of(ROW_TYPE);
+
 	@Test
 	public void testDefaultOptions() {
 		Map<String, String> options = getAllOptions();
 
 		// test Deser
 		CanalJsonDeserializationSchema expectedDeser = CanalJsonDeserializationSchema
-			.builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+			.builder(ROW_TYPE, ROW_TYPE_INFO)
 			.setIgnoreParseErrors(false)
 			.setTimestampFormat(TimestampFormat.SQL)
 			.build();
@@ -94,7 +96,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
 		// test Deser
 		CanalJsonDeserializationSchema expectedDeser = CanalJsonDeserializationSchema
-			.builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+			.builder(ROW_TYPE, ROW_TYPE_INFO)
 			.setIgnoreParseErrors(true)
 			.setTimestampFormat(TimestampFormat.ISO_8601)
 			.setDatabase("mydb")
