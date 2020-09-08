@@ -48,7 +48,7 @@ public final class ConstantFunctionContext extends FunctionContext {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ConstantFunctionContext.class);
 
-	private static UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
+	private static final UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
 
 	private final Map<String, String> jobParameters;
 

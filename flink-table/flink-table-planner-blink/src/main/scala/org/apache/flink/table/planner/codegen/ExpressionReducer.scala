@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.{ConstantFunctionContext, FunctionContex
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
+import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
@@ -47,7 +48,8 @@ import scala.collection.mutable.ListBuffer
 class ExpressionReducer(
     config: TableConfig,
     allowChangeNullability: Boolean = false)
-  extends RexExecutor {
+  extends RexExecutor
+  with Logging {
 
   private val EMPTY_ROW_TYPE = RowType.of()
   private val EMPTY_ROW = new GenericRowData(0)
@@ -115,6 +117,16 @@ class ExpressionReducer(
       richMapFunction.open(parameters)
       // execute
       richMapFunction.map(EMPTY_ROW)
+    } catch { case t: Throwable =>
+      // maybe the function accesses some cluster specific context information
+      // skip the expression reduction and try it again during runtime
+      LOG.warn(
+        "Unable to perform constant expression reduction. " +
+          "An exception occurred during the evaluation. " +
+          "One or more expressions will be executed unreduced.",
+        t)
+      reducedValues.addAll(constExprs)
+      return
     } finally {
       richMapFunction.close()
     }

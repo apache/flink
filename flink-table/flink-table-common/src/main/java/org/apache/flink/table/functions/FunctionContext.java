@@ -78,10 +78,7 @@ public class FunctionContext {
 	public String getJobParameter(String key, String defaultValue) {
 		final GlobalJobParameters conf = context.getExecutionConfig().getGlobalJobParameters();
 		if (conf != null) {
-			final String value = conf.toMap().get(key);
-			if (value != null) {
-				return value;
-			}
+			return conf.toMap().getOrDefault(key, defaultValue);
 		}
 		return defaultValue;
 	}
