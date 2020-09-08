@@ -19,6 +19,7 @@
 package org.apache.flink.connector.hbase.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -280,4 +281,8 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 		return null;
 	}
 
+	@VisibleForTesting
+	public Connection getConnection() {
+		return connection;
+	}
 }
