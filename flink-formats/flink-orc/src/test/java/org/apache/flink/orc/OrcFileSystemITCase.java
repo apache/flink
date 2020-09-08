@@ -93,23 +93,32 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 	public void before() {
 		super.before();
 		super.tableEnv().executeSql(String.format(
-				"create table orcFilterTable (" +
-						"x string," +
-						"y int," +
-						"a int," +
-						"b bigint," +
-						"c boolean," +
-						"d string" +
-						") with (" +
-						"'connector' = 'filesystem'," +
-						"'path' = '%s'," +
-						"%s)", super.resultPath(), String.join(",\n", formatProperties())));
+			"create table orcFilterTable (" +
+				"x string," +
+				"y int," +
+				"a int," +
+				"b bigint," +
+				"c boolean," +
+				"d string," +
+				"e decimal(8,4)," +
+				"f date," +
+				"g timestamp" +
+				") with (" +
+				"'connector' = 'filesystem'," +
+				"'path' = '%s'," +
+			"%s)", super.resultPath(), String.join(",\n", formatProperties())));
 	}
 
 	@Test
 	public void testOrcFilterPushDown(){
 		super.tableEnv().executeSql(
-				"insert into orcFilterTable select x, y, a, b, case when y >= 10 then false else true end as c, case when a = 1 then null else x end as d from originalT");
+				"insert into orcFilterTable select x, y, a, b, " +
+						"case when y >= 10 then false else true end as c, " +
+						"case when a = 1 then null else x end as d, " +
+						"y * 3.14 as e, " +
+						"date '2020-01-01' as f, " +
+						"timestamp '2020-01-01 05:20:00' as g " +
+						"from originalT");
 
 		check("select x, y from orcFilterTable where x = 'x11' and 11 = y",
 				Collections.singletonList(
@@ -142,5 +151,18 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 				Arrays.asList(
 						Row.of("x3", "3"),
 						Row.of("x27", "27")));
+
+		check("select x, y from orcFilterTable where e = 3.1400 or x = 'x10'",
+				Arrays.asList(
+						Row.of("x1", "1"),
+						Row.of("x10", "10")));
+
+		check("select x, y from orcFilterTable where f = date '2020-01-01' and x = 'x1'",
+				Collections.singletonList(
+						Row.of("x1", "1")));
+
+		check("select x, y from orcFilterTable where g = timestamp '2020-01-01 05:20:00' and x = 'x10'",
+				Collections.singletonList(
+						Row.of("x10", "10")));
 	}
 }

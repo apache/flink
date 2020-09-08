@@ -18,10 +18,7 @@
 
 package org.apache.flink.orc;
 
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.expressions.*;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
@@ -35,6 +32,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -148,10 +150,11 @@ public class OrcFilters {
 
 		// fetch literal and ensure it is serializable
 		Object literalObj = getLiteral(callExp).get();
+		Object orcObj = toOrcObject(litType, literalObj);
 		Serializable literal;
 		// validate that literal is serializable
-		if (literalObj instanceof Serializable) {
-			literal = (Serializable) literalObj;
+		if (orcObj instanceof Serializable) {
+			literal = (Serializable) orcObj;
 		} else {
 			LOG.warn("Encountered a non-serializable literal of type {}. " +
 							"Cannot push predicate [{}] into OrcFileSystemFormatFactory. " +
@@ -233,6 +236,23 @@ public class OrcFilters {
 		}
 	}
 
+	private static Object toOrcObject(PredicateLeaf.Type litType, Object literalObj){
+		switch (litType){
+			case DATE:
+				if(literalObj instanceof LocalDate){
+					LocalDate localDate = (LocalDate) literalObj;
+					return Date.valueOf(localDate);
+				}
+			case TIMESTAMP:
+				if(literalObj instanceof LocalDateTime){
+					LocalDateTime localDateTime = (LocalDateTime) literalObj;
+					return Timestamp.valueOf(localDateTime);
+				}
+			default:
+				return literalObj;
+		}
+	}
+
 	private static Optional<?> getLiteral(CallExpression comp) {
 		if (literalOnRight(comp)) {
 			ValueLiteralExpression valueLiteralExpression = (ValueLiteralExpression) comp.getChildren().get(1);
@@ -260,7 +280,6 @@ public class OrcFilters {
 			case VARCHAR:
 				return PredicateLeaf.Type.STRING;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				return PredicateLeaf.Type.TIMESTAMP;
 			case DATE:
 				return PredicateLeaf.Type.DATE;
