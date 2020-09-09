@@ -501,6 +501,7 @@ The result is:
 1   2  Hello
 {% endhighlight %}
 
+<span class="label label-info">Note</span> "to_pandas" will trigger the materialization of the table and collect table content to the memory of the client, it's good practice to limit the number of rows collected via <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>.
 <span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
 
 ### Emit Results to One Sink Table

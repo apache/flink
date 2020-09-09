@@ -585,6 +585,31 @@ class Table(object):
         """
         return Table(self._j_table.fetch(fetch), self._t_env)
 
+    def limit(self, fetch: int, offset: int = 0):
+        """
+        Limits a (possibly sorted) result to the first n rows.
+
+        This method is a synonym for :func:`~pyflink.table.Table.offset` followed by
+        :func:`~pyflink.table.Table.fetch`.
+
+        Example:
+
+        Returns the first 3 records.
+        ::
+
+            >>> tab.limit(3)
+
+        Skips the first 10 rows and returns the next 5 rows.
+        ::
+
+            >>> tab.limit(5, 10)
+
+        :param fetch: the first number of rows to fetch.
+        :param offset: the number of records to skip, default 0.
+        :return: The result table.
+        """
+        return self.offset(offset).fetch(fetch)
+
     def window(self, window: GroupWindow):
         """
         Defines group window on the records of a table.
