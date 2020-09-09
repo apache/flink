@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
@@ -712,7 +711,7 @@ public class MergeTableLikeUtilTest {
 	}
 
 	private SqlNode tableColumn(String name, SqlNode expression) {
-		return new SqlTableComputedColumn (
+		return new SqlTableColumn (
 			identifier(name),
 			expression,
 			null,

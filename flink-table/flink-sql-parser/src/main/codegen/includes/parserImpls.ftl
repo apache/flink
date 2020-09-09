@@ -515,7 +515,7 @@ void Watermark(TableCreationContext context) :
 
 void ComputedColumn(TableCreationContext context) :
 {
-    SqlNode identifier;
+    SqlIdentifier identifier;
     SqlNode expr;
     SqlParserPos pos;
     SqlCharStringLiteral comment = null;
@@ -530,7 +530,7 @@ void ComputedColumn(TableCreationContext context) :
         }
      ]
      {
-            SqlTableComputedColumn computedColumn = new SqlTableComputedColumn(identifier, expr, comment, getPos());
+            SqlTableColumn computedColumn = new SqlTableColumn(identifier, expr, comment, getPos());
             context.columnList.add(computedColumn);
       }
 }

@@ -170,12 +170,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				.collect(Collectors.toSet());
 
 			for (SqlNode column : columnList) {
-				if (column instanceof SqlTableColumn) {
-					SqlTableColumn tableColumn = (SqlTableColumn) column;
-					if (primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
-						SqlDataTypeSpec notNullType = tableColumn.getType().withNullable(false);
-						tableColumn.setType(notNullType);
-					}
+				SqlTableColumn tableColumn = (SqlTableColumn) column;
+				if (!tableColumn.isComputed() && primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
+					SqlDataTypeSpec notNullType = tableColumn.getType().withNullable(false);
+					tableColumn.setType(notNullType);
 				}
 			}
 		}
@@ -187,7 +185,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public boolean containsComputedColumn() {
 		for (SqlNode column : columnList) {
-			if (column instanceof SqlTableComputedColumn) {
+			if (((SqlTableColumn) column).isComputed()) {
 				return true;
 			}
 		}
@@ -198,9 +196,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	public List<SqlTableConstraint> getFullConstraints() {
 		List<SqlTableConstraint> ret = new ArrayList<>();
 		this.columnList.forEach(column -> {
-			if (column instanceof SqlTableColumn) {
-				((SqlTableColumn) column).getConstraint()
-						.map(ret::add);
+			SqlTableColumn tableColumn = (SqlTableColumn) column;
+			if (!tableColumn.isComputed()) {
+				tableColumn.getConstraint().map(ret::add);
 			}
 		});
 		ret.addAll(this.tableConstraints);
@@ -234,17 +232,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		writer.startList("", "");
 		for (SqlNode column : columnList) {
 			writer.sep(",");
-			if (column instanceof SqlTableColumn) {
-				SqlTableColumn tableColumn = (SqlTableColumn) column;
-				tableColumn.getName().unparse(writer, 0, 0);
-			} else if (column instanceof SqlTableComputedColumn) {
-				SqlTableComputedColumn computedColumn = (SqlTableComputedColumn) column;
-				computedColumn.getExpr().unparse(writer, 0, 0);
+			SqlTableColumn tableColumn = (SqlTableColumn) column;
+			if (tableColumn.isComputed()) {
+				tableColumn.getExpr().unparse(writer, 0, 0);
 				writer.keyword("AS");
-				computedColumn.getIdentifier().unparse(writer, 0, 0);
-			} else {
-				column.unparse(writer, 0, 0);
 			}
+			tableColumn.getName().unparse(writer, 0, 0);
 		}
 
 		return writer.toString();

@@ -45,7 +45,6 @@
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
     "org.apache.flink.sql.parser.ddl.SqlTableColumn"
-    "org.apache.flink.sql.parser.ddl.SqlTableComputedColumn"
     "org.apache.flink.sql.parser.ddl.SqlTableLike"
     "org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption"
     "org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy"

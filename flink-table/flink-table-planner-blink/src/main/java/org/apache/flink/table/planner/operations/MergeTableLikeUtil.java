@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
@@ -372,11 +371,10 @@ class MergeTableLikeUtil {
 			collectPhysicalFieldsTypes(derivedColumns);
 
 			for (SqlNode derivedColumn : derivedColumns) {
-				boolean isComputed = derivedColumn instanceof SqlTableComputedColumn;
+				final SqlTableColumn tableColumn = (SqlTableColumn) derivedColumn;
 				final TableColumn column;
-				if (isComputed) {
-					SqlTableComputedColumn computedColumn = (SqlTableComputedColumn) derivedColumn;
-					String fieldName = computedColumn.getIdentifier().toString();
+				if (tableColumn.isComputed()) {
+					String fieldName = tableColumn.getName().toString();
 					if (columns.containsKey(fieldName)) {
 						if (!columns.get(fieldName).isGenerated()) {
 							throw new ValidationException(String.format(
@@ -394,7 +392,7 @@ class MergeTableLikeUtil {
 					}
 
 					SqlNode validatedExpr = sqlValidator.validateParameterizedExpression(
-						computedColumn.getExpr(),
+						tableColumn.getExpr(),
 						physicalFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
 					column = TableColumn.of(
@@ -403,7 +401,7 @@ class MergeTableLikeUtil {
 						escapeExpressions.apply(validatedExpr));
 					computedFieldNamesToTypes.put(fieldName, validatedType);
 				} else {
-					String name = ((SqlTableColumn) derivedColumn).getName().getSimple();
+					String name = tableColumn.getName().getSimple();
 					LogicalType logicalType = FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
 					column = TableColumn.of(name, TypeConversions.fromLogicalToDataType(logicalType));
 				}
@@ -413,8 +411,8 @@ class MergeTableLikeUtil {
 
 		private void collectPhysicalFieldsTypes(List<SqlNode> derivedColumns) {
 			for (SqlNode derivedColumn : derivedColumns) {
-				if (derivedColumn instanceof SqlTableColumn) {
-					SqlTableColumn column = (SqlTableColumn) derivedColumn;
+				SqlTableColumn column = (SqlTableColumn) derivedColumn;
+				if (!column.isComputed()) {
 					String name = column.getName().getSimple();
 					if (columns.containsKey(name)) {
 						throw new ValidationException(String.format(
