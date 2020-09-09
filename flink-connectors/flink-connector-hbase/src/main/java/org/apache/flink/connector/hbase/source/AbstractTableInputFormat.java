@@ -46,7 +46,7 @@ import java.util.List;
  * Abstract {@link InputFormat} to read data from HBase tables.
  */
 @Internal
-abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
+public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractTableInputFormat.class);
 	private static final long serialVersionUID = 1L;

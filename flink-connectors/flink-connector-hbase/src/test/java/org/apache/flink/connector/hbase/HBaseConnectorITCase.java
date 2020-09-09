@@ -25,8 +25,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.hbase.source.AbstractTableInputFormat;
 import org.apache.flink.connector.hbase.source.HBaseInputFormat;
+import org.apache.flink.connector.hbase.source.HBaseRowDataInputFormat;
+import org.apache.flink.connector.hbase.source.HBaseRowInputFormat;
 import org.apache.flink.connector.hbase.source.HBaseTableSource;
+import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase.util.HBaseTestBase;
 import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -50,6 +54,7 @@ import org.apache.flink.types.Row;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -57,6 +62,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -67,6 +73,8 @@ import scala.Option;
 import static org.apache.flink.connector.hbase.util.PlannerType.OLD_PLANNER;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * IT cases for HBase connector (including HBaseTableSource and HBaseTableSink).
@@ -477,6 +485,24 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		expected.add("3,3,30,Hello-3,300,3.03,false,Welt-3,2019-08-18T19:02,2019-08-18,19:02,12345678.0003");
 
 		assertEquals(expected, result);
+	}
+
+	@Test
+	public void testTableInputFormatOpenClose() throws IOException {
+		HBaseTableSchema tableSchema = new HBaseTableSchema();
+		tableSchema.addColumn(FAMILY1, F1COL1, byte[].class);
+		AbstractTableInputFormat<?> inputFormat;
+		if (isLegacyConnector) {
+			inputFormat = new HBaseRowInputFormat(getConf(), TEST_TABLE_1, tableSchema);
+		} else {
+			inputFormat = new HBaseRowDataInputFormat(getConf(), TEST_TABLE_1, tableSchema, "null");
+		}
+		inputFormat.open(inputFormat.createInputSplits(1)[0]);
+		assertNotNull(inputFormat.getConnection());
+		assertNotNull(inputFormat.getConnection().getTable(TableName.valueOf(TEST_TABLE_1)));
+
+		inputFormat.close();
+		assertNull(inputFormat.getConnection());
 	}
 
 	// -------------------------------------------------------------------------------------
