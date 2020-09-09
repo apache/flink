@@ -109,7 +109,7 @@ to the following example on how to do that:
 {% highlight python %}
 # execute SQL / Table API query asynchronously
 t_result = table_env.execute_sql(...)
-t_result.get_job_client().get_job_execution_result().result()
+t_result.wait()
 
 # execute DataStream Job asynchronously
 job_client = stream_execution_env.execute_async('My DataStream Job')

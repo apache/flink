@@ -74,9 +74,9 @@ result_table = source_table.select(source_table.id + 1, source_table.data)
 
 # 5. emit query result to sink table
 # emit a Table API result Table to a sink table:
-result_table.execute_insert("print").get_job_client().get_job_execution_result().result()
+result_table.execute_insert("print").wait()
 # or emit results via SQL query:
-table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").get_job_client().get_job_execution_result().result()
+table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 
 {% endhighlight %}
 
@@ -368,7 +368,7 @@ table_env.execute_sql("""
             (SELECT id / 2 as id, data FROM random_source)
         WHERE id > 1
         GROUP BY id
-""").get_job_client().get_job_execution_result().result()
+""").wait()
 
 {% endhighlight %}
 
@@ -424,8 +424,7 @@ table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view('table_api_table', table)
 
 # emit the Table API table
-table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table") \
-    .get_job_client().get_job_execution_result().result()
+table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wait()
 
 {% endhighlight %}
 
@@ -520,7 +519,7 @@ table_env.execute_sql("""
 """)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
-table.execute_insert("sink_table").get_job_client().get_job_execution_result().result()
+table.execute_insert("sink_table").wait()
 
 {% endhighlight %}
 
@@ -536,8 +535,7 @@ This could also be done using SQL:
 {% highlight python %}
 
 table_env.create_temporary_view("table_source", table)
-table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source") \
-    .get_job_client().get_job_execution_result().result()
+table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source").wait()
 
 {% endhighlight %}
 
@@ -577,7 +575,7 @@ statement_set.add_insert("first_sink_table", table)
 statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM simple_source")
 
 # execute the statement set
-statement_set.execute().get_job_client().get_job_execution_result().result()
+statement_set.execute().wait()
 
 {% endhighlight %}
 
