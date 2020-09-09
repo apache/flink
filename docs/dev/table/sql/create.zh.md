@@ -190,11 +190,11 @@ Flink 提供了几种常用的 watermark 策略。
 
 - 严格递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column`。
 
-  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳小于最大时间戳的行被认为没有迟到。
+  发出到目前为止已观察到的最大时间戳的 watermark ，时间戳大于最大时间戳的行被认为没有迟到。
 
 - 递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`。
 
-  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳等于或小于最大时间戳的行被认为没有迟到。
+  发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳大于或等于最大时间戳的行被认为没有迟到。
 
 - 有界乱序时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`。
 
