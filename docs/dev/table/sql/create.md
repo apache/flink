@@ -190,11 +190,11 @@ Flink provides several commonly used watermark strategies.
 
 - Strictly ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column`.
 
-  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far. Rows that have a timestamp bigger to the max timestamp are not late.
 
 - Ascending timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`.
 
-  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp equal and smaller to the max timestamp are not late.
+  Emits a watermark of the maximum observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp are not late.
 
 - Bounded out of orderness timestamps: `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`.
 
