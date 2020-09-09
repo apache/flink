@@ -22,7 +22,17 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.Registration;
 import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.descriptors.*;
+import org.apache.flink.table.descriptors.ConnectTableDescriptor;
+import org.apache.flink.table.descriptors.Descriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.DescriptorTestBase;
+import org.apache.flink.table.descriptors.DescriptorValidator;
+import org.apache.flink.table.descriptors.FormatDescriptor;
+import org.apache.flink.table.descriptors.HBase;
+import org.apache.flink.table.descriptors.HBaseValidator;
+import org.apache.flink.table.descriptors.Rowtime;
+import org.apache.flink.table.descriptors.Schema;
+import org.apache.flink.table.descriptors.StreamTableDescriptor;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -119,7 +129,7 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 
 	@Test
 	public void testFormatNeed(){
-		String expected="The connector org.apache.flink.table.descriptors.HBase does not require a format description but org.apache.flink.connector.hbase.HBaseDescriptorTest$1 found.";
+		String expected = "The connector org.apache.flink.table.descriptors.HBase does not require a format description but org.apache.flink.connector.hbase.HBaseDescriptorTest$1 found.";
 		AtomicReference<CatalogTableImpl> reference = new AtomicReference<>();
 		HBase hBase = new HBase();
 		Registration registration = (path, table) -> reference.set((CatalogTableImpl) table);
@@ -134,12 +144,12 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
 			.withSchema(new Schema()
 				.field("f0", DataTypes.INT())
 				.rowtime(new Rowtime().timestampsFromField("f0")));
-		String actual=null;
+		String actual = null;
 		try {
 			descriptor.toProperties();
 		} catch (Exception e) {
 			actual = e.getMessage();
 		}
-		Assert.assertEquals(expected,actual);
+		Assert.assertEquals(expected, actual);
 	}
 }
