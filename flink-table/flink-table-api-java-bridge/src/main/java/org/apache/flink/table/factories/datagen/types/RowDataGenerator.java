@@ -34,10 +34,10 @@ public class RowDataGenerator implements DataGenerator<RowData> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final DataGenerator[] fieldGenerators;
+	private final DataGenerator<?>[] fieldGenerators;
 	private final String[] fieldNames;
 
-	public RowDataGenerator(DataGenerator[] fieldGenerators, String[] fieldNames) {
+	public RowDataGenerator(DataGenerator<?>[] fieldGenerators, String[] fieldNames) {
 		this.fieldGenerators = fieldGenerators;
 		this.fieldNames = fieldNames;
 	}
@@ -54,14 +54,14 @@ public class RowDataGenerator implements DataGenerator<RowData> {
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		for (DataGenerator generator : fieldGenerators) {
+		for (DataGenerator<?> generator : fieldGenerators) {
 			generator.snapshotState(context);
 		}
 	}
 
 	@Override
 	public boolean hasNext() {
-		for (DataGenerator generator : fieldGenerators) {
+		for (DataGenerator<?> generator : fieldGenerators) {
 			if (!generator.hasNext()) {
 				return false;
 			}

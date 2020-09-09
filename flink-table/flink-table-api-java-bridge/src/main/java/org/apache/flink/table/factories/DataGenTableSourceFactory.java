@@ -93,7 +93,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 		context.getCatalogTable().getOptions().forEach(options::setString);
 
 		TableSchema schema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
-		DataGenerator[] fieldGenerators = new DataGenerator[schema.getFieldCount()];
+		DataGenerator<?>[] fieldGenerators = new DataGenerator[schema.getFieldCount()];
 		Set<ConfigOption<?>> optionalOptions = new HashSet<>();
 
 		for (int i = 0; i < fieldGenerators.length; i++) {

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.StringData;
@@ -305,7 +306,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 		};
 	}
 
-	private static class BigDecimalRandomGenerator implements DataGenerator<BigDecimal> {
+	private static class BigDecimalRandomGenerator implements DataGenerator<DecimalData> {
 		private final RandomGenerator<Double> generator;
 		private final int precision;
 		private final int scale;
@@ -327,9 +328,10 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 		}
 
 		@Override
-		public BigDecimal next() {
+		public DecimalData next() {
 			BigDecimal decimal = new BigDecimal(generator.next(), new MathContext(precision));
-			return decimal.setScale(scale, RoundingMode.DOWN);
+			decimal = decimal.setScale(scale, RoundingMode.DOWN);
+			return DecimalData.fromBigDecimal(decimal, precision, scale);
 		}
 	}
 }

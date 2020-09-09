@@ -43,8 +43,6 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 
 	private final DataGenerator<T> generator;
 
-	private final String name;
-
 	private final long rowsPerSecond;
 
 	@Nullable
@@ -62,7 +60,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	 * @param generator data generator.
 	 */
 	public DataGeneratorSource(DataGenerator<T> generator) {
-		this(generator, "generator", Long.MAX_VALUE, null);
+		this(generator, Long.MAX_VALUE, null);
 	}
 
 	/**
@@ -72,9 +70,8 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	 * @param rowsPerSecond Control the emit rate.
 	 * @param numberOfRows Total number of rows to output.
 	 */
-	public DataGeneratorSource(DataGenerator<T> generator, String name, long rowsPerSecond, Long numberOfRows) {
+	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond, Long numberOfRows) {
 		this.generator = generator;
-		this.name = name;
 		this.rowsPerSecond = rowsPerSecond;
 		this.numberOfRows = numberOfRows;
 	}
@@ -132,7 +129,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	@Override
 	public void close() throws Exception {
 		super.close();
-		LOG.info("{} generated {} rows", name, outputSoFar);
+		LOG.info("generated {} rows", outputSoFar);
 	}
 
 	@Override

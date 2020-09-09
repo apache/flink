@@ -39,14 +39,14 @@ import org.apache.flink.table.sources.StreamTableSource;
 @Internal
 public class DataGenTableSource implements ScanTableSource {
 
-	private final DataGenerator[] fieldGenerators;
+	private final DataGenerator<?>[] fieldGenerators;
 	private final String tableName;
 	private final TableSchema schema;
 	private final long rowsPerSecond;
 	private final Long numberOfRows;
 
 	public DataGenTableSource(
-		DataGenerator[] fieldGenerators,
+		DataGenerator<?>[] fieldGenerators,
 		String tableName,
 		TableSchema schema,
 		long rowsPerSecond,
@@ -60,7 +60,7 @@ public class DataGenTableSource implements ScanTableSource {
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
-		boolean isBounded = numberOfRows == null;
+		boolean isBounded = numberOfRows != null;
 		return SourceFunctionProvider.of(createSource(), isBounded);
 	}
 
@@ -68,7 +68,7 @@ public class DataGenTableSource implements ScanTableSource {
 	public DataGeneratorSource<RowData> createSource() {
 		return new DataGeneratorSource<>(
 			new RowDataGenerator(fieldGenerators, schema.getFieldNames()),
-			tableName, rowsPerSecond, numberOfRows);
+			rowsPerSecond, numberOfRows);
 	}
 
 	@Override

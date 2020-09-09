@@ -18,11 +18,17 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
-import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
-
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
+import org.junit.Assert;
 import org.junit.Test;
 
-public class DataGeneratorConnectorITCase extends StreamingTestBase {
+import java.util.ArrayList;
+import java.util.List;
+
+public class DataGeneratorConnectorITCase extends BatchTestBase {
 
 	private static final String TABLE = "CREATE TABLE datagen_t (\n" +
 		"	f0 CHAR(1),\n" +
@@ -49,16 +55,18 @@ public class DataGeneratorConnectorITCase extends StreamingTestBase {
 		"	'number-of-rows' = '10'\n" +
 		")";
 
-	private static final String SINK = "CREATE TABLE sink WITH ('connector' = 'blackhole') LIKE datagen_t (EXCLUDING ALL)";
-
 	@Test
-	public void testTypes() {
+	public void testTypes() throws Exception {
 		tEnv().executeSql(TABLE);
-		tEnv().executeSql(SINK);
-		tEnv().from("datagen_t").executeInsert("sink");
 
-		execInsertTableAndWaitResult(
-			tEnv().from("datagen_t"),
-			"sink");
+		List<Row> results = new ArrayList<>();
+
+		try (CloseableIterator<Row> iter = tEnv().executeSql("select * from datagen_t").collect()) {
+			while (iter.hasNext()) {
+				results.add(iter.next());
+			}
+		}
+
+		Assert.assertEquals("Unexpected number of results",10, results.size());
 	}
 }
