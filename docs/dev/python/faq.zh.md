@@ -107,7 +107,7 @@ TableEnvironment.execute_sql, StatementSet.execute 和 Python DataStream API 的
 {% highlight python %}
 # 异步执行 SQL / Table API 作业
 t_result = table_env.execute_sql(...)
-t_result.get_job_client().get_job_execution_result().result()
+t_result.wait()
 
 # 异步执行 DataStream 作业
 job_client = stream_execution_env.execute_async('My DataStream Job')
