@@ -37,7 +37,7 @@ import static org.junit.Assert.fail;
  * The unit test for {@link FutureCompletingBlockingQueue}.
  */
 public class FutureCompletingBlockingQueueTest {
-	private static final Integer DEFAULT_CAPACITY = 10000;
+	private static final Integer DEFAULT_CAPACITY = 1;
 	private static final Integer SPECIFIED_CAPACITY = 20000;
 
 	@Test

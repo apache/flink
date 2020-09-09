@@ -57,7 +57,7 @@ public class FutureCompletingBlockingQueue<T> {
 	/**
 	 * The default capacity for the queue.
 	 */
-	private static final Integer DEFAULT_CAPACITY = 10000;
+	private static final Integer DEFAULT_CAPACITY = 1;
 
 	public FutureCompletingBlockingQueue(FutureNotifier futureNotifier) {
 		this(futureNotifier, DEFAULT_CAPACITY);
