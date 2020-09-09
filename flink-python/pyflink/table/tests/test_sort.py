@@ -31,6 +31,22 @@ class BatchTableSortTests(PyFlinkBatchTableTestCase):
         self.assertEqual('[desc(a)]',
                          query_operation.getOrder().toString())
 
+    def test_limit(self):
+        t = self.t_env.from_elements([(1, "Hello")], ["a", "b"])
+        result = t.limit(1)
+
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual(0, query_operation.getOffset())
+        self.assertEqual(1, query_operation.getFetch())
+
+    def test_limit_with_offset(self):
+        t = self.t_env.from_elements([(1, "Hello")], ["a", "b"])
+        result = t.limit(1, 2)
+
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual(2, query_operation.getOffset())
+        self.assertEqual(1, query_operation.getFetch())
+
 
 if __name__ == '__main__':
     import unittest
