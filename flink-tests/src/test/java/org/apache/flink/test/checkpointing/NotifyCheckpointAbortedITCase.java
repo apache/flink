@@ -79,8 +79,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -99,7 +97,6 @@ import static org.junit.Assert.assertEquals;
  */
 @RunWith(Parameterized.class)
 public class NotifyCheckpointAbortedITCase extends TestLogger {
-	private static final Logger LOG = LoggerFactory.getLogger(NotifyCheckpointAbortedITCase.class);
 
 	private static final long DECLINE_CHECKPOINT_ID = 2L;
 	private static final long TEST_TIMEOUT = 100000;
@@ -180,23 +177,23 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 		clusterClient.submitJob(jobGraph).get();
 
 		TestingCompletedCheckpointStore.addCheckpointLatch.await();
-		LOG.info("The checkpoint to abort is ready to add to checkpoint store.");
+		log.info("The checkpoint to abort is ready to add to checkpoint store.");
 		TestingCompletedCheckpointStore.abortCheckpointLatch.trigger();
 
-		LOG.info("Verifying whether all operators have been notified of checkpoint-1 aborted.");
+		log.info("Verifying whether all operators have been notified of checkpoint-1 aborted.");
 		verifyAllOperatorsNotifyAborted();
-		LOG.info("Verified that all operators have been notified of checkpoint-1 aborted.");
+		log.info("Verified that all operators have been notified of checkpoint-1 aborted.");
 		resetAllOperatorsNotifyAbortedLatches();
 		verifyAllOperatorsNotifyAbortedTimes(1);
 
 		DeclineSink.waitLatch.trigger();
-		LOG.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
+		log.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
 		verifyAllOperatorsNotifyAborted();
-		LOG.info("Verified that all operators have been notified of checkpoint-2 aborted.");
+		log.info("Verified that all operators have been notified of checkpoint-2 aborted.");
 		verifyAllOperatorsNotifyAbortedTimes(2);
 
 		clusterClient.cancel(jobID).get();
-		LOG.info("Test is verified successfully as expected.");
+		log.info("Test is verified successfully as expected.");
 	}
 
 	private void verifyAllOperatorsNotifyAborted() throws InterruptedException {
