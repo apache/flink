@@ -33,7 +33,6 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -261,8 +260,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 	 * @param subtaskId the subtask id of the source reader.
 	 */
 	void unregisterSourceReader(int subtaskId) {
-		Preconditions.checkNotNull(registeredReaders.remove(subtaskId), String.format(
-				"Failed to unregister source reader of id %s because it is not registered.", subtaskId));
+		registeredReaders.remove(subtaskId);
 	}
 
 	/**
