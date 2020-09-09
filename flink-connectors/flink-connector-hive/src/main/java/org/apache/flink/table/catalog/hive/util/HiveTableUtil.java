@@ -412,14 +412,12 @@ public class HiveTableUtil {
 	 * @throws FlinkHiveException Thrown, if the source or sink table is transactional.
 	 */
 	public static void checkAcidTable(CatalogTable catalogTable, ObjectPath tablePath) {
-		if (catalogTable != null && catalogTable.getOptions() != null) {
-			String tableIsTransactional = catalogTable.getOptions().get("transactional");
-			if (tableIsTransactional == null) {
-				tableIsTransactional = catalogTable.getOptions().get("transactional".toUpperCase());
-			}
-			if (tableIsTransactional != null && tableIsTransactional.equalsIgnoreCase("true")) {
-				throw new FlinkHiveException(String.format("Reading or writing ACID table %s is not supported.", tablePath));
-			}
+		String tableIsTransactional = catalogTable.getOptions().get("transactional");
+		if (tableIsTransactional == null) {
+			tableIsTransactional = catalogTable.getOptions().get("transactional".toUpperCase());
+		}
+		if (tableIsTransactional != null && tableIsTransactional.equalsIgnoreCase("true")) {
+			throw new FlinkHiveException(String.format("Reading or writing ACID table %s is not supported.", tablePath));
 		}
 	}
 
