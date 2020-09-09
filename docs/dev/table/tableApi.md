@@ -208,7 +208,7 @@ orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
 result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is_not_null) \
                .select(orders.a.lower_case.alias('a'), orders.b, orders.rowtime) \
-               .window(Tumble.over(lit(1).hour.on(orders.rowtime).alias("hourly_window"))) \
+               .window(Tumble.over(lit(1).hour).on(orders.rowtime).alias("hourly_window")) \
                .group_by(col('hourly_window'), col('a')) \
                .select(col('a'), col('hourly_window').end.alias('hour'), b.avg.alias('avg_billing_amount'))
 {% endhighlight %}
@@ -543,9 +543,9 @@ result = orders.select(orders.a, orders.c.alias('d'))
 {% endhighlight %}
         <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
 {% highlight python %}
-from pyflink.table.expressions import lit
+from pyflink.table.expressions import col
 
-result = orders.select(lit("*"))
+result = orders.select(col("*"))
 {% endhighlight %}
 </td>
         </tr>
@@ -1107,8 +1107,8 @@ from pyflink.table.expressions import lit, col
 
 orders = t_env.from_path("Orders")
 result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")) \ 
-               .group_by(col('a'), col('w')) \
-               .select(col('a'), col('w').start, col('w').end, col('b').sum.alias('d'))
+               .group_by(orders.a, col('w')) \
+               .select(orders.a, col('w').start, col('w').end, orders.b.sum.alias('d'))
 {% endhighlight %}
       </td>
     </tr>
@@ -1149,7 +1149,7 @@ group_by_distinct_result = orders.group_by(orders.a) \
                                  .select(orders.a, orders.b.sum.distinct.alias('d'))
 # Distinct aggregation on time window group by
 group_by_window_distinct_result = orders.window(
-    Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")).group_by(col('a'), col('w')) \
+    Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")).group_by(orders.a, col('w')) \
     .select(orders.a, orders.b.sum.distinct.alias('d'))
 # Distinct aggregation on over window
 result = orders.over_window(Over
@@ -1509,7 +1509,7 @@ from pyflink.table.expressions import col
 
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
-result = left.join(right).where(left.a == right.d).select(col('a'), col('b'), col('e'))
+result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
 <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
@@ -1530,9 +1530,9 @@ from pyflink.table.expressions import col
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
 
-left_outer_result = left.left_outer_join(right, left.a == right.d).select(col('a'), col('b'), col('e'))
-right_outer_result = left.right_outer_join(right, left.a == right.d).select(col('a'), col('b'), col('e'))
-full_outer_result = left.full_outer_join(right, left.a == right.d).select(col('a'), col('b'), col('e'))
+left_outer_result = left.left_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
+right_outer_result = left.right_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
+full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
 <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
@@ -1985,12 +1985,7 @@ result = left.minus_all(right)
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'))
 
-# using implicit registration
-result = left.select(col('a'), col('b'), col('c')).where(col('a').in_(right))
-
-# using explicit registration
-t_env.create_temporary_view("RightTable", right)
-result = left.select(col('a'), col('b'), col('c')).where("a.in(RightTable)")
+result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 {% endhighlight %}
 
         <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
@@ -2326,7 +2321,7 @@ The following example shows how to define a window aggregation with additional g
 # define window with alias w, group the table by attribute a and window w,
 # then aggregate
 table = input.window([w: GroupWindow].alias("w")) \
-             .group_by(col('w'), col('a')).select(input.b.sum)
+             .group_by(col('w'), input.a).select(input.b.sum)
 {% endhighlight %}
 </div>
 </div>
@@ -2357,7 +2352,7 @@ val table = input
 # define window with alias w, group the table by attribute a and window w,
 # then aggregate and add window start, end, and rowtime timestamps
 table = input.window([w: GroupWindow].alias("w")) \
-             .group_by(col('w'), col('a')) \
+             .group_by(col('w'), input.a) \
              .select(input.a, col('w').start, col('w').end, col('w').rowtime, input.b.count)
 {% endhighlight %}
 </div>

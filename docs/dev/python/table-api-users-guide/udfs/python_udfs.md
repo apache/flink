@@ -216,9 +216,9 @@ table_env.get_config().get_configuration().set_string("taskmanager.memory.task.o
 # Register the java function.
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# Use the table function in the Python Table API. "as" specifies the field names of the table.
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select("a, word, length")
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select("a, word, length")
+# Use the table function in the Python Table API. "alias" specifies the field names of the table.
+my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
 # Register the python function.
 

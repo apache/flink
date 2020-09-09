@@ -211,9 +211,9 @@ table_env.get_config().get_configuration().set_string("taskmanager.memory.task.o
 # 注册java自定义函数。
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
-# 在Python Table API中使用表值函数。 "as"指定表的字段名称。
-my_table.join_lateral(call('split', my_table.a).alias("word, length")).select("a, word, length")
-my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select("a, word, length")
+# 在Python Table API中使用表值函数。 "alias"指定表的字段名称。
+my_table.join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
+my_table.left_outer_join_lateral(call('split', my_table.a).alias("word, length")).select(my_table.a, col('word'), col('length'))
 
 # 注册python函数。
 
