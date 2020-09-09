@@ -129,7 +129,7 @@ message Schema {
     VARBINARY = 13;
     CHAR = 14;
     VARCHAR = 15;
-    ARRAY = 16;
+    BASIC_ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
     LOCAL_ZONED_TIMESTAMP = 19;

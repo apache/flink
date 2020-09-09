@@ -339,10 +339,10 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
                                      milliseconds % 1000 * 1000 + nanoseconds // 1000)
             return (<LocalZonedTimestampCoderImpl> field_coder).timezone.localize(
                 datetime.datetime.utcfromtimestamp(seconds).replace(microsecond=microseconds))
-        elif field_type == ARRAY:
-            # Array
+        elif field_type == BASIC_ARRAY:
+            # Basic Array
             length = self._decode_int()
-            value_coder = (<ArrayCoderImpl> field_coder).elem_coder
+            value_coder = (<BasicArrayCoderImpl> field_coder).elem_coder
             value_type = value_coder.type_name()
             value_coder_type = value_coder.coder_type()
             return [
@@ -518,10 +518,10 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             else:
                 self._encode_bigint(timestamp_milliseconds)
                 self._encode_int(nanoseconds)
-        elif field_type == ARRAY:
-            # Array
+        elif field_type == BASIC_ARRAY:
+            # Basic Array
             length = len(item)
-            value_coder = (<ArrayCoderImpl> field_coder).elem_coder
+            value_coder = (<BasicArrayCoderImpl> field_coder).elem_coder
             value_type = value_coder.type_name()
             value_coder_type = value_coder.coder_type()
             self._encode_int(length)
@@ -789,7 +789,7 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cpdef TypeName type_name(self):
         return LOCAL_ZONED_TIMESTAMP
 
-cdef class ArrayCoderImpl(FieldCoder):
+cdef class BasicArrayCoderImpl(FieldCoder):
     def __cinit__(self, elem_coder):
         self.elem_coder = elem_coder
 
@@ -797,7 +797,7 @@ cdef class ArrayCoderImpl(FieldCoder):
         return COMPLEX
 
     cpdef TypeName type_name(self):
-        return ARRAY
+        return BASIC_ARRAY
 
 cdef class PrimitiveArrayCoderImpl(FieldCoder):
     def __cinit__(self, elem_coder):

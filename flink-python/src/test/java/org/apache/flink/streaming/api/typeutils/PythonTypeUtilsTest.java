@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.CharSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
@@ -127,6 +128,11 @@ public class PythonTypeUtilsTest {
 		TypeSerializer convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(primitiveIntegerArrayTypeInfo);
 		assertEquals(convertedTypeSerializer, IntPrimitiveArraySerializer.INSTANCE);
+
+		TypeInformation integerArrayTypeInfo = BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO;
+		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
+			.typeInfoSerializerConverter(integerArrayTypeInfo);
+		assertEquals(convertedTypeSerializer, new GenericArraySerializer(Integer.class, IntSerializer.INSTANCE));
 
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
 		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter

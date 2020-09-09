@@ -569,7 +569,7 @@ class DataStreamTests(PyFlinkTestCase):
         ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
                                                    Types.PRIMITIVE_ARRAY(Types.FLOAT())]))\
             .add_sink(self.test_sink)
-        self.env.execute("test array type info")
+        self.env.execute("test primitive array type info")
         results = self.test_sink.get_results()
         expected = ['1,[1.1, 1.2, 1.3]', '2,[2.1, 2.2, 2.3]', '3,[3.1, 3.2, 3.3]']
         results.sort()
@@ -588,14 +588,13 @@ class DataStreamTests(PyFlinkTestCase):
                                                    Types.BASIC_ARRAY(Types.FLOAT()),
                                                    Types.BASIC_ARRAY(Types.STRING())]))\
             .add_sink(self.test_sink)
-        self.env.execute("test array type info")
+        self.env.execute("test basic array type info")
         results = self.test_sink.get_results()
         expected = ['1,[1.1, null, 1.3],[null, hi, flink]',
                     '2,[null, 2.2, 2.3],[hello, null, flink]',
                     '3,[3.1, 3.2, null],[hello, hi, null]']
         results.sort()
         expected.sort()
-        print(results)
         self.assertEqual(expected, results)
 
     def tearDown(self) -> None:
