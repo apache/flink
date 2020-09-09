@@ -27,7 +27,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.RowKind;
 
 import java.util.Objects;
 
@@ -64,30 +63,24 @@ public class DebeziumJsonSerializationSchema implements SerializationSchema<RowD
 	@Override
 	public byte[] serialize(RowData rowData) {
 		try {
-			if (RowKind.INSERT == rowData.getRowKind()) {
-				genericRowData.setField(0,  null);
-				genericRowData.setField(1, rowData);
-			} else if (RowKind.DELETE == rowData.getRowKind()) {
-				genericRowData.setField(0,  rowData);
-				genericRowData.setField(1, null);
+			switch (rowData.getRowKind()) {
+				case INSERT:
+				case UPDATE_AFTER:
+					genericRowData.setField(0,  null);
+					genericRowData.setField(1, rowData);
+					genericRowData.setField(2,  OP_INSERT);
+					return jsonSerializer.serialize(genericRowData);
+				case UPDATE_BEFORE:
+				case DELETE:
+					genericRowData.setField(0,  rowData);
+					genericRowData.setField(1, null);
+					genericRowData.setField(2,  OP_DELETE);
+					return jsonSerializer.serialize(genericRowData);
+				default:
+					throw new UnsupportedOperationException(format("Unsupported operation '%s' for row kind.", rowData.getRowKind()));
 			}
-			genericRowData.setField(2, rowKind2String(rowData.getRowKind()));
-			return jsonSerializer.serialize(genericRowData);
 		} catch (Throwable t) {
 			throw new RuntimeException(format("Could not serialize row '%s'.", rowData), t);
-		}
-	}
-
-	private StringData rowKind2String(RowKind rowKind) {
-		switch (rowKind) {
-			case INSERT:
-			case UPDATE_AFTER:
-				return OP_INSERT;
-			case UPDATE_BEFORE:
-			case DELETE:
-				return OP_DELETE;
-			default:
-				throw new UnsupportedOperationException(format("Unsupported operation '%s' for row kind.", rowKind));
 		}
 	}
 
