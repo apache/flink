@@ -31,7 +31,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings, Module
+from pyflink.table import Table, EnvironmentSettings, Module, Expression
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
@@ -39,8 +39,10 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
-    _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema
+    _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
+    _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper
+from pyflink.table.utils import to_expression_jarray
 from pyflink.util import utils
 from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
     to_j_explain_detail_arr
@@ -1342,6 +1344,11 @@ class TableEnvironment(object):
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]),
             ...                         False)
+            # create Table from expressions
+            >>> table_env.from_elements([row(1, 'abc', 2.0), row(2, 'def', 3.0)],
+            ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
+            ...                                        DataTypes.FIELD("b", DataTypes.STRING()),
+            ...                                        DataTypes.FIELD("c", DataTypes.FLOAT())]))
 
         :param elements: The elements to create a table from.
         :type elements: list
@@ -1352,6 +1359,20 @@ class TableEnvironment(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        if "__len__" not in dir(elements):
+            elements = list(elements)
+
+        # in case all the elements are expressions
+        if len(elements) > 0 and all(isinstance(elem, Expression) for elem in elements):
+            if schema is None:
+                return Table(self._j_tenv.fromValues(to_expression_jarray(elements)), self)
+            else:
+                return Table(self._j_tenv.fromValues(_to_java_data_type(schema),
+                                                     to_expression_jarray(elements)),
+                             self)
+        elif any(isinstance(elem, Expression) for elem in elements):
+            raise ValueError("It doesn't support part of the elements are Expression, while the "
+                             "others are not.")
 
         # verifies the elements against the specified schema
         if isinstance(schema, RowType):
@@ -1373,9 +1394,6 @@ class TableEnvironment(object):
         else:
             def verify_obj(obj):
                 return obj
-
-        if "__len__" not in dir(elements):
-            elements = list(elements)
 
         # infers the schema if not specified
         if schema is None or isinstance(schema, (list, tuple)):
