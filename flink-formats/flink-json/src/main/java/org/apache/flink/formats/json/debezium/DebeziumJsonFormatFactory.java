@@ -121,13 +121,9 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 			}
 
 			@Override
-			public SerializationSchema<RowData> createRuntimeEncoder(
-				DynamicTableSink.Context context, DataType consumedDataType) {
+			public SerializationSchema<RowData> createRuntimeEncoder(DynamicTableSink.Context context, DataType consumedDataType) {
 				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new DebeziumJsonSerializationSchema(
-					rowType,
-					timestampFormat
-					);
+				return new DebeziumJsonSerializationSchema(rowType, timestampFormat);
 			}
 		};
 	}

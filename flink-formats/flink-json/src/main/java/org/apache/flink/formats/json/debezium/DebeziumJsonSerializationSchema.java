@@ -42,8 +42,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 public class DebeziumJsonSerializationSchema implements SerializationSchema<RowData> {
 	private static final long serialVersionUID = 1L;
 
-	private static final StringData OP_INSERT = StringData.fromString("INSERT"); // insert
-	private static final StringData OP_DELETE = StringData.fromString("DELETE"); // delete
+	private static final StringData OP_INSERT = StringData.fromString("c"); // insert
+	private static final StringData OP_DELETE = StringData.fromString("d"); // delete
 
 	/** The serializer to serialize Debezium JSON data. **/
 	private final JsonRowDataSerializationSchema jsonSerializer;
@@ -58,14 +58,20 @@ public class DebeziumJsonSerializationSchema implements SerializationSchema<RowD
 
 	@Override
 	public void open(InitializationContext context) {
-		genericRowData = new GenericRowData(2);
+		genericRowData = new GenericRowData(3);
 	}
 
 	@Override
 	public byte[] serialize(RowData rowData) {
 		try {
-			genericRowData.setField(0, rowData);
-			genericRowData.setField(1, rowKind2String(rowData.getRowKind()));
+			if (RowKind.INSERT == rowData.getRowKind()) {
+				genericRowData.setField(0,  null);
+				genericRowData.setField(1, rowData);
+			} else if (RowKind.DELETE == rowData.getRowKind()) {
+				genericRowData.setField(0,  rowData);
+				genericRowData.setField(1, null);
+			}
+			genericRowData.setField(2, rowKind2String(rowData.getRowKind()));
 			return jsonSerializer.serialize(genericRowData);
 		} catch (Throwable t) {
 			throw new RuntimeException(format("Could not serialize row '%s'.", rowData), t);
@@ -106,6 +112,7 @@ public class DebeziumJsonSerializationSchema implements SerializationSchema<RowD
 		// Debezium JSON contains some other information, e.g. "source", "ts_ms"
 		// but we don't need them.
 		return (RowType) DataTypes.ROW(
+			DataTypes.FIELD("before", databaseSchema),
 			DataTypes.FIELD("after", databaseSchema),
 			DataTypes.FIELD("op", DataTypes.STRING())).getLogicalType();
 	}
