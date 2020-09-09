@@ -190,6 +190,14 @@ class CodersTest(PyFlinkTestCase):
                                for _ in range(len(data))]
         self.check_cython_coder(python_field_coders, cython_field_coders, [data])
 
+    def test_cython_primitive_array_coder(self):
+        data = [[1, 2, 3, 4]]
+        python_field_coders = [coder_impl.PrimitiveArrayCoderImpl(coder_impl.BigIntCoderImpl())
+                               for _ in range(len(data))]
+        cython_field_coders = [coder_impl_fast.PrimitiveArrayCoderImpl(
+            coder_impl_fast.BigIntCoderImpl()) for _ in range(len(data))]
+        self.check_cython_coder(python_field_coders, cython_field_coders, [data])
+
     def test_cython_map_coder(self):
         data = [{'flink': 1, 'pyflink': 2, 'coder': None}]
         python_field_coders = [coder_impl.MapCoderImpl(coder_impl.CharCoderImpl(),

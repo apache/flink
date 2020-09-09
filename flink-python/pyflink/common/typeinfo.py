@@ -211,7 +211,7 @@ class PrimitiveArrayTypeInfo(TypeInformation, ABC):
 
 class BasicArrayTypeInfo(TypeInformation, ABC):
     """
-    A TypeInformation for arrays boxed primitive types (Integer, Long, Double, ...).
+    A TypeInformation for arrays of boxed primitive types (Integer, Long, Double, ...).
     Supports the creation of dedicated efficient serializers for these types.
     """
     @staticmethod
@@ -261,6 +261,12 @@ class BasicArrayTypeInfo(TypeInformation, ABC):
         return WrapperTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO)
+
+    @staticmethod
+    def STRING_ARRAY_TYPE_INFO():
+        return WrapperTypeInfo(
+            get_gateway().jvm.org.apache.flink.api.common.typeinfo
+            .BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)
 
 
 class PickledBytesTypeInfo(TypeInformation, ABC):
@@ -440,6 +446,12 @@ class Types(object):
 
     @staticmethod
     def BASIC_ARRAY(element_type: TypeInformation):
+        """
+        Returns type information for arrays of boxed primitive type (such as Integer[]).
+
+        :param element_type element type of the array (e.g. Types.BOOLEAN(), Types.INT(),
+        Types.DOUBLE())
+        """
         if element_type == Types.BOOLEAN():
             return BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO()
         elif element_type == Types.BYTE():
@@ -456,8 +468,10 @@ class Types(object):
             return BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO()
         elif element_type == Types.CHAR():
             return BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO()
+        elif element_type == Types.STRING():
+            return BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO()
         else:
-            raise TypeError("Invalid element type for a primitive array.")
+            raise TypeError("Invalid element type for a boxed primitive array.")
 
 
 def _from_java_type(j_type_info: JavaObject) -> TypeInformation:

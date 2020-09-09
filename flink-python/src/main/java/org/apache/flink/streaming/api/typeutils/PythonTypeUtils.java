@@ -41,7 +41,6 @@ import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySeria
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -90,7 +89,7 @@ public class PythonTypeUtils {
 			}
 
 			if (typeInformation instanceof BasicArrayTypeInfo) {
-				return buildBsicArrayTypeProto((BasicArrayTypeInfo) typeInformation);
+				return buildBasicArrayTypeProto((BasicArrayTypeInfo) typeInformation);
 			}
 
 			throw new UnsupportedOperationException(
@@ -207,7 +206,7 @@ public class PythonTypeUtils {
 			return builder.build();
 		}
 
-		private static FlinkFnApi.TypeInfo.FieldType buildBsicArrayTypeProto(
+		private static FlinkFnApi.TypeInfo.FieldType buildBasicArrayTypeProto(
 			BasicArrayTypeInfo basicArrayTypeInfo) {
 			FlinkFnApi.TypeInfo.FieldType elementFieldType = null;
 			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO)) {
@@ -240,6 +239,10 @@ public class PythonTypeUtils {
 
 			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO)) {
 				elementFieldType = buildBasicTypeProto(BasicTypeInfo.CHAR_TYPE_INFO);
+			}
+
+			if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)) {
+				elementFieldType = buildBasicTypeProto(BasicTypeInfo.STRING_TYPE_INFO);
 			}
 
 			if (elementFieldType == null) {
@@ -367,13 +370,9 @@ public class PythonTypeUtils {
 
 				if (typeInformation instanceof BasicArrayTypeInfo){
 					BasicArrayTypeInfo basicArrayTypeInfo = (BasicArrayTypeInfo) typeInformation;
-					if (basicArrayTypeInfo.equals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)){
-						return StringArraySerializer.INSTANCE;
-					} else {
-						Class<?> elementClass = basicArrayTypeInfo.getComponentTypeClass();
-						TypeSerializer<?> elementTypeSerializer = typeInfoToSerialzerMap.get(elementClass);
-						return new GenericArraySerializer(elementClass, elementTypeSerializer);
-					}
+					Class<?> elementClass = basicArrayTypeInfo.getComponentTypeClass();
+					TypeSerializer<?> elementTypeSerializer = typeInfoToSerialzerMap.get(elementClass);
+					return new GenericArraySerializer(elementClass, elementTypeSerializer);
 				}
 
 			}

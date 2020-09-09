@@ -227,7 +227,6 @@ class ArrayCoder(CollectionCoder):
     """
 
     def __init__(self, elem_coder):
-        self._elem_coder = elem_coder
         super(ArrayCoder, self).__init__(elem_coder)
 
     def get_impl(self):
@@ -240,7 +239,6 @@ class PrimitiveArrayCoder(CollectionCoder):
     """
 
     def __init__(self, elem_coder):
-        self._elem_coder = elem_coder
         super(PrimitiveArrayCoder, self).__init__(elem_coder)
 
     def get_impl(self):

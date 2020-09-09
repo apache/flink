@@ -577,19 +577,25 @@ class DataStreamTests(PyFlinkTestCase):
         self.assertEqual(expected, results)
 
     def test_basic_array_type_info(self):
-        ds = self.env.from_collection([(1, [1.1, None, 1.30]), (2, [None, 2.2, 2.3]),
-                                      (3, [3.1, 3.2, None])],
+        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
+                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
+                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
                                       type_info=Types.ROW([Types.INT(),
-                                                           Types.BASIC_ARRAY(Types.FLOAT())]))
+                                                           Types.BASIC_ARRAY(Types.FLOAT()),
+                                                           Types.BASIC_ARRAY(Types.STRING())]))
 
         ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.BASIC_ARRAY(Types.FLOAT())]))\
+                                                   Types.BASIC_ARRAY(Types.FLOAT()),
+                                                   Types.BASIC_ARRAY(Types.STRING())]))\
             .add_sink(self.test_sink)
         self.env.execute("test array type info")
         results = self.test_sink.get_results()
-        expected = ['1,[1.1, null, 1.3]', '2,[null, 2.2, 2.3]', '3,[3.1, 3.2, null]']
+        expected = ['1,[1.1, null, 1.3],[null, hi, flink]',
+                    '2,[null, 2.2, 2.3],[hello, null, flink]',
+                    '3,[3.1, 3.2, null],[hello, hi, null]']
         results.sort()
         expected.sort()
+        print(results)
         self.assertEqual(expected, results)
 
     def tearDown(self) -> None:
