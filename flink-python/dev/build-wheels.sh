@@ -19,7 +19,7 @@ set -e -x
 dev/lint-python.sh -s py_env
 
 PY_ENV_DIR=`pwd`/dev/.conda/envs
-py_env=("3.5" "3.6" "3.7")
+py_env=("3.5" "3.6" "3.7" "3.8")
 ## 2. install dependency
 for ((i=0;i<${#py_env[@]};i++)) do
     ${PY_ENV_DIR}/${py_env[i]}/bin/pip install -r dev/dev-requirements.txt
