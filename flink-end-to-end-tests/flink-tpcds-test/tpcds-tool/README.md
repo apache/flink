@@ -15,16 +15,16 @@ Scripts to download the TPC-DS data generator and generate test data, the suppor
 
 The scripts is internally used in Flink end to end tests, give an example to specific how the scripts works:
 ```
-$ cd /Users/demo/flink                                                                                   # go to the fFink project
-$ mvn compile -DskipTests=true                                                                          # compile the Flink source code
-$ export FLINK_DIR=/Users/demo/flink/flink-dist/target/flink-${flink-version}-bin/flink-${flink-version}      # set Flink distribution directory, the ${flink-version} is the compiled Flink version
-$ export END_TO_END_DIR=/Users/demo/flink/flink-end-to-end-tests                                          # set end to end tests directory
-$ mkdir -p /Users/demo/dir_to_save_genarator
-$ mkdir -p /Users/demo/dir_to_save_data
-$ cd /Users/demo/flink/flink-end-to-end-tests/tpcds-tool
-$ sh data_generator.sh /Users/demo/dir_to_save_genarator 1 /Users/demo/dir_to_save_data /Users/demo/flink/flink-end-to-end-tests/test-scripts
+$ cd <your_workspace_dir>/flink                                                                                   # go to the Flink project
+$ mvn compile -DskipTests=true                                                                                   # compile the Flink source code
+$ export FLINK_DIR=<your_workspace_dir>/flink/flink-dist/target/flink-${flink-version}-bin/flink-${flink-version}      # set Flink distribution directory, the ${flink-version} is the compiled Flink version
+$ export END_TO_END_DIR=<your_workspace_dir>/flink/flink-end-to-end-tests                                          # set end to end tests directory
+$ mkdir -p <your_workspace_dir>/dir_to_save_genarator
+$ mkdir -p <your_workspace_dir>/dir_to_save_data
+$ cd <your_workspace_dir>/flink/flink-end-to-end-tests/tpcds-tool
+$ sh data_generator.sh <your_workspace_dir>/dir_to_save_genarator 1 <your_workspace_dir>/dir_to_save_data <your_workspace_dir>/flink/flink-end-to-end-tests/test-scripts
 ```
-The downloaded generator will be saved to `/Users/demo/dir_to_save_genarator`, the generated data will be saved to `Users/demo/dir_to_save_data`.
+The downloaded generator will be saved to `<your_workspace_dir>/dir_to_save_genarator`, the generated data will be saved to `<your_workspace_dir>/dir_to_save_data`.
 
 **NOTE:** If you want to run a TPC-DS benchmark in Flink, please read `flink-tpcds-test/README.md` for more information.
     
