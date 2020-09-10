@@ -184,7 +184,7 @@ class CodersTest(PyFlinkTestCase):
 
     def test_cython_array_coder(self):
         data = [[1, 2, 3, None]]
-        python_field_coders = [coder_impl.ArrayCoderImpl(coder_impl.BigIntCoderImpl())
+        python_field_coders = [coder_impl.BasicArrayCoderImpl(coder_impl.BigIntCoderImpl())
                                for _ in range(len(data))]
         cython_field_coders = [coder_impl_fast.BasicArrayCoderImpl(
             coder_impl_fast.BigIntCoderImpl()) for _ in range(len(data))]

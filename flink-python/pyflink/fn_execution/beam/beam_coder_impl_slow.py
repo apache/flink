@@ -187,7 +187,7 @@ class TableFunctionRowCoderImpl(StreamCoderImpl):
         return 'TableFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
 
 
-class ArrayCoderImpl(StreamCoderImpl):
+class BasicArrayCoderImpl(StreamCoderImpl):
 
     def __init__(self, elem_coder):
         self._elem_coder = elem_coder
@@ -208,7 +208,7 @@ class ArrayCoderImpl(StreamCoderImpl):
         return elements
 
     def __repr__(self):
-        return 'ArrayCoderImpl[%s]' % repr(self._elem_coder)
+        return 'BasicArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
 class PrimitiveArrayCoderImpl(StreamCoderImpl):

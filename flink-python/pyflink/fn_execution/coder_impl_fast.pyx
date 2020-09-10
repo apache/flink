@@ -80,7 +80,7 @@ cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
         output_stream.write(self._tmp_output_data, self._tmp_output_pos)
         self._tmp_output_pos = 0
 
-    cpdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
+    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
                         item):
         if coder_type == SIMPLE:
             self._encode_field_simple(field_type, item)
@@ -89,7 +89,7 @@ cdef class DataStreamStatelessMapCoderImpl(FlattenRowCoderImpl):
             self._encode_field_complex(field_type, field_coder, item)
             self._encode_data_stream_field_complex(field_type, field_coder, item)
 
-    cpdef object _decode_field(self, CoderType coder_type, TypeName field_type,
+    cdef object _decode_field(self, CoderType coder_type, TypeName field_type,
                         FieldCoder field_coder):
         if coder_type == SIMPLE:
             decoded_obj = self._decode_field_simple(field_type)
