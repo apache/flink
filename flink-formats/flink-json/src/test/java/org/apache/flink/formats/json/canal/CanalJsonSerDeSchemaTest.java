@@ -47,7 +47,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link CanalJsonDeserializationSchema}.
+ * Tests for {@link CanalJsonSerializationSchema} and {@link CanalJsonDeserializationSchema}.
  */
 public class CanalJsonSerDeSchemaTest {
 

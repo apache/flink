@@ -62,7 +62,7 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
 		"if you are using Debezium Postgres Connector, " +
 		"please check the Postgres table has been set REPLICA IDENTITY to FULL level.";
 
-	/** The deserializer to deserialize Debezium JSON data. */
+	/** The deserializer to deserialize Debezium JSON data. **/
 	private final JsonRowDataDeserializationSchema jsonDeserializer;
 
 	/** TypeInformation of the produced {@link RowData}. **/
