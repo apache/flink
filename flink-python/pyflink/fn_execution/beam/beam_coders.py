@@ -151,6 +151,8 @@ class ArrowCoder(FastCoder):
         import pandas as pd
         return pd.Series
 
+    @Coder.register_urn(coders.FLINK_SCHEMA_ARROW_CODER_URN,
+                        flink_fn_execution_pb2.Schema)
     @Coder.register_urn(coders.FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN,
                         flink_fn_execution_pb2.Schema)
     def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):

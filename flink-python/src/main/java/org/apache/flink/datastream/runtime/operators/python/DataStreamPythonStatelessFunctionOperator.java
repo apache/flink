@@ -147,6 +147,7 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT>
 		inputTypeSerializer.serialize(element.getValue(), baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
+		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
