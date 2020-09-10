@@ -579,7 +579,7 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Returns the available amount of the certain type of memory handled by this memory manager.
+	 * Returns the available amount of memory handled by this memory manager.
 	 *
 	 * @return The available amount of memory.
 	 */
