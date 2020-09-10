@@ -57,6 +57,7 @@ public interface SchedulerNGFactory {
 		Time slotRequestTimeout,
 		ShuffleMaster<?> shuffleMaster,
 		JobMasterPartitionTracker partitionTracker,
-		ExecutionDeploymentTracker executionDeploymentTracker) throws Exception;
+		ExecutionDeploymentTracker executionDeploymentTracker,
+		long initializationTimestamp) throws Exception;
 
 }

@@ -178,7 +178,8 @@ public class JobMasterBuilder {
 			shuffleMaster,
 			partitionTrackerFactory,
 			executionDeploymentTracker,
-			executionDeploymentReconcilerFactory);
+			executionDeploymentReconcilerFactory,
+			System.currentTimeMillis());
 	}
 
 	/**

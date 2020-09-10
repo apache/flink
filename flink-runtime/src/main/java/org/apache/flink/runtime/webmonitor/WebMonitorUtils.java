@@ -227,7 +227,7 @@ public final class WebMonitorUtils {
 	public static JobDetails createDetailsForJob(AccessExecutionGraph job) {
 		JobStatus status = job.getState();
 
-		long started = job.getStatusTimestamp(JobStatus.CREATED);
+		long started = job.getStatusTimestamp(JobStatus.INITIALIZING);
 		long finished = status.isGloballyTerminalState() ? job.getStatusTimestamp(status) : -1L;
 		long duration = (finished >= 0L ? finished : System.currentTimeMillis()) - started;
 

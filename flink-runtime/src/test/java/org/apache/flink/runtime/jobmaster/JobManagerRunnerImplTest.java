@@ -304,6 +304,7 @@ public class JobManagerRunnerImplTest extends TestLogger {
 			haServices,
 			classLoaderLease,
 			TestingUtils.defaultExecutor(),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			System.currentTimeMillis());
 	}
 }

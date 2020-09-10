@@ -248,7 +248,7 @@ public class DispatcherJobTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
 		CompletableFuture<JobManagerRunner> jobManagerRunnerCompletableFuture = new CompletableFuture<>();
 		DispatcherJob dispatcherJob = DispatcherJob.createFor(jobManagerRunnerCompletableFuture,
-			jobGraph.getJobID(), jobGraph.getName());
+			jobGraph.getJobID(), jobGraph.getName(), System.currentTimeMillis());
 
 		return new TestContext(
 			jobManagerRunnerCompletableFuture,

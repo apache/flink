@@ -64,7 +64,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			final Time slotRequestTimeout,
 			final ShuffleMaster<?> shuffleMaster,
 			final JobMasterPartitionTracker partitionTracker,
-			final ExecutionDeploymentTracker executionDeploymentTracker) throws Exception {
+			final ExecutionDeploymentTracker executionDeploymentTracker,
+			long initializationTimestamp) throws Exception {
 
 		final DefaultSchedulerComponents schedulerComponents = createSchedulerComponents(
 			jobGraph.getScheduleMode(),
@@ -104,6 +105,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			new DefaultExecutionVertexOperations(),
 			new ExecutionVertexVersioner(),
 			schedulerComponents.getAllocatorFactory(),
-			executionDeploymentTracker);
+			executionDeploymentTracker,
+			initializationTimestamp);
 	}
 }

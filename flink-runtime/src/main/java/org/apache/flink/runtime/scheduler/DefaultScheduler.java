@@ -127,7 +127,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final ExecutionVertexOperations executionVertexOperations,
 		final ExecutionVertexVersioner executionVertexVersioner,
 		final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
-		final ExecutionDeploymentTracker executionDeploymentTracker) throws Exception {
+		final ExecutionDeploymentTracker executionDeploymentTracker,
+		long initializationTimestamp) throws Exception {
 
 		super(
 			log,
@@ -148,7 +149,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			partitionTracker,
 			executionVertexVersioner,
 			executionDeploymentTracker,
-			false);
+			false,
+			initializationTimestamp);
 
 		this.log = log;
 

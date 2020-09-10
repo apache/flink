@@ -359,13 +359,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private void runJob(JobGraph jobGraph, ExecutionType executionType) {
 		Preconditions.checkState(!runningJobs.containsKey(jobGraph.getJobID()));
-
-		CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph);
+		long initializationTimestamp = System.currentTimeMillis();
+		CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph, initializationTimestamp);
 
 		DispatcherJob dispatcherJob = DispatcherJob.createFor(
 				jobManagerRunnerFuture,
 				jobGraph.getJobID(),
-				jobGraph.getName());
+				jobGraph.getName(),
+				initializationTimestamp);
 		runningJobs.put(jobGraph.getJobID(), dispatcherJob);
 
 		final JobID jobId = jobGraph.getJobID();
@@ -399,7 +400,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	CompletableFuture<JobManagerRunner> createJobManagerRunner(JobGraph jobGraph) {
+	CompletableFuture<JobManagerRunner> createJobManagerRunner(JobGraph jobGraph, long initializationTimestamp) {
 		final RpcService rpcService = getRpcService();
 		return CompletableFuture.supplyAsync(
 			() -> {
@@ -412,7 +413,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 						heartbeatServices,
 						jobManagerSharedServices,
 						new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
-						fatalErrorHandler);
+						fatalErrorHandler,
+						initializationTimestamp);
 					runner.start();
 					return runner;
 				} catch (Exception e) {

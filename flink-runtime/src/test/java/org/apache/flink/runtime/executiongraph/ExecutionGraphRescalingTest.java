@@ -81,7 +81,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER,
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 
 		for (JobVertex jv : jobVertices) {
 			assertThat(jv.getParallelism(), is(initialParallelism));
@@ -112,7 +113,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER,
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 
 		for (JobVertex jv : jobVertices) {
 			assertThat(jv.getParallelism(), is(1));
@@ -143,7 +145,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			TEST_LOGGER,
 			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
+			NoOpJobMasterPartitionTracker.INSTANCE,
+			System.currentTimeMillis());
 
 		for (JobVertex jv : jobVertices) {
 			assertThat(jv.getParallelism(), is(scaleUpParallelism));
@@ -187,7 +190,8 @@ public class ExecutionGraphRescalingTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				TEST_LOGGER,
 				NettyShuffleMaster.INSTANCE,
-				NoOpJobMasterPartitionTracker.INSTANCE);
+				NoOpJobMasterPartitionTracker.INSTANCE,
+				System.currentTimeMillis());
 
 			fail("Building the ExecutionGraph with a parallelism higher than the max parallelism should fail.");
 		} catch (JobException e) {

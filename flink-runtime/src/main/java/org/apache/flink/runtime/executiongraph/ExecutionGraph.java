@@ -338,7 +338,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			JobMasterPartitionTracker partitionTracker,
 			ScheduleMode scheduleMode,
 			ExecutionDeploymentListener executionDeploymentListener,
-			ExecutionStateUpdateListener executionStateUpdateListener) throws IOException {
+			ExecutionStateUpdateListener executionStateUpdateListener,
+			long initializationTimestamp) throws IOException {
 
 		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
@@ -365,6 +366,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.jobStatusListeners  = new ArrayList<>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
+		this.stateTimestamps[JobStatus.INITIALIZING.ordinal()] = initializationTimestamp;
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
 		this.rpcTimeout = checkNotNull(rpcTimeout);
