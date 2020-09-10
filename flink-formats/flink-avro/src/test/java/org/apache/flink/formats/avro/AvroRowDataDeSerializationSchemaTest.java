@@ -19,7 +19,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.avro.generated.JodaTimeRecord;
+import org.apache.flink.formats.avro.generated.LogicalTimeRecord;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -35,15 +35,15 @@ import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -164,11 +164,12 @@ public class AvroRowDataDeSerializationSchemaTest {
 
 	@Test
 	public void testSpecificType() throws Exception {
-		JodaTimeRecord record = new JodaTimeRecord();
-		record.setTypeTimestampMillis(DateTime.parse("2010-06-30T01:20:20"));
+		LogicalTimeRecord record = new LogicalTimeRecord();
+		Instant timestamp = Instant.parse("2010-06-30T01:20:20Z");
+		record.setTypeTimestampMillis(timestamp);
 		record.setTypeDate(LocalDate.parse("2014-03-01"));
 		record.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-		SpecificDatumWriter<JodaTimeRecord> datumWriter = new SpecificDatumWriter<>(JodaTimeRecord.class);
+		SpecificDatumWriter<LogicalTimeRecord> datumWriter = new SpecificDatumWriter<>(LogicalTimeRecord.class);
 		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
 		datumWriter.write(record, encoder);
@@ -191,7 +192,7 @@ public class AvroRowDataDeSerializationSchemaTest {
 		byte[] output = serializationSchema.serialize(rowData);
 		RowData rowData2 = deserializationSchema.deserialize(output);
 		Assert.assertEquals(rowData, rowData2);
-		Assert.assertEquals("2010-06-30T01:20:20", rowData.getTimestamp(0, 3).toString());
+		Assert.assertEquals(timestamp, rowData.getTimestamp(0, 3).toInstant());
 		Assert.assertEquals("2014-03-01", DataFormatConverters.LocalDateConverter.INSTANCE.toExternal(
 				rowData.getInt(1)).toString());
 		Assert.assertEquals("12:12:12", DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(
