@@ -214,7 +214,7 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 		if (mark.getTimestamp() == Long.MAX_VALUE) {
 			invokeFinishBundle();
 			super.processWatermark(mark);
-		} else if (elementCount == 0) {
+		} else if (isBundleFinished()) {
 			// forward the watermark immediately if the bundle is already finished.
 			super.processWatermark(mark);
 		} else {
@@ -231,6 +231,13 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 					}
 				};
 		}
+	}
+
+	/**
+	 * Returns whether the bundle is finished.
+	 */
+	public boolean isBundleFinished() {
+		return elementCount == 0;
 	}
 
 	/**
@@ -299,7 +306,6 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 	 * Checks whether to invoke finishBundle by elements count. Called in processElement.
 	 */
 	protected void checkInvokeFinishBundleByCount() throws Exception {
-		elementCount++;
 		if (elementCount >= maxBundleSize) {
 			invokeFinishBundle();
 		}

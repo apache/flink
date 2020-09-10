@@ -145,6 +145,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		IN value = element.getValue();
 		bufferInput(value);
 		processElementInternal(value);
+		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
@@ -185,7 +186,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 	 * Buffers the specified input, it will be used to construct
 	 * the operator result together with the user-defined function execution result.
 	 */
-	public abstract void bufferInput(IN input);
+	public abstract void bufferInput(IN input) throws Exception;
 
 	public abstract UDFIN getFunctionInput(IN element);
 
