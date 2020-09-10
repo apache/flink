@@ -25,71 +25,48 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-import java.util.Collection;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Context for slot allocation.
  */
-class ExecutionSlotAllocationContext implements PreferredLocationsRetriever {
+interface ExecutionSlotAllocationContext extends PreferredLocationsRetriever {
 
-	private final PreferredLocationsRetriever preferredLocationsRetriever;
+	/**
+	 * Returns required resources for an execution vertex.
+	 *
+	 * @param executionVertexId id of the execution vertex
+	 * @return required resources for the given execution vertex
+	 */
+	ResourceProfile getResourceProfile(ExecutionVertexID executionVertexId);
 
-	private final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever;
+	/**
+	 * Returns prior allocation id for an execution vertex.
+	 *
+	 * @param executionVertexId id of the execution vertex
+	 * @return prior allocation id for the given execution vertex
+	 */
+	AllocationID getPriorAllocationId(ExecutionVertexID executionVertexId);
 
-	private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
+	/**
+	 * Returns the scheduling topology containing all execution vertices and edges.
+	 *
+	 * @return scheduling topology
+	 */
+	SchedulingTopology getSchedulingTopology();
 
-	private final SchedulingTopology schedulingTopology;
+	/**
+	 * Returns all slot sharing groups in the job.
+	 *
+	 * @return all slot sharing groups in the job
+	 */
+	Set<SlotSharingGroup> getLogicalSlotSharingGroups();
 
-	private final Supplier<Set<SlotSharingGroup>> logicalSlotSharingGroupSupplier;
-
-	private final Supplier<Set<CoLocationGroupDesc>> coLocationGroupSupplier;
-
-	ExecutionSlotAllocationContext(
-			final PreferredLocationsRetriever preferredLocationsRetriever,
-			final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever,
-			final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever,
-			final SchedulingTopology schedulingTopology,
-			final Supplier<Set<SlotSharingGroup>> logicalSlotSharingGroupSupplier,
-			final Supplier<Set<CoLocationGroupDesc>> coLocationGroupSupplier) {
-
-		this.preferredLocationsRetriever = preferredLocationsRetriever;
-		this.resourceProfileRetriever = resourceProfileRetriever;
-		this.priorAllocationIdRetriever = priorAllocationIdRetriever;
-		this.schedulingTopology = schedulingTopology;
-		this.logicalSlotSharingGroupSupplier = logicalSlotSharingGroupSupplier;
-		this.coLocationGroupSupplier = coLocationGroupSupplier;
-	}
-
-	@Override
-	public CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
-			final ExecutionVertexID executionVertexId,
-			final Set<ExecutionVertexID> producersToIgnore) {
-		return preferredLocationsRetriever.getPreferredLocations(executionVertexId, producersToIgnore);
-	}
-
-	ResourceProfile getResourceProfile(final ExecutionVertexID executionVertexId) {
-		return resourceProfileRetriever.apply(executionVertexId);
-	}
-
-	AllocationID getPriorAllocationId(final ExecutionVertexID executionVertexId) {
-		return priorAllocationIdRetriever.apply(executionVertexId);
-	}
-
-	SchedulingTopology getSchedulingTopology() {
-		return schedulingTopology;
-	}
-
-	Set<SlotSharingGroup> getLogicalSlotSharingGroups() {
-		return logicalSlotSharingGroupSupplier.get();
-	}
-
-	Set<CoLocationGroupDesc> getCoLocationGroups() {
-		return coLocationGroupSupplier.get();
-	}
+	/**
+	 * Returns all co-location groups in the job.
+	 *
+	 * @return all co-location groups in the job
+	 */
+	Set<CoLocationGroupDesc> getCoLocationGroups();
 }
