@@ -36,9 +36,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeFieldType;
-import org.joda.time.LocalDate;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -49,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.formats.avro.typeutils.AvroSchemaConverter.extractValueTypeToAvroMap;
-import static org.joda.time.DateTimeConstants.MILLIS_PER_DAY;
 
 /** Tool class used to convert from Avro {@link GenericRecord} to {@link RowData}. **/
 @Internal
@@ -178,10 +174,8 @@ public class AvroToRowDataConverters {
 	}
 
 	private static AvroToRowDataConverter createMapConverter(LogicalType type) {
-		final AvroToRowDataConverter keyConverter = createConverter(
-				DataTypes.STRING().getLogicalType());
-		final AvroToRowDataConverter valueConverter = createConverter(
-				extractValueTypeToAvroMap(type));
+		final AvroToRowDataConverter keyConverter = createConverter(DataTypes.STRING().getLogicalType());
+		final AvroToRowDataConverter valueConverter = createConverter(extractValueTypeToAvroMap(type));
 
 		return avroObject -> {
 			final Map<?, ?> map = (Map<?, ?>) avroObject;
@@ -200,9 +194,13 @@ public class AvroToRowDataConverters {
 		if (object instanceof Long) {
 			millis = (Long) object;
 		} else {
-			// use 'provided' Joda time
-			final DateTime value = (DateTime) object;
-			millis = value.toDate().getTime();
+			JodaConverter jodaConverter = JodaConverter.getConverter();
+			if (jodaConverter != null) {
+				millis = jodaConverter.convertTimestamp(object);
+			} else {
+				throw new IllegalArgumentException(
+					"Unexpected object type for TIMESTAMP logical type. Received: " + object);
+			}
 		}
 		return toTimestampData(millis);
 	}
@@ -211,9 +209,12 @@ public class AvroToRowDataConverters {
 		if (object instanceof Integer) {
 			return (Integer) object;
 		} else {
-			// use 'provided' Joda time
-			final LocalDate value = (LocalDate) object;
-			return (int) (toTimestampData(value.toDate().getTime()).getMillisecond() / MILLIS_PER_DAY);
+			JodaConverter jodaConverter = JodaConverter.getConverter();
+			if (jodaConverter != null) {
+				return (int) jodaConverter.convertDate(object);
+			} else {
+				throw new IllegalArgumentException("Unexpected object type for DATE logical type. Received: " + object);
+			}
 		}
 	}
 
@@ -226,9 +227,12 @@ public class AvroToRowDataConverters {
 		if (object instanceof Integer) {
 			millis = (Integer) object;
 		} else {
-			// use 'provided' Joda time
-			final org.joda.time.LocalTime value = (org.joda.time.LocalTime) object;
-			millis = value.get(DateTimeFieldType.millisOfDay());
+			JodaConverter jodaConverter = JodaConverter.getConverter();
+			if (jodaConverter != null) {
+				millis = jodaConverter.convertTime(object);
+			} else {
+				throw new IllegalArgumentException("Unexpected object type for TIME logical type. Received: " + object);
+			}
 		}
 		return millis;
 	}
