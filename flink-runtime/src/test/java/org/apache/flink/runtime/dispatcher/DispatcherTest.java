@@ -114,6 +114,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -751,6 +752,31 @@ public class DispatcherTest extends TestLogger {
 		} catch (TimeoutException expected) {}
 	}
 
+	@Test
+	public void testInitializationTimestampForwardedToExecutionGraph() throws Exception {
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
+		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+		// ensure job is running
+		CommonTestUtils.waitUntilCondition(
+			() -> dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT).get() == JobStatus.RUNNING,
+			Deadline.fromNow(Duration.ofSeconds(10)),
+			5L);
+
+		ArchivedExecutionGraph result = dispatcher.requestJob(jobGraph.getJobID(), TIMEOUT).get();
+
+		// ensure all statuses are set in the ExecutionGraph
+		assertThat(result.getStatusTimestamp(JobStatus.INITIALIZING), greaterThan(0L));
+		assertThat(result.getStatusTimestamp(JobStatus.CREATED), greaterThan(0L));
+		assertThat(result.getStatusTimestamp(JobStatus.RUNNING), greaterThan(0L));
+
+		// ensure correct order
+		assertThat(result.getStatusTimestamp(JobStatus.INITIALIZING) <= result.getStatusTimestamp(JobStatus.CREATED), is(true));
+	}
+
 	private static final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {
 
 		@Nonnull
@@ -761,7 +787,7 @@ public class DispatcherTest extends TestLogger {
 		}
 
 		@Override
-		public TestingJobManagerRunner createJobManagerRunner(JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, JobManagerSharedServices jobManagerSharedServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
+		public TestingJobManagerRunner createJobManagerRunner(JobGraph jobGraph, Configuration configuration, RpcService rpcService, HighAvailabilityServices highAvailabilityServices, HeartbeatServices heartbeatServices, JobManagerSharedServices jobManagerSharedServices, JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory, FatalErrorHandler fatalErrorHandler, long initializationTimestamp) throws Exception {
 			jobManagerRunnerCreationLatch.run();
 
 			TestingJobManagerRunner testingRunner = super.createJobManagerRunner(
@@ -772,7 +798,8 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				jobManagerSharedServices,
 				jobManagerJobMetricGroupFactory,
-				fatalErrorHandler);
+				fatalErrorHandler,
+				initializationTimestamp);
 
 			TestingJobMasterGateway testingJobMasterGateway = new TestingJobMasterGatewayBuilder()
 				.setRequestJobSupplier(() -> CompletableFuture.completedFuture(ArchivedExecutionGraph.createFromInitializingJob(jobGraph.getJobID(),
@@ -837,7 +864,8 @@ public class DispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				JobManagerSharedServices jobManagerSharedServices,
 				JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-				FatalErrorHandler fatalErrorHandler) throws Exception {
+				FatalErrorHandler fatalErrorHandler,
+				long initializationTimestamp) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
 			createdJobManagerRunnerLatch.countDown();
@@ -850,7 +878,8 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				jobManagerSharedServices,
 				jobManagerJobMetricGroupFactory,
-				fatalErrorHandler);
+				fatalErrorHandler,
+				initializationTimestamp);
 		}
 	}
 

@@ -52,7 +52,8 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			HeartbeatServices heartbeatServices,
 			JobManagerSharedServices jobManagerServices,
 			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			long initializationTimestamp) throws Exception {
 
 		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
@@ -78,6 +79,7 @@ public enum DefaultJobManagerRunnerFactory implements JobManagerRunnerFactory {
 			highAvailabilityServices,
 			jobManagerServices.getLibraryCacheManager().registerClassLoaderLease(jobGraph.getJobID()),
 			jobManagerServices.getScheduledExecutorService(),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			initializationTimestamp);
 	}
 }

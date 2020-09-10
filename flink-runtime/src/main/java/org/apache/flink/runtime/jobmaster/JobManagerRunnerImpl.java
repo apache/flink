@@ -107,7 +107,8 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			final HighAvailabilityServices haServices,
 			final LibraryCacheManager.ClassLoaderLease classLoaderLease,
 			final Executor executor,
-			final FatalErrorHandler fatalErrorHandler) throws Exception {
+			final FatalErrorHandler fatalErrorHandler,
+			long initializationTimestamp) throws Exception {
 
 		this.resultFuture = new CompletableFuture<>();
 		this.terminationFuture = new CompletableFuture<>();
@@ -137,7 +138,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		this.leaderGatewayFuture = new CompletableFuture<>();
 
 		// now start the JobManager
-		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
+		this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader, initializationTimestamp);
 	}
 
 	//----------------------------------------------------------------------------------------------

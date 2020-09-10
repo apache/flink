@@ -187,7 +187,8 @@ public class TestingExecutionGraphBuilder {
 			partitionTracker,
 			failoverStrategyFactory,
 			executionDeploymentListener,
-			executionStateUpdateListener);
+			executionStateUpdateListener,
+			System.currentTimeMillis());
 	}
 
 }

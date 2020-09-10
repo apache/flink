@@ -89,18 +89,20 @@ public final class DispatcherJob implements AutoCloseableAsync {
 	static DispatcherJob createFor(
 			CompletableFuture<JobManagerRunner> jobManagerRunnerFuture,
 			JobID jobId,
-			String jobName) {
-		return new DispatcherJob(jobManagerRunnerFuture, jobId, jobName);
+			String jobName,
+			long initializationTimestamp) {
+		return new DispatcherJob(jobManagerRunnerFuture, jobId, jobName, initializationTimestamp);
 	}
 
 	private DispatcherJob(
 			CompletableFuture<JobManagerRunner> jobManagerRunnerFuture,
 			JobID jobId,
-			String jobName) {
+			String jobName,
+			long initializationTimestamp) {
 		this.jobManagerRunnerFuture = jobManagerRunnerFuture;
 		this.jobId = jobId;
 		this.jobName = jobName;
-		this.initializationTimestamp = System.currentTimeMillis();
+		this.initializationTimestamp = initializationTimestamp;
 		this.jobResultFuture = new CompletableFuture<>();
 
 		FutureUtils.assertNoException(this.jobManagerRunnerFuture.handle((jobManagerRunner, throwable) -> {
