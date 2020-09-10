@@ -81,6 +81,7 @@ under the License.
 			<modules>
 				<module>flink-sql-orc</module>
 				<module>flink-sql-parquet</module>
+				<module>flink-sql-avro</module>
 			</modules>
 		</profile>
 	</profiles>
