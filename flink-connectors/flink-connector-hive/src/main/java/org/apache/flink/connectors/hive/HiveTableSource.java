@@ -88,6 +88,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
 import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toLocalDateTime;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
@@ -168,6 +169,7 @@ public class HiveTableSource implements
 
 	@Override
 	public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+		checkAcidTable(catalogTable, tablePath);
 		List<HiveTablePartition> allHivePartitions = initAllPartitions();
 
 		@SuppressWarnings("unchecked")
