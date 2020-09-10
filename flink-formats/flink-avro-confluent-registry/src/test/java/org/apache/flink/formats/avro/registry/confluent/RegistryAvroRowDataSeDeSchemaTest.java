@@ -148,7 +148,7 @@ public class RegistryAvroRowDataSeDeSchemaTest {
 		byte[] serialized = serializer.serialize(oriData);
 		RowData rowData = deserializer.deserialize(serialized);
 		assertThat(rowData.getArity(), equalTo(schema.getFields().size()));
-		assertEquals(address.getNum(), Integer.valueOf(rowData.getInt(0)));
+		assertEquals(address.getNum(), rowData.getInt(0));
 		assertEquals(address.getStreet(), rowData.getString(1).toString());
 		if (schema != ADDRESS_SCHEMA_COMPATIBLE) {
 			assertEquals(address.getCity(), rowData.getString(2).toString());

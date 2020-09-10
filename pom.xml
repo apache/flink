@@ -125,7 +125,7 @@ under the License.
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.10.1</jackson.version>
 		<prometheus.version>0.8.1</prometheus.version>
-		<avro.version>1.8.2</avro.version>
+		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit.version>4.12</junit.version>
@@ -468,7 +468,8 @@ under the License.
 				<version>3.4.0</version>
 			</dependency>
 
-			<!-- Make sure we use a consistent avro version between Flink and Hadoop -->
+			<!-- We no longer align the avro version with the version bundled in Hadoop.
+			 Users might need to downgrade the avro version for a particular Hadoop version. -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>

@@ -23,7 +23,6 @@ import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
-import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -36,15 +35,16 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.util.Utf8;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -86,9 +86,9 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeBytes(ByteBuffer.allocate(10))
 			.setTypeDate(LocalDate.parse("2014-03-01"))
 			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
-			.setTypeTimeMicros(123456)
-			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
-			.setTypeTimestampMicros(123456L)
+			.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
+			.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
 			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
@@ -107,12 +107,13 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeMap(new HashMap<>())
 			.setTypeFixed(new Fixed16())
 			.setTypeUnion(null)
-			.setTypeNested(null).setTypeDate(LocalDate.parse("2014-03-01"))
+			.setTypeNested(null)
+			.setTypeDate(LocalDate.parse("2014-03-01"))
 			.setTypeBytes(ByteBuffer.allocate(10))
 			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
-			.setTypeTimeMicros(123456)
-			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
-			.setTypeTimestampMicros(123456L)
+			.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
+			.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
 			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
@@ -135,9 +136,9 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 			.setTypeBytes(ByteBuffer.allocate(10))
 			.setTypeDate(LocalDate.parse("2014-03-01"))
 			.setTypeTimeMillis(LocalTime.parse("12:12:12"))
-			.setTypeTimeMicros(123456)
-			.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
-			.setTypeTimestampMicros(123456L)
+			.setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
+			.setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
+			.setTypeTimestampMicros(Instant.ofEpochSecond(0).plus(123456L, ChronoUnit.MICROS))
 			.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 			.build();
@@ -151,9 +152,9 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 	@Test
 	public void testAvroToRow() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().registerTypeWithKryoSerializer(LocalDate.class, AvroKryoSerializerUtils.JodaLocalDateSerializer.class);
-		env.getConfig().registerTypeWithKryoSerializer(LocalTime.class, AvroKryoSerializerUtils.JodaLocalTimeSerializer.class);
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, EnvironmentSettings.newInstance().useBlinkPlanner().build());
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(
+			env,
+			EnvironmentSettings.newInstance().useBlinkPlanner().build());
 
 		Table t = tEnv.fromDataStream(testData(env));
 		Table result = t.select($("*"));
@@ -166,19 +167,19 @@ public class AvroTypesITCase extends TableProgramsClusterTestBase {
 		String expected =
 			"black,null,Whatever,[true],[hello],true,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10]," +
 			"2014-03-01,java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
-			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,123456," +
-			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null\n" +
+			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],42,{},null,null,null,00:00:00.123456," +
+			"12:12:12,1970-01-01T00:00:00.123456Z,2014-03-01T12:12:12.321Z,null\n" +
 			"blue,null,Charlie,[],[],false,java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
 			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],1.337,RED,null,1337,{}," +
 			// TODO we should get an Avro record here instead of a nested row. This should be fixed
 			// with FLIP-136
-			"Berlin,42,Berlin,Bakerstreet,12049,null,null,123456,12:12:12.000,123456," +
+			"Berlin,42,Berlin,Bakerstreet,12049,null,null,00:00:00.123456,12:12:12,1970-01-01T00:00:00.123456Z," +
 			"2014-03-01T12:12:12.321Z,null\n" +
 			"yellow,null,Terminator,[false],[world],false," +
 			"java.nio.HeapByteBuffer[pos=0 lim=10 cap=10],2014-03-01," +
 			"java.nio.HeapByteBuffer[pos=0 lim=2 cap=2],[7, -48],0.0,GREEN," +
-			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,123456," +
-			"12:12:12.000,123456,2014-03-01T12:12:12.321Z,null";
+			"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],1,{},null,null,null,00:00:00.123456," +
+			"12:12:12,1970-01-01T00:00:00.123456Z,2014-03-01T12:12:12.321Z,null";
 		TestBaseUtils.compareResultAsText(results, expected);
 	}
 

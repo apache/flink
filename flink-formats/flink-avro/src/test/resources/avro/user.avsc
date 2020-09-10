@@ -102,7 +102,7 @@
 },
   {"namespace": "org.apache.flink.formats.avro.generated",
    "type": "record",
-   "name": "JodaTimeRecord",
+   "name": "LogicalTimeRecord",
    "fields": [
        {"name": "type_timestamp_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
        {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},

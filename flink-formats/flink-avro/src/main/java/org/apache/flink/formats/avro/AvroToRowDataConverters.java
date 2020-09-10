@@ -40,7 +40,10 @@ import org.apache.avro.generic.IndexedRecord;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
-import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoField;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -193,6 +196,8 @@ public class AvroToRowDataConverters {
 		final long millis;
 		if (object instanceof Long) {
 			millis = (Long) object;
+		} else if (object instanceof Instant) {
+			millis = ((Instant) object).toEpochMilli();
 		} else {
 			JodaConverter jodaConverter = JodaConverter.getConverter();
 			if (jodaConverter != null) {
@@ -202,12 +207,14 @@ public class AvroToRowDataConverters {
 					"Unexpected object type for TIMESTAMP logical type. Received: " + object);
 			}
 		}
-		return toTimestampData(millis);
+		return TimestampData.fromEpochMillis(millis);
 	}
 
 	private static int convertToDate(Object object) {
 		if (object instanceof Integer) {
 			return (Integer) object;
+		} else if (object instanceof LocalDate) {
+			return (int) ((LocalDate) object).toEpochDay();
 		} else {
 			JodaConverter jodaConverter = JodaConverter.getConverter();
 			if (jodaConverter != null) {
@@ -218,14 +225,12 @@ public class AvroToRowDataConverters {
 		}
 	}
 
-	private static TimestampData toTimestampData(long timeZoneMills) {
-		return TimestampData.fromTimestamp(new Timestamp(timeZoneMills));
-	}
-
 	private static int convertToTime(Object object) {
 		final int millis;
 		if (object instanceof Integer) {
 			millis = (Integer) object;
+		} else if (object instanceof LocalTime) {
+			millis = ((LocalTime) object).get(ChronoField.MILLI_OF_DAY);
 		} else {
 			JodaConverter jodaConverter = JodaConverter.getConverter();
 			if (jodaConverter != null) {
