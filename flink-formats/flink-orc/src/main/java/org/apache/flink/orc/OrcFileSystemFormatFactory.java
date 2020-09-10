@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -85,12 +86,22 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
+		List<OrcSplitReader.Predicate> orcPredicates = new ArrayList<>();
+
+		for (Expression pred : context.getPushedDownFilters()) {
+			OrcSplitReader.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
+			if (orcPred != null) {
+				orcPredicates.add(orcPred);
+			}
+		}
+
 		return new OrcRowDataInputFormat(
 				context.getPaths(),
 				context.getSchema().getFieldNames(),
 				context.getSchema().getFieldDataTypes(),
 				context.getProjectFields(),
 				context.getDefaultPartName(),
+				orcPredicates,
 				context.getPushedDownLimit(),
 				getOrcProperties(context.getFormatOptions()));
 	}
@@ -128,6 +139,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		private final DataType[] fullFieldTypes;
 		private final int[] selectedFields;
 		private final String partDefaultName;
+		private List<OrcSplitReader.Predicate> pushedDownFilters;
 		private final Properties properties;
 		private final long limit;
 
@@ -140,11 +152,13 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 				DataType[] fullFieldTypes,
 				int[] selectedFields,
 				String partDefaultName,
+				List<OrcSplitReader.Predicate> pushedDownFilters,
 				long limit,
 				Properties properties) {
 			super.setFilePaths(paths);
 			this.limit = limit;
 			this.partDefaultName = partDefaultName;
+			this.pushedDownFilters = pushedDownFilters;
 			this.fullFieldNames = fullFieldNames;
 			this.fullFieldTypes = fullFieldTypes;
 			this.selectedFields = selectedFields;
@@ -172,7 +186,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 					fullFieldTypes,
 					partObjects,
 					selectedFields,
-					new ArrayList<>(),
+					pushedDownFilters,
 					DEFAULT_SIZE,
 					new Path(fileSplit.getPath().toString()),
 					fileSplit.getStart(),
