@@ -60,6 +60,8 @@ class TableResult(object):
         because the result contains only one row.
         For other operations, this method will return immediately,
         because the result is already available locally.
+
+        .. versionadded:: 1.12.0
         """
         if timeout_ms:
             TimeUnit = get_gateway().jvm.java.util.concurrent.TimeUnit
