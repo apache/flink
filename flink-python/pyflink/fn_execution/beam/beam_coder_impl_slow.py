@@ -20,7 +20,7 @@ import datetime
 import decimal
 import pickle
 import struct
-from typing import Any
+from typing import Any, Tuple, Iterator
 from typing import Generator
 from typing import List
 
@@ -28,8 +28,10 @@ import pyarrow as pa
 from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table.types import Row
+from pyflink.table.types import Row, RowKind
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
+
+ROW_KIND_BIT_SIZE = 2
 
 
 class FlattenRowCoderImpl(StreamCoderImpl):
@@ -37,14 +39,19 @@ class FlattenRowCoderImpl(StreamCoderImpl):
     def __init__(self, field_coders):
         self._field_coders = field_coders
         self._field_count = len(field_coders)
-        self._leading_complete_bytes_num = self._field_count // 8
-        self._remaining_bits_num = self._field_count % 8
-        self.null_mask_search_table = self.generate_null_mask_search_table()
-        self.null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
+        # the row kind uses the first 2 bits of the bitmap, followings are belong to the null mask
+        # for more details refer to:
+        # https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/java/typeutils/runtime/RowSerializer.java
+        self._leading_complete_bytes_num = (self._field_count + ROW_KIND_BIT_SIZE) // 8
+        self._remaining_bits_num = (self._field_count + ROW_KIND_BIT_SIZE) % 8
+        self.mask_search_table = self.generate_mask_search_table()
+        self.mask_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
+        self.row_kind_byte_table = \
+            [i << (8 - ROW_KIND_BIT_SIZE) for i in range(2 ** ROW_KIND_BIT_SIZE)]
         self.data_out_stream = create_OutputStream()
 
     @staticmethod
-    def generate_null_mask_search_table():
+    def generate_mask_search_table():
         """
         Each bit of one byte represents if the column at the corresponding position is None or not,
         e.g. 0x84 represents the first column and the sixth column are None.
@@ -61,7 +68,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         field_coders = self._field_coders
         data_out_stream = self.data_out_stream
         for value in iter_value:
-            self._write_null_mask(value, data_out_stream)
+            self._write_mask(value, data_out_stream)
             for i in range(self._field_count):
                 item = value[i]
                 if item is not None:
@@ -75,62 +82,106 @@ class FlattenRowCoderImpl(StreamCoderImpl):
             in_stream.read_var_int64()
             yield self._decode_one_row_from_stream(in_stream, nested)
 
-    def _decode_one_row_from_stream(self, in_stream: create_InputStream, nested: bool) -> List:
-        null_mask = self._read_null_mask(in_stream)
-        return [None if null_mask[idx] else self._field_coders[idx].decode_from_stream(
-            in_stream, nested) for idx in range(0, self._field_count)]
+    def _decode_one_row_from_stream(
+            self, in_stream: create_InputStream, nested: bool) -> List:
+        mask = self._read_mask(in_stream)
+        # ignore the row kind value as it is unnecessary for stateless operation
+        return [None if mask[idx + ROW_KIND_BIT_SIZE] else
+                self._field_coders[idx].decode_from_stream(
+                    in_stream, nested) for idx in range(0, self._field_count)]
 
-    def _write_null_mask(self, value, out_stream):
+    def _write_mask(self, value, out_stream, row_kind_value=0):
         field_pos = 0
-        null_byte_search_table = self.null_byte_search_table
+        mask_byte_search_table = self.mask_byte_search_table
         remaining_bits_num = self._remaining_bits_num
-        for _ in range(self._leading_complete_bytes_num):
+
+        # first byte contains the row kind bits
+        b = self.row_kind_byte_table[row_kind_value]
+        for i in range(0, 8 - ROW_KIND_BIT_SIZE):
+            if field_pos + i < len(value) and value[field_pos + i] is None:
+                b |= mask_byte_search_table[i + ROW_KIND_BIT_SIZE]
+        field_pos += 8 - ROW_KIND_BIT_SIZE
+        out_stream.write_byte(b)
+
+        for _ in range(1, self._leading_complete_bytes_num):
             b = 0x00
             for i in range(0, 8):
                 if value[field_pos + i] is None:
-                    b |= null_byte_search_table[i]
+                    b |= mask_byte_search_table[i]
             field_pos += 8
             out_stream.write_byte(b)
 
-        if remaining_bits_num:
+        if self._leading_complete_bytes_num >= 1 and remaining_bits_num:
             b = 0x00
             for i in range(remaining_bits_num):
                 if value[field_pos + i] is None:
-                    b |= null_byte_search_table[i]
+                    b |= mask_byte_search_table[i]
             out_stream.write_byte(b)
 
-    def _read_null_mask(self, in_stream):
-        null_mask = []
-        null_mask_search_table = self.null_mask_search_table
+    def _read_mask(self, in_stream):
+        mask = []
+        mask_search_table = self.mask_search_table
         remaining_bits_num = self._remaining_bits_num
         for _ in range(self._leading_complete_bytes_num):
             b = in_stream.read_byte()
-            null_mask.extend(null_mask_search_table[b])
+            mask.extend(mask_search_table[b])
 
         if remaining_bits_num:
             b = in_stream.read_byte()
-            null_mask.extend(null_mask_search_table[b][0:remaining_bits_num])
-        return null_mask
+            mask.extend(mask_search_table[b][0:remaining_bits_num])
+        return mask
 
     def __repr__(self):
         return 'FlattenRowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
-class RowCoderImpl(FlattenRowCoderImpl):
+class FlattenRowCoderWithRowKindImpl(FlattenRowCoderImpl):
+
+    def __init__(self, field_coders):
+        super(FlattenRowCoderWithRowKindImpl, self).__init__(field_coders)
+
+    def _decode_one_row_from_stream(
+            self, in_stream: create_InputStream, nested: bool) -> Tuple[int, List]:
+        row_kind_and_null_mask = self._read_mask(in_stream)
+        row_kind_value = 0
+        for i in range(ROW_KIND_BIT_SIZE):
+            row_kind_value += int(row_kind_and_null_mask[ROW_KIND_BIT_SIZE - i - 1]) * 2 ** i
+        return row_kind_value, [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
+                                self._field_coders[idx].decode_from_stream(
+                                    in_stream, nested) for idx in range(0, self._field_count)]
+
+    def encode_to_stream(self, iter_value: Iterator[Tuple[int, List]], out_stream, nested):
+        field_coders = self._field_coders
+        data_out_stream = self.data_out_stream
+        for value in iter_value:
+            self._write_mask(value[1], data_out_stream, value[0])
+            for i in range(self._field_count):
+                item = value[i]
+                if item is not None:
+                    field_coders[i].encode_to_stream(item, data_out_stream, nested)
+            out_stream.write_var_int64(data_out_stream.size())
+            out_stream.write(data_out_stream.get())
+            data_out_stream._clear()
+
+
+class RowCoderImpl(FlattenRowCoderWithRowKindImpl):
 
     def __init__(self, field_coders):
         super(RowCoderImpl, self).__init__(field_coders)
 
-    def encode_to_stream(self, value, out_stream, nested):
+    def encode_to_stream(self, value: Row, out_stream, nested):
         field_coders = self._field_coders
-        self._write_null_mask(value, out_stream)
+        self._write_mask(value, out_stream, value.get_row_kind().value)
         for i in range(self._field_count):
             item = value[i]
             if item is not None:
                 field_coders[i].encode_to_stream(item, out_stream, nested)
 
     def decode_from_stream(self, in_stream, nested):
-        return Row(*self._decode_one_row_from_stream(in_stream, nested))
+        row_kind_value, fields = self._decode_one_row_from_stream(in_stream, nested)
+        row = Row(*fields)
+        row.set_row_kind(RowKind(row_kind_value))
+        return row
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)

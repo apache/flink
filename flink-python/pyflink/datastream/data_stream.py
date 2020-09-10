@@ -301,7 +301,8 @@ class DataStream(object):
             key_type_info = Types.PICKLED_BYTE_ARRAY()
             is_key_pickled_byte_array = True
 
-        intermediate_map_stream = self.map(lambda x: (key_selector.get_key(x), x),
+        from pyflink.table import Row
+        intermediate_map_stream = self.map(lambda x: Row(key_selector.get_key(x), x),
                                            output_type=Types.ROW([key_type_info, output_type_info]))
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
                                      .STREAM_KEY_BY_MAP_OPERATOR_NAME)
@@ -475,6 +476,7 @@ class DataStream(object):
         data_stream_num_partitions_env_key = gateway.jvm\
             .org.apache.flink.datastream.runtime.operators.python\
             .DataStreamPythonPartitionCustomFunctionOperator.DATA_STREAM_NUM_PARTITIONS
+        from pyflink.table import Row
 
         class PartitionCustomMapFunction(MapFunction):
             """
@@ -493,7 +495,7 @@ class DataStream(object):
                 if self.num_partitions is None:
                     self.num_partitions = int(os.environ[data_stream_num_partitions_env_key])
                 partition = partitioner.partition(key_selector.get_key(value), self.num_partitions)
-                return partition, value
+                return Row(partition, value)
 
             def __repr__(self) -> str:
                 return '_Flink_PartitionCustomMapFunction'

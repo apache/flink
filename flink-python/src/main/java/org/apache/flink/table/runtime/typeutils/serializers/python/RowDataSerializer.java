@@ -31,12 +31,14 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Arrays;
 
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
+import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
 
 /**
  * A {@link TypeSerializer} for {@link RowData}. It should be noted that the header will not be encoded.
@@ -45,17 +47,19 @@ import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask
 @Internal
 public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.RowDataSerializer {
 
+	public static final int ROW_KIND_OFFSET = 2;
+
 	private final LogicalType[] fieldTypes;
 
 	private final TypeSerializer[] fieldSerializers;
 
-	private transient boolean[] nullMask;
+	private transient boolean[] mask;
 
 	public RowDataSerializer(LogicalType[] types, TypeSerializer[] fieldSerializers) {
 		super(types, fieldSerializers);
 		this.fieldTypes = types;
 		this.fieldSerializers = fieldSerializers;
-		this.nullMask = new boolean[fieldSerializers.length];
+		this.mask = new boolean[fieldSerializers.length + ROW_KIND_OFFSET];
 	}
 
 	@Override
@@ -66,8 +70,8 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 			throw new RuntimeException("Row arity of input element does not match serializers.");
 		}
 
-		// write a null mask
-		writeNullMask(len, row, target);
+		fillMask(fieldSerializers.length, row, mask);
+		writeMask(mask, target);
 
 		for (int i = 0; i < row.getArity(); i++) {
 			if (!row.isNullAt(i)) {
@@ -80,11 +84,12 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 	@Override
 	public RowData deserialize(DataInputView source) throws IOException {
 		// read null mask
-		readIntoMask(source, nullMask);
+		readIntoMask(source, mask);
 
 		GenericRowData row = new GenericRowData(fieldSerializers.length);
+		row.setRowKind(readKindFromMask(mask));
 		for (int i = 0; i < row.getArity(); i++) {
-			if (nullMask[i]) {
+			if (mask[i + ROW_KIND_OFFSET]) {
 				row.setField(i, null);
 			} else {
 				row.setField(i, fieldSerializers[i].deserialize(source));
@@ -225,5 +230,23 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 			return intermediateResult.getFinalResult();
 		}
+	}
+
+	private static void fillMask(
+			int fieldLength,
+			RowData row,
+			boolean[] mask) {
+		final byte kind = row.getRowKind().toByteValue();
+		mask[0] = (kind & 0x01) > 0;
+		mask[1] = (kind & 0x02) > 0;
+
+		for (int fieldPos = 0; fieldPos < fieldLength; fieldPos++) {
+			mask[ROW_KIND_OFFSET + fieldPos] = row.isNullAt(fieldPos);
+		}
+	}
+
+	private static RowKind readKindFromMask(boolean[] mask) {
+		final byte kind = (byte) ((mask[0] ? 0x01 : 0x00) + (mask[1] ? 0x02 : 0x00));
+		return RowKind.fromByteValue(kind);
 	}
 }

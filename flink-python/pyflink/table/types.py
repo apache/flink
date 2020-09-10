@@ -24,6 +24,7 @@ import sys
 import time
 from array import array
 from copy import copy
+from enum import Enum
 from functools import reduce
 from threading import RLock
 
@@ -32,7 +33,7 @@ from py4j.java_gateway import get_java_class
 from pyflink.util.utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['DataTypes', 'UserDefinedType', 'Row']
+__all__ = ['DataTypes', 'UserDefinedType', 'Row', 'RowKind']
 
 
 class DataType(object):
@@ -1966,9 +1967,19 @@ def _to_java_data_type(data_type: DataType):
     return j_data_type
 
 
-def _create_row(fields, values):
+class RowKind(Enum):
+    INSERT = 0
+    UPDATE_BEFORE = 1
+    UPDATE_AFTER = 2
+    DELETE = 3
+
+
+def _create_row(fields, values, row_kind=None):
     row = Row(*values)
-    row._fields = fields
+    if fields is not None:
+        row._fields = fields
+    if row_kind is not None:
+        row.set_row_kind(row_kind)
     return row
 
 
@@ -2027,11 +2038,11 @@ class Row(tuple):
             row = tuple.__new__(cls, [kwargs[n] for n in names])
             row._fields = names
             row._from_dict = True
-            return row
-
         else:
             # create row class or objects
-            return tuple.__new__(cls, args)
+            row = tuple.__new__(cls, args)
+        row._row_kind = RowKind.INSERT
+        return row
 
     def as_dict(self, recursive=False):
         """
@@ -2068,6 +2079,12 @@ class Row(tuple):
         else:
             return dict(zip(self._fields, self))
 
+    def get_row_kind(self):
+        return self._row_kind
+
+    def set_row_kind(self, row_kind):
+        self._row_kind = row_kind
+
     def __contains__(self, item):
         if hasattr(self, "_fields"):
             return item in self._fields
@@ -2082,7 +2099,7 @@ class Row(tuple):
         if len(args) > len(self):
             raise ValueError("Can not create Row with fields %s, expected %d values "
                              "but got %s" % (self, len(self), args))
-        return _create_row(self, args)
+        return _create_row(self, args, self._row_kind)
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
@@ -2111,7 +2128,7 @@ class Row(tuple):
             raise AttributeError(item)
 
     def __setattr__(self, key, value):
-        if key != '_fields' and key != "_from_dict":
+        if key != '_fields' and key != "_from_dict" and key != "_row_kind":
             raise Exception("Row is read-only")
         self.__dict__[key] = value
 
@@ -2120,9 +2137,9 @@ class Row(tuple):
         Returns a tuple so Python knows how to pickle Row.
         """
         if hasattr(self, "_fields"):
-            return _create_row, (self._fields, tuple(self))
+            return _create_row, (self._fields, tuple(self), self._row_kind)
         else:
-            return tuple.__reduce__(self)
+            return _create_row, (None, tuple(self), self._row_kind)
 
     def __repr__(self):
         """
@@ -2133,6 +2150,21 @@ class Row(tuple):
                                          for k, v in zip(self._fields, tuple(self)))
         else:
             return "<Row(%s)>" % ", ".join("%r" % field for field in self)
+
+    def __eq__(self, other):
+        if not isinstance(other, Row):
+            return False
+        if hasattr(self, "_fields"):
+            if not hasattr(other, "_fields"):
+                return False
+            if self._fields != other._fields:
+                return False
+        else:
+            if hasattr(other, "_fields"):
+                return False
+        return self.__class__ == other.__class__ and \
+            self._row_kind == other._row_kind and \
+            super(Row, self).__eq__(other)
 
 
 _acceptable_types = {
