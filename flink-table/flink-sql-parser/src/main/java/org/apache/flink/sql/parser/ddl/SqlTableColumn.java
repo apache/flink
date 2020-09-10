@@ -84,7 +84,7 @@ public class SqlTableColumn extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return isComputed() ?
+		return isGenerated() ?
 			ImmutableNullableList.of(name, expr, comment) :
 			ImmutableNullableList.of(name, type, comment);
 	}
@@ -92,7 +92,7 @@ public class SqlTableColumn extends SqlCall {
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		this.name.unparse(writer, leftPrec, rightPrec);
-		if (isComputed()) {
+		if (isGenerated()) {
 			writer.keyword("AS");
 			this.expr.unparse(writer, leftPrec, rightPrec);
 		} else {
@@ -112,8 +112,13 @@ public class SqlTableColumn extends SqlCall {
 		}
 	}
 
-	public boolean isComputed() {
-		return type == null && expr != null;
+	/**
+	 * Returns if this column is a computed column that is generated from an expression.
+	 *
+	 * @return true if this column is generated
+	 */
+	public boolean isGenerated() {
+		return expr != null;
 	}
 
 	public SqlIdentifier getName() {

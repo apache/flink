@@ -171,7 +171,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 			for (SqlNode column : columnList) {
 				SqlTableColumn tableColumn = (SqlTableColumn) column;
-				if (!tableColumn.isComputed() && primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
+				if (!tableColumn.isGenerated() && primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
 					SqlDataTypeSpec notNullType = tableColumn.getType().withNullable(false);
 					tableColumn.setType(notNullType);
 				}
@@ -185,7 +185,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public boolean containsComputedColumn() {
 		for (SqlNode column : columnList) {
-			if (((SqlTableColumn) column).isComputed()) {
+			if (((SqlTableColumn) column).isGenerated()) {
 				return true;
 			}
 		}
@@ -197,7 +197,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		List<SqlTableConstraint> ret = new ArrayList<>();
 		this.columnList.forEach(column -> {
 			SqlTableColumn tableColumn = (SqlTableColumn) column;
-			if (!tableColumn.isComputed()) {
+			if (!tableColumn.isGenerated()) {
 				tableColumn.getConstraint().map(ret::add);
 			}
 		});
@@ -233,7 +233,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		for (SqlNode column : columnList) {
 			writer.sep(",");
 			SqlTableColumn tableColumn = (SqlTableColumn) column;
-			if (tableColumn.isComputed()) {
+			if (tableColumn.isGenerated()) {
 				tableColumn.getExpr().unparse(writer, 0, 0);
 				writer.keyword("AS");
 			}

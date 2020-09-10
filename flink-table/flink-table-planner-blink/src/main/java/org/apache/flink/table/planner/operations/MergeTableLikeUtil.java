@@ -373,7 +373,7 @@ class MergeTableLikeUtil {
 			for (SqlNode derivedColumn : derivedColumns) {
 				final SqlTableColumn tableColumn = (SqlTableColumn) derivedColumn;
 				final TableColumn column;
-				if (tableColumn.isComputed()) {
+				if (tableColumn.isGenerated()) {
 					String fieldName = tableColumn.getName().toString();
 					if (columns.containsKey(fieldName)) {
 						if (!columns.get(fieldName).isGenerated()) {
@@ -412,7 +412,7 @@ class MergeTableLikeUtil {
 		private void collectPhysicalFieldsTypes(List<SqlNode> derivedColumns) {
 			for (SqlNode derivedColumn : derivedColumns) {
 				SqlTableColumn column = (SqlTableColumn) derivedColumn;
-				if (!column.isComputed()) {
+				if (!column.isGenerated()) {
 					String name = column.getName().getSimple();
 					if (columns.containsKey(name)) {
 						throw new ValidationException(String.format(
