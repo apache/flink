@@ -137,12 +137,8 @@ public class SqlTableColumn extends SqlCall {
 		this.type = type;
 	}
 
-	public SqlNode getExpr() {
-		return expr;
-	}
-
-	public void setExpr(SqlNode expr) {
-		this.expr = expr;
+	public Optional<SqlNode> getExpr() {
+		return Optional.ofNullable(expr);
 	}
 
 	public Optional<SqlTableConstraint> getConstraint() {

@@ -234,7 +234,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			writer.sep(",");
 			SqlTableColumn tableColumn = (SqlTableColumn) column;
 			if (tableColumn.isGenerated()) {
-				tableColumn.getExpr().unparse(writer, 0, 0);
+				tableColumn.getExpr().get().unparse(writer, 0, 0);
 				writer.keyword("AS");
 			}
 			tableColumn.getName().unparse(writer, 0, 0);

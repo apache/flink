@@ -392,7 +392,7 @@ class MergeTableLikeUtil {
 					}
 
 					SqlNode validatedExpr = sqlValidator.validateParameterizedExpression(
-						tableColumn.getExpr(),
+						tableColumn.getExpr().get(),
 						physicalFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
 					column = TableColumn.of(
