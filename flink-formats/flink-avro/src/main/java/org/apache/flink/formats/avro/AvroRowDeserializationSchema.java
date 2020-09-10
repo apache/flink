@@ -55,6 +55,10 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoField;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -320,6 +324,9 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 			// adopted from Apache Calcite
 			final long t = (long) value * 86400000L;
 			millis = t - (long) LOCAL_TZ.getOffset(t);
+		} else if (object instanceof LocalDate) {
+			long t = ((LocalDate) object).toEpochDay() * 86400000L;
+			millis = t - (long) LOCAL_TZ.getOffset(t);
 		} else if (jodaConverter != null) {
 			millis = jodaConverter.convertDate(object);
 		} else {
@@ -334,6 +341,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 			millis = (Integer) object;
 		} else if (object instanceof Long) {
 			millis = (Long) object / 1000L;
+		} else if (object instanceof LocalTime) {
+			millis = ((LocalTime) object).get(ChronoField.MILLI_OF_DAY);
 		} else if (jodaConverter != null) {
 			millis = jodaConverter.convertTime(object);
 		} else {
@@ -357,6 +366,15 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 			} else {
 				millis = (Long) object;
 			}
+		} else if (object instanceof Instant) {
+			Instant instant = (Instant) object;
+			int offsetMillis = LOCAL_TZ.getOffset(instant.toEpochMilli());
+
+			long seconds = instant.getEpochSecond() - offsetMillis / 1000;
+			int nanos = instant.getNano() - offsetMillis % 1000 * 1000;
+			Timestamp timestamp = new Timestamp(seconds * 1000L);
+			timestamp.setNanos(nanos);
+			return timestamp;
 		} else if (jodaConverter != null) {
 			millis = jodaConverter.convertTimestamp(object);
 		} else {

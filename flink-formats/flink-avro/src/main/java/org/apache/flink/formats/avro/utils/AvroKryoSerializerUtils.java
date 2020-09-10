@@ -33,11 +33,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.joda.time.Chronology;
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
-import org.joda.time.chrono.ISOChronology;
 
 import java.io.Serializable;
 import java.util.LinkedHashMap;
@@ -106,71 +101,6 @@ public class AvroKryoSerializerUtils extends AvroUtils {
 			// the parser seems to be stateful, to we need a new one for every type.
 			Schema.Parser sParser = new Schema.Parser();
 			return sParser.parse(schemaAsString);
-		}
-	}
-
-	/**
-	 * Avro logical types use JodaTime's LocalDate but Kryo is unable to serialize it
-	 * properly (esp. visible after calling the toString() method).
-	 */
-	public static class JodaLocalDateSerializer extends Serializer<LocalDate> {
-
-		public JodaLocalDateSerializer() {
-			setImmutable(true);
-		}
-
-		@Override
-		public void write(Kryo kryo, Output output, LocalDate localDate) {
-			output.writeInt(localDate.getYear());
-			output.writeInt(localDate.getMonthOfYear());
-			output.writeInt(localDate.getDayOfMonth());
-
-			final Chronology chronology = localDate.getChronology();
-			if (chronology != null && chronology != ISOChronology.getInstanceUTC()) {
-				throw new RuntimeException("Unsupported chronology: " + chronology);
-			}
-		}
-
-		@Override
-		public LocalDate read(Kryo kryo, Input input, Class<LocalDate> aClass) {
-			final int y = input.readInt();
-			final int m = input.readInt();
-			final int d = input.readInt();
-
-			return new LocalDate(
-				y,
-				m,
-				d,
-				null);
-		}
-	}
-
-	/**
-	 * Avro logical types use JodaTime's LocalTime but Kryo is unable to serialize it
-	 * properly (esp. visible after calling the toString() method).
-	 */
-	public static class JodaLocalTimeSerializer extends Serializer<LocalTime> {
-
-		@Override
-		public void write(Kryo kryo, Output output, LocalTime object) {
-			final int time = object.getMillisOfDay();
-			output.writeInt(time, true);
-
-			final Chronology chronology = object.getChronology();
-			if (chronology != null && chronology != ISOChronology.getInstanceUTC()) {
-				throw new RuntimeException("Unsupported chronology: " + chronology);
-			}
-		}
-
-		@Override
-		public LocalTime read(Kryo kryo, Input input, Class<LocalTime> type) {
-			final int time = input.readInt(true);
-			return new LocalTime(time, ISOChronology.getInstanceUTC().withZone(DateTimeZone.UTC));
-		}
-
-		@Override
-		public LocalTime copy(Kryo kryo, LocalTime original) {
-			return new LocalTime(original);
 		}
 	}
 }

@@ -289,8 +289,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 		final LogicalType logicalType = schema.getLogicalType();
 		if (logicalType == LogicalTypes.date()) {
 			// adopted from Apache Calcite
-			final long time = date.getTime();
-			final long converted = time + (long) LOCAL_TZ.getOffset(time);
+			final long converted = toEpochMillis(date);
 			return (int) (converted / 86400000L);
 		} else {
 			throw new RuntimeException("Unsupported date type.");

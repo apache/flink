@@ -73,9 +73,6 @@ public class RegistryAvroDeserializationSchemaTest {
 			Address.getClassSchema()));
 		assertEquals(address.getNum(), genericRecord.get("num"));
 		assertEquals(address.getStreet(), genericRecord.get("street").toString());
-		assertNull(genericRecord.get("city"));
-		assertNull(genericRecord.get("state"));
-		assertNull(genericRecord.get("zip"));
 		assertNull(genericRecord.get("country"));
 	}
 
