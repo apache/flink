@@ -294,7 +294,7 @@ public class PythonTypeUtils {
 					RowTypeInfo rowTypeInfo = (RowTypeInfo) typeInformation;
 					TypeSerializer[] fieldTypeSerializers = Arrays.stream(rowTypeInfo.getFieldTypes())
 						.map(f -> typeInfoSerializerConverter(f)).toArray(TypeSerializer[]::new);
-					return new RowSerializer(fieldTypeSerializers, true);
+					return new RowSerializer(fieldTypeSerializers);
 				}
 
 				if (typeInformation instanceof TupleTypeInfo) {

@@ -125,7 +125,7 @@ public class PythonTypeUtilsTest {
 		TypeInformation rowTypeInfo = Types.ROW(Types.INT);
 		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter
 			.typeInfoSerializerConverter(rowTypeInfo);
-		assertEquals(convertedTypeSerializer, new RowSerializer(new TypeSerializer[]{IntSerializer.INSTANCE}, true));
+		assertEquals(convertedTypeSerializer, new RowSerializer(new TypeSerializer[]{IntSerializer.INSTANCE}, false));
 
 		TupleTypeInfo tupleTypeInfo = (TupleTypeInfo) Types.TUPLE(Types.INT);
 		convertedTypeSerializer = PythonTypeUtils.TypeInfoToSerializerConverter

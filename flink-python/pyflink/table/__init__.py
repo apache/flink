@@ -78,7 +78,7 @@ from pyflink.table.table_environment import (TableEnvironment, StreamTableEnviro
                                              BatchTableEnvironment)
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
-from pyflink.table.types import DataTypes, UserDefinedType, Row
+from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
 from pyflink.table.udf import FunctionContext, ScalarFunction
 
 __all__ = [
@@ -96,6 +96,7 @@ __all__ = [
     'OverWindowedTable',
     'ResultKind',
     'Row',
+    'RowKind',
     'ScalarFunction',
     'SqlDialect',
     'StatementSet',

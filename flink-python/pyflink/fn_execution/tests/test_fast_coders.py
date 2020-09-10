@@ -201,13 +201,21 @@ class CodersTest(PyFlinkTestCase):
         self.check_cython_coder(python_field_coders, cython_field_coders, [data])
 
     def test_cython_row_coder(self):
-        from pyflink.table import Row
+        from pyflink.common import Row, RowKind
         field_count = 2
-        data = [Row(*[None if i % 2 == 0 else i for i in range(field_count)])]
+        row = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
+        data = [row]
         python_field_coders = [coder_impl.RowCoderImpl([coder_impl.BigIntCoderImpl()
                                                         for _ in range(field_count)])]
         cython_field_coders = [coder_impl_fast.RowCoderImpl([coder_impl_fast.BigIntCoderImpl()
                                                              for _ in range(field_count)])]
+        row.set_row_kind(RowKind.INSERT)
+        self.check_cython_coder(python_field_coders, cython_field_coders, [data])
+        row.set_row_kind(RowKind.UPDATE_BEFORE)
+        self.check_cython_coder(python_field_coders, cython_field_coders, [data])
+        row.set_row_kind(RowKind.UPDATE_AFTER)
+        self.check_cython_coder(python_field_coders, cython_field_coders, [data])
+        row.set_row_kind(RowKind.DELETE)
         self.check_cython_coder(python_field_coders, cython_field_coders, [data])
 
 
