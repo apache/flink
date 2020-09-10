@@ -105,7 +105,6 @@ public class StreamGraph implements Pipeline {
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
-	private Map<Integer, Tuple2<Integer, List<String>>> virtualSelectNodes;
 	private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
 	private Map<Integer, Tuple3<Integer, StreamPartitioner<?>, ShuffleMode>> virtualPartitionNodes;
 
@@ -128,7 +127,6 @@ public class StreamGraph implements Pipeline {
 	 */
 	public void clear() {
 		streamNodes = new HashMap<>();
-		virtualSelectNodes = new HashMap<>();
 		virtualSideOutputNodes = new HashMap<>();
 		virtualPartitionNodes = new HashMap<>();
 		vertexIDtoBrokerID = new HashMap<>();
@@ -399,27 +397,6 @@ public class StreamGraph implements Pipeline {
 	}
 
 	/**
-	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs
-	 * with the selected names.
-	 *
-	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
-	 * to the original node, only with the selected names given here.
-	 *
-	 * @param originalId ID of the node that should be connected to.
-	 * @param virtualId ID of the virtual node.
-	 * @param selectedNames The selected names.
-	 */
-	public void addVirtualSelectNode(Integer originalId, Integer virtualId, List<String> selectedNames) {
-
-		if (virtualSelectNodes.containsKey(virtualId)) {
-			throw new IllegalStateException("Already has virtual select node with id " + virtualId);
-		}
-
-		virtualSelectNodes.put(virtualId,
-				new Tuple2<Integer, List<String>>(originalId, selectedNames));
-	}
-
-	/**
 	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs with
 	 * the selected side-output {@link OutputTag}.
 	 *
@@ -486,9 +463,6 @@ public class StreamGraph implements Pipeline {
 		if (virtualSideOutputNodes.containsKey(id)) {
 			Integer mappedId = virtualSideOutputNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
-		} else if (virtualSelectNodes.containsKey(id)) {
-			Integer mappedId = virtualSelectNodes.get(id).f0;
-			return getSlotSharingGroup(mappedId);
 		} else if (virtualPartitionNodes.containsKey(id)) {
 			Integer mappedId = virtualPartitionNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
@@ -524,14 +498,6 @@ public class StreamGraph implements Pipeline {
 				outputTag = virtualSideOutputNodes.get(virtualId).f1;
 			}
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag, shuffleMode);
-		} else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
-			int virtualId = upStreamVertexID;
-			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
-			if (outputNames.isEmpty()) {
-				// selections that happen downstream override earlier selections
-				outputNames = virtualSelectNodes.get(virtualId).f1;
-			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, shuffleMode);
 		} else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
