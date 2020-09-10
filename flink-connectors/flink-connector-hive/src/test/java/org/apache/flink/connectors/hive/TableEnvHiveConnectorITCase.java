@@ -581,12 +581,12 @@ public class TableEnvHiveConnectorITCase {
 			hiveShell.execute("create table db1.dest (x string,y string) clustered by (x) into 3 buckets stored as orc tblproperties ('transactional'='true')");
 			List<Exception> exceptions = new ArrayList<>();
 			try {
-				TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.src select * from db1.dest");
+				tableEnv.executeSql("insert into db1.src select * from db1.dest").await();
 			} catch (Exception e) {
 				exceptions.add(e);
 			}
 			try {
-				TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "insert into db1.dest select * from db1.src");
+				tableEnv.executeSql("insert into db1.dest select * from db1.src").await();
 			} catch (Exception e) {
 				exceptions.add(e);
 			}
