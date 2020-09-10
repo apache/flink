@@ -33,6 +33,7 @@ public interface SplitFetcherTask {
 	 *
 	 * @return whether the runnable has successfully finished running.
 	 * @throws InterruptedException when interrupted.
+	 * @throws IOException when the performed I/O operation fails.
 	 */
 	boolean run() throws InterruptedException, IOException;
 
