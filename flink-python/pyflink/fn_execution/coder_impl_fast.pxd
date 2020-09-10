@@ -25,6 +25,8 @@ cdef class BaseCoderImpl:
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
 
+cdef unsigned char ROW_KIND_BIT_SIZE
+
 cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef readonly list _field_coders
     cdef TypeName*_field_type
@@ -33,8 +35,9 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef size_t _leading_complete_bytes_num
     cdef size_t _remaining_bits_num
 
-    cdef bint*_null_mask
-    cdef unsigned char*_null_byte_search_table
+    cdef bint*_mask
+    cdef unsigned char*_mask_byte_search_table
+    cdef unsigned char*_row_kind_byte_table
 
     # the tmp char pointer used to store encoded data of every row
     cdef char*_tmp_output_data
@@ -51,10 +54,10 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     # initial attribute
     cdef void _init_attribute(self)
 
-    cdef void _write_null_mask(self, value, size_t leading_complete_bytes_num,
-                               size_t remaining_bits_num)
-    cdef void _read_null_mask(self, bint*null_mask, size_t leading_complete_bytes_num,
-                              size_t remaining_bits_num)
+    cdef void _write_mask(self, value, size_t leading_complete_bytes_num,
+                             size_t remaining_bits_num, unsigned char row_kind_value)
+    cdef void _read_mask(self, bint*null_mask, size_t leading_complete_bytes_num,
+                            size_t remaining_bits_num)
 
     # encode data to output_stream
     cdef void _encode_one_row(self, value, LengthPrefixOutputStream output_stream)

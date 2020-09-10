@@ -16,20 +16,21 @@
 # limitations under the License.
 ################################################################################
 
+from pyflink.common import Row
 from pyflink.datastream.functions import CoMapFunction
 
 
 def str_len(value):
-    return value[0], len(value[0]), value[1]
+    return Row(value[0], len(value[0]), value[1])
 
 
 def add_one(value):
-    return value[0], value[1] + 1, value[1]
+    return Row(value[0], value[1] + 1, value[1])
 
 
 def m_flat_map(value):
     for i in range(value[1]):
-        yield value[0], i, value[2]
+        yield Row(value[0], i, value[2])
 
 
 class MyCoMapFunction(CoMapFunction):

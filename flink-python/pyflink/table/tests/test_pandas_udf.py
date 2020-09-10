@@ -20,7 +20,8 @@ import decimal
 
 import pytz
 
-from pyflink.table import DataTypes, Row
+from pyflink.common import Row
+from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
