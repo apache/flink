@@ -25,6 +25,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -52,7 +53,10 @@ public class SpanningWrapperTest {
 		byte[] record1 = recordBytes(recordLen);
 		byte[] record2 = recordBytes(recordLen * 2);
 
-		SpanningWrapper spanningWrapper = new SpanningWrapper(new String[]{folder.newFolder().getAbsolutePath()}, spillingThreshold, recordLen);
+		File canNotEecutableFile = folder.newFolder();
+		canNotEecutableFile.setExecutable(false);
+		// Always pick 'canNotEecutableFile' first as the Spilling Channel TmpDir. Thus trigger an IOException.
+		SpanningWrapper spanningWrapper = new SpanningWrapper(new String[]{folder.newFolder().getAbsolutePath(), canNotEecutableFile.getAbsolutePath() + File.separator + "pathdonotexit"}, spillingThreshold, recordLen);
 		spanningWrapper.transferFrom(wrapNonSpanning(record1, firstChunk), recordLen);
 		spanningWrapper.addNextChunkFromMemorySegment(wrap(record1), firstChunk, recordLen - firstChunk + LENGTH_BYTES);
 		spanningWrapper.addNextChunkFromMemorySegment(wrap(record2), 0, record2.length);
@@ -62,6 +66,8 @@ public class SpanningWrapperTest {
 		spanningWrapper.getInputView().readFully(new byte[recordLen], 0, recordLen); // read out from file
 		spanningWrapper.transferLeftOverTo(new NonSpanningWrapper()); // clear any leftover
 		spanningWrapper.transferFrom(wrapNonSpanning(recordBytes(recordLen), recordLen), recordLen); // overwrite with new data
+
+		canNotEecutableFile.setExecutable(true);
 
 		assertArrayEquals(concat(record1, record2), toByteArray(unconsumedSegment));
 	}
