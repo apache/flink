@@ -1359,9 +1359,11 @@ class TableEnvironment(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        if "__len__" not in dir(elements):
+            elements = list(elements)
 
         # in case all the elements are expressions
-        if all(isinstance(elem, Expression) for elem in elements):
+        if len(elements) > 0 and all(isinstance(elem, Expression) for elem in elements):
             if schema is None:
                 return Table(self._j_tenv.fromValues(to_expression_jarray(elements)), self)
             else:
@@ -1389,9 +1391,6 @@ class TableEnvironment(object):
         else:
             def verify_obj(obj):
                 return obj
-
-        if "__len__" not in dir(elements):
-            elements = list(elements)
 
         # infers the schema if not specified
         if schema is None or isinstance(schema, (list, tuple)):
