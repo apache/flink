@@ -175,7 +175,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 		ConfigOption<Double> min = minKey.doubleType().defaultValue(Double.MIN_VALUE);
 		ConfigOption<Double> max = maxKey.doubleType().defaultValue(Double.MAX_VALUE);
 		return DataGeneratorContainer.of(
-			new BigDecimalRandomGenerator(
+			new DecimalDataRandomGenerator(
 				RandomGenerator.doubleGenerator(config.get(min), config.get(max)),
 				decimalType.getPrecision(), decimalType.getScale()));
 	}
@@ -306,12 +306,12 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 		};
 	}
 
-	private static class BigDecimalRandomGenerator implements DataGenerator<DecimalData> {
+	private static class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
 		private final RandomGenerator<Double> generator;
 		private final int precision;
 		private final int scale;
 
-		public BigDecimalRandomGenerator(RandomGenerator<Double> generator, int precision, int scale) {
+		public DecimalDataRandomGenerator(RandomGenerator<Double> generator, int precision, int scale) {
 			this.generator = generator;
 			this.precision = precision;
 			this.scale = scale;

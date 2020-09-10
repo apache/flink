@@ -37,7 +37,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.function.Supplier;
 
-import static java.time.temporal.ChronoField.MILLI_OF_SECOND;
+import static java.time.temporal.ChronoField.MILLI_OF_DAY;
 
 /**
  * Base class for translating {@link LogicalType LogicalTypes} to {@link DataGeneratorContainer}'s.
@@ -60,7 +60,7 @@ public abstract class DataGenVisitorBase extends LogicalTypeDefaultVisitor<DataG
 
 	@Override
 	public DataGeneratorContainer visit(TimeType timeType) {
-		return DataGeneratorContainer.of(TimeGenerator.of(() -> LocalTime.now().get(MILLI_OF_SECOND)));
+		return DataGeneratorContainer.of(TimeGenerator.of(() -> LocalTime.now().get(MILLI_OF_DAY)));
 	}
 
 	@Override

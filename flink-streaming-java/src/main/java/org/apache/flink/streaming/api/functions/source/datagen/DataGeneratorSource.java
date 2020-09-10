@@ -46,11 +46,11 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	private final long rowsPerSecond;
 
 	@Nullable
-	private Long numberOfRows;
+	private final Long numberOfRows;
 
-	private int outputSoFar;
+	private transient int outputSoFar;
 
-	private int toOutput;
+	private transient int toOutput;
 
 	transient volatile boolean isRunning;
 
@@ -70,7 +70,7 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T> implem
 	 * @param rowsPerSecond Control the emit rate.
 	 * @param numberOfRows Total number of rows to output.
 	 */
-	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond, Long numberOfRows) {
+	public DataGeneratorSource(DataGenerator<T> generator, long rowsPerSecond, @Nullable Long numberOfRows) {
 		this.generator = generator;
 		this.rowsPerSecond = rowsPerSecond;
 		this.numberOfRows = numberOfRows;
