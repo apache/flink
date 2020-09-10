@@ -24,6 +24,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -38,7 +40,9 @@ import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.ThrowingSlotProvider;
@@ -48,8 +52,10 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSta
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -161,14 +167,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			restartBackoffTimeStrategy);
 		this.schedulingStrategy = schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
 
-		final ExecutionSlotAllocationContext slotAllocationContext = new ExecutionSlotAllocationContext(
-			getPreferredLocationsRetriever(),
-			executionVertexID -> getExecutionVertex(executionVertexID).getResourceProfile(),
-			executionVertexID -> getExecutionVertex(executionVertexID).getLatestPriorAllocation(),
-			getSchedulingTopology(),
-			() -> getJobGraph().getSlotSharingGroups(),
-			() -> getJobGraph().getCoLocationGroupDescriptors());
-		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory).createInstance(slotAllocationContext);
+		this.executionSlotAllocator = checkNotNull(executionSlotAllocatorFactory)
+			.createInstance(new DefaultExecutionSlotAllocationContext());
 
 		this.verticesWaitingForRestart = new HashSet<>();
 		this.startUpAction = startUpAction;
@@ -511,6 +511,41 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 		for (OperatorCoordinator coordinator : vertex.getJobVertex().getOperatorCoordinators()) {
 			coordinator.subtaskFailed(vertex.getParallelSubtaskIndex(), null);
+		}
+	}
+
+	private class DefaultExecutionSlotAllocationContext implements ExecutionSlotAllocationContext {
+
+		@Override
+		public CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
+				final ExecutionVertexID executionVertexId,
+				final Set<ExecutionVertexID> producersToIgnore) {
+			return getPreferredLocationsRetriever().getPreferredLocations(executionVertexId, producersToIgnore);
+		}
+
+		@Override
+		public ResourceProfile getResourceProfile(final ExecutionVertexID executionVertexId) {
+			return getExecutionVertex(executionVertexId).getResourceProfile();
+		}
+
+		@Override
+		public AllocationID getPriorAllocationId(final ExecutionVertexID executionVertexId) {
+			return getExecutionVertex(executionVertexId).getLatestPriorAllocation();
+		}
+
+		@Override
+		public SchedulingTopology getSchedulingTopology() {
+			return DefaultScheduler.this.getSchedulingTopology();
+		}
+
+		@Override
+		public Set<SlotSharingGroup> getLogicalSlotSharingGroups() {
+			return getJobGraph().getSlotSharingGroups();
+		}
+
+		@Override
+		public Set<CoLocationGroupDesc> getCoLocationGroups() {
+			return getJobGraph().getCoLocationGroupDescriptors();
 		}
 	}
 }
