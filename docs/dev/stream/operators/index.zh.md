@@ -31,6 +31,8 @@ under the License.
 * toc
 {:toc}
 
+<a name="datastream-transformations"/>
+
 # 数据流转换
 
 <div class="codetabs" markdown="1">
@@ -955,6 +957,7 @@ out_stream = data_stream.project(2, 0)
 
 </div>
 
+<a name="physical-partitioning"/>
 
 # 物理分区
 
@@ -1273,6 +1276,8 @@ data_stream.broadcast()
 </div>
 
 </div>
+
+<a name="task-chaining-and-resource-groups"/>
 
 # 算子链和资源组
 将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 连个 map 转换操作)。此外，

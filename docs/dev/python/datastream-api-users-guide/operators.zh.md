@@ -26,13 +26,19 @@ under the License.
 
 这部分内容将描述 Flink DataStream API 中基本的数据转换 API，数据转换后各种数据分区方式，以及算子的链接策略。
 
+<a name="datastream-transformations"/>
+
 # 数据流转换
 
 Python Flink DataStream 程序主要是通过实现各种算子完成对 DataStream 数据的转换（如 mapping，filtering， reducing等等）。请访问
 [算子]({% link dev/stream/operators/index.zh.md %}?code_tab=python)页了解 Python DataStream API 目前已支持的各种算子。
 
+<a name="functions"/>
+
 # 算子函数接口
 在 Python DataStream API 中，大部分的算子需要用户实现自定义函数，接下来的内容将描述几种实现自定义函数的方式：
+
+<a name="implementing-function-interfaces"/>
 
 ## 实现方法接口
 Python DataStream API 给各种算子提供了函数接口，用户可以定义接口的实现，并作为参数传递给算子。以 MapFunction 接口为例：
@@ -52,6 +58,8 @@ mapped_stream = data_stream.map(MyMapFunction(), output_type=Types.INT())
 `Types.PICKLED_BYTE_ARRAY` 数据类型，数据通过 pickle 序列化成字节数组发往下游算子。更多细节请访问
 [数据类型]({% link dev/python/datastream-api-users-guide/data_types.zh.md%})页.
 
+<a name="lambda-functions"/>
+
 ## Lambda 函数
 如此前的例子中所示，大部分算子 API 也能以 lambda 函数的形式定义具体的数据转换逻辑：
 <p>
@@ -62,6 +70,8 @@ mapped_stream = data_stream.map(lambda x: x + 1, output_type=Types.INT())
 </p>
 <span class="label label-info">注意</span> ConnectedStream.map() 和 ConnectedStream.flat_map() 算子目前只支持实现
 CoMapFunction 接口和 CoFlatMapFunction 接口。
+
+<a name="python-function"/>
 
 ## Python 函数
 用户也可以直接通过实现一个 Python 函数来定义具体的数据转换逻辑并传递给算子 API ：
