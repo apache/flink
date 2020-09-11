@@ -270,7 +270,7 @@ public class EncoderDecoderTest {
 			ByteBuffer.wrap(b),
 			LocalDate.parse("2014-03-01"),
 			LocalTime.parse("12:12:12"),
-			123456,
+			123456L,
 			DateTime.parse("2014-03-01T12:12:12.321Z"),
 			123456L,
 			ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()), // 20.00

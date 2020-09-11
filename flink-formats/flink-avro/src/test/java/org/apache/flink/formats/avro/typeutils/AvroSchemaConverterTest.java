@@ -151,9 +151,9 @@ public class AvroSchemaConverterTest {
 			Types.PRIMITIVE_ARRAY(Types.BYTE),
 			Types.SQL_DATE,
 			Types.SQL_TIME,
-			Types.INT,
+			Types.SQL_TIME,
 			Types.SQL_TIMESTAMP,
-			Types.LONG,
+			Types.SQL_TIMESTAMP,
 			Types.BIG_DEC,
 			Types.BIG_DEC);
 
@@ -193,7 +193,7 @@ public class AvroSchemaConverterTest {
 				DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
 				DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),
 				DataTypes.FIELD("type_time_millis", DataTypes.TIME().notNull()),
-				DataTypes.FIELD("type_time_micros", DataTypes.INT().notNull()),
+				DataTypes.FIELD("type_time_micros", DataTypes.TIME(6).notNull()),
 				DataTypes.FIELD("type_timestamp_millis",
 						DataTypes.TIMESTAMP(3).notNull()),
 				DataTypes.FIELD("type_timestamp_micros",

@@ -121,9 +121,11 @@ public final class AvroTestUtils {
 		rowUser.setField(15, new byte[10]);
 		rowUser.setField(16, Date.valueOf("2014-03-01"));
 		rowUser.setField(17, Time.valueOf("12:12:12"));
-		rowUser.setField(18, 123456);
+		rowUser.setField(18, new Time(123)); // we truncate micros
 		rowUser.setField(19, Timestamp.valueOf("2014-03-01 12:12:12.321"));
-		rowUser.setField(20, 123456L);
+		Timestamp timestampMicros = new Timestamp(0);
+		timestampMicros.setNanos(123_456_000);
+		rowUser.setField(20, timestampMicros);
 		rowUser.setField(21, BigDecimal.valueOf(2000, 2));
 		rowUser.setField(22, BigDecimal.valueOf(2000, 2));
 
@@ -156,7 +158,7 @@ public final class AvroTestUtils {
 			"{\"name\":\"state\",\"type\":\"string\"},{\"name\":\"zip\",\"type\":\"string\"}]}]},{\"name\":\"type_bytes\"," +
 			"\"type\":\"bytes\"},{\"name\":\"type_date\",\"type\":{\"type\":\"int\",\"logicalType\":\"date\"}}," +
 			"{\"name\":\"type_time_millis\",\"type\":{\"type\":\"int\",\"logicalType\":\"time-millis\"}},{\"name\":\"type_time_micros\"," +
-			"\"type\":{\"type\":\"int\",\"logicalType\":\"time-micros\"}},{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\"," +
+			"\"type\":{\"type\":\"long\",\"logicalType\":\"time-micros\"}},{\"name\":\"type_timestamp_millis\",\"type\":{\"type\":\"long\"," +
 			"\"logicalType\":\"timestamp-millis\"}},{\"name\":\"type_timestamp_micros\",\"type\":{\"type\":\"long\"," +
 			"\"logicalType\":\"timestamp-micros\"}},{\"name\":\"type_decimal_bytes\",\"type\":{\"type\":\"bytes\"," +
 			"\"logicalType\":\"decimal\",\"precision\":4,\"scale\":2}},{\"name\":\"type_decimal_fixed\",\"type\":{\"type\":\"fixed\"," +
@@ -195,7 +197,7 @@ public final class AvroTestUtils {
 		user.put("type_bytes", ByteBuffer.allocate(10));
 		user.put("type_date", LocalDate.parse("2014-03-01"));
 		user.put("type_time_millis", LocalTime.parse("12:12:12"));
-		user.put("type_time_micros", 123456);
+		user.put("type_time_micros", 123456L);
 		user.put("type_timestamp_millis", DateTime.parse("2014-03-01T12:12:12.321Z"));
 		user.put("type_timestamp_micros", 123456L);
 		user.put("type_decimal_bytes",
@@ -224,9 +226,11 @@ public final class AvroTestUtils {
 		rowUser.setField(15, new byte[10]);
 		rowUser.setField(16, Date.valueOf("2014-03-01"));
 		rowUser.setField(17, Time.valueOf("12:12:12"));
-		rowUser.setField(18, 123456);
+		rowUser.setField(18, new Time(123)); // we truncate micros
 		rowUser.setField(19, Timestamp.valueOf("2014-03-01 12:12:12.321"));
-		rowUser.setField(20, 123456L);
+		Timestamp timestampMicros = new Timestamp(0);
+		timestampMicros.setNanos(123_456_000);
+		rowUser.setField(20, timestampMicros);
 		rowUser.setField(21, BigDecimal.valueOf(2000, 2));
 		rowUser.setField(22, BigDecimal.valueOf(2000, 2));
 

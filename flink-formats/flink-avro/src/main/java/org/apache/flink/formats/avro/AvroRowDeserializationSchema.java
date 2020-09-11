@@ -75,11 +75,12 @@ import java.util.TimeZone;
  */
 @PublicEvolving
 public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<Row> {
-
 	/**
 	 * Used for time conversions into SQL types.
 	 */
 	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+
+	private static final long MICROS_PER_SECOND = 1_000_000L;
 
 	/**
 	 * Avro record class for deserialization. Might be null if record class is not available.
@@ -294,7 +295,9 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 				return object;
 			case LONG:
 				if (info == Types.SQL_TIMESTAMP) {
-					return convertToTimestamp(object);
+					return convertToTimestamp(object, schema.getLogicalType() == LogicalTypes.timestampMicros());
+				} else if (info == Types.SQL_TIME) {
+					return convertToTime(object);
 				}
 				return object;
 			case FLOAT:
@@ -329,6 +332,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		final long millis;
 		if (object instanceof Integer) {
 			millis = (Integer) object;
+		} else if (object instanceof Long) {
+			millis = (Long) object / 1000L;
 		} else if (jodaConverter != null) {
 			millis = jodaConverter.convertTime(object);
 		} else {
@@ -337,10 +342,21 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		return new Time(millis - LOCAL_TZ.getOffset(millis));
 	}
 
-	private Timestamp convertToTimestamp(Object object) {
+	private Timestamp convertToTimestamp(Object object, boolean isMicros) {
 		final long millis;
 		if (object instanceof Long) {
-			millis = (Long) object;
+			if (isMicros) {
+				long micros = (Long) object;
+				int offsetMillis = LOCAL_TZ.getOffset(micros / 1000L);
+
+				long seconds = micros / MICROS_PER_SECOND - offsetMillis / 1000;
+				int nanos = ((int) (micros % MICROS_PER_SECOND)) * 1000 - offsetMillis % 1000 * 1000;
+				Timestamp timestamp = new Timestamp(seconds * 1000L);
+				timestamp.setNanos(nanos);
+				return timestamp;
+			} else {
+				millis = (Long) object;
+			}
 		} else if (jodaConverter != null) {
 			millis = jodaConverter.convertTimestamp(object);
 		} else {

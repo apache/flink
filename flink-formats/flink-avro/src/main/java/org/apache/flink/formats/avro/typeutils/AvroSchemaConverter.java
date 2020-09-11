@@ -157,6 +157,8 @@ public class AvroSchemaConverter {
 				// logical timestamp type
 				if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
 					return Types.SQL_TIMESTAMP;
+				} else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+					return Types.SQL_TIMESTAMP;
 				} else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
 					return Types.SQL_TIME;
 				}
