@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.examples.scala
+package org.apache.flink.table.examples.scala.basics
 
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.api.scala._

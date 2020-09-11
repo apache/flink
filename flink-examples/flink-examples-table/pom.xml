@@ -99,6 +99,28 @@ under the License.
 				<executions>
 
 					<execution>
+						<id>GettingStartedExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>GettingStartedExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.basics.GettingStartedExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/basics/GettingStartedExample*</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
 						<id>StreamSQLExample</id>
 						<phase>package</phase>
 						<goals>
@@ -264,6 +286,7 @@ under the License.
 						<id>rename</id>
 						<configuration>
 							<target>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-GettingStartedExample.jar" tofile="${project.basedir}/target/GettingStartedExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamSQLExample.jar" tofile="${project.basedir}/target/StreamSQLExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamWindowSQLExample.jar" tofile="${project.basedir}/target/StreamWindowSQLExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountSQL.jar" tofile="${project.basedir}/target/WordCountSQL.jar"/>
