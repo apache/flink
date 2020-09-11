@@ -468,3 +468,9 @@ deprecated in favor of `RocksDBOptionsFactory` and
 #### Incompatibility of serialized JobGraphs ([FLINK-14594](https://issues.apache.org/jira/browse/FLINK-14594))
 Serialized `JobGraphs` which set the `ResourceSpec` created by Flink versions < `1.10` are no longer compatible with Flink >= `1.10`. 
 If you want to migrate these jobs to Flink >= `1.10` you will have to stop the job with a savepoint and then resume it from this savepoint on the Flink >= `1.10` cluster.
+
+#### Disabled chaining of file reading through ContinuousFileReaderOperator (1.10.3).
+     
+Any `readFile` or `readTextFile` of `DataStream` creates a `ContinuousFileReaderOperator` that used to be chained to subsequent operators.
+However, chained operator do not trigger processing time timers correctly, leading to bugs in watermark assigners (FLINK-19109). As a workaround,
+chaining of `ContinuousFileReaderOperator` is disabled. Flink 1.11.2 and later fixes the underlying problem and re-allows chaining. 

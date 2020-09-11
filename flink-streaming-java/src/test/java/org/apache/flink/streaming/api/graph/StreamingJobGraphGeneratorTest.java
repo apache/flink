@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -886,6 +887,25 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		partitioned.map(v -> v).name("map2");
 
 		return env.getStreamGraph();
+	}
+
+	/**
+	 * Verifies fix for FLINK-19109, where WatermarkGenerator cannot be chained to ContinuousFileReaderOperator in event
+	 * time.
+	 */
+	@Test
+	public void testContinuousFileReaderOperatorNotChained() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		env.setParallelism(2);
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		env.readTextFile("file:///dummy").print();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(3, verticesSorted.size());
 	}
 
 	private void assertSameSlotSharingGroup(JobVertex... vertices) {
