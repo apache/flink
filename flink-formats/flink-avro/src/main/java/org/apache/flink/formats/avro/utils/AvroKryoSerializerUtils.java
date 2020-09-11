@@ -126,7 +126,7 @@ public class AvroKryoSerializerUtils extends AvroUtils {
 			output.writeInt(localDate.getDayOfMonth());
 
 			final Chronology chronology = localDate.getChronology();
-			if (chronology != null && chronology != ISOChronology.getInstanceUTC()) {
+			if (chronology != null && !chronology.equals(ISOChronology.getInstanceUTC())) {
 				throw new RuntimeException("Unsupported chronology: " + chronology);
 			}
 		}
