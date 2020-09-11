@@ -15,22 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.table.examples.scala
+package org.apache.flink.table.examples.scala.basics
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 
 /**
-  * Simple example for demonstrating the use of the Table API for a Word Count in Scala.
+  * Simple example for demonstrating the use of Table API on a Stream Table.
   *
   * This example shows how to:
-  *  - Convert DataSets to Tables
-  *  - Apply group, aggregate, select, and filter operations
-  *
+  *  - Convert DataStreams to Tables
+  *  - Apply union, select, and filter operations
   */
-object WordCountTable {
+object StreamTableExample {
 
   // *************************************************************************
   //     PROGRAM
@@ -39,24 +38,34 @@ object WordCountTable {
   def main(args: Array[String]): Unit = {
 
     // set up execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = BatchTableEnvironment.create(env)
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
 
-    val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
-    val expr = input.toTable(tEnv)
-    val result = expr
-      .groupBy($"word")
-      .select($"word", $"frequency".sum as "frequency")
-      .filter($"frequency" === 2)
-      .toDataSet[WC]
+    val orderA = env.fromCollection(Seq(
+      Order(1L, "beer", 3),
+      Order(1L, "diaper", 4),
+      Order(3L, "rubber", 2))).toTable(tEnv)
+
+    val orderB = env.fromCollection(Seq(
+      Order(2L, "pen", 3),
+      Order(2L, "rubber", 3),
+      Order(4L, "beer", 1))).toTable(tEnv)
+
+    // union the two tables
+    val result: DataStream[Order] = orderA.unionAll(orderB)
+      .select('user, 'product, 'amount)
+      .where('amount > 2)
+      .toAppendStream[Order]
 
     result.print()
+
+    env.execute()
   }
 
   // *************************************************************************
   //     USER DATA TYPES
   // *************************************************************************
 
-  case class WC(word: String, frequency: Long)
+  case class Order(user: Long, product: String, amount: Int)
 
 }
