@@ -198,9 +198,9 @@ public class AvroSchemaConverterTest {
 			Types.PRIMITIVE_ARRAY(Types.BYTE),
 			Types.SQL_DATE,
 			Types.SQL_TIME,
-			Types.INT,
+			Types.SQL_TIME,
 			Types.SQL_TIMESTAMP,
-			Types.LONG,
+			Types.SQL_TIMESTAMP,
 			Types.BIG_DEC,
 			Types.BIG_DEC);
 

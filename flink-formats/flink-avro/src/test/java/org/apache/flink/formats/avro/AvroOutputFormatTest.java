@@ -172,7 +172,7 @@ public class AvroOutputFormatTest {
 			user.setTypeBytes(ByteBuffer.allocate(10));
 			user.setTypeDate(LocalDate.parse("2014-03-01"));
 			user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-			user.setTypeTimeMicros(123456);
+			user.setTypeTimeMicros(123456L);
 			user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
 			user.setTypeTimestampMicros(123456L);
 			// 20.00
