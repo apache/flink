@@ -127,7 +127,7 @@ public class NonSplittingRecursiveEnumerator implements FileEnumerator {
 		for (BlockLocation block : blockLocations) {
 			allHosts.addAll(Arrays.asList(block.getHosts()));
 		}
-		return allHosts.toArray(String[]::new);
+		return allHosts.toArray(new String[allHosts.size()]);
 	}
 
 	private static void incrementCharArrayByOne(char[] array, int pos) {
