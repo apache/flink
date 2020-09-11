@@ -157,6 +157,8 @@ public class AvroSchemaConverter {
 				// logical timestamp type
 				if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
 					return Types.SQL_TIMESTAMP;
+				} else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+					return Types.SQL_TIME;
 				}
 				return Types.LONG;
 			case FLOAT:
@@ -255,28 +257,24 @@ public class AvroSchemaConverter {
 						decimalType.getScale())
 						.notNull();
 			}
-			return DataTypes.ARRAY(DataTypes.TINYINT().bridgedTo(Byte.class))
-					.notNull();
+			return DataTypes.BYTES().notNull();
 		case INT:
 			// logical date and time type
 			final org.apache.avro.LogicalType logicalType = schema.getLogicalType();
 			if (logicalType == LogicalTypes.date()) {
-				return DataTypes.DATE().bridgedTo(java.sql.Date.class).notNull();
+				return DataTypes.DATE().notNull();
 			} else if (logicalType == LogicalTypes.timeMillis()) {
-				return DataTypes.TIME().bridgedTo(java.sql.Time.class).notNull();
+				return DataTypes.TIME().notNull();
 			}
 			return DataTypes.INT().notNull();
 		case LONG:
 			// logical timestamp type
 			if (schema.getLogicalType() == LogicalTypes.timestampMillis()) {
-				return DataTypes.TIMESTAMP(3)
-						.bridgedTo(java.sql.Timestamp.class)
-						.notNull();
-			}
-			if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
-				return DataTypes.TIMESTAMP(6)
-						.bridgedTo(java.sql.Timestamp.class)
-						.notNull();
+				return DataTypes.TIMESTAMP(3).notNull();
+			} else if (schema.getLogicalType() == LogicalTypes.timestampMicros()) {
+				return DataTypes.TIMESTAMP(6).notNull();
+			} else if (schema.getLogicalType() == LogicalTypes.timeMicros()) {
+				return DataTypes.TIME(6).notNull();
 			}
 			return DataTypes.BIGINT().notNull();
 		case FLOAT:
