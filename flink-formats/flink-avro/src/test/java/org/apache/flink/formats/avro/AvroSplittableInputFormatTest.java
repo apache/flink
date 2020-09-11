@@ -117,7 +117,7 @@ public class AvroSplittableInputFormatTest {
 		user1.setTypeBytes(ByteBuffer.allocate(10));
 		user1.setTypeDate(LocalDate.parse("2014-03-01"));
 		user1.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-		user1.setTypeTimeMicros(123456);
+		user1.setTypeTimeMicros(123456L);
 		user1.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
 		user1.setTypeTimestampMicros(123456L);
 		// 20.00
@@ -183,7 +183,7 @@ public class AvroSplittableInputFormatTest {
 			user.setTypeBytes(ByteBuffer.allocate(10));
 			user.setTypeDate(LocalDate.parse("2014-03-01"));
 			user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
-			user.setTypeTimeMicros(123456);
+			user.setTypeTimeMicros(123456L);
 			user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
 			user.setTypeTimestampMicros(123456L);
 			// 20.00
