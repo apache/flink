@@ -63,8 +63,12 @@ public class SafetyNetCloseableRegistryTest
 	protected AbstractCloseableRegistry<
 		WrappingProxyCloseable<? extends Closeable>,
 		SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> createRegistry() {
-
-		return new SafetyNetCloseableRegistry();
+		// SafetyNetCloseableRegistry has a global reaper thread to reclaim leaking resources,
+		// in normal cases, that thread will be interrupted in closing of last active registry
+		// and then shutdown in background. But in testing codes, some assertions need leaking
+		// resources reclaimed, so we override reaper thread to join itself on interrupt. Thus,
+		// after close of last active registry, we can assert post-close-invariants safely.
+		return new SafetyNetCloseableRegistry(JoinOnInterruptReaperThread::new);
 	}
 
 	@Override
@@ -217,6 +221,18 @@ public class SafetyNetCloseableRegistryTest
 		Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
 
 		closeableRegistry.close();
+	}
+
+	private static class JoinOnInterruptReaperThread extends SafetyNetCloseableRegistry.CloseableReaperThread {
+		@Override
+		public void interrupt() {
+			super.interrupt();
+			try {
+				join();
+			} catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+			}
+		}
 	}
 
 	private static class OutOfMemoryReaperThread extends SafetyNetCloseableRegistry.CloseableReaperThread {
