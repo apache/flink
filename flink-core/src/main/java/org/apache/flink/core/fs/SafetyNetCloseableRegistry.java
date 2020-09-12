@@ -124,8 +124,9 @@ public class SafetyNetCloseableRegistry extends
 		return null != innerCloseable && closeableMap.remove(innerCloseable) != null;
 	}
 
-	@Override
-	public void close() throws IOException {
+	@VisibleForTesting
+	CloseableReaperThread closeInternally() throws IOException {
+		CloseableReaperThread reaperThread = null;
 		try {
 			super.close();
 		}
@@ -134,10 +135,17 @@ public class SafetyNetCloseableRegistry extends
 				--GLOBAL_SAFETY_NET_REGISTRY_COUNT;
 				if (0 == GLOBAL_SAFETY_NET_REGISTRY_COUNT) {
 					REAPER_THREAD.interrupt();
+					reaperThread = REAPER_THREAD;
 					REAPER_THREAD = null;
 				}
 			}
 		}
+		return reaperThread;
+	}
+
+	@Override
+	public void close() throws IOException {
+		closeInternally();
 	}
 
 	@VisibleForTesting

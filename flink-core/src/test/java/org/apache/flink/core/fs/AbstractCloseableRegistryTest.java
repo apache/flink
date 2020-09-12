@@ -49,6 +49,13 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 	protected abstract AbstractCloseableRegistry<C, T> createRegistry();
 
+	/**
+	 * Close registry and its auxiliary functionalities.
+	 */
+	protected void shutdownRegistry(AbstractCloseableRegistry<C, T> registry) throws IOException {
+		registry.close();
+	}
+
 	protected abstract ProducerThread<C, T> createProducerThread(
 		AbstractCloseableRegistry<C, T> registry,
 		AtomicInteger unclosedCounter,
@@ -86,7 +93,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 			Thread.sleep(40);
 		}
 
-		closeableRegistry.close();
+		shutdownRegistry(closeableRegistry);
 
 		joinThreads();
 
