@@ -82,9 +82,10 @@ public class LocalFileSystem extends FileSystem {
 
 	@Override
 	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
-		return new BlockLocation[] {
-				new LocalBlockLocation(file.getLen())
-		};
+		if (file instanceof LocalFileStatus) {
+			return ((LocalFileStatus) file).getBlockLocations();
+		}
+		throw new IOException("File status does not belong to the LocalFileSystem: " + file);
 	}
 
 	@Override

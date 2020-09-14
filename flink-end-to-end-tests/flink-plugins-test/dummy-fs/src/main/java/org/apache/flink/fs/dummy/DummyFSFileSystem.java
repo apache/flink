@@ -45,8 +45,6 @@ class DummyFSFileSystem extends FileSystem {
 
 	static final URI FS_URI = URI.create("dummy:///");
 
-	private static final String HOSTNAME = "localhost";
-
 	private final URI workingDir;
 
 	private final URI homeDir;
@@ -93,7 +91,7 @@ class DummyFSFileSystem extends FileSystem {
 	@Override
 	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
 		return new BlockLocation[] {
-			new LocalBlockLocation(HOSTNAME, file.getLen())
+			new LocalBlockLocation(file.getLen())
 		};
 	}
 

@@ -23,9 +23,9 @@ import org.apache.flink.core.fs.Path;
 
 /**
  * Concrete implementation of the {@link FileStatus} interface for the
- * Hadoop Distribution File System.
+ * Hadoop Distributed File System.
  */
-public final class HadoopFileStatus implements FileStatus {
+public class HadoopFileStatus implements FileStatus {
 
 	private final org.apache.hadoop.fs.FileStatus fileStatus;
 
@@ -76,5 +76,18 @@ public final class HadoopFileStatus implements FileStatus {
 
 	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
 		return this.fileStatus;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new {@code HadoopFileStatus} from Hadoop's {@link org.apache.hadoop.fs.FileStatus}.
+	 * If Hadoop's file status is <i>located</i>, i.e., it contains block information, then this method
+	 * returns an implementation of Flink's {@link org.apache.flink.core.fs.LocatedFileStatus}.
+	 */
+	public static HadoopFileStatus fromHadoopStatus(final org.apache.hadoop.fs.FileStatus fileStatus) {
+		return fileStatus instanceof org.apache.hadoop.fs.LocatedFileStatus
+				? new LocatedHadoopFileStatus((org.apache.hadoop.fs.LocatedFileStatus) fileStatus)
+				: new HadoopFileStatus(fileStatus);
 	}
 }
