@@ -33,7 +33,6 @@ import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,12 +61,10 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		expectedException.expectMessage("One or more fetchers have encountered exception");
 		final String errMsg = "Testing Exception";
 
-		FutureNotifier futureNotifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-			new FutureCompletingBlockingQueue<>(futureNotifier);
+			new FutureCompletingBlockingQueue<>();
 		// We have to handle split changes first, otherwise fetch will not be called.
 		try (MockSourceReader reader = new MockSourceReader(
-			futureNotifier,
 			elementsQueue,
 			() -> new SplitReader<int[], MockSourceSplit>() {
 				@Override
@@ -127,13 +124,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
 	@Override
 	protected MockSourceReader createReader() {
-		FutureNotifier futureNotifier = new FutureNotifier();
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-			new FutureCompletingBlockingQueue<>(futureNotifier);
+			new FutureCompletingBlockingQueue<>();
 		MockSplitReader mockSplitReader =
 			new MockSplitReader(2, true, true);
 		return new MockSourceReader(
-			futureNotifier,
 			elementsQueue,
 			() -> mockSplitReader,
 			getConfig(),
@@ -183,12 +178,10 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		final String splitId,
 		final RecordsWithSplitIds<E> records) throws Exception {
 
-		final FutureNotifier futureNotifier = new FutureNotifier();
 		final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue =
-			new FutureCompletingBlockingQueue<>(futureNotifier);
+			new FutureCompletingBlockingQueue<>();
 
 		final SourceReader<E, TestingSourceSplit> reader = new SingleThreadMultiplexSourceReaderBase<E, E, TestingSourceSplit, TestingSourceSplit>(
-			futureNotifier,
 			elementsQueue,
 			() -> new TestingSplitReader<E, TestingSourceSplit>(records),
 			new PassThroughRecordEmitter<E, TestingSourceSplit>(),

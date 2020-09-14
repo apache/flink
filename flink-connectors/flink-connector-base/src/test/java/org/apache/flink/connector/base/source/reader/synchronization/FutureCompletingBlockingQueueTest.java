@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.base.source.reader.synchronization;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -30,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -42,10 +45,9 @@ public class FutureCompletingBlockingQueueTest {
 
 	@Test
 	public void testBasics() throws InterruptedException {
-		FutureNotifier futureNotifier = new FutureNotifier();
-		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(futureNotifier, 5);
+		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(5);
 
-		CompletableFuture<Void> future = futureNotifier.future();
+		CompletableFuture<Void> future = queue.getAvailabilityFuture();
 		assertTrue(queue.isEmpty());
 		assertEquals(0, queue.size());
 
@@ -66,8 +68,7 @@ public class FutureCompletingBlockingQueueTest {
 
 	@Test
 	public void testPoll() throws InterruptedException {
-		FutureNotifier futureNotifier = new FutureNotifier();
-		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(futureNotifier);
+		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>();
 		queue.put(0, 1234);
 		Integer value = queue.poll();
 		assertNotNull(value);
@@ -76,8 +77,7 @@ public class FutureCompletingBlockingQueueTest {
 
 	@Test
 	public void testWakeUpPut() throws InterruptedException {
-		FutureNotifier futureNotifier = new FutureNotifier();
-		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(futureNotifier, 1);
+		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
 
 		CountDownLatch latch = new CountDownLatch(1);
 		new Thread(() -> {
@@ -97,8 +97,7 @@ public class FutureCompletingBlockingQueueTest {
 
 	@Test
 	public void testConcurrency() throws InterruptedException {
-		FutureNotifier futureNotifier = new FutureNotifier();
-		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(futureNotifier, 5);
+		FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(5);
 		final int numValuesPerThread = 10000;
 		final int numPuttingThreads = 5;
 		List<Thread> threads = new ArrayList<>();
@@ -146,12 +145,21 @@ public class FutureCompletingBlockingQueueTest {
 
 	@Test
 	public void testFutureCompletingBlockingQueueConstructor() {
-		FutureNotifier notifier = new FutureNotifier();
-		FutureCompletingBlockingQueue<Object> defaultCapacityFutureCompletingBlockingQueue = new FutureCompletingBlockingQueue<>(notifier);
-		FutureCompletingBlockingQueue<Object> specifiedCapacityFutureCompletingBlockingQueue = new FutureCompletingBlockingQueue<>(notifier, SPECIFIED_CAPACITY);
+		FutureCompletingBlockingQueue<Object> defaultCapacityFutureCompletingBlockingQueue = new FutureCompletingBlockingQueue<>();
+		FutureCompletingBlockingQueue<Object> specifiedCapacityFutureCompletingBlockingQueue = new FutureCompletingBlockingQueue<>(SPECIFIED_CAPACITY);
 		// The capacity of the queue needs to be equal to 10000
 		assertEquals(defaultCapacityFutureCompletingBlockingQueue.remainingCapacity(), (int) DEFAULT_CAPACITY);
 		// The capacity of the queue needs to be equal to SPECIFIED_CAPACITY
 		assertEquals(specifiedCapacityFutureCompletingBlockingQueue.remainingCapacity(), (int) SPECIFIED_CAPACITY);
+	}
+
+	/**
+	 * This test is to guard that our reflection is not broken and we do not lose the
+	 * performance advantage. This is possible, because the tests depend on the runtime modules
+	 * while the main scope does not.
+	 */
+	@Test
+	public void testQueueUsesShortCircuitFuture() {
+		assertSame(AvailabilityProvider.AVAILABLE, FutureCompletingBlockingQueue.AVAILABLE);
 	}
 }
