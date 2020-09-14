@@ -125,9 +125,9 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
 		String path = params.getString(CONNECTOR_PATH);
 		String fieldDelimiter = params.getOptionalString(FORMAT_FIELD_DELIMITER).orElse(",");
-		Optional<String> writeModeParm = params.getOptionalString(FORMAT_WRITE_MODE);
+		Optional<String> writeModeParam = params.getOptionalString(FORMAT_WRITE_MODE);
 		FileSystem.WriteMode writeMode =
-				(writeModeParm.isPresent()) ? FileSystem.WriteMode.valueOf(writeModeParm.get()) : null;
+				(writeModeParam.isPresent()) ? FileSystem.WriteMode.valueOf(writeModeParam.get()) : null;
 		int numFiles = params.getOptionalInt(FORMAT_NUM_FILES).orElse(-1);
 
 		// bridge to java.sql.Timestamp/Time/Date
