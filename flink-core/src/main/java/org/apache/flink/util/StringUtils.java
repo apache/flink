@@ -41,6 +41,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public final class StringUtils {
 
+	/**
+	 * An empty string array. There are just too many places where one needs an empty string array
+	 * and wants to save some object allocation.
+	 */
+	public static final String[] EMPTY_STRING_ARRAY = new String[0];
+
 	private static final char[] HEX_CHARS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 	/**
