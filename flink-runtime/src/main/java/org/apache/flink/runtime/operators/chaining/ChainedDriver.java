@@ -48,7 +48,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	protected Collector<OT> outputCollector;
 	
-	protected UserCodeClassLoader userCodeClassLoader;
+	protected ClassLoader userCodeClassLoader;
 	
 	private DistributedRuntimeUDFContext udfContext;
 
@@ -64,12 +64,12 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
-					  AbstractInvokable parent, UserCodeClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-					  Map<String, Accumulator<?,?>> accumulatorMap)
+			AbstractInvokable parent, UserCodeClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
+			Map<String, Accumulator<?,?>> accumulatorMap)
 	{
 		this.config = config;
 		this.taskName = taskName;
-		this.userCodeClassLoader = userCodeClassLoader;
+		this.userCodeClassLoader = userCodeClassLoader.asClassLoader();
 		this.metrics = parent.getEnvironment().getMetricGroup().getOrAddOperator(taskName);
 		this.numRecordsIn = this.metrics.getIOMetricGroup().getNumRecordsInCounter();
 		this.numRecordsOut = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();

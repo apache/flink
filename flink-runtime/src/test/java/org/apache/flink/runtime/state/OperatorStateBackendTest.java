@@ -41,7 +41,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestingUserCodeClassLoader;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 
 import org.junit.Assert;
 import org.junit.Test;

@@ -96,5 +96,4 @@ public interface LibraryCacheManager {
 		 */
 		void release();
 	}
-
 }

@@ -507,7 +507,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void releaseUserCodeClassLoader_willRunReleaseHooks() throws Exception {
+	public void releaseUserCodeClassLoader_willRunReleaseHooks() throws IOException, InterruptedException {
 		final BlobLibraryCacheManager libraryCacheManager = new TestingBlobLibraryCacheManagerBuilder().build();
 
 		final LibraryCacheManager.ClassLoaderLease classLoaderLease = libraryCacheManager.registerClassLoaderLease(new JobID());
@@ -523,7 +523,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void releaseUserCodeClassLoader_willRegisterOnce() throws Exception {
+	public void releaseUserCodeClassLoader_willRegisterOnce() throws IOException, InterruptedException {
 		final BlobLibraryCacheManager libraryCacheManager = new TestingBlobLibraryCacheManagerBuilder().build();
 
 		final LibraryCacheManager.ClassLoaderLease classLoaderLease = libraryCacheManager.registerClassLoaderLease(new JobID());

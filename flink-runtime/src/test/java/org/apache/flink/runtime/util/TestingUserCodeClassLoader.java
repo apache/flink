@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.runtime.util;
+
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.function.BiConsumer;
 

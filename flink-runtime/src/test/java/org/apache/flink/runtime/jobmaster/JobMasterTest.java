@@ -136,7 +136,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.TestingUserCodeClassLoader;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 
 import akka.actor.ActorSystem;
 import org.hamcrest.Matchers;

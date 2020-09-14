@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -425,11 +424,21 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 * and the cached libraries are deleted immediately.
 		 */
 		private void releaseClassLoader() {
+			runReleaseHooks();
+
+			try {
+				classLoader.close();
+			} catch (IOException e) {
+				LOG.warn("Failed to release user code class loader for " + Arrays.toString(libraries.toArray()));
+			}
+		}
+
+		private void runReleaseHooks() {
 			Set<Map.Entry<String, Runnable>> hooks = releaseHooks.entrySet();
 			if (!hooks.isEmpty()) {
-				LOG.debug("Running {} class loader shutdown hook(s): {}.", hooks.size(), releaseHooks.keySet());
 				for (Map.Entry<String, Runnable> hookEntry : hooks) {
 					try {
+						LOG.debug("Running class loader shutdown hook: {}.", hookEntry.getKey());
 						hookEntry.getValue().run();
 					} catch (Throwable t) {
 						LOG.debug("Failed to run release hook '{}' for user code class loader.", hookEntry.getValue(), t);
@@ -437,12 +446,6 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				}
 
 				releaseHooks.clear();
-			}
-
-			try {
-				classLoader.close();
-			} catch (IOException e) {
-				LOG.warn("Failed to release user code class loader for " + Arrays.toString(libraries.toArray()));
 			}
 		}
 	}
