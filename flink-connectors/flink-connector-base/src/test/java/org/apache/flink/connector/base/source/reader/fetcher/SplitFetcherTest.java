@@ -21,6 +21,8 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 
 import org.junit.Test;
 
@@ -29,8 +31,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,9 +45,11 @@ public class SplitFetcherTest {
 	private static final int NUM_RECORDS_PER_SPLIT = 10_000;
 	private static final int INTERRUPT_RECORDS_INTERVAL = 10;
 	private static final int NUM_TOTAL_RECORDS = NUM_RECORDS_PER_SPLIT * NUM_SPLITS;
+
 	@Test
 	public void testWakeup() throws InterruptedException {
-		BlockingQueue<RecordsWithSplitIds<int[]>> elementQueue = new ArrayBlockingQueue<>(1);
+		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementQueue =
+			new FutureCompletingBlockingQueue<>(new FutureNotifier(), 1);
 		SplitFetcher<int[], MockSourceSplit> fetcher =
 				new SplitFetcher<>(
 						0,
