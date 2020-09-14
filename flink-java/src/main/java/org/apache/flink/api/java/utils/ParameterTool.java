@@ -78,9 +78,6 @@ public class ParameterTool extends AbstractParameterTool {
 
 			if (i >= args.length) {
 				map.put(key, NO_VALUE_KEY);
-			} else if (NumberUtils.isNumber(args[i])) {
-				map.put(key, args[i]);
-				i += 1;
 			} else if (args[i].startsWith("--") || args[i].startsWith("-")) {
 				// the argument cannot be a negative number because we checked earlier
 				// -> the next argument is a parameter name
