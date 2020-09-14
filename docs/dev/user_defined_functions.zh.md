@@ -1,5 +1,5 @@
 ---
-title: '用户自定义函数'
+title: '用户自定义 Functions'
 nav-id: user_defined_function
 nav-parent_id: streaming
 nav-pos: 4
@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-大多数操作都需要用户自定义函数。本节列出了实现用户自定义函数的不同方式。还会介绍 `Accumulators`（累加器），可用于深入了解你的 Flink 应用程序。
+大多数操作都需要用户自定义 function。本节列出了实现用户自定义 function 的不同方式。还会介绍 `Accumulators`（累加器），可用于深入了解你的 Flink 应用程序。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -45,7 +45,7 @@ data.map(new MyMapFunction());
 
 ## 匿名类
 
-你可以将函数当做匿名类传递：
+你可以将 function 当做匿名类传递：
 {% highlight java %}
 data.map(new MapFunction<String, Integer> () {
   public Integer map(String value) { return Integer.parseInt(value); }
@@ -54,7 +54,7 @@ data.map(new MapFunction<String, Integer> () {
 
 <a name="java-8-lambdas"></a>
 
-## Java 8 Lambdas 表达式
+## Java 8 Lambdas
 
 Flink 在 Java API 中还支持 Java 8 Lambdas 表达式。
 
@@ -70,7 +70,7 @@ data.reduce((i1,i2) -> i1 + i2);
 
 ## Rich functions
 
-所有需要用户自定义函数的转化操作都可以将 *rich* function 作为参数。例如，代替
+所有需要用户自定义 function 的转化操作都可以将 *rich* function 作为参数。例如，你可以将下面代码
 
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
@@ -78,7 +78,7 @@ class MyMapFunction implements MapFunction<String, Integer> {
 };
 {% endhighlight %}
 
-你可以写成
+替换成
 
 {% highlight java %}
 class MyMapFunction extends RichMapFunction<String, Integer> {
@@ -86,7 +86,7 @@ class MyMapFunction extends RichMapFunction<String, Integer> {
 };
 {% endhighlight %}
 
-并将函数照常传递给 `map` transformation:
+并将 function 照常传递给 `map` transformation:
 
 {% highlight java %}
 data.map(new MyMapFunction());
@@ -104,7 +104,7 @@ data.map (new RichMapFunction<String, Integer>() {
 
 <a name="lambda-functions"></a>
 
-## Lambda 函数
+## Lambda Functions
 
 正如你在上面的例子中看到的，所有的操作同可以通过 lambda 表达式来描述：
 {% highlight scala %}
@@ -123,13 +123,13 @@ data.reduce { _ + _ }
 
 ## Rich functions
 
-所有将 lambda 表达式作为参数的转化操作都可以用 *rich* function 来代替。例如，代替
+所有将 lambda 表达式作为参数的转化操作都可以用 *rich* function 来代替。例如，你可以将下面代码
 
 {% highlight scala %}
 data.map { x => x.toInt }
 {% endhighlight %}
 
-你可以写成
+替换成
 
 {% highlight scala %}
 class MyMapFunction extends RichMapFunction[String, Int] {
@@ -137,13 +137,13 @@ class MyMapFunction extends RichMapFunction[String, Int] {
 };
 {% endhighlight %}
 
-并将函数传递给 `map` transformation:
+并将 function 传递给 `map` transformation:
 
 {% highlight scala %}
 data.map(new MyMapFunction())
 {% endhighlight %}
 
-富函数也可以定义成匿名类:
+Rich functions 也可以定义成匿名类:
 {% highlight scala %}
 data.map (new RichMapFunction[String, Int] {
   def map(in: String):Int = { in.toInt }
@@ -153,9 +153,9 @@ data.map (new RichMapFunction[String, Int] {
 
 </div>
 
-除了用户自定义的功能（map，reduce 等），Rich functions 还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
-`setRuntimeContext`。这些方法对于参数化函数
-(参阅 [给函数传递参数]({% link dev/batch/index.zh.md %}#passing-parameters-to-functions))，
+除了用户自定义的 function（map，reduce 等），Rich functions 还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
+`setRuntimeContext`。这些方法对于参数化 function
+(参阅 [给 function 传递参数]({% link dev/batch/index.zh.md %}#passing-parameters-to-functions))，
 创建和最终确定本地状态，访问广播变量(参阅
 [广播变量]({% link dev/batch/index.zh.md %}#broadcast-variables ))，以及访问运行时信息，例如累加器和计数器(参阅
 [累加器和计数器](#accumulators--counters))，以及迭代器的相关信息(参阅 [迭代器]({% link dev/batch/iterations.zh.md %}))
@@ -186,7 +186,7 @@ Flink 目前有如下**内置累加器**。每个都实现了
 
 __如何使用累加器：__
 
-首先，在需要使用累加器的用户自定义的转换函数中创建一个累加器对象（此处是计数器）。
+首先，在需要使用累加器的用户自定义的转换 function 中创建一个累加器对象（此处是计数器）。
 
 {% highlight java %}
 private IntCounter numLines = new IntCounter();
@@ -198,7 +198,7 @@ private IntCounter numLines = new IntCounter();
 getRuntimeContext().addAccumulator("num-lines", this.numLines);
 {% endhighlight %}
 
-现在你可以在操作函数中的任何位置（包括 ```open()``` 和 ```close()``` 方法中）使用累加器。
+现在你可以在操作 function 中的任何位置（包括 ```open()``` 和 ```close()``` 方法中）使用累加器。
 
 {% highlight java %}
 this.numLines.add(1);
@@ -210,7 +210,7 @@ this.numLines.add(1);
 myJobExecutionResult.getAccumulatorResult("num-lines")
 {% endhighlight %}
 
-单个作业的所有累加器共享一个命名空间。因此你可以在不同的操作函数里面使用同一个累加器。Flink 会在内部将所有具有相同名称的累加器合并起来。
+单个作业的所有累加器共享一个命名空间。因此你可以在不同的操作 function 里面使用同一个累加器。Flink 会在内部将所有具有相同名称的累加器合并起来。
 
 关于累加器和迭代的注意事项：当前累加器的结果只有在整个作业结束后才可用。我们还计划在下一次迭代中提供上一次的迭代结果。你可以使用
 {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98 "聚合器" %}
@@ -224,7 +224,7 @@ __定制累加器：__
 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %}
 或 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/SimpleAccumulator.java "SimpleAccumulator" %}。
 
-```Accumulator<V,R>``` 最灵活: 它给需要添加的值定义了类型 ```V```，并定义了最终的结果类型 ```R```。例如，对于直方图，```V``` 是一个数字且 ```R``` 是一个直方图。
+```Accumulator<V,R>``` 的实现十分灵活: 它定义了将要添加的值类型 ```V```，并定义了最终的结果类型 ```R```。例如，对于直方图，```V``` 是一个数字且 ```R``` 是一个直方图。
  ```SimpleAccumulator``` 适用于两种类型都相同的情况，例如计数器。
 
 {% top %}
