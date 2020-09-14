@@ -116,12 +116,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	@Override
 	public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
-		splitFetcherManager.checkErrors();
-
 		// make sure we have a fetch we are working on, or move to the next
-		final RecordsWithSplitIds<E> recordsWithSplitId = getCurrentOrNewFetch(output);
+		RecordsWithSplitIds<E> recordsWithSplitId = this.currentFetch;
 		if (recordsWithSplitId == null) {
-			return trace(finishedOrAvailableLater());
+			recordsWithSplitId = getNextFetch(output);
+			if (recordsWithSplitId == null) {
+				return trace(finishedOrAvailableLater());
+			}
 		}
 
 		// we need to loop here, because we may have to go across splits
@@ -132,6 +133,12 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 				// emit the record.
 				recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
 				LOG.trace("Emitted record: {}", record);
+
+				// We always emit MORE_AVAILABLE here, even though we do not strictly know whether
+				// more is available. If nothing more is available, the next invocation will find
+				// this out and return the correct status.
+				// That means we emit the occasional 'false positive' for availability, but this
+				// saves us doing checks for every record. Ultimately, this is cheaper.
 				return trace(InputStatus.MORE_AVAILABLE);
 			}
 			else if (!moveToNextSplit(recordsWithSplitId, output)) {
@@ -147,13 +154,11 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Nullable
-	private RecordsWithSplitIds<E> getCurrentOrNewFetch(final ReaderOutput<T> output) {
-		RecordsWithSplitIds<E> recordsWithSplitId = this.currentFetch;
-		if (recordsWithSplitId != null) {
-			return recordsWithSplitId;
-		}
+	private RecordsWithSplitIds<E> getNextFetch(final ReaderOutput<T> output) {
+		splitFetcherManager.checkErrors();
 
-		recordsWithSplitId = elementsQueue.poll();
+		LOG.trace("Getting next source data batch from queue");
+		final RecordsWithSplitIds<E> recordsWithSplitId = elementsQueue.poll();
 		if (recordsWithSplitId == null || !moveToNextSplit(recordsWithSplitId, output)) {
 			// No element available, set to available later if needed.
 			return null;
@@ -170,6 +175,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 		final Set<String> finishedSplits = fetch.finishedSplits();
 		if (!finishedSplits.isEmpty()) {
+			LOG.info("Finished reading split(s) {}", finishedSplits);
 			for (String finishedSplitId : finishedSplits) {
 				splitStates.remove(finishedSplitId);
 				output.releaseOutputForSplit(finishedSplitId);
@@ -183,6 +189,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	private boolean moveToNextSplit(RecordsWithSplitIds<E> recordsWithSplitIds, ReaderOutput<T> output) {
 		final String nextSplitId = recordsWithSplitIds.nextSplit();
 		if (nextSplitId == null) {
+			LOG.trace("Current fetch is finished.");
 			finishCurrentFetch(recordsWithSplitIds, output);
 			return false;
 		}
@@ -190,6 +197,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		currentSplitContext = splitStates.get(nextSplitId);
 		checkState(currentSplitContext != null, "Have records for a split that was not registered");
 		currentSplitOutput = currentSplitContext.getOrCreateSplitOutput(output);
+		LOG.trace("Emitting records from fetch for split {}", nextSplitId);
 		return true;
 	}
 
@@ -218,7 +226,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	@Override
 	public void addSplits(List<SplitT> splits) {
-		LOG.trace("Adding splits {}", splits);
+		LOG.info("Adding split(s) to reader: {}", splits);
 		// Initialize the state for each split.
 		splits.forEach(s -> splitStates.put(s.splitId(), new SplitContext<>(s.splitId(), initializedState(s))));
 		// Hand over the splits to the split fetcher to start fetch.
@@ -229,6 +237,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	public void handleSourceEvents(SourceEvent sourceEvent) {
 		LOG.trace("Handling source event: {}", sourceEvent);
 		if (sourceEvent instanceof NoMoreSplitsEvent) {
+			LOG.info("Reader received NoMoreSplits event.");
 			noMoreSplitsAssignment = true;
 			futureNotifier.notifyComplete();
 		}

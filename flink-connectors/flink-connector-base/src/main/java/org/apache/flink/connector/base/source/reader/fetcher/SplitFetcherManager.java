@@ -107,7 +107,8 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 
 		// Create the executor with a thread factory that fails the source reader if one of
 		// the fetcher thread exits abnormally.
-		this.executors = Executors.newCachedThreadPool(r -> new Thread(r, "SourceFetcher"));
+		final String taskThreadName = Thread.currentThread().getName();
+		this.executors = Executors.newCachedThreadPool(r -> new Thread(r, "Source Data Fetcher for " + taskThreadName));
 		this.closed = false;
 	}
 
