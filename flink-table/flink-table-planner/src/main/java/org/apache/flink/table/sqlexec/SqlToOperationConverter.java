@@ -637,8 +637,9 @@ public class SqlToOperationConverter {
 				.deriveType(
 					flinkPlanner.getOrCreateSqlValidator(),
 					column.getType().getNullable());
-			builder.field(column.getName().getSimple(),
-				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
+			builder.fieldWithComment(column.getName().getSimple(),
+				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)),
+				column.getComment().isPresent() ? column.getComment().get().getValue().toString() : null);
 			physicalSchema = builder.build();
 		}
 		assert physicalSchema != null;

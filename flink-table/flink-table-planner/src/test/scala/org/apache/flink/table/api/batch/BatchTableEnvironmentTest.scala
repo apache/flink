@@ -567,9 +567,37 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     checkData(
       java.util.Arrays.asList(
-        Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
-        Row.of("b", "INT", Boolean.box(true), null, null, null),
-        Row.of("c", "STRING", Boolean.box(true), null, null, null)
+        Row.of("a", "BIGINT", Boolean.box(true), null, null, null, null),
+        Row.of("b", "INT", Boolean.box(true), null, null, null, null),
+        Row.of("c", "STRING", Boolean.box(true), null, null, null, null)
+      ).iterator(),
+      tableResult2.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithDescribeForComment(): Unit = {
+    val testUtil = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl1 (
+        |  a bigint COMMENT 'c1',
+        |  b int COMMENT 'c2',
+        |  c varchar COMMENT 'c3'
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = testUtil.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = testUtil.tableEnv.executeSql("DESCRIBE tbl1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(
+      java.util.Arrays.asList(
+        Row.of("a", "BIGINT", Boolean.box(true), null, null, null, "\'c1\'"),
+        Row.of("b", "INT", Boolean.box(true), null, null, null, "\'c2\'"),
+        Row.of("c", "STRING", Boolean.box(true), null, null, null, "\'c3\'")
       ).iterator(),
       tableResult2.collect())
   }

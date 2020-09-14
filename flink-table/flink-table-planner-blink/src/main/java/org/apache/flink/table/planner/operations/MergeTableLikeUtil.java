@@ -398,15 +398,18 @@ class MergeTableLikeUtil {
 						call.operand(0),
 						physicalFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
-					column = TableColumn.of(
+					String comment = call.getOperandList().size() > 2 ? call.getOperandList().get(2).toString() : null;
+					column = TableColumn.ofWithComment(
 						fieldName,
 						fromLogicalToDataType(toLogicalType(validatedType)),
-						escapeExpressions.apply(validatedExpr));
+						escapeExpressions.apply(validatedExpr), comment);
 					computedFieldNamesToTypes.put(fieldName, validatedType);
 				} else {
-					String name = ((SqlTableColumn) derivedColumn).getName().getSimple();
+					SqlTableColumn sqlTableColumn = ((SqlTableColumn) derivedColumn);
+					String name = sqlTableColumn.getName().getSimple();
+					String comment = sqlTableColumn.getComment().isPresent() ? sqlTableColumn.getComment().get().getValue().toString() : null;
 					LogicalType logicalType = FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
-					column = TableColumn.of(name, TypeConversions.fromLogicalToDataType(logicalType));
+					column = TableColumn.ofWithComment(name, TypeConversions.fromLogicalToDataType(logicalType), comment);
 				}
 				columns.put(column.getName(), column);
 			}

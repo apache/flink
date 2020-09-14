@@ -40,6 +40,8 @@ public class TableColumn {
 	private final DataType type;
 	@Nullable
 	private final String expr;
+	@Nullable
+	private final String comment;
 
 	//~ Constructors -----------------------------------------------------------
 
@@ -49,14 +51,17 @@ public class TableColumn {
 	 * @param name Column name
 	 * @param type Column data type
 	 * @param expr Column computation expression if it is a computed column
+	 * @param comment Column comment
 	 */
 	private TableColumn(
-			String name,
-			DataType type,
-			@Nullable String expr) {
+		String name,
+		DataType type,
+		@Nullable String expr,
+		@Nullable String comment) {
 		this.name = name;
 		this.type = type;
 		this.expr = expr;
+		this.comment = comment;
 	}
 
 	//~ Methods ----------------------------------------------------------------
@@ -67,7 +72,16 @@ public class TableColumn {
 	public static TableColumn of(String name, DataType type) {
 		Preconditions.checkNotNull(name, "Column name can not be null!");
 		Preconditions.checkNotNull(type, "Column type can not be null!");
-		return new TableColumn(name, type, null);
+		return new TableColumn(name, type, null, null);
+	}
+
+	/**
+	 * Creates a table column from given name , data type and comment.
+	 */
+	public static TableColumn ofWithComment(String name, DataType type, String comment) {
+		Preconditions.checkNotNull(name, "Column name can not be null!");
+		Preconditions.checkNotNull(type, "Column type can not be null!");
+		return new TableColumn(name, type, null, comment);
 	}
 
 	/**
@@ -80,7 +94,20 @@ public class TableColumn {
 		Preconditions.checkNotNull(name, "Column name can not be null!");
 		Preconditions.checkNotNull(type, "Column type can not be null!");
 		Preconditions.checkNotNull(expression, "Column expression can not be null!");
-		return new TableColumn(name, type, expression);
+		return new TableColumn(name, type, expression, null);
+	}
+
+	/**
+	 * Creates a table column from given name , data type , computation expression and comment.
+	 *
+	 * @param name Name of the column
+	 * @param expression SQL-style expression
+	 */
+	public static TableColumn ofWithComment(String name, DataType type, String expression, String comment) {
+		Preconditions.checkNotNull(name, "Column name can not be null!");
+		Preconditions.checkNotNull(type, "Column type can not be null!");
+		Preconditions.checkNotNull(expression, "Column expression can not be null!");
+		return new TableColumn(name, type, expression, comment);
 	}
 
 	@Override
@@ -94,12 +121,13 @@ public class TableColumn {
 		TableColumn that = (TableColumn) o;
 		return Objects.equals(this.name, that.name)
 			&& Objects.equals(this.type, that.type)
-			&& Objects.equals(this.expr, that.expr);
+			&& Objects.equals(this.expr, that.expr)
+			&& Objects.equals(this.comment, that.comment);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.name, this.type, this.expr);
+		return Objects.hash(this.name, this.type, this.expr, this.comment);
 	}
 
 	//~ Getter/Setter ----------------------------------------------------------
@@ -118,6 +146,12 @@ public class TableColumn {
 	 * is not a computed column. */
 	public Optional<String> getExpr() {
 		return Optional.ofNullable(this.expr);
+	}
+
+	/** Returns comment of this column. Or empty if this column
+	 * has no comment. */
+	public Optional<String> getComment() {
+		return Optional.ofNullable(this.comment);
 	}
 
 	/**
