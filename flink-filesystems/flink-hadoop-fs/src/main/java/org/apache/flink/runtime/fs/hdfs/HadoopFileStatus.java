@@ -27,7 +27,7 @@ import org.apache.flink.core.fs.Path;
  */
 public final class HadoopFileStatus implements FileStatus {
 
-	private org.apache.hadoop.fs.FileStatus fileStatus;
+	private final org.apache.hadoop.fs.FileStatus fileStatus;
 
 	/**
 	 * Creates a new file status from an HDFS file status.
@@ -46,12 +46,7 @@ public final class HadoopFileStatus implements FileStatus {
 
 	@Override
 	public long getBlockSize() {
-		long blocksize = fileStatus.getBlockSize();
-		if (blocksize > fileStatus.getLen()) {
-			return fileStatus.getLen();
-		}
-
-		return blocksize;
+		return Math.min(fileStatus.getBlockSize(), fileStatus.getLen());
 	}
 
 	@Override
@@ -69,18 +64,17 @@ public final class HadoopFileStatus implements FileStatus {
 		return fileStatus.getReplication();
 	}
 
-	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
-		return this.fileStatus;
-	}
-
 	@Override
 	public Path getPath() {
 		return new Path(fileStatus.getPath().toUri());
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	public boolean isDir() {
-		return fileStatus.isDir();
+		return fileStatus.isDirectory();
+	}
+
+	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
+		return this.fileStatus;
 	}
 }
