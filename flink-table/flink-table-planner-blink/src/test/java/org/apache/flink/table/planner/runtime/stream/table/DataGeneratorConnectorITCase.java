@@ -18,16 +18,19 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * IT case for data generator source.
+ */
 public class DataGeneratorConnectorITCase extends BatchTestBase {
 
 	private static final String TABLE = "CREATE TABLE datagen_t (\n" +
@@ -67,6 +70,6 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
 			}
 		}
 
-		Assert.assertEquals("Unexpected number of results",10, results.size());
+		Assert.assertEquals("Unexpected number of results", 10, results.size());
 	}
 }
