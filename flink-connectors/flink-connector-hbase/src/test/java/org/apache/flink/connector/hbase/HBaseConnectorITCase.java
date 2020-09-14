@@ -248,7 +248,8 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 				.field("rowkey", DataTypes.INT())
 				.field("family2", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.STRING()), DataTypes.FIELD("col2", DataTypes.BIGINT())))
 				.field("family3", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.DOUBLE()), DataTypes.FIELD("col2", DataTypes.BOOLEAN()), DataTypes.FIELD("col3", DataTypes.STRING())))
-				.field("family1", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.INT()))));
+				.field("family1", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.INT()))))
+			.createTemporaryTable("hTable");
 		Table table = tEnv.sqlQuery("SELECT * FROM hTable AS h");
 		List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
 		String expected =
