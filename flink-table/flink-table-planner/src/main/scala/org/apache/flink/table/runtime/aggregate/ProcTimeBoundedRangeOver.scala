@@ -102,7 +102,7 @@ class ProcTimeBoundedRangeOver[K](
 
     // add current element to the window list of elements with corresponding timestamp
     var rowList = rowMapState.get(currentTime)
-    // null value means that this si the first event received for this timestamp
+    // null value means that this is the first event received for this timestamp
     if (rowList == null) {
       rowList = new ArrayList[Row]()
       // register timer to process event once the current millisecond passed
