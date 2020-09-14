@@ -190,6 +190,10 @@ public class FutureCompletingBlockingQueue<T> {
 		}
 	}
 
+	public void notifyAvailable() {
+		futureNotifier.notifyComplete();
+	}
+
 	// --------------- private helpers -------------------------
 
 	private void enqueue(T element) {
