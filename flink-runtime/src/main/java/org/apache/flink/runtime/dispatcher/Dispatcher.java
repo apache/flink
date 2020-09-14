@@ -88,6 +88,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -128,6 +129,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final HistoryServerArchivist historyServerArchivist;
 
+	private final Executor ioExecutor;
+
 	@Nullable
 	private final String metricServiceQueryAddress;
 
@@ -159,6 +162,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
 		this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
 		this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
+		this.ioExecutor = dispatcherServices.getIoExecutor();
 
 		this.jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(
 			configuration,
@@ -345,7 +349,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			} else {
 				return acknowledge;
 			}
-		}, getRpcService().getExecutor());
+		}, ioExecutor);
 	}
 
 	private void persistAndRunJob(JobGraph jobGraph) throws Exception {
@@ -415,7 +419,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 					throw new CompletionException(new JobInitializationException(jobGraph.getJobID(), "Could not instantiate JobManager.", e));
 				}
 			},
-			rpcService.getExecutor()); // do not use main thread executor. Otherwise, Dispatcher is blocked on JobManager creation
+			ioExecutor); // do not use main thread executor. Otherwise, Dispatcher is blocked on JobManager creation
 	}
 
 	@Override
@@ -648,7 +652,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 		return dispatcherJobTerminationFuture.thenRunAsync(
 			() -> cleanUpJobData(jobId, cleanupHA),
-			getRpcService().getExecutor());
+			ioExecutor);
 	}
 
 	private void cleanUpJobData(JobID jobId, boolean cleanupHA) {

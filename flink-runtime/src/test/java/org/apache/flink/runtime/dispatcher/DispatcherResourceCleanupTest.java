@@ -79,6 +79,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -208,7 +209,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				jobGraphWriter,
-				jobManagerRunnerFactory));
+				jobManagerRunnerFactory,
+				ForkJoinPool.commonPool()));
 
 		dispatcher.start();
 

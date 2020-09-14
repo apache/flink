@@ -29,6 +29,8 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * Partial {@link DispatcherServices} services container which needs to
  * be completed before being given to the {@link Dispatcher}.
@@ -65,6 +67,9 @@ public class PartialDispatcherServices {
 	@Nullable
 	private final String metricQueryServiceAddress;
 
+	@Nonnull
+	private final Executor ioExecutor;
+
 	public PartialDispatcherServices(
 			@Nonnull Configuration configuration,
 			@Nonnull HighAvailabilityServices highAvailabilityServices,
@@ -75,7 +80,8 @@ public class PartialDispatcherServices {
 			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			@Nonnull FatalErrorHandler fatalErrorHandler,
 			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nullable String metricQueryServiceAddress) {
+			@Nullable String metricQueryServiceAddress,
+			@Nonnull Executor ioExecutor) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -86,6 +92,7 @@ public class PartialDispatcherServices {
 		this.fatalErrorHandler = fatalErrorHandler;
 		this.historyServerArchivist = historyServerArchivist;
 		this.metricQueryServiceAddress = metricQueryServiceAddress;
+		this.ioExecutor = ioExecutor;
 	}
 
 	@Nonnull
@@ -136,5 +143,10 @@ public class PartialDispatcherServices {
 	@Nullable
 	public String getMetricQueryServiceAddress() {
 		return metricQueryServiceAddress;
+	}
+
+	@Nonnull
+	public Executor getIoExecutor() {
+		return ioExecutor;
 	}
 }

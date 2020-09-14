@@ -31,6 +31,8 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * {@link Dispatcher} services container.
  */
@@ -72,6 +74,9 @@ public class DispatcherServices {
 	@Nonnull
 	private final JobManagerRunnerFactory jobManagerRunnerFactory;
 
+	@Nonnull
+	private final Executor ioExecutor;
+
 	public DispatcherServices(
 			@Nonnull Configuration configuration,
 			@Nonnull HighAvailabilityServices highAvailabilityServices,
@@ -84,7 +89,8 @@ public class DispatcherServices {
 			@Nullable String metricQueryServiceAddress,
 			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
 			@Nonnull JobGraphWriter jobGraphWriter,
-			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
+			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory,
+			@Nonnull Executor ioExecutor) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
 		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
@@ -97,6 +103,7 @@ public class DispatcherServices {
 		this.jobManagerMetricGroup = jobManagerMetricGroup;
 		this.jobGraphWriter = jobGraphWriter;
 		this.jobManagerRunnerFactory = jobManagerRunnerFactory;
+		this.ioExecutor = ioExecutor;
 	}
 
 	@Nonnull
@@ -159,6 +166,11 @@ public class DispatcherServices {
 		return jobManagerRunnerFactory;
 	}
 
+	@Nonnull
+	public Executor getIoExecutor() {
+		return ioExecutor;
+	}
+
 	public static DispatcherServices from(
 			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore,
 			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
@@ -174,6 +186,7 @@ public class DispatcherServices {
 			partialDispatcherServicesWithJobGraphStore.getMetricQueryServiceAddress(),
 			partialDispatcherServicesWithJobGraphStore.getJobManagerMetricGroupFactory().create(),
 			partialDispatcherServicesWithJobGraphStore.getJobGraphWriter(),
-			jobManagerRunnerFactory);
+			jobManagerRunnerFactory,
+			partialDispatcherServicesWithJobGraphStore.getIoExecutor());
 	}
 }
