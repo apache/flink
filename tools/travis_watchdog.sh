@@ -51,6 +51,8 @@ TRANSFER_UPLOAD_MAX_RETRIES=2
 # backoff algorithm should be too long for the last several retries.
 TRANSFER_UPLOAD_RETRY_DELAY=5
 
+WATCHDOG_ADDITIONAL_MONITORING_FILES="$ARTIFACTS_DIR/mvn-*.log"
+
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 PYTHON_TEST="./flink-python/dev/lint-python.sh"
@@ -191,13 +193,26 @@ put_yarn_logs_to_artifacts() {
 	done
 }
 
+max_of() {
+  local max number
+
+  max="$1"
+
+  for number in "${@:2}"; do
+    if ((number > max)); then
+      max="$number"
+    fi
+  done
+
+  printf '%d\n' "$max"
+}
+
+# Returns the highest modification time out of $CMD_OUT (which is the command output file)
+# and any file(s) named "mvn-*.log" (which are logging files created by Flink's tests)
 mod_time () {
-	if [[ `uname` == 'Darwin' ]]; then
-		eval $(stat -s $CMD_OUT)
-		echo $st_mtime
-	else
-		echo `stat -c "%Y" $CMD_OUT`
-	fi
+	CMD_OUT_MOD_TIME=`stat -c "%Y" $CMD_OUT`
+	ADDITIONAL_FILES_MOD_TIMES=`stat -c "%Y" $WATCHDOG_ADDITIONAL_MONITORING_FILES 2> /dev/null`
+	echo `max_of $CMD_OUT_MOD_TIME $ADDITIONAL_FILES_MOD_TIMES`
 }
 
 the_time() {
