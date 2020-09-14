@@ -75,20 +75,21 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 		this.isIdle = true;
 		this.wakeUp = new AtomicBoolean(false);
 		this.closed = new AtomicBoolean(false);
+
+		this.fetchTask = new FetchTask<>(
+				splitReader,
+				elementsQueue,
+				ids -> {
+					ids.forEach(assignedSplits::remove);
+					updateIsIdle();
+				},
+				id);
 	}
 
 	@Override
 	public void run() {
 		LOG.info("Starting split fetcher {}", id);
 		try {
-			// Remove the split from the assignments if it is already done.
-			this.fetchTask = new FetchTask<>(
-					splitReader,
-					elementsQueue,
-					ids -> {
-						ids.forEach(assignedSplits::remove);
-						updateIsIdle();
-					}, id);
 			while (!closed.get()) {
 				runOnce();
 			}
