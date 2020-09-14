@@ -29,7 +29,6 @@ import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 import org.apache.flink.core.io.InputStatus;
 
 import org.slf4j.Logger;
@@ -61,9 +60,6 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		implements SourceReader<T, SplitT> {
 	private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBase.class);
 
-	/** A future notifier to notify when this reader requires attention. */
-	private final FutureNotifier futureNotifier;
-
 	/** A queue to buffer the elements fetched by the fetcher thread. */
 	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 
@@ -94,13 +90,11 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	private boolean noMoreSplitsAssignment;
 
 	public SourceReaderBase(
-			FutureNotifier futureNotifier,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			SplitFetcherManager<E, SplitT> splitFetcherManager,
 			RecordEmitter<E, T, SplitStateT> recordEmitter,
 			Configuration config,
 			SourceReaderContext context) {
-		this.futureNotifier = futureNotifier;
 		this.elementsQueue = elementsQueue;
 		this.splitFetcherManager = splitFetcherManager;
 		this.recordEmitter = recordEmitter;
@@ -203,18 +197,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	@Override
 	public CompletableFuture<Void> isAvailable() {
-		// The order matters here. We first get the future. After this point, if the queue
-		// is empty or there is no error in the split fetcher manager, we can ensure that
-		// the future will be completed by the fetcher once it put an element into the element queue,
-		// or it will be completed when an error occurs.
-		CompletableFuture<Void> future = futureNotifier.future();
-		splitFetcherManager.checkErrors();
-		if (!elementsQueue.isEmpty()) {
-			// The fetcher got the new elements after the last poll, or their is a finished split.
-			// Simply complete the future and return;
-			futureNotifier.notifyComplete();
-		}
-		return future;
+		return currentFetch != null ? FutureCompletingBlockingQueue.AVAILABLE : elementsQueue.getAvailabilityFuture();
 	}
 
 	@Override
@@ -239,7 +222,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		if (sourceEvent instanceof NoMoreSplitsEvent) {
 			LOG.info("Reader received NoMoreSplits event.");
 			noMoreSplitsAssignment = true;
-			futureNotifier.notifyComplete();
+			elementsQueue.notifyAvailable();
 		}
 	}
 
