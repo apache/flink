@@ -46,11 +46,10 @@ public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitR
 		if (!fetches.isEmpty()) {
 			return fetches.removeFirst();
 		} else {
-			// block until interrupted
+			// block until woken up
 			synchronized (fetches) {
-				while (true) {
-					fetches.wait();
-				}
+				fetches.wait();
+				return null;
 			}
 		}
 	}
@@ -61,5 +60,9 @@ public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitR
 	}
 
 	@Override
-	public void wakeUp() {}
+	public void wakeUp() {
+		synchronized (fetches) {
+			fetches.notifyAll();
+		}
+	}
 }
