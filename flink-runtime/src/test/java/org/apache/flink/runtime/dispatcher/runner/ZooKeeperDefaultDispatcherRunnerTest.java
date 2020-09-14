@@ -182,6 +182,11 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 				LOG.info("Cancel recovered job {}.", jobGraph.getJobID());
 				// cancellation of the job should remove everything
 				final CompletableFuture<JobResult> jobResultFuture = dispatcherGateway.requestJobResult(jobGraph.getJobID(), TESTING_TIMEOUT);
+
+				// wait until job is initialized, otherwise we would cancel the initialization
+				final DispatcherGateway currentGateway = dispatcherGateway;
+				CommonTestUtils.waitUntilJobManagerIsInitialized(() -> currentGateway.requestJobStatus(jobGraph.getJobID(), TESTING_TIMEOUT).get());
+
 				dispatcherGateway.cancelJob(jobGraph.getJobID(), TESTING_TIMEOUT).get();
 
 				// a successful cancellation should eventually remove all job information

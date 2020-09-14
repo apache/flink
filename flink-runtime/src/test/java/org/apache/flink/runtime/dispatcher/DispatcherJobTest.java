@@ -247,13 +247,39 @@ public class DispatcherJobTest extends TestLogger {
 
 		JobGraph jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
 		CompletableFuture<JobManagerRunner> jobManagerRunnerCompletableFuture = new CompletableFuture<>();
-		DispatcherJob dispatcherJob = DispatcherJob.createFor(jobManagerRunnerCompletableFuture,
+		CompletableFuture<Acknowledge> cancellationFuture = new CompletableFuture<>();
+		MockInitializingJobManagerRunner mockInitializingJobManagerRunner =
+			new MockInitializingJobManagerRunner(jobManagerRunnerCompletableFuture, cancellationFuture, TEST_JOB_ID);
+		DispatcherJob dispatcherJob = DispatcherJob.createFor(mockInitializingJobManagerRunner,
 			jobGraph.getJobID(), jobGraph.getName(), System.currentTimeMillis());
 
 		return new TestContext(
 			jobManagerRunnerCompletableFuture,
+			cancellationFuture,
 			dispatcherJob,
 			jobGraph);
+	}
+
+	private static class MockInitializingJobManagerRunner extends InitializingJobManagerRunner {
+
+		private final CompletableFuture<JobManagerRunner> runnerFuture;
+		private CompletableFuture<Acknowledge> cancellationFuture;
+
+		public MockInitializingJobManagerRunner(CompletableFuture<JobManagerRunner> runnerFuture, CompletableFuture<Acknowledge> cancellationFuture, JobID jobID) {
+			super(() -> null, jobID);
+			this.runnerFuture = runnerFuture;
+			this.cancellationFuture = cancellationFuture;
+		}
+
+		@Override
+		public CompletableFuture<JobManagerRunner> getJobManagerRunnerFuture() {
+			return runnerFuture;
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> cancelInitialization() {
+			return cancellationFuture;
+		}
 	}
 
 	private static class TestContext {
@@ -268,13 +294,14 @@ public class DispatcherJobTest extends TestLogger {
 
 		public TestContext (
 				CompletableFuture<JobManagerRunner> jobManagerRunnerCompletableFuture,
+				CompletableFuture<Acknowledge> cancellationFuture,
 				DispatcherJob dispatcherJob,
 				JobGraph jobGraph) {
 			this.jobManagerRunnerCompletableFuture = jobManagerRunnerCompletableFuture;
 			this.dispatcherJob = dispatcherJob;
 			this.jobGraph = jobGraph;
 
-			this.cancellationFuture = new CompletableFuture<>();
+			this.cancellationFuture = cancellationFuture;
 			this.mockRunningJobMasterGateway = new TestingJobMasterGatewayBuilder()
 				.setRequestJobSupplier(() -> CompletableFuture.completedFuture(ArchivedExecutionGraph.createFromInitializingJob(getJobID(), "test", internalJobStatus, null, 1337)))
 				.setRequestJobDetailsSupplier(() -> {

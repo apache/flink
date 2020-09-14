@@ -46,7 +46,7 @@ public final class DispatcherJob implements AutoCloseableAsync {
 
 	private final Logger log = LoggerFactory.getLogger(DispatcherJob.class);
 
-	private final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture;
+	private final InitializingJobManagerRunner initializingJobManagerRunner;
 	private final CompletableFuture<DispatcherJobResult> jobResultFuture;
 	private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
@@ -86,25 +86,25 @@ public final class DispatcherJob implements AutoCloseableAsync {
 	}
 
 	static DispatcherJob createFor(
-			CompletableFuture<JobManagerRunner> jobManagerRunnerFuture,
+			InitializingJobManagerRunner initializingJobManagerRunner,
 			JobID jobId,
 			String jobName,
 			long initializationTimestamp) {
-		return new DispatcherJob(jobManagerRunnerFuture, jobId, jobName, initializationTimestamp);
+		return new DispatcherJob(initializingJobManagerRunner, jobId, jobName, initializationTimestamp);
 	}
 
 	private DispatcherJob(
-			CompletableFuture<JobManagerRunner> jobManagerRunnerFuture,
+			InitializingJobManagerRunner initializingJobManagerRunner,
 			JobID jobId,
 			String jobName,
 			long initializationTimestamp) {
-		this.jobManagerRunnerFuture = jobManagerRunnerFuture;
+		this.initializingJobManagerRunner = initializingJobManagerRunner;
 		this.jobId = jobId;
 		this.jobName = jobName;
 		this.initializationTimestamp = initializationTimestamp;
 		this.jobResultFuture = new CompletableFuture<>();
 
-		FutureUtils.assertNoException(this.jobManagerRunnerFuture.handle((jobManagerRunner, throwable) -> {
+		FutureUtils.assertNoException(this.initializingJobManagerRunner.getJobManagerRunnerFuture().handle((jobManagerRunner, throwable) -> {
 			// JM has been initialized, or the initialization failed
 			synchronized (lock) {
 				jobStatus = DispatcherJobStatus.JOB_MANAGER_RUNNER_INITIALIZED;
@@ -118,11 +118,17 @@ public final class DispatcherJob implements AutoCloseableAsync {
 						}
 					});
 				} else { // failure during initialization
-					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+					JobStatus finalStatus = JobStatus.FAILED;
+					Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+					if (throwable instanceof JobInitializationCancelledException) {
+						finalStatus = JobStatus.CANCELED;
+						strippedThrowable = null;
+					}
+
 					ArchivedExecutionGraph archivedExecutionGraph = ArchivedExecutionGraph.createFromInitializingJob(
 						jobId,
 						jobName,
-						JobStatus.FAILED,
+						finalStatus,
 						strippedThrowable,
 						initializationTimestamp);
 					jobResultFuture.complete(DispatcherJobResult.forInitializationFailure(archivedExecutionGraph, strippedThrowable));
@@ -154,17 +160,10 @@ public final class DispatcherJob implements AutoCloseableAsync {
 			if (isInitialized()) {
 				return getJobMasterGateway().thenCompose(jobMasterGateway -> jobMasterGateway.cancel(timeout));
 			} else {
-				log.info("Cancellation during initialization requested for job {}. Job will be cancelled once JobManager has been initialized.", jobId);
+				log.info("Cancellation during initialization for job {}.", jobId);
 
 				// cancel job
-				CompletableFuture<Acknowledge> cancelFuture = jobManagerRunnerFuture
-					.thenCompose(JobManagerRunner::getJobMasterGateway)
-					.thenCompose(jobMasterGateway -> jobMasterGateway.cancel(timeout));
-				cancelFuture.whenComplete((ignored, cancelThrowable) -> {
-					if (cancelThrowable != null) {
-						log.warn("Cancellation of job {} failed", jobId, cancelThrowable);
-					}
-				});
+				CompletableFuture<Acknowledge> cancelFuture = initializingJobManagerRunner.cancelInitialization();
 				jobStatus = DispatcherJobStatus.CANCELLING;
 				return cancelFuture;
 			}
@@ -221,15 +220,15 @@ public final class DispatcherJob implements AutoCloseableAsync {
 		Preconditions.checkState(
 			isInitialized(),
 			"JobMaster Gateway is not available during initialization");
-		return jobManagerRunnerFuture.thenCompose(JobManagerRunner::getJobMasterGateway);
+		return initializingJobManagerRunner.getJobManagerRunnerFuture().thenCompose(JobManagerRunner::getJobMasterGateway);
 	}
 
 	@Override
 	public CompletableFuture<Void> closeAsync() {
-		FutureUtils.assertNoException(jobManagerRunnerFuture.handle((runner, throwable) -> {
+		FutureUtils.assertNoException(initializingJobManagerRunner.getJobManagerRunnerFuture().handle((runner, throwable) -> {
 			if (throwable == null) {
 				// init was successful: close jobManager runner.
-				CompletableFuture<Void> jobManagerRunnerClose = jobManagerRunnerFuture.thenCompose(
+				CompletableFuture<Void> jobManagerRunnerClose = initializingJobManagerRunner.getJobManagerRunnerFuture().thenCompose(
 					AutoCloseableAsync::closeAsync);
 				FutureUtils.forward(jobManagerRunnerClose, terminationFuture);
 			} else {

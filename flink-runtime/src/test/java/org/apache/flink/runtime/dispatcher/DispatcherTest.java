@@ -416,7 +416,7 @@ public class DispatcherTest extends TestLogger {
 		jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		// create a job graph of a job that blocks forever
+		// create a job graph of a job that blocks forever, and will be interrupted
 		Tuple2<JobGraph, BlockingJobVertex> blockingJobGraph = getBlockingJobGraphAndVertex();
 		JobID jobID = blockingJobGraph.f0.getJobID();
 
@@ -428,8 +428,7 @@ public class DispatcherTest extends TestLogger {
 		CompletableFuture<Acknowledge> cancellationFuture = dispatcherGateway.cancelJob(jobID, TIMEOUT);
 		assertThat(dispatcherGateway.requestJobStatus(jobID, TIMEOUT).get(), is(JobStatus.CANCELLING));
 		assertThat(cancellationFuture.isDone(), is(false));
-		// unblock
-		blockingJobGraph.f1.unblock();
+
 		// wait until cancelled
 		cancellationFuture.get();
 		assertThat(dispatcherGateway.requestJobResult(jobID, TIMEOUT).get().getApplicationStatus(), is(ApplicationStatus.CANCELED));

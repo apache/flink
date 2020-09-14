@@ -378,10 +378,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	private void runJob(JobGraph jobGraph, ExecutionType executionType) {
 		Preconditions.checkState(!runningJobs.containsKey(jobGraph.getJobID()));
 		long initializationTimestamp = System.currentTimeMillis();
-		CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph, initializationTimestamp);
+		InitializingJobManagerRunner initializingJobManager = createInitializingJobManagerRunner(jobGraph, initializationTimestamp);
 
 		DispatcherJob dispatcherJob = DispatcherJob.createFor(
-				jobManagerRunnerFuture,
+				initializingJobManager,
 				jobGraph.getJobID(),
 				jobGraph.getName(),
 				initializationTimestamp);
@@ -442,9 +442,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		return CleanupJobState.LOCAL;
 	}
 
-	CompletableFuture<JobManagerRunner> createJobManagerRunner(JobGraph jobGraph, long initializationTimestamp) {
+	private InitializingJobManagerRunner createInitializingJobManagerRunner(JobGraph jobGraph, long initializationTimestamp) {
 		final RpcService rpcService = getRpcService();
-		return CompletableFuture.supplyAsync(
+		return new InitializingJobManagerRunner(
 			() -> {
 				try {
 					JobManagerRunner runner = jobManagerRunnerFactory.createJobManagerRunner(
@@ -460,10 +460,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 					runner.start();
 					return runner;
 				} catch (Exception e) {
-					throw new CompletionException(new JobInitializationException(jobGraph.getJobID(), "Could not instantiate JobManager.", e));
+					throw new JobInitializationException(jobGraph.getJobID(), "Could not instantiate JobManager.", e);
 				}
 			},
-			ioExecutor); // do not use main thread executor. Otherwise, Dispatcher is blocked on JobManager creation
+			jobGraph.getJobID());
 	}
 
 	@Override
