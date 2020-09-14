@@ -57,6 +57,10 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private final AtomicBoolean closed;
 	private FetchTask<E, SplitT> fetchTask;
 	private volatile SplitFetcherTask runningTask = null;
+
+	/** Flag whether this fetcher has no work assigned at the moment.
+	 * Fetcher that have work (a split) assigned but are currently blocked (for example enqueueing
+	 * a fetch and hitting the element queue limit) are NOT considered idle. */
 	private volatile boolean isIdle;
 
 	SplitFetcher(
@@ -81,7 +85,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 				elementsQueue,
 				ids -> {
 					ids.forEach(assignedSplits::remove);
-					updateIsIdle();
+					checkAndSetIdle();
 				},
 				id);
 	}
@@ -168,7 +172,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 */
 	public void addSplits(List<SplitT> splitsToAdd) {
 		maybeEnqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, splitChanges, assignedSplits));
-		updateIsIdle();
+		isIdle = false; // in case we were idle before
 		wakeUp(true);
 	}
 
@@ -292,6 +296,17 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
 	}
 
+	private void checkAndSetIdle() {
+		final boolean nowIdle = assignedSplits.isEmpty() && taskQueue.isEmpty() && splitChanges.isEmpty();
+		if (nowIdle) {
+			isIdle = true;
+
+			// because the method might get invoked past the point when the source reader last checked
+			// the elements queue, we need to notify availability in the case when we become idle
+			elementsQueue.notifyAvailable();
+		}
+	}
+
 	//--------------------- Helper class ------------------
 
 	private static class DummySplitFetcherTask implements SplitFetcherTask {
@@ -315,9 +330,5 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 		public String toString() {
 			return name;
 		}
-	}
-
-	private void updateIsIdle() {
-		isIdle = taskQueue.isEmpty() && splitChanges.isEmpty() && assignedSplits.isEmpty();
 	}
 }
