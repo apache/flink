@@ -23,7 +23,6 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 
 import org.slf4j.Logger;
@@ -79,12 +78,10 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	/**
 	 * Create a split fetcher manager.
 	 *
-	 * @param futureNotifier a notifier to notify the complete of a future.
 	 * @param elementsQueue the queue that split readers will put elements into.
 	 * @param splitReaderFactory a supplier that could be used to create split readers.
 	 */
 	public SplitFetcherManager(
-			FutureNotifier futureNotifier,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			Supplier<SplitReader<E, SplitT>> splitReaderFactory) {
 		this.elementsQueue = elementsQueue;
@@ -96,7 +93,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 					// Add the exception to the exception list.
 					uncaughtFetcherException.get().addSuppressed(t);
 					// Wake up the main thread to let it know the exception.
-					futureNotifier.notifyComplete();
+					elementsQueue.notifyAvailable();
 				}
 			}
 		};

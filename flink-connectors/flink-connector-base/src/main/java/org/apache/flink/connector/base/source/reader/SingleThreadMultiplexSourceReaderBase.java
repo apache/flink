@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 
 import java.util.function.Supplier;
 
@@ -40,16 +39,14 @@ public abstract class SingleThreadMultiplexSourceReaderBase<E, T, SplitT extends
 	extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
 	public SingleThreadMultiplexSourceReaderBase(
-		FutureNotifier futureNotifier,
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 		Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
 		RecordEmitter<E, T, SplitStateT> recordEmitter,
 		Configuration config,
 		SourceReaderContext context) {
 		super(
-			futureNotifier,
 			elementsQueue,
-			new SingleThreadFetcherManager<>(futureNotifier, elementsQueue, splitReaderSupplier),
+			new SingleThreadFetcherManager<>(elementsQueue, splitReaderSupplier),
 			recordEmitter,
 			config,
 			context);
