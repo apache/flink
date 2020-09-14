@@ -188,7 +188,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				historyServerArchivist,
-				metricRegistry.getMetricQueryServiceGatewayRpcAddress());
+				metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
+				ioExecutor);
 
 			log.debug("Starting Dispatcher.");
 			dispatcherRunner = dispatcherRunnerFactory.createDispatcherRunner(

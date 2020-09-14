@@ -108,6 +108,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -272,7 +273,8 @@ public class DispatcherTest extends TestLogger {
 					null,
 					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 					jobGraphWriter,
-					jobManagerRunnerFactory));
+					jobManagerRunnerFactory,
+					ForkJoinPool.commonPool()));
 		}
 	}
 
