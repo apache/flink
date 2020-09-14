@@ -242,6 +242,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 		tEnv.connect(new HBase()
+			.version("1.4.3")
 			.tableName(TEST_TABLE_1)
 			.zookeeperQuorum(getZookeeperQuorum()))
 			.withSchema(new Schema()
