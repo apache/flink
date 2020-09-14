@@ -57,6 +57,13 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- Table connectors and formats -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Flink core -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -124,6 +131,28 @@ under the License.
 
 							<includes>
 								<include>org/apache/flink/table/examples/java/basics/GettingStartedExample*</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>UpdatingTopCityExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>UpdatingTopCityExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.basics.UpdatingTopCityExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/basics/UpdatingTopCityExample*</include>
 							</includes>
 						</configuration>
 					</execution>
