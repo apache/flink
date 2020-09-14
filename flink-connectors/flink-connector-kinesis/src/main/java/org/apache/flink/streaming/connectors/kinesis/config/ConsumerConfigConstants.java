@@ -242,9 +242,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
-	public static final int DEFAULT_STREAM_DESCRIBE_RETRIES = 10;
+	public static final int DEFAULT_STREAM_DESCRIBE_RETRIES = 50;
 
-	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
+	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 2000L;
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
 
@@ -258,11 +258,11 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final int DEFAULT_LIST_SHARDS_RETRIES = 10;
 
-	public static final int DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES = 10;
+	public static final int DEFAULT_DESCRIBE_STREAM_CONSUMER_RETRIES = 50;
 
-	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE = 200L;
+	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE = 2000L;
 
-	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX = 1000L;
+	public static final long DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX = 5000L;
 
 	public static final double DEFAULT_DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
