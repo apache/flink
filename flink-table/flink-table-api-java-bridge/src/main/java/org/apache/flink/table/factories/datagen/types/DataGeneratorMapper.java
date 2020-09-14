@@ -56,5 +56,8 @@ public class DataGeneratorMapper<A, B> implements DataGenerator<B> {
 		return mapper.apply(generator.next());
 	}
 
+	/**
+	 * A simple serializable function.
+	 */
 	public interface SerializableFunction<A, B> extends Function<A, B>, Serializable {}
 }
