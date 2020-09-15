@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
+import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -292,7 +293,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				userCodeClassloader,
 				(WatermarkGaugeExposingOutput<StreamRecord<OUT>>) chainedSourceOutput,
 				allOpWrappers);
-			chainedSourceInputs.put(sourceInput, new ChainedSource(chainedSourceOutput, sourceOperator));
+			chainedSourceInputs.put(
+				sourceInput,
+				new ChainedSource(
+					chainedSourceOutput,
+					new StreamTaskSourceInput<>(sourceOperator)));
 		}
 		return chainedSourceInputs;
 	}
@@ -435,12 +440,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		return chainedSources.get(sourceInput).getSourceOutput();
 	}
 
-	public SourceOperator<?, ?> getSourceOperator(SourceInputConfig sourceInput) {
+	public StreamTaskSourceInput<?> getSourceTaskInput(SourceInputConfig sourceInput) {
 		checkArgument(
 			chainedSources.containsKey(sourceInput),
 			"Chained source with sourcedId = [%s] was not found",
 			sourceInput);
-		return chainedSources.get(sourceInput).getSourceOperator();
+		return chainedSources.get(sourceInput).getSourceTaskInput();
 	}
 
 	/**
@@ -682,21 +687,21 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 */
 	public static class ChainedSource {
 		private final WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput;
-		private final SourceOperator<?, ?> sourceOperator;
+		private final StreamTaskSourceInput<?> sourceTaskInput;
 
 		public ChainedSource(
 				WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput,
-				SourceOperator<?, ?> sourceOperator) {
+				StreamTaskSourceInput<?> sourceTaskInput) {
 			this.chainedSourceOutput = chainedSourceOutput;
-			this.sourceOperator = sourceOperator;
+			this.sourceTaskInput = sourceTaskInput;
 		}
 
 		public Output<StreamRecord<?>> getSourceOutput() {
 			return chainedSourceOutput;
 		}
 
-		public SourceOperator<?, ?> getSourceOperator() {
-			return sourceOperator;
+		public StreamTaskSourceInput<?> getSourceTaskInput() {
+			return sourceTaskInput;
 		}
 	}
 }

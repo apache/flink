@@ -134,7 +134,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 			int... records) throws Exception {
 		InputConfig[] inputs = testHarness.getStreamTask().getConfiguration().getInputs(testHarness.getClass().getClassLoader());
 		SourceInputConfig input = (SourceInputConfig) inputs[sourceId];
-		OperatorID sourceOperatorID = testHarness.getStreamTask().operatorChain.getSourceOperator(input).getOperatorID();
+		OperatorID sourceOperatorID = testHarness.getStreamTask().operatorChain.getSourceTaskInput(input).getOperatorID();
 
 		// Prepare the source split and assign it to the source reader.
 		MockSourceSplit split = new MockSourceSplit(0, 0, records.length);
