@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Queue;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -73,10 +72,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 				}
 
 				@Override
-				public void handleSplitsChanges(Queue<SplitsChange<MockSourceSplit>> splitsChanges) {
-					// We have to handle split changes first, otherwise fetch will not be called.
-					splitsChanges.clear();
-				}
+				public void handleSplitsChanges(SplitsChange<MockSourceSplit> splitsChanges) {}
 
 				@Override
 				public void wakeUp() {
@@ -127,7 +123,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
 			new FutureCompletingBlockingQueue<>();
 		MockSplitReader mockSplitReader =
-			new MockSplitReader(2, true, true);
+			new MockSplitReader(2, true);
 		return new MockSourceReader(
 			elementsQueue,
 			() -> mockSplitReader,
