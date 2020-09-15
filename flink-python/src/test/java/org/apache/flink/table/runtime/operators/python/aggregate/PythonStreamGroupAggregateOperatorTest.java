@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.python.aggregate;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -341,7 +342,7 @@ public class PythonStreamGroupAggregateOperatorTest {
 				1,
 				1,
 				0);
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
 		testHarness.setup(new RowDataSerializer(outputType));
 		return testHarness;
 	}

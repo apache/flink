@@ -21,11 +21,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
+import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -44,8 +48,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -93,7 +100,7 @@ public class StreamConfig implements Serializable {
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
+	private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
 
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -129,16 +136,42 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFraction(double managedMemFraction) {
-		checkArgument(
-			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
-			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
+	/**
+	 * Fraction of managed memory reserved for the given use case that this operator should use.
+	 */
+	public void setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase managedMemoryUseCase, double fraction) {
+		final ConfigOption<Double> configOption = getManagedMemoryFractionConfigOption(managedMemoryUseCase);
 
-		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
+		checkArgument(
+			fraction >= 0.0 && fraction <= 1.0,
+			String.format("%s should be in range [0.0, 1.0], but was: %s", configOption.key(), fraction));
+
+		config.setDouble(configOption, fraction);
 	}
 
-	public double getManagedMemoryFraction() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
+	/**
+	 * Fraction of total managed memory in the slot that this operator should use for the given use case.
+	 */
+	public double getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase managedMemoryUseCase, Configuration taskManagerConfig) {
+		return ManagedMemoryUtils.convertToFractionOfSlot(
+			managedMemoryUseCase,
+			config.getDouble(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
+			getAllManagedMemoryUseCases(),
+			taskManagerConfig);
+	}
+
+	private static ConfigOption<Double> getManagedMemoryFractionConfigOption(ManagedMemoryUseCase managedMemoryUseCase) {
+		return ConfigOptions
+				.key(MANAGED_MEMORY_FRACTION_PREFIX + checkNotNull(managedMemoryUseCase))
+				.doubleType()
+				.defaultValue(DEFAULT_MANAGED_MEMORY_FRACTION);
+	}
+
+	private Set<ManagedMemoryUseCase> getAllManagedMemoryUseCases() {
+		return config.keySet().stream()
+			.filter((key) -> key.startsWith(MANAGED_MEMORY_FRACTION_PREFIX))
+			.map((key) -> ManagedMemoryUseCase.valueOf(key.replaceFirst(MANAGED_MEMORY_FRACTION_PREFIX, "")))
+			.collect(Collectors.toSet());
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
