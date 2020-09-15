@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -278,8 +279,11 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 			.add(MemorySize.parse(config.getPythonDataBufferMemorySize()))
 			.getBytes();
 		MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
+		// TODO python operators should declare and use fraction of the PYTHON use case
 		long availableManagedMemory = memoryManager.computeMemorySize(
-			getOperatorConfig().getManagedMemoryFraction());
+			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
+				ManagedMemoryUseCase.BATCH_OP,
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration()));
 		if (requiredPythonWorkerMemory <= availableManagedMemory) {
 			memoryManager.reserveMemory(this, requiredPythonWorkerMemory);
 			LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);

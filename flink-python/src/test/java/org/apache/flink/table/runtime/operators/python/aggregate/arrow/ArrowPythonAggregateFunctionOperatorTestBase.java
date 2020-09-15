@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.aggregate.arrow;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -58,7 +59,7 @@ public abstract class ArrowPythonAggregateFunctionOperatorTestBase {
 
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
 		testHarness.setup(new RowDataSerializer(outputType));
 		return testHarness;
 	}

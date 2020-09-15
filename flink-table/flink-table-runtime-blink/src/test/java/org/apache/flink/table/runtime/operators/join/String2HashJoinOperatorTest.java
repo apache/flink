@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
@@ -84,7 +85,7 @@ public class String2HashJoinOperatorTest implements Serializable {
 		testHarness.setupOutputForSingletonOperatorChain();
 		testHarness.getStreamConfig().setStreamOperator(operator);
 		testHarness.getStreamConfig().setOperatorID(new OperatorID());
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.99);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.99);
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();

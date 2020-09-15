@@ -35,6 +35,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
@@ -788,6 +789,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final ResourceSpec resource = ResourceSpec.UNKNOWN;
 		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource, resource, resource, resource);
 		final List<Integer> managedMemoryWeights = Arrays.asList(1, 2, 3, 4);
+		final Configuration taskManagerConfig = new Configuration();
 
 		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
 		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, managedMemoryWeights);
@@ -796,17 +798,25 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(1.0 / 6, sourceConfig.getManagedMemoryFraction(), 0.000001);
+		assertEquals(1.0 / 6,
+			sourceConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, taskManagerConfig),
+			0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(2.0 / 6, map1Config.getManagedMemoryFraction(), 0.000001);
+		assertEquals(2.0 / 6,
+			map1Config.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, taskManagerConfig),
+			0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(3.0 / 6, map2Config.getManagedMemoryFraction(), 0.000001);
+		assertEquals(3.0 / 6,
+			map2Config.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, taskManagerConfig),
+			0.000001);
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
+		assertEquals(1.0,
+			map3Config.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, taskManagerConfig),
+			0.000001);
 
 	}
 
