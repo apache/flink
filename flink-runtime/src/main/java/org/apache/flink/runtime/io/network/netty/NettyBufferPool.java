@@ -225,31 +225,31 @@ public class NettyBufferPool extends PooledByteBufAllocator {
 	}
 
 	// ------------------------------------------------------------------------
-	// Prohibit heap buffer allocations
+	// Fakes heap buffer allocations with direct buffers currently.
 	// ------------------------------------------------------------------------
 
 	@Override
 	public ByteBuf heapBuffer() {
-		throw new UnsupportedOperationException("Heap buffer");
+		return directBuffer();
 	}
 
 	@Override
 	public ByteBuf heapBuffer(int initialCapacity) {
-		throw new UnsupportedOperationException("Heap buffer");
+		return directBuffer(initialCapacity);
 	}
 
 	@Override
 	public ByteBuf heapBuffer(int initialCapacity, int maxCapacity) {
-		throw new UnsupportedOperationException("Heap buffer");
+		return directBuffer(initialCapacity, maxCapacity);
 	}
 
 	@Override
 	public CompositeByteBuf compositeHeapBuffer() {
-		throw new UnsupportedOperationException("Heap buffer");
+		return compositeDirectBuffer();
 	}
 
 	@Override
 	public CompositeByteBuf compositeHeapBuffer(int maxNumComponents) {
-		throw new UnsupportedOperationException("Heap buffer");
+		return compositeDirectBuffer(maxNumComponents);
 	}
 }
