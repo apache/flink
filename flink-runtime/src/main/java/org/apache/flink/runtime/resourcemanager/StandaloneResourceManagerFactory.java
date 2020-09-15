@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * {@link ResourceManagerFactory} which creates a {@link StandaloneResourceManager}.
  */
@@ -64,7 +66,8 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
 		ClusterInformation clusterInformation,
 		@Nullable String webInterfaceUrl,
 		ResourceManagerMetricGroup resourceManagerMetricGroup,
-		ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
+		ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+		Executor ioExecutor) {
 
 		final Time standaloneClusterStartupPeriodTime = ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
 
@@ -80,7 +83,8 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
 			standaloneClusterStartupPeriodTime,
-			AkkaUtils.getTimeoutAsTime(configuration));
+			AkkaUtils.getTimeoutAsTime(configuration),
+			ioExecutor);
 	}
 
 	@Override

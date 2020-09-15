@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -427,7 +428,8 @@ public class ActiveResourceManagerTest extends TestLogger {
 					rmServices.jobLeaderIdService,
 					new ClusterInformation("localhost", 1234),
 					fatalErrorHandler,
-					UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
+					UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
+					ForkJoinPool.commonPool());
 
 			activeResourceManager.start();
 			rmServices.grantLeadership();
