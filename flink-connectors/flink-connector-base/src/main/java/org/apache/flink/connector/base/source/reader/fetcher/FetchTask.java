@@ -52,7 +52,7 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 	}
 
 	@Override
-	public boolean run() throws InterruptedException, IOException {
+	public boolean run() throws IOException {
 		try {
 			if (!isWakenUp() && lastRecords == null) {
 				lastRecords = splitReader.fetch();
@@ -67,6 +67,9 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
 					lastRecords = null;
 				}
 			}
+		} catch (InterruptedException e) {
+			// this should only happen on shutdown
+			throw new IOException("Source fetch execution was interrupted", e);
 		} finally {
 			// clean up the potential wakeup effect. It is possible that the fetcher is waken up
 			// after the clean up. In that case, either the wakeup flag will be set or the

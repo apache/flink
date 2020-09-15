@@ -43,7 +43,10 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	private final int numRecordsPerSplitPerFetch;
 	private final boolean blockingFetch;
 	private final boolean handleSplitsInOneShot;
-	private volatile Thread runningThread;
+
+	private final Object wakeupLock = new Object();
+	private volatile Thread threadInBlocking;
+	private boolean wokenUp;
 
 	public MockSplitReader(
 			int numRecordsPerSplitPerFetch,
@@ -52,14 +55,10 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 		this.numRecordsPerSplitPerFetch = numRecordsPerSplitPerFetch;
 		this.blockingFetch = blockingFetch;
 		this.handleSplitsInOneShot = handleSplitsInOneShot;
-		this.runningThread = null;
 	}
 
 	@Override
-	public RecordsWithSplitIds<int[]> fetch() throws InterruptedException {
-		if (runningThread == null) {
-			runningThread = Thread.currentThread();
-		}
+	public RecordsWithSplitIds<int[]> fetch() {
 		return getRecords();
 	}
 
@@ -75,13 +74,25 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
 	@Override
 	public void wakeUp() {
-		if (blockingFetch && runningThread != null) {
-			runningThread.interrupt();
+		synchronized (wakeupLock) {
+			wokenUp = true;
+			if (threadInBlocking != null) {
+				threadInBlocking.interrupt();
+			}
 		}
 	}
 
 	private RecordsBySplits<int[]> getRecords() {
 		final RecordsBySplits.Builder<int[]> records = new RecordsBySplits.Builder<>();
+
+		// after this locked section, the thread might be interrupted
+		synchronized (wakeupLock) {
+			if (wokenUp) {
+				wokenUp = false;
+				return records.build();
+			}
+			threadInBlocking = Thread.currentThread();
+		}
 
 		try {
 			for (Map.Entry<String, MockSourceSplit> entry : splits.entrySet()) {
@@ -102,7 +113,16 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 			if (!blockingFetch) {
 				throw new RuntimeException("Caught unexpected interrupted exception.");
 			}
+		} finally {
+			// after this locked section, the thread may not be interrupted any more
+			synchronized (wakeupLock) {
+				wokenUp = false;
+				//noinspection ResultOfMethodCallIgnored
+				Thread.interrupted();
+				threadInBlocking = null;
+			}
 		}
+
 		return records.build();
 	}
 }

@@ -157,7 +157,7 @@ public class SplitFetcherTest {
 	public void testWakeup() throws InterruptedException {
 		final int numSplits = 3;
 		final int numRecordsPerSplit = 10_000;
-		final int interruptRecordsInterval = 10;
+		final int wakeupRecordsInterval = 10;
 		final int numTotalRecords = numRecordsPerSplit * numSplits;
 
 		FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementQueue =
@@ -189,16 +189,16 @@ public class SplitFetcherTest {
 		// A thread waking up the split fetcher frequently.
 		AtomicInteger wakeupTimes = new AtomicInteger(0);
 		AtomicBoolean stop = new AtomicBoolean(false);
-		Thread interrupter = new Thread("Interrupter") {
+		Thread wakeUpCaller = new Thread("Wakeup Caller") {
 			@Override
 			public void run() {
-				int lastInterrupt = 0;
+				int lastWakeup = 0;
 				while (recordsRead.size() < numTotalRecords && !stop.get()) {
 					int numRecordsRead = recordsRead.size();
-					if (numRecordsRead >= lastInterrupt + interruptRecordsInterval) {
+					if (numRecordsRead >= lastWakeup + wakeupRecordsInterval) {
 						fetcher.wakeUp(false);
 						wakeupTimes.incrementAndGet();
-						lastInterrupt = numRecordsRead;
+						lastWakeup = numRecordsRead;
 					}
 				}
 			}
@@ -206,7 +206,7 @@ public class SplitFetcherTest {
 
 		try {
 			fetcherThread.start();
-			interrupter.start();
+			wakeUpCaller.start();
 
 			while (recordsRead.size() < numSplits * numRecordsPerSplit) {
 				final RecordsWithSplitIds<int[]> nextBatch = elementQueue.take();
@@ -226,7 +226,7 @@ public class SplitFetcherTest {
 			stop.set(true);
 			fetcher.shutdown();
 			fetcherThread.join();
-			interrupter.join();
+			wakeUpCaller.join();
 		}
 	}
 
