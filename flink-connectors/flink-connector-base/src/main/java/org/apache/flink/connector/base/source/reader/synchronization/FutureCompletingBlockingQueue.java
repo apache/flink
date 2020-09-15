@@ -80,7 +80,7 @@ public class FutureCompletingBlockingQueue<T> {
 	/**
 	 * The default capacity for the queue.
 	 */
-	private static final int DEFAULT_CAPACITY = 1;
+	private static final int DEFAULT_CAPACITY = 2;
 
 	// ------------------------------------------------------------------------
 

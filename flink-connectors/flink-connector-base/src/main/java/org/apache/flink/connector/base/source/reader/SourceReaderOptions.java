@@ -38,7 +38,7 @@ public class SourceReaderOptions {
 		ConfigOptions
 				.key("source.reader.element.queue.capacity")
 				.intType()
-				.defaultValue(1)
+				.defaultValue(2)
 				.withDescription("The capacity of the element queue in the source reader.");
 
 	// --------------- final fields ----------------------
