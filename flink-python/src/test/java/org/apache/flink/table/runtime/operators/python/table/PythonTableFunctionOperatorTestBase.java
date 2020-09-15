@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -195,7 +196,7 @@ public abstract class PythonTableFunctionOperatorTestBase<IN, OUT, UDTFIN> {
 
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.getStreamConfig().setManagedMemoryFraction(0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
 		return testHarness;
 	}
 
