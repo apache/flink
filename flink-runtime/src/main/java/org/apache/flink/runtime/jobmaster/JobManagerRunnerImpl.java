@@ -125,7 +125,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 		try {
 			userCodeLoader = classLoaderLease.getOrResolveClassLoader(
 				jobGraph.getUserJarBlobKeys(),
-				jobGraph.getClasspaths());
+				jobGraph.getClasspaths()).asClassLoader();
 		} catch (IOException e) {
 			throw new Exception("Cannot set up the user code libraries: " + e.getMessage(), e);
 		}

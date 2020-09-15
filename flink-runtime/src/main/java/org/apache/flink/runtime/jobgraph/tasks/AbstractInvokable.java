@@ -150,7 +150,7 @@ public abstract class AbstractInvokable {
 	 * @return user code class loader of this invokable.
 	 */
 	public final ClassLoader getUserCodeClassLoader() {
-		return getEnvironment().getUserClassLoader();
+		return getEnvironment().getUserCodeClassLoader().asClassLoader();
 	}
 
 	/**

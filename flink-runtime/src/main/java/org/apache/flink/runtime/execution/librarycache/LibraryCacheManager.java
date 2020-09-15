@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.net.URL;
@@ -77,7 +78,7 @@ public interface LibraryCacheManager {
 		 * @throws IOException if the required jar files cannot be downloaded
 		 * @throws IllegalStateException if the cached user code class loader does not fulfill the requirements
 		 */
-		ClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException;
+		UserCodeClassLoader getOrResolveClassLoader(Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths) throws IOException;
 	}
 
 	/**

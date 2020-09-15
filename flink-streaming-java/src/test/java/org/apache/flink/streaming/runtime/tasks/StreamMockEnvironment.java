@@ -57,7 +57,9 @@ import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
 
@@ -110,6 +112,8 @@ public class StreamMockEnvironment implements Environment {
 	private final TaskStateManager taskStateManager;
 
 	private final GlobalAggregateManager aggregateManager;
+
+	private final UserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
 
 	@Nullable
 	private Consumer<Throwable> externalExceptionHandler;
@@ -254,8 +258,8 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
-		return getClass().getClassLoader();
+	public UserCodeClassLoader getUserCodeClassLoader() {
+		return userCodeClassLoader;
 	}
 
 	@Override

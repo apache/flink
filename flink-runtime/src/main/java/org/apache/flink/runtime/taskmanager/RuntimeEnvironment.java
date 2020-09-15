@@ -42,6 +42,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -63,7 +64,7 @@ public class RuntimeEnvironment implements Environment {
 	private final Configuration taskConfiguration;
 	private final ExecutionConfig executionConfig;
 
-	private final ClassLoader userCodeClassLoader;
+	private final UserCodeClassLoader userCodeClassLoader;
 
 	private final MemoryManager memManager;
 	private final IOManager ioManager;
@@ -102,7 +103,7 @@ public class RuntimeEnvironment implements Environment {
 			TaskInfo taskInfo,
 			Configuration jobConfiguration,
 			Configuration taskConfiguration,
-			ClassLoader userCodeClassLoader,
+			UserCodeClassLoader userCodeClassLoader,
 			MemoryManager memManager,
 			IOManager ioManager,
 			BroadcastVariableManager bcVarManager,
@@ -198,7 +199,7 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public ClassLoader getUserClassLoader() {
+	public UserCodeClassLoader getUserCodeClassLoader() {
 		return userCodeClassLoader;
 	}
 
