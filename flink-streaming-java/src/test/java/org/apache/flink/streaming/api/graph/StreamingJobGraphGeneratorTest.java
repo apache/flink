@@ -35,6 +35,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
@@ -841,10 +842,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		opMethod.invoke(map3, resourceSpecs.get(3));
 
 		if (managedMemoryWeights != null) {
-			source.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(0));
-			map1.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(1));
-			map2.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(2));
-			map3.getTransformation().setManagedMemoryWeight(managedMemoryWeights.get(3));
+			source.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, managedMemoryWeights.get(0));
+			map1.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, managedMemoryWeights.get(1));
+			map2.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, managedMemoryWeights.get(2));
+			map3.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, managedMemoryWeights.get(3));
 		}
 
 		return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());

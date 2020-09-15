@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -48,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class StreamNode implements Serializable {
 
+	public static final int DEFAULT_MANAGED_MEMORY_WEIGHT = 1;
+
 	private static final long serialVersionUID = 1L;
 
 	private final int id;
@@ -59,7 +60,7 @@ public class StreamNode implements Serializable {
 	private int maxParallelism;
 	private ResourceSpec minResources = ResourceSpec.DEFAULT;
 	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
-	private int managedMemoryWeight = Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT;
+	private int managedMemoryWeight = DEFAULT_MANAGED_MEMORY_WEIGHT;
 	private long bufferTimeout;
 	private final String operatorName;
 	private @Nullable String slotSharingGroup;

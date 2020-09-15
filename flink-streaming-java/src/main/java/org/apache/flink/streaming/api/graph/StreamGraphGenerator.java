@@ -24,6 +24,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -302,7 +303,7 @@ public class StreamGraphGenerator {
 			streamGraph.setResources(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
 		}
 
-		streamGraph.setManagedMemoryWeight(transform.getId(), transform.getManagedMemoryWeight());
+		streamGraph.setManagedMemoryWeight(transform.getId(), transform.getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP));
 
 		return transformedIds;
 	}
