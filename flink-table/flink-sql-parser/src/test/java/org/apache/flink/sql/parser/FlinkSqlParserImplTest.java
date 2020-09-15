@@ -318,6 +318,41 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithCommentOnComputedColumn() {
+		final String sql = "CREATE TABLE tbl1 (\n" +
+			"  a bigint comment 'test column comment AAA.',\n" +
+			"  h varchar, \n" +
+			"  g as 2 * (a + 1) comment 'test computed column.', \n" +
+			"  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n" +
+			"  b varchar,\n" +
+			"  proc as PROCTIME(), \n" +
+			"  PRIMARY KEY (a, b)\n" +
+			")\n" +
+			"comment 'test table comment ABC.'\n" +
+			"PARTITIONED BY (a, h)\n" +
+			"  with (\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
+			")\n";
+		final String expected = "CREATE TABLE `TBL1` (\n" +
+			"  `A`  BIGINT  COMMENT 'test column comment AAA.',\n" +
+			"  `H`  VARCHAR,\n" +
+			"  `G` AS (2 * (`A` + 1))  COMMENT 'test computed column.',\n" +
+			"  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n" +
+			"  `B`  VARCHAR,\n" +
+			"  `PROC` AS `PROCTIME`(),\n" +
+			"  PRIMARY KEY (`A`, `B`)\n" +
+			")\n" +
+			"COMMENT 'test table comment ABC.'\n" +
+			"PARTITIONED BY (`A`, `H`)\n" +
+			"WITH (\n" +
+			"  'connector' = 'kafka',\n" +
+			"  'kafka.topic' = 'log.test'\n" +
+			")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testTableConstraints() {
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +

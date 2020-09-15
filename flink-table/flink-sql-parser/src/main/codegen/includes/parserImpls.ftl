@@ -515,17 +515,24 @@ void Watermark(TableCreationContext context) :
 
 void ComputedColumn(TableCreationContext context) :
 {
-    SqlNode identifier;
+    SqlIdentifier identifier;
     SqlNode expr;
     SqlParserPos pos;
+    SqlCharStringLiteral comment = null;
 }
 {
     identifier = SimpleIdentifier() {pos = getPos();}
     <AS>
-    expr = Expression(ExprContext.ACCEPT_NON_QUERY) {
-        expr = SqlStdOperatorTable.AS.createCall(Span.of(identifier, expr).pos(), expr, identifier);
-        context.columnList.add(expr);
-    }
+    expr = Expression(ExprContext.ACCEPT_NON_QUERY)
+    [ <COMMENT> <QUOTED_STRING> {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+     ]
+     {
+            SqlTableColumn computedColumn = new SqlTableColumn(identifier, expr, comment, getPos());
+            context.columnList.add(computedColumn);
+      }
 }
 
 void TableColumn2(List<SqlNode> list) :

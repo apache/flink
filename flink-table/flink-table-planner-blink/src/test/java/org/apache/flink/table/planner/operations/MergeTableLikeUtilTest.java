@@ -36,7 +36,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
@@ -712,9 +711,10 @@ public class MergeTableLikeUtilTest {
 	}
 
 	private SqlNode tableColumn(String name, SqlNode expression) {
-		return new SqlBasicCall(
-			new SqlAsOperator(),
-			new SqlNode[]{expression, identifier(name)},
+		return new SqlTableColumn (
+			identifier(name),
+			expression,
+			null,
 			SqlParserPos.ZERO
 		);
 	}

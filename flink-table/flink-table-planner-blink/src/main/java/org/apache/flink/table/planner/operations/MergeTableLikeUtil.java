@@ -37,7 +37,6 @@ import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -372,12 +371,10 @@ class MergeTableLikeUtil {
 			collectPhysicalFieldsTypes(derivedColumns);
 
 			for (SqlNode derivedColumn : derivedColumns) {
-
-				boolean isComputed = !(derivedColumn instanceof SqlTableColumn);
+				final SqlTableColumn tableColumn = (SqlTableColumn) derivedColumn;
 				final TableColumn column;
-				if (isComputed) {
-					SqlBasicCall call = (SqlBasicCall) derivedColumn;
-					String fieldName = call.operand(1).toString();
+				if (tableColumn.isGenerated()) {
+					String fieldName = tableColumn.getName().toString();
 					if (columns.containsKey(fieldName)) {
 						if (!columns.get(fieldName).isGenerated()) {
 							throw new ValidationException(String.format(
@@ -395,7 +392,7 @@ class MergeTableLikeUtil {
 					}
 
 					SqlNode validatedExpr = sqlValidator.validateParameterizedExpression(
-						call.operand(0),
+						tableColumn.getExpr().get(),
 						physicalFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
 					column = TableColumn.of(
@@ -404,7 +401,7 @@ class MergeTableLikeUtil {
 						escapeExpressions.apply(validatedExpr));
 					computedFieldNamesToTypes.put(fieldName, validatedType);
 				} else {
-					String name = ((SqlTableColumn) derivedColumn).getName().getSimple();
+					String name = tableColumn.getName().getSimple();
 					LogicalType logicalType = FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
 					column = TableColumn.of(name, TypeConversions.fromLogicalToDataType(logicalType));
 				}
@@ -414,8 +411,8 @@ class MergeTableLikeUtil {
 
 		private void collectPhysicalFieldsTypes(List<SqlNode> derivedColumns) {
 			for (SqlNode derivedColumn : derivedColumns) {
-				if (derivedColumn instanceof SqlTableColumn) {
-					SqlTableColumn column = (SqlTableColumn) derivedColumn;
+				SqlTableColumn column = (SqlTableColumn) derivedColumn;
+				if (!column.isGenerated()) {
 					String name = column.getName().getSimple();
 					if (columns.containsKey(name)) {
 						throw new ValidationException(String.format(
