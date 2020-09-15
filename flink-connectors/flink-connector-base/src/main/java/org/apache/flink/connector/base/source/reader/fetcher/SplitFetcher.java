@@ -21,17 +21,14 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,8 +44,6 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	private final BlockingDeque<SplitFetcherTask> taskQueue;
 	// track the assigned splits so we can suspend the reader when there is no splits assigned.
 	private final Map<String, SplitT> assignedSplits;
-	/** The current split assignments for this fetcher. */
-	private final Queue<SplitsChange<SplitT>> splitChanges;
 	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 	private final SplitReader<E, SplitT> splitReader;
 	private final Runnable shutdownHook;
@@ -70,7 +65,6 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
 		this.id = id;
 		this.taskQueue = new LinkedBlockingDeque<>();
-		this.splitChanges = new LinkedList<>();
 		this.elementsQueue = elementsQueue;
 		this.assignedSplits = new HashMap<>();
 		this.splitReader = splitReader;
@@ -148,7 +142,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	 * @param splitsToAdd the splits to add.
 	 */
 	public void addSplits(List<SplitT> splitsToAdd) {
-		maybeEnqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, splitChanges, assignedSplits));
+		maybeEnqueueTask(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
 		isIdle = false; // in case we were idle before
 		wakeUp(true);
 	}
@@ -268,7 +262,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 	}
 
 	private void checkAndSetIdle() {
-		final boolean nowIdle = assignedSplits.isEmpty() && taskQueue.isEmpty() && splitChanges.isEmpty();
+		final boolean nowIdle = assignedSplits.isEmpty() && taskQueue.isEmpty();
 		if (nowIdle) {
 			isIdle = true;
 

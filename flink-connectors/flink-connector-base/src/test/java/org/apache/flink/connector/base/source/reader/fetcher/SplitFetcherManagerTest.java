@@ -141,9 +141,7 @@ public class SplitFetcherManagerTest {
 		}
 
 		@Override
-		public void handleSplitsChanges(Queue<SplitsChange<SplitT>> splitsChanges) {
-			splitsChanges.clear();
-		}
+		public void handleSplitsChanges(SplitsChange<SplitT> splitsChanges) {}
 
 		@Override
 		public void wakeUp() {}
