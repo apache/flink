@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
@@ -177,11 +178,13 @@ public class StreamingJobGraphGenerator {
 
 		setSlotSharingAndCoLocation();
 
+		// For now, only consider managed memory for batch algorithms.
+		// TODO: extend managed memory fraction calculations w.r.t. various managed memory use cases.
 		setManagedMemoryFraction(
 			Collections.unmodifiableMap(jobVertices),
 			Collections.unmodifiableMap(vertexConfigs),
 			Collections.unmodifiableMap(chainedConfigs),
-			id -> streamGraph.getStreamNode(id).getManagedMemoryWeight());
+			id -> streamGraph.getStreamNode(id).getManagedMemoryUseCaseWeights().getOrDefault(ManagedMemoryUseCase.BATCH_OP, 0));
 
 		configureCheckpointing();
 

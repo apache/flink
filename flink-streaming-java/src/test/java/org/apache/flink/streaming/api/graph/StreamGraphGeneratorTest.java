@@ -557,10 +557,11 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 		final StreamGraph streamGraph = env.getStreamGraph();
 		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
-			final int expectedWeight = streamNode.getOperatorName().contains("source")
-				? 123
-				: StreamNode.DEFAULT_MANAGED_MEMORY_WEIGHT;
-			assertEquals(expectedWeight, streamNode.getManagedMemoryWeight());
+			if (streamNode.getOperatorName().contains("source")) {
+				assertThat(streamNode.getManagedMemoryUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(123));
+			} else {
+				assertThat(streamNode.getManagedMemoryUseCaseWeights().size(), is(0));
+			}
 		}
 	}
 
