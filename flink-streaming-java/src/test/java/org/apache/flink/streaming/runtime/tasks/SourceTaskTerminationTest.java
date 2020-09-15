@@ -101,8 +101,7 @@ public class SourceTaskTerminationTest extends TestLogger {
 		srcTask.triggerCheckpointAsync(
 				new CheckpointMetaData(syncSavepointId, 900),
 				new CheckpointOptions(CheckpointType.SYNC_SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-				withMaxWatermark)
-				.get();
+				withMaxWatermark);
 
 		if (withMaxWatermark) {
 			// if we are in TERMINATE mode, we expect the source task
