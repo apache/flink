@@ -1143,7 +1143,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamConfig configuration,
 			Environment environment) {
 		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters = new ArrayList<>();
-		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(environment.getUserClassLoader());
+		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(environment.getUserCodeClassLoader().asClassLoader());
 
 		for (int i = 0; i < outEdgesInOrder.size(); i++) {
 			StreamEdge edge = outEdgesInOrder.get(i);
@@ -1173,7 +1173,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		try {
 			outputPartitioner = InstantiationUtil.clone(
 				(StreamPartitioner<OUT>) edge.getPartitioner(),
-				environment.getUserClassLoader());
+				environment.getUserCodeClassLoader().asClassLoader());
 		} catch (Exception e) {
 			ExceptionUtils.rethrow(e);
 		}

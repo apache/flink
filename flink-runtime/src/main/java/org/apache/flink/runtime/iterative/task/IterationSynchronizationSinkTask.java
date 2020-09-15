@@ -118,7 +118,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		// set up the event handler
 		int numEventsTillEndOfSuperstep = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators,
-				getEnvironment().getUserClassLoader());
+				getEnvironment().getUserCodeClassLoader().asClassLoader());
 		headEventReader.registerTaskEventListener(eventHandler, WorkerDoneEvent.class);
 
 		IntValue dummy = new IntValue();

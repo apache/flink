@@ -41,6 +41,8 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -238,7 +240,7 @@ public class OperatorStateBackendTest {
 		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(env, "test-op-name", emptyStateHandles, cancelStreamRegistry);
 
 		AtomicInteger copyCounter = new AtomicInteger(0);
-		TypeSerializer<Integer> serializer = new VerifyingIntSerializer(env.getUserClassLoader(), copyCounter);
+		TypeSerializer<Integer> serializer = new VerifyingIntSerializer(env.getUserCodeClassLoader().asClassLoader(), copyCounter);
 
 		// write some state
 		ListStateDescriptor<Integer> stateDescriptor = new ListStateDescriptor<>("test", serializer);
@@ -249,8 +251,8 @@ public class OperatorStateBackendTest {
 		AtomicInteger keyCopyCounter = new AtomicInteger(0);
 		AtomicInteger valueCopyCounter = new AtomicInteger(0);
 
-		TypeSerializer<Integer> keySerializer = new VerifyingIntSerializer(env.getUserClassLoader(), keyCopyCounter);
-		TypeSerializer<Integer> valueSerializer = new VerifyingIntSerializer(env.getUserClassLoader(), valueCopyCounter);
+		TypeSerializer<Integer> keySerializer = new VerifyingIntSerializer(env.getUserCodeClassLoader().asClassLoader(), keyCopyCounter);
+		TypeSerializer<Integer> valueSerializer = new VerifyingIntSerializer(env.getUserCodeClassLoader().asClassLoader(), valueCopyCounter);
 
 		MapStateDescriptor<Integer, Integer> broadcastStateDesc = new MapStateDescriptor<>(
 				"test-broadcast", keySerializer, valueSerializer);
@@ -936,7 +938,7 @@ public class OperatorStateBackendTest {
 	private static Environment createMockEnvironment() {
 		Environment env = mock(Environment.class);
 		when(env.getExecutionConfig()).thenReturn(new ExecutionConfig());
-		when(env.getUserClassLoader()).thenReturn(OperatorStateBackendTest.class.getClassLoader());
+		when(env.getUserCodeClassLoader()).thenReturn(TestingUserCodeClassLoader.newBuilder().build());
 		return env;
 	}
 

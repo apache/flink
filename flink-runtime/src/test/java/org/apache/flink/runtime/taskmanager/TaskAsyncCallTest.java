@@ -57,6 +57,7 @@ import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 
 import org.junit.After;
 import org.junit.Before;
@@ -159,7 +160,9 @@ public class TaskAsyncCallTest extends TestLogger {
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
 		final TestingClassLoaderLease classLoaderHandle = TestingClassLoaderLease.newBuilder()
-			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> new TestUserCodeClassLoader())
+			.setGetOrResolveClassLoaderFunction((permanentBlobKeys, urls) -> TestingUserCodeClassLoader.newBuilder()
+				.setClassLoader(new TestUserCodeClassLoader())
+				.build())
 			.build();
 
 		ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();

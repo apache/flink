@@ -35,6 +35,8 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
+import org.apache.flink.util.UserCodeClassLoader;
 
 public class MockEnvironmentBuilder {
 	private String taskName = "mock-task";
@@ -47,7 +49,7 @@ public class MockEnvironmentBuilder {
 	private int maxParallelism = 1;
 	private int parallelism = 1;
 	private int subtaskIndex = 0;
-	private ClassLoader userCodeClassLoader = Thread.currentThread().getContextClassLoader();
+	private UserCodeClassLoader userCodeClassLoader = TestingUserCodeClassLoader.newBuilder().build();
 	private JobID jobID = new JobID();
 	private JobVertexID jobVertexID = new JobVertexID();
 	private TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
@@ -116,7 +118,9 @@ public class MockEnvironmentBuilder {
 	}
 
 	public MockEnvironmentBuilder setUserCodeClassLoader(ClassLoader userCodeClassLoader) {
-		this.userCodeClassLoader = userCodeClassLoader;
+		this.userCodeClassLoader = TestingUserCodeClassLoader.newBuilder()
+			.setClassLoader(userCodeClassLoader)
+			.build();
 		return this;
 	}
 

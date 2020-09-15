@@ -123,6 +123,18 @@ public interface RuntimeContext {
 	 */
 	ClassLoader getUserCodeClassLoader();
 
+	/**
+	 * Registers a custom hook for the user code class loader release.
+	 *
+	 * <p>The release hook is executed just before the user code class loader is being released.
+	 * Registration only happens if no hook has been registered under this name already.
+	 *
+	 * @param releaseHookName name of the release hook.
+	 * @param releaseHook release hook which is executed just before the user code class loader is being released
+	 */
+	@PublicEvolving
+	void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook);
+
 	// --------------------------------------------------------------------------------------------
 
 	/**

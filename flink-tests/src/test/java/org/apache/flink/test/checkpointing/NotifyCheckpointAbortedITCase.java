@@ -386,7 +386,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 					new DeclineSinkFailingSnapshotStrategy());
 			} else {
 				return new DefaultOperatorStateBackendBuilder(
-					env.getUserClassLoader(),
+					env.getUserCodeClassLoader().asClassLoader(),
 					env.getExecutionConfig(),
 					false,
 					stateHandles,

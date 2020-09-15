@@ -279,7 +279,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 			@Nonnull Collection<OperatorStateHandle> stateHandles,
 			CloseableRegistry cancelStreamRegistry) throws Exception {
 			return new DefaultOperatorStateBackendBuilder(
-				env.getUserClassLoader(),
+				env.getUserCodeClassLoader().asClassLoader(),
 				env.getExecutionConfig(),
 				true,
 				stateHandles,
@@ -329,7 +329,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 			@Nonnull Collection<OperatorStateHandle> stateHandles,
 			CloseableRegistry cancelStreamRegistry) throws Exception {
 			return new DefaultOperatorStateBackendBuilder(
-				env.getUserClassLoader(),
+				env.getUserCodeClassLoader().asClassLoader(),
 				env.getExecutionConfig(),
 				true,
 				stateHandles,

@@ -511,7 +511,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		StreamCompressionDecorator keyGroupCompressionDecorator = getCompressionDecorator(executionConfig);
 		RocksDBKeyedStateBackendBuilder<K> builder = new RocksDBKeyedStateBackendBuilder<>(
 			operatorIdentifier,
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			instanceBasePath,
 			resourceContainer,
 			stateName -> resourceContainer.getColumnOptions(),
@@ -545,7 +545,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		//the default for RocksDB; eventually there can be a operator state backend based on RocksDB, too.
 		final boolean asyncSnapshots = true;
 		return new DefaultOperatorStateBackendBuilder(
-			env.getUserClassLoader(),
+			env.getUserCodeClassLoader().asClassLoader(),
 			env.getExecutionConfig(),
 			asyncSnapshots,
 			stateHandles,
