@@ -61,7 +61,7 @@ public class InputProcessorUtil {
 	}
 
 	/**
-	 * @return a pair of {@link CheckpointedInputGate} created for two corresponding
+	 * @return an array of {@link CheckpointedInputGate} created for corresponding
 	 * {@link InputGate}s supplied as parameters.
 	 */
 	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
