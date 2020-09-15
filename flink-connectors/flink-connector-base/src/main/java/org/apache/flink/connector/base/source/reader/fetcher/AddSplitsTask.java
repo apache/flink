@@ -50,7 +50,7 @@ class AddSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
 	}
 
 	@Override
-	public boolean run() throws InterruptedException {
+	public boolean run() {
 		if (!splitsChangesAdded) {
 			splitsChanges.add(new SplitsAddition<>(splitsToAdd));
 			splitsToAdd.forEach(s -> assignedSplits.put(s.splitId(), s));
