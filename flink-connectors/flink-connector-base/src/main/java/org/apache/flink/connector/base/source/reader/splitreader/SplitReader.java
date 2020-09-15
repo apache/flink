@@ -42,10 +42,9 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
 	 *
 	 * @return the Ids of the finished splits.
 	 *
-	 * @throws InterruptedException when interrupted
 	 * @throws IOException when encountered IO errors, such as deserialization failures.
 	 */
-	RecordsWithSplitIds<E> fetch() throws InterruptedException, IOException;
+	RecordsWithSplitIds<E> fetch() throws IOException;
 
 	/**
 	 * Handle the split changes. This call should be non-blocking.

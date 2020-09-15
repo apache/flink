@@ -42,13 +42,17 @@ public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitR
 	}
 
 	@Override
-	public RecordsWithSplitIds<E> fetch() throws InterruptedException, IOException {
+	public RecordsWithSplitIds<E> fetch() throws IOException {
 		if (!fetches.isEmpty()) {
 			return fetches.removeFirst();
 		} else {
 			// block until woken up
 			synchronized (fetches) {
-				fetches.wait();
+				try {
+					fetches.wait();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
 				return null;
 			}
 		}
