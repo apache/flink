@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -118,11 +117,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			else if (configuredInput instanceof SourceInputConfig) {
 				SourceInputConfig sourceInput = (SourceInputConfig) configuredInput;
 				Output<StreamRecord<?>> chainedSourceOutput = operatorChain.getChainedSourceOutput(sourceInput);
-				SourceOperator<?, ?> sourceOperator = operatorChain.getSourceOperator(sourceInput);
+				StreamTaskSourceInput<?> sourceTaskInput = operatorChain.getSourceTaskInput(sourceInput);
 
 				inputProcessors[i] = new SourceInputProcessor(
 					new AsyncDataOutputToOutput(chainedSourceOutput, operatorChain),
-					new StreamTaskSourceInput(sourceOperator));
+					sourceTaskInput);
 			}
 			else {
 				throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
