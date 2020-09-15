@@ -44,6 +44,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * {@link ResourceManagerFactory} which creates a {@link MesosResourceManager}.
  */
@@ -73,7 +75,8 @@ public class MesosResourceManagerFactory extends LegacyActiveResourceManagerFact
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) throws Exception {
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+			Executor ioExecutor) throws Exception {
 
 		final MesosTaskManagerParameters taskManagerParameters = MesosUtils.createTmParameters(configuration, LOG);
 		final ContainerSpecification taskManagerContainerSpec = MesosUtils.createContainerSpec(configuration);
@@ -94,7 +97,8 @@ public class MesosResourceManagerFactory extends LegacyActiveResourceManagerFact
 			taskManagerParameters,
 			taskManagerContainerSpec,
 			webInterfaceUrl,
-			resourceManagerMetricGroup);
+			resourceManagerMetricGroup,
+			ioExecutor);
 	}
 
 	@Override

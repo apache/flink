@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Base class for {@link ResourceManager} implementations which contains some common variables and methods.
@@ -74,7 +75,8 @@ public abstract class LegacyActiveResourceManager<WorkerType extends ResourceIDR
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) {
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			Executor ioExecutor) {
 		super(
 			rpcService,
 			resourceId,
@@ -86,7 +88,8 @@ public abstract class LegacyActiveResourceManager<WorkerType extends ResourceIDR
 			clusterInformation,
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
-			AkkaUtils.getTimeoutAsTime(flinkConfig));
+			AkkaUtils.getTimeoutAsTime(flinkConfig),
+			ioExecutor);
 
 		this.flinkConfig = flinkConfig;
 		this.env = env;

@@ -54,6 +54,7 @@ import org.junit.Test;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertTrue;
@@ -153,7 +154,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			testingFatalErrorHandler,
 			UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 			Time.minutes(5L),
-			RpcUtils.INF_TIMEOUT);
+			RpcUtils.INF_TIMEOUT,
+			ForkJoinPool.commonPool());
 
 		resourceManager.start();
 

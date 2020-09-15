@@ -41,6 +41,7 @@ import org.junit.Test;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * ResourceManager HA test, including grant leadership and revoke leadership.
@@ -101,7 +102,8 @@ public class ResourceManagerHATest extends TestLogger {
 				testingFatalErrorHandler,
 				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 				Time.minutes(5L),
-				RpcUtils.INF_TIMEOUT) {
+				RpcUtils.INF_TIMEOUT,
+				ForkJoinPool.commonPool()) {
 
 				@Override
 				public void revokeLeadership() {

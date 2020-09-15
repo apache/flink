@@ -37,6 +37,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * Factory class for creating {@link ActiveResourceManager} with various implementations of {@link ResourceManagerDriver}.
  */
@@ -54,7 +56,8 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			MetricRegistry metricRegistry,
-			String hostname) throws Exception {
+			String hostname,
+			Executor ioExecutor) throws Exception {
 		return super.createResourceManager(
 				createActiveResourceManagerConfiguration(configuration),
 				resourceId,
@@ -65,7 +68,8 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 				clusterInformation,
 				webInterfaceUrl,
 				metricRegistry,
-				hostname);
+				hostname,
+				ioExecutor);
 	}
 
 	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {
@@ -87,7 +91,8 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+			Executor ioExecutor) {
 
 		return new ActiveResourceManager<>(
 				createResourceManagerDriver(configuration),
@@ -101,7 +106,8 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				clusterInformation,
 				fatalErrorHandler,
-				resourceManagerMetricGroup);
+				resourceManagerMetricGroup,
+				ioExecutor);
 	}
 
 	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(Configuration configuration);

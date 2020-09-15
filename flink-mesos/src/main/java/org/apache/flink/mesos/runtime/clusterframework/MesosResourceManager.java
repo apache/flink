@@ -86,6 +86,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
@@ -164,7 +165,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec,
 			@Nullable String webUiUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup) {
+			ResourceManagerMetricGroup resourceManagerMetricGroup,
+			Executor ioExecutor) {
 		super(
 			rpcService,
 			resourceId,
@@ -176,7 +178,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			clusterInformation,
 			fatalErrorHandler,
 			resourceManagerMetricGroup,
-			AkkaUtils.getTimeoutAsTime(flinkConfig));
+			AkkaUtils.getTimeoutAsTime(flinkConfig),
+			ioExecutor);
 
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
 		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());
@@ -235,7 +238,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	protected void initialize() throws ResourceManagerException {
 		// create and start the worker store
 		try {
-			this.workerStore = mesosServices.createMesosWorkerStore(flinkConfig, getRpcService().getExecutor());
+			this.workerStore = mesosServices.createMesosWorkerStore(flinkConfig, ioExecutor);
 			workerStore.start();
 		} catch (Exception e) {
 			throw new ResourceManagerException("Unable to initialize the worker store.", e);
@@ -332,7 +335,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			} catch (final Exception e) {
 				throw new CompletionException(new ResourceManagerException(e));
 			}
-		}, getRpcService().getExecutor());
+		}, ioExecutor);
 	}
 
 	/**
