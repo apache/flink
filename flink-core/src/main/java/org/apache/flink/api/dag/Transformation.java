@@ -242,7 +242,7 @@ public abstract class Transformation<T> {
 	 * @param preferredResources The preferred resource of this transformation.
 	 */
 	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		OperatorValidationUtils.validateResourceRequirements(minResources, preferredResources, managedMemoryWeight);
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 		this.minResources = checkNotNull(minResources);
 		this.preferredResources = checkNotNull(preferredResources);
 	}
@@ -277,7 +277,6 @@ public abstract class Transformation<T> {
 	 * @throws IllegalArgumentException Thrown, if non-UNKNOWN resources are already set to this transformation
 	 */
 	public void setManagedMemoryWeight(int managedMemoryWeight) {
-		OperatorValidationUtils.validateResourceRequirements(minResources, preferredResources, managedMemoryWeight);
 		this.managedMemoryWeight = managedMemoryWeight;
 	}
 

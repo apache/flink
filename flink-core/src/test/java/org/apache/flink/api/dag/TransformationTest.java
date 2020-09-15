@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.dag;
 
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.TestLogger;
 
@@ -46,22 +45,6 @@ public class TransformationTest extends TestLogger {
 	public void testSetManagedMemoryWeight() {
 		transformation.setManagedMemoryWeight(123);
 		assertEquals(123, transformation.getManagedMemoryWeight());
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testSetManagedMemoryWeightFailIfResourcesIsSpecified() {
-		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-		transformation.setResources(resources, resources);
-
-		transformation.setManagedMemoryWeight(123);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testSetResourcesFailIfManagedMemoryWeightIsSpecified() {
-		transformation.setManagedMemoryWeight(123);
-
-		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-		transformation.setResources(resources, resources);
 	}
 
 	/**

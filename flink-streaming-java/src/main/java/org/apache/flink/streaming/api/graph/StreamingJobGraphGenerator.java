@@ -181,7 +181,6 @@ public class StreamingJobGraphGenerator {
 			Collections.unmodifiableMap(jobVertices),
 			Collections.unmodifiableMap(vertexConfigs),
 			Collections.unmodifiableMap(chainedConfigs),
-			id -> streamGraph.getStreamNode(id).getMinResources(),
 			id -> streamGraph.getStreamNode(id).getManagedMemoryWeight());
 
 		configureCheckpointing();
@@ -772,7 +771,6 @@ public class StreamingJobGraphGenerator {
 			final Map<Integer, JobVertex> jobVertices,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, ResourceSpec> operatorResourceRetriever,
 			final java.util.function.Function<Integer, Integer> operatorManagedMemoryWeightRetriever) {
 
 		// all slot sharing groups in this job
@@ -808,7 +806,6 @@ public class StreamingJobGraphGenerator {
 				vertexOperators,
 				operatorConfigs,
 				vertexChainedConfigs,
-				operatorResourceRetriever,
 				operatorManagedMemoryWeightRetriever);
 		}
 	}
@@ -819,7 +816,6 @@ public class StreamingJobGraphGenerator {
 			final Map<JobVertexID, Set<Integer>> vertexOperators,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, ResourceSpec> operatorResourceRetriever,
 			final java.util.function.Function<Integer, Integer> operatorManagedMemoryWeightRetriever) {
 
 		final int groupManagedMemoryWeight = slotSharingGroup.getJobVertexIds().stream()
@@ -830,10 +826,8 @@ public class StreamingJobGraphGenerator {
 		for (JobVertexID jobVertexID : slotSharingGroup.getJobVertexIds()) {
 			for (int operatorNodeId : vertexOperators.get(jobVertexID)) {
 				final StreamConfig operatorConfig = operatorConfigs.get(operatorNodeId);
-				final ResourceSpec operatorResourceSpec = operatorResourceRetriever.apply(operatorNodeId);
 				final int operatorManagedMemoryWeight = operatorManagedMemoryWeightRetriever.apply(operatorNodeId);
 				setManagedMemoryFractionForOperator(
-					operatorResourceSpec,
 					slotSharingGroup.getResourceSpec(),
 					operatorManagedMemoryWeight,
 					groupManagedMemoryWeight,
@@ -848,26 +842,24 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private static void setManagedMemoryFractionForOperator(
-			final ResourceSpec operatorResourceSpec,
 			final ResourceSpec groupResourceSpec,
 			final int operatorManagedMemoryWeight,
 			final int groupManagedMemoryWeight,
 			final StreamConfig operatorConfig) {
 
-		final double managedMemoryFraction;
-
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
-			managedMemoryFraction = groupManagedMemoryWeight > 0
-				? getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight)
-				: 0.0;
+			operatorConfig.setManagedMemoryFraction(
+					groupManagedMemoryWeight > 0 ?
+							getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight) :
+							0.0);
 		} else {
-			final long groupManagedMemoryBytes = groupResourceSpec.getManagedMemory().getBytes();
-			managedMemoryFraction = groupManagedMemoryBytes > 0
-				? getFractionRoundedDown(operatorResourceSpec.getManagedMemory().getBytes(), groupManagedMemoryBytes)
-				: 0.0;
+			// Supporting for fine grained resource specs is still under developing.
+			// This branch should not be executed in production. Not throwing exception for testing purpose.
+			// TODO: support calculating managed memory fractions for fine grained resource specs
+			LOG.error("Failed setting managed memory fractions. " +
+					" Operators may not be able to use managed memory properly." +
+					" Calculating managed memory fractions with fine grained resource spec is currently not supported.");
 		}
-
-		operatorConfig.setManagedMemoryFraction(managedMemoryFraction);
 	}
 
 	private static double getFractionRoundedDown(final long dividend, final long divisor) {
