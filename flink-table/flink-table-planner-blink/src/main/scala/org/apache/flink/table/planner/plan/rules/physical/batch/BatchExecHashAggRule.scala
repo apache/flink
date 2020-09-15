@@ -18,7 +18,9 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.functions.python.PythonFunction
 import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
@@ -68,7 +70,12 @@ class BatchExecHashAggRule
     }
     val agg: FlinkLogicalAggregate = call.rel(0)
     // HashAgg cannot process aggregate whose agg buffer is not fix length
-    isAggBufferFixedLength(agg)
+    isAggBufferFixedLength(agg) &&
+      !agg.getAggCallList.exists(x => {
+        val aggregation = x.getAggregation
+        aggregation.isInstanceOf[AggSqlFunction] &&
+          aggregation.asInstanceOf[AggSqlFunction].aggregateFunction.isInstanceOf[PythonFunction]
+      })
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

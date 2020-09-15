@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.PandasAggregateFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -69,6 +70,18 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = sourceTable.select('a,'b,'c).where('a === 1)
       .select('a.avg,'b.sum,'c.count, 'c.get("_1").sum)
+
+    util.verifyPlan(resultTable)
+  }
+
+  @Test
+  def testPandasGroupAggregateTest(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val func = new PandasAggregateFunction
+
+    val resultTable = sourceTable.groupBy('b)
+      .select('b, func('a, 'c))
 
     util.verifyPlan(resultTable)
   }
