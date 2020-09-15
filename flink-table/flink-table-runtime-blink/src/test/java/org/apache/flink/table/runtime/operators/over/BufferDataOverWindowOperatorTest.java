@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -59,6 +60,7 @@ import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowO
 import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.function;
 import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.inputSer;
 import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.inputType;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -206,7 +208,7 @@ public class BufferDataOverWindowOperatorTest {
 				StreamConfig conf = mock(StreamConfig.class);
 				when(conf.<RowData>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
-				when(conf.getManagedMemoryFraction())
+				when(conf.getManagedMemoryUseCaseFraction(eq(ManagedMemoryUseCase.BATCH_OP)))
 						.thenReturn(0.99);
 				return conf;
 			}

@@ -796,17 +796,17 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
 
 		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(1.0 / 6, sourceConfig.getManagedMemoryFraction(), 0.000001);
+		assertEquals(1.0 / 6, sourceConfig.getManagedMemoryUseCaseFraction(ManagedMemoryUseCase.BATCH_OP), 0.000001);
 
 		final StreamConfig map1Config = Iterables.getOnlyElement(
 			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(2.0 / 6, map1Config.getManagedMemoryFraction(), 0.000001);
+		assertEquals(2.0 / 6, map1Config.getManagedMemoryUseCaseFraction(ManagedMemoryUseCase.BATCH_OP), 0.000001);
 
 		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(3.0 / 6, map2Config.getManagedMemoryFraction(), 0.000001);
+		assertEquals(3.0 / 6, map2Config.getManagedMemoryUseCaseFraction(ManagedMemoryUseCase.BATCH_OP), 0.000001);
 
 		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
+		assertEquals(1.0, map3Config.getManagedMemoryUseCaseFraction(ManagedMemoryUseCase.BATCH_OP), 0.000001);
 
 	}
 

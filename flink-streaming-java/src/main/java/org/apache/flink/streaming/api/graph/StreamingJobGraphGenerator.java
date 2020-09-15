@@ -852,7 +852,10 @@ public class StreamingJobGraphGenerator {
 			final StreamConfig operatorConfig) {
 
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
-			operatorConfig.setManagedMemoryFraction(
+			// For now, only consider managed memory for batch algorithms.
+			// TODO: extend managed memory fraction calculations w.r.t. various managed memory use cases.
+			operatorConfig.setManagedMemoryUseCaseFraction(
+					ManagedMemoryUseCase.BATCH_OP,
 					groupManagedMemoryWeight > 0 ?
 							getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight) :
 							0.0);

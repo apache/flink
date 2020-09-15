@@ -21,7 +21,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.StateBackend;
@@ -48,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -96,7 +100,7 @@ public class StreamConfig implements Serializable {
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
+	private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
 
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -132,16 +136,25 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFraction(double managedMemFraction) {
-		checkArgument(
-			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
-			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
+	public void setManagedMemoryUseCaseFraction(ManagedMemoryUseCase managedMemoryUseCase, double fraction) {
+		final ConfigOption<Double> configOption = getManagedMemoryFractionConfigOption(managedMemoryUseCase);
 
-		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
+		checkArgument(
+					fraction >= 0.0 && fraction <= 1.0,
+				String.format("%s should be in range [0.0, 1.0], but was: %s", configOption.key(), fraction));
+
+		config.setDouble(configOption, fraction);
 	}
 
-	public double getManagedMemoryFraction() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
+	public double getManagedMemoryUseCaseFraction(ManagedMemoryUseCase managedMemoryUseCase) {
+		return config.get(getManagedMemoryFractionConfigOption(managedMemoryUseCase));
+	}
+
+	private static ConfigOption<Double> getManagedMemoryFractionConfigOption(ManagedMemoryUseCase managedMemoryUseCase) {
+		return ConfigOptions
+				.key(MANAGED_MEMORY_FRACTION_PREFIX + checkNotNull(managedMemoryUseCase))
+				.doubleType()
+				.defaultValue(DEFAULT_MANAGED_MEMORY_FRACTION);
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
