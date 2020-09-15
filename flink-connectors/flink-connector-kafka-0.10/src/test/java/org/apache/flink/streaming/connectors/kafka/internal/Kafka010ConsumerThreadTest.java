@@ -77,12 +77,12 @@ import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
- * Unit tests for the {@link KafkaConsumerThread}.
+ * Unit tests for the {@link Kafka010ConsumerThread}.
  */
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(Handover.class)
-public class KafkaConsumerThreadTest {
+@PrepareForTest(Handover010.class)
+public class Kafka010ConsumerThreadTest {
 
 	@Test(timeout = 10000)
 	public void testCloseWithoutAssignedPartitions() throws Exception {
@@ -105,8 +105,8 @@ public class KafkaConsumerThreadTest {
 				}
 			};
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 
 		testThread.start();
 		getBatchBlockingInvoked.await();
@@ -116,8 +116,8 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer initially had no assignments
-	 *  - new unassigned partitions already have defined offsets
+	 * - the consumer initially had no assignments
+	 * - new unassigned partitions already have defined offsets
 	 *
 	 * <p>Setting a timeout because the test will not finish if there is logic error with
 	 * the reassignment flow.
@@ -147,11 +147,11 @@ public class KafkaConsumerThreadTest {
 		final Map<TopicPartition, Long> mockConsumerAssignmentsAndPositions = new LinkedHashMap<>();
 
 		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsAndPositions,
-				Collections.<TopicPartition, Long>emptyMap(),
-				false,
-				null,
-				null);
+			mockConsumerAssignmentsAndPositions,
+			Collections.<TopicPartition, Long>emptyMap(),
+			false,
+			null,
+			null);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -164,8 +164,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-				new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -180,8 +180,8 @@ public class KafkaConsumerThreadTest {
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
 			assertEquals(
-					newPartition.getOffset() + 1,
-					mockConsumerAssignmentsAndPositions.get(newPartition.getKafkaPartitionHandle()).longValue());
+				newPartition.getOffset() + 1,
+				mockConsumerAssignmentsAndPositions.get(newPartition.getKafkaPartitionHandle()).longValue());
 		}
 
 		assertEquals(0, unassignedPartitionsQueue.size());
@@ -189,8 +189,8 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer initially had no assignments
-	 *  - new unassigned partitions have undefined offsets (e.g. EARLIEST_OFFSET sentinel value)
+	 * - the consumer initially had no assignments
+	 * - new unassigned partitions have undefined offsets (e.g. EARLIEST_OFFSET sentinel value)
 	 *
 	 * <p>Setting a timeout because the test will not finish if there is logic error with
 	 * the reassignment flow.
@@ -225,11 +225,11 @@ public class KafkaConsumerThreadTest {
 		mockRetrievedPositions.put(newPartition2.getKafkaPartitionHandle(), 32L);
 
 		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsAndPositions,
-				mockRetrievedPositions,
-				false,
-				null,
-				null);
+			mockConsumerAssignmentsAndPositions,
+			mockRetrievedPositions,
+			false,
+			null,
+			null);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -242,8 +242,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -262,8 +262,8 @@ public class KafkaConsumerThreadTest {
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
 			assertEquals(
-					newPartition.getOffset() + 1,
-					mockConsumerAssignmentsAndPositions.get(newPartition.getKafkaPartitionHandle()).longValue());
+				newPartition.getOffset() + 1,
+				mockConsumerAssignmentsAndPositions.get(newPartition.getKafkaPartitionHandle()).longValue());
 		}
 
 		assertEquals(0, unassignedPartitionsQueue.size());
@@ -271,8 +271,8 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer already have some assignments
-	 *  - new unassigned partitions already have defined offsets
+	 * - the consumer already have some assignments
+	 * - new unassigned partitions already have defined offsets
 	 *
 	 * <p>Setting a timeout because the test will not finish if there is logic error with
 	 * the reassignment flow.
@@ -316,11 +316,11 @@ public class KafkaConsumerThreadTest {
 		}
 
 		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsAndPositions,
-				Collections.<TopicPartition, Long>emptyMap(),
-				false,
-				null,
-				null);
+			mockConsumerAssignmentsAndPositions,
+			Collections.<TopicPartition, Long>emptyMap(),
+			false,
+			null,
+			null);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -331,8 +331,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -348,8 +348,8 @@ public class KafkaConsumerThreadTest {
 
 			// should be seeked to (offset in state + 1) because offsets in state represent the last processed record
 			assertEquals(
-					partition.getOffset() + 1,
-					mockConsumerAssignmentsAndPositions.get(partition.getKafkaPartitionHandle()).longValue());
+				partition.getOffset() + 1,
+				mockConsumerAssignmentsAndPositions.get(partition.getKafkaPartitionHandle()).longValue());
 		}
 
 		assertEquals(0, unassignedPartitionsQueue.size());
@@ -357,8 +357,8 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer already have some assignments
-	 *  - new unassigned partitions have undefined offsets (e.g. EARLIEST_OFFSET sentinel value)
+	 * - the consumer already have some assignments
+	 * - new unassigned partitions have undefined offsets (e.g. EARLIEST_OFFSET sentinel value)
 	 *
 	 * <p>Setting a timeout because the test will not finish if there is logic error with
 	 * the reassignment flow.
@@ -406,11 +406,11 @@ public class KafkaConsumerThreadTest {
 		mockRetrievedPositions.put(newPartition.getKafkaPartitionHandle(), 30L);
 
 		final Consumer<byte[], byte[]> mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsAndPositions,
-				mockRetrievedPositions,
-				false,
-				null,
-				null);
+			mockConsumerAssignmentsAndPositions,
+			mockRetrievedPositions,
+			false,
+			null,
+			null);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -421,8 +421,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -450,9 +450,9 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer already have some assignments
-	 *  - new unassigned partitions already have defined offsets
-	 *  - the consumer was woken up prior to the reassignment
+	 * - the consumer already have some assignments
+	 * - new unassigned partitions already have defined offsets
+	 * - the consumer was woken up prior to the reassignment
 	 *
 	 * <p>In this case, reassignment should not have occurred at all, and the consumer retains the original assignment.
 	 *
@@ -493,11 +493,11 @@ public class KafkaConsumerThreadTest {
 		}
 
 		final TestConsumer mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsToPositions,
-				Collections.<TopicPartition, Long>emptyMap(),
-				true,
-				null,
-				null);
+			mockConsumerAssignmentsToPositions,
+			Collections.<TopicPartition, Long>emptyMap(),
+			true,
+			null,
+			null);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -508,8 +508,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		// pause just before the reassignment so we can inject the wakeup
@@ -528,8 +528,8 @@ public class KafkaConsumerThreadTest {
 		for (KafkaTopicPartitionState<Object, TopicPartition> oldPartition : oldPartitions) {
 			assertTrue(mockConsumerAssignmentsToPositions.containsKey(oldPartition.getKafkaPartitionHandle()));
 			assertEquals(
-					oldPartition.getOffset() + 1,
-					mockConsumerAssignmentsToPositions.get(oldPartition.getKafkaPartitionHandle()).longValue());
+				oldPartition.getOffset() + 1,
+				mockConsumerAssignmentsToPositions.get(oldPartition.getKafkaPartitionHandle()).longValue());
 		}
 
 		// the new partitions should have been re-added to the unassigned partitions queue
@@ -538,9 +538,9 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer has no initial assignments
-	 *  - new unassigned partitions have undefined offsets
-	 *  - the consumer was woken up prior to the reassignment
+	 * - the consumer has no initial assignments
+	 * - new unassigned partitions have undefined offsets
+	 * - the consumer was woken up prior to the reassignment
 	 *
 	 * <p>In this case, reassignment should not have occurred at all, and the consumer retains the original assignment.
 	 *
@@ -577,11 +577,11 @@ public class KafkaConsumerThreadTest {
 		mockRetrievedPositions.put(newPartition2.getKafkaPartitionHandle(), 32L);
 
 		final TestConsumer mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsAndPositions,
-				mockRetrievedPositions,
-				true,
-				null,
-				null);
+			mockConsumerAssignmentsAndPositions,
+			mockRetrievedPositions,
+			true,
+			null,
+			null);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -594,8 +594,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		// pause just before the reassignment so we can inject the wakeup
@@ -618,9 +618,9 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * Tests reassignment works correctly in the case when:
-	 *  - the consumer has no initial assignments
-	 *  - new unassigned partitions have undefined offsets
-	 *  - the consumer was woken up during the reassignment
+	 * - the consumer has no initial assignments
+	 * - new unassigned partitions have undefined offsets
+	 * - the consumer was woken up during the reassignment
 	 *
 	 * <p>In this case, reassignment should have completed, and the consumer is restored the wakeup call after the reassignment.
 	 *
@@ -661,11 +661,11 @@ public class KafkaConsumerThreadTest {
 		final OneShotLatch continueAssigmentLatch = new OneShotLatch();
 
 		final TestConsumer mockConsumer = createMockConsumer(
-				mockConsumerAssignmentsAndPositions,
-				mockRetrievedPositions,
-				false,
-				midAssignmentLatch,
-				continueAssigmentLatch);
+			mockConsumerAssignmentsAndPositions,
+			mockRetrievedPositions,
+			false,
+			midAssignmentLatch,
+			continueAssigmentLatch);
 
 		// -------- setup new partitions to be polled from the unassigned partitions queue --------
 
@@ -678,8 +678,8 @@ public class KafkaConsumerThreadTest {
 
 		// -------- start test --------
 
-		final TestKafkaConsumerThread testThread =
-			new TestKafkaConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover());
+		final TestKafka010ConsumerThread testThread =
+			new TestKafka010ConsumerThread(mockConsumer, unassignedPartitionsQueue, new Handover010());
 		testThread.start();
 
 		testThread.startPartitionReassignment();
@@ -721,11 +721,11 @@ public class KafkaConsumerThreadTest {
 
 		// -------- setup mock KafkaConsumer with test data --------
 		final int partition = 0;
-		final byte[] payload = new byte[] {1};
+		final byte[] payload = new byte[]{1};
 
 		final List<ConsumerRecord<byte[], byte[]>> records = Arrays.asList(
-				new ConsumerRecord<>(testTopic, partition, 15, payload, payload),
-				new ConsumerRecord<>(testTopic, partition, 16, payload, payload));
+			new ConsumerRecord<>(testTopic, partition, 15, payload, payload),
+			new ConsumerRecord<>(testTopic, partition, 16, payload, payload));
 
 		final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> data = new HashMap<>();
 		data.put(new TopicPartition(testTopic, partition), records);
@@ -735,7 +735,7 @@ public class KafkaConsumerThreadTest {
 		// Sleep for one second in each consumer.poll() call to return 24 bytes / second
 		final KafkaConsumer<byte[], byte[]> mockConsumer = mock(KafkaConsumer.class);
 		PowerMockito.when(mockConsumer.poll(anyLong())).thenAnswer(
-				invocationOnMock -> consumerRecords
+			invocationOnMock -> consumerRecords
 		);
 
 		whenNew(KafkaConsumer.class).withAnyArguments().thenReturn(mockConsumer);
@@ -743,14 +743,14 @@ public class KafkaConsumerThreadTest {
 		// -------- new partitions with defined offsets --------
 
 		KafkaTopicPartitionState<Object, TopicPartition> newPartition1 = new KafkaTopicPartitionState<>(
-				new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
+			new KafkaTopicPartition(testTopic, 0), new TopicPartition(testTopic, 0));
 		newPartition1.setOffset(KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 
 		List<KafkaTopicPartitionState<Object, TopicPartition>> newPartitions = new ArrayList<>(1);
 		newPartitions.add(newPartition1);
 
 		final ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue =
-				new ClosableBlockingQueue<>();
+			new ClosableBlockingQueue<>();
 
 		for (KafkaTopicPartitionState<Object, TopicPartition> newPartition : newPartitions) {
 			unassignedPartitionsQueue.add(newPartition);
@@ -762,8 +762,8 @@ public class KafkaConsumerThreadTest {
 		Properties properties = new Properties();
 
 		// -- mock Handover and logger ---
-		Handover mockHandover = PowerMockito.mock(Handover.class);
-		doNothing().when(mockHandover).produce(any());
+		Handover010 mockHandover010 = PowerMockito.mock(Handover010.class);
+		doNothing().when(mockHandover010).produce(any());
 		Logger mockLogger = mock(Logger.class);
 
 		MetricGroup metricGroup = new UnregisteredMetricsGroup();
@@ -773,18 +773,18 @@ public class KafkaConsumerThreadTest {
 
 		// -- Test Kafka Consumer thread ---
 
-		KafkaConsumerThread testThread = new TestKafkaConsumerThreadRateLimit(
-				mockLogger,
-				mockHandover,
-				properties,
-				unassignedPartitionsQueue,
-				"test",
-				30L,
-				false,
-				metricGroup,
-				metricGroup,
-				mockConsumer,
-				rateLimiter
+		Kafka010ConsumerThread testThread = new TestKafka010ConsumerThreadRateLimit(
+			mockLogger,
+			mockHandover010,
+			properties,
+			unassignedPartitionsQueue,
+			"test",
+			30L,
+			false,
+			metricGroup,
+			metricGroup,
+			mockConsumer,
+			rateLimiter
 		);
 
 		testThread.start();
@@ -804,11 +804,11 @@ public class KafkaConsumerThreadTest {
 
 
 	/**
-	 * A testable {@link KafkaConsumerThread} that injects multiple latches exactly before and after
+	 * A testable {@link Kafka010ConsumerThread} that injects multiple latches exactly before and after
 	 * partition reassignment, so that tests are eligible to setup various conditions before the reassignment happens
 	 * and inspect reassignment results after it is completed.
 	 */
-	private static class TestKafkaConsumerThread extends KafkaConsumerThread<Object> {
+	private static class TestKafka010ConsumerThread extends Kafka010ConsumerThread<Object> {
 
 		private final Consumer<byte[], byte[]> mockConsumer;
 		private final MultiShotLatch preReassignmentLatch = new MultiShotLatch();
@@ -816,22 +816,22 @@ public class KafkaConsumerThreadTest {
 		private final MultiShotLatch reassignmentCompleteLatch = new MultiShotLatch();
 		private final MultiShotLatch postReassignmentLatch = new MultiShotLatch();
 
-		public TestKafkaConsumerThread(
-				Consumer<byte[], byte[]> mockConsumer,
-				ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue,
-				Handover handover) {
+		public TestKafka010ConsumerThread(
+			Consumer<byte[], byte[]> mockConsumer,
+			ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue,
+			Handover010 handover010) {
 
 			super(
-					mock(Logger.class),
-					handover,
-					new Properties(),
-					unassignedPartitionsQueue,
-					"test-kafka-consumer-thread",
-					0,
-					false,
-					new UnregisteredMetricsGroup(),
-					new UnregisteredMetricsGroup(),
-					null);
+				mock(Logger.class),
+				handover010,
+				new Properties(),
+				unassignedPartitionsQueue,
+				"test-kafka-consumer-thread",
+				0,
+				false,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
+				null);
 
 			this.mockConsumer = mockConsumer;
 		}
@@ -879,11 +879,11 @@ public class KafkaConsumerThreadTest {
 
 	@SuppressWarnings("unchecked")
 	private static TestConsumer createMockConsumer(
-			final Map<TopicPartition, Long> mockConsumerAssignmentAndPosition,
-			final Map<TopicPartition, Long> mockRetrievedPositions,
-			final boolean earlyWakeup,
-			final OneShotLatch midAssignmentLatch,
-			final OneShotLatch continueAssignmentLatch) {
+		final Map<TopicPartition, Long> mockConsumerAssignmentAndPosition,
+		final Map<TopicPartition, Long> mockRetrievedPositions,
+		final boolean earlyWakeup,
+		final OneShotLatch midAssignmentLatch,
+		final OneShotLatch continueAssignmentLatch) {
 
 		return new TestConsumer(mockConsumerAssignmentAndPosition, mockRetrievedPositions, earlyWakeup, midAssignmentLatch, continueAssignmentLatch);
 	}
@@ -1094,24 +1094,25 @@ public class KafkaConsumerThreadTest {
 
 	/**
 	 * A testable KafkaConsumer thread to test the ratelimiting feature using user-defined properties.
-	 * The mockConsumer does not mock all the methods mocked in {@link TestKafkaConsumerThread}.
+	 * The mockConsumer does not mock all the methods mocked in {@link TestKafka010ConsumerThread}.
 	 */
 
-	private static class TestKafkaConsumerThreadRateLimit extends KafkaConsumerThread {
+	private static class TestKafka010ConsumerThreadRateLimit extends Kafka010ConsumerThread {
 
 		Consumer<byte[], byte[]> mockConsumer;
 
-		public TestKafkaConsumerThreadRateLimit(Logger log,
-				Handover handover, Properties kafkaProperties,
-				ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue,
-				String threadName, long pollTimeout,
-				boolean useMetrics, MetricGroup consumerMetricGroup,
-				MetricGroup subtaskMetricGroup,
-				Consumer<byte[], byte[]> mockConsumer,
-				FlinkConnectorRateLimiter rateLimiter) {
-			super(log, handover, kafkaProperties, unassignedPartitionsQueue,
-					threadName,
-					pollTimeout, useMetrics, consumerMetricGroup, subtaskMetricGroup,
+		public TestKafka010ConsumerThreadRateLimit(
+			Logger log,
+			Handover010 handover010, Properties kafkaProperties,
+			ClosableBlockingQueue<KafkaTopicPartitionState<Object, TopicPartition>> unassignedPartitionsQueue,
+			String threadName, long pollTimeout,
+			boolean useMetrics, MetricGroup consumerMetricGroup,
+			MetricGroup subtaskMetricGroup,
+			Consumer<byte[], byte[]> mockConsumer,
+			FlinkConnectorRateLimiter rateLimiter) {
+			super(log, handover010, kafkaProperties, unassignedPartitionsQueue,
+				threadName,
+				pollTimeout, useMetrics, consumerMetricGroup, subtaskMetricGroup,
 				rateLimiter);
 			this.mockConsumer = mockConsumer;
 		}

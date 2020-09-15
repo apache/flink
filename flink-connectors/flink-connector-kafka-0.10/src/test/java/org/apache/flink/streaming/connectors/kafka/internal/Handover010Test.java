@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
-import org.apache.flink.streaming.connectors.kafka.internal.Handover.WakeupException;
+import org.apache.flink.streaming.connectors.kafka.internal.Handover010.WakeupException;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -33,9 +33,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link Handover} between Kafka Consumer Thread and the fetcher's main thread.
+ * Tests for the {@link Handover010} between Kafka Consumer Thread and the fetcher's main thread.
  */
-public class HandoverTest {
+public class Handover010Test {
 
 	// ------------------------------------------------------------------------
 	//  test produce / consumer
@@ -62,13 +62,13 @@ public class HandoverTest {
 
 	@Test
 	public void testPublishErrorOnEmptyHandover() throws Exception {
-		final Handover handover = new Handover();
+		final Handover010 handover010 = new Handover010();
 
 		Exception error = new Exception();
-		handover.reportError(error);
+		handover010.reportError(error);
 
 		try {
-			handover.pollNext();
+			handover010.pollNext();
 			fail("should throw an exception");
 		}
 		catch (Exception e) {
@@ -78,14 +78,14 @@ public class HandoverTest {
 
 	@Test
 	public void testPublishErrorOnFullHandover() throws Exception {
-		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		final Handover010 handover010 = new Handover010();
+		handover010.produce(createTestRecords());
 
 		IOException error = new IOException();
-		handover.reportError(error);
+		handover010.reportError(error);
 
 		try {
-			handover.pollNext();
+			handover010.pollNext();
 			fail("should throw an exception");
 		}
 		catch (Exception e) {
@@ -95,33 +95,33 @@ public class HandoverTest {
 
 	@Test
 	public void testExceptionMarksClosedOnEmpty() throws Exception {
-		final Handover handover = new Handover();
+		final Handover010 handover010 = new Handover010();
 
 		IllegalStateException error = new IllegalStateException();
-		handover.reportError(error);
+		handover010.reportError(error);
 
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 			fail("should throw an exception");
 		}
-		catch (Handover.ClosedException e) {
+		catch (Handover010.ClosedException e) {
 			// expected
 		}
 	}
 
 	@Test
 	public void testExceptionMarksClosedOnFull() throws Exception {
-		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		final Handover010 handover010 = new Handover010();
+		handover010.produce(createTestRecords());
 
 		LinkageError error = new LinkageError();
-		handover.reportError(error);
+		handover010.reportError(error);
 
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 			fail("should throw an exception");
 		}
-		catch (Handover.ClosedException e) {
+		catch (Handover010.ClosedException e) {
 			// expected
 		}
 	}
@@ -132,58 +132,58 @@ public class HandoverTest {
 
 	@Test
 	public void testCloseEmptyForConsumer() throws Exception {
-		final Handover handover = new Handover();
-		handover.close();
+		final Handover010 handover010 = new Handover010();
+		handover010.close();
 
 		try {
-			handover.pollNext();
+			handover010.pollNext();
 			fail("should throw an exception");
 		}
-		catch (Handover.ClosedException e) {
+		catch (Handover010.ClosedException e) {
 			// expected
 		}
 	}
 
 	@Test
 	public void testCloseFullForConsumer() throws Exception {
-		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
-		handover.close();
+		final Handover010 handover010 = new Handover010();
+		handover010.produce(createTestRecords());
+		handover010.close();
 
 		try {
-			handover.pollNext();
+			handover010.pollNext();
 			fail("should throw an exception");
 		}
-		catch (Handover.ClosedException e) {
+		catch (Handover010.ClosedException e) {
 			// expected
 		}
 	}
 
 	@Test
 	public void testCloseEmptyForProducer() throws Exception {
-		final Handover handover = new Handover();
-		handover.close();
+		final Handover010 handover010 = new Handover010();
+		handover010.close();
 
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 			fail("should throw an exception");
 		}
-		catch (Handover.ClosedException e) {
+		catch (Handover010.ClosedException e) {
 			// expected
 		}
 	}
 
 	@Test
 	public void testCloseFullForProducer() throws Exception {
-		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
-		handover.close();
+		final Handover010 handover010 = new Handover010();
+		handover010.produce(createTestRecords());
+		handover010.close();
 
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 			fail("should throw an exception");
 		}
-		catch (Handover.ClosedException e) {
+		catch (Handover010.ClosedException e) {
 			// expected
 		}
 	}
@@ -194,36 +194,36 @@ public class HandoverTest {
 
 	@Test
 	public void testWakeupDoesNotWakeWhenEmpty() throws Exception {
-		Handover handover = new Handover();
-		handover.wakeupProducer();
+		Handover010 handover010 = new Handover010();
+		handover010.wakeupProducer();
 
 		// produce into a woken but empty handover
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 		}
-		catch (Handover.WakeupException e) {
+		catch (Handover010.WakeupException e) {
 			fail();
 		}
 
 		// handover now has records, next time we wakeup and produce it needs
 		// to throw an exception
-		handover.wakeupProducer();
+		handover010.wakeupProducer();
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 			fail("should throw an exception");
 		}
-		catch (Handover.WakeupException e) {
+		catch (Handover010.WakeupException e) {
 			// expected
 		}
 
 		// empty the handover
-		assertNotNull(handover.pollNext());
+		assertNotNull(handover010.pollNext());
 
 		// producing into an empty handover should work
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 		}
-		catch (Handover.WakeupException e) {
+		catch (Handover010.WakeupException e) {
 			fail();
 		}
 	}
@@ -231,13 +231,13 @@ public class HandoverTest {
 	@Test
 	public void testWakeupWakesOnlyOnce() throws Exception {
 		// create a full handover
-		final Handover handover = new Handover();
-		handover.produce(createTestRecords());
+		final Handover010 handover010 = new Handover010();
+		handover010.produce(createTestRecords());
 
-		handover.wakeupProducer();
+		handover010.wakeupProducer();
 
 		try {
-			handover.produce(createTestRecords());
+			handover010.produce(createTestRecords());
 			fail();
 		} catch (WakeupException e) {
 			// expected
@@ -246,7 +246,7 @@ public class HandoverTest {
 		CheckedThread producer = new CheckedThread() {
 			@Override
 			public void go() throws Exception {
-				handover.produce(createTestRecords());
+				handover010.produce(createTestRecords());
 			}
 		};
 		producer.start();
@@ -255,7 +255,7 @@ public class HandoverTest {
 		producer.waitUntilThreadHoldsLock(10000);
 
 		// release the thread by consuming something
-		assertNotNull(handover.pollNext());
+		assertNotNull(handover010.pollNext());
 		producer.sync();
 	}
 
@@ -271,10 +271,10 @@ public class HandoverTest {
 			data[i] = createTestRecords();
 		}
 
-		final Handover handover = new Handover();
+		final Handover010 handover010 = new Handover010();
 
-		ProducerThread producer = new ProducerThread(handover, data, maxProducerDelay);
-		ConsumerThread consumer = new ConsumerThread(handover, data, maxConsumerDelay);
+		ProducerThread producer = new ProducerThread(handover010, data, maxProducerDelay);
+		ConsumerThread consumer = new ConsumerThread(handover010, data, maxConsumerDelay);
 
 		consumer.start();
 		producer.start();
@@ -334,12 +334,12 @@ public class HandoverTest {
 	private static class ProducerThread extends CheckedThread {
 
 		private final Random rnd = new Random();
-		private final Handover handover;
+		private final Handover010 handover010;
 		private final ConsumerRecords<byte[], byte[]>[] data;
 		private final int maxDelay;
 
-		private ProducerThread(Handover handover, ConsumerRecords<byte[], byte[]>[] data, int maxDelay) {
-			this.handover = handover;
+		private ProducerThread(Handover010 handover010, ConsumerRecords<byte[], byte[]>[] data, int maxDelay) {
+			this.handover010 = handover010;
 			this.data = data;
 			this.maxDelay = maxDelay;
 		}
@@ -347,7 +347,7 @@ public class HandoverTest {
 		@Override
 		public void go() throws Exception {
 			for (ConsumerRecords<byte[], byte[]> rec : data) {
-				handover.produce(rec);
+				handover010.produce(rec);
 
 				if (maxDelay > 0) {
 					int delay = rnd.nextInt(maxDelay);
@@ -360,12 +360,12 @@ public class HandoverTest {
 	private static class ConsumerThread extends CheckedThread {
 
 		private final Random rnd = new Random();
-		private final Handover handover;
+		private final Handover010 handover010;
 		private final ConsumerRecords<byte[], byte[]>[] data;
 		private final int maxDelay;
 
-		private ConsumerThread(Handover handover, ConsumerRecords<byte[], byte[]>[] data, int maxDelay) {
-			this.handover = handover;
+		private ConsumerThread(Handover010 handover010, ConsumerRecords<byte[], byte[]>[] data, int maxDelay) {
+			this.handover010 = handover010;
 			this.data = data;
 			this.maxDelay = maxDelay;
 		}
@@ -373,7 +373,7 @@ public class HandoverTest {
 		@Override
 		public void go() throws Exception {
 			for (ConsumerRecords<byte[], byte[]> rec : data) {
-				ConsumerRecords<byte[], byte[]> next = handover.pollNext();
+				ConsumerRecords<byte[], byte[]> next = handover010.pollNext();
 
 				assertEquals(rec, next);
 
