@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -480,14 +481,14 @@ public class StreamGraphGeneratorTest extends TestLogger {
 	public void testSetManagedMemoryWeight() {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-		source.getTransformation().setManagedMemoryWeight(123);
+		source.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 123);
 		source.print().name("sink");
 
 		final StreamGraph streamGraph = env.getStreamGraph();
 		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
 			final int expectedWeight = streamNode.getOperatorName().contains("source")
 				? 123
-				: Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT;
+				: StreamNode.DEFAULT_MANAGED_MEMORY_WEIGHT;
 			assertEquals(expectedWeight, streamNode.getManagedMemoryWeight());
 		}
 	}
