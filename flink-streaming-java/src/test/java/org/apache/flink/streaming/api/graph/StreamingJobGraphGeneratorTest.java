@@ -35,7 +35,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.TypeSerializerInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
@@ -92,7 +91,6 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -104,7 +102,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -783,49 +780,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			.print();
 
 		StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-	}
-
-	@Test
-	public void testManagedMemoryFractionForSpecifiedResourceSpec() throws Exception {
-		// these specific values are needed to produce the double precision issue,
-		// i.e. 100.0 / 1100 + 300.0 / 1100 + 700.0 / 1100 can be larger than 1.0.
-		final ResourceSpec resource1 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(100))
-			.build();
-		final ResourceSpec resource2 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(300))
-			.build();
-		final ResourceSpec resource3 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(700))
-			.build();
-		final ResourceSpec resource4 = ResourceSpec.newBuilder(1, 100)
-			.setManagedMemory(new MemorySize(123))
-			.build();
-		final List<ResourceSpec> resourceSpecs = Arrays.asList(resource1, resource2, resource3, resource4);
-
-		// v1(source -> map1), v2(map2) are in the same slot sharing group, v3(map3) is in a different group
-		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(resourceSpecs, null);
-		final JobVertex vertex1 = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
-		final JobVertex vertex2 = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-		final JobVertex vertex3 = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
-
-		final StreamConfig sourceConfig = new StreamConfig(vertex1.getConfiguration());
-		assertEquals(100.0 / 1100, sourceConfig.getManagedMemoryFraction(), 0.000001);
-
-		final StreamConfig map1Config = Iterables.getOnlyElement(
-			sourceConfig.getTransitiveChainedTaskConfigs(StreamingJobGraphGeneratorTest.class.getClassLoader()).values());
-		assertEquals(300.0 / 1100, map1Config.getManagedMemoryFraction(), 0.000001);
-
-		final StreamConfig map2Config = new StreamConfig(vertex2.getConfiguration());
-		assertEquals(700.0 / 1100, map2Config.getManagedMemoryFraction(), 0.000001);
-
-		final BigDecimal sumFraction = BigDecimal.valueOf(sourceConfig.getManagedMemoryFraction())
-			.add(BigDecimal.valueOf(map1Config.getManagedMemoryFraction()))
-			.add(BigDecimal.valueOf(map2Config.getManagedMemoryFraction()));
-		assertThat(sumFraction, lessThanOrEqualTo(BigDecimal.ONE));
-
-		final StreamConfig map3Config = new StreamConfig(vertex3.getConfiguration());
-		assertEquals(1.0, map3Config.getManagedMemoryFraction(), 0.000001);
 	}
 
 	@Test
