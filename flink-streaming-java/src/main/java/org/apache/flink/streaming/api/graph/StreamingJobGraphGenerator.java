@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
@@ -83,6 +84,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
@@ -177,11 +179,13 @@ public class StreamingJobGraphGenerator {
 
 		setSlotSharingAndCoLocation();
 
+		// For now, only consider managed memory for batch algorithms.
+		// TODO: extend managed memory fraction calculations w.r.t. various managed memory use cases.
 		setManagedMemoryFraction(
 			Collections.unmodifiableMap(jobVertices),
 			Collections.unmodifiableMap(vertexConfigs),
 			Collections.unmodifiableMap(chainedConfigs),
-			id -> streamGraph.getStreamNode(id).getManagedMemoryWeight());
+			id -> Optional.ofNullable(streamGraph.getStreamNode(id).getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP)));
 
 		configureCheckpointing();
 
@@ -771,7 +775,7 @@ public class StreamingJobGraphGenerator {
 			final Map<Integer, JobVertex> jobVertices,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, Integer> operatorManagedMemoryWeightRetriever) {
+			final java.util.function.Function<Integer, Optional<Integer>> operatorManagedMemoryWeightRetriever) {
 
 		// all slot sharing groups in this job
 		final Set<SlotSharingGroup> slotSharingGroups = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -816,17 +820,17 @@ public class StreamingJobGraphGenerator {
 			final Map<JobVertexID, Set<Integer>> vertexOperators,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, Integer> operatorManagedMemoryWeightRetriever) {
+			final java.util.function.Function<Integer, Optional<Integer>> operatorManagedMemoryWeightRetriever) {
 
 		final int groupManagedMemoryWeight = slotSharingGroup.getJobVertexIds().stream()
 			.flatMap(vid -> vertexOperators.get(vid).stream())
-			.mapToInt(operatorManagedMemoryWeightRetriever::apply)
+			.mapToInt(id -> operatorManagedMemoryWeightRetriever.apply(id).orElse(0))
 			.sum();
 
 		for (JobVertexID jobVertexID : slotSharingGroup.getJobVertexIds()) {
 			for (int operatorNodeId : vertexOperators.get(jobVertexID)) {
 				final StreamConfig operatorConfig = operatorConfigs.get(operatorNodeId);
-				final int operatorManagedMemoryWeight = operatorManagedMemoryWeightRetriever.apply(operatorNodeId);
+				final int operatorManagedMemoryWeight = operatorManagedMemoryWeightRetriever.apply(operatorNodeId).orElse(0);
 				setManagedMemoryFractionForOperator(
 					slotSharingGroup.getResourceSpec(),
 					operatorManagedMemoryWeight,
