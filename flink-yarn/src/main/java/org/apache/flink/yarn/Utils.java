@@ -65,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
@@ -372,20 +373,15 @@ public final class Utils {
 
 		// get and validate all relevant variables
 
-		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_DIST_JAR);
-		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
+		String remoteFlinkJarPath = checkNotNull(env.get(YarnConfigKeys.FLINK_DIST_JAR), "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
 
-		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
-		require(appId != null, "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
+		checkNotNull(env.get(YarnConfigKeys.ENV_APP_ID), "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
 
-		String clientHomeDir = env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-		require(clientHomeDir != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_HOME_DIR);
+		checkNotNull(env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR), "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_HOME_DIR);
 
-		String shipListString = env.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-		require(shipListString != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
+		String shipListString = checkNotNull(env.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES), "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
 
-		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
+		checkNotNull(env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME), "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
 		final String remoteKeytabPath = env.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
 		final String localKeytabPath = env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
@@ -401,8 +397,7 @@ public final class Utils {
 			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
 		}
 
-		String classPathString = env.get(ENV_FLINK_CLASSPATH);
-		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
+		String classPathString = checkNotNull(env.get(ENV_FLINK_CLASSPATH), "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
 
 		//register keytab
 		LocalResource keytabResource = null;
@@ -544,20 +539,6 @@ public final class Utils {
 			}
 		}
 		return resourceDescriptors;
-	}
-
-	/**
-	 * Validates a condition, throwing a RuntimeException if the condition is violated.
-	 *
-	 * @param condition The condition.
-	 * @param message The message for the runtime exception, with format variables as defined by
-	 *                {@link String#format(String, Object...)}.
-	 * @param values The format arguments.
-	 */
-	static void require(boolean condition, String message, Object... values) {
-		if (!condition) {
-			throw new RuntimeException(String.format(message, values));
-		}
 	}
 
 	public static WorkerSpecContainerResourceAdapter createWorkerSpecContainerResourceAdapter(
