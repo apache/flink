@@ -630,7 +630,7 @@ public class SqlToOperationConverter {
 		TableSchema.Builder builder = new TableSchema.Builder();
 		// collect the physical table schema first.
 		final List<SqlNode> physicalColumns = columnList.getList().stream()
-			.filter(n -> n instanceof SqlTableColumn).collect(Collectors.toList());
+			.filter(n -> !((SqlTableColumn) n).isGenerated()).collect(Collectors.toList());
 		for (SqlNode node : physicalColumns) {
 			SqlTableColumn column = (SqlTableColumn) node;
 			final RelDataType relType = column.getType()

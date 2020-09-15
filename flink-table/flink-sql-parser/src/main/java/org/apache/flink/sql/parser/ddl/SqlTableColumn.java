@@ -47,9 +47,11 @@ public class SqlTableColumn extends SqlCall {
 		new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL);
 
 	private SqlIdentifier name;
-	private SqlDataTypeSpec type;
 
+	private SqlDataTypeSpec type;
 	private SqlTableConstraint constraint;
+
+	private SqlNode expr;
 
 	private SqlCharStringLiteral comment;
 
@@ -65,6 +67,16 @@ public class SqlTableColumn extends SqlCall {
 		this.comment = comment;
 	}
 
+	public SqlTableColumn(SqlIdentifier name,
+			SqlNode expr,
+			@Nullable SqlCharStringLiteral comment,
+			SqlParserPos pos) {
+		super(pos);
+		this.name = requireNonNull(name, "Column name should not be null");
+		this.expr = requireNonNull(expr, "Column expression should not be null");
+		this.comment = comment;
+	}
+
 	@Override
 	public SqlOperator getOperator() {
 		return OPERATOR;
@@ -72,25 +84,41 @@ public class SqlTableColumn extends SqlCall {
 
 	@Override
 	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(name, type, comment);
+		return isGenerated() ?
+			ImmutableNullableList.of(name, expr, comment) :
+			ImmutableNullableList.of(name, type, comment);
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		this.name.unparse(writer, leftPrec, rightPrec);
-		writer.print(" ");
-		this.type.unparse(writer, leftPrec, rightPrec);
-		if (!this.type.getNullable()) {
-			// Default is nullable.
-			writer.keyword("NOT NULL");
-		}
-		if (this.constraint != null) {
-			this.constraint.unparse(writer, leftPrec, rightPrec);
+		if (isGenerated()) {
+			writer.keyword("AS");
+			this.expr.unparse(writer, leftPrec, rightPrec);
+		} else {
+			writer.print(" ");
+			this.type.unparse(writer, leftPrec, rightPrec);
+			if (!this.type.getNullable()) {
+				// Default is nullable.
+				writer.keyword("NOT NULL");
+			}
+			if (this.constraint != null) {
+				this.constraint.unparse(writer, leftPrec, rightPrec);
+			}
 		}
 		if (this.comment != null) {
 			writer.print(" COMMENT ");
 			this.comment.unparse(writer, leftPrec, rightPrec);
 		}
+	}
+
+	/**
+	 * Returns if this column is a computed column that is generated from an expression.
+	 *
+	 * @return true if this column is generated
+	 */
+	public boolean isGenerated() {
+		return expr != null;
 	}
 
 	public SqlIdentifier getName() {
@@ -107,6 +135,10 @@ public class SqlTableColumn extends SqlCall {
 
 	public void setType(SqlDataTypeSpec type) {
 		this.type = type;
+	}
+
+	public Optional<SqlNode> getExpr() {
+		return Optional.ofNullable(expr);
 	}
 
 	public Optional<SqlTableConstraint> getConstraint() {

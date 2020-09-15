@@ -22,8 +22,6 @@ import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
-import org.apache.calcite.sql.SqlBasicCall;
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -172,12 +170,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				.collect(Collectors.toSet());
 
 			for (SqlNode column : columnList) {
-				if (column instanceof SqlTableColumn) {
-					SqlTableColumn tableColumn = (SqlTableColumn) column;
-					if (primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
-						SqlDataTypeSpec notNullType = tableColumn.getType().withNullable(false);
-						tableColumn.setType(notNullType);
-					}
+				SqlTableColumn tableColumn = (SqlTableColumn) column;
+				if (!tableColumn.isGenerated() && primaryKeyColumns.contains(tableColumn.getName().getSimple())) {
+					SqlDataTypeSpec notNullType = tableColumn.getType().withNullable(false);
+					tableColumn.setType(notNullType);
 				}
 			}
 		}
@@ -189,7 +185,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	public boolean containsComputedColumn() {
 		for (SqlNode column : columnList) {
-			if (column instanceof SqlBasicCall) {
+			if (((SqlTableColumn) column).isGenerated()) {
 				return true;
 			}
 		}
@@ -200,9 +196,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	public List<SqlTableConstraint> getFullConstraints() {
 		List<SqlTableConstraint> ret = new ArrayList<>();
 		this.columnList.forEach(column -> {
-			if (column instanceof SqlTableColumn) {
-				((SqlTableColumn) column).getConstraint()
-						.map(ret::add);
+			SqlTableColumn tableColumn = (SqlTableColumn) column;
+			if (!tableColumn.isGenerated()) {
+				tableColumn.getConstraint().map(ret::add);
 			}
 		});
 		ret.addAll(this.tableConstraints);
@@ -236,12 +232,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		writer.startList("", "");
 		for (SqlNode column : columnList) {
 			writer.sep(",");
-			if (column instanceof SqlTableColumn) {
-				SqlTableColumn tableColumn = (SqlTableColumn) column;
-				tableColumn.getName().unparse(writer, 0, 0);
-			} else {
-				column.unparse(writer, 0, 0);
+			SqlTableColumn tableColumn = (SqlTableColumn) column;
+			if (tableColumn.isGenerated()) {
+				tableColumn.getExpr().get().unparse(writer, 0, 0);
+				writer.keyword("AS");
 			}
+			tableColumn.getName().unparse(writer, 0, 0);
 		}
 
 		return writer.toString();
@@ -264,16 +260,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
 		for (SqlNode column : columnList) {
 			printIndent(writer);
-			if (column instanceof SqlBasicCall) {
-				SqlCall call = (SqlCall) column;
-				SqlCall newCall = call.getOperator().createCall(
-					SqlParserPos.ZERO,
-					call.operand(1),
-					call.operand(0));
-				newCall.unparse(writer, leftPrec, rightPrec);
-			} else {
-				column.unparse(writer, leftPrec, rightPrec);
-			}
+			column.unparse(writer, leftPrec, rightPrec);
 		}
 		if (tableConstraints.size() > 0) {
 			for (SqlTableConstraint constraint : tableConstraints) {
