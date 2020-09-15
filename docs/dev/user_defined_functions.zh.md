@@ -155,10 +155,10 @@ data.map (new RichMapFunction[String, Int] {
 
 除了用户自定义的 function（map，reduce 等），Rich functions 还提供了四个方法：`open`、`close`、`getRuntimeContext` 和
 `setRuntimeContext`。这些方法对于参数化 function
-(参阅 [给 function 传递参数]({% link dev/batch/index.zh.md %}#passing-parameters-to-functions))，
-创建和最终确定本地状态，访问广播变量(参阅
-[广播变量]({% link dev/batch/index.zh.md %}#broadcast-variables ))，以及访问运行时信息，例如累加器和计数器(参阅
-[累加器和计数器](#accumulators--counters))，以及迭代器的相关信息(参阅 [迭代器]({% link dev/batch/iterations.zh.md %}))
+（参阅 [给 function 传递参数]({% link dev/batch/index.zh.md %}#passing-parameters-to-functions)），
+创建和最终确定本地状态，访问广播变量（参阅
+[广播变量]({% link dev/batch/index.zh.md %}#broadcast-variables )），以及访问运行时信息，例如累加器和计数器（参阅
+[累加器和计数器](#accumulators--counters)），以及迭代器的相关信息（参阅 [迭代器]({% link dev/batch/iterations.zh.md %})）
 有很大作用。
 
 {% top %}
@@ -170,7 +170,7 @@ data.map (new RichMapFunction[String, Int] {
 累加器是具有**加法运算**和**最终累加结果**的一种简单结构，可在作业结束后使用。
 
 最简单的累加器就是**计数器**: 你可以使用
-```Accumulator.add(V value)``` 方法将其递增。在作业结束时，Flink 会汇总(合并)所有部分的结果并将其发送给客户端。
+```Accumulator.add(V value)``` 方法将其递增。在作业结束时，Flink 会汇总（合并）所有部分的结果并将其发送给客户端。
 在调试过程中或在你想快速了解有关数据更多信息时,累加器作用很大。
 
 Flink 目前有如下**内置累加器**。每个都实现了
