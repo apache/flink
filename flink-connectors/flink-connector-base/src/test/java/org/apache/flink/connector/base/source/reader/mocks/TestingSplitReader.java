@@ -26,7 +26,6 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Queue;
 
 /**
  * A {@code SplitReader} that returns a pre-defined set of records (by split).
@@ -59,9 +58,7 @@ public class TestingSplitReader<E, SplitT extends SourceSplit> implements SplitR
 	}
 
 	@Override
-	public void handleSplitsChanges(Queue<SplitsChange<SplitT>> splitsChanges) {
-		splitsChanges.clear();
-	}
+	public void handleSplitsChanges(SplitsChange<SplitT> splitsChanges) {}
 
 	@Override
 	public void wakeUp() {

@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 
 import java.io.IOException;
-import java.util.Queue;
 
 /**
  * An interface used to read from splits. The implementation could either read from a single split or from
@@ -49,9 +48,9 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
 	/**
 	 * Handle the split changes. This call should be non-blocking.
 	 *
-	 * @param splitsChanges a queue with split changes that has not been handled by this SplitReader.
+	 * @param splitsChanges the split changes that the SplitReader needs to handle.
 	 */
-	void handleSplitsChanges(Queue<SplitsChange<SplitT>> splitsChanges);
+	void handleSplitsChanges(SplitsChange<SplitT> splitsChanges);
 
 	/**
 	 * Wake up the split reader in case the fetcher thread is blocking in

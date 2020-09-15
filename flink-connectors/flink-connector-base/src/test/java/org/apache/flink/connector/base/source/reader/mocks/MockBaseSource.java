@@ -75,7 +75,7 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 		config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
 		return new MockSourceReader(
 				elementsQueue,
-				() -> new MockSplitReader(2, true, true),
+				() -> new MockSplitReader(2, true),
 				config,
 				readerContext);
 	}

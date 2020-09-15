@@ -27,7 +27,6 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Queue;
 
 /**
  * A mock split reader for unit tests. The mock split reader provides configurable behaviours.
@@ -42,7 +41,6 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	private final Map<String, MockSourceSplit> splits = new LinkedHashMap<>();
 	private final int numRecordsPerSplitPerFetch;
 	private final boolean blockingFetch;
-	private final boolean handleSplitsInOneShot;
 
 	private final Object wakeupLock = new Object();
 	private volatile Thread threadInBlocking;
@@ -50,11 +48,9 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
 	public MockSplitReader(
 			int numRecordsPerSplitPerFetch,
-			boolean blockingFetch,
-			boolean handleSplitsInOneShot) {
+			boolean blockingFetch) {
 		this.numRecordsPerSplitPerFetch = numRecordsPerSplitPerFetch;
 		this.blockingFetch = blockingFetch;
-		this.handleSplitsInOneShot = handleSplitsInOneShot;
 	}
 
 	@Override
@@ -63,13 +59,12 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 	}
 
 	@Override
-	public void handleSplitsChanges(Queue<SplitsChange<MockSourceSplit>> splitsChanges) {
-		do {
-			SplitsChange<MockSourceSplit> splitsChange = splitsChanges.poll();
-			if (splitsChange instanceof SplitsAddition) {
-				splitsChange.splits().forEach(s -> splits.put(s.splitId(), s));
-			}
-		} while (handleSplitsInOneShot && !splitsChanges.isEmpty());
+	public void handleSplitsChanges(SplitsChange<MockSourceSplit> splitsChange) {
+		if (splitsChange instanceof SplitsAddition) {
+			splitsChange.splits().forEach(s -> splits.put(s.splitId(), s));
+		} else {
+			throw new IllegalArgumentException("Do not recognize split change: " + splitsChange);
+		}
 	}
 
 	@Override
