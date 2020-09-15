@@ -92,7 +92,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 
@@ -156,7 +155,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final FatalErrorHandler fatalErrorHandler;
 
-	private final UserCodeClassLoader userCodeLoader;
+	private final ClassLoader userCodeLoader;
 
 	private final SlotPool slotPool;
 
@@ -220,7 +219,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler fatalErrorHandler,
-			UserCodeClassLoader userCodeLoader,
+			ClassLoader userCodeLoader,
 			SchedulerNGFactory schedulerNGFactory,
 			ShuffleMaster<?> shuffleMaster,
 			PartitionTrackerFactory partitionTrackerFactory,
@@ -318,7 +317,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobMasterConfiguration.getConfiguration(),
 			slotPool,
 			scheduledExecutorService,
-			userCodeLoader.asClassLoader(),
+			userCodeLoader,
 			highAvailabilityServices.getCheckpointRecoveryFactory(),
 			rpcTimeout,
 			blobWriter,
@@ -499,7 +498,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final SerializedValue<OperatorEvent> serializedEvent) {
 
 		try {
-			final OperatorEvent evt = serializedEvent.deserializeValue(userCodeLoader.asClassLoader());
+			final OperatorEvent evt = serializedEvent.deserializeValue(userCodeLoader);
 			schedulerNG.deliverOperatorEventToCoordinator(task, operatorID, evt);
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} catch (Exception e) {
@@ -735,7 +734,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		AggregateFunction aggregateFunction = null;
 		try {
-			aggregateFunction = InstantiationUtil.deserializeObject(serializedAggregateFunction, userCodeLoader.asClassLoader());
+			aggregateFunction = InstantiationUtil.deserializeObject(serializedAggregateFunction, userCodeLoader);
 		} catch (Exception e) {
 			log.error("Error while attempting to deserialize user AggregateFunction.");
 			return FutureUtils.completedExceptionally(e);
@@ -756,7 +755,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			SerializedValue<CoordinationRequest> serializedRequest,
 			Time timeout) {
 		try {
-			CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader.asClassLoader());
+			CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
 			return schedulerNG.deliverCoordinationRequestToCoordinator(operatorId, request);
 		} catch (Exception e) {
 			return FutureUtils.completedExceptionally(e);

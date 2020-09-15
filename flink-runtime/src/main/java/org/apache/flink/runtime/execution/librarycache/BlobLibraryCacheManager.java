@@ -441,7 +441,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 						LOG.debug("Running class loader shutdown hook: {}.", hookEntry.getKey());
 						hookEntry.getValue().run();
 					} catch (Throwable t) {
-						LOG.debug("Failed to run release hook '{}' for user code class loader.", hookEntry.getValue(), t);
+						LOG.warn("Failed to run release hook '{}' for user code class loader.", hookEntry.getValue(), t);
 					}
 				}
 

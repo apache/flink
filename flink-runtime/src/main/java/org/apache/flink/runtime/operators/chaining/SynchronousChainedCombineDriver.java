@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
-import org.apache.flink.api.common.functions.Function;
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -37,12 +40,8 @@ import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * The chained variant of the combine driver which is also implemented in GroupReduceCombineDriver. In contrast to the

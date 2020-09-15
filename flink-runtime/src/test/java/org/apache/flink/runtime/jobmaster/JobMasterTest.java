@@ -136,7 +136,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 
 import akka.actor.ActorSystem;
 import org.hamcrest.Matchers;
@@ -313,7 +312,7 @@ public class JobMasterTest extends TestLogger {
 				UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 				new JobMasterBuilder.TestingOnCompletionActions(),
 				testingFatalErrorHandler,
-				TestingUserCodeClassLoader.newBuilder().build(),
+				JobMasterTest.class.getClassLoader(),
 				schedulerNGFactory,
 				NettyShuffleMaster.INSTANCE,
 				NoOpJobMasterPartitionTracker.FACTORY,
@@ -1664,7 +1663,7 @@ public class JobMasterTest extends TestLogger {
 			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
 			new JobMasterBuilder.TestingOnCompletionActions(),
 			testingFatalErrorHandler,
-			TestingUserCodeClassLoader.newBuilder().build(),
+			JobMasterTest.class.getClassLoader(),
 			schedulerNGFactory,
 			NettyShuffleMaster.INSTANCE,
 			NoOpJobMasterPartitionTracker.FACTORY,

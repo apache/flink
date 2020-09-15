@@ -34,7 +34,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.util.UserCodeClassLoader;
 
 /**
  * Default implementation of the {@link JobMasterServiceFactory}.
@@ -88,7 +87,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 	public JobMaster createJobMasterService(
 			JobGraph jobGraph,
 			OnCompletionActions jobCompletionActions,
-			UserCodeClassLoader userCodeClassloader) throws Exception {
+			ClassLoader userCodeClassloader) throws Exception {
 
 		return new JobMaster(
 			rpcService,
