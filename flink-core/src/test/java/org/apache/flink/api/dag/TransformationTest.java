@@ -19,6 +19,7 @@
 package org.apache.flink.api.dag;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -27,7 +28,8 @@ import org.junit.Test;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link Transformation}.
@@ -42,9 +44,28 @@ public class TransformationTest extends TestLogger {
 	}
 
 	@Test
-	public void testSetManagedMemoryWeight() {
-		transformation.setManagedMemoryWeight(123);
-		assertEquals(123, transformation.getManagedMemoryWeight());
+	public void testDeclareManagedMemoryUseCase() {
+		transformation.declareManagedMemoryUseCase(ManagedMemoryUseCase.BATCH_OP, 123);
+		transformation.declareManagedMemoryUseCase(ManagedMemoryUseCase.ROCKSDB, 456);
+		assertThat(transformation.getManagedMemoryUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(123));
+		assertThat(transformation.getManagedMemoryUseCaseWeights().get(ManagedMemoryUseCase.ROCKSDB), is(456));
+	}
+
+	@Test
+	public void testDeclareManagedMemoryUseCaseSlotScopeIgnoreWeight() {
+		// should not fail on weight <= 0
+		transformation.declareManagedMemoryUseCase(ManagedMemoryUseCase.ROCKSDB, 0);
+		transformation.declareManagedMemoryUseCase(ManagedMemoryUseCase.ROCKSDB, -1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDeclareManagedMemoryUseCaseOperatorScopeFailZeroWeight() {
+		transformation.declareManagedMemoryUseCase(ManagedMemoryUseCase.BATCH_OP, 0);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDeclareManagedMemoryUseCaseOperatorScopeFailNegativeWeight() {
+		transformation.declareManagedMemoryUseCase(ManagedMemoryUseCase.BATCH_OP, -1);
 	}
 
 	/**

@@ -24,11 +24,16 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -98,8 +103,6 @@ public abstract class Transformation<T> {
 	// Has to be equal to StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
 	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
 
-	public static final int DEFAULT_MANAGED_MEMORY_WEIGHT = 1;
-
 	// This is used to assign a unique ID to every Transformation
 	protected static Integer idCounter = 0;
 
@@ -139,12 +142,12 @@ public abstract class Transformation<T> {
 	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	/**
-	 * This weight indicates how much this transformation relies on managed memory, so that
-	 * transformation highly relies on managed memory would be able to acquire more managed
-	 * memory in runtime (linear association). Note that it only works in cases of UNKNOWN
-	 * resources.
+	 * Each entry in this map represents a use case that this transformation needs managed memory for. The key of the
+	 * entry indicates the use case, while the value is the use-case-specific weight for this transformation. Managed
+	 * memory reserved for an OPERATOR scope use case will be shared by all the declaring transformations within a slot
+	 * according to this weight. For SLOT scope use cases, the weights are ignored.
 	 */
-	private int managedMemoryWeight = DEFAULT_MANAGED_MEMORY_WEIGHT;
+	private final Map<ManagedMemoryUseCase, Integer> managedMemoryUseCaseWeights = new HashMap<>();
 
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
@@ -266,30 +269,26 @@ public abstract class Transformation<T> {
 	}
 
 	/**
-	 * Set the managed memory weight which indicates how much this transformation relies
-	 * on managed memory, so that a transformation highly relies on managed memory would
-	 * be able to acquire more managed memory in runtime (linear association). The default
-	 * weight value is 1. Note that currently it's only allowed to set the weight in cases
-	 * of UNKNOWN resources.
-	 *
-	 * @param managedMemoryWeight The managed memory weight of this transformation
-	 *
-	 * @throws IllegalArgumentException Thrown, if non-UNKNOWN resources are already set to this transformation
+	 * Declares that this transformation contains certain managed memory use case.
+	 * @param managedMemoryUseCase The use case that this transformation declares needing managed memory for.
+	 * @param weight Use-case-specific weights for this transformation. Used for sharing managed memory across
+	 *                 transformations for OPERATOR scope use cases. Ignored for SLOT scope use cases.
+	 * @return The previous weight, if exist.
 	 */
-	public void setManagedMemoryWeight(int managedMemoryWeight) {
-		this.managedMemoryWeight = managedMemoryWeight;
+	public Optional<Integer> declareManagedMemoryUseCase(ManagedMemoryUseCase managedMemoryUseCase, int weight) {
+		Preconditions.checkNotNull(managedMemoryUseCase);
+		Preconditions.checkArgument(managedMemoryUseCase.scope != ManagedMemoryUseCase.Scope.OPERATOR || weight > 0,
+				"Weights for operator scope use cases must be greater than 0.");
+		return Optional.ofNullable(this.managedMemoryUseCaseWeights.put(managedMemoryUseCase, weight));
 	}
 
 	/**
-	 * Get the managed memory weight which indicates how much this transformation relies
-	 * on managed memory, so that a transformation highly relies on managed memory would
-	 * be able to acquire more managed memory in runtime (linear association). The default
-	 * weight value is 1. Note that it only works in cases of UNKNOWN resources.
-	 *
-	 * @return The managed memory weight of this transformation
+	 * Get use cases that this transformation needs managed memory for, and the use-case-specific weights for this
+	 * transformation. The weights are used for sharing managed memory across transformations for OPERATOR scope use
+	 * cases, and are ignored for SLOT scope use cases.
 	 */
-	public int getManagedMemoryWeight() {
-		return managedMemoryWeight;
+	public Map<ManagedMemoryUseCase, Integer> getManagedMemoryUseCaseWeights() {
+		return Collections.unmodifiableMap(managedMemoryUseCaseWeights);
 	}
 
 	/**
