@@ -136,7 +136,10 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 				return trace(InputStatus.MORE_AVAILABLE);
 			}
 			else if (!moveToNextSplit(recordsWithSplitId, output)) {
-				return trace(finishedOrAvailableLater());
+				// The fetch is done and we just discovered that and have not emitted anything, yet.
+				// We need to move to the next fetch. As a shortcut, we call pollNext() here again,
+				// rather than emitting nothing and waiting for the caller to call us again.
+				return pollNext(output);
 			}
 			// else fall through the loop
 		}
@@ -258,9 +261,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	// ------------------ private helper methods ---------------------
 
 	private InputStatus finishedOrAvailableLater() {
-		boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
-		boolean allElementsEmitted = elementsQueue.isEmpty();
-		if (noMoreSplitsAssignment && allFetchersHaveShutdown && allElementsEmitted) {
+		final boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
+		if (noMoreSplitsAssignment && allFetchersHaveShutdown && elementsQueue.isEmpty()) {
 			return InputStatus.END_OF_INPUT;
 		} else {
 			return InputStatus.NOTHING_AVAILABLE;
