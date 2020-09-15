@@ -166,7 +166,7 @@ public class SplitFetcherTest {
 				new SplitFetcher<>(
 						0,
 						elementQueue,
-						new MockSplitReader(2, true, true),
+						new MockSplitReader(2, true),
 						() -> {});
 
 		// Prepare the splits.
