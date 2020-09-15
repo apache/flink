@@ -37,8 +37,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * {@link CheckpointBarrierAligner} keep tracks of received {@link CheckpointBarrier} on given
  * channels and controls the alignment, by deciding which channels should be blocked and when to
@@ -340,8 +338,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 	private void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		InputGate inputGate = inputGates[channelInfo.getGateIdx()];
-		checkState(!inputGate.isFinished(), "InputGate already finished.");
-
 		inputGate.resumeConsumption(channelInfo.getInputChannelIdx());
 	}
 
