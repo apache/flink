@@ -20,7 +20,7 @@ import datetime
 import decimal
 import pickle
 import struct
-from typing import Any, Tuple, Iterator
+from typing import Any, Tuple
 from typing import Generator
 from typing import List
 
@@ -135,36 +135,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         return 'FlattenRowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
-class FlattenRowCoderWithRowKindImpl(FlattenRowCoderImpl):
-
-    def __init__(self, field_coders):
-        super(FlattenRowCoderWithRowKindImpl, self).__init__(field_coders)
-
-    def _decode_one_row_from_stream(
-            self, in_stream: create_InputStream, nested: bool) -> Tuple[int, List]:
-        row_kind_and_null_mask = self._read_mask(in_stream)
-        row_kind_value = 0
-        for i in range(ROW_KIND_BIT_SIZE):
-            row_kind_value += int(row_kind_and_null_mask[ROW_KIND_BIT_SIZE - i - 1]) * 2 ** i
-        return row_kind_value, [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
-                                self._field_coders[idx].decode_from_stream(
-                                    in_stream, nested) for idx in range(0, self._field_count)]
-
-    def encode_to_stream(self, iter_value: Iterator[Tuple[int, List]], out_stream, nested):
-        field_coders = self._field_coders
-        data_out_stream = self.data_out_stream
-        for value in iter_value:
-            self._write_mask(value[1], data_out_stream, value[0])
-            for i in range(self._field_count):
-                item = value[i]
-                if item is not None:
-                    field_coders[i].encode_to_stream(item, data_out_stream, nested)
-            out_stream.write_var_int64(data_out_stream.size())
-            out_stream.write(data_out_stream.get())
-            data_out_stream._clear()
-
-
-class RowCoderImpl(FlattenRowCoderWithRowKindImpl):
+class RowCoderImpl(FlattenRowCoderImpl):
 
     def __init__(self, field_coders):
         super(RowCoderImpl, self).__init__(field_coders)
@@ -182,6 +153,16 @@ class RowCoderImpl(FlattenRowCoderWithRowKindImpl):
         row = Row(*fields)
         row.set_row_kind(RowKind(row_kind_value))
         return row
+
+    def _decode_one_row_from_stream(
+            self, in_stream: create_InputStream, nested: bool) -> Tuple[int, List]:
+        row_kind_and_null_mask = self._read_mask(in_stream)
+        row_kind_value = 0
+        for i in range(ROW_KIND_BIT_SIZE):
+            row_kind_value += int(row_kind_and_null_mask[ROW_KIND_BIT_SIZE - i - 1]) * 2 ** i
+        return row_kind_value, [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
+                                self._field_coders[idx].decode_from_stream(
+                                    in_stream, nested) for idx in range(0, self._field_count)]
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)

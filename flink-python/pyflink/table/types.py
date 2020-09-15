@@ -1974,7 +1974,7 @@ class RowKind(Enum):
     DELETE = 3
 
 
-def _create_row(fields, values, row_kind=None):
+def _create_row(fields, values, row_kind: RowKind = None):
     row = Row(*values)
     if fields is not None:
         row._fields = fields
@@ -2079,10 +2079,10 @@ class Row(tuple):
         else:
             return dict(zip(self._fields, self))
 
-    def get_row_kind(self):
+    def get_row_kind(self) -> RowKind:
         return self._row_kind
 
-    def set_row_kind(self, row_kind):
+    def set_row_kind(self, row_kind: RowKind):
         self._row_kind = row_kind
 
     def __contains__(self, item):

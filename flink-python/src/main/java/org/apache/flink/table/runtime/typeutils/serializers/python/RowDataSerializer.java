@@ -41,13 +41,14 @@ import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
 
 /**
- * A {@link TypeSerializer} for {@link RowData}. It should be noted that the header will not be encoded.
- * Currently Python doesn't support RowData natively, so we can't use RowDataSerializer in blink directly.
+ * A {@link TypeSerializer} for {@link RowData}. It should be noted that the row kind will be encoded as
+ * the first 2 bits instead of the first byte. Currently Python doesn't support RowData natively, so we
+ * can't use RowDataSerializer in blink directly.
  */
 @Internal
 public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.RowDataSerializer {
 
-	public static final int ROW_KIND_OFFSET = 2;
+	private static final int ROW_KIND_OFFSET = 2;
 
 	private final LogicalType[] fieldTypes;
 
@@ -70,7 +71,8 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 			throw new RuntimeException("Row arity of input element does not match serializers.");
 		}
 
-		fillMask(fieldSerializers.length, row, mask);
+		// write bitmask
+		fillMask(len, row, mask);
 		writeMask(mask, target);
 
 		for (int i = 0; i < row.getArity(); i++) {
@@ -83,7 +85,7 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	@Override
 	public RowData deserialize(DataInputView source) throws IOException {
-		// read null mask
+		// read bitmask
 		readIntoMask(source, mask);
 
 		GenericRowData row = new GenericRowData(fieldSerializers.length);
@@ -108,31 +110,22 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 		serialize(deserialize(source), target);
 	}
 
-	private static void writeNullMask(int len, RowData value, DataOutputView target) throws IOException {
-		int b = 0x00;
-		int bytePos = 0;
+	private static void fillMask(
+		int fieldLength,
+		RowData row,
+		boolean[] mask) {
+		final byte kind = row.getRowKind().toByteValue();
+		mask[0] = (kind & 0x01) > 0;
+		mask[1] = (kind & 0x02) > 0;
 
-		int fieldPos = 0;
-		int numPos = 0;
-		while (fieldPos < len) {
-			b = 0x00;
-			// set bits in byte
-			bytePos = 0;
-			numPos = Math.min(8, len - fieldPos);
-			while (bytePos < numPos) {
-				b = b << 1;
-				// set bit if field is null
-				if (value.isNullAt(fieldPos + bytePos)) {
-					b |= 0x01;
-				}
-				bytePos += 1;
-			}
-			fieldPos += numPos;
-			// shift bits if last byte is not completely filled
-			b <<= (8 - bytePos);
-			// write byte
-			target.writeByte(b);
+		for (int fieldPos = 0; fieldPos < fieldLength; fieldPos++) {
+			mask[ROW_KIND_OFFSET + fieldPos] = row.isNullAt(fieldPos);
 		}
+	}
+
+	private static RowKind readKindFromMask(boolean[] mask) {
+		final byte kind = (byte) ((mask[0] ? 0x01 : 0x00) + (mask[1] ? 0x02 : 0x00));
+		return RowKind.fromByteValue(kind);
 	}
 
 	@Override
@@ -230,23 +223,5 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 			return intermediateResult.getFinalResult();
 		}
-	}
-
-	private static void fillMask(
-			int fieldLength,
-			RowData row,
-			boolean[] mask) {
-		final byte kind = row.getRowKind().toByteValue();
-		mask[0] = (kind & 0x01) > 0;
-		mask[1] = (kind & 0x02) > 0;
-
-		for (int fieldPos = 0; fieldPos < fieldLength; fieldPos++) {
-			mask[ROW_KIND_OFFSET + fieldPos] = row.isNullAt(fieldPos);
-		}
-	}
-
-	private static RowKind readKindFromMask(boolean[] mask) {
-		final byte kind = (byte) ((mask[0] ? 0x01 : 0x00) + (mask[1] ? 0x02 : 0x00));
-		return RowKind.fromByteValue(kind);
 	}
 }

@@ -25,8 +25,9 @@ cdef class BaseCoderImpl:
     cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
 
+cdef unsigned char ROW_KIND_BIT_SIZE
+
 cdef class FlattenRowCoderImpl(BaseCoderImpl):
-    cdef readonly unsigned char ROW_KIND_BIT_SIZE
     cdef readonly list _field_coders
     cdef TypeName*_field_type
     cdef CoderType*_field_coder_type
