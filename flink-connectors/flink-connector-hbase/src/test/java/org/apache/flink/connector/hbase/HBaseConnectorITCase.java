@@ -31,12 +31,15 @@ import org.apache.flink.connector.hbase.util.HBaseTestBase;
 import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.descriptors.HBase;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -235,7 +238,36 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 	}
 
 	@Test
-	public void testTableSourceReadAsByteArray() {
+	public void testTableSourceWithTableAPI() throws Exception {
+		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
+		tEnv.connect(new HBase()
+			.version("1.4.3")
+			.tableName(TEST_TABLE_1)
+			.zookeeperQuorum(getZookeeperQuorum()))
+			.withSchema(new Schema()
+				.field("rowkey", DataTypes.INT())
+				.field("family2", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.STRING()), DataTypes.FIELD("col2", DataTypes.BIGINT())))
+				.field("family3", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.DOUBLE()), DataTypes.FIELD("col2", DataTypes.BOOLEAN()), DataTypes.FIELD("col3", DataTypes.STRING())))
+				.field("family1", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.INT()))))
+			.createTemporaryTable("hTable");
+		Table table = tEnv.sqlQuery("SELECT * FROM hTable AS h");
+		List<Row> results = CollectionUtil.iteratorToList(table.execute().collect());
+		String expected =
+			"1,Hello-1,100,1.01,false,Welt-1,10\n" +
+				"2,Hello-2,200,2.02,true,Welt-2,20\n" +
+				"3,Hello-3,300,3.03,false,Welt-3,30\n" +
+				"4,null,400,4.04,true,Welt-4,40\n" +
+				"5,Hello-5,500,5.05,false,Welt-5,50\n" +
+				"6,Hello-6,600,6.06,true,Welt-6,60\n" +
+				"7,Hello-7,700,7.07,false,Welt-7,70\n" +
+				"8,null,800,8.08,true,Welt-8,80\n";
+
+		TestBaseUtils.compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testTableSourceReadAsByteArray() throws Exception {
 		TableEnvironment tEnv = createBatchTableEnv();
 
 		if (isLegacyConnector) {
