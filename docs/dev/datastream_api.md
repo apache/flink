@@ -551,7 +551,7 @@ Iterations
 
 Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
 program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({% link /dev/stream/side_output.md %})
+of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({% link dev/stream/side_output.md %})
 or a `filter`. Here, we show an example using filters. First, we define an `IterativeStream`
 
 {% highlight java %}
@@ -614,7 +614,7 @@ DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
 
 Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
 program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({% link /dev/stream/side_output.md %})
+of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({% link dev/stream/side_output.md %})
 or a `filter`. Here, we show an example iteration where the body (the part of the computation that is repeated)
 is a simple map transformation, and the elements that are fed back are distinguished by the elements that
 are forwarded downstream using filters.
