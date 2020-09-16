@@ -76,6 +76,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 			final JobExecutionResult  jobExecutionResult = getJobExecutionResult(jobClient);
 			jobListeners.forEach(jobListener ->
 					jobListener.onJobExecuted(jobExecutionResult, null));
+			this.lastJobExecutionResult = jobExecutionResult;
 			return jobExecutionResult;
 		} catch (Throwable t) {
 			jobListeners.forEach(jobListener ->
