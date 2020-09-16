@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 public class CreditBasedCheckpointBarrierAlignerTest extends CheckpointBarrierAlignerTestBase {
 
 	@Override
-	CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) {
+	CheckpointedInputGate createCheckpointedInputGate(InputGate gate, AbstractInvokable toNotify) {
 		return new CheckpointedInputGate(
 			gate,
 			new CheckpointBarrierAligner("Testing", toNotify, gate),
