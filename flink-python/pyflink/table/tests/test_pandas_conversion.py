@@ -20,7 +20,8 @@ import decimal
 
 from pandas.util.testing import assert_frame_equal
 
-from pyflink.table.types import DataTypes, Row
+from pyflink.common import Row
+from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
     PyFlinkBlinkStreamTableTestCase, PyFlinkStreamTableTestCase

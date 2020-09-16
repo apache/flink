@@ -18,7 +18,7 @@
 import os
 from typing import Callable, Union
 
-from pyflink.common import typeinfo, ExecutionConfig
+from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.common.typeinfo import RowTypeInfo, PickledBytesTypeInfo, Types
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper, FlatMapFunction, \
@@ -301,7 +301,6 @@ class DataStream(object):
             key_type_info = Types.PICKLED_BYTE_ARRAY()
             is_key_pickled_byte_array = True
 
-        from pyflink.table import Row
         intermediate_map_stream = self.map(lambda x: Row(key_selector.get_key(x), x),
                                            output_type=Types.ROW([key_type_info, output_type_info]))
         intermediate_map_stream.name(gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -476,7 +475,6 @@ class DataStream(object):
         data_stream_num_partitions_env_key = gateway.jvm\
             .org.apache.flink.datastream.runtime.operators.python\
             .DataStreamPythonPartitionCustomFunctionOperator.DATA_STREAM_NUM_PARTITIONS
-        from pyflink.table import Row
 
         class PartitionCustomMapFunction(MapFunction):
             """

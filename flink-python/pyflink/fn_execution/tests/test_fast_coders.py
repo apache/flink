@@ -201,7 +201,7 @@ class CodersTest(PyFlinkTestCase):
         self.check_cython_coder(python_field_coders, cython_field_coders, [data])
 
     def test_cython_row_coder(self):
-        from pyflink.table import Row, RowKind
+        from pyflink.common import Row, RowKind
         field_count = 2
         row = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
         data = [row]

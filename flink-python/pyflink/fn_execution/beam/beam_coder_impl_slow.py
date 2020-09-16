@@ -28,7 +28,7 @@ import pyarrow as pa
 from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table.types import Row, RowKind
+from pyflink.common import Row, RowKind
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
 ROW_KIND_BIT_SIZE = 2
@@ -39,19 +39,19 @@ class FlattenRowCoderImpl(StreamCoderImpl):
     def __init__(self, field_coders):
         self._field_coders = field_coders
         self._field_count = len(field_coders)
-        # the row kind uses the first 2 bits of the bitmap, followings are belong to the null mask
-        # for more details refer to:
+        # the row kind uses the first 2 bits of the bitmap, the remaining bits are used for null
+        # mask, for more details refer to:
         # https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/java/typeutils/runtime/RowSerializer.java
         self._leading_complete_bytes_num = (self._field_count + ROW_KIND_BIT_SIZE) // 8
         self._remaining_bits_num = (self._field_count + ROW_KIND_BIT_SIZE) % 8
-        self.mask_search_table = self.generate_mask_search_table()
+        self.null_mask_search_table = self.generate_null_mask_search_table()
         self.mask_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
-        self.row_kind_byte_table = \
+        self.row_kind_search_table = \
             [i << (8 - ROW_KIND_BIT_SIZE) for i in range(2 ** ROW_KIND_BIT_SIZE)]
         self.data_out_stream = create_OutputStream()
 
     @staticmethod
-    def generate_mask_search_table():
+    def generate_null_mask_search_table():
         """
         Each bit of one byte represents if the column at the corresponding position is None or not,
         e.g. 0x84 represents the first column and the sixth column are None.
@@ -80,15 +80,17 @@ class FlattenRowCoderImpl(StreamCoderImpl):
     def decode_from_stream(self, in_stream, nested):
         while in_stream.size() > 0:
             in_stream.read_var_int64()
-            yield self._decode_one_row_from_stream(in_stream, nested)
+            yield self._decode_one_row_from_stream(in_stream, nested)[1]
 
     def _decode_one_row_from_stream(
-            self, in_stream: create_InputStream, nested: bool) -> List:
-        mask = self._read_mask(in_stream)
-        # ignore the row kind value as it is unnecessary for stateless operation
-        return [None if mask[idx + ROW_KIND_BIT_SIZE] else
-                self._field_coders[idx].decode_from_stream(
-                    in_stream, nested) for idx in range(0, self._field_count)]
+            self, in_stream: create_InputStream, nested: bool) -> Tuple[int, List]:
+        row_kind_and_null_mask = self._read_mask(in_stream)
+        row_kind_value = 0
+        for i in range(ROW_KIND_BIT_SIZE):
+            row_kind_value += int(row_kind_and_null_mask[ROW_KIND_BIT_SIZE - i - 1]) * 2 ** i
+        return row_kind_value, [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
+                                self._field_coders[idx].decode_from_stream(
+                                    in_stream, nested) for idx in range(0, self._field_count)]
 
     def _write_mask(self, value, out_stream, row_kind_value=0):
         field_pos = 0
@@ -96,7 +98,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         remaining_bits_num = self._remaining_bits_num
 
         # first byte contains the row kind bits
-        b = self.row_kind_byte_table[row_kind_value]
+        b = self.row_kind_search_table[row_kind_value]
         for i in range(0, 8 - ROW_KIND_BIT_SIZE):
             if field_pos + i < len(value) and value[field_pos + i] is None:
                 b |= mask_byte_search_table[i + ROW_KIND_BIT_SIZE]
@@ -120,7 +122,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
     def _read_mask(self, in_stream):
         mask = []
-        mask_search_table = self.mask_search_table
+        mask_search_table = self.null_mask_search_table
         remaining_bits_num = self._remaining_bits_num
         for _ in range(self._leading_complete_bytes_num):
             b = in_stream.read_byte()
@@ -153,16 +155,6 @@ class RowCoderImpl(FlattenRowCoderImpl):
         row = Row(*fields)
         row.set_row_kind(RowKind(row_kind_value))
         return row
-
-    def _decode_one_row_from_stream(
-            self, in_stream: create_InputStream, nested: bool) -> Tuple[int, List]:
-        row_kind_and_null_mask = self._read_mask(in_stream)
-        row_kind_value = 0
-        for i in range(ROW_KIND_BIT_SIZE):
-            row_kind_value += int(row_kind_and_null_mask[ROW_KIND_BIT_SIZE - i - 1]) * 2 ** i
-        return row_kind_value, [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
-                                self._field_coders[idx].decode_from_stream(
-                                    in_stream, nested) for idx in range(0, self._field_count)]
 
     def __repr__(self):
         return 'RowCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)

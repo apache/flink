@@ -28,7 +28,7 @@ from pyflink.datastream.functions import MapFunction, FlatMapFunction
 from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
-from pyflink.table import Row
+from pyflink.common import Row
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 

@@ -149,12 +149,11 @@ class CodersTest(PyFlinkTestCase):
         self.assertEqual(v, result)
 
     def test_row_coder(self):
-        from pyflink.table import Row
+        from pyflink.common import Row, RowKind
         field_coder = BigIntCoder()
         field_count = 10
         coder = RowCoder([field_coder for _ in range(field_count)])
         v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
-        from pyflink.table.types import RowKind
         v.set_row_kind(RowKind.INSERT)
         self.check_coder(coder, v)
         v.set_row_kind(RowKind.UPDATE_BEFORE)
