@@ -35,6 +35,8 @@ import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -68,7 +70,7 @@ public class HeapKeyedStateBackendAsyncByDefaultTest {
 
 	private void validateSupportForAsyncSnapshots(StateBackend backend) throws Exception {
 
-		AbstractKeyedStateBackend<Integer> keyedStateBackend = backend.createKeyedStateBackend(
+		CheckpointableKeyedStateBackend<Integer> keyedStateBackend = backend.createKeyedStateBackend(
 			new DummyEnvironment("Test", 1, 0),
 			new JobID(),
 			"testOperator",
@@ -82,7 +84,8 @@ public class HeapKeyedStateBackendAsyncByDefaultTest {
 			new CloseableRegistry()
 		);
 
-		assertTrue(keyedStateBackend.supportsAsynchronousSnapshots());
+		assertThat(keyedStateBackend, instanceOf(AbstractKeyedStateBackend.class));
+		assertTrue(((AbstractKeyedStateBackend<?>) keyedStateBackend).supportsAsynchronousSnapshots());
 
 		IOUtils.closeQuietly(keyedStateBackend);
 		keyedStateBackend.dispose();

@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,10 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <K> Type of the key by which state is keyed.
  */
 public abstract class AbstractKeyedStateBackend<K> implements
-	KeyedStateBackend<K>,
-	SnapshotStrategy<SnapshotResult<KeyedStateHandle>>,
-	Closeable,
-	CheckpointListener {
+		CheckpointableKeyedStateBackend<K>,
+		CheckpointListener {
 
 	/** The key serializer. */
 	protected final TypeSerializer<K> keySerializer;
@@ -225,6 +222,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	/**
 	 * @see KeyedStateBackend
 	 */
+	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
 	}

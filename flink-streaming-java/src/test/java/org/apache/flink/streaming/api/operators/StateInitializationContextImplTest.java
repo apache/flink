@@ -36,7 +36,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -175,7 +175,7 @@ public class StateInitializationContextImplTest {
 
 			@Override
 			protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-				AbstractKeyedStateBackend<K> keyedStatedBackend,
+				CheckpointableKeyedStateBackend<K> keyedStatedBackend,
 				KeyContext keyContext,
 				ProcessingTimeService processingTimeService,
 				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
