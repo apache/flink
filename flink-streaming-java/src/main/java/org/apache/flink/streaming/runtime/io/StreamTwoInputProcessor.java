@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -317,8 +318,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			return input1.getAvailableFuture();
 		}
 
-		return (input1.isApproximatelyAvailable() || input2.isApproximatelyAvailable()) ?
-			AVAILABLE : CompletableFuture.anyOf(input1.getAvailableFuture(), input2.getAvailableFuture());
+		return AvailabilityProvider.or(input1.getAvailableFuture(), input2.getAvailableFuture());
 	}
 
 	private StreamTaskInput getInput(int inputIndex) {

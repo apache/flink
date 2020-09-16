@@ -496,11 +496,8 @@ class LocalBufferPool implements BufferPool {
 	public CompletableFuture<?> getAvailableFuture() {
 		if (numberOfRequestedMemorySegments >= currentPoolSize || unavailableSubpartitionsCount > 0) {
 			return availabilityHelper.getAvailableFuture();
-		} else if (availabilityHelper.isApproximatelyAvailable() || networkBufferPool.isApproximatelyAvailable()) {
-			return AVAILABLE;
-		} else {
-			return CompletableFuture.anyOf(availabilityHelper.getAvailableFuture(), networkBufferPool.getAvailableFuture());
 		}
+		return availabilityHelper.or(networkBufferPool);
 	}
 
 	@Override
