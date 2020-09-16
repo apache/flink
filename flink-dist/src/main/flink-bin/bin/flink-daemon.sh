@@ -91,8 +91,6 @@ log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/l
 case $STARTSTOP in
 
     (start)
-        # Rotate log files
-        rotateLogFilesWithPrefix "$FLINK_LOG_DIR" "$FLINK_LOG_PREFIX"
 
         # Print a warning if daemons are already running on host
         if [ -f "$pid" ]; then
