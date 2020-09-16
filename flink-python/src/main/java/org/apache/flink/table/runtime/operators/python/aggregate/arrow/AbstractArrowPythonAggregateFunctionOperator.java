@@ -120,7 +120,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 	}
 
 	@Override
-	public boolean isBufferEmpty() {
+	public boolean isBundleFinished() {
 		return elementCount == 0 && currentBatchCount == 0;
 	}
 

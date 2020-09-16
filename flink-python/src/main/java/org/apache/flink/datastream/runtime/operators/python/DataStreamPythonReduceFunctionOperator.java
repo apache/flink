@@ -90,6 +90,7 @@ public class DataStreamPythonReduceFunctionOperator<OUT>
 			runnerInputTypeSerializer.serialize(reuseRow, baosWrapper);
 			pythonFunctionRunner.process(baos.toByteArray());
 			baos.reset();
+			elementCount++;
 			checkInvokeFinishBundleByCount();
 			emitResults();
 		}

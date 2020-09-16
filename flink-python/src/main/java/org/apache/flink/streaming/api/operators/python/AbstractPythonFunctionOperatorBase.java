@@ -214,7 +214,7 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 		if (mark.getTimestamp() == Long.MAX_VALUE) {
 			invokeFinishBundle();
 			super.processWatermark(mark);
-		} else if (isBufferEmpty()) {
+		} else if (isBundleFinished()) {
 			// forward the watermark immediately if the bundle is already finished.
 			super.processWatermark(mark);
 		} else {
@@ -234,9 +234,9 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 	}
 
 	/**
-	 * Returns whether there is unprocessed buffer data.
+	 * Returns whether the bundle is finished.
 	 */
-	public boolean isBufferEmpty() {
+	public boolean isBundleFinished() {
 		return elementCount == 0;
 	}
 
