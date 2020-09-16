@@ -74,19 +74,16 @@ public class InternalTimeServiceManager<K> {
 
 	private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
-	private final boolean useLegacySynchronousSnapshots;
-
 	InternalTimeServiceManager(
-		KeyGroupRange localKeyGroupRange,
-		KeyContext keyContext,
-		PriorityQueueSetFactory priorityQueueSetFactory,
-		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
+			KeyGroupRange localKeyGroupRange,
+			KeyContext keyContext,
+			PriorityQueueSetFactory priorityQueueSetFactory,
+			ProcessingTimeService processingTimeService) {
 
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
 		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
-		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
 		this.timerServices = new HashMap<>();
 	}
@@ -196,7 +193,6 @@ public class InternalTimeServiceManager<K> {
 	}
 
 	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
-		Preconditions.checkState(useLegacySynchronousSnapshots);
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 
