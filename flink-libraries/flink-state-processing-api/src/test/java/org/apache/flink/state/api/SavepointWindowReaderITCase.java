@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -69,7 +70,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.reduce(new ReduceSum())
 				.uid(uid)
 				.addSink(new DiscardingSink<>());
@@ -81,7 +82,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.reduce(uid, new ReduceSum(), Types.INT, Types.INT)
 			.collect();
 
@@ -103,7 +104,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.evictor(new NoOpEvictor<>())
 				.reduce(new ReduceSum())
 				.uid(uid)
@@ -116,7 +117,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.evictor()
 			.reduce(uid, new ReduceSum(), Types.INT, Types.INT)
 			.collect();
@@ -139,7 +140,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.aggregate(new AggregateSum())
 				.uid(uid)
 				.addSink(new DiscardingSink<>());
@@ -151,7 +152,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
 			.collect();
 
@@ -173,7 +174,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.evictor(new NoOpEvictor<>())
 				.aggregate(new AggregateSum())
 				.uid(uid)
@@ -186,7 +187,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.evictor()
 			.aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
 			.collect();
@@ -209,7 +210,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.process(new NoOpProcessWindowFunction())
 				.uid(uid)
 				.addSink(new DiscardingSink<>());
@@ -221,7 +222,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
 			.collect();
 
@@ -243,7 +244,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.evictor(new NoOpEvictor<>())
 				.process(new NoOpProcessWindowFunction())
 				.uid(uid)
@@ -256,7 +257,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.evictor()
 			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
 			.collect();
@@ -279,7 +280,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.apply(new NoOpWindowFunction())
 				.uid(uid)
 				.addSink(new DiscardingSink<>());
@@ -291,7 +292,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
 			.collect();
 
@@ -313,7 +314,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 					.<Integer>noWatermarks()
 					.withTimestampAssigner((event, timestamp) -> 0))
 				.keyBy(id -> id)
-				.timeWindow(Time.milliseconds(10))
+				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 				.evictor(new NoOpEvictor<>())
 				.apply(new NoOpWindowFunction())
 				.uid(uid)
@@ -326,7 +327,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
 		List<Integer> results = savepoint
-			.timeWindow()
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
 			.evictor()
 			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
 			.collect();

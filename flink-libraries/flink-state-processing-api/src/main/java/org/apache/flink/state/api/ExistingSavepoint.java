@@ -291,24 +291,26 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
 
 	/**
 	 * Read window state from an operator in a {@code Savepoint}.
-	 * This method supports reading from any type of time based window, including but not limited to
-	 * Tumbling, Sliding, and Session windows for both event time and processing time.
-	 *
-	 * @return A {@link WindowReader}.
-	 */
-	public WindowReader<TimeWindow> timeWindow() {
-		return new WindowReader<>(env, metadata, stateBackend, new TimeWindow.Serializer());
-	}
-
-	/**
-	 * Read window state from an operator in a {@code Savepoint}.
 	 * This method supports reading from any type of window.
 	 *
 	 * @param assigner The {@link WindowAssigner} used to write out the operator.
 	 * @return A {@link WindowReader}.
 	 */
 	public <W extends Window> WindowReader<W> window(WindowAssigner<?, W> assigner) {
+		Preconditions.checkNotNull(assigner, "The window assigner must not be null");
 		TypeSerializer<W> windowSerializer = assigner.getWindowSerializer(env.getConfig());
+		return window(windowSerializer);
+	}
+
+	/**
+	 * Read window state from an operator in a {@code Savepoint}.
+	 * This method supports reading from any type of window.
+	 *
+	 * @param windowSerializer The serializer used for the window type.
+	 * @return A {@link WindowReader}.
+	 */
+	public <W extends Window> WindowReader<W> window(TypeSerializer<W> windowSerializer) {
+		Preconditions.checkNotNull(windowSerializer, "The window serializer must not be null");
 		return new WindowReader<>(env, metadata, stateBackend, windowSerializer);
 	}
 }
