@@ -687,6 +687,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
+			map.put("MAX_LOG_FILE_NUMBER", "10");
 			TestBaseUtils.setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
