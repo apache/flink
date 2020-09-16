@@ -73,17 +73,21 @@ public class InputProcessorUtil {
 			String taskName,
 			MailboxExecutor mailboxExecutor,
 			List<IndexedInputGate>... inputGates) {
-
-		CheckpointableInput[] sortedInputs = Arrays.stream(inputGates)
-			.flatMap(Collection::stream)
-			.sorted(Comparator.comparing(IndexedInputGate::getGateIndex))
-			.toArray(CheckpointableInput[]::new);
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
+			toNotifyOnCheckpoint,
 			config,
-			sortedInputs,
 			checkpointCoordinator,
 			taskName,
-			toNotifyOnCheckpoint);
+			inputGates);
+		return createCheckpointedMultipleInputGate(mailboxExecutor, inputGates, taskIOMetricGroup, barrierHandler);
+	}
+
+	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
+			MailboxExecutor mailboxExecutor,
+			List<IndexedInputGate>[] inputGates,
+			TaskIOMetricGroup taskIOMetricGroup,
+			CheckpointBarrierHandler barrierHandler) {
+
 		registerCheckpointMetrics(taskIOMetricGroup, barrierHandler);
 
 		InputGate[] unionedInputGates = Arrays.stream(inputGates)
@@ -95,12 +99,18 @@ public class InputProcessorUtil {
 			.toArray(CheckpointedInputGate[]::new);
 	}
 
-	private static CheckpointBarrierHandler createCheckpointBarrierHandler(
+	public static CheckpointBarrierHandler createCheckpointBarrierHandler(
+			AbstractInvokable toNotifyOnCheckpoint,
 			StreamConfig config,
-			CheckpointableInput[] inputs,
 			SubtaskCheckpointCoordinator checkpointCoordinator,
 			String taskName,
-			AbstractInvokable toNotifyOnCheckpoint) {
+			List<IndexedInputGate>[] inputGates) {
+
+		IndexedInputGate[] inputs =
+				Arrays.stream(inputGates).flatMap(Collection::stream)
+				.sorted(Comparator.comparing(IndexedInputGate::getGateIndex))
+				.toArray(IndexedInputGate[]::new);
+
 		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
 				if (config.isUnalignedCheckpointsEnabled()) {
