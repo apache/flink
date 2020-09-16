@@ -252,13 +252,15 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
 		tEnv.connect(new HBase()
+			.version("1.4.3")
 			.tableName(TEST_TABLE_1)
 			.zookeeperQuorum(getZookeeperQuorum()))
 			.withSchema(new Schema()
 				.field("rowkey", DataTypes.INT())
 				.field("family2", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.STRING()), DataTypes.FIELD("col2", DataTypes.BIGINT())))
 				.field("family3", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.DOUBLE()), DataTypes.FIELD("col2", DataTypes.BOOLEAN()), DataTypes.FIELD("col3", DataTypes.STRING())))
-				.field("family1", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.INT()))));
+				.field("family1", DataTypes.ROW(DataTypes.FIELD("col1", DataTypes.INT()))))
+			.createTemporaryTable("hTable");
 		Table table = tEnv.sqlQuery("SELECT * FROM hTable AS h");
 		List<Row> results = collectBatchResult(table);
 		String expected =
