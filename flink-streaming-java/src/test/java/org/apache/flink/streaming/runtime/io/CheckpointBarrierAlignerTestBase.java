@@ -79,19 +79,19 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		testStartTimeNanos = System.nanoTime();
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(
-		int numberOfChannels,
-		BufferOrEvent[] sequence,
-		AbstractInvokable toNotify) throws IOException {
+	protected CheckpointedInputGate createCheckpointedInputGate(
+			int numberOfChannels,
+			BufferOrEvent[] sequence,
+			AbstractInvokable toNotify) throws IOException {
 		mockInputGate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
-		return createBarrierBuffer(mockInputGate, toNotify);
+		return createCheckpointedInputGate(mockInputGate, toNotify);
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
-		return createBarrierBuffer(numberOfChannels, sequence, new DummyCheckpointInvokable());
+	protected CheckpointedInputGate createCheckpointedInputGate(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
+		return createCheckpointedInputGate(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) throws IOException;
+	abstract CheckpointedInputGate createCheckpointedInputGate(InputGate gate, AbstractInvokable toNotify) throws IOException;
 
 	@After
 	public void ensureEmpty() throws Exception {
@@ -115,7 +115,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0), createBuffer(0),
 			createBuffer(0), createEndOfPartition(0)
 		};
-		inputGate = createBarrierBuffer(1, sequence);
+		inputGate = createCheckpointedInputGate(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -136,7 +136,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(3), createBuffer(1), createEndOfPartition(3),
 			createBuffer(1), createEndOfPartition(1), createBuffer(2), createEndOfPartition(2)
 		};
-		inputGate = createBarrierBuffer(4, sequence);
+		inputGate = createCheckpointedInputGate(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -161,7 +161,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0), createEndOfPartition(0)
 		};
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(1, sequence, handler);
+		inputGate = createCheckpointedInputGate(1, sequence, handler);
 
 		handler.setNextExpectedCheckpointId(1L);
 
@@ -201,7 +201,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2)
 		};
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, handler);
+		inputGate = createCheckpointedInputGate(3, sequence, handler);
 
 		handler.setNextExpectedCheckpointId(1L);
 
@@ -298,7 +298,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(1), createEndOfPartition(1)
 		};
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, handler);
+		inputGate = createCheckpointedInputGate(3, sequence, handler);
 
 		handler.setNextExpectedCheckpointId(1L);
 
@@ -366,7 +366,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0)
 		};
 		AbstractInvokable validator = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(2, sequence, validator);
+		inputGate = createCheckpointedInputGate(2, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -399,7 +399,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(3),
 			createEndOfPartition(3)
 		};
-		inputGate = createBarrierBuffer(4, sequence);
+		inputGate = createCheckpointedInputGate(4, sequence);
 
 		// pre checkpoint 2
 		check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
@@ -459,7 +459,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			// final end of stream
 			createEndOfPartition(0)
 		};
-		inputGate = createBarrierBuffer(3, sequence);
+		inputGate = createCheckpointedInputGate(3, sequence);
 
 		// data after first checkpoint
 		check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
@@ -504,7 +504,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(1, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(1, sequence, toNotify);
 
 		toNotify.setNextExpectedCheckpointId(1);
 		check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
@@ -583,7 +583,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			/* 35 */ createBuffer(0)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(3, sequence, toNotify);
 
 		long startTs;
 
@@ -715,7 +715,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			/* 14 */ createBuffer(0), createBuffer(1), createBuffer(2)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(3, sequence, toNotify);
 
 		long startTs;
 
@@ -795,7 +795,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			/* 12 */ createBuffer(0), createBuffer(1), createBuffer(2)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(3, sequence, toNotify);
 
 		long startTs;
 
