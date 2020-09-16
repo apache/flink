@@ -41,7 +41,7 @@ public class HBase extends ConnectorDescriptor {
 	private DescriptorProperties properties = new DescriptorProperties();
 
 	public HBase() {
-		super(CONNECTOR_TYPE_VALUE_HBASE, 1, true);
+		super(CONNECTOR_TYPE_VALUE_HBASE, 1, false);
 	}
 
 	/**
