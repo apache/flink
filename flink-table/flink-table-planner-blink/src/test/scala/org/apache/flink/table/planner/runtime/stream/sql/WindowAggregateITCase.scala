@@ -351,7 +351,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val intervalInMillis = interval.toMilliseconds
     val preLateFireInterval = tableConfig.getConfiguration.get(
       TABLE_EXEC_EMIT_LATE_FIRE_DELAY).toMillis
-    if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
+    if (preLateFireInterval >= 0 && (preLateFireInterval != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
         "Currently not support different lateFireInterval configs in one job")
