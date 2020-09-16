@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A builder for an {@link ExternalSorter}. It can construct either a pull-based sorter if provided with an input
  * iterator via {@link #build(MutableObjectIterator)} or a push-based one via {@link #build()}.
@@ -76,6 +78,7 @@ public final class ExternalSorterBuilder<T> {
 	private IOManager ioManager;
 	private boolean noSpillingMemory = true;
 	private GroupCombineFunction<T, T> combineFunction;
+	private Configuration udfConfig;
 	private List<MemorySegment> memorySegments = null;
 
 	ExternalSorterBuilder(
@@ -113,7 +116,7 @@ public final class ExternalSorterBuilder<T> {
 
 	public ExternalSorterBuilder<T> enableSpilling(IOManager ioManager) {
 		this.noSpillingMemory = false;
-		this.ioManager = ioManager;
+		this.ioManager = checkNotNull(ioManager);
 		return this;
 	}
 
@@ -128,7 +131,7 @@ public final class ExternalSorterBuilder<T> {
 	}
 
 	public ExternalSorterBuilder<T> memory(List<MemorySegment> memorySegments) {
-		this.memorySegments = memorySegments;
+		this.memorySegments = checkNotNull(memorySegments);
 		return this;
 	}
 
@@ -138,17 +141,19 @@ public final class ExternalSorterBuilder<T> {
 	}
 
 	public ExternalSorterBuilder<T> withCombiner(GroupCombineFunction<T, T> combineFunction, Configuration udfConfig) {
-		this.combineFunction = combineFunction;
+		this.combineFunction = checkNotNull(combineFunction);
+		this.udfConfig = checkNotNull(udfConfig);
 		return this;
 	}
 
 	public ExternalSorterBuilder<T> withCombiner(GroupCombineFunction<T, T> combineFunction) {
-		this.combineFunction = combineFunction;
+		this.combineFunction = checkNotNull(combineFunction);
+		this.udfConfig = new Configuration();
 		return this;
 	}
 
 	public ExternalSorterBuilder<T> sorterFactory(InMemorySorterFactory<T> sorterFactory) {
-		this.inMemorySorterFactory = sorterFactory;
+		this.inMemorySorterFactory = checkNotNull(sorterFactory);
 		return this;
 	}
 
@@ -370,14 +375,16 @@ public final class ExternalSorterBuilder<T> {
 		StageRunner sortingStage = new SortingThread<>(exceptionHandler, circularQueues);
 
 		// start the thread that handles spilling to secondary storage
-		final SpillingThread.BufferWriter<T> bufferWriter;
-		final SpillingThread.RecordsMerger<T> recordsMerger;
+		final SpillingThread.SpillingBehaviour<T> spillingBehaviour;
 		if (combineFunction != null) {
-			bufferWriter = new CombiningBufferWriter<>(combineFunction, serializer, objectReuseEnabled);
-			recordsMerger = new CombiningRecordsMerger<>(combineFunction, serializer, comparator, objectReuseEnabled);
+			spillingBehaviour = new CombiningSpillingBehaviour<>(
+				combineFunction,
+				serializer,
+				comparator,
+				objectReuseEnabled,
+				udfConfig);
 		} else {
-			bufferWriter = new DefaultBufferWriter<>();
-			recordsMerger = new DefaultRecordsMerger<>(objectReuseEnabled, serializer);
+			spillingBehaviour = new DefaultSpillingBehaviour<>(objectReuseEnabled, serializer);
 		}
 
 		StageRunner spillingStage = new SpillingThread<>(
@@ -392,8 +399,7 @@ public final class ExternalSorterBuilder<T> {
 			maxNumFileHandles,
 			spillChannelManager,
 			largeRecordHandler,
-			bufferWriter,
-			recordsMerger,
+			spillingBehaviour,
 			MIN_NUM_WRITE_BUFFERS,
 			MAX_NUM_WRITE_BUFFERS);
 

@@ -18,21 +18,49 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 
 import java.io.IOException;
 
 /**
- * A {@link SpillingThread.BufferWriter} which spills the given element directly.
+ * A {@link SpillingThread.SpillingBehaviour} which spills or merges given elements directly.
  *
- * @see CombiningBufferWriter
+ * @see CombiningSpillingBehaviour
  */
-final class DefaultBufferWriter<R> implements SpillingThread.BufferWriter<R> {
+final class DefaultSpillingBehaviour<R> implements SpillingThread.SpillingBehaviour<R> {
+
+	private final boolean objectReuseEnabled;
+	private final TypeSerializer<R> serializer;
+
+	DefaultSpillingBehaviour(boolean objectReuseEnabled, TypeSerializer<R> serializer) {
+		this.objectReuseEnabled = objectReuseEnabled;
+		this.serializer = serializer;
+	}
+
 	@Override
 	public void spillBuffer(
 			CircularElement<R> element,
 			ChannelWriterOutputView output,
 			LargeRecordHandler<R> largeRecordHandler) throws IOException {
 		element.getBuffer().writeToOutput(output, largeRecordHandler);
+	}
+
+	@Override
+	public void mergeRecords(
+		MergeIterator<R> mergeIterator,
+		ChannelWriterOutputView output) throws IOException {
+		// read the merged stream and write the data back
+		if (objectReuseEnabled) {
+			R rec = serializer.createInstance();
+			while ((rec = mergeIterator.next(rec)) != null) {
+				serializer.serialize(rec, output);
+			}
+		} else {
+			R rec;
+			while ((rec = mergeIterator.next()) != null) {
+				serializer.serialize(rec, output);
+			}
+		}
 	}
 }

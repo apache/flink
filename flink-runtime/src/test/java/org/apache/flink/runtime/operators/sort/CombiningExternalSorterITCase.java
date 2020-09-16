@@ -124,7 +124,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
 				this.serializerFactory2.getSerializer(),
 				this.comparator2)
 				.maxNumFileHandles(64)
-				.withCombiner(comb, null)
+				.withCombiner(comb)
 				.enableSpilling(this.ioManager, 0.7f)
 				.memoryFraction(0.25)
 				.objectReuse(false)
@@ -173,7 +173,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
 				this.serializerFactory2.getSerializer(),
 				this.comparator2)
 				.maxNumFileHandles(64)
-				.withCombiner(comb, null)
+				.withCombiner(comb)
 				.enableSpilling(this.ioManager, 0.005f)
 				.memoryFraction(0.01)
 				.objectReuse(true)
@@ -223,7 +223,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
 				this.serializerFactory2.getSerializer(),
 				this.comparator2)
 				.maxNumFileHandles(2)
-				.withCombiner(comb, null)
+				.withCombiner(comb)
 				.enableSpilling(this.ioManager, 0.005f)
 				.memoryFraction(0.01)
 				.objectReuse(false)
@@ -276,7 +276,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
 				this.serializerFactory1.getSerializer(),
 				this.comparator1)
 				.maxNumFileHandles(2)
-				.withCombiner(comb, null)
+				.withCombiner(comb)
 				.enableSpilling(this.ioManager, 0.7f)
 				.memoryFraction(0.25)
 				.objectReuse(false)

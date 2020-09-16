@@ -51,23 +51,26 @@ import static org.apache.flink.runtime.operators.sort.CircularElement.SPILLING_M
  * channels until sufficiently few channels remain to perform the final streamed merge.
  */
 final class SpillingThread<E> extends ThreadBase<E> {
-
 	/**
-	 * An interface that allows adjusting the spilling phase. We can inject e.g. combining the elements while spilling.
+	 * An interface for injecting custom behaviour for spilling and merging phases.
+	 * @param <E>
 	 */
-	@FunctionalInterface
-	interface BufferWriter<E> {
+	interface SpillingBehaviour<E> {
+		default void open() {}
+
+		default void close() {}
+
+		/**
+		 * An method that allows adjusting the spilling phase. We can inject e.g. combining the elements while spilling.
+		 */
 		void spillBuffer(
 			CircularElement<E> element,
 			ChannelWriterOutputView output,
 			LargeRecordHandler<E> largeRecordHandler) throws IOException;
-	}
 
-	/**
-	 * An interface that allows adjusting the merging phase. We can inject e.g. combining the spilled elements.
-	 */
-	@FunctionalInterface
-	interface RecordsMerger<E> {
+		/**
+		 * An method that allows adjusting the merging phase. We can inject e.g. combining the spilled elements.
+		 */
 		void mergeRecords(MergeIterator<E> mergeIterator, ChannelWriterOutputView output) throws IOException;
 	}
 
@@ -92,9 +95,9 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 	private final LargeRecordHandler<E> largeRecordHandler;
 
-	private final BufferWriter<E> bufferWriter;
+	private final SpillingBehaviour<E> spillingBehaviour;
 
-	private final RecordsMerger<E> recordsMerger;
+	private boolean spillingBehaviourOpened = false;
 
 	private final int minNumWriteBuffers;
 
@@ -128,8 +131,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 			int maxNumFileHandles,
 			SpillChannelManager spillingChannelManager,
 			LargeRecordHandler<E> largeRecordHandler,
-			BufferWriter<E> bufferWriter,
-			RecordsMerger<E> recordsMerger,
+			SpillingBehaviour<E> spillingBehaviour,
 			int minNumWriteBuffers,
 			int maxNumWriteBuffers) {
 		super(exceptionHandler, "SortMerger spilling thread", dispatcher);
@@ -142,8 +144,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		this.maxFanIn = maxNumFileHandles;
 		this.spillChannelManager = spillingChannelManager;
 		this.largeRecordHandler = largeRecordHandler;
-		this.bufferWriter = bufferWriter;
-		this.recordsMerger = recordsMerger;
+		this.spillingBehaviour = spillingBehaviour;
 		this.minNumWriteBuffers = minNumWriteBuffers;
 		this.maxNumWriteBuffers = maxNumWriteBuffers;
 	}
@@ -189,12 +190,20 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		}
 
 		// ------------------- Spilling Phase ------------------------
-
 		List<ChannelWithBlockCount> channelIDs = startSpilling(cache);
 
 		// ------------------- Merging Phase ------------------------
 
 		mergeOnDisk(channelIDs);
+	}
+
+	@Override
+	public void close() throws InterruptedException {
+		super.close();
+		if (spillingBehaviourOpened) {
+			this.spillingBehaviour.close();
+			this.spillingBehaviourOpened = false;
+		}
 	}
 
 	private boolean readCache(Queue<CircularElement<E>> cache) {
@@ -327,6 +336,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 		// loop as long as the thread is marked alive and we do not see the final element
 		CircularElement<E> element;
+		openSpillingBehaviour();
 		while (isRunning()) {
 			element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
 
@@ -351,7 +361,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 			// write sort-buffer to channel
 			LOG.debug("Spilling buffer " + element.getId() + ".");
-			bufferWriter.spillBuffer(element, output, largeRecordHandler);
+			spillingBehaviour.spillBuffer(element, output, largeRecordHandler);
 			LOG.debug("Spilled buffer " + element.getId() + ".");
 
 			output.close();
@@ -373,6 +383,13 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		// clear the sort buffers, but do not return the memory to the manager, as we use it for merging
 		disposeSortBuffers(false);
 		return channelIDs;
+	}
+
+	private void openSpillingBehaviour() {
+		if (!spillingBehaviourOpened) {
+			this.spillingBehaviour.open();
+			this.spillingBehaviourOpened = true;
+		}
 	}
 
 	/**
@@ -515,7 +532,8 @@ final class SpillingThread<E> extends ThreadBase<E> {
 			writeBuffers,
 			this.memManager.getPageSize());
 
-		recordsMerger.mergeRecords(mergeIterator, output);
+		openSpillingBehaviour();
+		spillingBehaviour.mergeRecords(mergeIterator, output);
 		output.close();
 		final int numBlocksWritten = output.getBlockCount();
 
