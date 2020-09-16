@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsList;
@@ -77,10 +76,11 @@ public class InternalTimeServiceManager<K> {
 	private final boolean useLegacySynchronousSnapshots;
 
 	InternalTimeServiceManager(
-		KeyGroupRange localKeyGroupRange,
-		KeyContext keyContext,
-		PriorityQueueSetFactory priorityQueueSetFactory,
-		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
+			KeyGroupRange localKeyGroupRange,
+			KeyContext keyContext,
+			PriorityQueueSetFactory priorityQueueSetFactory,
+			ProcessingTimeService processingTimeService,
+			boolean useLegacySynchronousSnapshots) {
 
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
 		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
@@ -104,7 +104,6 @@ public class InternalTimeServiceManager<K> {
 		return getInternalTimerService(name, timerSerializer, triggerable);
 	}
 
-	@SuppressWarnings("unchecked")
 	public <N> InternalTimerService<N> getInternalTimerService(
 		String name,
 		TimerSerializer<K, N> timerSerializer,
@@ -157,14 +156,9 @@ public class InternalTimeServiceManager<K> {
 
 	//////////////////				Fault Tolerance Methods				///////////////////
 
-	public void snapshotState(
-			KeyedStateBackend<?> keyedStateBackend,
-			StateSnapshotContext context,
-			String operatorName) throws Exception {
+	public void snapshotState(StateSnapshotContext context, String operatorName) throws Exception {
 		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
-		if (keyedStateBackend instanceof AbstractKeyedStateBackend &&
-			((AbstractKeyedStateBackend<?>) keyedStateBackend).requiresLegacySynchronousTimerSnapshots()) {
-
+		if (useLegacySynchronousSnapshots) {
 			KeyedStateCheckpointOutputStream out;
 			try {
 				out = context.getRawKeyedOperatorStateOutput();
@@ -195,8 +189,7 @@ public class InternalTimeServiceManager<K> {
 		}
 	}
 
-	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
-		Preconditions.checkState(useLegacySynchronousSnapshots);
+	private void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 

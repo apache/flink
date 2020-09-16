@@ -64,6 +64,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -1640,7 +1641,7 @@ public class StreamTaskTest extends TestLogger {
 					}
 
 					@Override
-					public AbstractKeyedStateBackend<?> keyedStateBackend() {
+					public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
 						return controller.keyedStateBackend();
 					}
 
