@@ -36,21 +36,18 @@ public class DataStreamSourceTest {
 	 */
 	@Test
 	public void testConstructor(){
-		Integer expectParallelism = 100;
-		Boolean expectIsParallel = true;
+		int expectParallelism = 100;
+		boolean expectIsParallel = true;
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		MockSource mockSource = new MockSource(Boundedness.BOUNDED, 10);
-		DataStreamSource<Integer> stream = new DataStreamSource<Integer>(
-			env,
+		DataStreamSource<Integer> stream = env.fromSource(
 			mockSource,
-			WatermarkStrategy.noWatermarks() ,
-			null,
+			WatermarkStrategy.noWatermarks(),
 			"TestingSource");
-		stream.setParallelism(100);
+		stream.setParallelism(expectParallelism);
 
 		assertEquals(expectIsParallel, stream.isParallel);
 
-		Integer actual = Integer.valueOf(stream.getParallelism());
-		assertEquals(expectParallelism, actual);
+		assertEquals(expectParallelism, stream.getParallelism());
 	}
 }
