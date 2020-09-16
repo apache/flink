@@ -102,6 +102,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction;
 
+	private volatile Function<ResourceID, CompletableFuture<TaskManagerInfo>> requestTaskManagerInfoFunction;
+
 	private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction;
 
 	public TestingResourceManagerGateway() {
@@ -164,6 +166,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setRequestTaskManagerLogListFunction(Function<ResourceID, CompletableFuture<Collection<LogInfo>>> requestTaskManagerLogListFunction) {
 		this.requestTaskManagerLogListFunction = requestTaskManagerLogListFunction;
+	}
+
+	public void setRequestTaskManagerInfoFunction(Function<ResourceID, CompletableFuture<TaskManagerInfo>> requestTaskManagerInfoFunction) {
+		this.requestTaskManagerInfoFunction = requestTaskManagerInfoFunction;
 	}
 
 	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
@@ -313,7 +319,13 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(ResourceID resourceId, Time timeout) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException("Not yet implemented"));
+		final Function<ResourceID, CompletableFuture<TaskManagerInfo>> function = requestTaskManagerInfoFunction;
+
+		if (function != null) {
+			return function.apply(resourceId);
+		} else {
+			return FutureUtils.completedExceptionally(new IllegalStateException("No requestTaskManagerInfoFunction was set."));
+		}
 	}
 
 	@Override
