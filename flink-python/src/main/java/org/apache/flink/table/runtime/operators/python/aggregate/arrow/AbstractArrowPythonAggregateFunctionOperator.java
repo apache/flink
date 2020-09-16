@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.JoinedRowData;
@@ -51,7 +50,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
 	private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
 
-	private static final String PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:pandas_aggregate_function:v1";
+	private static final String PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1";
 
 	/**
 	 * The Pandas {@link AggregateFunction}s to be executed.
@@ -121,36 +120,8 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 	}
 
 	@Override
-	protected void checkInvokeFinishBundleByCount() throws Exception {
-		elementCount += currentBatchCount;
-		currentBatchCount = 0;
-		if (elementCount >= maxBundleSize) {
-			invokeFinishBundle();
-		}
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		if (mark.getTimestamp() == Long.MAX_VALUE) {
-			invokeFinishBundle();
-			super.processWatermark(mark);
-		} else if (elementCount == 0 && currentBatchCount == 0) {
-			// forward the watermark immediately if the bundle is already finished.
-			super.processWatermark(mark);
-		} else {
-			// It is not safe to advance the output watermark yet, so add a hold on the current
-			// output watermark.
-			bundleFinishedCallback =
-				() -> {
-					try {
-						// at this point the bundle is finished, allow the watermark to pass
-						super.processWatermark(mark);
-					} catch (Exception e) {
-						throw new RuntimeException(
-							"Failed to process watermark after finished bundle.", e);
-					}
-				};
-		}
+	public boolean isBufferEmpty() {
+		return elementCount == 0 && currentBatchCount == 0;
 	}
 
 	@Override

@@ -206,6 +206,7 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 		runnerInputTypeSerializer.serialize(reuseRow, baosWrapper);
 		pythonFunctionRunner.process(baos.toByteArray());
 		baos.reset();
+		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}

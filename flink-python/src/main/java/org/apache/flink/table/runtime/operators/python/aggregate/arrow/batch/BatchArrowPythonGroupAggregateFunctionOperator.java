@@ -60,7 +60,9 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
 			arrowSerializer.finishCurrentBatch();
 			pythonFunctionRunner.process(baos.toByteArray());
 			baos.reset();
+			elementCount += currentBatchCount;
 			checkInvokeFinishBundleByCount();
+			currentBatchCount = 0;
 		}
 	}
 
@@ -93,10 +95,10 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
 		bais.setBuffer(udafResult, 0, length);
 		int rowCount = arrowSerializer.load();
 		for (int i = 0; i < rowCount; i++) {
-			RowData input = forwardedInputQueue.poll();
-			reuseJoinedRow.setRowKind(input.getRowKind());
-			RowData data = arrowSerializer.read(i);
-			rowDataWrapper.collect(reuseJoinedRow.replace(input, data));
+			RowData key = forwardedInputQueue.poll();
+			reuseJoinedRow.setRowKind(key.getRowKind());
+			RowData result = arrowSerializer.read(i);
+			rowDataWrapper.collect(reuseJoinedRow.replace(key, result));
 		}
 	}
 }

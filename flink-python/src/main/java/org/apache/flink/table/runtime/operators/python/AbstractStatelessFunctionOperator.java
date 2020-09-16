@@ -145,6 +145,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		IN value = element.getValue();
 		bufferInput(value);
 		processElementInternal(value);
+		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
