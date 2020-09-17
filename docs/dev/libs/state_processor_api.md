@@ -431,7 +431,7 @@ clicks
 </div>
 </div>
 
-This state can be read using the below code.
+This state can be read using the code below.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -466,7 +466,7 @@ ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
 ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend());
 
 savepoint
-    .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
     .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
     .print();
 
@@ -502,13 +502,15 @@ val batchEnv = ExecutionEnvironment.getExecutionEnvironment()
 val savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend())
 
 savepoint
-    .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
     .aggregate("click-window", new ClickCounter(), new ClickReader(), Types.String, Types.INT, Types.INT)
     .print()
 
 {% endhighlight %}
 </div>
 </div>
+
+{% panel **Note:** Reading state written by a Trigger is not currently supported. %}
 
 ## Writing New Savepoints
 
