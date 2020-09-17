@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
 import java.io.IOException;
 
@@ -93,10 +94,35 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
 		checkState(bufferBuilders[targetChannel] == null || bufferBuilders[targetChannel].isFinished());
 
-		BufferBuilder bufferBuilder = super.requestNewBufferBuilder(targetChannel);
-		addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
-		bufferBuilders[targetChannel] = bufferBuilder;
-		return bufferBuilder;
+		BufferBuilder bufferBuilder = null;
+		BufferConsumer bufferConsumer = null;
+
+		try {
+			bufferBuilder = super.requestNewBufferBuilder(targetChannel);
+			bufferConsumer = bufferBuilder.createBufferConsumer();
+			addBufferConsumer(bufferConsumer, targetChannel);
+			bufferBuilders[targetChannel] = bufferBuilder;
+			return bufferBuilder;
+		} catch (RuntimeException e) {
+			// finish the current bufferBuilder
+			if (bufferBuilder != null) {
+				bufferBuilder.finish();
+			}
+
+			// the current bufferConsumer is not successfully added, need to recycle it
+			if (bufferConsumer != null) {
+				bufferConsumer.close();
+			}
+
+			checkState(bufferBuilders[targetChannel] == null || bufferBuilders[targetChannel].isFinished(),
+				"the cached bufferBuilder should either finished or equal to null");
+			bufferBuilders[targetChannel] = null;
+
+			// clean up the buffers
+			cleanBuffers(targetChannel);
+
+			throw e;
+		}
 	}
 
 	@Override

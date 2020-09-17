@@ -66,6 +66,9 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
 	private final ArrayDeque<BufferConsumer> buffers = new ArrayDeque<>();
 
+	/** Whether the buffer potentially contains partial records. */
+	private boolean isPartialBuffer = false;
+
 	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
 	private int buffersInBacklog;
@@ -139,6 +142,49 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
+	public void cleanPartialBufferFromReader() {
+		synchronized (buffers) {
+			isPartialBuffer = true;
+			isBlockedByCheckpoint = false;
+
+
+			LOG.info("Reader clean up, set isPartialBuffer = true, buffer size: " + buffers.size());
+			// recycle buffers till the last one
+			// it is possible that the last one is not finished writing yet
+			while (buffers.size() > 1) {
+				buffers.pop().close();
+				LOG.info("Pop from buffers in reader, current buffer size: " + buffers.size());
+			}
+
+			// TODO: estimate how much data is discarded
+		}
+	}
+
+	@Override
+	public void cleanPartialBufferFromWriter() {
+		synchronized (buffers) {
+			isPartialBuffer = false;
+
+			LOG.info("Writer clean up, set isPartialBuffer = false, buffer size: " + buffers.size());
+
+			// clear all buffers
+			// unfinished bufferBuilder and serializer is cleaned from the writer side
+			while (!buffers.isEmpty()) {
+				buffers.pop().close();
+				LOG.info("Pop from buffers in writer, current buffer size: " + buffers.size());
+			}
+
+			// TODO: estimate how much data is discarded
+		}
+	}
+
+	@Override
+	public int getBufferSize() {
+		synchronized (buffers) {
+			return buffers.size();
+		}
+	}
+
 	private boolean add(BufferConsumer bufferConsumer, boolean finish, boolean insertAsHead) {
 		checkNotNull(bufferConsumer);
 
@@ -147,6 +193,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 			if (isFinished || isReleased) {
 				bufferConsumer.close();
 				return false;
+			}
+
+			if (isPartialBuffer) {
+				throw new RuntimeException("Can not add a new consumer, need to clean the buffer first");
 			}
 
 			// Add the bufferConsumer and update the stats
@@ -230,6 +280,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 				return null;
 			}
 
+			LOG.info("buffers are still partial: " + isPartialBuffer);
+
+			if (isPartialBuffer) {
+				return null;
+			}
+
 			Buffer buffer = null;
 
 			if (buffers.isEmpty()) {
@@ -251,6 +307,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 
 				if (bufferConsumer.isFinished()) {
 					buffers.pop().close();
+					LOG.info("Pop from buffers, current buffer size: " + buffers.size());
 					decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
 				}
 
@@ -321,6 +378,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 		return readView;
 	}
 
+	public void releaseView() {
+		readView = null;
+		// clean-up buffer to prepare for partial data clean-up
+		cleanPartialBufferFromReader();
+	}
+
 	public boolean isAvailable(int numCreditsAvailable) {
 		synchronized (buffers) {
 			if (numCreditsAvailable > 0) {
@@ -385,7 +448,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			notifyDataAvailable = !isPartialBuffer && !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
 			flushRequested = buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {

@@ -91,6 +91,8 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
 	}
 
+	default void cleanBuffers(int subpartitionIndex) {}
+
 	/**
 	 * Returns a reader for the subpartition with the given index.
 	 */

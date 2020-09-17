@@ -108,6 +108,13 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	@Override
+	public void clear() {
+		dataBuffer.rewind();
+		dataBuffer.flip();
+		serializationBuffer.clear();
+	}
+
+	@Override
 	public boolean hasSerializedData() {
 		return dataBuffer.hasRemaining();
 	}

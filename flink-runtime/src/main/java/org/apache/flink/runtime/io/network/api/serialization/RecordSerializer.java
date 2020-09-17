@@ -87,6 +87,8 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 */
 	void reset();
 
+	void clear();
+
 	/**
 	 * @return <tt>true</tt> if has some serialized data pending copying to the result {@link BufferBuilder}.
 	 */

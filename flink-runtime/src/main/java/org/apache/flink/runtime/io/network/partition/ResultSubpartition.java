@@ -93,6 +93,13 @@ public abstract class ResultSubpartition {
 	 */
 	public abstract boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException;
 
+	public void cleanPartialBufferFromWriter() {}
+
+	// used for debug only
+	public int getBufferSize() {
+		return -1;
+	}
+
 	/**
 	 * Adds the given buffer.
 	 *

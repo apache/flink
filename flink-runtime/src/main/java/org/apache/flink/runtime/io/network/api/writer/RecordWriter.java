@@ -94,6 +94,9 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	private int volatileFlusherExceptionCheckSkipCount;
 	private static final int VOLATILE_FLUSHER_EXCEPTION_MAX_CHECK_SKIP_COUNT = 100;
 
+	// used for debug only
+	private int serializedRecordCount = 0;
+
 	RecordWriter(ResultPartitionWriter writer, long timeout, String taskName) {
 		this.targetPartition = writer;
 		this.numberOfChannels = writer.getNumberOfSubpartitions();
@@ -119,6 +122,10 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 		serializer.serializeRecord(record);
 
+		// used for debug only
+		serializedRecordCount++;
+		LOG.debug("RecordCount::::::" + serializedRecordCount);
+
 		// Make sure we don't hold onto the large intermediate serialization buffer for too long
 		copyFromSerializerToTargetChannel(targetChannel);
 	}
@@ -133,27 +140,33 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 		serializer.reset();
 
 		boolean pruneTriggered = false;
-		BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
-		SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
-		while (result.isFullBuffer()) {
-			finishBufferBuilder(bufferBuilder);
 
-			// If this was a full record, we are done. Not breaking out of the loop at this point
-			// will lead to another buffer request before breaking out (that would not be a
-			// problem per se, but it can lead to stalls in the pipeline).
-			if (result.isFullRecord()) {
-				pruneTriggered = true;
-				emptyCurrentBufferBuilder(targetChannel);
-				break;
+		try {
+			BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
+			SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
+			while (result.isFullBuffer()) {
+				finishBufferBuilder(bufferBuilder);
+
+				// If this was a full record, we are done. Not breaking out of the loop at this point
+				// will lead to another buffer request before breaking out (that would not be a
+				// problem per se, but it can lead to stalls in the pipeline).
+				if (result.isFullRecord()) {
+					pruneTriggered = true;
+					emptyCurrentBufferBuilder(targetChannel);
+					break;
+				}
+
+				bufferBuilder = requestNewBufferBuilder(targetChannel);
+				result = serializer.copyToBufferBuilder(bufferBuilder);
 			}
+			checkState(!serializer.hasSerializedData(), "All data should be written at once");
 
-			bufferBuilder = requestNewBufferBuilder(targetChannel);
-			result = serializer.copyToBufferBuilder(bufferBuilder);
-		}
-		checkState(!serializer.hasSerializedData(), "All data should be written at once");
-
-		if (flushAlways) {
-			flushTargetPartition(targetChannel);
+			if (flushAlways) {
+				flushTargetPartition(targetChannel);
+			}
+		} catch (RuntimeException e) {
+			System.out.println("I am hereeree!!!!");
+			serializer.clear();
 		}
 		return pruneTriggered;
 	}
@@ -289,6 +302,10 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	protected void addBufferConsumer(BufferConsumer consumer, int targetChannel) throws IOException {
 		targetPartition.addBufferConsumer(consumer, targetChannel);
+	}
+
+	protected void cleanBuffers(int targetChannel) throws IOException {
+		targetPartition.cleanBuffers(targetChannel);
 	}
 
 	/**
