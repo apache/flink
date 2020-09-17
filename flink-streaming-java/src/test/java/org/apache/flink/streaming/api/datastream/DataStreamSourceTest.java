@@ -32,7 +32,7 @@ import static org.junit.Assert.assertEquals;
 public class DataStreamSourceTest {
 
 	/**
-	 * test Constructor for new Sources (FLIP-27).
+	 * Test constructor for new Sources (FLIP-27).
 	 */
 	@Test
 	public void testConstructor(){
