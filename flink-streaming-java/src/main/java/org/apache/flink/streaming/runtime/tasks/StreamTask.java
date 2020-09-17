@@ -585,6 +585,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return mailboxProcessor.runMailboxStep();
 	}
 
+	@VisibleForTesting
+	public boolean isMailboxLoopRunning() {
+		return mailboxProcessor.isMailboxLoopRunning();
+	}
+
 	private void runMailboxLoop() throws Exception {
 		mailboxProcessor.runMailboxLoop();
 	}
