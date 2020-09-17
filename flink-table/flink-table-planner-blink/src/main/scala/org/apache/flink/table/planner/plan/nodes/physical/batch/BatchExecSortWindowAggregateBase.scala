@@ -118,13 +118,14 @@ abstract class BatchExecSortWindowAggregateBase(
     val groupBufferLimitSize = planner.getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
 
-    val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
+    val (windowSize: Long, slideSize: Long, windowStart: Long) =
+      WindowCodeGenerator.getWindowDef(window)
 
     val generator = new SortWindowCodeGenerator(
       ctx, relBuilder, window, inputTimeFieldIndex,
       inputTimeIsDate, namedProperties,
       aggInfos, inputRowType, inputType, outputType,
-      groupBufferLimitSize, 0L, windowSize, slideSize,
+      groupBufferLimitSize, windowStart, windowSize, slideSize,
       grouping, auxGrouping, enableAssignPane, isMerge, isFinal)
     val generatedOperator = if (grouping.isEmpty) {
       generator.genWithoutKeys()

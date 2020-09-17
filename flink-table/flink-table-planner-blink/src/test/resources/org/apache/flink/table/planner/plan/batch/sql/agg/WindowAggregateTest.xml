@@ -315,6 +315,137 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTumbleWindowWithOffset[aggStrategy=AUTO]">
+	<Resource name="sql">
+	  <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '1' HOUR, TIME '10:00:00')]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[$TUMBLE($4, 3600000:INTERVAL HOUR, 10:00:00)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 3600000, 36000000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 3600000, 36000000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowWithOffset[aggStrategy=ONE_PHASE]">
+	<Resource name="sql">
+	  <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '1' HOUR, TIME '10:00:00')]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[$TUMBLE($4, 3600000:INTERVAL HOUR, 10:00:00)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 3600000, 36000000)], select=[SUM(a) AS sumA, COUNT(b) AS cntB])
++- Exchange(distribution=[single])
+   +- Calc(select=[ts, a, b])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowWithOffset[aggStrategy=TWO_PHASE]">
+	<Resource name="sql">
+	  <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '1' HOUR, TIME '10:00:00')]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[$TUMBLE($4, 3600000:INTERVAL HOUR, 10:00:00)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 3600000, 36000000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 3600000, 36000000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testHopWindowWithOffset[aggStrategy=AUTO]">
+	<Resource name="sql">
+	  <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR, 10:00:00)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000, 36000000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000, 36000000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testHopWindowWithOffset[aggStrategy=ONE_PHASE]">
+	<Resource name="sql">
+	  <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR, 10:00:00)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000, 36000000)], select=[SUM(a) AS sumA, COUNT(b) AS cntB])
++- Sort(orderBy=[ts ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[ts, a, b])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testHopWindowWithOffset[aggStrategy=TWO_PHASE]">
+	<Resource name="sql">
+	  <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')]]>
+	</Resource>
+	<Resource name="planBefore">
+	  <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR, 10:00:00)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+]]>
+	</Resource>
+	<Resource name="planAfter">
+	  <![CDATA[
+HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000, 36000000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000, 36000000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+]]>
+	</Resource>
+  </TestCase>
   <TestCase name="testNoGroupingTumblingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)]]>

@@ -117,6 +117,7 @@ class HashWindowCodeGenerator(
     val aggMapKeyWriter = newName("aggMapKeyWriter")
     val (processElementPerWindow, outputResultFromMap) = genHashWindowAggCodes(
       buffLimitSize,
+      windowStart,
       windowSize,
       slideSize,
       inputTerm,
@@ -289,7 +290,7 @@ class HashWindowCodeGenerator(
       inputTerm: String,
       inputType: RowType): Seq[GeneratedExpression] = {
     window match {
-      case SlidingGroupWindow(_, timeField, _, _) =>
+      case SlidingGroupWindow(_, timeField, _, _, _) =>
         if (assignPane) {
           val paneSize = ArithmeticUtils.gcd(windowSize, slideSize)
           Seq(genAlignedWindowStartExpr(
@@ -305,7 +306,7 @@ class HashWindowCodeGenerator(
           }
           exprs
         }
-      case TumblingGroupWindow(_, timeField, _) =>
+      case TumblingGroupWindow(_, timeField, _, _) =>
         Seq(genAlignedWindowStartExpr(
           ctx, inputTerm, inputType, timeField, windowStart, windowSize))
       case _ =>
@@ -356,6 +357,7 @@ class HashWindowCodeGenerator(
   private def genGroupWindowHashAggCodes(
       isMerge: Boolean,
       isFinal: Boolean,
+      windowStart: Long,
       windowSize: Long,
       slideSize: Long,
       aggMapKeyTypesTerm: String,
@@ -396,6 +398,7 @@ class HashWindowCodeGenerator(
     val aggOutputCode = if (isFinal && enableAssignPane) {
       // gen output by sort and merge pre accumulate results
       genOutputByMerging(
+        windowStart,
         windowSize,
         slideSize,
         bufferLimitSize,
@@ -422,6 +425,7 @@ class HashWindowCodeGenerator(
   }
 
   private def genOutputByMerging(
+      windowStart: Long,
       windowSize: Long,
       slideSize: Long,
       bufferLimitSize: Int,
@@ -514,6 +518,7 @@ class HashWindowCodeGenerator(
       val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
         enablePreAcc = true,
         ctx,
+        windowStart,
         windowSize,
         slideSize,
         windowsGrouping,
@@ -557,6 +562,7 @@ class HashWindowCodeGenerator(
       val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
         enablePreAcc = true,
         ctx,
+        windowStart,
         windowSize,
         slideSize,
         windowsGrouping,
@@ -724,6 +730,7 @@ class HashWindowCodeGenerator(
 
   private def genHashWindowAggCodes(
       buffLimitSize: Int,
+      windowStart: Long,
       windowSize: Long,
       slideSize: Long,
       inputTerm: String,
@@ -745,6 +752,7 @@ class HashWindowCodeGenerator(
     val (initedAggBufferExpr, doAggregateExpr, outputResultFromMap) = genGroupWindowHashAggCodes(
       isMerge,
       isFinal,
+      windowStart,
       windowSize,
       slideSize,
       aggMapKeyTypesTerm,

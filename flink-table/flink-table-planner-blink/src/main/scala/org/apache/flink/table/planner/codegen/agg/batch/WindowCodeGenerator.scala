@@ -122,6 +122,7 @@ abstract class WindowCodeGenerator(
   private[flink] def genCreateWindowsGroupingCode(
       ctx: CodeGeneratorContext,
       inputTimeFieldIndex: Int,
+      windowStart: Long,
       windowSize: Long,
       slideSize: Long,
       groupingTerm: String,
@@ -130,7 +131,7 @@ abstract class WindowCodeGenerator(
     ctx.addReusableMember(
       s"""
          |transient $windowsGrouping $groupingTerm = new $windowsGrouping(
-         |  $bufferLimitSize, ${windowSize}L, ${slideSize}L,
+         |  $bufferLimitSize, ${windowStart}L, ${windowSize}L, ${slideSize}L,
          |  $inputTimeFieldIndex, $inputTimeIsDate);
        """.stripMargin)
     ctx.addReusableCloseStatement(s"$groupingTerm.close();")
@@ -303,6 +304,7 @@ abstract class WindowCodeGenerator(
   private[flink] def genWindowAggCodes(
       enablePreAcc: Boolean,
       ctx: CodeGeneratorContext,
+      windowStart: Long,
       windowSize: Long,
       slideSize: Long,
       windowsGrouping: String,
@@ -325,7 +327,8 @@ abstract class WindowCodeGenerator(
 
     // gen code to create windows grouping buffer
     genCreateWindowsGroupingCode(
-      ctx, inputTimeFieldIndex, windowSize, slideSize, windowsGrouping, bufferLimitSize)
+      ctx, inputTimeFieldIndex, windowStart,
+      windowSize, slideSize, windowsGrouping, bufferLimitSize)
 
     // merge pre-accumulate result and output
     val processCode = genTriggerWindowAggByWindowsGroupingCode(
@@ -380,7 +383,7 @@ abstract class WindowCodeGenerator(
       } else {
         // assign timestamp with each input
         window match {
-          case SlidingGroupWindow(_, timeField, size, slide) if isTimeIntervalLiteral(size) =>
+          case SlidingGroupWindow(_, timeField, size, slide, _) if isTimeIntervalLiteral(size) =>
             val (slideSize, windowSize) = (asLong(slide), asLong(size))
             if (enableAssignPane) {
               val paneSize = ArithmeticUtils.gcd(windowSize, slideSize)
@@ -391,7 +394,7 @@ abstract class WindowCodeGenerator(
               genAlignedWindowStartExpr(
                 ctx, inputTerm, inputType, timeField, windowStart, slideSize)
             }
-          case TumblingGroupWindow(_, timeField, size) =>
+          case TumblingGroupWindow(_, timeField, size, _) =>
             genAlignedWindowStartExpr(
               ctx, inputTerm, inputType, timeField, windowStart, asLong(size))
           case _ =>
@@ -631,9 +634,9 @@ abstract class WindowCodeGenerator(
 
       // compute window start, window end, window rowTime
       val (setWindowStart, setWindowEnd, setWindowRowTime) = window match {
-        case TumblingGroupWindow(_, _, size) if isTimeIntervalLiteral(size) =>
+        case TumblingGroupWindow(_, _, size, _) if isTimeIntervalLiteral(size) =>
           windowProps(size)
-        case SlidingGroupWindow(_, _, size, _) if isTimeIntervalLiteral(size) =>
+        case SlidingGroupWindow(_, _, size, _, _) if isTimeIntervalLiteral(size) =>
           windowProps(size)
         case _ =>
           throw new UnsupportedOperationException(
@@ -725,17 +728,27 @@ abstract class WindowCodeGenerator(
 
 object WindowCodeGenerator {
 
-  def getWindowDef(window: LogicalWindow): (Long, Long) = {
-    val (windowSize, slideSize): (Long, Long) = window match {
-      case TumblingGroupWindow(_, _, size) if isTimeIntervalLiteral(size) =>
-        (asLong(size), asLong(size))
-      case SlidingGroupWindow(_, _, size, slide) if isTimeIntervalLiteral(size) =>
-        (asLong(size), asLong(slide))
+  def getWindowDef(window: LogicalWindow): (Long, Long, Long) = {
+    val (windowSize, slideSize, windowStart): (Long, Long, Long) = window match {
+      case TumblingGroupWindow(_, _, size, offset) if isTimeIntervalLiteral(size) =>
+        val windowStart = if (offset.isDefined) {
+          asLong(offset.get)
+        } else {
+          0L
+        }
+        (asLong(size), asLong(size), windowStart)
+      case SlidingGroupWindow(_, _, size, slide, offset) if isTimeIntervalLiteral(size) =>
+        val windowStart = if (offset.isDefined) {
+          asLong(offset.get)
+        } else {
+          0L
+        }
+        (asLong(size), asLong(slide), windowStart)
       case _ =>
         // count tumbling/sliding window and session window not supported now
         throw new UnsupportedOperationException(s"Window $window is not supported right now.")
     }
-    (windowSize, slideSize)
+    (windowSize, slideSize, windowStart)
   }
 
   def asLong(expr: Expression): Long = extractValue(expr, classOf[JLong]).get()

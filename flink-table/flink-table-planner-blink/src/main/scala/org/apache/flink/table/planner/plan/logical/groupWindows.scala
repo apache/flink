@@ -41,12 +41,17 @@ abstract class LogicalWindow(
 case class TumblingGroupWindow(
     alias: PlannerWindowReference,
     timeField: FieldReferenceExpression,
-    size: ValueLiteralExpression)
+    size: ValueLiteralExpression,
+    offset: Option[ValueLiteralExpression])
   extends LogicalWindow(
     alias,
     timeField) {
 
-  override def toString: String = s"TumblingGroupWindow($alias, $timeField, $size)"
+  override def toString: String = if (offset.isEmpty) {
+    s"TumblingGroupWindow($alias, $timeField, $size)"
+  } else {
+    s"TumblingGroupWindow($alias, $timeField, $size, ${offset.get})"
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -57,12 +62,17 @@ case class SlidingGroupWindow(
     alias: PlannerWindowReference,
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression,
-    slide: ValueLiteralExpression)
+    slide: ValueLiteralExpression,
+    offset: Option[ValueLiteralExpression])
   extends LogicalWindow(
     alias,
     timeField) {
 
-  override def toString: String = s"SlidingGroupWindow($alias, $timeField, $size, $slide)"
+  override def toString: String = if (offset.isEmpty) {
+    s"SlidingGroupWindow($alias, $timeField, $size, $slide)"
+  } else {
+    s"SlidingGroupWindow($alias, $timeField, $size, $slide, ${offset.get})"
+  }
 }
 
 // ------------------------------------------------------------------------------------------------

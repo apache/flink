@@ -109,6 +109,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import scala.Option;
 import scala.Some;
 
 import static java.util.Arrays.asList;
@@ -542,13 +543,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 			DataType windowType = window.getTimeAttribute().getOutputDataType();
 			PlannerWindowReference windowReference = new PlannerWindowReference(window.getAlias(),
 					new Some<>(fromDataToLogicalType(windowType)));
+			// TODO: Support window offset
 			switch (window.getType()) {
 				case SLIDE:
 					return new SlidingGroupWindow(
 							windowReference,
 							window.getTimeAttribute(),
 							window.getSize().orElseThrow(() -> new TableException("missed size parameters!")),
-							window.getSlide().orElseThrow(() -> new TableException("missed slide parameters!"))
+							window.getSlide().orElseThrow(() -> new TableException("missed slide parameters!")),
+							Option.empty()
 					);
 				case SESSION:
 					return new SessionGroupWindow(
@@ -560,7 +563,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					return new TumblingGroupWindow(
 							windowReference,
 							window.getTimeAttribute(),
-							window.getSize().orElseThrow(() -> new TableException("missed size parameters!"))
+							window.getSize().orElseThrow(() -> new TableException("missed size parameters!")),
+							Option.empty()
 					);
 				default:
 					throw new TableException("Unknown window type");

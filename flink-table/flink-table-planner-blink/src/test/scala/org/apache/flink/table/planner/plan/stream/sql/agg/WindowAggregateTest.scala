@@ -45,22 +45,6 @@ class WindowAggregateTest extends TableTestBase {
        |""".stripMargin)
 
   @Test(expected = classOf[TableException])
-  def testTumbleWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
-        "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test(expected = classOf[TableException])
-  def testHopWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
-        "GROUP BY HOP(proctime, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test(expected = classOf[TableException])
   def testSessionWindowNoOffset(): Unit = {
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
@@ -159,6 +143,21 @@ class WindowAggregateTest extends TableTestBase {
   @Test
   def testTumblingWindowWithProctime(): Unit = {
     val sql = "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '1' SECOND)"
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testTumblingWindowWithOffset(): Unit = {
+    val sql =
+      "select sum(a), max(b) from MyTable1 group by TUMBLE(c, INTERVAL '4' SECOND, TIME '00:00:03')"
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testHopWindowWithOffset(): Unit = {
+    val sql =
+      "select sum(a), max(b) FROM MyTable1 " +
+      "GROUP BY HOP(c, INTERVAL '4' SECOND, INTERVAL '5' SECOND, TIME '00:00:03')"
     util.verifyPlan(sql)
   }
 

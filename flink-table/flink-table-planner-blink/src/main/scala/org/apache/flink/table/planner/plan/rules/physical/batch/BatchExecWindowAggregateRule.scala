@@ -106,7 +106,7 @@ class BatchExecWindowAggregateRule
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
     window match {
-      case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
+      case TumblingGroupWindow(_, _, size, _) if hasTimeIntervalType(size) =>
         val sizeInLong = size.getValueAs(classOf[java.lang.Long]).get()
         transformTimeSlidingWindow(
           call,
@@ -120,7 +120,7 @@ class BatchExecWindowAggregateRule
           enableAssignPane = false,
           supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
 
-      case SlidingGroupWindow(_, _, size, slide) if hasTimeIntervalType(size) =>
+      case SlidingGroupWindow(_, _, size, slide, _) if hasTimeIntervalType(size) =>
         val (sizeInLong, slideInLong) = (
           size.getValueAs(classOf[java.lang.Long]).get(),
           slide.getValueAs(classOf[java.lang.Long]).get())

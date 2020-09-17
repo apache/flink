@@ -87,6 +87,8 @@ class StreamLogicalWindowAggregateRule
     call.getOperands.get(idx) match {
       case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
         v.getValue.asInstanceOf[JBigDecimal].longValue()
+      case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.TIME =>
+        v.getValue2.asInstanceOf[Integer].intValue()
       case _: RexLiteral => throw new TableException(
         "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
           "MONTH and YEAR time unit are not supported yet.")

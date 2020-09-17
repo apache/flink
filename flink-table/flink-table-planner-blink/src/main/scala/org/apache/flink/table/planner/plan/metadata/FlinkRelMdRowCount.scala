@@ -221,9 +221,9 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       val expandFactorOfOverLapSlidingWindow = 4D
       val expandFactorOfSessionWindow = 2D
       window match {
-        case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
+        case TumblingGroupWindow(_, _, size, _) if hasTimeIntervalType(size) =>
           Math.min(expandFactorOfTumblingWindow * ndv, inputRowCount)
-        case SlidingGroupWindow(_, _, size, slide) if hasTimeIntervalType(size) =>
+        case SlidingGroupWindow(_, _, size, slide, _) if hasTimeIntervalType(size) =>
           val sizeValue = toLong(size)
           val slideValue = toLong(slide)
           if (sizeValue > slideValue) {

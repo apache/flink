@@ -23,12 +23,12 @@ import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-
 import _root_.java.math.{BigDecimal => JBigDecimal}
+
+import org.apache.calcite.sql.`type`.SqlTypeFamily
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
@@ -73,7 +73,10 @@ class BatchLogicalWindowAggregateRule
 
   def getOperandAsLong(call: RexCall, idx: Int): Long =
     call.getOperands.get(idx) match {
-      case v: RexLiteral => v.getValue.asInstanceOf[JBigDecimal].longValue()
+      case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
+        v.getValue.asInstanceOf[JBigDecimal].longValue()
+      case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.TIME =>
+        v.getValue2.asInstanceOf[Integer].intValue()
       case _ => throw new TableException("Only constant window descriptors are supported")
     }
 }

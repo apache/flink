@@ -347,6 +347,83 @@ class WindowAggregateITCase(mode: StateBackendMode)
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testEventTimeTumblingWindowWithOffset(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+
+    val sql =
+      """
+        |SELECT
+        |  `string`,
+        |  TUMBLE_START(rowtime, INTERVAL '0.005' SECOND, TIME '00:00:00.003'),
+        |  TUMBLE_END(rowtime, INTERVAL '0.005' SECOND, TIME '00:00:00.003'),
+        |  SUM(`int`),
+        |  COUNT(`int`)
+        |FROM T1
+        |GROUP BY `string`, TUMBLE(rowtime, INTERVAL '0.005' SECOND, TIME '00:00:00.003')
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hallo,1969-12-31T23:59:59.998,1970-01-01T00:00:00.003,2,1",
+      "Hello world,1970-01-01T00:00:00.008,1970-01-01T00:00:00.013,3,1",
+      "Hello world,1970-01-01T00:00:00.013,1970-01-01T00:00:00.018,4,1",
+      "Hello,1970-01-01T00:00:00.003,1970-01-01T00:00:00.008,15,4",
+      "Hi,1969-12-31T23:59:59.998,1970-01-01T00:00:00.003,1,1",
+      "null,1970-01-01T00:00:00.028,1970-01-01T00:00:00.033,4,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testEventTimeSlidingWindowWithOffset(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset
+          [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+
+    val sql =
+      """
+        |SELECT
+        |  `string`,
+        |  HOP_START(rowtime,
+        |   INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND, TIME '00:00:00.003'),
+        |  HOP_END(rowtime,
+        |   INTERVAL '0.004' SECOND,  INTERVAL '0.005' SECOND, TIME '00:00:00.003'),
+        |  SUM(`int`),
+        |  COUNT(`int`)
+        |FROM T1
+        |GROUP BY `string`,
+        | HOP(rowtime, INTERVAL '0.004' SECOND,  INTERVAL '0.005' SECOND, TIME '00:00:00.003')
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hallo,1969-12-31T23:59:59.999,1970-01-01T00:00:00.004,2,1",
+      "Hello world,1970-01-01T00:00:00.007,1970-01-01T00:00:00.012,3,1",
+      "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,4,1",
+      "Hello,1969-12-31T23:59:59.999,1970-01-01T00:00:00.004,2,1",
+      "Hello,1970-01-01T00:00:00.003,1970-01-01T00:00:00.008,15,4",
+      "Hello,1970-01-01T00:00:00.007,1970-01-01T00:00:00.012,3,1",
+      "Hi,1969-12-31T23:59:59.999,1970-01-01T00:00:00.004,1,1",
+      "null,1970-01-01T00:00:00.031,1970-01-01T00:00:00.036,4,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,

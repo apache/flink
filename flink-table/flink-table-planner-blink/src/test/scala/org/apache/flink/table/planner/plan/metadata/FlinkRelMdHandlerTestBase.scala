@@ -1130,7 +1130,8 @@ class FlinkRelMdHandlerTestBase {
         new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3)),
         0,
         4),
-      intervalOfMillis(900000)
+      intervalOfMillis(900000),
+      None
     )
 
   protected lazy val namedPropertiesOfWindowAgg: Seq[PlannerNamedWindowProperty] =

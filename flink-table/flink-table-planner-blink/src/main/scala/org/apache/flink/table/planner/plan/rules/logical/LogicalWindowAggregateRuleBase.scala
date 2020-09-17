@@ -295,17 +295,9 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
         case call: RexCall =>
           call.getOperator match {
             case FlinkSqlOperatorTable.TUMBLE =>
-              if (call.getOperands.size() == 2) {
                 true
-              } else {
-                throw new TableException("TUMBLE window with alignment is not supported yet.")
-              }
             case FlinkSqlOperatorTable.HOP =>
-              if (call.getOperands.size() == 3) {
                 true
-              } else {
-                throw new TableException("HOP window with alignment is not supported yet.")
-              }
             case FlinkSqlOperatorTable.SESSION =>
               if (call.getOperands.size() == 2) {
                 true
@@ -341,18 +333,39 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     windowExpr.getOperator match {
       case FlinkSqlOperatorTable.TUMBLE =>
         val interval = getOperandAsLong(windowExpr, 1)
-        TumblingGroupWindow(
-          windowRef,
-          timeField,
-          intervalOfMillis(interval))
+        if (windowExpr.operands.size() > 2) {
+          val offset = getOperandAsLong(windowExpr, 2)
+          TumblingGroupWindow(
+            windowRef,
+            timeField,
+            intervalOfMillis(interval),
+            Some(intervalOfMillis(offset)))
+        } else {
+          TumblingGroupWindow(
+            windowRef,
+            timeField,
+            intervalOfMillis(interval),
+            None)
+        }
 
       case FlinkSqlOperatorTable.HOP =>
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
-        SlidingGroupWindow(
-          windowRef,
-          timeField,
-          intervalOfMillis(size),
-          intervalOfMillis(slide))
+        if (windowExpr.operands.size() > 3) {
+          val offset = getOperandAsLong(windowExpr, 3)
+          SlidingGroupWindow(
+            windowRef,
+            timeField,
+            intervalOfMillis(size),
+            intervalOfMillis(slide),
+            Some(intervalOfMillis(offset)))
+        } else {
+          SlidingGroupWindow(
+            windowRef,
+            timeField,
+            intervalOfMillis(size),
+            intervalOfMillis(slide),
+            None)
+        }
 
       case FlinkSqlOperatorTable.SESSION =>
         val gap = getOperandAsLong(windowExpr, 1)

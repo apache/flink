@@ -58,16 +58,6 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
   }
 
   @Test
-  def testHopWindowNoOffset(): Unit = {
-    val sqlQuery =
-      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 " +
-        "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("HOP window with alignment is not supported yet.")
-    util.verifyPlan(sqlQuery)
-  }
-
-  @Test
   def testSessionWindowNoOffset(): Unit = {
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 " +
@@ -120,6 +110,22 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
       |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
     """.stripMargin
     util.verifyPlanNotExpected(sql, "TUMBLE(ts")
+  }
+
+  @Test
+  def testTumbleWindowWithOffset(): Unit = {
+    val sqlQuery =
+      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 " +
+        "GROUP BY TUMBLE(ts, INTERVAL '1' HOUR, TIME '10:00:00')"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testHopWindowWithOffset(): Unit = {
+    val sqlQuery =
+      "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 " +
+        "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
+    util.verifyPlan(sqlQuery)
   }
 
   @Test

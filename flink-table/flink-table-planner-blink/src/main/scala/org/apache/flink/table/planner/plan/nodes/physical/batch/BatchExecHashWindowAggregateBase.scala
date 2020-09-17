@@ -130,13 +130,14 @@ abstract class BatchExecHashWindowAggregateBase(
     val groupBufferLimitSize = config.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
 
-    val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
+    val (windowSize: Long, slideSize: Long, windowStart: Long) =
+      WindowCodeGenerator.getWindowDef(window)
 
     val generatedOperator = new HashWindowCodeGenerator(
       ctx, relBuilder, window, inputTimeFieldIndex,
       inputTimeIsDate, namedProperties,
       aggInfos, inputRowType, grouping, auxGrouping, enableAssignPane, isMerge, isFinal).gen(
-      inputType, outputType, groupBufferLimitSize, 0,
+      inputType, outputType, groupBufferLimitSize, windowStart,
       windowSize, slideSize)
     val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
 

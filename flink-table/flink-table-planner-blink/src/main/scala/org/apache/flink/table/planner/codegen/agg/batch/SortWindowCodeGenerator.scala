@@ -108,6 +108,7 @@ class SortWindowCodeGenerator(
     val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
       enablePreAcc,
       ctx,
+      windowStart,
       windowSize,
       slideSize,
       windowsGrouping,
@@ -190,6 +191,7 @@ class SortWindowCodeGenerator(
     val (triggerWindowAgg, endWindowAgg) = genWindowAggCodes(
       enablePreAcc,
       ctx,
+      windowStart,
       windowSize,
       slideSize,
       windowsGrouping,
