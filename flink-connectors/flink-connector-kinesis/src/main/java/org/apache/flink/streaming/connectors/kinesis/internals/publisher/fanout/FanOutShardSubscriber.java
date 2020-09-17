@@ -92,7 +92,7 @@ public class FanOutShardSubscriber {
 	 */
 	private static final int DEQUEUE_WAIT_SECONDS = 35;
 
-	/** The time to wait when enqueuing events to allow complete/error events to "push in front" of data . */
+	/** The time to wait when enqueuing events to allow error events to "push in front" of data . */
 	private static final int ENQUEUE_WAIT_SECONDS = 5;
 
 	private final BlockingQueue<FanOutSubscriptionEvent> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
@@ -110,7 +110,7 @@ public class FanOutShardSubscriber {
 	 * @param shardId the shard ID to subscribe to
 	 * @param kinesis the Kinesis Proxy used to communicate via AWS SDK v2
 	 */
-	public FanOutShardSubscriber(final String consumerArn, final String shardId, final KinesisProxyV2Interface kinesis) {
+	FanOutShardSubscriber(final String consumerArn, final String shardId, final KinesisProxyV2Interface kinesis) {
 		this.kinesis = Preconditions.checkNotNull(kinesis);
 		this.consumerArn = Preconditions.checkNotNull(consumerArn);
 		this.shardId = Preconditions.checkNotNull(shardId);
@@ -125,9 +125,9 @@ public class FanOutShardSubscriber {
 	 * @param eventConsumer the consumer to deliver received events to
 	 * @return true if there are no more messages (complete), false if a subsequent subscription should be obtained
 	 * @throws FanOutSubscriberException when an exception is propagated from the networking stack
-	 * @throws InterruptedException
+	 * @throws InterruptedException when the thread is interrupted
 	 */
-	public boolean subscribeToShardAndConsumeRecords(
+	boolean subscribeToShardAndConsumeRecords(
 			final StartingPosition startingPosition,
 			final Consumer<SubscribeToShardEvent> eventConsumer) throws InterruptedException, FanOutSubscriberException {
 		LOG.debug("Subscribing to shard {} ({})", shardId, consumerArn);
@@ -228,11 +228,11 @@ public class FanOutShardSubscriber {
 	 * @param eventConsumer the event consumer to deliver records to
 	 * @return true if there are no more messages (complete), false if a subsequent subscription should be obtained
 	 * @throws FanOutSubscriberException when an exception is propagated from the networking stack
-	 * @throws InterruptedException
+	 * @throws InterruptedException when the thread is interrupted
 	 */
 	private boolean consumeAllRecordsFromKinesisShard(
 			final Consumer<SubscribeToShardEvent> eventConsumer) throws InterruptedException, FanOutSubscriberException {
-		String continuationSequenceNumber = null;
+		String continuationSequenceNumber;
 
 		do {
 			// Read timeout will occur after 30 seconds, add a sanity timeout here to prevent lockup
@@ -268,7 +268,7 @@ public class FanOutShardSubscriber {
 
 		private Subscription subscription;
 
-		private boolean cancelled = false;
+		private volatile boolean cancelled = false;
 
 		private final CountDownLatch waitForSubscriptionLatch;
 
@@ -281,7 +281,7 @@ public class FanOutShardSubscriber {
 		/**
 		 * Flag to the producer that we are ready to receive more events.
 		 */
-		public void requestRecord() {
+		void requestRecord() {
 			if (!cancelled) {
 				LOG.debug("Requesting more records from EFO subscription - {} ({})", shardId, consumerArn);
 				subscription.request(1);
@@ -385,7 +385,9 @@ public class FanOutShardSubscriber {
 	/**
 	 * An exception wrapper to indicate an error has been thrown from the networking stack.
 	 */
-	public static class FanOutSubscriberException extends Exception {
+	static class FanOutSubscriberException extends Exception {
+
+		private static final long serialVersionUID = 2275015497000437736L;
 
 		public FanOutSubscriberException(Throwable cause) {
 			super(cause);

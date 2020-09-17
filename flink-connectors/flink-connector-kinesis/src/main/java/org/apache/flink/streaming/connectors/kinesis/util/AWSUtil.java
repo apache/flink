@@ -279,6 +279,13 @@ public class AWSUtil {
 	 */
 	public static StartingPosition getStartingPosition(final SequenceNumber sequenceNumber, final Properties configProps) {
 		if (sequenceNumber.equals(SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+			// LATEST starting positions are translated to AT_TIMESTAMP starting positions. This is to prevent data loss
+			// in the situation where the first read times out and is re-attempted. Consider the following scenario:
+			// 1. Consume from LATEST
+			// 2. No records are consumed and Record Publisher throws retryable error
+			// 3. Restart consumption from LATEST
+			// Any records sent between steps 1 and 3 are lost. Using the timestamp of step 1 allows the consumer to
+			// restart from shard position of step 1, and hence no records are lost.
 			return StartingPosition.fromTimestamp(new Date());
 		} else if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
 			Date timestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(configProps);

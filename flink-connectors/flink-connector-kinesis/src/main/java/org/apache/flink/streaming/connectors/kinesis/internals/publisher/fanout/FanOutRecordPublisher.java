@@ -155,6 +155,7 @@ public class FanOutRecordPublisher implements RecordPublisher {
 					"Failed " + configuration.getSubscribeToShardMaxRetries() + " times.");
 			}
 
+			attempt++;
 			backoff(ex);
 			return INCOMPLETE;
 		}
@@ -167,7 +168,7 @@ public class FanOutRecordPublisher implements RecordPublisher {
 			configuration.getSubscribeToShardBaseBackoffMillis(),
 			configuration.getSubscribeToShardMaxBackoffMillis(),
 			configuration.getSubscribeToShardExpConstant(),
-			++attempt);
+			attempt);
 
 		LOG.warn("Encountered recoverable error {}. Backing off for {} millis {} ({})",
 			ex.getCause().getClass().getSimpleName(),
