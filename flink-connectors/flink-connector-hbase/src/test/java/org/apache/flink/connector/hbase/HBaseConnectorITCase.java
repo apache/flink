@@ -249,8 +249,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 	@Test
 	public void testTableSourceWithTableAPI() throws Exception {
-		StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(execEnv, streamSettings);
+		TableEnvironment tEnv = createBatchTableEnv();
 		tEnv.connect(new HBase()
 			.version("1.4.3")
 			.tableName(TEST_TABLE_1)
