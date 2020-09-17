@@ -1292,23 +1292,28 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				// we do the final cleanup in the I/O executor, because it may involve
 				// some heavier work
 
-				try {
-					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-						ejv.getJobVertex().finalizeOnMaster(getUserClassLoader());
-					}
-				}
-				catch (Throwable t) {
-					ExceptionUtils.rethrowIfFatalError(t);
-					ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(t);
-					failGlobal(new Exception("Failed to finalize execution on master", t));
-					return;
+				final List<CompletableFuture<Void>> futures = new ArrayList<>();
+				for (ExecutionJobVertex ejv : verticesInCreationOrder) {
+					futures.add(CompletableFuture.runAsync(() -> {
+						try {
+							ejv.getJobVertex().finalizeOnMaster(getUserClassLoader());
+						} catch (Throwable t) {
+							ExceptionUtils.rethrow(t);
+						}
+					}, ioExecutor));
 				}
 
-				// if we do not make this state transition, then a concurrent
-				// cancellation or failure happened
-				if (transitionState(JobStatus.RUNNING, JobStatus.FINISHED)) {
-					onTerminalState(JobStatus.FINISHED);
-				}
+				FutureUtils.combineAll(futures).whenCompleteAsync((ignored, t) -> {
+					if (t != null) {
+						ExceptionUtils.rethrowIfFatalError(ExceptionUtils.stripCompletionException(t));
+						ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(t);
+						failGlobal(new Exception("Failed to finalize execution on master", t));
+					} else {
+						if (transitionState(JobStatus.RUNNING, JobStatus.FINISHED)) {
+							onTerminalState(JobStatus.FINISHED);
+						}
+					}
+				}, jobMasterMainThreadExecutor);
 			}
 		}
 	}
