@@ -441,6 +441,7 @@ public class CheckpointCoordinatorTestingUtils {
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getID()).thenReturn(ExecutionGraphTestUtils.createRandomExecutionVertexId());
+		when(vertex.getJobId()).thenReturn(new JobID());
 
 		final Execution exec = spy(new Execution(
 			mock(Executor.class),
