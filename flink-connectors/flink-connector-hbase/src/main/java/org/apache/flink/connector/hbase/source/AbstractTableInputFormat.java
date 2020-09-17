@@ -73,8 +73,10 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 
 	/**
 	 * Creates a {@link Scan} object and opens the {@link HTable} connection to initialize the HBase table.
+	 *
+	 * @throws IOException Thrown, if the connection could not be opened due to an I/O problem.
 	 */
-	protected abstract void initTable();
+	protected abstract void initTable() throws IOException;
 
 	/**
 	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
@@ -120,14 +122,7 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 	@Override
 	public void open(TableInputSplit split) throws IOException {
 		initTable();
-		if (table == null) {
-			throw new IOException("The HBase table has not been opened! " +
-				"This needs to be done in configure().");
-		}
-		if (scan == null) {
-			throw new IOException("Scan has not been initialized! " +
-				"This needs to be done in configure().");
-		}
+
 		if (split == null) {
 			throw new IOException("Input split is null!");
 		}
@@ -199,6 +194,11 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 			if (connection != null) {
 				connection.close();
 			}
+		} catch (IOException e) {
+			if (connection != null) {
+				connection.close();
+			}
+			throw e;
 		} finally {
 			resultScanner = null;
 			table = null;
@@ -209,14 +209,6 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
 		initTable();
-		if (table == null) {
-			throw new IOException("The HBase table has not been opened! " +
-				"This needs to be done in configure().");
-		}
-		if (scan == null) {
-			throw new IOException("Scan has not been initialized! " +
-				"This needs to be done in configure().");
-		}
 
 		// Get the starting and ending row keys for every region in the currently open table
 		final Pair<byte[][], byte[][]> keys = table.getRegionLocator().getStartEndKeys();

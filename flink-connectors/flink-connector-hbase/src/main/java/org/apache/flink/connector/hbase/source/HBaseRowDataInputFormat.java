@@ -59,7 +59,7 @@ public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
 	}
 
 	@Override
-	protected void initTable() {
+	protected void initTable() throws IOException {
 		this.serde = new HBaseSerde(schema, nullStringLiteral);
 		if (table == null) {
 			connectToTable();
@@ -84,16 +84,13 @@ public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
 		return serde.convertToRow(res);
 	}
 
-	private void connectToTable() {
+	private void connectToTable() throws IOException {
 		try {
 			connection = ConnectionFactory.createConnection(getHadoopConfiguration());
 			table = (HTable) connection.getTable(TableName.valueOf(tableName));
 		} catch (TableNotFoundException tnfe) {
 			LOG.error("The table " + tableName + " not found ", tnfe);
 			throw new RuntimeException("HBase table '" + tableName + "' not found.", tnfe);
-		} catch (IOException ioe) {
-			LOG.error("Exception while creating connection to HBase.", ioe);
-			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
 	}
 }

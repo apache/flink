@@ -26,7 +26,7 @@ import org.apache.flink.core.io.LocatableInputSplit;
  * references to row below refer to the key of the row.
  */
 @Internal
-public class TableInputSplit extends LocatableInputSplit {
+class TableInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;
 

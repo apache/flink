@@ -26,6 +26,8 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 
+import java.io.IOException;
+
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
  */
@@ -65,7 +67,7 @@ public abstract class HBaseInputFormat<T extends Tuple> extends AbstractTableInp
 	protected abstract T mapResultToTuple(Result r);
 
 	@Override
-	protected void initTable() {
+	protected void initTable() throws IOException {
 		if (table == null) {
 			table = createTable();
 		}
