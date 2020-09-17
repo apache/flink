@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 提供了 [Kafka](https://kafka.apache.org) 连接器，向 Kafka topic 中读取或者写入数据，可提供 exactly-once 的处理语义。
+Flink 提供了 [Apache Kafka](https://kafka.apache.org) 连接器，用于向 Kafka topic 中读取或者写入数据，可提供精确一次的处理语义。
 
 * This will be replaced by the TOC
 {:toc}
