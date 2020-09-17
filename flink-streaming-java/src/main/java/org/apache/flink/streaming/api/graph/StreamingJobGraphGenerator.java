@@ -862,6 +862,7 @@ public class StreamingJobGraphGenerator {
 		} else {
 			// Supporting for fine grained resource specs is still under developing.
 			// This branch should not be executed in production. Not throwing exception for testing purpose.
+			// TODO: support calculating managed memory fractions for fine grained resource specs
 			LOG.error("Failed setting managed memory fractions. " +
 					" Operators may not be able to use managed memory properly." +
 					" Calculating managed memory fractions with fine grained resource spec is currently not supported.");
