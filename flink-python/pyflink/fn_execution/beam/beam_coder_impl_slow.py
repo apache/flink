@@ -45,7 +45,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
         self._leading_complete_bytes_num = (self._field_count + ROW_KIND_BIT_SIZE) // 8
         self._remaining_bits_num = (self._field_count + ROW_KIND_BIT_SIZE) % 8
         self.null_mask_search_table = self.generate_null_mask_search_table()
-        self.mask_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
+        self.null_byte_search_table = (0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01)
         self.row_kind_search_table = \
             [i << (8 - ROW_KIND_BIT_SIZE) for i in range(2 ** ROW_KIND_BIT_SIZE)]
         self.data_out_stream = create_OutputStream()
@@ -94,14 +94,14 @@ class FlattenRowCoderImpl(StreamCoderImpl):
 
     def _write_mask(self, value, out_stream, row_kind_value=0):
         field_pos = 0
-        mask_byte_search_table = self.mask_byte_search_table
+        null_byte_search_table = self.null_byte_search_table
         remaining_bits_num = self._remaining_bits_num
 
         # first byte contains the row kind bits
         b = self.row_kind_search_table[row_kind_value]
         for i in range(0, 8 - ROW_KIND_BIT_SIZE):
             if field_pos + i < len(value) and value[field_pos + i] is None:
-                b |= mask_byte_search_table[i + ROW_KIND_BIT_SIZE]
+                b |= null_byte_search_table[i + ROW_KIND_BIT_SIZE]
         field_pos += 8 - ROW_KIND_BIT_SIZE
         out_stream.write_byte(b)
 
@@ -109,7 +109,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
             b = 0x00
             for i in range(0, 8):
                 if value[field_pos + i] is None:
-                    b |= mask_byte_search_table[i]
+                    b |= null_byte_search_table[i]
             field_pos += 8
             out_stream.write_byte(b)
 
@@ -117,7 +117,7 @@ class FlattenRowCoderImpl(StreamCoderImpl):
             b = 0x00
             for i in range(remaining_bits_num):
                 if value[field_pos + i] is None:
-                    b |= mask_byte_search_table[i]
+                    b |= null_byte_search_table[i]
             out_stream.write_byte(b)
 
     def _read_mask(self, in_stream):
