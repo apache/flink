@@ -86,7 +86,7 @@ By default no operator is disabled.</td>
             <td><h5>table.exec.source.idle-timeout</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">0 ms</td>
             <td>Duration</td>
-            <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle.</td>
+            <td>When a source do not receive any elements for the timeout time, it will be marked as temporarily idle. This allows downstream tasks to advance their watermarks without the need to wait for watermarks from this source while it is idle. Default value is 0, which means detecting source idleness is not enabled.</td>
         </tr>
         <tr>
             <td><h5>table.exec.spill-compression.block-size</h5><br> <span class="label label-primary">Batch</span></td>

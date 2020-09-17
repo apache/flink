@@ -60,7 +60,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       val miniBatchInterval: MiniBatchInterval = if (config.getConfiguration.getBoolean(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
-        val miniBatchLatency =config.getConfiguration.get(
+        val miniBatchLatency = config.getConfiguration.get(
           ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)

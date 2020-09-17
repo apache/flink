@@ -67,7 +67,8 @@ public class ExecutionConfigOptions {
 			.withDescription("When a source do not receive any elements for the timeout time, " +
 				"it will be marked as temporarily idle. This allows downstream " +
 				"tasks to advance their watermarks without the need to wait for " +
-				"watermarks from this source while it is idle.");
+				"watermarks from this source while it is idle. " +
+				"Default value is 0, which means detecting source idleness is not enabled.");
 
 	// ------------------------------------------------------------------------
 	//  Sink Options

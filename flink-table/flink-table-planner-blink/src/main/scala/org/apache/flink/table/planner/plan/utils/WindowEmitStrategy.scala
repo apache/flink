@@ -152,12 +152,22 @@ object WindowEmitStrategy {
     }
     val enableEarlyFireDelay = tableConfig.getConfiguration.getBoolean(
       TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
-    val earlyFireDelay = tableConfig.getConfiguration
-      .get(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).toMillis
+    val earlyFireDelay: JLong = if (tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).isPresent) {
+      tableConfig.getConfiguration
+        .get(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).toMillis
+    } else {
+      null
+    }
     val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
       TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
-    val lateFireDelay = tableConfig.getConfiguration
-      .get(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).toMillis
+    val lateFireDelay: JLong = if (tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).isPresent) {
+      tableConfig.getConfiguration
+        .get(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).toMillis
+    } else {
+      null
+    }
     new WindowEmitStrategy(
       isEventTime,
       isSessionWindow,
@@ -181,7 +191,7 @@ object WindowEmitStrategy {
   val TABLE_EXEC_EMIT_EARLY_FIRE_DELAY: ConfigOption[Duration] =
   key("table.exec.emit.early-fire.delay")
       .durationType()
-      .defaultValue(Duration.ofMillis(-1))
+      .noDefaultValue()
       .withDescription("The early firing delay in milli second, early fire is " +
           "the emit strategy before watermark advanced to end of window. " +
           "< 0 is illegal configuration. " +
@@ -201,7 +211,7 @@ object WindowEmitStrategy {
   val TABLE_EXEC_EMIT_LATE_FIRE_DELAY: ConfigOption[Duration] =
   key("table.exec.emit.late-fire.delay")
       .durationType()
-      .defaultValue(Duration.ofMillis(-1))
+      .noDefaultValue()
       .withDescription("The late firing delay in milli second, late fire is " +
           "the emit strategy after watermark advanced to end of window. " +
           "< 0 is illegal configuration. " +
