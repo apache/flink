@@ -144,7 +144,7 @@ public class FileSystemTableSink implements
 			builder.setFileSystemFactory(fsFactory);
 			builder.setOverwrite(overwrite);
 			builder.setStaticPartitions(staticPartitions);
-			builder.setTempPath(toStagingPath());
+			builder.setTempPath(new Path(path, ".staging_" + System.currentTimeMillis()));
 			builder.setOutputFileConfig(outputFileConfig);
 			return dataStream.writeUsingOutputFormat(builder.build())
 					.setParallelism(dataStream.getParallelism());
@@ -224,19 +224,6 @@ public class FileSystemTableSink implements
 		}
 		//noinspection unchecked
 		return returnStream.addSink(new DiscardingSink()).setParallelism(1);
-	}
-
-	private Path toStagingPath() {
-		Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
-		try {
-			FileSystem fs = stagingDir.getFileSystem();
-			Preconditions.checkState(
-					fs.exists(stagingDir) || fs.mkdirs(stagingDir),
-					"Failed to create staging dir " + stagingDir);
-			return stagingDir;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
 	}
 
 	@SuppressWarnings("unchecked")
