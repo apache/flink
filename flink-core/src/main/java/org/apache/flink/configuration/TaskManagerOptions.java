@@ -412,13 +412,14 @@ public class TaskManagerOptions {
 		key("taskmanager.memory.managed.consumer-weights")
 			.mapType()
 			.defaultValue(new HashMap<String, String>() {{
-				put("DATAPROC", "70");
-				put("PYTHON", "30");
+				put(ManagedMemoryConsumerNames.DATAPROC, "70");
+				put(ManagedMemoryConsumerNames.PYTHON, "30");
 			}})
 			.withDescription("Managed memory weights for different kinds of consumers. A slot’s managed memory is"
 				+ " shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless"
-				+ " of the number of consumers from each kind. Currently supported kinds of consumers are DATAPROC (for"
-				+ " RocksDB state backend in streaming and built-in algorithms in batch) and PYTHON (for python processes).");
+				+ " of the number of consumers from each kind. Currently supported kinds of consumers are "
+				+ ManagedMemoryConsumerNames.DATAPROC + " (for RocksDB state backend in streaming and built-in"
+				+ " algorithms in batch) and " + ManagedMemoryConsumerNames.PYTHON + " (for python processes).");
 	/**
 	 * Min Network Memory size for TaskExecutors.
 	 */
@@ -566,4 +567,9 @@ public class TaskManagerOptions {
 
 	/** Not intended to be instantiated. */
 	private TaskManagerOptions() {}
+
+	private static class ManagedMemoryConsumerNames {
+		private static final String DATAPROC = "DATAPROC";
+		private static final String PYTHON = "PYTHON";
+	}
 }
