@@ -188,6 +188,14 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 			if (resultScanner != null) {
 				resultScanner.close();
 			}
+			closeTable();
+		}  finally {
+			resultScanner = null;
+		}
+	}
+
+	public void closeTable() throws IOException {
+		try {
 			if (table != null) {
 				table.close();
 			}
@@ -200,7 +208,6 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 			}
 			throw e;
 		} finally {
-			resultScanner = null;
 			table = null;
 			connection = null;
 		}
@@ -208,48 +215,52 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
-		initTable();
+		try {
+			initTable();
 
-		// Get the starting and ending row keys for every region in the currently open table
-		final Pair<byte[][], byte[][]> keys = table.getRegionLocator().getStartEndKeys();
-		if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
-			throw new IOException("Expecting at least one region.");
-		}
-		final byte[] startRow = scan.getStartRow();
-		final byte[] stopRow = scan.getStopRow();
-		final boolean scanWithNoLowerBound = startRow.length == 0;
-		final boolean scanWithNoUpperBound = stopRow.length == 0;
-
-		final List<TableInputSplit> splits = new ArrayList<TableInputSplit>(minNumSplits);
-		for (int i = 0; i < keys.getFirst().length; i++) {
-			final byte[] startKey = keys.getFirst()[i];
-			final byte[] endKey = keys.getSecond()[i];
-			final String regionLocation = table.getRegionLocator().getRegionLocation(startKey, false).getHostnamePort();
-			// Test if the given region is to be included in the InputSplit while splitting the regions of a table
-			if (!includeRegionInScan(startKey, endKey)) {
-				continue;
+			// Get the starting and ending row keys for every region in the currently open table
+			final Pair<byte[][], byte[][]> keys = table.getRegionLocator().getStartEndKeys();
+			if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
+				throw new IOException("Expecting at least one region.");
 			}
-			// Find the region on which the given row is being served
-			final String[] hosts = new String[]{regionLocation};
+			final byte[] startRow = scan.getStartRow();
+			final byte[] stopRow = scan.getStopRow();
+			final boolean scanWithNoLowerBound = startRow.length == 0;
+			final boolean scanWithNoUpperBound = stopRow.length == 0;
 
-			// Determine if regions contains keys used by the scan
-			boolean isLastRegion = endKey.length == 0;
-			if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
-				(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+			final List<TableInputSplit> splits = new ArrayList<>(minNumSplits);
+			for (int i = 0; i < keys.getFirst().length; i++) {
+				final byte[] startKey = keys.getFirst()[i];
+				final byte[] endKey = keys.getSecond()[i];
+				final String regionLocation = table.getRegionLocator().getRegionLocation(startKey, false).getHostnamePort();
+				// Test if the given region is to be included in the InputSplit while splitting the regions of a table
+				if (!includeRegionInScan(startKey, endKey)) {
+					continue;
+				}
+				// Find the region on which the given row is being served
+				final String[] hosts = new String[]{regionLocation};
 
-				final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
-				final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
-					&& !isLastRegion ? endKey : stopRow;
-				int id = splits.size();
-				final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
-				splits.add(split);
+				// Determine if regions contains keys used by the scan
+				boolean isLastRegion = endKey.length == 0;
+				if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
+					(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+
+					final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
+					final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
+						&& !isLastRegion ? endKey : stopRow;
+					int id = splits.size();
+					final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
+					splits.add(split);
+				}
 			}
+			LOG.info("Created " + splits.size() + " splits");
+			for (TableInputSplit split : splits) {
+				logSplitInfo("created", split);
+			}
+			return splits.toArray(new TableInputSplit[splits.size()]);
+		} finally {
+			closeTable();
 		}
-		LOG.info("Created " + splits.size() + " splits");
-		for (TableInputSplit split : splits) {
-			logSplitInfo("created", split);
-		}
-		return splits.toArray(new TableInputSplit[splits.size()]);
 	}
 
 	/**
