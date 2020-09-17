@@ -91,8 +91,8 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		Map<String, String> options = getAllOptions();
 		options.put("canal-json.ignore-parse-errors", "true");
 		options.put("canal-json.timestamp-format.standard", "ISO-8601");
-		options.put("canal-json.database", "mydb");
-		options.put("canal-json.table", "mytable");
+		options.put("canal-json.database.include", "mydb");
+		options.put("canal-json.table.include", "mytable");
 
 		// test Deser
 		CanalJsonDeserializationSchema expectedDeser = CanalJsonDeserializationSchema
