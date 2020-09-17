@@ -127,8 +127,7 @@ public class EvictingWindowReader<W extends Window> {
 			keyType,
 			windowSerializer,
 			reduceType,
-			env.getConfig()
-		);
+			env.getConfig());
 
 		return readWindowOperator(uid, outputType, operator);
 	}
@@ -188,8 +187,7 @@ public class EvictingWindowReader<W extends Window> {
 			keyType,
 			windowSerializer,
 			inputType,
-			env.getConfig()
-		);
+			env.getConfig());
 
 		return readWindowOperator(uid, outputType, operator);
 	}

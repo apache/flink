@@ -41,7 +41,6 @@ import org.apache.flink.state.api.input.UnionStateInputFormat;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Preconditions;
 
