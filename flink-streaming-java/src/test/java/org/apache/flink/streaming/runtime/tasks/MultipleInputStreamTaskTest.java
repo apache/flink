@@ -296,14 +296,14 @@ public class MultipleInputStreamTaskTest {
 		try {
 			testHarness.processElement(new StreamRecord<>("Hello-1"), 0);
 			testHarness.endInput(0);
-			testHarness.process();
+			testHarness.processWhileAvailable();
 
 			testHarness.processElement(new StreamRecord<>("Hello-2"), 1);
 			testHarness.processElement(new StreamRecord<>("Hello-3"), 2);
 			testHarness.endInput(1);
-			testHarness.process();
+			testHarness.processWhileAvailable();
 			testHarness.endInput(2);
-			testHarness.process();
+			testHarness.processWhileAvailable();
 			assertEquals(
 				true,
 				testHarness.getStreamTask().getInputOutputJointFuture(InputStatus.NOTHING_AVAILABLE).isDone());
@@ -347,7 +347,7 @@ public class MultipleInputStreamTaskTest {
 			testHarness.processElement(new StreamRecord<>("0"), 2);
 			testHarness.processElement(new StreamRecord<>("1"), 2);
 
-			testHarness.process();
+			testHarness.processWhileAvailable();
 
 			// We do not know which of the input will be picked first, but we are expecting them
 			// to alternate
