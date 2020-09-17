@@ -145,7 +145,7 @@ public abstract class Transformation<T> {
 	 * Each entry in this map represents a use case that this transformation needs managed memory for. The key of the
 	 * entry indicates the use case, while the value is the use-case-specific weight for this transformation. Managed
 	 * memory reserved for an OPERATOR scope use case will be shared by all the declaring transformations within a slot
-	 * according to this weight. For SLOT scope use cases, the weights are ignored.
+	 * according to this weight. For SLOT scope use cases, only the keys matter and the values (weights) are ignored.
 	 */
 	private final Map<ManagedMemoryUseCase, Integer> managedMemoryUseCaseWeights = new HashMap<>();
 
