@@ -84,8 +84,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -177,13 +177,12 @@ public class StreamingJobGraphGenerator {
 
 		setSlotSharingAndCoLocation();
 
-		// For now, only consider managed memory for batch algorithms.
-		// TODO: extend managed memory fraction calculations w.r.t. various managed memory use cases.
 		setManagedMemoryFraction(
 			Collections.unmodifiableMap(jobVertices),
 			Collections.unmodifiableMap(vertexConfigs),
 			Collections.unmodifiableMap(chainedConfigs),
-			id -> Optional.ofNullable(streamGraph.getStreamNode(id).getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP)));
+			id -> streamGraph.getStreamNode(id).getManagedMemoryOperatorScopeUseCaseWeights(),
+			id -> streamGraph.getStreamNode(id).getManagedMemorySlotScopeUseCases());
 
 		configureCheckpointing();
 
@@ -773,7 +772,8 @@ public class StreamingJobGraphGenerator {
 			final Map<Integer, JobVertex> jobVertices,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, Optional<Integer>> operatorManagedMemoryWeightRetriever) {
+			final java.util.function.Function<Integer, Map<ManagedMemoryUseCase, Integer>> operatorScopeManagedMemoryUseCaseWeightsRetriever,
+			final java.util.function.Function<Integer, Set<ManagedMemoryUseCase>> slotScopeManagedMemoryUseCasesRetriever) {
 
 		// all slot sharing groups in this job
 		final Set<SlotSharingGroup> slotSharingGroups = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -808,7 +808,8 @@ public class StreamingJobGraphGenerator {
 				vertexOperators,
 				operatorConfigs,
 				vertexChainedConfigs,
-				operatorManagedMemoryWeightRetriever);
+				operatorScopeManagedMemoryUseCaseWeightsRetriever,
+				slotScopeManagedMemoryUseCasesRetriever);
 		}
 	}
 
@@ -818,21 +819,34 @@ public class StreamingJobGraphGenerator {
 			final Map<JobVertexID, Set<Integer>> vertexOperators,
 			final Map<Integer, StreamConfig> operatorConfigs,
 			final Map<Integer, Map<Integer, StreamConfig>> vertexChainedConfigs,
-			final java.util.function.Function<Integer, Optional<Integer>> operatorManagedMemoryWeightRetriever) {
+			final java.util.function.Function<Integer, Map<ManagedMemoryUseCase, Integer>> operatorScopeManagedMemoryUseCaseWeightsRetriever,
+			final java.util.function.Function<Integer, Set<ManagedMemoryUseCase>> slotScopeManagedMemoryUseCasesRetriever) {
 
-		final int groupManagedMemoryWeight = slotSharingGroup.getJobVertexIds().stream()
-			.flatMap(vid -> vertexOperators.get(vid).stream())
-			.mapToInt(id -> operatorManagedMemoryWeightRetriever.apply(id).orElse(0))
-			.sum();
+		final Set<Integer> groupOperatorIds = slotSharingGroup.getJobVertexIds().stream()
+			.flatMap((vid) -> vertexOperators.get(vid).stream())
+			.collect(Collectors.toSet());
+
+		final Map<ManagedMemoryUseCase, Integer> groupOperatorScopeUseCaseWeights = groupOperatorIds.stream()
+			.flatMap((oid) -> operatorScopeManagedMemoryUseCaseWeightsRetriever.apply(oid).entrySet().stream())
+			.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.summingInt(Map.Entry::getValue)));
+
+		final Set<ManagedMemoryUseCase> groupSlotScopeUseCases = groupOperatorIds.stream()
+			.flatMap((oid) -> slotScopeManagedMemoryUseCasesRetriever.apply(oid).stream())
+			.collect(Collectors.toSet());
 
 		for (JobVertexID jobVertexID : slotSharingGroup.getJobVertexIds()) {
 			for (int operatorNodeId : vertexOperators.get(jobVertexID)) {
 				final StreamConfig operatorConfig = operatorConfigs.get(operatorNodeId);
-				final int operatorManagedMemoryWeight = operatorManagedMemoryWeightRetriever.apply(operatorNodeId).orElse(0);
+				final Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights =
+					operatorScopeManagedMemoryUseCaseWeightsRetriever.apply(operatorNodeId);
+				final Set<ManagedMemoryUseCase> slotScopeUseCases =
+					slotScopeManagedMemoryUseCasesRetriever.apply(operatorNodeId);
 				setManagedMemoryFractionForOperator(
 					slotSharingGroup.getResourceSpec(),
-					operatorManagedMemoryWeight,
-					groupManagedMemoryWeight,
+					operatorScopeUseCaseWeights,
+					slotScopeUseCases,
+					groupOperatorScopeUseCaseWeights,
+					groupSlotScopeUseCases,
 					operatorConfig);
 			}
 
@@ -845,18 +859,26 @@ public class StreamingJobGraphGenerator {
 
 	private static void setManagedMemoryFractionForOperator(
 			final ResourceSpec groupResourceSpec,
-			final int operatorManagedMemoryWeight,
-			final int groupManagedMemoryWeight,
+			final Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
+			final Set<ManagedMemoryUseCase> slotScopeUseCases,
+			final Map<ManagedMemoryUseCase, Integer> groupManagedMemoryWeights,
+			final Set<ManagedMemoryUseCase> groupSlotScopeUseCases,
 			final StreamConfig operatorConfig) {
 
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
-			// For now, only consider managed memory for batch algorithms.
-			// TODO: extend managed memory fraction calculations w.r.t. various managed memory use cases.
-			operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
-					ManagedMemoryUseCase.BATCH_OP,
-					groupManagedMemoryWeight > 0 ?
-						ManagedMemoryUtils.getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight) :
-							0.0);
+			for (Map.Entry<ManagedMemoryUseCase, Integer> entry : groupManagedMemoryWeights.entrySet()) {
+				final ManagedMemoryUseCase useCase = entry.getKey();
+				final int groupWeight = entry.getValue();
+				final int operatorWeight = operatorScopeUseCaseWeights.getOrDefault(useCase, 0);
+				operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
+					useCase,
+					operatorWeight > 0 ? ManagedMemoryUtils.getFractionRoundedDown(operatorWeight, groupWeight) : 0.0);
+			}
+			for (ManagedMemoryUseCase useCase : groupSlotScopeUseCases) {
+				operatorConfig.setManagedMemoryFractionOperatorOfUseCase(
+					useCase,
+					slotScopeUseCases.contains(useCase) ? 1.0 : 0.0);
+			}
 		} else {
 			// Supporting for fine grained resource specs is still under developing.
 			// This branch should not be executed in production. Not throwing exception for testing purpose.
