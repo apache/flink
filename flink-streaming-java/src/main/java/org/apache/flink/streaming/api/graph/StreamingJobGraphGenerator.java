@@ -184,7 +184,7 @@ public class StreamingJobGraphGenerator {
 			Collections.unmodifiableMap(jobVertices),
 			Collections.unmodifiableMap(vertexConfigs),
 			Collections.unmodifiableMap(chainedConfigs),
-			id -> streamGraph.getStreamNode(id).getManagedMemoryUseCaseWeights().getOrDefault(ManagedMemoryUseCase.BATCH_OP, 0));
+			id -> streamGraph.getStreamNode(id).getManagedMemoryUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP));
 
 		configureCheckpointing();
 
@@ -824,7 +824,7 @@ public class StreamingJobGraphGenerator {
 
 		final int groupManagedMemoryWeight = slotSharingGroup.getJobVertexIds().stream()
 			.flatMap(vid -> vertexOperators.get(vid).stream())
-			.mapToInt(operatorManagedMemoryWeightRetriever::apply)
+			.mapToInt((id) -> id == null ? 0 : operatorManagedMemoryWeightRetriever.apply(id))
 			.sum();
 
 		for (JobVertexID jobVertexID : slotSharingGroup.getJobVertexIds()) {

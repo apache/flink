@@ -550,15 +550,16 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 	@Test
 	public void testSetManagedMemoryWeight() {
+		final int weight = 123;
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-		source.getTransformation().declareManagedMemoryUseCase(ManagedMemoryUseCase.BATCH_OP, 123);
+		source.getTransformation().declareManagedMemoryUseCase(ManagedMemoryUseCase.BATCH_OP, weight);
 		source.print().name("sink");
 
 		final StreamGraph streamGraph = env.getStreamGraph();
 		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
 			if (streamNode.getOperatorName().contains("source")) {
-				assertThat(streamNode.getManagedMemoryUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(123));
+				assertThat(streamNode.getManagedMemoryUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(weight));
 			} else {
 				assertThat(streamNode.getManagedMemoryUseCaseWeights().size(), is(0));
 			}
