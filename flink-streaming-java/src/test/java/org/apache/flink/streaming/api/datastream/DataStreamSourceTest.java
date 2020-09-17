@@ -35,7 +35,7 @@ public class DataStreamSourceTest {
 	 * Test constructor for new Sources (FLIP-27).
 	 */
 	@Test
-	public void testConstructor(){
+	public void testConstructor() {
 		int expectParallelism = 100;
 		boolean expectIsParallel = true;
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
