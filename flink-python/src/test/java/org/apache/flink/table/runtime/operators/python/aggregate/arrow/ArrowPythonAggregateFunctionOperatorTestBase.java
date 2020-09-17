@@ -31,6 +31,7 @@ import org.apache.flink.types.RowKind;
 
 import java.util.Collection;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /**
@@ -67,6 +68,16 @@ public abstract class ArrowPythonAggregateFunctionOperatorTestBase {
 			return row(fields);
 		} else {
 			RowData row = row(fields);
+			row.setRowKind(RowKind.DELETE);
+			return row;
+		}
+	}
+
+	protected RowData newBinaryRow(boolean accumulateMsg, Object... fields) {
+		if (accumulateMsg) {
+			return binaryrow(fields);
+		} else {
+			RowData row = binaryrow(fields);
 			row.setRowKind(RowKind.DELETE);
 			return row;
 		}
