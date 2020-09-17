@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -54,6 +55,7 @@ public class AllVerticesIteratorTest {
 			Configuration jobConf = new Configuration();
 			Mockito.when(eg.getFutureExecutor()).thenReturn(TestingUtils.directExecutionContext());
 			Mockito.when(eg.getJobConfiguration()).thenReturn(jobConf);
+			Mockito.when(eg.getJobID()).thenReturn(new JobID());
 
 			ExecutionJobVertex ejv1 = new ExecutionJobVertex(eg, v1, 1,
 					AkkaUtils.getDefaultTimeout());

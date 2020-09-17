@@ -101,7 +101,7 @@ public class SavepointEnvironment implements Environment {
 	private SavepointEnvironment(RuntimeContext ctx, Configuration configuration, int maxParallelism, int indexOfSubtask, PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState) {
 		this.jobID = new JobID();
 		this.vertexID = new JobVertexID();
-		this.attemptID = new ExecutionAttemptID(new ExecutionVertexID(vertexID, 0), 0);
+		this.attemptID = new ExecutionAttemptID(jobID, new ExecutionVertexID(vertexID, 0), 0);
 		this.ctx = Preconditions.checkNotNull(ctx);
 		this.configuration = Preconditions.checkNotNull(configuration);
 

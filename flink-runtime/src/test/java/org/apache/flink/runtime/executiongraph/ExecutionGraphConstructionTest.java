@@ -34,6 +34,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
 import org.junit.Test;
 import org.mockito.Matchers;
 
@@ -44,9 +46,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -59,6 +64,30 @@ public class ExecutionGraphConstructionTest {
 
 	private ExecutionGraph createExecutionGraph() throws Exception {
 		return TestingExecutionGraphBuilder.newBuilder().build();
+	}
+
+	@Test
+	public void testExecutionAttemptIdInTwoIdenticalJobsIsNotSame() throws Exception {
+		JobVertex v1 = new JobVertex("vertex1");
+		JobVertex v2 = new JobVertex("vertex2");
+		JobVertex v3 = new JobVertex("vertex3");
+
+		v1.setParallelism(5);
+		v2.setParallelism(7);
+		v3.setParallelism(2);
+
+		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
+		v3.setInvokableClass(AbstractInvokable.class);
+
+		List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
+
+		ExecutionGraph eg1 = createExecutionGraph();
+		ExecutionGraph eg2 = createExecutionGraph();
+		eg1.attachJobGraph(ordered);
+		eg2.attachJobGraph(ordered);
+
+		assertThat(Sets.intersection(eg1.getRegisteredExecutions().keySet(), eg2.getRegisteredExecutions().keySet()), is(empty()));
 	}
 
 	/**
