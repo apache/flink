@@ -220,7 +220,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	protected void onBarrier(InputChannelInfo channelInfo) throws IOException {
 		if (!blockedChannels.get(channelInfo)) {
 			blockedChannels.put(channelInfo, true);
-
+			blockConsumption(channelInfo);
 			numBarriersReceived++;
 
 			if (LOG.isDebugEnabled()) {
@@ -339,6 +339,11 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	private void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
 		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
 		input.resumeConsumption(channelInfo.getInputChannelIdx());
+	}
+
+	private void blockConsumption(InputChannelInfo channelInfo) {
+		CheckpointableInput input = inputs[channelInfo.getGateIdx()];
+		input.blockConsumption(channelInfo.getInputChannelIdx());
 	}
 
 	@VisibleForTesting

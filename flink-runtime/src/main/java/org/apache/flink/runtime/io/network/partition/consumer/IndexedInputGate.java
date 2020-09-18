@@ -41,4 +41,14 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
 			getChannel(index).checkpointStopped(cancelledCheckpointId);
 		}
 	}
+
+	@Override
+	public int getInputGateIndex() {
+		return getGateIndex();
+	}
+
+	@Override
+	public void blockConsumption(int inputChannelIdx) {
+		// Unused. Network stack is blocking consumption automatically by revoking credits.
+	}
 }
