@@ -69,18 +69,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 
 	@Test
 	public void testBasicProcessing() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness =
-			new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-				.modifyExecutionConfig(config -> config.enableObjectReuse())
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.addSourceInput(
-					new SourceOperatorFactory<>(
-						new MockSource(Boundedness.BOUNDED, 1),
-						WatermarkStrategy.noWatermarks()))
-				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
-				.build()) {
-
+		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
 			long initialTime = 0L;
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -128,7 +117,25 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 				LifeCycleTrackingMap.CLOSE));
 	}
 
-	private static void addSourceRecords(
+	static StreamTaskMailboxTestHarness<String> buildTestHarness() throws Exception {
+		return buildTestHarness(false);
+	}
+
+	static StreamTaskMailboxTestHarness<String> buildTestHarness(boolean unaligned) throws Exception {
+		return new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+			.modifyExecutionConfig(config -> config.enableObjectReuse())
+			.modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
+			.addInput(BasicTypeInfo.STRING_TYPE_INFO)
+			.addSourceInput(
+				new SourceOperatorFactory<>(
+					new MockSource(Boundedness.BOUNDED, 1),
+					WatermarkStrategy.noWatermarks()))
+			.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+			.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
+			.build();
+	}
+
+	static void addSourceRecords(
 			StreamTaskMailboxTestHarness<String> testHarness,
 			int sourceId,
 			int... records) throws Exception {
@@ -151,7 +158,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 			new SerializedValue<>(addSplitEvent));
 	}
 
-	private static class LifeCycleTrackingMapToStringMultipleInputOperator
+	static class LifeCycleTrackingMapToStringMultipleInputOperator
 			extends MapToStringMultipleInputOperator {
 		public static final String OPEN = "MultipleInputOperator#open";
 		public static final String CLOSE = "MultipleInputOperator#close";
@@ -159,7 +166,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 		private static final long serialVersionUID = 1L;
 
 		public LifeCycleTrackingMapToStringMultipleInputOperator(StreamOperatorParameters<String> parameters) {
-			super(parameters);
+			super(parameters, 3);
 		}
 
 		@Override
@@ -175,7 +182,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 		}
 	}
 
-	private static class LifeCycleTrackingMapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
+	static class LifeCycleTrackingMapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
 		@Override
 		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
 			return (T) new LifeCycleTrackingMapToStringMultipleInputOperator(parameters);
@@ -187,7 +194,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 		}
 	}
 
-	private static class LifeCycleTrackingMockSource extends MockSource {
+	static class LifeCycleTrackingMockSource extends MockSource {
 		public LifeCycleTrackingMockSource(Boundedness boundedness, int numSplits) {
 			super(boundedness, numSplits);
 		}
@@ -200,7 +207,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 		}
 	}
 
-	private static class LifeCycleTrackingMockSourceReader extends MockSourceReader {
+	static class LifeCycleTrackingMockSourceReader extends MockSourceReader {
 		public static final String START = "SourceReader#start";
 		public static final String CLOSE = "SourceReader#close";
 
@@ -217,7 +224,7 @@ public class MultipleInputStreamTaskChainedSourcesTest {
 		}
 	}
 
-	private static class LifeCycleTrackingMap<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
+	static class LifeCycleTrackingMap<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
 		public static final String OPEN = "LifeCycleTrackingMap#open";
 		public static final String CLOSE = "LifeCycleTrackingMap#close";
 
