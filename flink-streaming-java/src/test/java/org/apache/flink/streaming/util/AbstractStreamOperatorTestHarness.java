@@ -38,7 +38,9 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
@@ -50,6 +52,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl;
+import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
@@ -64,6 +69,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
@@ -128,6 +134,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	private static final OperatorStateRepartitioner<OperatorStateHandle> operatorStateRepartitioner =
 			RoundRobinOperatorStateRepartitioner.INSTANCE;
+
+	private InternalTimeServiceManagerImpl<?> timeServiceManager;
 
 	/**
 	 * Whether setup() was called on the operator. This is reset when calling close().
@@ -275,7 +283,26 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		return new StreamTaskStateInitializerImpl(
 			env,
 			stateBackend,
-			ttlTimeProvider);
+			ttlTimeProvider,
+			new InternalTimeServiceManager.Provider() {
+				@Override
+				public <K> InternalTimeServiceManager<K> create(
+						CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+						ClassLoader userClassloader,
+						KeyContext keyContext,
+						ProcessingTimeService processingTimeService,
+						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+					InternalTimeServiceManagerImpl<K> typedTimeServiceManager = InternalTimeServiceManagerImpl.create(
+						keyedStatedBackend,
+						userClassloader,
+						keyContext,
+						processingTimeService,
+						rawKeyedStates
+					);
+					timeServiceManager = typedTimeServiceManager;
+					return typedTimeServiceManager;
+				}
+			});
 	}
 
 	public void setStateBackend(StateBackend stateBackend) {
@@ -663,8 +690,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	@VisibleForTesting
 	public int numProcessingTimeTimers() {
-		if (operator instanceof AbstractStreamOperator) {
-			return ((AbstractStreamOperator) operator).numProcessingTimeTimers();
+		if (timeServiceManager != null) {
+			return timeServiceManager.numProcessingTimeTimers();
 		} else {
 			throw new UnsupportedOperationException();
 		}
@@ -672,8 +699,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	@VisibleForTesting
 	public int numEventTimeTimers() {
-		if (operator instanceof AbstractStreamOperator) {
-			return ((AbstractStreamOperator) operator).numEventTimeTimers();
+		if (timeServiceManager != null) {
+			return timeServiceManager.numEventTimeTimers();
 		} else {
 			throw new UnsupportedOperationException();
 		}
