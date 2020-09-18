@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.json.JsonOptions;
 import org.apache.flink.formats.json.TimestampFormat;
@@ -54,6 +55,18 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
+	public static final ConfigOption<String> DATABASE_INCLUDE = ConfigOptions
+		.key("database.include")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Only read changelog rows which match the specific database (by comparing the \"database\" meta field in the record).");
+
+	public static final ConfigOption<String> TABLE_INCLUDE = ConfigOptions
+		.key("table.include")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Only read changelog rows which match the specific table (by comparing the \"table\" meta field in the record).");
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
@@ -62,6 +75,8 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 		FactoryUtil.validateFactoryOptions(this, formatOptions);
 		final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 		TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
+		String database = formatOptions.getOptional(DATABASE_INCLUDE).orElse(null);
+		String table = formatOptions.getOptional(TABLE_INCLUDE).orElse(null);
 
 		return new DecodingFormat<DeserializationSchema<RowData>>() {
 			@Override
@@ -70,11 +85,13 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
 					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
-				return new CanalJsonDeserializationSchema(
-					rowType,
-					rowDataTypeInfo,
-					ignoreParseErrors,
-					timestampFormatOption);
+				return CanalJsonDeserializationSchema
+					.builder(rowType, rowDataTypeInfo)
+					.setIgnoreParseErrors(ignoreParseErrors)
+					.setTimestampFormat(timestampFormatOption)
+					.setDatabase(database)
+					.setTable(table)
+					.build();
 			}
 
 			@Override
@@ -134,6 +151,8 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 		Set<ConfigOption<?>> options = new HashSet<>();
 		options.add(IGNORE_PARSE_ERRORS);
 		options.add(TIMESTAMP_FORMAT);
+		options.add(DATABASE_INCLUDE);
+		options.add(TABLE_INCLUDE);
 		return options;
 	}
 

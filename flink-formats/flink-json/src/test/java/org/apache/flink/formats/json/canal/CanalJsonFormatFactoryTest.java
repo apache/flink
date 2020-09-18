@@ -63,45 +63,53 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 
 	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
+	private static final InternalTypeInfo<RowData> ROW_TYPE_INFO = InternalTypeInfo.of(ROW_TYPE);
+
 	@Test
-	public void testSeDeSchema() {
+	public void testDefaultOptions() {
+		Map<String, String> options = getAllOptions();
 
 		// test Deser
-		final CanalJsonDeserializationSchema expectedDeser = new CanalJsonDeserializationSchema(
+		CanalJsonDeserializationSchema expectedDeser = CanalJsonDeserializationSchema
+			.builder(ROW_TYPE, ROW_TYPE_INFO)
+			.setIgnoreParseErrors(false)
+			.setTimestampFormat(TimestampFormat.SQL)
+			.build();
+		DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+		assertEquals(expectedDeser, actualDeser);
+
+		// test Ser
+		CanalJsonSerializationSchema expectedSer = new CanalJsonSerializationSchema(
 			ROW_TYPE,
-			InternalTypeInfo.of(ROW_TYPE),
-			true,
-			TimestampFormat.ISO_8601);
+			TimestampFormat.SQL);
+		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
+		assertEquals(expectedSer, actualSer);
+	}
 
-		final Map<String, String> options = getAllOptions();
+	@Test
+	public void testUserDefinedOptions() {
+		Map<String, String> options = getAllOptions();
+		options.put("canal-json.ignore-parse-errors", "true");
+		options.put("canal-json.timestamp-format.standard", "ISO-8601");
+		options.put("canal-json.database.include", "mydb");
+		options.put("canal-json.table.include", "mytable");
 
-		final DynamicTableSource actualSource = createTableSource(options);
-		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
-		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-			(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
-
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
-			.createRuntimeDecoder(
-				ScanRuntimeProviderContext.INSTANCE,
-				SCHEMA.toRowDataType());
-
+		// test Deser
+		CanalJsonDeserializationSchema expectedDeser = CanalJsonDeserializationSchema
+			.builder(ROW_TYPE, ROW_TYPE_INFO)
+			.setIgnoreParseErrors(true)
+			.setTimestampFormat(TimestampFormat.ISO_8601)
+			.setDatabase("mydb")
+			.setTable("mytable")
+			.build();
+		DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
 		assertEquals(expectedDeser, actualDeser);
 
 		// test Ser
 		CanalJsonSerializationSchema expectedSer = new CanalJsonSerializationSchema(
 			ROW_TYPE,
 			TimestampFormat.ISO_8601);
-		final DynamicTableSink actualSink = createTableSink(options);
-
-		assert actualSink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
-		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
-			(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
-
-		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
-			.createRuntimeEncoder(
-				new SinkRuntimeProviderContext(false),
-				SCHEMA.toRowDataType());
-
+		SerializationSchema<RowData> actualSer = createSerializationSchema(options);
 		assertEquals(expectedSer, actualSer);
 	}
 
@@ -113,7 +121,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		final Map<String, String> options =
 			getModifiedOptions(opts -> opts.put("canal-json.ignore-parse-errors", "abc"));
 
-		createTableSource(options);
+		createDeserializationSchema(options);
 	}
 
 	// ------------------------------------------------------------------------
@@ -136,28 +144,41 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
 		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
 		options.put("target", "MyTarget");
 		options.put("buffer-size", "1000");
-
 		options.put("format", "canal-json");
-		options.put("canal-json.ignore-parse-errors", "true");
-		options.put("canal-json.timestamp-format.standard", "ISO-8601");
 		return options;
 	}
 
-	private static DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
+	private static DeserializationSchema<RowData> createDeserializationSchema(Map<String, String> options) {
+		DynamicTableSource source = FactoryUtil.createTableSource(
 			null,
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(SCHEMA, options, "mock source"),
 			new Configuration(),
 			CanalJsonFormatFactoryTest.class.getClassLoader());
+
+		assert source instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+			(TestDynamicTableFactory.DynamicTableSourceMock) source;
+
+		return scanSourceMock.valueFormat
+			.createRuntimeDecoder(ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
 	}
 
-	private static DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
+	private static SerializationSchema<RowData> createSerializationSchema(Map<String, String> options) {
+		DynamicTableSink sink = FactoryUtil.createTableSink(
 			null,
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(SCHEMA, options, "mock sink"),
 			new Configuration(),
 			CanalJsonFormatFactoryTest.class.getClassLoader());
+
+		assert sink instanceof TestDynamicTableFactory.DynamicTableSinkMock;
+		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+			(TestDynamicTableFactory.DynamicTableSinkMock) sink;
+
+		return sinkMock.valueFormat
+			.createRuntimeEncoder(
+				new SinkRuntimeProviderContext(false),
+				SCHEMA.toRowDataType());
 	}
 }
