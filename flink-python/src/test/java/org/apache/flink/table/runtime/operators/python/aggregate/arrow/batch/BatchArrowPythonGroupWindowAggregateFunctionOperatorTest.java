@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
@@ -45,11 +44,11 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Test for {@link BatchArrowPythonGroupWindowAggregateFunctionOperatorTest}. These test that:
+ * Test for {@link BatchArrowPythonGroupWindowAggregateFunctionOperator}. These test that:
  *
  * <ul>
- * <li>FinishBundle is called when checkpoint is encountered</li>
- * <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
+ * 		<li>FinishBundle is called when bundled element count reach to max bundle size</li>
+ * 		<li>FinishBundle is called when bundled time reach to max bundle time</li>
  * </ul>
  */
 public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest extends ArrowPythonAggregateFunctionOperatorTestBase {
@@ -77,45 +76,6 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest extends Ar
 			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
 		expectedOutput.add(new StreamRecord<>(
 			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
-
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
-
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-	@Test
-	public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
-
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
-
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
-
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-
-		testHarness.close();
 
 		expectedOutput.add(new StreamRecord<>(
 			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
@@ -202,41 +162,6 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest extends Ar
 			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-	@Test
-	public void testWatermarkProcessedOnFinishBundle() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
-		testHarness.processWatermark(initialTime + 2);
-		assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
-
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
-
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
-		expectedOutput.add(new StreamRecord<>(
-			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
-		expectedOutput.add(new Watermark(initialTime + 2));
-
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-
-		testHarness.close();
 	}
 
 	@Override

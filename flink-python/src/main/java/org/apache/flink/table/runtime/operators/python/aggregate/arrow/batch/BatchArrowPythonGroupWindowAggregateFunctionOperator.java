@@ -117,12 +117,12 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
 	public void open() throws Exception {
 		userDefinedFunctionOutputType = new RowType(
 			outputType.getFields().subList(groupingSet.length, outputType.getFieldCount() - namedProperties.length));
-		super.open();
 		inputKeyAndWindow = new LinkedList<>();
 		windowProperty = new GenericRowData(namedProperties.length);
 		windowAggResult = new JoinedRowData();
 		windowsGrouping = new HeapWindowsGrouping(
 			maxLimitSize, windowSize, slideSize, inputTimeFieldIndex, false);
+		super.open();
 	}
 
 	@Override
@@ -133,14 +133,11 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
 
 	@Override
 	public void bufferInput(RowData input) throws Exception {
-		// always copy the projection result as the generated Projection reuses the projection result
 		BinaryRowData currentKey = groupKeyProjection.apply(input).copy();
-		currentKey.setRowKind(input.getRowKind());
-		if (lastGroupKey == null) {
-			lastGroupKey = currentKey;
-			lastGroupSet = groupSetProjection.apply(input).copy();
-		} else if (isNewKey(currentKey)) {
-			invokeCurrentBatch();
+		if (isNewKey(currentKey)) {
+			if (lastGroupKey != null) {
+				invokeCurrentBatch();
+			}
 			lastGroupKey = currentKey;
 			lastGroupSet = groupSetProjection.apply(input).copy();
 		}
@@ -180,13 +177,13 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
 		while (windowsGrouping.hasTriggerWindow()) {
 			RowIterator<BinaryRowData> elementIterator =
 				windowsGrouping.buildTriggerWindowElementsIterator();
-			TimeWindow currentWindow = windowsGrouping.getTriggerWindow();
 			while (elementIterator.advanceNext()) {
 				BinaryRowData winElement = elementIterator.getRow();
 				arrowSerializer.write(getFunctionInput(winElement));
 				currentBatchCount++;
 			}
 			if (currentBatchCount > 0) {
+				TimeWindow currentWindow = windowsGrouping.getTriggerWindow();
 				inputKeyAndWindow.add(Tuple2.of(lastGroupSet, currentWindow));
 				arrowSerializer.finishCurrentBatch();
 				pythonFunctionRunner.process(baos.toByteArray());
