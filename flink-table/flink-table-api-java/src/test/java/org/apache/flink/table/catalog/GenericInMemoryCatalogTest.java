@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -31,14 +34,15 @@ import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.functions.TestGenericUDF;
 import org.apache.flink.table.functions.TestSimpleUDF;
 
+import org.apache.flink.table.utils.TableEnvironmentMock;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.*;
 
 /**
  * Test for GenericInMemoryCatalog.
@@ -168,5 +172,27 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
 	@Override
 	protected CatalogFunction createPythonFunction() {
 		return new CatalogFunctionImpl("test.func1", FunctionLanguage.PYTHON);
+	}
+
+	@Test
+	public void testRegisterCatalog() {
+		final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
+		try {
+			tableEnv.registerCatalog(TEST_CATALOG_NAME, new MyCatalog(TEST_CATALOG_NAME));
+		} catch (CatalogException e) {
+		}
+		assertThat(tableEnv.getCatalog(TEST_CATALOG_NAME).isPresent(), equalTo(false));
+	}
+
+	class MyCatalog extends GenericInMemoryCatalog {
+
+		public MyCatalog(String name) {
+			super(name);
+		}
+
+		@Override
+		public void open() {
+			throw new CatalogException("open catalog failed.");
+		}
 	}
 }
