@@ -49,6 +49,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
@@ -73,7 +74,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -99,8 +99,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
-
-	private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
 
 	private static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
 
@@ -854,7 +852,7 @@ public class StreamingJobGraphGenerator {
 		if (groupResourceSpec.equals(ResourceSpec.UNKNOWN)) {
 			operatorConfig.setManagedMemoryFraction(
 					groupManagedMemoryWeight > 0 ?
-							getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight) :
+						ManagedMemoryUtils.getFractionRoundedDown(operatorManagedMemoryWeight, groupManagedMemoryWeight) :
 							0.0);
 		} else {
 			// Supporting for fine grained resource specs is still under developing.
@@ -864,12 +862,6 @@ public class StreamingJobGraphGenerator {
 					" Operators may not be able to use managed memory properly." +
 					" Calculating managed memory fractions with fine grained resource spec is currently not supported.");
 		}
-	}
-
-	private static double getFractionRoundedDown(final long dividend, final long divisor) {
-		return BigDecimal.valueOf(dividend)
-			.divide(BigDecimal.valueOf(divisor), MANAGED_MEMORY_FRACTION_SCALE, BigDecimal.ROUND_DOWN)
-			.doubleValue();
 	}
 
 	private void configureCheckpointing() {
