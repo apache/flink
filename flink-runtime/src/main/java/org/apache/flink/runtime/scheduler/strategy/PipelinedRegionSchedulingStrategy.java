@@ -139,13 +139,21 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 	}
 
 	private boolean areRegionInputsAllConsumable(final SchedulingPipelinedRegion region) {
-		return IterableUtils.toStream(region.getConsumedResults())
-			.allMatch(partition -> partition.getState() == ResultPartitionState.CONSUMABLE);
+		for (SchedulingResultPartition partition : region.getConsumedResults()) {
+			if (partition.getState() != ResultPartitionState.CONSUMABLE) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private boolean areRegionVerticesAllInCreatedState(final SchedulingPipelinedRegion region) {
-		return IterableUtils.toStream(region.getVertices())
-			.allMatch(vertex -> vertex.getState() == ExecutionState.CREATED);
+		for (SchedulingExecutionVertex vertex : region.getVertices()) {
+			if (vertex.getState() != ExecutionState.CREATED) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
