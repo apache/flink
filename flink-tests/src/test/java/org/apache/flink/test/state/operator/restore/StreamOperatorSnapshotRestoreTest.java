@@ -237,17 +237,21 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 				StateBackend stateBackend,
 				TtlTimeProvider ttlTimeProvider) {
 
-				return new StreamTaskStateInitializerImpl(env, stateBackend) {
-					@Override
-					protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-						CheckpointableKeyedStateBackend<K> keyedStatedBackend,
-						KeyContext keyContext,
-						ProcessingTimeService processingTimeService,
-						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) {
-
-						return null;
-					}
-				};
+				return new StreamTaskStateInitializerImpl(
+						env,
+						stateBackend,
+						ttlTimeProvider,
+						new InternalTimeServiceManager.Provider() {
+							@Override
+							public <K> InternalTimeServiceManager<K> create(
+								CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+								ClassLoader userClassloader,
+								KeyContext keyContext,
+								ProcessingTimeService processingTimeService,
+								Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+								return null;
+							}
+						});
 			}
 		};
 

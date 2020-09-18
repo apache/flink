@@ -24,9 +24,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests for {@link InternalTimeServiceManager}.
+ * Tests for {@link InternalTimeServiceManagerImpl}.
  */
-public class InternalTimeServiceManagerTest extends TestLogger {
+public class InternalTimeServiceManagerImplTest extends TestLogger {
 
 	/**
 	 * This test fixes some constants, because changing them can harm backwards compatibility.
@@ -34,8 +34,8 @@ public class InternalTimeServiceManagerTest extends TestLogger {
 	@Test
 	public void fixConstants() {
 		String expectedTimerStatePrefix = "_timer_state";
-		Assert.assertEquals(expectedTimerStatePrefix, InternalTimeServiceManager.TIMER_STATE_PREFIX);
-		Assert.assertEquals(expectedTimerStatePrefix + "/processing_", InternalTimeServiceManager.PROCESSING_TIMER_PREFIX);
-		Assert.assertEquals(expectedTimerStatePrefix + "/event_", InternalTimeServiceManager.EVENT_TIMER_PREFIX);
+		Assert.assertEquals(expectedTimerStatePrefix, InternalTimeServiceManagerImpl.TIMER_STATE_PREFIX);
+		Assert.assertEquals(expectedTimerStatePrefix + "/processing_", InternalTimeServiceManagerImpl.PROCESSING_TIMER_PREFIX);
+		Assert.assertEquals(expectedTimerStatePrefix + "/event_", InternalTimeServiceManagerImpl.EVENT_TIMER_PREFIX);
 	}
 }
