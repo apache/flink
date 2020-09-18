@@ -18,13 +18,12 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.functions.python.PythonFunction
 import org.apache.flink.table.planner.calcite.FlinkContext
-import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -69,11 +68,7 @@ class BatchExecSortAggRule
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
     !isOperatorDisabled(tableConfig, OperatorType.SortAgg) &&
-      !agg.getAggCallList.exists(x => {
-        val aggregation = x.getAggregation
-        aggregation.isInstanceOf[AggSqlFunction] &&
-          aggregation.asInstanceOf[AggSqlFunction].aggregateFunction.isInstanceOf[PythonFunction]
-      })
+      !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
