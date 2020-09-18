@@ -189,26 +189,26 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 				resultScanner.close();
 			}
 			closeTable();
-		}  finally {
+		} finally {
 			resultScanner = null;
 		}
 	}
 
-	public void closeTable() throws IOException {
-		try {
-			if (table != null) {
+	public void closeTable() {
+		if (table != null) {
+			try {
 				table.close();
+			} catch (IOException e) {
+				LOG.warn("Exception occurs while closing HBase Table.", e);
 			}
-			if (connection != null) {
-				connection.close();
-			}
-		} catch (IOException e) {
-			if (connection != null) {
-				connection.close();
-			}
-			throw e;
-		} finally {
 			table = null;
+		}
+		if (connection != null) {
+			try {
+				connection.close();
+			} catch (IOException e) {
+				LOG.warn("Exception occurs while closing HBase Connection.", e);
+			}
 			connection = null;
 		}
 	}
