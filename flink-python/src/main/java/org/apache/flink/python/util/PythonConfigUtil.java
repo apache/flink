@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperatorBase;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import java.lang.reflect.InvocationTargetException;
@@ -135,12 +135,12 @@ public class PythonConfigUtil {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
 				if ((streamOperator instanceof DataStreamPythonStatelessFunctionOperator) ||
 					(streamOperator instanceof DataStreamTwoInputPythonStatelessFunctionOperator)) {
-					AbstractPythonFunctionOperatorBase abstractPythonFunctionOperatorBase =
-						(AbstractPythonFunctionOperatorBase) streamOperator;
+					AbstractPythonFunctionOperator abstractPythonFunctionOperator =
+						(AbstractPythonFunctionOperator) streamOperator;
 
-					Configuration oldConfig = abstractPythonFunctionOperatorBase.getPythonConfig()
+					Configuration oldConfig = abstractPythonFunctionOperator.getPythonConfig()
 						.getMergedConfig();
-					abstractPythonFunctionOperatorBase.setPythonConfig(generateNewPythonConfig(oldConfig,
+					abstractPythonFunctionOperator.setPythonConfig(generateNewPythonConfig(oldConfig,
 						mergedConfig));
 				}
 			}

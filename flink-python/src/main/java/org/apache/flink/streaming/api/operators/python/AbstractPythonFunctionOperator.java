@@ -45,7 +45,7 @@ import java.util.concurrent.ScheduledFuture;
  * Base class for all stream operators to execute Python functions.
  */
 @Internal
-public abstract class AbstractPythonFunctionOperatorBase<OUT>
+public abstract class AbstractPythonFunctionOperator<OUT>
 	extends AbstractStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -83,7 +83,7 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 	/**
 	 * Callback to be executed after the current bundle was finished.
 	 */
-	protected transient Runnable bundleFinishedCallback;
+	private transient Runnable bundleFinishedCallback;
 
 	/**
 	 * The size of the reserved memory from the MemoryManager.
@@ -95,7 +95,7 @@ public abstract class AbstractPythonFunctionOperatorBase<OUT>
 	 */
 	private PythonConfig config;
 
-	public AbstractPythonFunctionOperatorBase(Configuration config) {
+	public AbstractPythonFunctionOperator(Configuration config) {
 		this.config = new PythonConfig(Preconditions.checkNotNull(config));
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
 	}

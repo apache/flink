@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
  */
 @Internal
 public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
-	extends AbstractPythonFunctionOperatorBase<OUT>
+	extends AbstractPythonFunctionOperator<OUT>
 	implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
 
 	private static final long serialVersionUID = 1L;
