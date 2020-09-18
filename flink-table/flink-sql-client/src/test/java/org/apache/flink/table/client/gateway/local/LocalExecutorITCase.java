@@ -394,10 +394,18 @@ public class LocalExecutorITCase extends TestLogger {
 			final Map<String, String> expectedProperties = new HashMap<>();
 			expectedProperties.put("execution.planner", planner);
 			expectedProperties.put("execution.type", "batch");
+			expectedProperties.put("execution.time-characteristic", "event-time");
+			expectedProperties.put("execution.periodic-watermarks-interval", "99");
+			expectedProperties.put("execution.parallelism", "1");
+			expectedProperties.put("execution.max-parallelism", "16");
 			expectedProperties.put("execution.max-idle-state-retention", "600000");
 			expectedProperties.put("execution.min-idle-state-retention", "1000");
 			expectedProperties.put("execution.result-mode", "table");
 			expectedProperties.put("execution.max-table-result-rows", "100");
+			expectedProperties.put("execution.restart-strategy.type", "failure-rate");
+			expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
+			expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
+			expectedProperties.put("execution.restart-strategy.delay", "1000");
 			expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
 			expectedProperties.put("deployment.response-timeout", "5000");
 
