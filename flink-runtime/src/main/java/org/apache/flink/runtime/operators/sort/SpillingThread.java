@@ -206,14 +206,18 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		}
 	}
 
-	private boolean readCache(Queue<CircularElement<E>> cache) {
+	private boolean readCache(Queue<CircularElement<E>> cache) throws IOException {
 		CircularElement<E> element;
 
 		// ------------------- In-Memory Cache ------------------------
 		// fill cache
 		while (isRunning()) {
 			// take next element from queue
-			element = this.dispatcher.take(SortStage.SPILL);
+			try {
+				element = this.dispatcher.take(SortStage.SPILL);
+			} catch (InterruptedException e) {
+				throw wrapWithIOException(e);
+			}
 
 			if (element == SPILLING_MARKER) {
 				return false;
@@ -338,7 +342,11 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		CircularElement<E> element;
 		openSpillingBehaviour();
 		while (isRunning()) {
-			element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
+			try {
+				element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
+			} catch (InterruptedException e) {
+				throw wrapWithIOException(e);
+			}
 
 			// check if we are still running
 			if (!isRunning()) {
@@ -585,5 +593,9 @@ final class SpillingThread<E> extends ThreadBase<E> {
 				segs.add(segments.next());
 			}
 		}
+	}
+
+	private IOException wrapWithIOException(InterruptedException e) throws IOException {
+		return new IOException("The sortes has been interrupted", e);
 	}
 }

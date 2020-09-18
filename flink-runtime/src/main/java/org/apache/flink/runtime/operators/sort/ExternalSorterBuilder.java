@@ -264,7 +264,7 @@ public final class ExternalSorterBuilder<T> {
 		} else {
 			int numConsumers = (noSpillingMemory ? 0 : 1) + (handleLargeRecords ? 2 : 0);
 
-			// determine how many buffers we have when we do a full mere with maximal fan-in
+			// determine how many buffers we have when we do a full merge with maximal fan-in
 			final int minBuffersForMerging = maxNumFileHandles + numConsumers * MIN_NUM_WRITE_BUFFERS;
 
 			if (minBuffersForMerging > numPagesTotal) {
@@ -355,7 +355,7 @@ public final class ExternalSorterBuilder<T> {
 
 			// add to empty queue
 			CircularElement<T> element = new CircularElement<>(i, inMemorySorter, sortSegments);
-			circularQueues.empty.add(element);
+			circularQueues.send(StageRunner.SortStage.READ, element);
 		}
 
 		// exception handling

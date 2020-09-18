@@ -35,15 +35,15 @@ public interface StageRunner extends AutoCloseable {
 	 */
 	enum SortStage {
 		READ,
-		SPILL,
-		SORT
+		SORT,
+		SPILL
 	}
 
 	/**
 	 * A dispatcher for inter-stage communication. It allows for returning a result to a {@link Sorter} via
 	 * {@link StageMessageDispatcher#sendResult(MutableObjectIterator)}
 	 */
-	interface StageMessageDispatcher<E> {
+	interface StageMessageDispatcher<E> extends AutoCloseable {
 		/**
 		 * Sends a message to the given stage.
 		 */
@@ -55,7 +55,7 @@ public interface StageRunner extends AutoCloseable {
 		 *
 		 * @return the head of the queue
 		 */
-		CircularElement<E> take(SortStage stage);
+		CircularElement<E> take(SortStage stage) throws InterruptedException;
 
 		/**
 		 * Retrieves and removes the head of the given stage queue,

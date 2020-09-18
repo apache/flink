@@ -63,7 +63,11 @@ final class SorterInputGateway<E> {
 	public void writeRecord(E record) throws IOException {
 
 		if (currentBuffer == null) {
-			this.currentBuffer = this.dispatcher.take(SortStage.READ);
+			try {
+				this.currentBuffer = this.dispatcher.take(SortStage.READ);
+			} catch (InterruptedException e) {
+				throw new IOException("The sorter has been interrupted", e);
+			}
 			if (!currentBuffer.getBuffer().isEmpty()) {
 				throw new IOException("New buffer is not empty.");
 			}

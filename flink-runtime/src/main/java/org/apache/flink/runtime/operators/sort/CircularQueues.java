@@ -18,20 +18,24 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.WrappingRuntimeException;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Collection of queues that are used for the communication between the threads.
  */
 final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
-	final BlockingQueue<CircularElement<E>> empty;
-	final BlockingQueue<CircularElement<E>> sort;
-	final BlockingQueue<CircularElement<E>> spill;
+	private final BlockingQueue<CircularElement<E>> empty;
+	private final BlockingQueue<CircularElement<E>> sort;
+	private final BlockingQueue<CircularElement<E>> spill;
+
+	private boolean isFinished = false;
+
 	/**
 	 * The iterator to be returned by the sort-merger. This variable is null, while receiving and merging is still in
 	 * progress and it will be set once we have &lt; merge factor sorted sub-streams that will then be streamed sorted.
@@ -48,10 +52,10 @@ final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
 		switch (stage) {
 			case READ:
 				return empty;
-			case SPILL:
-				return spill;
 			case SORT:
 				return sort;
+			case SPILL:
+				return spill;
 			default:
 				throw new IllegalArgumentException();
 		}
@@ -72,16 +76,23 @@ final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
 	}
 
 	@Override
-	public CircularElement<E> take(StageRunner.SortStage stage) {
-		try {
-			return getQueue(stage).take();
-		} catch (InterruptedException e) {
-			throw new WrappingRuntimeException(e);
+	public CircularElement<E> take(StageRunner.SortStage stage) throws InterruptedException {
+		while (!isFinished) {
+			CircularElement<E> value = getQueue(stage).poll(1, TimeUnit.SECONDS);
+			if (value != null) {
+				return value;
+			}
 		}
+		throw new FlinkRuntimeException("The sorter is closed already");
 	}
 
 	@Override
 	public CircularElement<E> poll(StageRunner.SortStage stage) {
 		return getQueue(stage).poll();
+	}
+
+	@Override
+	public void close() throws Exception {
+		this.isFinished = true;
 	}
 }
