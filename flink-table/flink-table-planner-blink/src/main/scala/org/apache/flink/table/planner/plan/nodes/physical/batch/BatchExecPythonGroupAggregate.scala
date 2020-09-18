@@ -19,15 +19,23 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.TableException
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.python.PythonFunctionInfo
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupAggregate.ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
@@ -66,7 +74,8 @@ class BatchExecPythonGroupAggregate(
     aggCalls.zip(aggFunctions),
     isMerge = false,
     isFinal = true)
-  with BatchExecNode[RowData] {
+  with BatchExecNode[RowData]
+  with CommonPythonAggregate {
 
   override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
@@ -168,6 +177,76 @@ class BatchExecPythonGroupAggregate(
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
-    throw new TableException("The implementation will be in FLINK-19186.")
+    val input = getInputNodes.get(0).translateToPlan(planner)
+      .asInstanceOf[Transformation[RowData]]
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
+
+    val ret = createPythonOneInputTransformation(
+      input,
+      inputType,
+      outputType,
+      getConfig(planner.getExecEnv, planner.getTableConfig))
+    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+      ExecNode.setManagedMemoryWeight(
+        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
+    }
+    ret
   }
+
+  private[this] def createPythonOneInputTransformation(
+      inputTransform: Transformation[RowData],
+      inputRowType: RowType,
+      outputRowType: RowType,
+      config: Configuration): OneInputTransformation[RowData, RowData] = {
+
+    val (pythonUdafInputOffsets, pythonFunctionInfos) =
+      extractPythonAggregateFunctionInfos(aggCalls)
+
+    val pythonOperator = getPythonAggregateFunctionOperator(
+      config,
+      inputRowType,
+      outputRowType,
+      pythonUdafInputOffsets,
+      pythonFunctionInfos)
+
+    new OneInputTransformation(
+      inputTransform,
+      "BatchExecPythonGroupAggregate",
+      pythonOperator,
+      InternalTypeInfo.of(outputRowType),
+      inputTransform.getParallelism)
+  }
+
+  private[this] def getPythonAggregateFunctionOperator(
+      config: Configuration,
+      inputRowType: RowType,
+      outputRowType: RowType,
+      udafInputOffsets: Array[Int],
+      pythonFunctionInfos: Array[PythonFunctionInfo]): OneInputStreamOperator[RowData, RowData] = {
+    val clazz = loadClass(ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME)
+
+    val ctor = clazz.getConstructor(
+      classOf[Configuration],
+      classOf[Array[PythonFunctionInfo]],
+      classOf[RowType],
+      classOf[RowType],
+      classOf[Array[Int]],
+      classOf[Array[Int]],
+      classOf[Array[Int]])
+    ctor.newInstance(
+      config,
+      pythonFunctionInfos,
+      inputRowType,
+      outputRowType,
+      grouping,
+      grouping ++ auxGrouping,
+      udafInputOffsets).asInstanceOf[OneInputStreamOperator[RowData, RowData]]
+  }
+}
+
+object BatchExecPythonGroupAggregate {
+  val ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
+    "org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch." +
+      "BatchArrowPythonGroupAggregateFunctionOperator"
 }

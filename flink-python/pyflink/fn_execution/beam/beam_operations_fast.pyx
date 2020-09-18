@@ -173,6 +173,25 @@ cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
         func = operation_utils.extract_data_stream_stateless_funcs(udfs)
         return func, []
 
+
+cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
+    def __init__(self, name, spec, counter_factory, sampler, consumers):
+        super(PandasAggregateFunctionOperation, self).__init__(name, spec, counter_factory,
+                                                                   sampler, consumers)
+
+    def generate_func(self, udfs):
+        pandas_functions, variable_dict, user_defined_funcs = reduce(
+            lambda x, y: (
+                ','.join([x[0], y[0]]),
+                dict(chain(x[1].items(), y[1].items())),
+                x[2] + y[2]),
+            [operation_utils.extract_user_defined_function(udf, True) for udf in udfs])
+        variable_dict['wrap_pandas_result'] = operation_utils.wrap_pandas_result
+        mapper = eval('lambda value: wrap_pandas_result([%s])' % pandas_functions, variable_dict)
+        generate_func = lambda it: map(mapper, it)
+        return generate_func, user_defined_funcs
+
+
 @bundle_processor.BeamTransformFactory.register_urn(
     operation_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
@@ -190,6 +209,12 @@ def create_table_function(factory, transform_id, transform_proto, parameter, con
 def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, DataStreamStatelessFunctionOperation)
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    operation_utils.PANDAS_AGGREGATE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+def create_pandas_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter, PandasAggregateFunctionOperation)
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
                                             operation_cls):

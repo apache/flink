@@ -42,3 +42,6 @@ cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
 
 cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
     pass
+
+cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
+    pass

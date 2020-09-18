@@ -22,7 +22,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.flink.table.functions.FunctionDefinition
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionKind}
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.functions.bridging.{BridgingSqlAggFunction, BridgingSqlFunction}
 import org.apache.flink.table.planner.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.JavaConversions._
@@ -81,11 +81,23 @@ object PythonUtil {
       call: AggregateCall,
       pythonFunctionKind: PythonFunctionKind = null): Boolean = {
     val aggregation = call.getAggregation
-    aggregation.isInstanceOf[AggSqlFunction] &&
-      aggregation.asInstanceOf[AggSqlFunction].aggregateFunction.isInstanceOf[PythonFunction] &&
-        (pythonFunctionKind == null ||
-          aggregation.asInstanceOf[AggSqlFunction].aggregateFunction.asInstanceOf[PythonFunction]
-            .getPythonFunctionKind == pythonFunctionKind)
+    aggregation match {
+      case function: AggSqlFunction =>
+        isPythonFunction(function.aggregateFunction, pythonFunctionKind)
+      case function: BridgingSqlAggFunction =>
+        isPythonFunction(function.getDefinition, pythonFunctionKind)
+      case _ => false
+    }
+  }
+
+  private[this] def isPythonFunction(
+      function: FunctionDefinition,
+      pythonFunctionKind: PythonFunctionKind): Boolean = {
+    function match {
+      case pythonFunction: PythonFunction =>
+        pythonFunctionKind == null || pythonFunction.getPythonFunctionKind == pythonFunctionKind
+      case _ => false
+    }
   }
 
   /**
