@@ -217,7 +217,7 @@ class PickledBytesTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def PICKLED_BYTE_ARRAY_TYPE_INFO():
-        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.datastream.typeinfo.python
+        return WrapperTypeInfo(get_gateway().jvm.org.apache.flink.streaming.api.typeinfo.python
                                .PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO)
 
 
@@ -441,7 +441,7 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return Types.PRIMITIVE_ARRAY(Types.CHAR())
 
     JPickledBytesTypeInfo = gateway.jvm \
-        .org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo\
+        .org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo\
         .PICKLED_BYTE_ARRAY_TYPE_INFO
     if _is_instance_of(j_type_info, JPickledBytesTypeInfo):
         return Types.PICKLED_BYTE_ARRAY()

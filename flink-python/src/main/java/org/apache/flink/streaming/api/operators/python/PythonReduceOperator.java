@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.operators.python;
+package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -25,19 +26,20 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.datastream.runtime.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.datastream.runtime.runners.python.beam.BeamDataStreamPythonStatelessFunctionRunner;
-import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
 /**
- * {@link DataStreamPythonReduceFunctionOperator} is responsible for launching beam runner which
+ * {@link PythonReduceOperator} is responsible for launching beam runner which
  * will start a python harness to execute user defined python ReduceFunction.
  */
-public class DataStreamPythonReduceFunctionOperator<OUT>
-	extends DataStreamPythonStatelessFunctionOperator<Row, OUT> {
+@Internal
+public class PythonReduceOperator<OUT>
+	extends StatelessOneInputPythonFunctionOperator<Row, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -51,7 +53,7 @@ public class DataStreamPythonReduceFunctionOperator<OUT>
 
 	private transient Row reuseRow;
 
-	public DataStreamPythonReduceFunctionOperator(
+	public PythonReduceOperator(
 		Configuration config,
 		TypeInformation<Row> inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
@@ -108,7 +110,7 @@ public class DataStreamPythonReduceFunctionOperator<OUT>
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-		return new BeamDataStreamPythonStatelessFunctionRunner(
+		return new BeamDataStreamStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,

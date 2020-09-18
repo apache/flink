@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.python.util;
+package org.apache.flink.streaming.api.typeutils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -36,9 +36,8 @@ import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySeriali
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
-import org.apache.flink.datastream.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 
