@@ -69,12 +69,10 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
 	@Override
 	public void bufferInput(RowData input) throws Exception {
 		BinaryRowData currentKey = groupKeyProjection.apply(input).copy();
-		if (lastGroupKey == null) {
-			lastGroupKey = currentKey;
-			lastGroupSet = groupSetProjection.apply(input).copy();
-			forwardedInputQueue.add(lastGroupSet);
-		} else if (isNewKey(currentKey)) {
-			invokeCurrentBatch();
+		if (isNewKey(currentKey)) {
+			if (lastGroupKey != null) {
+				invokeCurrentBatch();
+			}
 			lastGroupKey = currentKey;
 			lastGroupSet = groupSetProjection.apply(input).copy();
 			forwardedInputQueue.add(lastGroupSet);

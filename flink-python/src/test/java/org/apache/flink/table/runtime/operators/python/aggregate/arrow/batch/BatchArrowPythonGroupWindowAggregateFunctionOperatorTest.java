@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.ArrowPythonAggregateFunctionOperatorTestBase;
@@ -33,6 +34,7 @@ import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Test;
@@ -42,16 +44,14 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Test for {@link BatchArrowPythonGroupAggregateFunctionOperator}. These test that:
+ * Test for {@link BatchArrowPythonGroupWindowAggregateFunctionOperator}. These test that:
  *
  * <ul>
  * 		<li>FinishBundle is called when bundled element count reach to max bundle size</li>
  * 		<li>FinishBundle is called when bundled time reach to max bundle time</li>
  * </ul>
  */
-public class BatchArrowPythonGroupAggregateFunctionOperatorTest
-	extends ArrowPythonAggregateFunctionOperatorTestBase {
-
+public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest extends ArrowPythonAggregateFunctionOperatorTestBase {
 	@Test
 	public void testGroupAggregateFunction() throws Exception {
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(
@@ -61,13 +61,26 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c4", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", "c6", 2L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+
 		testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
+
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -75,7 +88,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 	@Test
 	public void testFinishBundleTriggeredByCount() throws Exception {
 		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 6);
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
@@ -83,18 +96,31 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 1L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
+
 		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", "c6", 2L), initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -111,18 +137,29 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", "c6", 2L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 6000L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10000L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
 		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(1000L);
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 0L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 1L, TimestampData.fromEpochMillis(5000L), TimestampData.fromEpochMillis(15000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c1", 2L, TimestampData.fromEpochMillis(10000L), TimestampData.fromEpochMillis(20000L))));
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(-5000L), TimestampData.fromEpochMillis(5000L))));
+		expectedOutput.add(new StreamRecord<>(
+			newRow(true, "c2", 3L, TimestampData.fromEpochMillis(0L), TimestampData.fromEpochMillis(10000L))));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -140,14 +177,17 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 		return new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
+			new RowType.RowField("f3", new BigIntType()),
+			new RowType.RowField("rowTime", new BigIntType())));
 	}
 
 	@Override
 	public RowType getOutputType() {
 		return new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new BigIntType())));
+			new RowType.RowField("f2", new BigIntType()),
+			new RowType.RowField("windowStart", new TimestampType(3)),
+			new RowType.RowField("windowEnd", new TimestampType(3))));
 	}
 
 	@Override
@@ -158,28 +198,40 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 		RowType outputType,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		return new PassThroughBatchArrowPythonGroupAggregateFunctionOperator(
+		// SlidingWindow(10000L, 5000L)
+		return new PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
 			config,
 			pandasAggregateFunctions,
 			inputType,
 			outputType,
+			3,
+			100000,
+			10000L,
+			5000L,
+			new int[]{0, 1},
 			groupingSet,
 			groupingSet,
-			udafInputOffsets);
+			udafInputOffsets
+		);
 	}
 
-	private static class PassThroughBatchArrowPythonGroupAggregateFunctionOperator
-		extends BatchArrowPythonGroupAggregateFunctionOperator {
-
-		PassThroughBatchArrowPythonGroupAggregateFunctionOperator(
+	private static class PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator
+		extends BatchArrowPythonGroupWindowAggregateFunctionOperator {
+		PassThroughBatchArrowPythonGroupWindowAggregateFunctionOperator(
 			Configuration config,
-			PythonFunctionInfo[] pandasAggregateFunctions,
+			PythonFunctionInfo[] pandasAggFunctions,
 			RowType inputType,
 			RowType outputType,
+			int inputTimeFieldIndex,
+			int maxLimitSize,
+			long windowSize,
+			long slideSize,
+			int[] namedProperties,
 			int[] groupKey,
 			int[] groupingSet,
 			int[] udafInputOffsets) {
-			super(config, pandasAggregateFunctions, inputType, outputType, groupKey, groupingSet, udafInputOffsets);
+			super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex,
+				maxLimitSize, windowSize, slideSize, namedProperties, groupKey, groupingSet, udafInputOffsets);
 		}
 
 		@Override

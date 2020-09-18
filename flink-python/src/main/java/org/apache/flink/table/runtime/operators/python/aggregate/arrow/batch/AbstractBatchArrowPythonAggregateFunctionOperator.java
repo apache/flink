@@ -104,7 +104,8 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
 	protected abstract void invokeCurrentBatch() throws Exception;
 
 	boolean isNewKey(BinaryRowData currentKey) {
-		return lastGroupKey.getSizeInBytes() != currentKey.getSizeInBytes() ||
+		return lastGroupKey == null ||
+			(lastGroupKey.getSizeInBytes() != currentKey.getSizeInBytes()) ||
 			!(BinaryRowDataUtil.byteArrayEquals(
 				currentKey.getSegments()[0].getHeapMemory(),
 				lastGroupKey.getSegments()[0].getHeapMemory(),
