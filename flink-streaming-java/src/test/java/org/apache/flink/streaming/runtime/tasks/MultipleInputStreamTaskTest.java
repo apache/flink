@@ -64,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
@@ -85,7 +86,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO)
 				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 				.build()) {
 
 			long initialTime = 0L;
@@ -115,7 +116,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 				.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 			long initialTime = 0L;
@@ -162,7 +163,7 @@ public class MultipleInputStreamTaskTest {
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 				.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 			long initialTime = 0L;
@@ -334,7 +335,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 					.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -373,7 +374,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 					.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -445,7 +446,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 					.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -506,7 +507,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO)
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-					.setupOperatorChain(headOperatorId, new MapToStringMultipleInputOperatorFactory())
+					.setupOperatorChain(headOperatorId, new MapToStringMultipleInputOperatorFactory(3))
 					.chain(
 						chainedOperatorId,
 						new WatermarkMetricOperator(),
@@ -592,7 +593,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 					.setTaskMetricGroup(taskMetricGroup)
 					.build()) {
 
@@ -614,7 +615,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO)
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory())
+					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 					.setTaskMetricGroup(taskMetricGroup)
 					.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
@@ -638,11 +639,13 @@ public class MultipleInputStreamTaskTest {
 			extends AbstractStreamOperatorV2<String> implements MultipleInputStreamOperator<String> {
 		private static final long serialVersionUID = 1L;
 
+		private final int numberOfInputs;
 		private boolean openCalled;
 		private boolean closeCalled;
 
-		public MapToStringMultipleInputOperator(StreamOperatorParameters<String> parameters) {
-			super(parameters, 3);
+		public MapToStringMultipleInputOperator(StreamOperatorParameters<String> parameters, int numberOfInputs) {
+			super(parameters, numberOfInputs);
+			this.numberOfInputs = numberOfInputs;
 		}
 
 		@Override
@@ -665,10 +668,11 @@ public class MultipleInputStreamTaskTest {
 
 		@Override
 		public List<Input> getInputs() {
-			return Arrays.asList(
+			checkArgument(numberOfInputs <= 3);
+			return Arrays.<Input>asList(
 				new MapToStringInput<String>(this, 1),
 				new MapToStringInput<Integer>(this, 2),
-				new MapToStringInput<Double>(this, 3));
+				new MapToStringInput<Double>(this, 3)).subList(0, numberOfInputs);
 		}
 
 		public boolean wasCloseCalled() {
@@ -726,9 +730,15 @@ public class MultipleInputStreamTaskTest {
 	 * Factory for {@link MapToStringMultipleInputOperator}.
 	 */
 	protected static class MapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
+		private final int numberOfInputs;
+
+		public MapToStringMultipleInputOperatorFactory(int numberOfInputs) {
+			this.numberOfInputs = numberOfInputs;
+		}
+
 		@Override
 		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			return (T) new MapToStringMultipleInputOperator(parameters);
+			return (T) new MapToStringMultipleInputOperator(parameters, numberOfInputs);
 		}
 
 		@Override
