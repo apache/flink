@@ -223,6 +223,9 @@ public class HiveCatalog extends AbstractCatalog {
 	public void open() throws CatalogException {
 		if (client == null) {
 			client = HiveMetastoreClientFactory.create(hiveConf, hiveVersion);
+			if (client == null) {
+				throw new CatalogException("Can not open hive catalog because create hive metastore client failed.");
+			}
 			LOG.info("Connected to Hive metastore");
 		}
 

@@ -182,7 +182,6 @@ public final class CatalogManager {
 	public void registerCatalog(String catalogName, Catalog catalog) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
 		checkNotNull(catalog, "Catalog cannot be null");
-
 		if (catalogs.containsKey(catalogName)) {
 			throw new CatalogException(format("Catalog %s already exists.", catalogName));
 		}
