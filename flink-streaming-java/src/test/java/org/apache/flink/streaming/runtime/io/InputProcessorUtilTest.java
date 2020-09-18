@@ -72,7 +72,8 @@ public class InputProcessorUtilTest {
 				environment.getMetricGroup().getIOMetricGroup(),
 				streamTask.getName(),
 				new SyncMailboxExecutor(),
-				inputGates);
+				inputGates,
+				Collections.emptyList());
 			for (CheckpointedInputGate checkpointedInputGate : checkpointedMultipleInputGate) {
 				registry.registerCloseable(checkpointedInputGate);
 			}

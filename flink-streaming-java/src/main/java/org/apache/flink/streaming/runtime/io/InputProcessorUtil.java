@@ -32,8 +32,10 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
@@ -57,7 +59,8 @@ public class InputProcessorUtil {
 			taskIOMetricGroup,
 			taskName,
 			mailboxExecutor,
-			Arrays.asList(inputGates));
+			new List[]{ Arrays.asList(inputGates) },
+			Collections.emptyList());
 		return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
 	}
 
@@ -72,14 +75,20 @@ public class InputProcessorUtil {
 			TaskIOMetricGroup taskIOMetricGroup,
 			String taskName,
 			MailboxExecutor mailboxExecutor,
-			List<IndexedInputGate>... inputGates) {
+			List<IndexedInputGate>[] inputGates,
+			List<StreamTaskSourceInput<?>> sourceInputs) {
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			toNotifyOnCheckpoint,
 			config,
 			checkpointCoordinator,
 			taskName,
-			inputGates);
-		return createCheckpointedMultipleInputGate(mailboxExecutor, inputGates, taskIOMetricGroup, barrierHandler);
+			inputGates,
+			sourceInputs);
+		return createCheckpointedMultipleInputGate(
+			mailboxExecutor,
+			inputGates,
+			taskIOMetricGroup,
+			barrierHandler);
 	}
 
 	public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
@@ -104,12 +113,15 @@ public class InputProcessorUtil {
 			StreamConfig config,
 			SubtaskCheckpointCoordinator checkpointCoordinator,
 			String taskName,
-			List<IndexedInputGate>[] inputGates) {
+			List<IndexedInputGate>[] inputGates,
+			List<StreamTaskSourceInput<?>> sourceInputs) {
 
-		IndexedInputGate[] inputs =
-				Arrays.stream(inputGates).flatMap(Collection::stream)
-				.sorted(Comparator.comparing(IndexedInputGate::getGateIndex))
-				.toArray(IndexedInputGate[]::new);
+		CheckpointableInput[] inputs =
+			Stream.<CheckpointableInput>concat(
+					Arrays.stream(inputGates).flatMap(Collection::stream),
+					sourceInputs.stream())
+				.sorted(Comparator.comparing(CheckpointableInput::getInputGateIndex))
+				.toArray(CheckpointableInput[]::new);
 
 		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:

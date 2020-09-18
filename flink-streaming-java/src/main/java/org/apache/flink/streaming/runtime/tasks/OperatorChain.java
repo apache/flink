@@ -25,6 +25,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
@@ -67,6 +68,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -272,6 +274,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		MultipleInputStreamOperator<?> multipleInputOperator = (MultipleInputStreamOperator<?>) mainOperatorWrapper.getStreamOperator();
 		List<Input> operatorInputs = multipleInputOperator.getInputs();
 
+		int sourceInputGateIndex = Arrays.stream(containingTask.getEnvironment().getAllInputGates())
+			.mapToInt(IndexedInputGate::getInputGateIndex)
+			.max()
+			.orElse(-1) + 1;
+
 		for (int inputId = 0; inputId < configuredInputs.length; inputId++) {
 			if (!(configuredInputs[inputId] instanceof SourceInputConfig)) {
 				continue;
@@ -297,7 +304,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				sourceInput,
 				new ChainedSource(
 					chainedSourceOutput,
-					new StreamTaskSourceInput<>(sourceOperator)));
+					new StreamTaskSourceInput<>(sourceOperator, sourceInputGateIndex++)));
 		}
 		return chainedSourceInputs;
 	}
@@ -446,6 +453,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			"Chained source with sourcedId = [%s] was not found",
 			sourceInput);
 		return chainedSources.get(sourceInput).getSourceTaskInput();
+	}
+
+	public List<StreamTaskSourceInput<?>> getSourceTaskInputs() {
+		return chainedSources.values()
+			.stream()
+			.map(ChainedSource::getSourceTaskInput)
+			.collect(Collectors.toList());
 	}
 
 	/**
