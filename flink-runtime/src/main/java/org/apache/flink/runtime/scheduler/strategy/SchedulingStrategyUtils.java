@@ -22,6 +22,8 @@ import org.apache.flink.runtime.scheduler.DeploymentOption;
 import org.apache.flink.runtime.scheduler.ExecutionVertexDeploymentOption;
 import org.apache.flink.util.IterableUtils;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -59,6 +61,20 @@ class SchedulingStrategyUtils {
 				executionVertexID,
 				deploymentOptionRetriever.apply(executionVertexID)))
 			.collect(Collectors.toList());
+	}
+
+	static List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
+			final Collection<ExecutionVertexID> verticesToDeploy,
+			final Function<ExecutionVertexID, DeploymentOption> deploymentOptionRetriever) {
+
+		final List<ExecutionVertexDeploymentOption> deploymentOptions = new ArrayList<>(verticesToDeploy.size());
+		for (ExecutionVertexID executionVertexId : verticesToDeploy) {
+			final ExecutionVertexDeploymentOption deploymentOption = new ExecutionVertexDeploymentOption(
+				executionVertexId,
+				deploymentOptionRetriever.apply(executionVertexId));
+			deploymentOptions.add(deploymentOption);
+		}
+		return deploymentOptions;
 	}
 
 	static List<SchedulingPipelinedRegion> sortPipelinedRegionsInTopologicalOrder(
