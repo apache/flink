@@ -28,7 +28,7 @@ The performance of vectorized Python user-defined functions are usually much hig
 overhead and invocation overhead are much reduced. Besides, users could leverage the popular Python libraries such as Pandas, Numpy, etc for the vectorized Python user-defined functions implementation.
 These Python libraries are highly optimized and provide high-performance data structures and functions. It shares the similar way as the
 [non-vectorized user-defined functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) on how to define vectorized user-defined functions.
-Users only need to add an extra parameter `udf_type="pandas"` in the decorator `udf` to mark it as a vectorized user-defined function.
+Users only need to add an extra parameter `func_type="pandas"` in the decorator `udf` to mark it as a vectorized user-defined function.
 
 **NOTE:** Python UDF execution requires Python version (3.5, 3.6, 3.7 or 3.8) with PyFlink installed. It's required on both the client side and the cluster side. 
 
@@ -49,7 +49,7 @@ The following example shows how to define your own vectorized Python scalar func
 and use it in a query:
 
 {% highlight python %}
-@udf(result_type=DataTypes.BIGINT(), udf_type="pandas")
+@udf(result_type=DataTypes.BIGINT(), func_type="pandas")
 def add(i, j):
   return i + j
 

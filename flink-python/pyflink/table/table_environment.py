@@ -1116,9 +1116,13 @@ class TableEnvironment(object):
         java_function = function.java_user_defined_function()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if self._is_blink_planner and isinstance(self, BatchTableEnvironment) and \
-                self._is_table_function(java_function):
-            self._register_table_function(name, java_function)
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+            if self._is_table_function(java_function):
+                self._register_table_function(name, java_function)
+            elif self._is_aggregate_function(java_function):
+                self._register_aggregate_function(name, java_function)
+            else:
+                self._j_tenv.registerFunction(name, java_function)
         else:
             self._j_tenv.registerFunction(name, java_function)
 

@@ -27,7 +27,7 @@ under the License.
 向量化Python用户自定义函数的性能通常比非向量化Python用户自定义函数要高得多，因为向量化Python用户自定义函数可以大大减少序列化/反序列化的开销和调用开销。
 此外，用户可以利用流行的Python库（例如Pandas，Numpy等）来实现向量化Python用户自定义函数的逻辑。这些Python库通常经过高度优化，并提供了高性能的数据结构和功能。
 向量化用户自定义函数的定义，与[非向量化用户自定义函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %})具有相似的方式，
-用户只需要在调用`udf`装饰器时添加一个额外的参数`udf_type="pandas"`，将其标记为一个向量化用户自定义函数即可。
+用户只需要在调用`udf`装饰器时添加一个额外的参数`func_type="pandas"`，将其标记为一个向量化用户自定义函数即可。
 
 **注意：**要执行Python UDF，需要安装PyFlink的Python版本（3.5、3.6、3.7 或 3.8）。客户端和群集端都需要安装它。
 
@@ -47,7 +47,7 @@ under the License.
 以下示例显示了如何定义自己的向量化Python标量函数，该函数计算两列的总和，并在查询中使用它：
 
 {% highlight python %}
-@udf(result_type=DataTypes.BIGINT(), udf_type="pandas")
+@udf(result_type=DataTypes.BIGINT(), func_type="pandas")
 def add(i, j):
   return i + j
 
