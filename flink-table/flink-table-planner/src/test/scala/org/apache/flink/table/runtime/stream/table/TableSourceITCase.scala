@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.utils._
@@ -37,6 +38,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
+
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
@@ -102,6 +104,8 @@ class TableSourceITCase extends AbstractTestBase {
 
     assertEquals(1, parallelism)
 
+    // cleanup the registered data by other tests
+    TestCollectionTableFactory.reset()
     // test StreamTableSourceScan
     val createTableStmt =
       """
