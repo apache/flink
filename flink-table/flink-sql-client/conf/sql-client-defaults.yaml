@@ -121,7 +121,7 @@ execution:
   # current database of the current catalog (default database of the catalog by default)
   current-database: default_database
   # controls how table programs are restarted in case of a failures
- # restart-strategy:
+  # restart-strategy:
     # strategy type
     # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
     # type: fallback
