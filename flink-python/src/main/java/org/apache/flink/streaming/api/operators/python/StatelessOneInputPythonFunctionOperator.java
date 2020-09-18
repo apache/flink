@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.operators.python;
+package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -25,12 +26,11 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.datastream.runtime.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.datastream.runtime.runners.python.beam.BeamDataStreamPythonStatelessFunctionRunner;
-import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
+import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
@@ -40,10 +40,11 @@ import com.google.protobuf.ByteString;
 import java.util.Map;
 
 /**
- * {@link DataStreamPythonStatelessFunctionOperator} is responsible for launching beam runner which will start a python
+ * {@link StatelessOneInputPythonFunctionOperator} is responsible for launching beam runner which will start a python
  * harness to execute user defined python function.
  */
-public class DataStreamPythonStatelessFunctionOperator<IN, OUT>
+@Internal
+public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 	extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -76,7 +77,7 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT>
 
 	protected transient StreamRecordCollector streamRecordCollector;
 
-	public DataStreamPythonStatelessFunctionOperator(
+	public StatelessOneInputPythonFunctionOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
@@ -116,7 +117,7 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT>
 			coderUrn = DATA_STREAM_FLAT_MAP_FUNCTION_CODER_URN;
 		}
 
-		return new BeamDataStreamPythonStatelessFunctionRunner(
+		return new BeamDataStreamStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			inputTypeInfo,

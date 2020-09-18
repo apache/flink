@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.operators.python;
+package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -27,12 +28,11 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.datastream.runtime.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.datastream.runtime.runners.python.beam.BeamDataStreamPythonStatelessFunctionRunner;
-import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.streaming.api.operators.python.AbstractTwoInputPythonFunctionOperator;
+import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
+import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
@@ -43,10 +43,11 @@ import com.google.protobuf.ByteString;
 import java.util.Map;
 
 /**
- * {@link DataStreamTwoInputPythonStatelessFunctionOperator} is responsible for launching beam
+ * {@link StatelessTwoInputPythonFunctionOperator} is responsible for launching beam
  * runner which will start a python harness to execute two-input user defined python function.
  */
-public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
+@Internal
+public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 	extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -86,7 +87,7 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 	private final TypeInformation<IN1> inputTypeInfo1;
 	private final TypeInformation<IN2> inputTypeInfo2;
 
-	public DataStreamTwoInputPythonStatelessFunctionOperator(
+	public StatelessTwoInputPythonFunctionOperator(
 		Configuration config,
 		TypeInformation<IN1> inputTypeInfo1,
 		TypeInformation<IN2> inputTypeInfo2,
@@ -148,7 +149,7 @@ public class DataStreamTwoInputPythonStatelessFunctionOperator<IN1, IN2, OUT>
 			throw new RuntimeException("Function Type for ConnectedStream should be Map or FlatMap");
 		}
 
-		return new BeamDataStreamPythonStatelessFunctionRunner(
+		return new BeamDataStreamStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			runnerInputTypeInfo,

@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.typeinfo.python;
+package org.apache.flink.streaming.api.typeinfo.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
  * A PickledByteArrayTypeInfo indicates that the data of this type is a generated primitive byte
  * array by pickle.
  */
+@Internal
 public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
 
 	public static final PickledByteArrayTypeInfo PICKLED_BYTE_ARRAY_TYPE_INFO = new PickledByteArrayTypeInfo();

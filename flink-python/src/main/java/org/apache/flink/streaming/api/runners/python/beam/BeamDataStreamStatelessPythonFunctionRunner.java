@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.runners.python.beam;
+package org.apache.flink.streaming.api.runners.python.beam;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.streaming.api.runners.python.beam.BeamPythonStatelessFunctionRunner;
+import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
@@ -32,18 +32,18 @@ import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * {@link BeamDataStreamPythonStatelessFunctionRunner} is responsible for starting a beam python harness to execute user
+ * {@link BeamDataStreamStatelessPythonFunctionRunner} is responsible for starting a beam python harness to execute user
  * defined python function.
  */
-public class BeamDataStreamPythonStatelessFunctionRunner extends BeamPythonStatelessFunctionRunner {
-	private static final long serialVersionUID = 1L;
+@Internal
+public class BeamDataStreamStatelessPythonFunctionRunner extends BeamStatelessPythonFunctionRunner {
 
 	private final TypeInformation inputType;
 	private final TypeInformation outputTupe;
 	private final FlinkFnApi.UserDefinedDataStreamFunctions userDefinedDataStreamFunctions;
 	private final String coderUrn;
 
-	public BeamDataStreamPythonStatelessFunctionRunner(
+	public BeamDataStreamStatelessPythonFunctionRunner(
 		String taskName,
 		PythonEnvironmentManager environmentManager,
 		TypeInformation inputType,

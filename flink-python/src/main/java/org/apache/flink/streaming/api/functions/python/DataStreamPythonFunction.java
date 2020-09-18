@@ -16,22 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.functions.python;
+package org.apache.flink.streaming.api.functions.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
 
 /**
  * {@link DataStreamPythonFunction} maintains the serialized python function and its function type, which will be used in
- * BeamDataStreamPythonStatelessFunctionRunner.
+ * BeamDataStreamStatelessPythonFunctionRunner.
  */
+@Internal
 public class DataStreamPythonFunction implements PythonFunction {
 	private static final long serialVersionUID = 1L;
 	private final byte[] serializedPythonFunction;
 	private final PythonEnv pythonEnv;
 
 	public DataStreamPythonFunction(
-		String funcName,
 		byte[] serializedPythonFunction,
 		PythonEnv pythonEnv) {
 		this.serializedPythonFunction = serializedPythonFunction;

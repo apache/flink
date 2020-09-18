@@ -16,31 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.operators.python;
+package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.datastream.runtime.functions.python.DataStreamPythonFunctionInfo;
-import org.apache.flink.datastream.runtime.runners.python.beam.BeamDataStreamPythonStatelessFunctionRunner;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
+import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
 
 /**
- * The {@link DataStreamPythonPartitionCustomFunctionOperator} enables us to set the number of partitions for current
+ * The {@link PythonPartitionCustomOperator} enables us to set the number of partitions for current
  * operator dynamically when generating the {@link org.apache.flink.streaming.api.graph.StreamGraph} before executing
  * the job. The number of partitions will be set in environment variables for python Worker, so that we can obtain the
  * number of partitions when executing user defined partitioner function.
  */
-public class DataStreamPythonPartitionCustomFunctionOperator<IN, OUT> extends
-	DataStreamPythonStatelessFunctionOperator<IN, OUT> {
+@Internal
+public class PythonPartitionCustomOperator<IN, OUT> extends
+	StatelessOneInputPythonFunctionOperator<IN, OUT> {
 
 	public static final String DATA_STREAM_NUM_PARTITIONS = "DATA_STREAM_NUM_PARTITIONS";
 
 	private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
-	public DataStreamPythonPartitionCustomFunctionOperator(
+	public PythonPartitionCustomOperator(
 		Configuration config,
 		TypeInformation<IN> inputTypeInfo,
 		TypeInformation<OUT> outputTypeInfo,
@@ -56,7 +58,7 @@ public class DataStreamPythonPartitionCustomFunctionOperator<IN, OUT> extends
 			envManager.setEnvironmentVariable(DATA_STREAM_NUM_PARTITIONS,
 				String.valueOf(this.numPartitions));
 		}
-		return new BeamDataStreamPythonStatelessFunctionRunner(
+		return new BeamDataStreamStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			pythonEnvironmentManager,
 			inputTypeInfo,

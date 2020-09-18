@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFun
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonStatelessFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -152,7 +152,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-		return new BeamTablePythonStatelessFunctionRunner(
+		return new BeamTableStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			userDefinedFunctionInputType,
