@@ -26,9 +26,12 @@ import java.util.List;
 
 /**
  * Input, with just basic methods for blocking and resuming consumption. It can be for example an {@link InputGate}
+ * or a chained source.
  */
 @Internal
 public interface CheckpointableInput {
+	void blockConsumption(int inputChannelIdx);
+
 	void resumeConsumption(int channelIndex) throws IOException;
 
 	List<InputChannelInfo> getChannelInfos();
@@ -38,4 +41,6 @@ public interface CheckpointableInput {
 	void checkpointStarted(CheckpointBarrier barrier);
 
 	void checkpointStopped(long cancelledCheckpointId);
+
+	int getInputGateIndex();
 }

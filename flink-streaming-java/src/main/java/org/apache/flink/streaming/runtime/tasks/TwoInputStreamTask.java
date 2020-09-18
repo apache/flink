@@ -28,6 +28,7 @@ import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -61,8 +62,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
 			mainMailboxExecutor,
-			inputGates1,
-			inputGates2);
+			new List[]{ inputGates1, inputGates2 },
+			Collections.emptyList());
 		checkState(checkpointedInputGates.length == 2);
 
 		inputProcessor = new StreamTwoInputProcessor<>(
