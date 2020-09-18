@@ -129,6 +129,50 @@ shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
 For cases where skew in the assignment leads to significant imbalanced consumption,
 a custom implementation of `KinesisShardAssigner` can be set on the consumer.
 
+### Configuring Starting Position
+
+The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
+one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
+
+- `LATEST`: read all shards of all streams starting from the latest record.
+- `TRIM_HORIZON`: read all shards of all streams starting from the earliest record possible (data may be trimmed by Kinesis depending on the retention settings).
+- `AT_TIMESTAMP`: read all shards of all streams starting from a specified timestamp. The timestamp must also be specified in the configuration
+properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, in one of the following date pattern :
+    - a non-negative double value representing the number of seconds that has elapsed since the Unix epoch (for example, `1459799926.480`).
+    - a user defined pattern, which is a valid pattern for `SimpleDateFormat` provided by `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT`.
+    If `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT` is not defined then the default pattern will be `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`
+    (for example, timestamp value is `2016-04-04` and pattern is `yyyy-MM-dd` given by user or timestamp value is `2016-04-04T19:58:46.480-00:00` without given a pattern).
+
+### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
+
+With Flink's checkpointing enabled, the Flink Kinesis Consumer will consume records from shards in Kinesis streams and
+periodically checkpoint each shard's progress. In case of a job failure, Flink will restore the streaming program to the
+state of the latest complete checkpoint and re-consume the records from Kinesis shards, starting from the progress that
+was stored in the checkpoint.
+
+The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
+
+To use fault tolerant Kinesis Consumers, checkpointing of the topology needs to be enabled at the execution environment:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableCheckpointing(5000); // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+</div>
+
+Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
+Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
+Flink on YARN supports automatic restart of lost YARN containers.
+
 ### Using Enhanced Fan Out
 
 [Enhanced Fan Out (EFO)](https://aws.amazon.com/blogs/aws/kds-enhanced-fanout/) increases the maximum 
@@ -303,50 +347,6 @@ val kinesis = env.addSource(new FlinkKinesisConsumer[String](
 {% endhighlight %}
 </div>
 </div>
-
-### Configuring Starting Position
-
-The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
-one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
-
-- `LATEST`: read all shards of all streams starting from the latest record.
-- `TRIM_HORIZON`: read all shards of all streams starting from the earliest record possible (data may be trimmed by Kinesis depending on the retention settings).
-- `AT_TIMESTAMP`: read all shards of all streams starting from a specified timestamp. The timestamp must also be specified in the configuration
-properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, in one of the following date pattern :
-    - a non-negative double value representing the number of seconds that has elapsed since the Unix epoch (for example, `1459799926.480`).
-    - a user defined pattern, which is a valid pattern for `SimpleDateFormat` provided by `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT`.
-    If `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT` is not defined then the default pattern will be `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`
-    (for example, timestamp value is `2016-04-04` and pattern is `yyyy-MM-dd` given by user or timestamp value is `2016-04-04T19:58:46.480-00:00` without given a pattern).
-
-### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
-
-With Flink's checkpointing enabled, the Flink Kinesis Consumer will consume records from shards in Kinesis streams and
-periodically checkpoint each shard's progress. In case of a job failure, Flink will restore the streaming program to the
-state of the latest complete checkpoint and re-consume the records from Kinesis shards, starting from the progress that
-was stored in the checkpoint.
-
-The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
-
-To use fault tolerant Kinesis Consumers, checkpointing of the topology needs to be enabled at the execution environment:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.enableCheckpointing(5000); // checkpoint every 5000 msecs
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.enableCheckpointing(5000) // checkpoint every 5000 msecs
-{% endhighlight %}
-</div>
-</div>
-
-Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
-Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
-Flink on YARN supports automatic restart of lost YARN containers.
 
 ### Event Time for Consumed Records
 
