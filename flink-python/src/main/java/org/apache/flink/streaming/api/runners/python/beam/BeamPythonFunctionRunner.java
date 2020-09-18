@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.runners.python.beam;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
@@ -57,6 +58,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * An base class for {@link PythonFunctionRunner} based on beam.
  */
+@Internal
 public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
 

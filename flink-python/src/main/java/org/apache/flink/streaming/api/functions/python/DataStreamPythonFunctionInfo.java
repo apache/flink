@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.runtime.functions.python;
+package org.apache.flink.streaming.api.functions.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.python.PythonFunction;
 
 import java.io.Serializable;
@@ -24,6 +25,7 @@ import java.io.Serializable;
 /**
  * {@link DataStreamPythonFunctionInfo} holds a PythonFunction and its function type.
  * */
+@Internal
 public class DataStreamPythonFunctionInfo implements Serializable {
 	private static final long serialVersionUID = 1L;
 
