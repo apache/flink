@@ -395,5 +395,4 @@ public class CsvRowDataSerDeSchemaTest {
 	private static RowData rowData(String str1, int integer, String str2) {
 		return GenericRowData.of(fromString(str1), integer, fromString(str2));
 	}
-
 }
