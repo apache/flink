@@ -529,6 +529,39 @@ public class SqlToOperationConverterTest {
 	}
 
 	@Test
+	public void testCreateTableLikeWithFullPath(){
+		Map<String, String> sourceProperties = new HashMap<>();
+		sourceProperties.put("connector.type", "kafka");
+		sourceProperties.put("format.type", "json");
+		CatalogTableImpl catalogTable = new CatalogTableImpl(
+			TableSchema.builder()
+				.field("f0", DataTypes.INT().notNull())
+				.field("f1", DataTypes.TIMESTAMP(3))
+				.build(),
+			sourceProperties,
+			null
+		);
+		catalogManager.createTable(catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
+		final String sql = "create table mytable like `builtin`.`default`.sourceTable";
+		Operation operation = parseAndConvert(sql);
+
+		assertThat(
+			operation,
+			isCreateTableOperation(
+			withSchema(
+				TableSchema.builder()
+					.field("f0", DataTypes.INT().notNull())
+					.field("f1", DataTypes.TIMESTAMP(3))
+					.build()
+			),
+			withOptions(
+				entry("connector.type", "kafka"),
+				entry("format.type", "json")
+			)
+		));
+	}
+
+	@Test
 	public void testMergingCreateTableLike() {
 		Map<String, String> sourceProperties = new HashMap<>();
 		sourceProperties.put("format.type", "json");
