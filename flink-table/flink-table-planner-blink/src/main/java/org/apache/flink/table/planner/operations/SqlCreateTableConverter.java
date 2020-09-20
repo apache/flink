@@ -140,8 +140,7 @@ class SqlCreateTableConverter {
 	}
 
 	private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
-		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlTableLike.getSourceTable()
-			.toString());
+		UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(sqlTableLike.getSourceTable().names);
 		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 		CatalogManager.TableLookupResult lookupResult = catalogManager.getTable(identifier)
 			.orElseThrow(() -> new ValidationException(String.format(
