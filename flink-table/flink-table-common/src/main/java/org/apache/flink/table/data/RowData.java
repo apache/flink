@@ -20,6 +20,7 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -51,7 +52,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
  * <p>The {@link RowData} interface has different implementations which are designed for different
  * scenarios:
  * <ul>
- *     <li>The binary-oriented implementation {@code BinaryRowData} is backed by references to {@link MemorySegment}
+ *     <li>The binary-oriented implementation {@link BinaryRowData} is backed by references to {@link MemorySegment}
  *     instead of using Java objects to reduce the serialization/deserialization overhead.</li>
  *     <li>The object-oriented implementation {@link GenericRowData} is backed by an array of Java {@link Object}
  *     which is easy to construct and efficient to update.</li>
