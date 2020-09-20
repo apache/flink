@@ -32,9 +32,9 @@ import java.time.Duration
 class WindowEmitStrategy(
     isEventTime: JBoolean,
     isSessionWindow: JBoolean,
-    earlyFireDelay: JLong,
+    earlyFireDelay: Duration,
     earlyFireDelayEnabled: JBoolean,
-    lateFireDelay: JLong,
+    lateFireDelay: Duration,
     lateFireDelayEnabled: JBoolean,
     allowLateness: JLong) {
 
@@ -50,11 +50,11 @@ class WindowEmitStrategy(
       throw new TableException("The 'AFTER WATERMARK' emit strategy requires set " +
         "'minIdleStateRetentionTime' in table config.")
     }
-    if (earlyFireDelayEnabled && (earlyFireDelay == null || earlyFireDelay < 0)) {
+    if (earlyFireDelayEnabled && (earlyFireDelay == null || earlyFireDelay.toMillis < 0)) {
       throw new TableException("Early-fire delay should not be null or negative value when" +
         "enable early-fire emit strategy.")
     }
-    if (lateFireDelayEnabled && (lateFireDelay == null || lateFireDelay < 0)) {
+    if (lateFireDelayEnabled && (lateFireDelay == null || lateFireDelay.toMillis < 0)) {
       throw new TableException("Late-fire delay should not be null or negative value when" +
         "enable late-fire emit strategy.")
     }
@@ -69,8 +69,8 @@ class WindowEmitStrategy(
   }
 
   def getTrigger: Trigger[TimeWindow] = {
-    val earlyTrigger = createTriggerFromInterval(earlyFireDelayEnabled, earlyFireDelay)
-    val lateTrigger = createTriggerFromInterval(lateFireDelayEnabled, lateFireDelay)
+    val earlyTrigger = createTriggerFromFireDelay(earlyFireDelayEnabled, earlyFireDelay)
+    val lateTrigger = createTriggerFromFireDelay(lateFireDelayEnabled, lateFireDelay)
 
     if (isEventTime) {
       val trigger = EventTimeTriggers.afterEndOfWindow[TimeWindow]()
@@ -94,8 +94,8 @@ class WindowEmitStrategy(
 
   override def toString: String = {
     val builder = new StringBuilder
-    val earlyString = intervalToString(earlyFireDelayEnabled, earlyFireDelay)
-    val lateString = intervalToString(lateFireDelayEnabled, lateFireDelay)
+    val earlyString = fireDelayToString(earlyFireDelayEnabled, earlyFireDelay)
+    val lateString = fireDelayToString(lateFireDelayEnabled, lateFireDelay)
     if (earlyString != null) {
       builder.append("early ").append(earlyString)
     }
@@ -108,26 +108,26 @@ class WindowEmitStrategy(
     builder.toString
   }
 
-  private def createTriggerFromInterval(
+  private def createTriggerFromFireDelay(
       enableDelayEmit: JBoolean,
-      interval: JLong): Option[Trigger[TimeWindow]] = {
+      fireDelay: Duration): Option[Trigger[TimeWindow]] = {
     if (!enableDelayEmit) {
       None
     } else {
-      if (interval > 0) {
-        Some(ProcessingTimeTriggers.every(Duration.ofMillis(interval)))
+      if (fireDelay.toMillis > 0) {
+        Some(ProcessingTimeTriggers.every(fireDelay))
       } else {
         Some(ElementTriggers.every())
       }
     }
   }
 
-  private def intervalToString(enableDelayEmit: JBoolean, interval: JLong): String = {
+  private def fireDelayToString(enableDelayEmit: JBoolean, fireDelay: Duration): String = {
     if (!enableDelayEmit) {
       null
     } else {
-      if (interval > 0) {
-        s"delay $interval millisecond"
+      if (fireDelay.toMillis > 0) {
+        s"delay ${fireDelay.toMillis} millisecond"
       } else {
         "no delay"
       }
@@ -152,22 +152,14 @@ object WindowEmitStrategy {
     }
     val enableEarlyFireDelay = tableConfig.getConfiguration.getBoolean(
       TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
-    val earlyFireDelay: JLong = if (tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).isPresent) {
-      tableConfig.getConfiguration
-        .get(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).toMillis
-    } else {
-      null
-    }
+    val earlyFireDelay: Duration = tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
+      .orElse(null)
     val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
       TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
-    val lateFireDelay: JLong = if (tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).isPresent) {
-      tableConfig.getConfiguration
-        .get(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).toMillis
-    } else {
-      null
-    }
+    val lateFireDelay: Duration = tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
+      .orElse(null)
     new WindowEmitStrategy(
       isEventTime,
       isSessionWindow,
