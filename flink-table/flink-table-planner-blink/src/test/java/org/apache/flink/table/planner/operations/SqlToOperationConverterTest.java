@@ -527,6 +527,7 @@ public class SqlToOperationConverterTest {
 			)
 		);
 	}
+
 	@Test
 	public void testCreateTableLikeWithFullPath(){
 		Map<String, String> sourceProperties = new HashMap<>();
