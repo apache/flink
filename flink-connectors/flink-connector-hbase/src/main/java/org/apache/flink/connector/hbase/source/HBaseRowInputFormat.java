@@ -23,14 +23,12 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseReadWriteHelper;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
-import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
@@ -62,12 +60,12 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
-		LOG.info("Initializing HBase configuration.");
-		// prepare hbase read helper
+	public void initTable() throws IOException {
 		this.readHelper = new HBaseReadWriteHelper(schema);
-		connectToTable();
-		if (table != null) {
+		if (table == null) {
+			connectToTable();
+		}
+		if (table != null && scan == null) {
 			scan = getScanner();
 		}
 	}
@@ -87,16 +85,13 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 		return readHelper.parseToRow(res);
 	}
 
-	private void connectToTable() {
+	private void connectToTable() throws IOException {
 		try {
-			Connection conn = ConnectionFactory.createConnection(getHadoopConfiguration());
-			super.table = (HTable) conn.getTable(TableName.valueOf(tableName));
+			connection = ConnectionFactory.createConnection(getHadoopConfiguration());
+			table = (HTable) connection.getTable(TableName.valueOf(tableName));
 		} catch (TableNotFoundException tnfe) {
 			LOG.error("The table " + tableName + " not found ", tnfe);
 			throw new RuntimeException("HBase table '" + tableName + "' not found.", tnfe);
-		} catch (IOException ioe) {
-			LOG.error("Exception while creating connection to HBase.", ioe);
-			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
 	}
 
