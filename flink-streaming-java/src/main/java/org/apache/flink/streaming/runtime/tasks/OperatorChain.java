@@ -179,7 +179,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 				OP mainOperator = mainOperatorAndTimeService.f0;
 				mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, mainOperatorOutput.getWatermarkGauge());
-				this.mainOperatorWrapper = createOperatorWrapper(mainOperator, containingTask, configuration, mainOperatorAndTimeService.f1);
+				this.mainOperatorWrapper = createOperatorWrapper(mainOperator, containingTask, configuration, mainOperatorAndTimeService.f1, true);
 
 				// add main operator to end of chain
 				allOpWrappers.add(mainOperatorWrapper);
@@ -299,7 +299,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				sourceInputConfig,
 				userCodeClassloader,
 				(WatermarkGaugeExposingOutput<StreamRecord<OUT>>) chainedSourceOutput,
-				allOpWrappers);
+				allOpWrappers,
+				true);
 			chainedSourceInputs.put(
 				sourceInput,
 				new ChainedSource(
@@ -582,7 +583,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			operatorConfig,
 			userCodeClassloader,
 			chainedOperatorOutput,
-			allOperatorWrappers);
+			allOperatorWrappers,
+			false);
 
 		return wrapOperatorIntoOutput(
 			chainedOperator,
@@ -601,7 +603,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			StreamConfig operatorConfig,
 			ClassLoader userCodeClassloader,
 			WatermarkGaugeExposingOutput<StreamRecord<OUT>> output,
-			List<StreamOperatorWrapper<?, ?>> allOperatorWrappers) {
+			List<StreamOperatorWrapper<?, ?>> allOperatorWrappers,
+			boolean isHead) {
 
 		// now create the operator and give it the output collector to write its output to
 		Tuple2<OP, Optional<ProcessingTimeService>> chainedOperatorAndTimeService =
@@ -613,7 +616,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				operatorEventDispatcher);
 
 		OP chainedOperator = chainedOperatorAndTimeService.f0;
-		allOperatorWrappers.add(createOperatorWrapper(chainedOperator, containingTask, operatorConfig, chainedOperatorAndTimeService.f1));
+		allOperatorWrappers.add(createOperatorWrapper(chainedOperator, containingTask, operatorConfig, chainedOperatorAndTimeService.f1, isHead));
 
 		chainedOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge()::getValue);
 		return chainedOperator;
@@ -680,15 +683,16 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	private <T, P extends StreamOperator<T>> StreamOperatorWrapper<T, P> createOperatorWrapper(
-		P operator,
-		StreamTask<?, ?> containingTask,
-		StreamConfig operatorConfig,
-		Optional<ProcessingTimeService> processingTimeService) {
-
+			P operator,
+			StreamTask<?, ?> containingTask,
+			StreamConfig operatorConfig,
+			Optional<ProcessingTimeService> processingTimeService,
+			boolean isHead) {
 		return new StreamOperatorWrapper<>(
 			operator,
 			processingTimeService,
-			containingTask.getMailboxExecutorFactory().createExecutor(operatorConfig.getChainIndex()));
+			containingTask.getMailboxExecutorFactory().createExecutor(operatorConfig.getChainIndex()),
+			isHead);
 	}
 
 	@Nullable

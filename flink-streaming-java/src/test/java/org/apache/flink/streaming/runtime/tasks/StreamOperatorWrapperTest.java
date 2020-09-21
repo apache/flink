@@ -103,7 +103,8 @@ public class StreamOperatorWrapperTest extends TestLogger {
 				StreamOperatorWrapper<?, ?> operatorWrapper = new StreamOperatorWrapper<>(
 					streamOperator,
 					Optional.ofNullable(streamOperator.getProcessingTimeService()),
-					mailboxExecutor);
+					mailboxExecutor,
+					i == 0);
 				operatorWrappers.add(operatorWrapper);
 			}
 
@@ -157,7 +158,8 @@ public class StreamOperatorWrapperTest extends TestLogger {
 		StreamOperatorWrapper<?, ?> operatorWrapper = new StreamOperatorWrapper<>(
 			streamOperator,
 			Optional.ofNullable(streamOperator.getProcessingTimeService()),
-			containingTask.getMailboxExecutorFactory().createExecutor(Integer.MAX_VALUE - 1));
+			containingTask.getMailboxExecutorFactory().createExecutor(Integer.MAX_VALUE - 1),
+			true);
 
 		try {
 			operatorWrapper.close(containingTask.getActionExecutor());
