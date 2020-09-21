@@ -186,17 +186,14 @@ public class UnionInputGate extends InputGate {
 	private Optional<InputWithData<IndexedInputGate, BufferOrEvent>> waitAndGetNextData(boolean blocking)
 			throws IOException, InterruptedException {
 		while (true) {
-			Optional<IndexedInputGate> inputGate = getInputGate(blocking);
-			if (!inputGate.isPresent()) {
-				return Optional.empty();
-			}
-
-			// In case of inputGatesWithData being inaccurate do not block on an empty inputGate, but just poll the data.
-			// Do not poll the gate under inputGatesWithData lock, since this can trigger notifications
-			// that could deadlock because of wrong locks taking order.
-			Optional<BufferOrEvent> bufferOrEvent = inputGate.get().pollNext();
-
 			synchronized (inputGatesWithData) {
+				Optional<IndexedInputGate> inputGate = getInputGate(blocking);
+				if (!inputGate.isPresent()) {
+					return Optional.empty();
+				}
+
+				Optional<BufferOrEvent> bufferOrEvent = inputGate.get().pollNext();
+
 				if (bufferOrEvent.isPresent() && bufferOrEvent.get().moreAvailable()) {
 					// enqueue the inputGate at the end to avoid starvation
 					inputGatesWithData.add(inputGate.get());
@@ -303,22 +300,26 @@ public class UnionInputGate extends InputGate {
 	}
 
 	private Optional<IndexedInputGate> getInputGate(boolean blocking) throws InterruptedException {
-		synchronized (inputGatesWithData) {
-			while (inputGatesWithData.size() == 0) {
-				if (blocking) {
-					inputGatesWithData.wait();
-				} else {
-					availabilityHelper.resetUnavailable();
-					return Optional.empty();
-				}
+		assert Thread.holdsLock (inputGatesWithData);
+
+		while (inputGatesWithData.isEmpty()) {
+			if (blocking) {
+				inputGatesWithData.wait();
+			} else {
+				availabilityHelper.resetUnavailable();
+				return Optional.empty();
 			}
-
-			Iterator<IndexedInputGate> inputGateIterator = inputGatesWithData.iterator();
-			IndexedInputGate inputGate = inputGateIterator.next();
-			inputGateIterator.remove();
-
-			return Optional.of(inputGate);
 		}
+
+		Iterator<IndexedInputGate> inputGateIterator = inputGatesWithData.iterator();
+		IndexedInputGate inputGate = inputGateIterator.next();
+		inputGateIterator.remove();
+
+		if (inputGatesWithData.isEmpty()) {
+			availabilityHelper.resetUnavailable();
+		}
+
+		return Optional.of(inputGate);
 	}
 
 	@Override

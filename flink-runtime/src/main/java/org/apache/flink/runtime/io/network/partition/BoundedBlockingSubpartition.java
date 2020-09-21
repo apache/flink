@@ -204,8 +204,6 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 			checkState(!isReleased, "data partition already released");
 			checkState(isFinished, "writing of blocking partition not yet finished");
 
-			availability.notifyDataAvailable();
-
 			final BoundedBlockingSubpartitionReader reader = new BoundedBlockingSubpartitionReader(
 					this, data, numDataBuffersWritten, availability);
 			readers.add(reader);

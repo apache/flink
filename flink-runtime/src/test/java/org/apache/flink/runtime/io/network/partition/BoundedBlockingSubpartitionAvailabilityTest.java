@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
@@ -25,11 +26,11 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createView;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -51,7 +52,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
 
 		// test
-		final ResultSubpartitionView subpartitionView = subpartition.createReadView(listener);
+		final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
 
 		// assert
 		assertEquals(1, listener.numNotifications);
@@ -64,9 +65,9 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 	@Test
 	public void testUnavailableWhenBuffersExhausted() throws Exception {
 		// setup
-		final BoundedBlockingSubpartition subpartition = createPartitionWithData(100_000);
+		final ResultSubpartition subpartition = createPartitionWithData(100_000);
 		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
-		final ResultSubpartitionView reader = subpartition.createReadView(listener);
+		final ResultSubpartitionView reader = createView(subpartition, listener);
 
 		// test
 		final List<BufferAndBacklog> data = drainAvailableData(reader);
@@ -85,7 +86,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		// setup
 		final ResultSubpartition subpartition = createPartitionWithData(100_000);
 		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
-		final ResultSubpartitionView reader = subpartition.createReadView(listener);
+		final ResultSubpartitionView reader = createView(subpartition, listener);
 
 		// test
 		final List<ResultSubpartition.BufferAndBacklog> data = drainAvailableData(reader);
@@ -120,11 +121,15 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 
 	// ------------------------------------------------------------------------
 
-	private static BoundedBlockingSubpartition createPartitionWithData(int numberOfBuffers) throws IOException {
-		ResultPartition parent = PartitionTestUtils.createPartition();
+	private static ResultSubpartition createPartitionWithData(int numberOfBuffers) throws IOException {
+		ResultPartition parent = new ResultPartitionBuilder()
+			.setResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
+			.setBoundedBlockingSubpartitionType(BoundedBlockingSubpartitionType.FILE)
+			.setFileChannelManager(new FileChannelManagerImpl(new String[] { TMP_FOLDER.newFolder().toString() }, "data"))
+			.setNetworkBufferSize(BUFFER_SIZE)
+			.build();
 
-		BoundedBlockingSubpartition partition = BoundedBlockingSubpartition.createWithFileChannel(
-			0, parent, new File(TMP_FOLDER.newFolder(), "data"), BUFFER_SIZE);
+		ResultSubpartition partition = parent.getAllPartitions()[0];
 
 		writeBuffers(partition, numberOfBuffers);
 		partition.finish();

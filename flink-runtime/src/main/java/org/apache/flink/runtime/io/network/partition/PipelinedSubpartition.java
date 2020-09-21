@@ -309,7 +309,6 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 
 	@Override
 	public PipelinedSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
-		final boolean notifyDataAvailable;
 		synchronized (buffers) {
 			checkState(!isReleased);
 			checkState(readView == null,
@@ -322,10 +321,6 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 				parent.getOwningTaskName(), getSubPartitionIndex(), parent.getPartitionId());
 
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
-			notifyDataAvailable = !buffers.isEmpty();
-		}
-		if (notifyDataAvailable) {
-			notifyDataAvailable();
 		}
 
 		return readView;
