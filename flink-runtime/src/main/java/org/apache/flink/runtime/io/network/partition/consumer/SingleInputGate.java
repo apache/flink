@@ -634,17 +634,15 @@ public class SingleInputGate extends IndexedInputGate {
 	private Optional<InputWithData<InputChannel, BufferAndAvailability>> waitAndGetNextData(boolean blocking)
 		throws IOException, InterruptedException {
 		while (true) {
-			Optional<InputChannel> inputChannelOpt = getChannel(blocking);
-			if (!inputChannelOpt.isPresent()) {
-				return Optional.empty();
-			}
-
-			// Do not query inputChannel under the lock, to avoid potential deadlocks coming from
-			// notifications.
-			final InputChannel inputChannel = inputChannelOpt.get();
-			Optional<BufferAndAvailability> bufferAndAvailabilityOpt = inputChannel.getNextBuffer();
-
 			synchronized (inputChannelsWithData) {
+				Optional<InputChannel> inputChannelOpt = getChannel(blocking);
+				if (!inputChannelOpt.isPresent()) {
+					return Optional.empty();
+				}
+
+				final InputChannel inputChannel = inputChannelOpt.get();
+				Optional<BufferAndAvailability> bufferAndAvailabilityOpt = inputChannel.getNextBuffer();
+
 				if (!bufferAndAvailabilityOpt.isPresent()) {
 					checkUnavailability();
 					continue;
@@ -668,6 +666,8 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	private void checkUnavailability() {
+		assert Thread.holdsLock(inputChannelsWithData);
+
 		if (inputChannelsWithData.isEmpty()) {
 			availabilityHelper.resetUnavailable();
 		}
@@ -812,25 +812,26 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	private Optional<InputChannel> getChannel(boolean blocking) throws InterruptedException {
-		synchronized (inputChannelsWithData) {
-			while (inputChannelsWithData.size() == 0) {
-				if (closeFuture.isDone()) {
-					throw new IllegalStateException("Released");
-				}
+		assert Thread.holdsLock(inputChannelsWithData);
 
-				if (blocking) {
-					inputChannelsWithData.wait();
-				}
-				else {
-					availabilityHelper.resetUnavailable();
-					return Optional.empty();
-				}
+		while (inputChannelsWithData.isEmpty()) {
+			if (closeFuture.isDone()) {
+				throw new IllegalStateException("Released");
 			}
 
-			InputChannel inputChannel = inputChannelsWithData.remove();
-			enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
-			return Optional.of(inputChannel);
+			if (blocking) {
+				inputChannelsWithData.wait();
+			}
+			else {
+				availabilityHelper.resetUnavailable();
+				return Optional.empty();
+			}
 		}
+
+		InputChannel inputChannel = inputChannelsWithData.poll();
+		enqueuedInputChannelsWithData.clear(inputChannel.getChannelIndex());
+
+		return Optional.of(inputChannel);
 	}
 
 	// ------------------------------------------------------------------------

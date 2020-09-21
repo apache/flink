@@ -33,6 +33,7 @@ import java.nio.file.Path;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createView;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -130,7 +131,7 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 		writeBuffers(subpartition, numberOfBuffers);
 
 		final VerifyNotificationBufferAvailabilityListener listener = new VerifyNotificationBufferAvailabilityListener();
-		final ResultSubpartitionView subpartitionView = subpartition.createReadView(listener);
+		final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
 		// the notification is triggered while creating view
 		assertTrue(listener.isAvailable);
 
