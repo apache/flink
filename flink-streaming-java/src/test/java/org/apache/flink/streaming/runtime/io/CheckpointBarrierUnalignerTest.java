@@ -43,7 +43,6 @@ import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -684,7 +683,6 @@ public class CheckpointBarrierUnalignerTest {
 			"Test",
 			toNotify,
 			gate);
-		barrierHandler.getBufferReceivedListener().ifPresent(gate::registerBufferReceivedListener);
 		return new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
 	}
 
@@ -757,14 +755,6 @@ public class CheckpointBarrierUnalignerTest {
 			assertTrue(checkpointMetrics.getAlignmentDurationNanos() >= 0);
 
 			nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
-		}
-
-		@Override
-		public <E extends Exception> void executeInTaskThread(
-				ThrowingRunnable<E> runnable,
-				String descriptionFormat,
-				Object... descriptionArgs) throws E {
-			runnable.run();
 		}
 
 		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {

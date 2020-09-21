@@ -21,13 +21,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
@@ -103,12 +101,6 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 		// should only be called for unaligned checkpoint
 		return unalignedHandler.getAllBarriersReceivedFuture(checkpointId);
-	}
-
-	@Override
-	public Optional<BufferReceivedListener> getBufferReceivedListener() {
-		// should only be used for handling unaligned checkpoints
-		return unalignedHandler.getBufferReceivedListener();
 	}
 
 	@Override

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
@@ -347,12 +346,5 @@ public class UnionInputGate extends InputGate {
 		}
 
 		return Optional.of(inputGate);
-	}
-
-	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener listener) {
-		for (InputGate inputGate : inputGatesByGateIndex.values()) {
-			inputGate.registerBufferReceivedListener(listener);
-		}
 	}
 }

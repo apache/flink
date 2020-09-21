@@ -31,7 +31,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -188,9 +187,6 @@ public class SingleInputGate extends IndexedInputGate {
 	private final CompletableFuture<Void> closeFuture;
 
 	@Nullable
-	private volatile BufferReceivedListener bufferReceivedListener;
-
-	@Nullable
 	private final BufferDecompressor bufferDecompressor;
 
 	private final MemorySegmentProvider memorySegmentProvider;
@@ -345,12 +341,6 @@ public class SingleInputGate extends IndexedInputGate {
 		}
 	}
 
-	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener bufferReceivedListener) {
-		checkState(this.bufferReceivedListener == null, "Trying to overwrite the buffer received listener");
-		this.bufferReceivedListener = checkNotNull(bufferReceivedListener);
-	}
-
 	// ------------------------------------------------------------------------
 	// Properties
 	// ------------------------------------------------------------------------
@@ -363,11 +353,6 @@ public class SingleInputGate extends IndexedInputGate {
 	@Override
 	public int getGateIndex() {
 		return gateIndex;
-	}
-
-	@Nullable
-	BufferReceivedListener getBufferReceivedListener() {
-		return bufferReceivedListener;
 	}
 
 	/**

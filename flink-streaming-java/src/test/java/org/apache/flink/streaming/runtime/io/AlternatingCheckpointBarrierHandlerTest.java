@@ -35,7 +35,6 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 
@@ -273,11 +272,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 		@Override
 		public void invoke() {
-		}
-
-		@Override
-		public <E extends Exception> void executeInTaskThread(ThrowingRunnable<E> runnable, String descriptionFormat, Object... descriptionArgs) throws E {
-			runnable.run();
 		}
 
 		@Override
