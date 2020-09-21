@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -130,18 +129,6 @@ public class CheckpointBarrierUnalignerCancellationTest {
 		@Override
 		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
 			checkpointAborted = true;
-		}
-
-		@Override
-		public <E extends Exception> void executeInTaskThread(
-				ThrowingRunnable<E> runnable,
-				String descriptionFormat,
-				Object... descriptionArgs) {
-			try {
-				runnable.run();
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
 		}
 	}
 }

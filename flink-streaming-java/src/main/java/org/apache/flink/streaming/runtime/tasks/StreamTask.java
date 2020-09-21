@@ -885,18 +885,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public <E extends Exception> void executeInTaskThread(
-			ThrowingRunnable<E> runnable,
-			String descriptionFormat,
-			Object... descriptionArgs) throws E {
-		if (mailboxProcessor.isMailboxThread()) {
-			runnable.run();
-		} else {
-			mainMailboxExecutor.execute(runnable, descriptionFormat, descriptionArgs);
-		}
-	}
-
-	@Override
 	public void triggerCheckpointOnBarrier(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,

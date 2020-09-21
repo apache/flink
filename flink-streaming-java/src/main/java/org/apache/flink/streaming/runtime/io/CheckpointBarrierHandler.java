@@ -25,13 +25,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -85,10 +82,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		return latestCheckpointStartDelayNanos;
 	}
 
-	public Optional<BufferReceivedListener> getBufferReceivedListener() {
-		return Optional.empty();
-	}
-
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 		return CompletableFuture.completedFuture(null);
 	}
@@ -120,13 +113,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
 			0,
 			System.currentTimeMillis() - checkpointCreationTimestamp);
-	}
-
-	protected <E extends Exception> void executeInTaskThread(
-			ThrowingRunnable<E> runnable,
-			String descriptionFormat,
-			Object... descriptionArgs) throws E {
-		toNotifyOnCheckpoint.executeInTaskThread(runnable, descriptionFormat, descriptionArgs);
 	}
 
 	protected abstract boolean isCheckpointPending();

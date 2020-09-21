@@ -21,7 +21,6 @@ package org.apache.flink.runtime.operators.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * An invokable that does nothing.
@@ -55,11 +54,4 @@ public class DummyInvokable extends AbstractInvokable {
 		return new ExecutionConfig();
 	}
 
-	@Override
-	public <E extends Exception> void executeInTaskThread(
-			ThrowingRunnable<E> runnable,
-			String descriptionFormat,
-			Object... descriptionArgs) throws E {
-		runnable.run();
-	}
 }

@@ -23,7 +23,6 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 
 import java.io.IOException;
@@ -194,6 +193,4 @@ public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>,
 	public abstract CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException;
 
 	public abstract void requestPartitions() throws IOException;
-
-	public abstract void registerBufferReceivedListener(BufferReceivedListener listener);
 }
