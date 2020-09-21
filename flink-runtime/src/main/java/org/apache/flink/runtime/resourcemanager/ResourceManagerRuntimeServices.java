@@ -54,10 +54,7 @@ public class ResourceManagerRuntimeServices {
 			ScheduledExecutor scheduledExecutor,
 			SlotManagerMetricGroup slotManagerMetricGroup) {
 
-		final SlotManager slotManager = new SlotManagerImpl(
-			scheduledExecutor,
-			configuration.getSlotManagerConfiguration(),
-			slotManagerMetricGroup);
+		final SlotManager slotManager = createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
 
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
@@ -65,5 +62,16 @@ public class ResourceManagerRuntimeServices {
 			configuration.getJobTimeout());
 
 		return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
+	}
+
+	private static SlotManager createSlotManager(ResourceManagerRuntimeServicesConfiguration configuration, ScheduledExecutor scheduledExecutor, SlotManagerMetricGroup slotManagerMetricGroup) {
+		if (configuration.isDeclarativeResourceManagementEnabled()) {
+			throw new UnsupportedOperationException("Declarative slot manager is not yet implemented.");
+		} else {
+			return new SlotManagerImpl(
+				scheduledExecutor,
+				configuration.getSlotManagerConfiguration(),
+				slotManagerMetricGroup);
+		}
 	}
 }
