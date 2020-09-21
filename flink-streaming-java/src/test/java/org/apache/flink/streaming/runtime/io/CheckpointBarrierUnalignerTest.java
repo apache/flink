@@ -40,7 +40,6 @@ import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
-import org.apache.flink.streaming.runtime.io.CheckpointBarrierUnaligner.ThreadSafeUnaligner;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -514,28 +513,6 @@ public class CheckpointBarrierUnalignerTest {
 	/**
 	 * Tests {@link CheckpointBarrierUnaligner#processCancellationBarrier(CancelCheckpointMarker)}
 	 * abort the current pending checkpoint triggered by
-	 * {@link ThreadSafeUnaligner#notifyBarrierReceived(CheckpointBarrier, InputChannelInfo)}.
-	 */
-	@Test
-	public void testProcessCancellationBarrierAfterNotifyBarrierReceived() throws Exception {
-		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
-		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, new MockIndexedInputGate());
-
-		ThreadSafeUnaligner unaligner = handler.getThreadSafeUnaligner();
-		// should trigger respective checkpoint
-		unaligner.notifyBarrierReceived(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
-
-		assertFalse(handler.isCheckpointPending());
-		assertTrue(unaligner.isCheckpointPending());
-		assertEquals(-1L, handler.getLatestCheckpointId());
-		assertEquals(DEFAULT_CHECKPOINT_ID, unaligner.getCurrentCheckpointId());
-
-		testProcessCancellationBarrier(handler, invokable);
-	}
-
-	/**
-	 * Tests {@link CheckpointBarrierUnaligner#processCancellationBarrier(CancelCheckpointMarker)}
-	 * abort the current pending checkpoint triggered by
 	 * {@link CheckpointBarrierHandler#processBarrier(CheckpointBarrier, InputChannelInfo)}.
 	 */
 	@Test
@@ -548,9 +525,7 @@ public class CheckpointBarrierUnalignerTest {
 		handler.processBarrier(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
 
 		assertTrue(handler.isCheckpointPending());
-		assertTrue(handler.getThreadSafeUnaligner().isCheckpointPending());
 		assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());
-		assertEquals(DEFAULT_CHECKPOINT_ID, handler.getThreadSafeUnaligner().getCurrentCheckpointId());
 
 		testProcessCancellationBarrier(handler, invokable);
 	}
@@ -567,7 +542,6 @@ public class CheckpointBarrierUnalignerTest {
 
 		// it would not trigger checkpoint since the respective cancellation barrier already happened before
 		handler.processBarrier(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
-		handler.getThreadSafeUnaligner().notifyBarrierReceived(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
 
 		verifyTriggeredCheckpoint(handler, invokable, DEFAULT_CHECKPOINT_ID);
 	}
@@ -593,9 +567,7 @@ public class CheckpointBarrierUnalignerTest {
 			long currentCheckpointId) {
 
 		assertFalse(handler.isCheckpointPending());
-		assertFalse(handler.getThreadSafeUnaligner().isCheckpointPending());
 		assertEquals(currentCheckpointId, handler.getLatestCheckpointId());
-		assertEquals(currentCheckpointId, handler.getThreadSafeUnaligner().getCurrentCheckpointId());
 		assertEquals(currentCheckpointId, invokable.getAbortedCheckpointId());
 	}
 
@@ -603,22 +575,22 @@ public class CheckpointBarrierUnalignerTest {
 	public void testEndOfStreamWithPendingCheckpoint() throws Exception {
 		final int numberOfChannels = 2;
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
-		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, new MockIndexedInputGate(0, numberOfChannels));
+		final InputGate inputGate = new SingleInputGateBuilder().setChannelFactory(InputChannelBuilder::buildLocalChannel).setNumberOfChannels(numberOfChannels).build();
+		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
 
-		ThreadSafeUnaligner unaligner = handler.getThreadSafeUnaligner();
 		// should trigger respective checkpoint
-		unaligner.notifyBarrierReceived(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
+		handler.processBarrier(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
 
-		assertTrue(unaligner.isCheckpointPending());
-		assertEquals(DEFAULT_CHECKPOINT_ID, unaligner.getCurrentCheckpointId());
-		assertEquals(numberOfChannels, unaligner.getNumOpenChannels());
+		assertTrue(handler.isCheckpointPending());
+		assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());
+		assertEquals(numberOfChannels, handler.getNumOpenChannels());
 
 		// should abort current checkpoint while processing eof
 		handler.processEndOfPartition();
 
-		assertFalse(unaligner.isCheckpointPending());
-		assertEquals(DEFAULT_CHECKPOINT_ID, unaligner.getCurrentCheckpointId());
-		assertEquals(numberOfChannels - 1 , unaligner.getNumOpenChannels());
+		assertFalse(handler.isCheckpointPending());
+		assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());
+		assertEquals(numberOfChannels - 1 , handler.getNumOpenChannels());
 		assertEquals(DEFAULT_CHECKPOINT_ID, invokable.getAbortedCheckpointId());
 	}
 
