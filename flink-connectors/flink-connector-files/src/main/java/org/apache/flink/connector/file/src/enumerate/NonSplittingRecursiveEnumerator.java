@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.StringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,8 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public class NonSplittingRecursiveEnumerator implements FileEnumerator {
-
-	private static final String[] EMPTY_STRINGS = new String[0];
 
 	/** The filter predicate to filter out unwanted files. */
 	private final Predicate<Path> fileFilter;
@@ -120,7 +119,7 @@ public class NonSplittingRecursiveEnumerator implements FileEnumerator {
 
 	private static String[] getHostsFromBlockLocations(BlockLocation[] blockLocations) throws IOException {
 		if (blockLocations.length == 0) {
-			return EMPTY_STRINGS;
+			return StringUtils.EMPTY_STRING_ARRAY;
 		}
 		if (blockLocations.length == 1) {
 			return blockLocations[0].getHosts();
