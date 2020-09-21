@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
+import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 
 import java.io.IOException;
 import java.util.List;
@@ -76,11 +78,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable {
+public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable, ChannelStateHolder {
 
 	protected final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
 
 	protected final AvailabilityHelper priorityAvailabilityHelper = new AvailabilityHelper();
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
+			final InputChannel channel = getChannel(index);
+			if (channel instanceof ChannelStateHolder) {
+				((ChannelStateHolder) channel).setChannelStateWriter(channelStateWriter);
+			}
+		}
+	}
 
 	public abstract int getNumberOfInputChannels();
 

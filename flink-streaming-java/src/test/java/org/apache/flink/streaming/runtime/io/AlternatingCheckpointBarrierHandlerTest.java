@@ -141,15 +141,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 			if (!type.isSavepoint()) {
 				assertFalse(barrierHandler.getAllBarriersReceivedFuture(i).isDone());
-				assertInflightDataEquals(unalignedHandler, barrierHandler, i, inputGate.getNumberOfInputChannels());
 			}
-		}
-	}
-
-	private static void assertInflightDataEquals(CheckpointBarrierHandler expected, CheckpointBarrierHandler actual, long barrierId, int numChannels) {
-		for (int channelId = 0; channelId < numChannels; channelId++) {
-			InputChannelInfo channelInfo = new InputChannelInfo(0, channelId);
-			assertEquals(expected.hasInflightData(barrierId, channelInfo), actual.hasInflightData(barrierId, channelInfo));
 		}
 	}
 
@@ -165,7 +157,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		final long id = 1;
 		unalignedHandler.processBarrier(new CheckpointBarrier(id, 0, new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 0));
 
-		assertInflightDataEquals(unalignedHandler, barrierHandler, id, inputGate.getNumberOfInputChannels());
 		assertFalse(barrierHandler.getAllBarriersReceivedFuture(id).isDone());
 	}
 
@@ -186,7 +177,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		barrierHandler.processBarrier(new CheckpointBarrier(outOfOrderSavepointId, 0, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 1));
 
 		assertEquals(checkpointId, barrierHandler.getLatestCheckpointId());
-		assertInflightDataEquals(unalignedHandler, barrierHandler, checkpointId, inputGate.getNumberOfInputChannels());
 		assertEquals(initialAlignedCheckpointId, alignedHandler.getLatestCheckpointId());
 	}
 
