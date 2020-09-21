@@ -27,10 +27,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
@@ -42,14 +43,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -60,14 +56,7 @@ import static org.junit.Assert.fail;
  * serializability is handled correctly.
  */
 @SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class WindowCheckpointingITCase extends TestLogger {
-
-	private TimeCharacteristic timeCharacteristic;
-
-	public WindowCheckpointingITCase(TimeCharacteristic timeCharacteristic) {
-		this.timeCharacteristic = timeCharacteristic;
-	}
+public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int PARALLELISM = 4;
 
@@ -94,7 +83,6 @@ public class WindowCheckpointingITCase extends TestLogger {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
@@ -103,10 +91,10 @@ public class WindowCheckpointingITCase extends TestLogger {
 				new SinkValidatorUpdaterAndChecker(numElements, 1);
 
 			env
-					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
+					.addSource(new FailingSource(new Generator(), numElements, true))
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(100, MILLISECONDS))
+					.window(TumblingProcessingTimeWindows.of(Time.milliseconds(100)))
 					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
@@ -133,7 +121,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, timeCharacteristic))
+				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
 				.setParallelism(1);
 
 			tryExecute(env, "Tumbling Window Test");
@@ -151,17 +139,16 @@ public class WindowCheckpointingITCase extends TestLogger {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 3);
 			env
-					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
+					.addSource(new FailingSource(new Generator(), numElements, true))
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
+					.window(SlidingProcessingTimeWindows.of(Time.milliseconds(150), Time.milliseconds(50)))
 					.apply(new RichWindowFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>, Tuple, TimeWindow>() {
 
 						private boolean open = false;
@@ -188,7 +175,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, timeCharacteristic))
+				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
 				.setParallelism(1);
 
 			tryExecute(env, "Sliding Window Test");
@@ -206,14 +193,13 @@ public class WindowCheckpointingITCase extends TestLogger {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 1);
 			env
-					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
+					.addSource(new FailingSource(new Generator(), numElements, true))
 					.map(new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
@@ -223,7 +209,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					})
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(100, MILLISECONDS))
+					.window(TumblingProcessingTimeWindows.of(Time.milliseconds(100)))
 					.reduce(new ReduceFunction<Tuple2<Long, IntType>>() {
 
 						@Override
@@ -233,7 +219,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
-				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, timeCharacteristic))
+				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
 				.setParallelism(1);
 
 			tryExecute(env, "Aggregating Tumbling Window Test");
@@ -251,14 +237,13 @@ public class WindowCheckpointingITCase extends TestLogger {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
-			env.setStreamTimeCharacteristic(timeCharacteristic);
 			env.getConfig().setAutoWatermarkInterval(10);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 						SinkValidatorUpdaterAndChecker updaterAndChecker =
 				new SinkValidatorUpdaterAndChecker(numElements, 3);
 			env
-					.addSource(new FailingSource(new Generator(), numElements, timeCharacteristic))
+					.addSource(new FailingSource(new Generator(), numElements, true))
 					.map(new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
@@ -268,7 +253,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 					})
 					.rebalance()
 					.keyBy(0)
-					.timeWindow(Time.of(150, MILLISECONDS), Time.of(50, MILLISECONDS))
+					.window(SlidingProcessingTimeWindows.of(Time.milliseconds(150), Time.milliseconds(50)))
 					.reduce(new ReduceFunction<Tuple2<Long, IntType>>() {
 						@Override
 						public Tuple2<Long, IntType> reduce(
@@ -277,7 +262,7 @@ public class WindowCheckpointingITCase extends TestLogger {
 							return new Tuple2<>(a.f0, new IntType(1));
 						}
 					})
-				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, timeCharacteristic))
+				.addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
 				.setParallelism(1);
 
 			tryExecute(env, "Aggregating Sliding Window Test");
@@ -337,17 +322,5 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 			return true;
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Parametrization for testing different time characteristics
-	// ------------------------------------------------------------------------
-
-	@Parameterized.Parameters(name = "TimeCharacteristic = {0}")
-	@SuppressWarnings("unchecked,rawtypes")
-	public static Collection<TimeCharacteristic[]> timeCharacteristic(){
-		return Arrays.asList(new TimeCharacteristic[]{TimeCharacteristic.ProcessingTime},
-				new TimeCharacteristic[]{TimeCharacteristic.IngestionTime}
-		);
 	}
 }
