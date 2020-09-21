@@ -47,6 +47,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	public MockSourceReader() {
 		this(false);
 	}
+
 	public MockSourceReader(boolean waitingForMoreSplits) {
 		this.started = false;
 		this.closed = false;
@@ -149,6 +150,9 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		return receivedSourceEvents;
 	}
 
+	/**
+	 * Simple event allowing {@link MockSourceReader} to finish when requested.
+	 */
 	public static class MockNoMoreSplitsEvent implements SourceEvent {
 	}
 }
