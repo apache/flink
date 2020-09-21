@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -96,6 +97,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of records created by this format reader.
  */
+@PublicEvolving
 public interface StreamFormat<T> extends Serializable {
 
 	/**

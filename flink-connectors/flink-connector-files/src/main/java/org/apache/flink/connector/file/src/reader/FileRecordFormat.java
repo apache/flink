@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -90,6 +91,7 @@ import java.io.Serializable;
  * <p>This batching is by default based a number of records. See {@link FileRecordFormat#RECORDS_PER_FETCH}
  * to configure that handover batch size.
  */
+@PublicEvolving
 public interface FileRecordFormat<T> extends Serializable {
 
 	/**

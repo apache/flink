@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.src.util;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -35,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * (like sync markers, block starts, etc.) can store those together with the records skipped after the
  * last marker.
  */
+@PublicEvolving
 public final class CheckpointedPosition implements Serializable {
 
 	private static final long serialVersionUID = 1L;

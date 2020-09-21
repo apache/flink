@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.enumerate;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.compression.StandardDeCompressors;
 import org.apache.flink.core.fs.BlockLocation;
@@ -51,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The default instantiation of this enumerator filters files with the common hidden file prefixes
  * '.' and '_'. A custom file filter can be specified.
  */
+@PublicEvolving
 public class BlockSplittingRecursiveEnumerator extends NonSplittingRecursiveEnumerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BlockSplittingRecursiveEnumerator.class);

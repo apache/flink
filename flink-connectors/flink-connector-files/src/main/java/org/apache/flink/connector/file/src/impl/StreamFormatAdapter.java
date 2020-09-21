@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -43,6 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Adapter to turn a {@link StreamFormat} into a {@link BulkFormat}.
  */
+@Internal
 public final class StreamFormatAdapter<T> implements BulkFormat<T> {
 
 	private static final long serialVersionUID = 1L;

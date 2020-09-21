@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
 
 import javax.annotation.Nullable;
@@ -31,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A checkpoint of the current state of the containing the currently pending splits that are not yet assigned.
  */
+@PublicEvolving
 public final class PendingSplitsCheckpoint {
 
 	/** The splits in the checkpoint. */

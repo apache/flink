@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 
 import javax.annotation.Nullable;
@@ -34,6 +35,7 @@ import java.util.concurrent.ArrayBlockingQueue;
  *
  * @param <T> The type of object cached in the pool.
  */
+@PublicEvolving
 public class Pool<T> {
 
 	private final ArrayBlockingQueue<T> pool;

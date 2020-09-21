@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
@@ -34,6 +35,7 @@ import java.util.Set;
  * adds information about the current split, or finished splits (to keep knowledge about current split
  * IDs out of the reader formats).
  */
+@Internal
 public final class FileRecords<T> implements RecordsWithSplitIds<RecordAndPosition<T>> {
 
 	@Nullable

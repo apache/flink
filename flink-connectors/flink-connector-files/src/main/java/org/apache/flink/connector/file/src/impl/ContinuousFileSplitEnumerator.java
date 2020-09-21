@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -47,6 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A continuously monitoring enumerator.
  */
+@Internal
 public class ContinuousFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContinuousFileSplitEnumerator.class);

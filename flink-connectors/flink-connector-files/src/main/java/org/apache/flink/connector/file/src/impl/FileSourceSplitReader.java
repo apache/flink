@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -41,6 +42,7 @@ import java.util.Queue;
 /**
  * The {@link SplitReader} implementation for the file source.
  */
+@Internal
 final class FileSourceSplitReader<T> implements SplitReader<RecordAndPosition<T>, FileSourceSplit> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSourceSplitReader.class);

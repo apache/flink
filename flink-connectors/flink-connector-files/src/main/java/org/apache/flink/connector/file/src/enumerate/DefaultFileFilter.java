@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.enumerate;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
 
 import java.util.function.Predicate;
@@ -26,6 +27,7 @@ import java.util.function.Predicate;
  * A file filter that filters out hidden files based on common naming patterns,
  * i.e., files where the filename starts with '.' or with '_'.
  */
+@PublicEvolving
 public final class DefaultFileFilter implements Predicate<Path> {
 
 	@Override

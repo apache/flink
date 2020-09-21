@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.enumerate;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.core.fs.Path;
 
@@ -32,6 +33,7 @@ import java.util.Collection;
  * <p>This includes possibly, path traversals, file filtering (by name or other patterns) and
  * deciding whether to split files into multiple splits, and how to split them.
  */
+@PublicEvolving
 public interface FileEnumerator {
 
 	/**

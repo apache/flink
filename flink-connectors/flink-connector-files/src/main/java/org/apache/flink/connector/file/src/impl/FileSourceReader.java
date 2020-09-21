@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
@@ -33,6 +34,7 @@ import java.util.Collection;
 /**
  * A {@link SourceReader} that read records from {@link FileSourceSplit}.
  */
+@Internal
 public final class FileSourceReader<T>
 		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, FileSourceSplit, FileSourceSplitState> {
 

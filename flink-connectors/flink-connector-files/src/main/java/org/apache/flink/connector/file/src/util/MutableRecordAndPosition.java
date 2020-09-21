@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 
 /**
@@ -26,6 +27,7 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
  * <p>This mutable object is useful in cases where only once instance of a {@code RecordAndPosition}
  * is needed at a time, like for the result values of the {@link BulkFormat.RecordIterator}.
  */
+@PublicEvolving
 public class MutableRecordAndPosition<E> extends RecordAndPosition<E> {
 
 	/**

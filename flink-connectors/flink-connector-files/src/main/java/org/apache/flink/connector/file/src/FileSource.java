@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -105,6 +106,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the events/records produced by this source.
  */
+@PublicEvolving
 public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint>, ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 1L;

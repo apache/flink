@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
@@ -40,6 +41,7 @@ import java.io.InputStreamReader;
  * that the offsets of lines in the file cannot be tracked through the charset decoders with their
  * internal buffering of stream input and charset decoder state.
  */
+@PublicEvolving
 public class TextLineFormat extends SimpleStreamFormat<String> {
 
 	private static final long serialVersionUID = 1L;

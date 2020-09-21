@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 
 import javax.annotation.Nullable;
@@ -30,6 +31,7 @@ import java.util.Optional;
  * The {@code FileSplitAssigner} is responsible for deciding what split should be processed next by
  * which node. It determines split processing order and locality.
  */
+@PublicEvolving
 public interface FileSplitAssigner {
 
 	/**

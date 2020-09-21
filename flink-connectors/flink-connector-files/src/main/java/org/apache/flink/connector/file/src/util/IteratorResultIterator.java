@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 
 import javax.annotation.Nullable;
@@ -30,6 +31,7 @@ import java.util.Iterator;
  *
  * @param <E> The type of the record returned by the iterator.
  */
+@PublicEvolving
 public final class IteratorResultIterator<E> extends RecyclableIterator<E> implements BulkFormat.RecordIterator<E> {
 
 	private final Iterator<E> records;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -50,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * FileSourceSplits to process, and the logic to decide which reader gets what split, are in
  * {@link FileEnumerator} and in {@link FileSplitAssigner}, respectively.
  */
+@Internal
 public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StaticFileSplitEnumerator.class);

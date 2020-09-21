@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
@@ -39,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * @param <T> The type of records created by this format reader.
  */
+@PublicEvolving
 public abstract class SimpleStreamFormat<T> implements StreamFormat<T> {
 
 	private static final long serialVersionUID = 1L;

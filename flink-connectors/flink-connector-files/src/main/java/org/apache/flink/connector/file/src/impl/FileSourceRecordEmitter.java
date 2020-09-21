@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.file.src.FileSourceSplit;
@@ -31,6 +32,7 @@ import org.apache.flink.connector.file.src.util.RecordAndPosition;
  * Because the {@link FileSourceSplit} points to the position from where to start reading (after recovery),
  * the current offset and records-to-skip need to always point to the record after the emitted record.
  */
+@Internal
 final class FileSourceRecordEmitter<T> implements RecordEmitter<RecordAndPosition<T>, T, FileSourceSplitState> {
 
 	@Override

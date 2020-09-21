@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.src;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Serializable;
 import java.time.Duration;
 
@@ -27,6 +29,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Settings describing how to do continuous file discovery and enumeration for the
  * file source's continuous discovery and streaming mode.
  */
+@Internal
 final class ContinuousEnumerationSettings implements Serializable {
 
 	private static final long serialVersionUID = 1L;

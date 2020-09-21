@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.impl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
@@ -38,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * The FormatReaderAdapter turns a {@link FileRecordFormat} into a {@link BulkFormat}.
  */
+@Internal
 public final class FileRecordFormatAdapter<T> implements BulkFormat<T> {
 
 	private static final long serialVersionUID = 1L;

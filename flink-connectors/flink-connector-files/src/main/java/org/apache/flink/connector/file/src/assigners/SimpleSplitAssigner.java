@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import java.util.Optional;
  * The {@code SimpleSplitAssigner} hands out splits in a random order, without any consideration
  * for order or locality.
  */
+@PublicEvolving
 public class SimpleSplitAssigner implements FileSplitAssigner {
 
 	private final ArrayList<FileSourceSplit> splits;

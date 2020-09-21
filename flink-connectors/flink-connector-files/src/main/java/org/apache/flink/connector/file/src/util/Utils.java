@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
@@ -29,6 +30,7 @@ import java.io.IOException;
 /**
  * Miscellaneous utilities for the file source.
  */
+@PublicEvolving
 public final class Utils {
 
 	/**

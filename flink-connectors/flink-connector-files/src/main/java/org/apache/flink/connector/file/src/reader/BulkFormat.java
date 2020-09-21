@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
@@ -89,6 +90,7 @@ import java.io.Serializable;
  * <p>For the {@code BulkFormat}, one batch (as returned by {@link BulkFormat.Reader#readBatch()}) is
  * handed over as one.
  */
+@PublicEvolving
 public interface BulkFormat<T> extends Serializable {
 
 	/**

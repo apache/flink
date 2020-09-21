@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.file.src.compression;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
@@ -35,6 +36,7 @@ import java.util.Map;
 /**
  * A collection of common compression formats and de-compressors.
  */
+@PublicEvolving
 public final class StandardDeCompressors {
 
 	/** All supported file compression formats, by common file extensions. */

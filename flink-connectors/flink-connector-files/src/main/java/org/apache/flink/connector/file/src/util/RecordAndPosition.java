@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.src.util;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
  * A record, together with the reader position to be stored in the checkpoint.
  *
@@ -37,6 +39,7 @@ package org.apache.flink.connector.file.src.util;
  * may want to avoid a skip-record-count all together, so that they don't skip the wrong records when
  * the filter gets updated around a checkpoint/savepoint.
  */
+@PublicEvolving
 public class RecordAndPosition<E> {
 
 	/**
