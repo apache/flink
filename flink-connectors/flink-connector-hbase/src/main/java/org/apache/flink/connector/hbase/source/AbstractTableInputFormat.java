@@ -19,6 +19,7 @@
 package org.apache.flink.connector.hbase.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -27,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.core.io.InputSplitAssigner;
 
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -44,7 +46,7 @@ import java.util.List;
  * Abstract {@link InputFormat} to read data from HBase tables.
  */
 @Internal
-abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
+public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractTableInputFormat.class);
 	private static final long serialVersionUID = 1L;
@@ -52,6 +54,7 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	// helper variable to decide whether the input is exhausted or not
 	protected boolean endReached = false;
 
+	protected transient Connection connection = null;
 	protected transient HTable table = null;
 	protected transient Scan scan = null;
 
@@ -67,6 +70,13 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	public AbstractTableInputFormat(org.apache.hadoop.conf.Configuration hConf) {
 		serializedConfig = HBaseConfigurationUtil.serializeConfiguration(hConf);
 	}
+
+	/**
+	 * Creates a {@link Scan} object and opens the {@link HTable} connection to initialize the HBase table.
+	 *
+	 * @throws IOException Thrown, if the connection could not be opened due to an I/O problem.
+	 */
+	protected abstract void initTable() throws IOException;
 
 	/**
 	 * Returns an instance of Scan that retrieves the required subset of records from the HBase table.
@@ -94,33 +104,25 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 	 */
 	protected abstract T mapResultToOutType(Result r);
 
-	/**
-	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
-	 *
-	 * <p>These are opened here because they are needed in the createInputSplits
-	 * which is called before the openInputFormat method.
-	 *
-	 * <p>The connection is opened in this method and closed in {@link #closeInputFormat()}.
-	 *
-	 * @param parameters The configuration that is to be used
-	 * @see Configuration
-	 */
-	public abstract void configure(Configuration parameters);
+	@Override
+	public void configure(Configuration parameters) {
+	}
 
 	protected org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
 		return HBaseConfigurationUtil.deserializeConfiguration(serializedConfig, HBaseConfigurationUtil.getHBaseConfiguration());
 	}
 
+	/**
+	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
+	 * The connection is opened in this method and closed in {@link #close()}.
+	 *
+	 * @param split The split to be opened.
+	 * @throws IOException Thrown, if the spit could not be opened due to an I/O problem.
+	 */
 	@Override
 	public void open(TableInputSplit split) throws IOException {
-		if (table == null) {
-			throw new IOException("The HBase table has not been opened! " +
-				"This needs to be done in configure().");
-		}
-		if (scan == null) {
-			throw new IOException("Scan has not been initialized! " +
-				"This needs to be done in configure().");
-		}
+		initTable();
+
 		if (split == null) {
 			throw new IOException("Input split is null!");
 		}
@@ -186,73 +188,79 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 			if (resultScanner != null) {
 				resultScanner.close();
 			}
+			closeTable();
 		} finally {
 			resultScanner = null;
 		}
 	}
 
-	@Override
-	public void closeInputFormat() throws IOException {
-		try {
-			if (table != null) {
+	public void closeTable() {
+		if (table != null) {
+			try {
 				table.close();
+			} catch (IOException e) {
+				LOG.warn("Exception occurs while closing HBase Table.", e);
 			}
-		} finally {
 			table = null;
+		}
+		if (connection != null) {
+			try {
+				connection.close();
+			} catch (IOException e) {
+				LOG.warn("Exception occurs while closing HBase Connection.", e);
+			}
+			connection = null;
 		}
 	}
 
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
-		if (table == null) {
-			throw new IOException("The HBase table has not been opened! " +
-				"This needs to be done in configure().");
-		}
-		if (scan == null) {
-			throw new IOException("Scan has not been initialized! " +
-				"This needs to be done in configure().");
-		}
+		try {
+			initTable();
 
-		// Get the starting and ending row keys for every region in the currently open table
-		final Pair<byte[][], byte[][]> keys = table.getRegionLocator().getStartEndKeys();
-		if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
-			throw new IOException("Expecting at least one region.");
-		}
-		final byte[] startRow = scan.getStartRow();
-		final byte[] stopRow = scan.getStopRow();
-		final boolean scanWithNoLowerBound = startRow.length == 0;
-		final boolean scanWithNoUpperBound = stopRow.length == 0;
-
-		final List<TableInputSplit> splits = new ArrayList<TableInputSplit>(minNumSplits);
-		for (int i = 0; i < keys.getFirst().length; i++) {
-			final byte[] startKey = keys.getFirst()[i];
-			final byte[] endKey = keys.getSecond()[i];
-			final String regionLocation = table.getRegionLocator().getRegionLocation(startKey, false).getHostnamePort();
-			// Test if the given region is to be included in the InputSplit while splitting the regions of a table
-			if (!includeRegionInScan(startKey, endKey)) {
-				continue;
+			// Get the starting and ending row keys for every region in the currently open table
+			final Pair<byte[][], byte[][]> keys = table.getRegionLocator().getStartEndKeys();
+			if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
+				throw new IOException("Expecting at least one region.");
 			}
-			// Find the region on which the given row is being served
-			final String[] hosts = new String[]{regionLocation};
+			final byte[] startRow = scan.getStartRow();
+			final byte[] stopRow = scan.getStopRow();
+			final boolean scanWithNoLowerBound = startRow.length == 0;
+			final boolean scanWithNoUpperBound = stopRow.length == 0;
 
-			// Determine if regions contains keys used by the scan
-			boolean isLastRegion = endKey.length == 0;
-			if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
-				(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+			final List<TableInputSplit> splits = new ArrayList<>(minNumSplits);
+			for (int i = 0; i < keys.getFirst().length; i++) {
+				final byte[] startKey = keys.getFirst()[i];
+				final byte[] endKey = keys.getSecond()[i];
+				final String regionLocation = table.getRegionLocator().getRegionLocation(startKey, false).getHostnamePort();
+				// Test if the given region is to be included in the InputSplit while splitting the regions of a table
+				if (!includeRegionInScan(startKey, endKey)) {
+					continue;
+				}
+				// Find the region on which the given row is being served
+				final String[] hosts = new String[]{regionLocation};
 
-				final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
-				final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
-					&& !isLastRegion ? endKey : stopRow;
-				int id = splits.size();
-				final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
-				splits.add(split);
+				// Determine if regions contains keys used by the scan
+				boolean isLastRegion = endKey.length == 0;
+				if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
+					(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+
+					final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
+					final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
+						&& !isLastRegion ? endKey : stopRow;
+					int id = splits.size();
+					final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
+					splits.add(split);
+				}
 			}
+			LOG.info("Created " + splits.size() + " splits");
+			for (TableInputSplit split : splits) {
+				logSplitInfo("created", split);
+			}
+			return splits.toArray(new TableInputSplit[splits.size()]);
+		} finally {
+			closeTable();
 		}
-		LOG.info("Created " + splits.size() + " splits");
-		for (TableInputSplit split : splits) {
-			logSplitInfo("created", split);
-		}
-		return splits.toArray(new TableInputSplit[splits.size()]);
 	}
 
 	/**
@@ -276,4 +284,8 @@ abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, TableInput
 		return null;
 	}
 
+	@VisibleForTesting
+	public Connection getConnection() {
+		return connection;
+	}
 }
