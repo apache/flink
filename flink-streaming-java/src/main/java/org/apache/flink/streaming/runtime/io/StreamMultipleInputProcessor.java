@@ -126,7 +126,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 				StreamTaskSourceInput<?> sourceTaskInput = operatorChain.getSourceTaskInput(sourceInput);
 
 				inputProcessors[i] = new SourceInputProcessor(
-					new AsyncDataOutputToOutput(chainedSourceOutput, operatorChain),
+					new AsyncDataOutputToOutput(chainedSourceOutput, operatorChain, inputWatermarkGauges[i]),
 					sourceTaskInput);
 			}
 			else {
