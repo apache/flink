@@ -29,6 +29,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
+import org.apache.flink.api.connector.source.mocks.MockSourceReader.MockNoMoreSplitsEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.metrics.Counter;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -542,8 +544,12 @@ public class MultipleInputStreamTaskTest {
 
 		try (StreamTaskMailboxTestHarness<String> testHarness =
 				new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+					.modifyExecutionConfig(config -> config.enableObjectReuse())
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-					.addInput(BasicTypeInfo.INT_TYPE_INFO)
+					.addSourceInput(
+						new SourceOperatorFactory<>(
+							new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 2, true),
+							WatermarkStrategy.forGenerator(ctx -> new RecordToWatermarkGenerator())))
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
 					.setupOperatorChain(mainOperatorId, new MapToStringMultipleInputOperatorFactory(3))
 					.chain(
@@ -581,7 +587,8 @@ public class MultipleInputStreamTaskTest {
 			assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
 
-			testHarness.processElement(new Watermark(2L), 1);
+			addSourceRecords(testHarness, 1, 2);
+			testHarness.processAll();
 			assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, mainInputWatermarkGauge.getValue().longValue());
 			assertEquals(1L, mainInput1WatermarkGauge.getValue().longValue());
@@ -591,7 +598,7 @@ public class MultipleInputStreamTaskTest {
 			assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
 
-			testHarness.processElement(new Watermark(2L), 2);
+			testHarness.processElement(new Watermark(2L), 1);
 			assertEquals(1L, taskInputWatermarkGauge.getValue().longValue());
 			assertEquals(1L, mainInputWatermarkGauge.getValue().longValue());
 			assertEquals(1L, mainInput1WatermarkGauge.getValue().longValue());
@@ -602,7 +609,8 @@ public class MultipleInputStreamTaskTest {
 			assertEquals(2L, chainedOutputWatermarkGauge.getValue().longValue());
 
 			testHarness.processElement(new Watermark(4L), 0);
-			testHarness.processElement(new Watermark(3L), 1);
+			addSourceRecords(testHarness, 1, 3);
+			testHarness.processAll();
 			assertEquals(2L, taskInputWatermarkGauge.getValue().longValue());
 			assertEquals(2L, mainInputWatermarkGauge.getValue().longValue());
 			assertEquals(4L, mainInput1WatermarkGauge.getValue().longValue());
@@ -612,6 +620,7 @@ public class MultipleInputStreamTaskTest {
 			assertEquals(2L, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(4L, chainedOutputWatermarkGauge.getValue().longValue());
 
+			finishAddingRecords(testHarness, 1);
 			testHarness.endInput();
 			testHarness.waitForTaskCompletion();
 		}
@@ -807,9 +816,7 @@ public class MultipleInputStreamTaskTest {
 			StreamTaskMailboxTestHarness<String> testHarness,
 			int sourceId,
 			int... records) throws Exception {
-		StreamConfig.InputConfig[] inputs = testHarness.getStreamTask().getConfiguration().getInputs(testHarness.getClass().getClassLoader());
-		StreamConfig.SourceInputConfig input = (StreamConfig.SourceInputConfig) inputs[sourceId];
-		OperatorID sourceOperatorID = testHarness.getStreamTask().operatorChain.getSourceTaskInput(input).getOperatorID();
+		OperatorID sourceOperatorID = getSourceOperatorID(testHarness, sourceId);
 
 		// Prepare the source split and assign it to the source reader.
 		MockSourceSplit split = new MockSourceSplit(0, 0, records.length);
@@ -824,6 +831,18 @@ public class MultipleInputStreamTaskTest {
 		testHarness.getStreamTask().dispatchOperatorEvent(
 			sourceOperatorID,
 			new SerializedValue<>(addSplitEvent));
+	}
+
+	private static OperatorID getSourceOperatorID(StreamTaskMailboxTestHarness<String> testHarness, int sourceId) {
+		StreamConfig.InputConfig[] inputs = testHarness.getStreamTask().getConfiguration().getInputs(testHarness.getClass().getClassLoader());
+		StreamConfig.SourceInputConfig input = (StreamConfig.SourceInputConfig) inputs[sourceId];
+		return testHarness.getStreamTask().operatorChain.getSourceTaskInput(input).getOperatorID();
+	}
+
+	private void finishAddingRecords(StreamTaskMailboxTestHarness<String> testHarness, int sourceId) throws Exception {
+		testHarness.getStreamTask().dispatchOperatorEvent(
+			getSourceOperatorID(testHarness, sourceId),
+			new SerializedValue<>(new SourceEventWrapper(new MockNoMoreSplitsEvent())));
 	}
 
 	static class LifeCycleTrackingMapToStringMultipleInputOperator
