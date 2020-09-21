@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -53,6 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
@@ -157,9 +159,9 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 	}
 
 	@Override
-	public Iterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
-		Iterator<Tuple2<KEY, W>> keysAndWindows = getKeyedStateBackend()
-			.<W>getKeysAndNamespaces(descriptor.getName()).iterator();
+	public CloseableIterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
+		Stream<Tuple2<KEY, W>> keysAndWindows = getKeyedStateBackend()
+			.getKeysAndNamespaces(descriptor.getName());
 
 		return new IteratorWithRemove<>(keysAndWindows);
 	}
@@ -261,12 +263,15 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 		}
 	}
 
-	private static class IteratorWithRemove<T> implements Iterator<T> {
+	private static class IteratorWithRemove<T> implements CloseableIterator<T> {
 
 		private final Iterator<T> iterator;
 
-		private IteratorWithRemove(Iterator<T> iterator) {
-			this.iterator = iterator;
+		private final AutoCloseable resource;
+
+		private IteratorWithRemove(Stream<T> stream) {
+			this.iterator = stream.iterator();
+			this.resource = stream;
 		}
 
 		@Override
@@ -281,5 +286,10 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 
 		@Override
 		public void remove() { }
+
+		@Override
+		public void close() throws Exception {
+			resource.close();
+		}
 	}
 }
