@@ -257,13 +257,13 @@ function wait_rest_endpoint_up {
   local query_url=$1
   local endpoint_name=$2
   local successful_response_regex=$3
-  # wait at most 10 seconds until the endpoint is up
-  local TIMEOUT=20
+  # wait at most 30 seconds until the endpoint is up
+  local TIMEOUT=30
   for i in $(seq 1 ${TIMEOUT}); do
     # without the || true this would exit our script if the endpoint is not yet up
     QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$query_url" 2> /dev/null || true)
 
-    # ensure the response adapts with the suceessful regex
+    # ensure the response adapts with the successful regex
     if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
       echo "${endpoint_name} REST endpoint is up."
       return
