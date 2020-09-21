@@ -369,6 +369,52 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 	}
 
 	@Test
+	public void testFlushWithBatchSizeEqualsZero() throws SQLException, IOException {
+		JdbcOptions jdbcOptions = JdbcOptions.builder()
+			.setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+			.setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+			.setTableName(OUTPUT_TABLE_2)
+			.build();
+		JdbcDmlOptions dmlOptions = JdbcDmlOptions.builder()
+			.withTableName(jdbcOptions.getTableName())
+			.withDialect(jdbcOptions.getDialect())
+			.withFieldNames(fieldNames)
+			.build();
+		JdbcExecutionOptions executionOptions = JdbcExecutionOptions.builder()
+			.withBatchSize(0)
+			.build();
+
+		outputFormat = new JdbcDynamicOutputFormatBuilder()
+			.setJdbcOptions(jdbcOptions)
+			.setFieldDataTypes(fieldDataTypes)
+			.setJdbcDmlOptions(dmlOptions)
+			.setJdbcExecutionOptions(executionOptions)
+			.setRowDataTypeInfo(rowDataTypeInfo)
+			.build();
+		setRuntimeContext(outputFormat, true);
+
+		try (
+			Connection dbConn = DriverManager.getConnection(DERBY_EBOOKSHOP_DB.getUrl());
+			PreparedStatement statement = dbConn.prepareStatement(SELECT_ALL_NEWBOOKS_2)
+		) {
+			outputFormat.open(0, 1);
+			for (int i = 0; i < 2; ++i) {
+				outputFormat.writeRecord(buildGenericData(
+					TEST_DATA[i].id,
+					TEST_DATA[i].title,
+					TEST_DATA[i].author,
+					TEST_DATA[i].price,
+					TEST_DATA[i].qty));
+			}
+			try (ResultSet resultSet = statement.executeQuery()) {
+				assertFalse(resultSet.next());
+			}
+		} finally {
+			outputFormat.close();
+		}
+	}
+
+	@Test
 	public void testInvalidConnectionInJdbcOutputFormat() throws IOException, SQLException {
 		JdbcOptions jdbcOptions = JdbcOptions.builder()
 			.setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
