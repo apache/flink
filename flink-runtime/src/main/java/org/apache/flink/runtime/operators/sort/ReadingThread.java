@@ -20,7 +20,11 @@ package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.util.MutableObjectIterator;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The thread that consumes the input data and puts it into a buffer that will be sorted.
@@ -43,17 +47,17 @@ final class ReadingThread<E> extends ThreadBase<E> {
 	 * @param dispatcher The queues used to pass buffers between the threads.
 	 */
 	ReadingThread(
-			ExceptionHandler<IOException> exceptionHandler,
+			@Nullable ExceptionHandler<IOException> exceptionHandler,
 			MutableObjectIterator<E> reader,
 			StageMessageDispatcher<E> dispatcher,
-			LargeRecordHandler<E> largeRecordsHandler,
-			E readTarget,
+			@Nullable LargeRecordHandler<E> largeRecordsHandler,
+			@Nullable E readTarget,
 			long startSpillingBytes) {
 		super(exceptionHandler, "SortMerger Reading Thread", dispatcher);
 
 		// members
 		this.sorterGateway = new SorterInputGateway<>(dispatcher, largeRecordsHandler, startSpillingBytes);
-		this.reader = reader;
+		this.reader = checkNotNull(reader);
 		this.readTarget = readTarget;
 	}
 

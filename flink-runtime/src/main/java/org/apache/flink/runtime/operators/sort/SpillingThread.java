@@ -35,6 +35,8 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ import java.util.Queue;
 
 import static org.apache.flink.runtime.operators.sort.CircularElement.EOF_MARKER;
 import static org.apache.flink.runtime.operators.sort.CircularElement.SPILLING_MARKER;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The thread that handles the spilling of intermediate results and sets up the merging. It also merges the
@@ -53,7 +56,6 @@ import static org.apache.flink.runtime.operators.sort.CircularElement.SPILLING_M
 final class SpillingThread<E> extends ThreadBase<E> {
 	/**
 	 * An interface for injecting custom behaviour for spilling and merging phases.
-	 * @param <E>
 	 */
 	interface SpillingBehaviour<E> {
 		default void open() {}
@@ -61,7 +63,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		default void close() {}
 
 		/**
-		 * An method that allows adjusting the spilling phase. We can inject e.g. combining the elements while spilling.
+		 * A method that allows adjusting the spilling phase. We can inject e.g. combining the elements while spilling.
 		 */
 		void spillBuffer(
 			CircularElement<E> element,
@@ -69,7 +71,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 			LargeRecordHandler<E> largeRecordHandler) throws IOException;
 
 		/**
-		 * An method that allows adjusting the merging phase. We can inject e.g. combining the spilled elements.
+		 * A method that allows adjusting the merging phase. We can inject e.g. combining the spilled elements.
 		 */
 		void mergeRecords(MergeIterator<E> mergeIterator, ChannelWriterOutputView output) throws IOException;
 	}
@@ -103,24 +105,8 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 	private final int maxNumWriteBuffers;
 
-	/**
-	 * Creates the spilling thread.
-	 * @param exceptionHandler The exception handler to call for all exceptions.
-	 * @param dispatcher The queues used to pass buffers between the threads.
-	 * @param memManager The memory manager used to allocate buffers for the readers and writers.
-	 * @param ioManager The I/I manager used to instantiate readers and writers from.
-	 * @param serializer
-	 * @param comparator
-	 * @param sortReadMemory
-	 * @param writeMemory
-	 * @param maxNumFileHandles
-	 * @param spillingChannelManager
-	 * @param largeRecordHandler
-	 * @param minNumWriteBuffers
-	 * @param maxNumWriteBuffers
-	 */
 	SpillingThread(
-			ExceptionHandler<IOException> exceptionHandler,
+			@Nullable ExceptionHandler<IOException> exceptionHandler,
 			StageMessageDispatcher<E> dispatcher,
 			MemoryManager memManager,
 			IOManager ioManager,
@@ -130,21 +116,21 @@ final class SpillingThread<E> extends ThreadBase<E> {
 			List<MemorySegment> writeMemory,
 			int maxNumFileHandles,
 			SpillChannelManager spillingChannelManager,
-			LargeRecordHandler<E> largeRecordHandler,
+			@Nullable LargeRecordHandler<E> largeRecordHandler,
 			SpillingBehaviour<E> spillingBehaviour,
 			int minNumWriteBuffers,
 			int maxNumWriteBuffers) {
 		super(exceptionHandler, "SortMerger spilling thread", dispatcher);
-		this.memManager = memManager;
-		this.ioManager = ioManager;
-		this.serializer = serializer;
-		this.comparator = comparator;
-		this.mergeReadMemory = sortReadMemory;
-		this.writeMemory = writeMemory;
+		this.memManager = checkNotNull(memManager);
+		this.ioManager = checkNotNull(ioManager);
+		this.serializer = checkNotNull(serializer);
+		this.comparator = checkNotNull(comparator);
+		this.mergeReadMemory = checkNotNull(sortReadMemory);
+		this.writeMemory = checkNotNull(writeMemory);
 		this.maxFanIn = maxNumFileHandles;
-		this.spillChannelManager = spillingChannelManager;
+		this.spillChannelManager = checkNotNull(spillingChannelManager);
 		this.largeRecordHandler = largeRecordHandler;
-		this.spillingBehaviour = spillingBehaviour;
+		this.spillingBehaviour = checkNotNull(spillingBehaviour);
 		this.minNumWriteBuffers = minNumWriteBuffers;
 		this.maxNumWriteBuffers = maxNumWriteBuffers;
 	}
@@ -359,11 +345,11 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 			// open next channel
 			FileIOChannel.ID channel = enumerator.next();
-			spillChannelManager.registerChannelToBeRemovedAtShudown(channel);
+			spillChannelManager.registerChannelToBeRemovedAtShutdown(channel);
 
 			// create writer
 			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
-			spillChannelManager.registerOpenChannelToBeRemovedAtShudown(writer);
+			spillChannelManager.registerOpenChannelToBeRemovedAtShutdown(writer);
 			final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, this.writeMemory,
 																		this.memManager.getPageSize());
 
@@ -373,7 +359,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 			LOG.debug("Spilled buffer " + element.getId() + ".");
 
 			output.close();
-			spillChannelManager.unregisterOpenChannelToBeRemovedAtShudown(writer);
+			spillChannelManager.unregisterOpenChannelToBeRemovedAtShutdown(writer);
 
 			if (output.getBytesWritten() > 0) {
 				channelIDs.add(new ChannelWithBlockCount(channel, output.getBlockCount()));
@@ -444,8 +430,8 @@ final class SpillingThread<E> extends ThreadBase<E> {
 			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel.getChannel());
 
 			readerList.add(reader);
-			spillChannelManager.registerOpenChannelToBeRemovedAtShudown(reader);
-			spillChannelManager.unregisterChannelToBeRemovedAtShudown(channel.getChannel());
+			spillChannelManager.registerOpenChannelToBeRemovedAtShutdown(reader);
+			spillChannelManager.unregisterChannelToBeRemovedAtShutdown(channel.getChannel());
 
 			// wrap channel reader as a view, to get block spanning record deserialization
 			final ChannelReaderInputView inView = new ChannelReaderInputView(reader, segsForChannel,
@@ -532,9 +518,9 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 		// create a new channel writer
 		final FileIOChannel.ID mergedChannelID = this.ioManager.createChannel();
-		spillChannelManager.registerChannelToBeRemovedAtShudown(mergedChannelID);
+		spillChannelManager.registerChannelToBeRemovedAtShutdown(mergedChannelID);
 		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
-		spillChannelManager.registerOpenChannelToBeRemovedAtShudown(writer);
+		spillChannelManager.registerOpenChannelToBeRemovedAtShutdown(writer);
 		final ChannelWriterOutputView output = new ChannelWriterOutputView(
 			writer,
 			writeBuffers,
@@ -546,12 +532,12 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		final int numBlocksWritten = output.getBlockCount();
 
 		// register merged result to be removed at shutdown
-		spillChannelManager.unregisterOpenChannelToBeRemovedAtShudown(writer);
+		spillChannelManager.unregisterOpenChannelToBeRemovedAtShutdown(writer);
 
 		// remove the merged channel readers from the clear-at-shutdown list
 		for (FileIOChannel access : channelAccesses) {
 			access.closeAndDelete();
-			spillChannelManager.unregisterOpenChannelToBeRemovedAtShudown(access);
+			spillChannelManager.unregisterOpenChannelToBeRemovedAtShutdown(access);
 		}
 
 		return new ChannelWithBlockCount(mergedChannelID, numBlocksWritten);

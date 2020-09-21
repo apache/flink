@@ -51,7 +51,7 @@ final class SpillChannelManager implements AutoCloseable {
 	 *
 	 * @param channel The channel id.
 	 */
-	synchronized void registerChannelToBeRemovedAtShudown(FileIOChannel.ID channel) {
+	synchronized void registerChannelToBeRemovedAtShutdown(FileIOChannel.ID channel) {
 		channelsToDeleteAtShutdown.add(channel);
 	}
 
@@ -60,7 +60,7 @@ final class SpillChannelManager implements AutoCloseable {
 	 *
 	 * @param channel The channel id.
 	 */
-	synchronized void unregisterChannelToBeRemovedAtShudown(FileIOChannel.ID channel) {
+	synchronized void unregisterChannelToBeRemovedAtShutdown(FileIOChannel.ID channel) {
 		channelsToDeleteAtShutdown.remove(channel);
 	}
 
@@ -69,7 +69,7 @@ final class SpillChannelManager implements AutoCloseable {
 	 *
 	 * @param channel The channel reader/writer.
 	 */
-	synchronized void registerOpenChannelToBeRemovedAtShudown(FileIOChannel channel) {
+	synchronized void registerOpenChannelToBeRemovedAtShutdown(FileIOChannel channel) {
 		openChannels.add(channel);
 	}
 
@@ -78,7 +78,7 @@ final class SpillChannelManager implements AutoCloseable {
 	 *
 	 * @param channel The channel reader/writer.
 	 */
-	synchronized void unregisterOpenChannelToBeRemovedAtShudown(FileIOChannel channel) {
+	synchronized void unregisterOpenChannelToBeRemovedAtShutdown(FileIOChannel channel) {
 		openChannels.remove(channel);
 	}
 

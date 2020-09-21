@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base class for all working threads in this sort-merger. The specific threads for reading, sorting, spilling,
@@ -52,18 +56,18 @@ abstract class ThreadBase<E> extends Thread implements Thread.UncaughtExceptionH
 	 * @param queues The queues used to pass buffers between the threads.
 	 */
 	protected ThreadBase(
-			ExceptionHandler<IOException> exceptionHandler,
+			@Nullable ExceptionHandler<IOException> exceptionHandler,
 			String name,
 			StageMessageDispatcher<E> queues) {
 		// thread setup
-		super(name);
+		super(checkNotNull(name));
 		this.setDaemon(true);
 
 		// exception handling
 		this.exceptionHandler = exceptionHandler;
 		this.setUncaughtExceptionHandler(this);
 
-		this.dispatcher = queues;
+		this.dispatcher = checkNotNull(queues);
 		this.alive = true;
 	}
 

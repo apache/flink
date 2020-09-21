@@ -34,12 +34,19 @@ import java.util.NoSuchElementException;
  * interval.
  */
 final class CombineValueIterator<E> implements Iterator<E>, Iterable<E> {
+
 	private static final Logger LOG = LoggerFactory.getLogger(CombineValueIterator.class);
+
 	private final InMemorySorter<E> buffer; // the buffer from which values are returned
+
 	private final E recordReuse;
+
 	private final boolean objectReuseEnabled;
+
 	private int last; // the position of the last value to be returned
+
 	private int position; // the position of the next value to be returned
+
 	private boolean iteratorAvailable;
 
 	/**

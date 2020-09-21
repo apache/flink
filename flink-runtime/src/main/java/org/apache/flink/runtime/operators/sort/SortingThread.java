@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators.sort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 import static org.apache.flink.runtime.operators.sort.CircularElement.EOF_MARKER;
@@ -43,7 +45,8 @@ class SortingThread<E> extends ThreadBase<E> {
 	 * @param dispatcher The queues used to pass buffers between the threads.
 	 */
 	public SortingThread(
-		ExceptionHandler<IOException> exceptionHandler, StageMessageDispatcher<E> dispatcher) {
+			@Nullable ExceptionHandler<IOException> exceptionHandler,
+			StageMessageDispatcher<E> dispatcher) {
 		super(exceptionHandler, "SortMerger sorting thread", dispatcher);
 
 		// members

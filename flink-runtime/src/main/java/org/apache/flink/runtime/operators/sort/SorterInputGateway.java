@@ -23,7 +23,11 @@ import org.apache.flink.runtime.operators.sort.StageRunner.SortStage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A gateway for writing records into the sort/merge process.
@@ -44,13 +48,13 @@ final class SorterInputGateway<E> {
 	 */
 	SorterInputGateway(
 			StageRunner.StageMessageDispatcher<E> dispatcher,
-			LargeRecordHandler<E> largeRecordsHandler,
+			@Nullable LargeRecordHandler<E> largeRecordsHandler,
 			long startSpillingBytes) {
 
 		// members
 		this.bytesUntilSpilling = startSpillingBytes;
 		this.largeRecords = largeRecordsHandler;
-		this.dispatcher = dispatcher;
+		this.dispatcher = checkNotNull(dispatcher);
 
 		if (bytesUntilSpilling < 1) {
 			this.dispatcher.send(SortStage.SORT, CircularElement.spillingMarker());
