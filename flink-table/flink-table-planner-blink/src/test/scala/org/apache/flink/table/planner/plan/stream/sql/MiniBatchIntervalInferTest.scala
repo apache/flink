@@ -428,14 +428,10 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   private def withEarlyFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
-    val preEarlyFireInterval = if (tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).isPresent) {
-      tableConfig.getConfiguration
-        .get(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY).toMillis
-    } else {
-      null
-    }
-    if (preEarlyFireInterval != null && (preEarlyFireInterval != intervalInMillis)) { //
+    val earlyFireDelay: Duration = tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
+      .orElse(null)
+    if (earlyFireDelay != null && (earlyFireDelay.toMillis != intervalInMillis)) { //
       // earlyFireInterval of the two query config is not equal and not the default
       throw new RuntimeException("Currently not support different earlyFireInterval configs in " +
         "one job")
