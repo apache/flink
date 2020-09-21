@@ -45,13 +45,13 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -77,7 +77,7 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 
 	private transient BufferingCollector<OUT> out;
 
-	private transient Iterator<Tuple2<K, N>> keysAndNamespaces;
+	private transient ClosableIterator<Tuple2<K, N>> keysAndNamespaces;
 
 	/**
 	 * Creates an input format for reading partitioned state from an operator in a savepoint.
@@ -191,6 +191,7 @@ public class KeyedStateInputFormat<K, N, OUT> extends RichInputFormat<OUT, KeyGr
 	@Override
 	public void close() throws IOException {
 		try {
+			IOUtils.closeQuietly(keysAndNamespaces);
 			operator.close();
 			registry.close();
 		} catch (Exception e) {

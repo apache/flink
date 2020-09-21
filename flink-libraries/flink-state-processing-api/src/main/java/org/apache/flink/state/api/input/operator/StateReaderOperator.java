@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.state.api.input.ClosableIterator;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.state.api.runtime.VoidTriggerable;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -37,7 +38,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 /**
  * Base class for executing functions that read keyed state.
@@ -78,7 +78,7 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT> imple
 
 	public abstract void processElement(KEY key, N namespace, Collector<OUT> out) throws Exception;
 
-	public abstract Iterator<Tuple2<KEY, N>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception;
+	public abstract ClosableIterator<Tuple2<KEY, N>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception;
 
 	public final void setup(
 		ExecutionConfig executionConfig,
