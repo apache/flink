@@ -52,7 +52,7 @@ public class AvroDeserializationSchemaTest {
 	}
 
 	@Test
-	public void testSpecificRecordWithConfluentSchemaRegistry() throws Exception {
+	public void testSpecificRecord() throws Exception {
 		DeserializationSchema<Address> deserializer = AvroDeserializationSchema.forSpecific(Address.class);
 
 		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());

@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -40,6 +41,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -95,9 +97,9 @@ public final class AvroFactory<T> {
 		return (schemaString == null) ? null : new Schema.Parser().parse(schemaString);
 	}
 
-	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+	@SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "unchecked"})
 	private static <T> AvroFactory<T> fromSpecific(Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
-		SpecificData specificData = new SpecificData(cl);
+		SpecificData specificData = getSpecificDataForClass((Class<? extends SpecificData>) type, cl);
 		Schema newSchema = extractAvroSpecificSchema(type, specificData);
 
 		return new AvroFactory<>(
@@ -146,11 +148,29 @@ public final class AvroFactory<T> {
 	}
 
 	/**
+	 * Creates a {@link SpecificData} object for a given class. Possibly uses the specific data from the generated
+	 * class with logical conversions applied (avro >= 1.9.x).
+	 *
+	 * <p>Copied over from  {@code SpecificData#getForClass(Class<T> c)} we do not use the method directly, because
+	 * we want to be API backwards compatible with older Avro versions which did not have this method
+	 */
+	public static <T extends SpecificData> SpecificData getSpecificDataForClass(Class<T> type, ClassLoader cl) {
+		try {
+			Field specificDataField = type.getDeclaredField("MODEL$");
+			specificDataField.setAccessible(true);
+			return  (SpecificData) specificDataField.get((Object) null);
+		} catch (IllegalAccessException e) {
+			throw new FlinkRuntimeException("Could not access the MODEL$ field of avro record", e);
+		} catch (NoSuchFieldException e) {
+			return new SpecificData(cl);
+		}
+	}
+
+	/**
 	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this by creating an
 	 * instance of the class using the zero-argument constructor and calling {@link
 	 * SpecificRecord#getSchema()} on it.
 	 */
-	@SuppressWarnings("unchecked")
 	private static Optional<Schema> tryExtractAvroSchemaViaInstance(Class<?> type) {
 		try {
 			SpecificRecord instance = (SpecificRecord) type.newInstance();

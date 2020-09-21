@@ -39,22 +39,22 @@ public class AvroSerializationSchemaTest {
 
 	@Test
 	public void testGenericRecord() throws Exception {
-		SerializationSchema<GenericRecord> deserializationSchema =
+		SerializationSchema<GenericRecord> serializationSchema =
 			AvroSerializationSchema.forGeneric(
 				address.getSchema()
 			);
 
 		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
-		byte[] dataSerialized = deserializationSchema.serialize(address);
+		byte[] dataSerialized = serializationSchema.serialize(address);
 		assertArrayEquals(encodedAddress, dataSerialized);
 	}
 
 	@Test
-	public void testSpecificRecordWithConfluentSchemaRegistry() throws Exception {
-		SerializationSchema<Address> deserializer = AvroSerializationSchema.forSpecific(Address.class);
+	public void testSpecificRecord() throws Exception {
+		SerializationSchema<Address> serializer = AvroSerializationSchema.forSpecific(Address.class);
 
 		byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
-		byte[] serializedAddress = deserializer.serialize(address);
+		byte[] serializedAddress = serializer.serialize(address);
 		assertArrayEquals(encodedAddress, serializedAddress);
 	}
 }
