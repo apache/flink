@@ -19,7 +19,7 @@
 package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -32,11 +32,11 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  */
 public class SqlAlterHiveTableChangeColumn extends SqlChangeColumn {
 
-	private final SqlTableColumn origNewColumn;
+	private final SqlRegularColumn origNewColumn;
 	private final boolean cascade;
 
 	public SqlAlterHiveTableChangeColumn(SqlParserPos pos, SqlIdentifier tableName, boolean cascade,
-			SqlIdentifier oldName, SqlTableColumn newColumn, boolean first, SqlIdentifier after) throws ParseException {
+			SqlIdentifier oldName, SqlRegularColumn newColumn, boolean first, SqlIdentifier after) throws ParseException {
 		super(pos, tableName, oldName, newColumn, after, first, new SqlNodeList(pos));
 		this.origNewColumn = HiveDDLUtils.deepCopyTableColumn(newColumn);
 		HiveDDLUtils.convertDataTypes(newColumn);

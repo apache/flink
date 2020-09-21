@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
@@ -371,10 +372,15 @@ class MergeTableLikeUtil {
 			collectPhysicalFieldsTypes(derivedColumns);
 
 			for (SqlNode derivedColumn : derivedColumns) {
-				final SqlTableColumn tableColumn = (SqlTableColumn) derivedColumn;
 				final TableColumn column;
-				if (tableColumn.isGenerated()) {
-					String fieldName = tableColumn.getName().toString();
+				if (derivedColumn instanceof SqlRegularColumn) {
+					SqlRegularColumn regularColumn = (SqlRegularColumn) derivedColumn;
+					String name = regularColumn.getName().getSimple();
+					LogicalType logicalType = FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
+					column = TableColumn.of(name, TypeConversions.fromLogicalToDataType(logicalType));
+				} else if (derivedColumn instanceof SqlComputedColumn) {
+					SqlComputedColumn computedColumn = (SqlComputedColumn) derivedColumn;
+					String fieldName = computedColumn.getName().toString();
 					if (columns.containsKey(fieldName)) {
 						if (!columns.get(fieldName).isGenerated()) {
 							throw new ValidationException(String.format(
@@ -392,7 +398,7 @@ class MergeTableLikeUtil {
 					}
 
 					SqlNode validatedExpr = sqlValidator.validateParameterizedExpression(
-						tableColumn.getExpr().get(),
+						computedColumn.getExpr(),
 						physicalFieldNamesToTypes);
 					final RelDataType validatedType = sqlValidator.getValidatedNodeType(validatedExpr);
 					column = TableColumn.of(
@@ -401,9 +407,7 @@ class MergeTableLikeUtil {
 						escapeExpressions.apply(validatedExpr));
 					computedFieldNamesToTypes.put(fieldName, validatedType);
 				} else {
-					String name = tableColumn.getName().getSimple();
-					LogicalType logicalType = FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
-					column = TableColumn.of(name, TypeConversions.fromLogicalToDataType(logicalType));
+					throw new ValidationException("Unsupported column type."); // TODO
 				}
 				columns.put(column.getName(), column);
 			}
@@ -411,15 +415,16 @@ class MergeTableLikeUtil {
 
 		private void collectPhysicalFieldsTypes(List<SqlNode> derivedColumns) {
 			for (SqlNode derivedColumn : derivedColumns) {
-				SqlTableColumn column = (SqlTableColumn) derivedColumn;
-				if (!column.isGenerated()) {
-					String name = column.getName().getSimple();
+				if (derivedColumn instanceof SqlRegularColumn) {
+					SqlRegularColumn regularColumn = (SqlRegularColumn) derivedColumn;
+					String name = regularColumn.getName().getSimple();
 					if (columns.containsKey(name)) {
 						throw new ValidationException(String.format(
 							"A column named '%s' already exists in the base table.",
 							name));
 					}
-					RelDataType relType = column.getType().deriveType(sqlValidator, column.getType().getNullable());
+					RelDataType relType = regularColumn.getType()
+						.deriveType(sqlValidator, regularColumn.getType().getNullable());
 					// add field name and field type to physical field list
 					physicalFieldNamesToTypes.put(name, relType);
 				}
