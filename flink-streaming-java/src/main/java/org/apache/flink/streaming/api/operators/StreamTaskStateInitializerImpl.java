@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -216,12 +217,15 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 
 		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
+		final boolean requiresSnapshotLegacyTimers = keyedStatedBackend instanceof AbstractKeyedStateBackend &&
+			((AbstractKeyedStateBackend<K>) keyedStatedBackend).requiresLegacySynchronousTimerSnapshots();
 
 		final InternalTimeServiceManager<K> timeServiceManager = new InternalTimeServiceManager<>(
 			keyGroupRange,
 			keyContext,
 			keyedStatedBackend,
-			processingTimeService);
+			processingTimeService,
+			requiresSnapshotLegacyTimers);
 
 		// and then initialize the timer services
 		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {

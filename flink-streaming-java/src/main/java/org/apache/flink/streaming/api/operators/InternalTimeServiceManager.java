@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsList;
@@ -74,16 +73,20 @@ public class InternalTimeServiceManager<K> {
 
 	private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
+	private final boolean useLegacySynchronousSnapshots;
+
 	InternalTimeServiceManager(
 			KeyGroupRange localKeyGroupRange,
 			KeyContext keyContext,
 			PriorityQueueSetFactory priorityQueueSetFactory,
-			ProcessingTimeService processingTimeService) {
+			ProcessingTimeService processingTimeService,
+			boolean useLegacySynchronousSnapshots) {
 
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
 		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
 		this.timerServices = new HashMap<>();
 	}
@@ -101,7 +104,6 @@ public class InternalTimeServiceManager<K> {
 		return getInternalTimerService(name, timerSerializer, triggerable);
 	}
 
-	@SuppressWarnings("unchecked")
 	public <N> InternalTimerService<N> getInternalTimerService(
 		String name,
 		TimerSerializer<K, N> timerSerializer,
@@ -154,14 +156,9 @@ public class InternalTimeServiceManager<K> {
 
 	//////////////////				Fault Tolerance Methods				///////////////////
 
-	public void snapshotState(
-			KeyedStateBackend<?> keyedStateBackend,
-			StateSnapshotContext context,
-			String operatorName) throws Exception {
+	public void snapshotState(StateSnapshotContext context, String operatorName) throws Exception {
 		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
-		if (keyedStateBackend instanceof AbstractKeyedStateBackend &&
-			((AbstractKeyedStateBackend<?>) keyedStateBackend).requiresLegacySynchronousTimerSnapshots()) {
-
+		if (useLegacySynchronousSnapshots) {
 			KeyedStateCheckpointOutputStream out;
 			try {
 				out = context.getRawKeyedOperatorStateOutput();

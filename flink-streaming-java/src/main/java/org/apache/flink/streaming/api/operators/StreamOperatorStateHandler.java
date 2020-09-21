@@ -182,7 +182,7 @@ public class StreamOperatorStateHandler {
 		try {
 			if (timeServiceManager.isPresent()) {
 				checkState(keyedStateBackend != null, "keyedStateBackend should be available with timeServiceManager");
-				timeServiceManager.get().snapshotState(keyedStateBackend, snapshotContext, operatorName);
+				timeServiceManager.get().snapshotState(snapshotContext, operatorName);
 			}
 			streamOperator.snapshotState(snapshotContext);
 
@@ -218,13 +218,13 @@ public class StreamOperatorStateHandler {
 	}
 
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		if (keyedStateBackend != null && keyedStateBackend instanceof CheckpointListener) {
+		if (keyedStateBackend instanceof CheckpointListener) {
 			((CheckpointListener) keyedStateBackend).notifyCheckpointComplete(checkpointId);
 		}
 	}
 
 	public void notifyCheckpointAborted(long checkpointId) throws Exception {
-		if (keyedStateBackend != null && keyedStateBackend instanceof CheckpointListener) {
+		if (keyedStateBackend instanceof CheckpointListener) {
 			((CheckpointListener) keyedStateBackend).notifyCheckpointAborted(checkpointId);
 		}
 	}
@@ -278,7 +278,7 @@ public class StreamOperatorStateHandler {
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
+	@SuppressWarnings({"unchecked"})
 	public void setCurrentKey(Object key) {
 		if (keyedStateBackend != null) {
 			try {
