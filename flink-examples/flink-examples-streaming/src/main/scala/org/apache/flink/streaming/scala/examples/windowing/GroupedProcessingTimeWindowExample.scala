@@ -18,13 +18,12 @@
 
 package org.apache.flink.streaming.scala.examples.windowing
 
-import java.util.concurrent.TimeUnit.MILLISECONDS
-
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
@@ -42,7 +41,7 @@ object GroupedProcessingTimeWindowExample {
 
     stream
       .keyBy(_._1)
-      .timeWindow(Time.of(2500, MILLISECONDS), Time.of(500, MILLISECONDS))
+      .window(SlidingProcessingTimeWindows.of(Time.milliseconds(2500), Time.milliseconds(500)))
       .reduce((value1, value2) => (value1._1, value1._2 + value2._2))
       .addSink(new SinkFunction[(Long, Long)]() {
         override def invoke(in: (Long, Long)): Unit = {}
