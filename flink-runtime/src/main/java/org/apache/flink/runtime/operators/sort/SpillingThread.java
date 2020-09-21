@@ -310,9 +310,13 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		disposeSortBuffers(true);
 
 		// set lazy iterator
-		this.dispatcher.sendResult(iterators.isEmpty() ? EmptyMutableObjectIterator.get() :
-			iterators.size() == 1 ? iterators.get(0) :
-				new MergeIterator<>(iterators, this.comparator));
+		if (iterators.isEmpty()) {
+			this.dispatcher.sendResult(EmptyMutableObjectIterator.get());
+		} else if (iterators.size() == 1) {
+			this.dispatcher.sendResult(iterators.get(0));
+		} else {
+			this.dispatcher.sendResult(new MergeIterator<>(iterators, this.comparator));
+		}
 	}
 
 	private List<ChannelWithBlockCount> startSpilling(Queue<CircularElement<E>> cache) throws IOException, InterruptedException {
