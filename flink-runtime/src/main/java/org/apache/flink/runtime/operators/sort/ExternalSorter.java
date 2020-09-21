@@ -169,8 +169,8 @@ public class ExternalSorter<E> implements Sorter<E> {
 			// mark as closed
 			this.closed = true;
 		}
-		
-		// from here on, the code is in a try block, because even through errors might be thrown in this block,
+
+		// from here on, the code is in a try block, because even though errors might be thrown in this block,
 		// we need to make sure that all the memory is released.
 		try {
 			// stop all the threads
@@ -193,6 +193,9 @@ public class ExternalSorter<E> implements Sorter<E> {
 			}
 		}
 		finally {
+
+			// now that we closed all the threads, close the queue and disable any further writing/reading
+			this.queues.close();
 
 			// Dispose all in memory sorter in order to clear memory references
 			for (InMemorySorter<?> inMemorySorter : inMemorySorters) {

@@ -138,7 +138,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 	/**
 	 * Entry point of the thread.
 	 */
-	public void go() throws IOException {
+	public void go() throws IOException, InterruptedException {
 
 		final Queue<CircularElement<E>> cache = new ArrayDeque<>();
 		boolean cacheOnly = readCache(cache);
@@ -192,18 +192,14 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		}
 	}
 
-	private boolean readCache(Queue<CircularElement<E>> cache) throws IOException {
+	private boolean readCache(Queue<CircularElement<E>> cache) throws InterruptedException {
 		CircularElement<E> element;
 
 		// ------------------- In-Memory Cache ------------------------
 		// fill cache
 		while (isRunning()) {
 			// take next element from queue
-			try {
-				element = this.dispatcher.take(SortStage.SPILL);
-			} catch (InterruptedException e) {
-				throw wrapWithIOException(e);
-			}
+			element = this.dispatcher.take(SortStage.SPILL);
 
 			if (element == SPILLING_MARKER) {
 				return false;
@@ -320,7 +316,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 				new MergeIterator<>(iterators, this.comparator));
 	}
 
-	private List<ChannelWithBlockCount> startSpilling(Queue<CircularElement<E>> cache) throws IOException {
+	private List<ChannelWithBlockCount> startSpilling(Queue<CircularElement<E>> cache) throws IOException, InterruptedException {
 		final FileIOChannel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
 		List<ChannelWithBlockCount> channelIDs = new ArrayList<>();
 
@@ -328,11 +324,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		CircularElement<E> element;
 		openSpillingBehaviour();
 		while (isRunning()) {
-			try {
-				element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
-			} catch (InterruptedException e) {
-				throw wrapWithIOException(e);
-			}
+			element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
 
 			// check if we are still running
 			if (!isRunning()) {
@@ -579,9 +571,5 @@ final class SpillingThread<E> extends ThreadBase<E> {
 				segs.add(segments.next());
 			}
 		}
-	}
-
-	private IOException wrapWithIOException(InterruptedException e) throws IOException {
-		return new IOException("The sortes has been interrupted", e);
 	}
 }

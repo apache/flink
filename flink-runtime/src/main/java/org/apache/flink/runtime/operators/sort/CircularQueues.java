@@ -92,7 +92,7 @@ final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		this.isFinished = true;
 	}
 }

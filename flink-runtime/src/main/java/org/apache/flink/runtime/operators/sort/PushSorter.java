@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import org.apache.flink.runtime.operators.sort.Sorter;
-
 import java.io.IOException;
 
 /**
@@ -29,7 +27,7 @@ public interface PushSorter<E> extends Sorter<E> {
 	/**
 	 * Writers a new record to the sorter.
 	 */
-	void writeRecord(E record) throws IOException;
+	void writeRecord(E record) throws IOException, InterruptedException;
 
 	/**
 	 * Finalizes the sorting. The method {@link #getIterator()} will

@@ -186,7 +186,7 @@ public final class ExternalSorterBuilder<T> {
 			private final SorterInputGateway<T> recordProducer = pushFactory.sorterInputGateway;
 
 			@Override
-			public void writeRecord(T record) throws IOException {
+			public void writeRecord(T record) throws IOException, InterruptedException {
 				recordProducer.writeRecord(record);
 			}
 
@@ -201,7 +201,7 @@ public final class ExternalSorterBuilder<T> {
 			}
 
 			@Override
-			public void close() throws IOException {
+			public void close() {
 				tExternalSorter.close();
 			}
 		};

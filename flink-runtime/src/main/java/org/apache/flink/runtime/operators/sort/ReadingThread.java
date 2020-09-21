@@ -61,7 +61,7 @@ final class ReadingThread<E> extends ThreadBase<E> {
 		this.readTarget = readTarget;
 	}
 
-	public void go() throws IOException {
+	public void go() throws IOException, InterruptedException {
 		final MutableObjectIterator<E> reader = this.reader;
 
 		E current = reader.next(readTarget);

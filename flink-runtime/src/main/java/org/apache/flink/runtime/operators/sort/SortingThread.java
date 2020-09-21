@@ -56,17 +56,12 @@ class SortingThread<E> extends ThreadBase<E> {
 	/**
 	 * Entry point of the thread.
 	 */
-	public void go() throws IOException {
+	public void go() throws IOException, InterruptedException {
 		boolean alive = true;
 
 		// loop as long as the thread is marked alive
 		while (isRunning() && alive) {
-			CircularElement<E> element = null;
-			try {
-				element = this.dispatcher.take(SortStage.SORT);
-			} catch (InterruptedException e) {
-				throw new IOException("The sorter has been interrupted", e);
-			}
+			CircularElement<E> element = this.dispatcher.take(SortStage.SORT);
 
 			if (element != EOF_MARKER && element != SPILLING_MARKER) {
 

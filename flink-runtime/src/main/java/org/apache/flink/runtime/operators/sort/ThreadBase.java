@@ -89,7 +89,7 @@ abstract class ThreadBase<E> extends Thread implements Thread.UncaughtExceptionH
 	 *
 	 * @throws IOException Exceptions that prohibit correct completion of the work may be thrown by the thread.
 	 */
-	protected abstract void go() throws IOException;
+	protected abstract void go() throws IOException, InterruptedException;
 
 	/**
 	 * Checks whether this thread is still alive.
