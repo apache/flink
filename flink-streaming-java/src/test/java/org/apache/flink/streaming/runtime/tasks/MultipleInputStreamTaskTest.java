@@ -522,16 +522,16 @@ public class MultipleInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testWatermarkMetrics() throws Exception {
-		OperatorID headOperatorId = new OperatorID();
+		OperatorID mainOperatorId = new OperatorID();
 		OperatorID chainedOperatorId = new OperatorID();
 
-		InterceptingOperatorMetricGroup headOperatorMetricGroup = new InterceptingOperatorMetricGroup();
+		InterceptingOperatorMetricGroup mainOperatorMetricGroup = new InterceptingOperatorMetricGroup();
 		InterceptingOperatorMetricGroup chainedOperatorMetricGroup = new InterceptingOperatorMetricGroup();
 		InterceptingTaskMetricGroup taskMetricGroup = new InterceptingTaskMetricGroup() {
 			@Override
 			public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
-				if (id.equals(headOperatorId)) {
-					return headOperatorMetricGroup;
+				if (id.equals(mainOperatorId)) {
+					return mainOperatorMetricGroup;
 				} else if (id.equals(chainedOperatorId)) {
 					return chainedOperatorMetricGroup;
 				} else {
@@ -545,7 +545,7 @@ public class MultipleInputStreamTaskTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.addInput(BasicTypeInfo.INT_TYPE_INFO)
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-					.setupOperatorChain(headOperatorId, new MapToStringMultipleInputOperatorFactory(3))
+					.setupOperatorChain(mainOperatorId, new MapToStringMultipleInputOperatorFactory(3))
 					.chain(
 						chainedOperatorId,
 						new WatermarkMetricOperator(),
@@ -554,61 +554,61 @@ public class MultipleInputStreamTaskTest {
 					.setTaskMetricGroup(taskMetricGroup)
 					.build()) {
 			Gauge<Long> taskInputWatermarkGauge = (Gauge<Long>) taskMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
-			Gauge<Long> headInput1WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.currentInputWatermarkName(1));
-			Gauge<Long> headInput2WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.currentInputWatermarkName(2));
-			Gauge<Long> headInput3WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.currentInputWatermarkName(3));
-			Gauge<Long> headInputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
-			Gauge<Long> headOutputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
+			Gauge<Long> mainInput1WatermarkGauge = (Gauge<Long>) mainOperatorMetricGroup.get(MetricNames.currentInputWatermarkName(1));
+			Gauge<Long> mainInput2WatermarkGauge = (Gauge<Long>) mainOperatorMetricGroup.get(MetricNames.currentInputWatermarkName(2));
+			Gauge<Long> mainInput3WatermarkGauge = (Gauge<Long>) mainOperatorMetricGroup.get(MetricNames.currentInputWatermarkName(3));
+			Gauge<Long> mainInputWatermarkGauge = (Gauge<Long>) mainOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
+			Gauge<Long> mainOutputWatermarkGauge = (Gauge<Long>) mainOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 			Gauge<Long> chainedInputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
 			Gauge<Long> chainedOutputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
 			assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInput1WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInput2WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInput3WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInputWatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInput1WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInput2WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInput3WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainOutputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
 
 			testHarness.processElement(new Watermark(1L), 0);
 			assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
-			assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInput2WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInput3WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInputWatermarkGauge.getValue().longValue());
+			assertEquals(1L, mainInput1WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInput2WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInput3WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainOutputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
 
 			testHarness.processElement(new Watermark(2L), 1);
 			assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
-			assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
-			assertEquals(2L, headInput2WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headInput3WatermarkGauge.getValue().longValue());
-			assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInputWatermarkGauge.getValue().longValue());
+			assertEquals(1L, mainInput1WatermarkGauge.getValue().longValue());
+			assertEquals(2L, mainInput2WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainInput3WatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, mainOutputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
 
 			testHarness.processElement(new Watermark(2L), 2);
 			assertEquals(1L, taskInputWatermarkGauge.getValue().longValue());
-			assertEquals(1L, headInputWatermarkGauge.getValue().longValue());
-			assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
-			assertEquals(2L, headInput2WatermarkGauge.getValue().longValue());
-			assertEquals(2L, headInput3WatermarkGauge.getValue().longValue());
-			assertEquals(1L, headOutputWatermarkGauge.getValue().longValue());
+			assertEquals(1L, mainInputWatermarkGauge.getValue().longValue());
+			assertEquals(1L, mainInput1WatermarkGauge.getValue().longValue());
+			assertEquals(2L, mainInput2WatermarkGauge.getValue().longValue());
+			assertEquals(2L, mainInput3WatermarkGauge.getValue().longValue());
+			assertEquals(1L, mainOutputWatermarkGauge.getValue().longValue());
 			assertEquals(1L, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(2L, chainedOutputWatermarkGauge.getValue().longValue());
 
 			testHarness.processElement(new Watermark(4L), 0);
 			testHarness.processElement(new Watermark(3L), 1);
 			assertEquals(2L, taskInputWatermarkGauge.getValue().longValue());
-			assertEquals(2L, headInputWatermarkGauge.getValue().longValue());
-			assertEquals(4L, headInput1WatermarkGauge.getValue().longValue());
-			assertEquals(3L, headInput2WatermarkGauge.getValue().longValue());
-			assertEquals(2L, headInput3WatermarkGauge.getValue().longValue());
-			assertEquals(2L, headOutputWatermarkGauge.getValue().longValue());
+			assertEquals(2L, mainInputWatermarkGauge.getValue().longValue());
+			assertEquals(4L, mainInput1WatermarkGauge.getValue().longValue());
+			assertEquals(3L, mainInput2WatermarkGauge.getValue().longValue());
+			assertEquals(2L, mainInput3WatermarkGauge.getValue().longValue());
+			assertEquals(2L, mainOutputWatermarkGauge.getValue().longValue());
 			assertEquals(2L, chainedInputWatermarkGauge.getValue().longValue());
 			assertEquals(4L, chainedOutputWatermarkGauge.getValue().longValue());
 
