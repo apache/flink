@@ -128,10 +128,11 @@ public abstract class YarnTestBase extends TestLogger {
 		// workaround for annoying InterruptedException logging:
 		// https://issues.apache.org/jira/browse/YARN-1022
 		"java.lang.InterruptedException",
-		// very specific on purpose
+		// very specific on purpose; whitelist meaningless exceptions that occur during akka shutdown:
 		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
 		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
 		"java.io.IOException: Connection reset by peer",
+		"Caused by: [java.net.ConnectException: Connection refused:",
 
 		// filter out expected ResourceManagerException caused by intended shutdown request
 		YarnResourceManager.ERROR_MASSAGE_ON_SHUTDOWN_REQUEST,
