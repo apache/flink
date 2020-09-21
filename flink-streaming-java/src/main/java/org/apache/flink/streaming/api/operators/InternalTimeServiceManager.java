@@ -192,7 +192,7 @@ public class InternalTimeServiceManager<K> {
 		}
 	}
 
-	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
+	private void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 
