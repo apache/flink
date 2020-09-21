@@ -45,7 +45,7 @@ public final class FileRecords<T> implements RecordsWithSplitIds<RecordAndPositi
 	private BulkFormat.RecordIterator<T> recordsForSplitCurrent;
 
 	@Nullable
-	private BulkFormat.RecordIterator<T> recordsForSplit;
+	private final BulkFormat.RecordIterator<T> recordsForSplit;
 
 	private final Set<String> finishedSplits;
 
@@ -67,8 +67,7 @@ public final class FileRecords<T> implements RecordsWithSplitIds<RecordAndPositi
 		this.splitId = null;
 
 		// move the iterator, from null to value (if first move) or to null (if second move)
-		this.recordsForSplitCurrent = this.recordsForSplit;
-		this.recordsForSplit = null;
+		this.recordsForSplitCurrent = nextSplit != null ? this.recordsForSplit : null;
 
 		return nextSplit;
 	}

@@ -24,9 +24,11 @@ import org.apache.flink.connector.file.src.util.SingletonResultIterator;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Unit tests for the {@link FileRecords} class.
@@ -89,5 +91,36 @@ public class FileRecordsTest {
 		records.nextSplit();
 
 		records.nextRecordFromSplit();
+	}
+
+	@Test
+	public void testRecycleExhaustedBatch() {
+		final AtomicBoolean recycled = new AtomicBoolean(false);
+		final SingletonResultIterator<Object> iter = new SingletonResultIterator<>(() -> recycled.set(true));
+		iter.set(new Object(), 1L, 2L);
+
+		final FileRecords<Object> records = FileRecords.forRecords("test split", iter);
+		records.nextSplit();
+		records.nextRecordFromSplit();
+
+		// make sure we exhausted the iterator
+		assertNull(records.nextRecordFromSplit());
+		assertNull(records.nextSplit());
+
+		records.recycle();
+		assertTrue(recycled.get());
+	}
+
+	@Test
+	public void testRecycleNonExhaustedBatch() {
+		final AtomicBoolean recycled = new AtomicBoolean(false);
+		final SingletonResultIterator<Object> iter = new SingletonResultIterator<>(() -> recycled.set(true));
+		iter.set(new Object(), 1L, 2L);
+
+		final FileRecords<Object> records = FileRecords.forRecords("test split", iter);
+		records.nextSplit();
+
+		records.recycle();
+		assertTrue(recycled.get());
 	}
 }
