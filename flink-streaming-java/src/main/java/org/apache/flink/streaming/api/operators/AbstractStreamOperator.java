@@ -159,9 +159,6 @@ public abstract class AbstractStreamOperator<OUT>
 		try {
 			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
 			this.output = new CountingOutput<>(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
-			if (config.isChainStart()) {
-				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
-			}
 			if (config.isChainEnd()) {
 				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
 			}

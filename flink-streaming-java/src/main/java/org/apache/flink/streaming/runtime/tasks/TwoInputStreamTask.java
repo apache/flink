@@ -71,6 +71,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			inputDeserializer1,
 			inputDeserializer2,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getStreamStatusMaintainer(),
 			mainOperator,
 			twoInputSelectionHandler,

@@ -129,12 +129,13 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			checkpointedInputGates,
 			inputs,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMetricGroup().getIOMetricGroup(),
+			setupNumRecordsInCounter(mainOperator),
 			getStreamStatusMaintainer(),
 			mainOperator,
 			selectionHandler,
 			inputWatermarkGauges,
-			operatorChain,
-			setupNumRecordsInCounter(mainOperator));
+			operatorChain);
 	}
 
 	@Override

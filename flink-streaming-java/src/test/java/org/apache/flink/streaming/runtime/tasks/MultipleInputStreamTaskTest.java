@@ -78,6 +78,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -87,6 +88,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link MultipleInputStreamTask}. Theses tests implicitly also test the
@@ -224,46 +226,70 @@ public class MultipleInputStreamTaskTest {
 		}
 	}
 
+	/**
+	 * With chained sources, task's and main operator's number of input records are two different things.
+	 * The first one should take into account only records comming in from the network, ignoring records
+	 * produced inside the task itself (like via a chained source). Main operator should on the other hand
+	 * report all records from all of the inputs (regardless if it's a network or chained input).
+	 */
 	@Test
-	public void testOperatorMetricReuse() throws Exception {
+	public void testMetrics() throws Exception {
+
+		HashMap<String, OperatorMetricGroup> operatorMetrics = new HashMap<>();
 
 		TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
 			@Override
 			public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
-				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+				OperatorMetricGroup operatorMetricGroup = new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+				operatorMetrics.put(name, operatorMetricGroup);
+				return operatorMetricGroup;
 			}
 		};
 
+		String mainOperatorName = "MainOperator";
 		try (StreamTaskMailboxTestHarness<String> testHarness =
 			new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+				.modifyExecutionConfig(config -> config.enableObjectReuse())
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
+				.addSourceInput(
+					new SourceOperatorFactory<>(
+						new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
+						WatermarkStrategy.noWatermarks()))
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.setupOperatorChain(new DuplicatingOperatorFactory())
+				.setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
+				.name(mainOperatorName)
+				.chain(new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 				.chain(new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 				.chain(new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
 				.finish()
 				.setTaskMetricGroup(taskMetricGroup)
 				.build()) {
+
+			assertTrue(operatorMetrics.containsKey(mainOperatorName));
+			OperatorMetricGroup mainOperatorMetrics = operatorMetrics.get(mainOperatorName);
 			Counter numRecordsInCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
 			Counter numRecordsOutCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
 
 			int numRecords1 = 5;
 			int numRecords2 = 3;
 			int numRecords3 = 2;
+			// add source splits before processing any elements, so the MockSourceReader does not end prematurely
+			for (int x = 0; x < numRecords2; x++) {
+				addSourceRecords(testHarness, 1, 42);
+			}
 			for (int x = 0; x < numRecords1; x++) {
 				testHarness.processElement(new StreamRecord<>("hello"), 0, 0);
 			}
-			for (int x = 0; x < numRecords2; x++) {
+			for (int x = 0; x < numRecords3; x++) {
 				testHarness.processElement(new StreamRecord<>("hello"), 1, 0);
 			}
-			for (int x = 0; x < numRecords3; x++) {
-				testHarness.processElement(new StreamRecord<>("hello"), 2, 0);
-			}
 
-			int totalRecords = numRecords1 + numRecords2 + numRecords3;
-			assertEquals(totalRecords, numRecordsInCounter.getCount());
-			assertEquals((totalRecords) * 2 * 2 * 2, numRecordsOutCounter.getCount());
+			int networkRecordsIn = numRecords1 + numRecords3;
+			int mainOperatorRecordsIn = networkRecordsIn + numRecords2;
+			int totalRecordsOut = mainOperatorRecordsIn * 2 * 2 * 2; // there are three operators duplicating the records
+			assertEquals(mainOperatorRecordsIn, mainOperatorMetrics.getIOMetricGroup().getNumRecordsInCounter().getCount());
+			assertEquals(networkRecordsIn, numRecordsInCounter.getCount());
+			assertEquals(totalRecordsOut, numRecordsOutCounter.getCount());
 			testHarness.waitForTaskCompletion();
 		}
 	}
