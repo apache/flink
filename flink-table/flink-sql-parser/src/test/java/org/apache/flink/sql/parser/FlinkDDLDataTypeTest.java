@@ -19,7 +19,7 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.avatica.util.Casing;
@@ -410,7 +410,7 @@ public class FlinkDDLDataTypeTest {
 			final SqlCreateTable sqlCreateTable = (SqlCreateTable) sqlNode;
 			SqlNodeList columns = sqlCreateTable.getColumnList();
 			assert columns.size() == 1;
-			RelDataType columnType = ((SqlTableColumn) columns.get(0)).getType()
+			RelDataType columnType = ((SqlRegularColumn) columns.get(0)).getType()
 				.deriveType(factory.getValidator());
 			assertEquals(type, columnType);
 		}
@@ -447,7 +447,7 @@ public class FlinkDDLDataTypeTest {
 			final SqlCreateTable sqlCreateTable = (SqlCreateTable) sqlNode;
 			SqlNodeList columns = sqlCreateTable.getColumnList();
 			assert columns.size() == 1;
-			SqlDataTypeSpec dataTypeSpec = ((SqlTableColumn) columns.get(0)).getType();
+			SqlDataTypeSpec dataTypeSpec = ((SqlRegularColumn) columns.get(0)).getType();
 			SqlWriter sqlWriter = new SqlPrettyWriter(factory.createSqlDialect(), false);
 			dataTypeSpec.unparse(sqlWriter, 0, 0);
 			// SqlDataTypeSpec does not take care of the nullable attribute unparse,

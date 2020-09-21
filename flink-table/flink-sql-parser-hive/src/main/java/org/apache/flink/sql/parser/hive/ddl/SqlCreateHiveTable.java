@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.hive.ddl;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.hive.impl.ParseException;
@@ -307,7 +308,7 @@ public class SqlCreateHiveTable extends SqlCreateTable {
 		int traitIndex = 0;
 		for (SqlNode node : columns) {
 			printIndent(writer);
-			SqlTableColumn column = (SqlTableColumn) node;
+			SqlRegularColumn column = (SqlRegularColumn) node;
 			column.getName().unparse(writer, leftPrec, rightPrec);
 			writer.print(" ");
 			column.getType().unparse(writer, leftPrec, rightPrec);

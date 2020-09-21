@@ -21,8 +21,10 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.sql.parser.ddl.SqlAddReplaceColumns;
 import org.apache.flink.sql.parser.ddl.SqlChangeColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
@@ -164,9 +166,13 @@ public class OperationConverterUtils {
 		// TODO: handle watermark and constraints
 	}
 
-	private static TableColumn toTableColumn(SqlTableColumn sqlTableColumn, SqlValidator sqlValidator) {
-		String name = sqlTableColumn.getName().getSimple();
-		SqlDataTypeSpec typeSpec = sqlTableColumn.getType();
+	private static TableColumn toTableColumn(SqlTableColumn tableColumn, SqlValidator sqlValidator) {
+		if (!(tableColumn instanceof SqlRegularColumn)) {
+			throw new TableException("Only regular columns are supported for this operation yet.");
+		}
+		SqlRegularColumn regularColumn = (SqlRegularColumn) tableColumn;
+		String name = regularColumn.getName().getSimple();
+		SqlDataTypeSpec typeSpec = regularColumn.getType();
 		LogicalType logicalType = FlinkTypeFactory.toLogicalType(
 				typeSpec.deriveType(sqlValidator, typeSpec.getNullable()));
 		DataType dataType = TypeConversions.fromLogicalToDataType(logicalType);

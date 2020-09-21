@@ -91,6 +91,7 @@
     "EXTENDED"
     "FUNCTIONS"
     "IF"
+    "METADATA"
     "OVERWRITE"
     "OVERWRITING"
     "PARTITIONED"
@@ -103,6 +104,7 @@
     "TABLES"
     "USE"
     "VIEWS"
+    "VIRTUAL"
     "WATERMARK"
     "WATERMARKS"
   ]
@@ -429,10 +431,12 @@
     # not in core, added in Flink
     "ENFORCED"
     "IF"
+    "METADATA"
     "OVERWRITE"
     "OVERWRITING"
     "PARTITIONED"
     "PARTITIONS"
+    "VIRTUAL"
   ]
 
   # List of non-reserved keywords to remove;
