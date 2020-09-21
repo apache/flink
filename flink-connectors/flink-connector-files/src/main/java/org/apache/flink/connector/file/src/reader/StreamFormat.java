@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.src.reader;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -98,7 +99,7 @@ import java.io.Serializable;
  * @param <T> The type of records created by this format reader.
  */
 @PublicEvolving
-public interface StreamFormat<T> extends Serializable {
+public interface StreamFormat<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Creates a new reader to read in this format. This method is called when a fresh reader is
@@ -167,6 +168,7 @@ public interface StreamFormat<T> extends Serializable {
 	 * Gets the type produced by this format. This type will be the type produced by the file
 	 * source as a whole.
 	 */
+	@Override
 	TypeInformation<T> getProducedType();
 
 	// ------------------------------------------------------------------------

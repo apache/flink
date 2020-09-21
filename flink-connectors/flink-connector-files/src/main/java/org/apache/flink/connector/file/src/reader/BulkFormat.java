@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.src.reader;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.MutableRecordAndPosition;
@@ -91,7 +92,7 @@ import java.io.Serializable;
  * handed over as one.
  */
 @PublicEvolving
-public interface BulkFormat<T> extends Serializable {
+public interface BulkFormat<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Creates a new reader that reads from {@code filePath} starting at {@code offset} and reads
@@ -128,6 +129,7 @@ public interface BulkFormat<T> extends Serializable {
 	 * Gets the type produced by this format. This type will be the type produced by the file
 	 * source as a whole.
 	 */
+	@Override
 	TypeInformation<T> getProducedType();
 
 

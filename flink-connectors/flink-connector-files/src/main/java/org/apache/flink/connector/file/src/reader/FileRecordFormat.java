@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.src.reader;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -92,7 +93,7 @@ import java.io.Serializable;
  * to configure that handover batch size.
  */
 @PublicEvolving
-public interface FileRecordFormat<T> extends Serializable {
+public interface FileRecordFormat<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Creates a new reader to read in this format. This method is called when a fresh reader is
@@ -144,6 +145,7 @@ public interface FileRecordFormat<T> extends Serializable {
 	 * Gets the type produced by this format. This type will be the type produced by the file
 	 * source as a whole.
 	 */
+	@Override
 	TypeInformation<T> getProducedType();
 
 	// ------------------------------------------------------------------------
