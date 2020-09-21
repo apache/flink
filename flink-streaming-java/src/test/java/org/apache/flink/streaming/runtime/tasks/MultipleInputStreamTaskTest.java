@@ -20,6 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -68,12 +70,12 @@ import org.apache.flink.streaming.util.TestBoundedMultipleInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.SerializedValue;
 
-import org.hamcrest.collection.IsEmptyCollection;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -398,25 +400,30 @@ public class MultipleInputStreamTaskTest {
 	public void testWatermark() throws Exception {
 		try (StreamTaskMailboxTestHarness<String> testHarness =
 				new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+					.modifyExecutionConfig(config -> config.enableObjectReuse())
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
-					.addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
+					.addSourceInput(
+						new SourceOperatorFactory<>(
+							new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 2, true),
+							WatermarkStrategy.forGenerator(ctx -> new RecordToWatermarkGenerator())))
 					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
 					.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
 					.build()) {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
-			long initialTime = 0L;
+			int initialTime = 0;
 
 			testHarness.processElement(new Watermark(initialTime), 0, 0);
 			testHarness.processElement(new Watermark(initialTime), 0, 1);
+
+			addSourceRecords(testHarness, 1, initialTime);
+			expectedOutput.add(new StreamRecord<>("" + (initialTime), TimestampAssigner.NO_TIMESTAMP));
+
 			testHarness.processElement(new Watermark(initialTime), 1, 0);
+
+			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+
 			testHarness.processElement(new Watermark(initialTime), 1, 1);
-
-			testHarness.processElement(new Watermark(initialTime), 2, 0);
-
-			assertThat(testHarness.getOutput(), IsEmptyCollection.empty());
-
-			testHarness.processElement(new Watermark(initialTime), 2, 1);
 
 			// now the watermark should have propagated, Map simply forward Watermarks
 			expectedOutput.add(new Watermark(initialTime));
@@ -424,18 +431,20 @@ public class MultipleInputStreamTaskTest {
 
 			// contrary to checkpoint barriers these elements are not blocked by watermarks
 			testHarness.processElement(new StreamRecord<>("Hello", initialTime), 0, 0);
-			testHarness.processElement(new StreamRecord<>(42, initialTime), 1, 1);
+			testHarness.processElement(new StreamRecord<>(42.0, initialTime), 1, 1);
 			expectedOutput.add(new StreamRecord<>("Hello", initialTime));
-			expectedOutput.add(new StreamRecord<>("42", initialTime));
+			expectedOutput.add(new StreamRecord<>("42.0", initialTime));
 
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
 			testHarness.processElement(new Watermark(initialTime + 4), 0, 0);
 			testHarness.processElement(new Watermark(initialTime + 3), 0, 1);
+
+			addSourceRecords(testHarness, 1, initialTime + 3);
+			expectedOutput.add(new StreamRecord<>("" + (initialTime + 3), TimestampAssigner.NO_TIMESTAMP));
+
 			testHarness.processElement(new Watermark(initialTime + 3), 1, 0);
-			testHarness.processElement(new Watermark(initialTime + 4), 1, 1);
-			testHarness.processElement(new Watermark(initialTime + 3), 2, 0);
-			testHarness.processElement(new Watermark(initialTime + 2), 2, 1);
+			testHarness.processElement(new Watermark(initialTime + 2), 1, 1);
 
 			// check whether we get the minimum of all the watermarks, this must also only occur in
 			// the output after the two StreamRecords
@@ -444,20 +453,22 @@ public class MultipleInputStreamTaskTest {
 
 			// advance watermark from one of the inputs, now we should get a new one since the
 			// minimum increases
-			testHarness.processElement(new Watermark(initialTime + 4), 2, 1);
+			testHarness.processElement(new Watermark(initialTime + 4), 1, 1);
 			expectedOutput.add(new Watermark(initialTime + 3));
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
-			// advance the other two inputs, now we should get a new one since the
-			// minimum increases again
+			// advance the other inputs, now we should get a new one since the minimum increases again
 			testHarness.processElement(new Watermark(initialTime + 4), 0, 1);
+
+			addSourceRecords(testHarness, 1, initialTime + 4);
+			expectedOutput.add(new StreamRecord<>("" + (initialTime + 4), TimestampAssigner.NO_TIMESTAMP));
+
 			testHarness.processElement(new Watermark(initialTime + 4), 1, 0);
-			testHarness.processElement(new Watermark(initialTime + 4), 2, 0);
 			expectedOutput.add(new Watermark(initialTime + 4));
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
 			List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-			assertEquals(2, resultElements.size());
+			assertEquals(5, resultElements.size());
 		}
 	}
 
@@ -912,6 +923,17 @@ public class MultipleInputStreamTaskTest {
 		@Override
 		public void endInput() throws Exception {
 			LIFE_CYCLE_EVENTS.add(END_INPUT);
+		}
+	}
+
+	private static class RecordToWatermarkGenerator implements WatermarkGenerator<Integer>, Serializable {
+		@Override
+		public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
+			output.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(event));
+		}
+
+		@Override
+		public void onPeriodicEmit(WatermarkOutput output) {
 		}
 	}
 }
