@@ -70,6 +70,9 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 			networkBuffersPerChannel,
 			numBytesIn,
 			numBuffersIn);
+		if (channelStateWriter != null) {
+			remoteInputChannel.setChannelStateWriter(channelStateWriter);
+		}
 		remoteInputChannel.assignExclusiveSegments();
 		return remoteInputChannel;
 	}
