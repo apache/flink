@@ -19,7 +19,16 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.api.connector.source.mocks.MockSourceReader;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -36,14 +45,18 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
+import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -52,14 +65,18 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
 import org.apache.flink.streaming.util.TestBoundedMultipleInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.SerializedValue;
 
 import org.hamcrest.collection.IsEmptyCollection;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,6 +84,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -74,35 +92,31 @@ import static org.junit.Assert.assertEquals;
  * {@link StreamMultipleInputProcessor}.
  */
 public class MultipleInputStreamTaskTest {
-	/**
-	 * This test verifies that open() and close() are correctly called. This test also verifies
-	 * that timestamps of emitted elements are correct. {@link CoStreamMap} assigns the input
-	 * timestamp to emitted elements.
-	 */
-	@Test
-	public void testOpenCloseAndTimestamps() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness =
-			new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.addInput(BasicTypeInfo.INT_TYPE_INFO)
-				.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
-				.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
-				.build()) {
+	private static final List<String> LIFE_CYCLE_EVENTS = new ArrayList<>();
 
+	@Before
+	public void setUp() {
+		LIFE_CYCLE_EVENTS.clear();
+	}
+
+	@Test
+	public void testBasicProcessing() throws Exception {
+		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
 			long initialTime = 0L;
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
+			addSourceRecords(testHarness, 1, 42, 43);
+			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
+			expectedOutput.add(new StreamRecord<>("43", TimestampAssigner.NO_TIMESTAMP));
 			testHarness.processElement(new StreamRecord<>("Hello", initialTime + 1), 0);
 			expectedOutput.add(new StreamRecord<>("Hello", initialTime + 1));
-			testHarness.processElement(new StreamRecord<>(1337, initialTime + 2), 1);
-			expectedOutput.add(new StreamRecord<>("1337", initialTime + 2));
-			testHarness.processElement(new StreamRecord<>(42.44d, initialTime + 3), 2);
+			testHarness.processElement(new StreamRecord<>(42.44d, initialTime + 3), 1);
 			expectedOutput.add(new StreamRecord<>("42.44", initialTime + 3));
 
 			testHarness.endInput();
 			testHarness.waitForTaskCompletion();
 
-			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+			assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
 		}
 	}
 
@@ -279,6 +293,35 @@ public class MultipleInputStreamTaskTest {
 				output.collect(element);
 			}
 		}
+	}
+
+	@Test
+	public void testLifeCycleOrder() throws Exception {
+		try (StreamTaskMailboxTestHarness<String> testHarness =
+				new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+					.modifyExecutionConfig(config -> config.enableObjectReuse())
+					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
+					.addSourceInput(
+						new SourceOperatorFactory<>(
+							new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
+							WatermarkStrategy.noWatermarks()))
+					.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+					.setupOperatorChain(new LifeCycleTrackingMapToStringMultipleInputOperatorFactory())
+					.chain(new LifeCycleTrackingMap<>(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+					.finish()
+					.build()) {
+
+			testHarness.waitForTaskCompletion();
+		}
+		assertThat(
+			LIFE_CYCLE_EVENTS,
+			contains(
+				LifeCycleTrackingMap.OPEN,
+				LifeCycleTrackingMapToStringMultipleInputOperator.OPEN,
+				LifeCycleTrackingMockSourceReader.START,
+				LifeCycleTrackingMockSourceReader.CLOSE,
+				LifeCycleTrackingMapToStringMultipleInputOperator.CLOSE,
+				LifeCycleTrackingMap.CLOSE));
 	}
 
 	@Test
@@ -744,6 +787,135 @@ public class MultipleInputStreamTaskTest {
 		@Override
 		public Class<? extends StreamOperator<String>> getStreamOperatorClass(ClassLoader classLoader) {
 			return MapToStringMultipleInputOperator.class;
+		}
+	}
+
+	static StreamTaskMailboxTestHarness<String> buildTestHarness() throws Exception {
+		return buildTestHarness(false);
+	}
+
+	static StreamTaskMailboxTestHarness<String> buildTestHarness(boolean unaligned) throws Exception {
+		return new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+			.modifyExecutionConfig(config -> config.enableObjectReuse())
+			.modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
+			.addInput(BasicTypeInfo.STRING_TYPE_INFO)
+			.addSourceInput(
+				new SourceOperatorFactory<>(
+					new MockSource(Boundedness.BOUNDED, 1),
+					WatermarkStrategy.noWatermarks()))
+			.addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+			.setupOutputForSingletonOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
+			.build();
+	}
+
+	static void addSourceRecords(
+			StreamTaskMailboxTestHarness<String> testHarness,
+			int sourceId,
+			int... records) throws Exception {
+		StreamConfig.InputConfig[] inputs = testHarness.getStreamTask().getConfiguration().getInputs(testHarness.getClass().getClassLoader());
+		StreamConfig.SourceInputConfig input = (StreamConfig.SourceInputConfig) inputs[sourceId];
+		OperatorID sourceOperatorID = testHarness.getStreamTask().operatorChain.getSourceTaskInput(input).getOperatorID();
+
+		// Prepare the source split and assign it to the source reader.
+		MockSourceSplit split = new MockSourceSplit(0, 0, records.length);
+		for (int record : records) {
+			split.addRecord(record);
+		}
+
+		// Assign the split to the source reader.
+		AddSplitEvent<MockSourceSplit> addSplitEvent =
+			new AddSplitEvent<>(Collections.singletonList(split), new MockSourceSplitSerializer());
+
+		testHarness.getStreamTask().dispatchOperatorEvent(
+			sourceOperatorID,
+			new SerializedValue<>(addSplitEvent));
+	}
+
+	static class LifeCycleTrackingMapToStringMultipleInputOperator
+		extends MapToStringMultipleInputOperator {
+		public static final String OPEN = "MultipleInputOperator#open";
+		public static final String CLOSE = "MultipleInputOperator#close";
+
+		private static final long serialVersionUID = 1L;
+
+		public LifeCycleTrackingMapToStringMultipleInputOperator(StreamOperatorParameters<String> parameters) {
+			super(parameters, 3);
+		}
+
+		@Override
+		public void open() throws Exception {
+			LIFE_CYCLE_EVENTS.add(OPEN);
+			super.open();
+		}
+
+		@Override
+		public void close() throws Exception {
+			LIFE_CYCLE_EVENTS.add(CLOSE);
+			super.close();
+		}
+	}
+
+	static class LifeCycleTrackingMapToStringMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
+		@Override
+		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
+			return (T) new LifeCycleTrackingMapToStringMultipleInputOperator(parameters);
+		}
+
+		@Override
+		public Class<? extends StreamOperator<String>> getStreamOperatorClass(ClassLoader classLoader) {
+			return LifeCycleTrackingMapToStringMultipleInputOperator.class;
+		}
+	}
+
+	static class LifeCycleTrackingMockSource extends MockSource {
+		public LifeCycleTrackingMockSource(Boundedness boundedness, int numSplits) {
+			super(boundedness, numSplits);
+		}
+
+		@Override
+		public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
+			LifeCycleTrackingMockSourceReader sourceReader = new LifeCycleTrackingMockSourceReader();
+			createdReaders.add(sourceReader);
+			return sourceReader;
+		}
+	}
+
+	static class LifeCycleTrackingMockSourceReader extends MockSourceReader {
+		public static final String START = "SourceReader#start";
+		public static final String CLOSE = "SourceReader#close";
+
+		@Override
+		public void start() {
+			LIFE_CYCLE_EVENTS.add(START);
+			super.start();
+		}
+
+		@Override
+		public void close() throws Exception {
+			LIFE_CYCLE_EVENTS.add(CLOSE);
+			super.close();
+		}
+	}
+
+	static class LifeCycleTrackingMap<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
+		public static final String OPEN = "LifeCycleTrackingMap#open";
+		public static final String CLOSE = "LifeCycleTrackingMap#close";
+
+		@Override
+		public void processElement(StreamRecord<T> element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void open() throws Exception {
+			LIFE_CYCLE_EVENTS.add(OPEN);
+			super.open();
+		}
+
+		@Override
+		public void close() throws Exception {
+			LIFE_CYCLE_EVENTS.add(CLOSE);
+			super.close();
 		}
 	}
 }
