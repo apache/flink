@@ -21,6 +21,9 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -59,7 +62,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * {@link PipelinedSubpartitionView#notifyDataAvailable() notification} for any
  * {@link BufferConsumer} present in the queue.
  */
-public class PipelinedSubpartition extends ResultSubpartition implements CheckpointedResultSubpartition {
+public class PipelinedSubpartition extends ResultSubpartition
+		implements CheckpointedResultSubpartition, ChannelStateHolder {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
@@ -90,8 +94,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	/** The total number of bytes (both data and event buffers). */
 	private long totalNumberOfBytes;
 
-	/** The collection of buffers which are spanned over by checkpoint barrier and needs to be persisted for snapshot. */
-	private final List<Buffer> inflightBufferSnapshot = new ArrayList<>();
+	/** Writes in-flight data. */
+	private ChannelStateWriter channelStateWriter;
 
 	/** Whether this subpartition is blocked by exactly once checkpoint and is waiting for resumption. */
 	@GuardedBy("buffers")
@@ -103,6 +107,12 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
 		super(index, parent);
+	}
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		checkState(this.channelStateWriter == null, "Already initialized");
+		this.channelStateWriter = checkNotNull(channelStateWriter);
 	}
 
 	@Override
@@ -181,32 +191,52 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	}
 
 	private boolean processPriorityBuffer(BufferConsumer bufferConsumer) {
-		checkState(inflightBufferSnapshot.isEmpty(), "Supporting only one concurrent checkpoint in unaligned " +
-			"checkpoints");
-
 		buffers.addPriorityElement(bufferConsumer);
 		final int numPriorityElements = buffers.getNumPriorityElements();
 
-		// Meanwhile prepare the collection of in-flight buffers which would be fetched in the next step later.
-		final Iterator<BufferConsumer> iterator = buffers.iterator();
-		Iterators.advance(iterator, numPriorityElements);
-		while (iterator.hasNext()) {
-			BufferConsumer buffer = iterator.next();
+		CheckpointBarrier barrier = parseCheckpointBarrier(bufferConsumer);
+		if (barrier != null) {
+			checkState(
+				barrier.getCheckpointOptions().isUnalignedCheckpoint(),
+				"Only unaligned checkpoints should be priority events");
+			final Iterator<BufferConsumer> iterator = buffers.iterator();
+			Iterators.advance(iterator, numPriorityElements);
+			List<Buffer> inflightBuffers = new ArrayList<>();
+			while (iterator.hasNext()) {
+				BufferConsumer buffer = iterator.next();
 
-			if (buffer.isBuffer()) {
-				try (BufferConsumer bc = buffer.copy()) {
-					inflightBufferSnapshot.add(bc.build());
+				if (buffer.isBuffer()) {
+					try (BufferConsumer bc = buffer.copy()) {
+						inflightBuffers.add(bc.build());
+					}
 				}
+			}
+			if (!inflightBuffers.isEmpty()) {
+				channelStateWriter.addOutputData(
+					barrier.getId(),
+					subpartitionInfo,
+					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+					inflightBuffers.toArray(new Buffer[0]));
 			}
 		}
 		return numPriorityElements == 1;
 	}
 
-	@Override
-	public List<Buffer> requestInflightBufferSnapshot() {
-		List<Buffer> snapshot = new ArrayList<>(inflightBufferSnapshot);
-		inflightBufferSnapshot.clear();
-		return snapshot;
+	@Nullable
+	private CheckpointBarrier parseCheckpointBarrier(BufferConsumer bufferConsumer) {
+		CheckpointBarrier barrier;
+		try (BufferConsumer bc = bufferConsumer.copy()) {
+			Buffer buffer = bc.build();
+			try {
+				final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+				barrier = event instanceof CheckpointBarrier ? (CheckpointBarrier) event : null;
+			} catch (IOException e) {
+				throw new IllegalStateException("Should always be able to deserialize in-memory event", e);
+			} finally {
+				buffer.recycleBuffer();
+			}
+		}
+		return barrier;
 	}
 
 	@Override

@@ -22,10 +22,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import org.slf4j.Logger;
@@ -39,13 +41,14 @@ import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel reads recovered state from previous unaligned checkpoint snapshots
  * via {@link ChannelStateReader}.
  */
-public abstract class RecoveredInputChannel extends InputChannel {
+public abstract class RecoveredInputChannel extends InputChannel implements ChannelStateHolder {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RecoveredInputChannel.class);
 
@@ -55,6 +58,8 @@ public abstract class RecoveredInputChannel extends InputChannel {
 
 	@GuardedBy("receivedBuffers")
 	private boolean isReleased;
+
+	protected ChannelStateWriter channelStateWriter;
 
 	/** The buffer number of recovered buffers. Starts at MIN_VALUE to have no collisions with actual buffer numbers. */
 	private int sequenceNumber = Integer.MIN_VALUE;
@@ -70,6 +75,12 @@ public abstract class RecoveredInputChannel extends InputChannel {
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn);
 
 		bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+	}
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		checkState(this.channelStateWriter == null, "Already initialized");
+		this.channelStateWriter = checkNotNull(channelStateWriter);
 	}
 
 	public abstract InputChannel toInputChannel() throws IOException;

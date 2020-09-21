@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
@@ -74,6 +75,10 @@ public class MockIndexedInputGate extends IndexedInputGate {
 	@Override
 	public InputChannel getChannel(int channelIndex) {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
 	}
 
 	@Override

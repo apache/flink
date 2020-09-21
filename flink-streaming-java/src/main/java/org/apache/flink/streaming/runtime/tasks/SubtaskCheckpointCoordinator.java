@@ -44,7 +44,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
 	/**
 	 * Initialize new checkpoint.
 	 */
-	void initCheckpoint(long id, CheckpointOptions checkpointOptions);
+	void initCheckpoint(long id, CheckpointOptions checkpointOptions) throws IOException;
 
 	ChannelStateWriter getChannelStateWriter();
 

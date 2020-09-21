@@ -225,7 +225,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public ResultPartitionWriter[] getAllWriters() {
-		return null;
+		return new ResultPartitionWriter[0];
 	}
 
 	@Override
@@ -235,7 +235,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public IndexedInputGate[] getAllInputGates() {
-		return null;
+		return new IndexedInputGate[0];
 	}
 
 	@Override

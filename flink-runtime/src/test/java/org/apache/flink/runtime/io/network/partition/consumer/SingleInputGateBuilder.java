@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -57,6 +58,8 @@ public class SingleInputGateBuilder {
 	private BufferDecompressor bufferDecompressor = null;
 
 	private MemorySegmentProvider segmentProvider = InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
+
+	private ChannelStateWriter channelStateWriter = ChannelStateWriter.NO_OP;
 
 	@Nullable
 	private BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory = null;
@@ -128,6 +131,11 @@ public class SingleInputGateBuilder {
 		return this;
 	}
 
+	public SingleInputGateBuilder setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		this.channelStateWriter = channelStateWriter;
+		return this;
+	}
+
 	public SingleInputGate build() {
 		SingleInputGate gate = new SingleInputGate(
 			"Single Input Gate",
@@ -144,6 +152,7 @@ public class SingleInputGateBuilder {
 			gate.setInputChannels(IntStream.range(0, numberOfChannels)
 				.mapToObj(index -> channelFactory.apply(InputChannelBuilder.newBuilder().setChannelIndex(index), gate))
 				.toArray(InputChannel[]::new));
+			gate.setChannelStateWriter(channelStateWriter);
 		}
 		return gate;
 	}

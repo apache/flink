@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -102,16 +101,6 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 				}
 				return next;
 			}
-		}
-	}
-
-	public void spillInflightBuffers(
-			long checkpointId,
-			int channelIndex,
-			ChannelStateWriter channelStateWriter) throws IOException {
-		InputChannel channel = inputGate.getChannel(channelIndex);
-		if (barrierHandler.hasInflightData(checkpointId, channel.getChannelInfo())) {
-			channel.spillInflightBuffers(checkpointId, channelStateWriter);
 		}
 	}
 

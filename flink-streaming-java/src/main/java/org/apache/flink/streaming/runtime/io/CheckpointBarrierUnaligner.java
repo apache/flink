@@ -64,12 +64,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	private final String taskName;
 
-	/**
-	 * Tag the state of which input channel has pending in-flight buffers; that is, already received buffers that
-	 * predate the checkpoint barrier of the current checkpoint.
-	 */
-	private final Map<InputChannelInfo, Boolean> hasInflightBuffers;
-
 	private int numBarrierConsumed;
 
 	/**
@@ -81,8 +75,12 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	 */
 	private long currentConsumedCheckpointId = -1L;
 
+	private int numOpenChannels;
+
 	/** Encapsulates state that is shared between netty threads and task thread. */
 	private final ThreadSafeUnaligner threadSafeUnaligner;
+
+	private final InputGate[] inputGates;
 
 	CheckpointBarrierUnaligner(
 			SubtaskCheckpointCoordinator checkpointCoordinator,
@@ -92,9 +90,8 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		super(toNotifyOnCheckpoint);
 
 		this.taskName = taskName;
-		hasInflightBuffers = Arrays.stream(inputGates)
-			.flatMap(gate -> gate.getChannelInfos().stream())
-			.collect(Collectors.toMap(Function.identity(), info -> false));
+		this.inputGates = inputGates;
+		numOpenChannels = (int) Arrays.stream(inputGates).flatMap(gate -> gate.getChannelInfos().stream()).count();
 		threadSafeUnaligner = new ThreadSafeUnaligner(checkNotNull(checkpointCoordinator), this, inputGates);
 	}
 
@@ -115,11 +112,20 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 		if (currentConsumedCheckpointId < barrierId) {
 			currentConsumedCheckpointId = barrierId;
 			numBarrierConsumed = 0;
-			hasInflightBuffers.entrySet().forEach(hasInflightBuffer -> hasInflightBuffer.setValue(true));
+			for (final InputGate gate : inputGates) {
+				for (int index = 0, numChannels = gate.getNumberOfInputChannels(); index < numChannels; index++) {
+					gate.getChannel(index).checkpointStarted(receivedBarrier);
+				}
+			}
 		}
 		if (currentConsumedCheckpointId == barrierId) {
-			hasInflightBuffers.put(channelInfo, false);
-			numBarrierConsumed++;
+			if (++numBarrierConsumed == numOpenChannels) {
+				for (final InputGate gate : inputGates) {
+					for (int index = 0, numChannels = gate.getNumberOfInputChannels(); index < numChannels; index++) {
+						gate.getChannel(index).checkpointStopped(barrierId);
+					}
+				}
+			}
 		}
 		threadSafeUnaligner.notifyBarrierReceived(receivedBarrier, channelInfo);
 	}
@@ -151,6 +157,7 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 
 	@Override
 	public void processEndOfPartition() throws IOException {
+		numOpenChannels--;
 		threadSafeUnaligner.onChannelClosed();
 		resetPendingCheckpoint(-1L);
 	}
@@ -163,8 +170,13 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 				checkpointId,
 				currentConsumedCheckpointId);
 
-			hasInflightBuffers.entrySet().forEach(hasInflightBuffer -> hasInflightBuffer.setValue(false));
 			numBarrierConsumed = 0;
+
+			for (final InputGate gate : inputGates) {
+				for (int index = 0, numChannels = gate.getNumberOfInputChannels(); index < numChannels; index++) {
+					gate.getChannel(index).checkpointStopped(checkpointId);
+				}
+			}
 		}
 	}
 
@@ -182,17 +194,6 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 	public void close() throws IOException {
 		super.close();
 		threadSafeUnaligner.close();
-	}
-
-	@Override
-	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
-		if (checkpointId < currentConsumedCheckpointId) {
-			return false;
-		}
-		if (checkpointId > currentConsumedCheckpointId) {
-			return true;
-		}
-		return hasInflightBuffers.get(channelInfo);
 	}
 
 	@Override

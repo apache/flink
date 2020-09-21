@@ -89,15 +89,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		return Optional.empty();
 	}
 
-	/**
-	 * Returns true if there is in-flight data in the buffers for the given channel and checkpoint. More specifically,
-	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
-	 * that channel.
-	 */
-	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
-		return false;
-	}
-
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
 		return CompletableFuture.completedFuture(null);
 	}
