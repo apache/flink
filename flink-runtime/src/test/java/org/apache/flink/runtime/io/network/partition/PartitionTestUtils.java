@@ -97,6 +97,14 @@ public enum PartitionTestUtils {
 			.build();
 	}
 
+	public static ResultSubpartitionView createView(ResultSubpartition subpartition, BufferAvailabilityListener listener)
+			throws IOException {
+		final ResultPartitionManager partitionManager = new ResultPartitionManager();
+		final ResultPartition parent = subpartition.parent;
+		partitionManager.registerResultPartition(parent);
+		return partitionManager.createSubpartitionView(parent.partitionId, 0, listener);
+	}
+
 	static void verifyCreateSubpartitionViewThrowsException(
 			ResultPartitionProvider partitionManager,
 			ResultPartitionID partitionId) throws IOException {
