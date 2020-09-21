@@ -693,7 +693,7 @@ public class ExecutionContext<ClusterID> {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// for TimeCharacteristic validation in StreamTableEnvironmentImpl
 		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
-		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+		if (environment.getExecution().getTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
 		return env;
