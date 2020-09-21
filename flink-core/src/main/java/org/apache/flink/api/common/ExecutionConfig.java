@@ -229,6 +229,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * the streaming system to keep track of the progress of time. They are used, for example,
 	 * for time based windowing.
 	 *
+	 * <p>Setting an interval of {@code 0} will disable periodic watermark emission.
+	 *
 	 * @param interval The interval between watermarks in milliseconds.
 	 */
 	@PublicEvolving
