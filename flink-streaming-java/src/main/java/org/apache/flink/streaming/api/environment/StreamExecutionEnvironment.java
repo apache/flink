@@ -130,7 +130,7 @@ public class StreamExecutionEnvironment {
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
 	/** The time characteristic that is used if none other is set. */
-	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
+	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.EventTime;
 
 	/**
 	 * The environment of the context (local by default, cluster if invoked through command line).

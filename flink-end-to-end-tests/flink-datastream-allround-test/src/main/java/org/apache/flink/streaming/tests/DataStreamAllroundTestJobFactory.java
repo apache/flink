@@ -36,7 +36,6 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
@@ -45,6 +44,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ArtificalOperatorStateMapper;
@@ -236,8 +236,6 @@ public class DataStreamAllroundTestJobFactory {
 		setupRestartStrategy(env, pt);
 		setupStateBackend(env, pt);
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(pt);
 	}
@@ -378,14 +376,15 @@ public class DataStreamAllroundTestJobFactory {
 			SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS.key(),
 			SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS.defaultValue());
 
-		return keyedStream.timeWindow(
-			Time.milliseconds(
-				pt.getLong(
-					TUMBLING_WINDOW_OPERATOR_NUM_EVENTS.key(),
-					TUMBLING_WINDOW_OPERATOR_NUM_EVENTS.defaultValue()
-				) * eventTimeProgressPerEvent
-			)
-		);
+		return keyedStream.window(
+				TumblingEventTimeWindows.of(
+						Time.milliseconds(
+								pt.getLong(
+										TUMBLING_WINDOW_OPERATOR_NUM_EVENTS.key(),
+										TUMBLING_WINDOW_OPERATOR_NUM_EVENTS.defaultValue()
+								) * eventTimeProgressPerEvent
+						)
+				));
 	}
 
 	static FlatMapFunction<Event, String> createSemanticsCheckMapper(ParameterTool pt) {

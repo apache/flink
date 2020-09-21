@@ -49,7 +49,7 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
     def test_get_set_auto_watermark_interval(self):
 
-        self.assertEqual(self.execution_config.get_auto_watermark_interval(), 0)
+        self.assertEqual(self.execution_config.get_auto_watermark_interval(), 200)
 
         self.execution_config.set_auto_watermark_interval(1000)
 

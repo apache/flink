@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.examples.ml;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -26,11 +25,10 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Skeleton for incremental machine learning algorithm consisting of a
@@ -61,7 +59,6 @@ public class IncrementalLearningSkeleton {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> trainingData = env.addSource(new FiniteTrainingDataSource());
 		DataStream<Integer> newData = env.addSource(new FiniteNewDataSource());
@@ -69,7 +66,7 @@ public class IncrementalLearningSkeleton {
 		// build new model on every second of new data
 		DataStream<Double[]> model = trainingData
 				.assignTimestampsAndWatermarks(new LinearTimestamp())
-				.timeWindowAll(Time.of(5000, TimeUnit.MILLISECONDS))
+				.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(5000)))
 				.apply(new PartialModelBuilder());
 
 		// use partial model for newData

@@ -20,6 +20,12 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -31,10 +37,10 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -351,15 +357,16 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 		env.enableCheckpointing(500);
 		env.setStateBackend(backend);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		env.setParallelism(PARALLELISM);
 		env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-		env.addSource(new NotifyingInfiniteTupleSource(10_000))
-			.keyBy(0)
-			.timeWindow(Time.seconds(3))
-			.reduce((value1, value2) -> Tuple2.of(value1.f0, value1.f1 + value2.f1))
-			.filter(value -> value.f0.startsWith("Tuple 0"));
+		env
+				.addSource(new NotifyingInfiniteTupleSource(10_000))
+				.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
+				.keyBy(0)
+				.window(TumblingEventTimeWindows.of(Time.seconds(3)))
+				.reduce((value1, value2) -> Tuple2.of(value1.f0, value1.f1 + value2.f1))
+				.filter(value -> value.f0.startsWith("Tuple 0"));
 
 		StreamGraph streamGraph = env.getStreamGraph("Test");
 
@@ -393,6 +400,31 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 			}
 
 			super.run(out);
+		}
+	}
+
+	/**
+	 * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
+	 * In a real use case you should use proper timestamps and an appropriate {@link
+	 * WatermarkStrategy}.
+	 */
+	private static class IngestionTimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
+
+		private IngestionTimeWatermarkStrategy() {
+		}
+
+		public static <T> IngestionTimeWatermarkStrategy<T> create() {
+			return new IngestionTimeWatermarkStrategy<>();
+		}
+
+		@Override
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return new AscendingTimestampsWatermarks<>();
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return (event, timestamp) -> System.currentTimeMillis();
 		}
 	}
 }

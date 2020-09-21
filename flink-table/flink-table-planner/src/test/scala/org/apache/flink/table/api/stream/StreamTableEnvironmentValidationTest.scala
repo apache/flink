@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -129,6 +130,7 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   def testInvalidTimeCharacteristicByPosition(): Unit = {
     val data = List((1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"))
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
     val stream = env

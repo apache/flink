@@ -178,13 +178,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         default_time_characteristic = self.env.get_stream_time_characteristic()
 
-        self.assertEqual(default_time_characteristic, TimeCharacteristic.ProcessingTime)
+        self.assertEqual(default_time_characteristic, TimeCharacteristic.EventTime)
 
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 
         time_characteristic = self.env.get_stream_time_characteristic()
 
-        self.assertEqual(time_characteristic, TimeCharacteristic.EventTime)
+        self.assertEqual(time_characteristic, TimeCharacteristic.ProcessingTime)
 
     @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):

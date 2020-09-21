@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -761,7 +762,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		SingleOutputStreamOperator<Integer> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
-				.timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
+				.windowAll(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.sideOutputLateData(lateDataTag)
 				.apply(new AllWindowFunction<Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
@@ -807,7 +808,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		SingleOutputStreamOperator<String> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
 				.keyBy(new TestKeySelector())
-				.timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.window(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.allowedLateness(Time.milliseconds(2))
 				.sideOutputLateData(lateDataTag)
 				.apply(new WindowFunction<Integer, String, Integer, TimeWindow>() {
@@ -849,7 +850,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		SingleOutputStreamOperator<Integer> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
 				.keyBy(new TestKeySelector())
-				.timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.window(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.process(new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 
@@ -883,7 +884,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		SingleOutputStreamOperator<Integer> windowOperator = dataStream
 				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
-				.timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
+				.windowAll(SlidingEventTimeWindows.of(Time.milliseconds(1), Time.milliseconds(1)))
 				.process(new ProcessAllWindowFunction<Integer, Integer, TimeWindow>() {
 					private static final long serialVersionUID = 1L;
 

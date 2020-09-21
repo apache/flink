@@ -126,7 +126,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private boolean autoTypeRegistrationEnabled = true;
 
 	private boolean forceAvro = false;
-	private long autoWatermarkInterval = 0;
+	private long autoWatermarkInterval = 200;
 
 	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.

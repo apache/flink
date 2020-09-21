@@ -35,7 +35,6 @@ import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.utils.AggregateSum;
 import org.apache.flink.state.api.utils.ReduceSum;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -45,6 +44,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
@@ -82,7 +82,7 @@ public class WindowReaderTest {
 	@Test
 	public void testReducingWindow() throws Exception {
 		WindowOperator<Integer, Integer, ?, Void, ?> operator = getWindowOperator(stream -> stream
-			.timeWindow(Time.milliseconds(1))
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
 			.reduce(new ReduceSum()));
 
 		OperatorState operatorState = getOperatorState(operator);
@@ -128,7 +128,7 @@ public class WindowReaderTest {
 	@Test
 	public void testAggregateWindow() throws Exception {
 		WindowOperator<Integer, Integer, ?, Void, ?> operator = getWindowOperator(stream -> stream
-			.timeWindow(Time.milliseconds(1))
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
 			.aggregate(new AggregateSum()));
 
 		OperatorState operatorState = getOperatorState(operator);
@@ -151,7 +151,7 @@ public class WindowReaderTest {
 	@Test
 	public void testProcessReader() throws Exception {
 		WindowOperator<Integer, Integer, ?, Void, ?> operator = getWindowOperator(stream -> stream
-			.timeWindow(Time.milliseconds(1))
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
 			.process(mockProcessWindowFunction(), Types.INT));
 
 		OperatorState operatorState = getOperatorState(operator);
@@ -173,7 +173,7 @@ public class WindowReaderTest {
 	@Test
 	public void testPerPaneAndPerKeyState() throws Exception {
 		WindowOperator<Integer, Integer, ?, Void, ?> operator = getWindowOperator(stream -> stream
-			.timeWindow(Time.milliseconds(1))
+			.window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
 			.trigger(new AlwaysFireTrigger<>())
 			.process(new MultiFireWindow(), Types.INT));
 
@@ -196,7 +196,6 @@ public class WindowReaderTest {
 	private static WindowOperator<Integer, Integer, ?, Void, ?> getWindowOperator(
 		Function<KeyedStream<Integer, Integer>, SingleOutputStreamOperator<Integer>> window) {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		KeyedStream<Integer, Integer> keyedStream = env
 			.addSource(mockSourceFunction())
