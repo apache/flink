@@ -88,15 +88,6 @@ out="${FLINK_LOG_PREFIX}.out"
 
 log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlog4j.configurationFile=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback.xml")
 
-JAVA_VERSION=$(${JAVA_RUN} -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-
-# Only set JVM 8 arguments if we have correctly extracted the version
-if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
-    if [ "$JAVA_VERSION" -lt 18 ]; then
-        JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
-    fi
-fi
-
 case $STARTSTOP in
 
     (start)
