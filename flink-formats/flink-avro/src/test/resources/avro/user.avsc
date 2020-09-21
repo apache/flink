@@ -1,6 +1,13 @@
 [
 {"namespace": "org.apache.flink.formats.avro.generated",
  "type": "record",
+ "name": "UnionLogicalType",
+ "fields": [
+     {"name": "nullableTimestamp", "type": [ "null", {"type": "long", "logicalType": "timestamp-millis"}]}
+  ]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
  "name": "Address",
  "fields": [
      {"name": "num", "type": "int"},
