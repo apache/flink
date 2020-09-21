@@ -23,8 +23,6 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.event.RequestSplitEvent;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
-import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.FileSourceSplitState;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
@@ -35,11 +33,11 @@ import java.util.Collection;
 /**
  * A {@link SourceReader} that read records from {@link FileSourceSplit}.
  */
-public final class FileSourceReader<T> extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, FileSourceSplit, FileSourceSplitState> {
+public final class FileSourceReader<T>
+		extends SingleThreadMultiplexSourceReaderBase<RecordAndPosition<T>, T, FileSourceSplit, FileSourceSplitState> {
 
 	public FileSourceReader(SourceReaderContext readerContext, BulkFormat<T> readerFormat, Configuration config) {
 		super(
-			new FutureCompletingBlockingQueue<>(config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)),
 			() -> new FileSourceSplitReader<>(config, readerFormat),
 			new FileSourceRecordEmitter<>(),
 			config,
