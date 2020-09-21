@@ -209,4 +209,9 @@ public class StreamConfigChainer<OWNER> {
 
 		return owner;
 	}
+
+	public StreamConfigChainer<OWNER> name(String name) {
+		tailConfig.setOperatorName(name);
+		return this;
+	}
 }

@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -85,6 +86,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			TypeSerializer<IN1> inputSerializer1,
 			TypeSerializer<IN2> inputSerializer2,
 			IOManager ioManager,
+			TaskIOMetricGroup taskIOMetricGroup,
 			StreamStatusMaintainer streamStatusMaintainer,
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
 			TwoInputSelectionHandler inputSelectionHandler,
@@ -95,18 +97,22 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
+		taskIOMetricGroup.reuseRecordsInputCounter(numRecordsIn);
+
 		this.output1 = new StreamTaskNetworkOutput<>(
 			streamOperator,
-			record -> processRecord1(record, streamOperator, numRecordsIn),
+			record -> processRecord1(record, streamOperator),
 			streamStatusMaintainer,
 			input1WatermarkGauge,
-			0);
+			0,
+			numRecordsIn);
 		this.output2 = new StreamTaskNetworkOutput<>(
 			streamOperator,
-			record -> processRecord2(record, streamOperator, numRecordsIn),
+			record -> processRecord2(record, streamOperator),
 			streamStatusMaintainer,
 			input2WatermarkGauge,
-			1);
+			1,
+			numRecordsIn);
 
 		this.input1 = new StreamTaskNetworkInput<>(
 			checkpointedInputGates[0],
@@ -126,26 +132,23 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	private void processRecord1(
 			StreamRecord<IN1> record,
-			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
-			Counter numRecordsIn) throws Exception {
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws Exception {
 
 		streamOperator.setKeyContextElement1(record);
 		streamOperator.processElement1(record);
-		postProcessRecord(numRecordsIn);
+		postProcessRecord();
 	}
 
 	private void processRecord2(
 			StreamRecord<IN2> record,
-			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
-			Counter numRecordsIn) throws Exception {
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws Exception {
 
 		streamOperator.setKeyContextElement2(record);
 		streamOperator.processElement2(record);
-		postProcessRecord(numRecordsIn);
+		postProcessRecord();
 	}
 
-	private void postProcessRecord(Counter numRecordsIn) {
-		numRecordsIn.inc();
+	private void postProcessRecord() {
 		inputSelectionHandler.nextSelection();
 	}
 
@@ -345,22 +348,27 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		/** The input index to indicate how to process elements by two input operator. */
 		private final int inputIndex;
 
+		private final Counter numRecordsIn;
+
 		private StreamTaskNetworkOutput(
 				TwoInputStreamOperator<IN1, IN2, ?> operator,
 				ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer,
 				StreamStatusMaintainer streamStatusMaintainer,
 				WatermarkGauge inputWatermarkGauge,
-				int inputIndex) {
+				int inputIndex,
+				Counter numRecordsIn) {
 			super(streamStatusMaintainer);
 
 			this.operator = checkNotNull(operator);
 			this.recordConsumer = checkNotNull(recordConsumer);
 			this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
 			this.inputIndex = inputIndex;
+			this.numRecordsIn = numRecordsIn;
 		}
 
 		@Override
 		public void emitRecord(StreamRecord<T> record) throws Exception {
+			numRecordsIn.inc();
 			recordConsumer.accept(record);
 		}
 

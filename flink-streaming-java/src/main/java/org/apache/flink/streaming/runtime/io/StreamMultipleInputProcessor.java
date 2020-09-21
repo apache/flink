@@ -21,8 +21,10 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.NetworkInputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.SourceInputConfig;
@@ -67,7 +69,9 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 	 */
 	private final StreamStatus[] streamStatuses;
 
-	private final Counter numRecordsIn;
+	private final Counter networkRecordsIn = new SimpleCounter();
+
+	private final Counter mainOperatorRecordsIn;
 
 	/** Always try to read from the first input. */
 	private int lastReadInputIndex = 1;
@@ -78,12 +82,13 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			CheckpointedInputGate[] checkpointedInputGates,
 			InputConfig[] configuredInputs,
 			IOManager ioManager,
+			TaskIOMetricGroup ioMetricGroup,
+			Counter mainOperatorRecordsIn,
 			StreamStatusMaintainer streamStatusMaintainer,
 			MultipleInputStreamOperator<?> mainOperator,
 			MultipleInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge[] inputWatermarkGauges,
-			OperatorChain<?, ?> operatorChain,
-			Counter numRecordsIn) {
+			OperatorChain<?, ?> operatorChain) {
 
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
@@ -92,7 +97,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		this.inputProcessors = new InputProcessor[inputsCount];
 		this.streamStatuses = new StreamStatus[inputsCount];
-		this.numRecordsIn = numRecordsIn;
+		this.mainOperatorRecordsIn = mainOperatorRecordsIn;
+		ioMetricGroup.reuseRecordsInputCounter(networkRecordsIn);
 
 		for (int i = 0; i < inputsCount; i++) {
 			InputConfig configuredInput = configuredInputs[i];
@@ -322,7 +328,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		public void emitRecord(StreamRecord<T> record) throws Exception {
 			input.setKeyContextElement(record);
 			input.processElement(record);
-			numRecordsIn.inc();
+			mainOperatorRecordsIn.inc();
+			networkRecordsIn.inc();
 			inputSelectionHandler.nextSelection();
 		}
 
