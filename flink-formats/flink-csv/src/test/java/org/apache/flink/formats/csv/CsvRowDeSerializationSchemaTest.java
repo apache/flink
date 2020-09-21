@@ -294,9 +294,9 @@ public class CsvRowDeSerializationSchemaTest {
 	}
 
 	private void testSerDeConsistency(
-		Row originalRow,
-		CsvRowSerializationSchema.Builder serSchemaBuilder,
-		CsvRowDeserializationSchema.Builder deserSchemaBuilder) throws Exception {
+			Row originalRow,
+			CsvRowSerializationSchema.Builder serSchemaBuilder,
+			CsvRowDeserializationSchema.Builder deserSchemaBuilder) throws Exception {
 		Row deserializedRow = deserialize(
 			deserSchemaBuilder,
 			new String(serialize(serSchemaBuilder, originalRow)));
