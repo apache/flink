@@ -40,12 +40,18 @@ public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSour
 
 	private final Boundedness boundedness;
 	private final int numSplits;
+	private final boolean readerWaitingForMoreSplits;
 	protected List<MockSourceReader> createdReaders;
 
 	public MockSource(Boundedness boundedness, int numSplits) {
+		this(boundedness, numSplits, false);
+	}
+
+	public MockSource(Boundedness boundedness, int numSplits, boolean readerWaitingForMoreSplits) {
 		this.boundedness = boundedness;
 		this.numSplits = numSplits;
 		this.createdReaders = new ArrayList<>();
+		this.readerWaitingForMoreSplits = readerWaitingForMoreSplits;
 	}
 
 	@Override
@@ -55,7 +61,7 @@ public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSour
 
 	@Override
 	public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
-		MockSourceReader mockSourceReader = new MockSourceReader();
+		MockSourceReader mockSourceReader = new MockSourceReader(readerWaitingForMoreSplits);
 		createdReaders.add(mockSourceReader);
 		return mockSourceReader;
 	}
