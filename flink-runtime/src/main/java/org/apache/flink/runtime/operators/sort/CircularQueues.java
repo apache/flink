@@ -75,6 +75,9 @@ final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
 
 	@Override
 	public void sendResult(MutableObjectIterator<E> result) {
+		if (iteratorFuture.isDone()) {
+			throw new IllegalStateException("Result already done");
+		}
 		iteratorFuture.complete(result);
 	}
 

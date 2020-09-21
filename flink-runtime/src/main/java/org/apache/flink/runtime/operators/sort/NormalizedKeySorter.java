@@ -531,7 +531,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 			}
 		}
 	}
-	
+
 	/**
 	 * Writes a subset of the records in this buffer in their logical order to the given output.
 	 * 
