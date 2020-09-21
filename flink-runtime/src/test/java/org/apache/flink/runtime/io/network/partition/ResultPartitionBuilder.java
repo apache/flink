@@ -50,7 +50,7 @@ public class ResultPartitionBuilder {
 
 	private FileChannelManager channelManager = NoOpFileChannelManager.INSTANCE;
 
-	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 1);
+	private NetworkBufferPool networkBufferPool = new NetworkBufferPool(2, 1);
 
 	private int networkBuffersPerChannel = 1;
 
