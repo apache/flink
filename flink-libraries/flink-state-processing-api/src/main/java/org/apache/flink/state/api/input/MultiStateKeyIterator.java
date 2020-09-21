@@ -21,11 +21,14 @@ package org.apache.flink.state.api.input;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -37,23 +40,33 @@ import java.util.List;
  * @param <K> Type of the key by which state is keyed.
  */
 @Internal
-public final class MultiStateKeyIterator<K> implements Iterator<K> {
+public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
 	private final List<? extends StateDescriptor<?, ?>> descriptors;
 
 	private final KeyedStateBackend<K> backend;
 
 	private final Iterator<K> internal;
 
+	private final CloseableRegistry registry;
+
 	private K currentKey;
 
 	public MultiStateKeyIterator(List<? extends StateDescriptor<?, ?>> descriptors, KeyedStateBackend<K> backend) {
 		this.descriptors = Preconditions.checkNotNull(descriptors);
-
 		this.backend = Preconditions.checkNotNull(backend);
 
+		this.registry = new CloseableRegistry();
 		this.internal = descriptors
 			.stream()
-			.flatMap(descriptor -> backend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE))
+			.map(descriptor -> backend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE))
+			.peek(stream -> {
+				try {
+					registry.registerCloseable(stream::close);
+				} catch (IOException e) {
+					throw new RuntimeException("Failed to read keys from configured StateBackend", e);
+				}
+			})
+			.flatMap(stream -> stream)
 			.iterator();
 	}
 
@@ -87,6 +100,11 @@ public final class MultiStateKeyIterator<K> implements Iterator<K> {
 				throw new RuntimeException("Failed to drop partitioned state from state backend", e);
 			}
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		registry.close();
 	}
 }
 
