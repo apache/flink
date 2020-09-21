@@ -330,55 +330,6 @@ public class MultipleInputStreamTaskTest {
 	}
 
 	@Test
-	public void testClosingAllOperatorsOnChainProperly() throws Exception {
-		StreamTaskMailboxTestHarness<String> testHarness =
-			new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-				.modifyExecutionConfig(config -> config.enableObjectReuse())
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.addSourceInput(
-					new SourceOperatorFactory<>(
-						new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
-						WatermarkStrategy.noWatermarks()))
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.setupOperatorChain(new TestBoundedMultipleInputOperatorFactory())
-				.chain(new TestBoundedOneInputStreamOperator("Operator1"), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
-				.finish()
-				.build();
-
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		try {
-			testHarness.processElement(new StreamRecord<>("Hello-1"), 0);
-			testHarness.endInput(0);
-			testHarness.processWhileAvailable();
-
-			addSourceRecords(testHarness, 1, 42);
-			testHarness.processElement(new StreamRecord<>("Hello-3"), 1);
-			testHarness.endInput(1);
-			testHarness.processWhileAvailable();
-			assertEquals(
-				true,
-				testHarness.getStreamTask().getInputOutputJointFuture(InputStatus.NOTHING_AVAILABLE).isDone());
-
-			testHarness.waitForTaskCompletion();
-		}
-		finally {
-			testHarness.close();
-		}
-
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-1]: End of input"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-3]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-2]: End of input"));
-		expectedOutput.add(new StreamRecord<>("[Operator0-3]: End of input"));
-		expectedOutput.add(new StreamRecord<>("[Operator0]: Bye"));
-		expectedOutput.add(new StreamRecord<>("[Operator1]: End of input"));
-		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
-
-		assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
-	}
-
-	@Test
 	public void testInputFairness() throws Exception {
 		try (StreamTaskMailboxTestHarness<String> testHarness =
 				new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
