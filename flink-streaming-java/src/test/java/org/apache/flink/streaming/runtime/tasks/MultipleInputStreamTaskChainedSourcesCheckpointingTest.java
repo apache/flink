@@ -37,8 +37,8 @@ import java.util.ArrayList;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
-import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskChainedSourcesTest.addSourceRecords;
-import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskChainedSourcesTest.buildTestHarness;
+import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.addSourceRecords;
+import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.buildTestHarness;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
