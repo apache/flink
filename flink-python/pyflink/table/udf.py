@@ -124,12 +124,10 @@ class TableFunction(UserDefinedFunction):
 
 class AggregateFunction(UserDefinedFunction):
     """
-
     Base interface for user-defined aggregate function. A user-defined aggregate function maps
     scalar values of multiple rows to a new scalar value.
 
     .. versionadded:: 1.12.0
-
     """
 
     @abc.abstractmethod
@@ -253,7 +251,10 @@ class DelegatingPandasAggregateFunction(AggregateFunction):
         accumulator.append(self.func(*args))
 
 
-class WrapperPandasAggregateFunction(object):
+class PandasAggregateFunctionWrapper(object):
+    """
+    Wrapper for Pandas Aggregate function.
+    """
     def __init__(self, func: AggregateFunction):
         self.func = func
 
@@ -276,7 +277,7 @@ class UserDefinedFunctionWrapper(object):
     etc. It's for internal use only.
     """
 
-    def __init__(self, func, input_types, deterministic=None, name=None):
+    def __init__(self, func, input_types, function_type, deterministic=None, name=None):
         if inspect.isclass(func) or (
                 not isinstance(func, UserDefinedFunction) and not callable(func)):
             raise TypeError(
@@ -306,12 +307,47 @@ class UserDefinedFunctionWrapper(object):
         # default deterministic is True
         self._deterministic = deterministic if deterministic is not None else (
             func.is_deterministic() if isinstance(func, UserDefinedFunction) else True)
+        self._function_type = function_type
+        self._judf_placeholder = None
 
     def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
         return expr.call(self, *args)
 
     def java_user_defined_function(self):
+        if self._judf_placeholder is None:
+            gateway = get_gateway()
+
+            def get_python_function_kind():
+                JPythonFunctionKind = gateway.jvm.org.apache.flink.table.functions.python. \
+                    PythonFunctionKind
+                if self._function_type == "general":
+                    return JPythonFunctionKind.GENERAL
+                elif self._function_type == "pandas":
+                    return JPythonFunctionKind.PANDAS
+                else:
+                    raise TypeError("Unsupported function_type: %s." % self._function_type)
+
+            if self._input_types is not None:
+                j_input_types = utils.to_jarray(
+                    gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
+            else:
+                j_input_types = None
+            j_function_kind = get_python_function_kind()
+            func = self._func
+            if not isinstance(self._func, UserDefinedFunction):
+                func = self._create_delegate_function()
+
+            import cloudpickle
+            serialized_func = cloudpickle.dumps(func)
+            self._judf_placeholder = \
+                self._create_judf(serialized_func, j_input_types, j_function_kind)
+        return self._judf_placeholder
+
+    def _create_delegate_function(self) -> UserDefinedFunction:
+        pass
+
+    def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         pass
 
 
@@ -320,49 +356,19 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
     Wrapper for Python user-defined scalar function.
     """
 
-    def __init__(self, func, input_types, result_type, udf_type, deterministic, name):
+    def __init__(self, func, input_types, result_type, function_type, deterministic, name):
         super(UserDefinedScalarFunctionWrapper, self).__init__(
-            func, input_types, deterministic, name)
+            func, input_types, function_type, deterministic, name)
 
         if not isinstance(result_type, DataType):
             raise TypeError(
                 "Invalid returnType: returnType should be DataType but is {}".format(result_type))
         self._result_type = result_type
-        self._udf_type = udf_type
         self._judf_placeholder = None
 
-    def java_user_defined_function(self):
-        if self._judf_placeholder is None:
-            self._judf_placeholder = self._create_judf()
-        return self._judf_placeholder
-
-    def _create_judf(self):
+    def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         gateway = get_gateway()
-
-        def get_python_function_kind(udf_type):
-            JPythonFunctionKind = gateway.jvm.org.apache.flink.table.functions.python.\
-                PythonFunctionKind
-            if udf_type == "general":
-                return JPythonFunctionKind.GENERAL
-            elif udf_type == "pandas":
-                return JPythonFunctionKind.PANDAS
-            else:
-                raise TypeError("Unsupported udf_type: %s." % udf_type)
-
-        func = self._func
-        if not isinstance(self._func, UserDefinedFunction):
-            func = DelegatingScalarFunction(self._func)
-
-        import cloudpickle
-        serialized_func = cloudpickle.dumps(func)
-
-        if self._input_types is not None:
-            j_input_types = utils.to_jarray(
-                gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
-        else:
-            j_input_types = None
         j_result_type = _to_java_type(self._result_type)
-        j_function_kind = get_python_function_kind(self._udf_type)
         PythonScalarFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonScalarFunction
         j_scalar_function = PythonScalarFunction(
@@ -375,6 +381,9 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             _get_python_env())
         return j_scalar_function
 
+    def _create_delegate_function(self) -> UserDefinedFunction:
+        return DelegatingScalarFunction(self._func)
+
 
 class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
     """
@@ -383,7 +392,7 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
 
     def __init__(self, func, input_types, result_types, deterministic=None, name=None):
         super(UserDefinedTableFunctionWrapper, self).__init__(
-            func, input_types, deterministic, name)
+            func, input_types, "general", deterministic, name)
 
         if not isinstance(result_types, collections.Iterable):
             result_types = [result_types]
@@ -395,33 +404,12 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
                         result_type))
 
         self._result_types = result_types
-        self._judtf_placeholder = None
 
-    def java_user_defined_function(self):
-        if self._judtf_placeholder is None:
-            self._judtf_placeholder = self._create_judtf()
-        return self._judtf_placeholder
-
-    def _create_judtf(self):
-        func = self._func
-        if not isinstance(self._func, UserDefinedFunction):
-            func = DelegationTableFunction(self._func)
-
-        import cloudpickle
-        serialized_func = cloudpickle.dumps(func)
-
+    def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         gateway = get_gateway()
-        if self._input_types is not None:
-            j_input_types = utils.to_jarray(
-                gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
-        else:
-            j_input_types = None
-
         j_result_types = utils.to_jarray(gateway.jvm.TypeInformation,
                                          [_to_java_type(i) for i in self._result_types])
         j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(j_result_types)
-        j_function_kind = gateway.jvm.org.apache.flink.table.functions.python. \
-            PythonFunctionKind.GENERAL
         PythonTableFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonTableFunction
         j_table_function = PythonTableFunction(
@@ -434,58 +422,38 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
             _get_python_env())
         return j_table_function
 
+    def _create_delegate_function(self) -> UserDefinedFunction:
+        return DelegationTableFunction(self._func)
+
 
 class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
     """
     Wrapper for Python user-defined aggregate function.
     """
-    def __init__(self, func, input_types, result_type, udaf_type, deterministic, name):
+    def __init__(self, func, input_types, result_type, accumulator_type, function_type,
+                 deterministic, name):
         super(UserDefinedAggregateFunctionWrapper, self).__init__(
-            func, input_types, deterministic, name)
+            func, input_types, function_type, deterministic, name)
 
         if not isinstance(result_type, DataType):
             raise TypeError(
                 "Invalid returnType: returnType should be DataType but is {}".format(result_type))
+        if accumulator_type is not None and not isinstance(accumulator_type, DataType):
+            raise TypeError(
+                "Invalid accumulator_type: accumulator_type should be DataType but is {}".format(
+                    accumulator_type))
         self._result_type = result_type
-        self._udaf_type = udaf_type
-        self._judaf_placeholder = None
+        self._accumulator_type = accumulator_type
 
-    def java_user_defined_function(self):
-        if self._judaf_placeholder is None:
-            self._judaf_placeholder = self._create_judaf()
-        return self._judaf_placeholder
-
-    def _create_judaf(self):
-        gateway = get_gateway()
-
-        def get_python_function_kind(udf_type):
-            JPythonFunctionKind = gateway.jvm.org.apache.flink.table.functions.python. \
-                PythonFunctionKind
-            if udf_type == "general":
-                return JPythonFunctionKind.GENERAL
-            elif udf_type == "pandas":
-                return JPythonFunctionKind.PANDAS
-            else:
-                raise TypeError("Unsupported udf_type: %s." % udf_type)
-
-        func = self._func
-        if not isinstance(self._func, UserDefinedFunction):
-            func = DelegatingPandasAggregateFunction(self._func)
-
-        if self._udaf_type == "pandas":
-            func = WrapperPandasAggregateFunction(func)
-
-        if self._input_types is not None:
-            j_input_types = utils.to_jarray(
-                gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
-        else:
-            j_input_types = None
-
-        import cloudpickle
-        serialized_func = cloudpickle.dumps(func)
+    def _create_judf(self, serialized_func, j_input_types, j_function_kind):
+        if self._function_type == "pandas" and not self._accumulator_type:
+            from pyflink.table.types import DataTypes
+            self._accumulator_type = DataTypes.ARRAY(self._result_type)
 
         j_result_type = _to_java_type(self._result_type)
-        j_function_kind = get_python_function_kind(self._udaf_type)
+        j_accumulator_type = _to_java_type(self._accumulator_type)
+
+        gateway = get_gateway()
         PythonAggregateFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonAggregateFunction
         j_aggregate_function = PythonAggregateFunction(
@@ -493,10 +461,14 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
             bytearray(serialized_func),
             j_input_types,
             j_result_type,
+            j_accumulator_type,
             j_function_kind,
             self._deterministic,
             _get_python_env())
         return j_aggregate_function
+
+    def _create_delegate_function(self) -> UserDefinedFunction:
+        return DelegatingPandasAggregateFunction(self._func)
 
 
 # TODO: support to configure the python execution environment
@@ -506,22 +478,22 @@ def _get_python_env():
     return gateway.jvm.org.apache.flink.table.functions.python.PythonEnv(exec_type)
 
 
-def _create_udf(f, input_types, result_type, udf_type, deterministic, name):
+def _create_udf(f, input_types, result_type, function_type, deterministic, name):
     return UserDefinedScalarFunctionWrapper(
-        f, input_types, result_type, udf_type, deterministic, name)
+        f, input_types, result_type, function_type, deterministic, name)
 
 
 def _create_udtf(f, input_types, result_types, deterministic, name):
     return UserDefinedTableFunctionWrapper(f, input_types, result_types, deterministic, name)
 
 
-def _create_udaf(f, input_types, result_type, udaf_type, deterministic, name):
+def _create_udaf(f, input_types, result_type, accumulator_type, function_type, deterministic, name):
     return UserDefinedAggregateFunctionWrapper(
-        f, input_types, result_type, udaf_type, deterministic, name)
+        f, input_types, result_type, accumulator_type, function_type, deterministic, name)
 
 
 def udf(f=None, input_types=None, result_type=None, deterministic=None, name=None,
-        udf_type="general"):
+        function_type="general"):
     """
     Helper method for creating a user-defined function.
 
@@ -552,23 +524,25 @@ def udf(f=None, input_types=None, result_type=None, deterministic=None, name=Non
     :type deterministic: bool
     :param name: the function name.
     :type name: str
-    :param udf_type: the type of the python function, available value: general, pandas,
+    :param function_type: the type of the python function, available value: general, pandas,
                      (default: general)
-    :type udf_type: str
+    :type function_type: str
     :return: UserDefinedScalarFunctionWrapper or function.
     :rtype: UserDefinedScalarFunctionWrapper or function
 
     .. versionadded:: 1.10.0
     """
-    if udf_type not in ('general', 'pandas'):
-        raise ValueError("The udf_type must be one of 'general, pandas', got %s." % udf_type)
+    if function_type not in ('general', 'pandas'):
+        raise ValueError("The function_type must be one of 'general, pandas', got %s."
+                         % function_type)
 
     # decorator
     if f is None:
         return functools.partial(_create_udf, input_types=input_types, result_type=result_type,
-                                 udf_type=udf_type, deterministic=deterministic, name=name)
+                                 function_type=function_type, deterministic=deterministic,
+                                 name=name)
     else:
-        return _create_udf(f, input_types, result_type, udf_type, deterministic, name)
+        return _create_udf(f, input_types, result_type, function_type, deterministic, name)
 
 
 def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=None):
@@ -614,8 +588,8 @@ def udtf(f=None, input_types=None, result_types=None, deterministic=None, name=N
         return _create_udtf(f, input_types, result_types, deterministic, name)
 
 
-def udaf(f=None, input_types=None, result_type=None, deterministic=None, name=None,
-         udaf_type="pandas"):
+def udaf(f=None, input_types=None, result_type=None, accumulator_type=None, deterministic=None,
+         name=None, function_type="pandas"):
     """
     Helper method for creating a user-defined aggregate function.
 
@@ -623,7 +597,7 @@ def udaf(f=None, input_types=None, result_type=None, deterministic=None, name=No
         ::
 
             >>> # The input_types is optional.
-            >>> @udaf(result_type=DataTypes.FLOAT(), udaf_type="pandas")
+            >>> @udaf(result_type=DataTypes.FLOAT(), function_type="pandas")
             ... def mean_udaf(v):
             ...     return v.mean()
 
@@ -633,24 +607,30 @@ def udaf(f=None, input_types=None, result_type=None, deterministic=None, name=No
     :type input_types: list[DataType] or DataType
     :param result_type: the result data type.
     :type result_type: DataType
+    :param accumulator_type: the accumulator data type.
+    :type accumulator_type: DataType
     :param deterministic: the determinism of the function's results. True if and only if a call to
                           this function is guaranteed to always return the same result given the
                           same parameters. (default True)
     :type deterministic: bool
     :param name: the function name.
     :type name: str
-    :param udaf_type: the type of the python function, available value: general, pandas,
+    :param function_type: the type of the python function, available value: general, pandas,
                      (default: pandas)
-    :type udaf_type: str
+    :type function_type: str
     :return: UserDefinedAggregateFunctionWrapper or function.
     :rtype: UserDefinedAggregateFunctionWrapper or function
 
-
     .. versionadded:: 1.12.0
     """
+    if function_type not in ('general', 'pandas'):
+        raise ValueError("The function_type must be one of 'general, pandas', got %s."
+                         % function_type)
     # decorator
     if f is None:
         return functools.partial(_create_udaf, input_types=input_types, result_type=result_type,
-                                 udaf_type=udaf_type, deterministic=deterministic, name=name)
+                                 accumulator_type=accumulator_type, function_type=function_type,
+                                 deterministic=deterministic, name=name)
     else:
-        return _create_udaf(f, input_types, result_type, udaf_type, deterministic, name)
+        return _create_udaf(f, input_types, result_type, accumulator_type, function_type,
+                            deterministic, name)

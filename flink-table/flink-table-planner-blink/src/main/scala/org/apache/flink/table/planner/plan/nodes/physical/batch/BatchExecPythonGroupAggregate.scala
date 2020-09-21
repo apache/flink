@@ -186,7 +186,6 @@ class BatchExecPythonGroupAggregate(
       input,
       inputType,
       outputType,
-      grouping,
       getConfig(planner.getExecEnv, planner.getTableConfig))
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
       ExecNode.setManagedMemoryWeight(
@@ -199,7 +198,6 @@ class BatchExecPythonGroupAggregate(
       inputTransform: Transformation[RowData],
       inputRowType: RowType,
       outputRowType: RowType,
-      groupingSet: Array[Int],
       config: Configuration): OneInputTransformation[RowData, RowData] = {
 
     val (pythonUdafInputOffsets, pythonFunctionInfos) =

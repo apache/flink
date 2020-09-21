@@ -185,13 +185,10 @@ cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
                 ','.join([x[0], y[0]]),
                 dict(chain(x[1].items(), y[1].items())),
                 x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(udf) for udf in udfs])
+            [operation_utils.extract_user_defined_function(udf, True) for udf in udfs])
         variable_dict['wrap_pandas_result'] = operation_utils.wrap_pandas_result
         mapper = eval('lambda value: wrap_pandas_result([%s])' % pandas_functions, variable_dict)
-        if self._is_python_coder:
-            generate_func = lambda it: map(mapper, it)
-        else:
-            generate_func = mapper
+        generate_func = lambda it: map(mapper, it)
         return generate_func, user_defined_funcs
 
 

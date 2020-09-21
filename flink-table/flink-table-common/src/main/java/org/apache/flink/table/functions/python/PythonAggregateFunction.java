@@ -43,6 +43,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 	private final byte[] serializedAggregateFunction;
 	private final TypeInformation[] inputTypes;
 	private final TypeInformation resultType;
+	private final TypeInformation accumulatorType;
 	private final PythonFunctionKind pythonFunctionKind;
 	private final boolean deterministic;
 	private final PythonEnv pythonEnv;
@@ -52,6 +53,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 		byte[] serializedAggregateFunction,
 		TypeInformation[] inputTypes,
 		TypeInformation resultType,
+		TypeInformation accumulatorType,
 		PythonFunctionKind pythonFunctionKind,
 		boolean deterministic,
 		PythonEnv pythonEnv) {
@@ -59,6 +61,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 		this.serializedAggregateFunction = serializedAggregateFunction;
 		this.inputTypes = inputTypes;
 		this.resultType = resultType;
+		this.accumulatorType = accumulatorType;
 		this.pythonFunctionKind = pythonFunctionKind;
 		this.deterministic = deterministic;
 		this.pythonEnv = pythonEnv;
@@ -106,7 +109,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 
 	@Override
 	public TypeInformation getAccumulatorType() {
-		return resultType;
+		return accumulatorType;
 	}
 
 	@Override
@@ -120,6 +123,7 @@ public class PythonAggregateFunction extends AggregateFunction implements Python
 		}
 		return builder
 			.outputTypeStrategy(TypeStrategies.explicit(TypeConversions.fromLegacyInfoToDataType(resultType)))
+			.accumulatorTypeStrategy(TypeStrategies.explicit(TypeConversions.fromLegacyInfoToDataType(accumulatorType)))
 			.build();
 	}
 
