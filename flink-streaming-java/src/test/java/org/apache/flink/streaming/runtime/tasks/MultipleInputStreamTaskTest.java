@@ -29,7 +29,6 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -51,6 +50,8 @@ import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -319,8 +320,12 @@ public class MultipleInputStreamTaskTest {
 				LifeCycleTrackingMap.OPEN,
 				LifeCycleTrackingMapToStringMultipleInputOperator.OPEN,
 				LifeCycleTrackingMockSourceReader.START,
+				LifeCycleTrackingMapToStringMultipleInputOperator.END_INPUT,
+				LifeCycleTrackingMapToStringMultipleInputOperator.END_INPUT,
+				LifeCycleTrackingMapToStringMultipleInputOperator.END_INPUT,
 				LifeCycleTrackingMockSourceReader.CLOSE,
 				LifeCycleTrackingMapToStringMultipleInputOperator.CLOSE,
+				LifeCycleTrackingMap.END_INPUT,
 				LifeCycleTrackingMap.CLOSE));
 	}
 
@@ -328,8 +333,12 @@ public class MultipleInputStreamTaskTest {
 	public void testClosingAllOperatorsOnChainProperly() throws Exception {
 		StreamTaskMailboxTestHarness<String> testHarness =
 			new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+				.modifyExecutionConfig(config -> config.enableObjectReuse())
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
+				.addSourceInput(
+					new SourceOperatorFactory<>(
+						new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
+						WatermarkStrategy.noWatermarks()))
 				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 				.setupOperatorChain(new TestBoundedMultipleInputOperatorFactory())
 				.chain(new TestBoundedOneInputStreamOperator("Operator1"), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
@@ -342,11 +351,9 @@ public class MultipleInputStreamTaskTest {
 			testHarness.endInput(0);
 			testHarness.processWhileAvailable();
 
-			testHarness.processElement(new StreamRecord<>("Hello-2"), 1);
-			testHarness.processElement(new StreamRecord<>("Hello-3"), 2);
+			addSourceRecords(testHarness, 1, 42);
+			testHarness.processElement(new StreamRecord<>("Hello-3"), 1);
 			testHarness.endInput(1);
-			testHarness.processWhileAvailable();
-			testHarness.endInput(2);
 			testHarness.processWhileAvailable();
 			assertEquals(
 				true,
@@ -832,9 +839,10 @@ public class MultipleInputStreamTaskTest {
 	}
 
 	static class LifeCycleTrackingMapToStringMultipleInputOperator
-		extends MapToStringMultipleInputOperator {
+			extends MapToStringMultipleInputOperator implements BoundedMultiInput {
 		public static final String OPEN = "MultipleInputOperator#open";
 		public static final String CLOSE = "MultipleInputOperator#close";
+		public static final String END_INPUT = "MultipleInputOperator#endInput";
 
 		private static final long serialVersionUID = 1L;
 
@@ -852,6 +860,11 @@ public class MultipleInputStreamTaskTest {
 		public void close() throws Exception {
 			LIFE_CYCLE_EVENTS.add(CLOSE);
 			super.close();
+		}
+
+		@Override
+		public void endInput(int inputId) {
+			LIFE_CYCLE_EVENTS.add(END_INPUT);
 		}
 	}
 
@@ -897,9 +910,10 @@ public class MultipleInputStreamTaskTest {
 		}
 	}
 
-	static class LifeCycleTrackingMap<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T> {
+	static class LifeCycleTrackingMap<T> extends AbstractStreamOperator<T> implements OneInputStreamOperator<T, T>, BoundedOneInput {
 		public static final String OPEN = "LifeCycleTrackingMap#open";
 		public static final String CLOSE = "LifeCycleTrackingMap#close";
+		public static final String END_INPUT = "LifeCycleTrackingMap#endInput";
 
 		@Override
 		public void processElement(StreamRecord<T> element) throws Exception {
@@ -916,6 +930,11 @@ public class MultipleInputStreamTaskTest {
 		public void close() throws Exception {
 			LIFE_CYCLE_EVENTS.add(CLOSE);
 			super.close();
+		}
+
+		@Override
+		public void endInput() throws Exception {
+			LIFE_CYCLE_EVENTS.add(END_INPUT);
 		}
 	}
 }
