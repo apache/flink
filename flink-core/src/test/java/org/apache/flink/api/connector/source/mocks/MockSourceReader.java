@@ -39,14 +39,19 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	private int currentSplitIndex = 0;
 	private boolean started;
 	private boolean closed;
+	private boolean waitingForMoreSplits;
 
 	@GuardedBy("this")
 	private CompletableFuture<Void> availableFuture;
 
 	public MockSourceReader() {
+		this(false);
+	}
+	public MockSourceReader(boolean waitingForMoreSplits) {
 		this.started = false;
 		this.closed = false;
 		this.availableFuture = CompletableFuture.completedFuture(null);
+		this.waitingForMoreSplits = waitingForMoreSplits;
 	}
 
 	@Override
@@ -56,7 +61,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	@Override
 	public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
-		boolean finished = true;
+		boolean finished = !waitingForMoreSplits;
 		currentSplitIndex = 0;
 		// Find first splits with available records.
 		while (currentSplitIndex < assignedSplits.size()
@@ -96,6 +101,10 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	@Override
 	public void handleSourceEvents(SourceEvent sourceEvent) {
+		if (sourceEvent instanceof MockNoMoreSplitsEvent) {
+			waitingForMoreSplits = false;
+			markAvailable();
+		}
 		receivedSourceEvents.add(sourceEvent);
 	}
 
@@ -138,5 +147,8 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	public List<SourceEvent> getReceivedSourceEvents() {
 		return receivedSourceEvents;
+	}
+
+	public static class MockNoMoreSplitsEvent implements SourceEvent {
 	}
 }
