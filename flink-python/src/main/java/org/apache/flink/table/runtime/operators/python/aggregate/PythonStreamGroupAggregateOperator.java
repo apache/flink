@@ -31,6 +31,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.PythonOptions;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
@@ -69,9 +70,11 @@ import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoTy
 /**
  *  The Python AggregateFunction operator for the blink planner.
  */
-public class RowDataPythonStreamGroupAggregateOperator
+public class PythonStreamGroupAggregateOperator
 	extends AbstractOneInputPythonFunctionOperator<RowData, RowData>
 	implements Triggerable<RowData, VoidNamespace>, CleanupState {
+
+	private static final long serialVersionUID = 1L;
 
 	@VisibleForTesting
 	protected static final String FLINK_AGGREGATE_FUNCTION_INPUT_SCHEMA_CODER_URN =
@@ -88,10 +91,6 @@ public class RowDataPythonStreamGroupAggregateOperator
 	protected static final byte NORMAL_RECORD = 0;
 
 	private static final byte TRIGGER_TIMER = 1;
-
-	private static final long serialVersionUID = 1L;
-
-	private static final int DEFAULT_STATE_CACHE_SIZE = 1000;
 
 	/**
 	 * The input logical type.
@@ -128,22 +127,22 @@ public class RowDataPythonStreamGroupAggregateOperator
 	/**
 	 * The minimum time in milliseconds until state which was not updated will be retained.
 	 */
-	final long minRetentionTime;
+	private final long minRetentionTime;
 
 	/**
 	 * The maximum time in milliseconds until state which was not updated will be retained.
 	 */
-	final long maxRetentionTime;
+	private final long maxRetentionTime;
 
 	/**
 	 * The maximum NUMBER of the states cached in Python side.
 	 */
-	private int stateCacheSize = DEFAULT_STATE_CACHE_SIZE;
+	private int stateCacheSize = PythonOptions.STATE_CACHE_SIZE.defaultValue();
 
 	/**
 	 * Indicates whether state cleaning is enabled. Can be calculated from the `minRetentionTime`.
 	 */
-	protected final boolean stateCleaningEnabled;
+	private final boolean stateCleaningEnabled;
 
 	private transient Object keyForTimerService;
 
@@ -195,7 +194,7 @@ public class RowDataPythonStreamGroupAggregateOperator
 	 */
 	private transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
-	public RowDataPythonStreamGroupAggregateOperator(
+	public PythonStreamGroupAggregateOperator(
 			Configuration config,
 			RowType inputType,
 			RowType outputType,
@@ -249,6 +248,9 @@ public class RowDataPythonStreamGroupAggregateOperator
 		baosWrapper = new DataOutputViewStreamWrapper(baos);
 		timerService = new SimpleTimerService(
 			getInternalTimerService("state-clean-timer", VoidNamespaceSerializer.INSTANCE, this));
+		// The structure is:  [type]|[normal record]|[timestamp of timer]|[row key of timer]
+		// If the type is 'NORMAL_RECORD', store the RowData object in the 2nd column.
+		// If the type is 'TRIGGER_TIMER', store the timestamp in 3rd column and the row key in 4th column.
 		reuseRowData = new UpdatableRowData(GenericRowData.of(NORMAL_RECORD, null, null, null), 4);
 		reuseTimerRowData = new UpdatableRowData(GenericRowData.of(TRIGGER_TIMER, null, null, null), 4);
 		rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
@@ -349,9 +351,7 @@ public class RowDataPythonStreamGroupAggregateOperator
 		if (config.containsKey("table.exec.timezone")) {
 			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
 		}
-		if (config.containsKey("python.state.cache.size")) {
-			stateCacheSize = Integer.valueOf(config.getString("python.state.cache.size", null));
-		}
+		stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
 		return jobOptions;
 	}
 

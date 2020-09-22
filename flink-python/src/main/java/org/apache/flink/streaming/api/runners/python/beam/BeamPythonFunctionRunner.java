@@ -27,11 +27,10 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
@@ -63,6 +62,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -92,13 +92,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 /**
- * A {@link BeamPythonFunctionRunner} used to execute Python stateful functions.
+ * A {@link BeamPythonFunctionRunner} used to execute Python functions.
  */
 @Internal
 public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
 
-	private static final String BEAM_STATE_PREFIX = "beam-state-";
+	private static final String PYTHON_STATE_PREFIX = "python-state-";
 
 	private static final String INPUT_ID = "input";
 	private static final String OUTPUT_ID = "output";
@@ -208,6 +208,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
 		// one operator has one Python SDK harness
 		portableOptions.setSdkWorkerParallelism(1);
+
+		if (jobOptions.containsKey(PythonOptions.STATE_CACHE_SIZE.key())) {
+			portableOptions.as(ExperimentalOptions.class).setExperiments(
+				Collections.singletonList(
+					ExperimentalOptions.STATE_CACHE_SIZE + "=" +
+						jobOptions.get(PythonOptions.STATE_CACHE_SIZE.key())));
+		}
 
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
@@ -485,19 +492,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		private final KeyedStateBackend keyedStateBackend;
 
 		/**
-		 * Reusable OutputStream used to holding the serialized input elements.
-		 */
-		private final ByteArrayOutputStreamWithPos baos;
-
-		/**
 		 * Reusable InputStream used to holding the elements to be deserialized.
 		 */
 		private final ByteArrayInputStreamWithPos bais;
-
-		/**
-		 * OutputStream Wrapper.
-		 */
-		private final DataOutputViewStreamWrapper baosWrapper;
 
 		/**
 		 * InputStream Wrapper.
@@ -512,12 +509,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		SimpleStateRequestHandler(
 			KeyedStateBackend keyedStateBackend,
 			TypeSerializer keySerializer) {
+			this.keyedStateBackend = keyedStateBackend;
 			this.keySerializer = keySerializer;
 			this.valueSerializer = PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 				.createSerializer(new ExecutionConfig());
-			this.keyedStateBackend = keyedStateBackend;
-			baos = new ByteArrayOutputStreamWithPos();
-			baosWrapper = new DataOutputViewStreamWrapper(baos);
 			bais = new ByteArrayInputStreamWithPos();
 			baisWrapper = new DataInputViewStreamWrapper(bais);
 			stateDescriptorCache = new HashMap<>();
@@ -616,7 +611,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		private ListState<byte[]> getListState(BeamFnApi.StateRequest request) throws Exception {
 			BeamFnApi.StateKey.BagUserState bagUserState = request.getStateKey().getBagUserState();
-			String stateName = BEAM_STATE_PREFIX + bagUserState.getUserStateId();
+			String stateName = PYTHON_STATE_PREFIX + bagUserState.getUserStateId();
 			ListStateDescriptor<byte[]> listStateDescriptor;
 			StateDescriptor cachedStateDescriptor = stateDescriptorCache.get(stateName);
 			if (cachedStateDescriptor instanceof ListStateDescriptor) {

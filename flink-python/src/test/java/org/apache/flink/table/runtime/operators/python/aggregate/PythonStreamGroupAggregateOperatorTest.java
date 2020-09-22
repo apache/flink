@@ -59,9 +59,9 @@ import java.util.function.Function;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /**
- * The tests for {@link RowDataPythonStreamGroupAggregateOperator}.
+ * The tests for {@link PythonStreamGroupAggregateOperator}.
  */
-public class RowDataPythonStreamGroupAggregateOperatorTest {
+public class PythonStreamGroupAggregateOperatorTest {
 
 	@Test
 	public void testFlushDataOnClose() throws Exception {
@@ -186,7 +186,7 @@ public class RowDataPythonStreamGroupAggregateOperatorTest {
 	}
 
 	@Test
-	public void testStateCleaupTimer() throws Exception {
+	public void testStateCleanupTimer() throws Exception {
 		Configuration conf = new Configuration();
 		conf.setString("table.exec.state.ttl", "100");
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
@@ -245,7 +245,7 @@ public class RowDataPythonStreamGroupAggregateOperatorTest {
 
 	private OneInputStreamOperator getTestOperator(Configuration config) {
 		long stateTtl = Long.valueOf(config.getString("table.exec.state.ttl", "0"));
-		return new PassThroughRowDataPythonStreamGroupAggregateOperator(
+		return new PassThroughPythonStreamGroupAggregateOperator(
 			config,
 			getInputType(),
 			getOutputType(),
@@ -260,10 +260,10 @@ public class RowDataPythonStreamGroupAggregateOperatorTest {
 			stateTtl);
 	}
 
-	private static class PassThroughRowDataPythonStreamGroupAggregateOperator
-		extends RowDataPythonStreamGroupAggregateOperator {
+	private static class PassThroughPythonStreamGroupAggregateOperator
+		extends PythonStreamGroupAggregateOperator {
 
-		PassThroughRowDataPythonStreamGroupAggregateOperator(
+		PassThroughPythonStreamGroupAggregateOperator(
 			Configuration config,
 			RowType inputType,
 			RowType outputType,
