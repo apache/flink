@@ -495,11 +495,10 @@ public class MultipleInputStreamTaskTest {
 			// test whether idle input channels are acknowledged correctly when forwarding watermarks
 			testHarness.processElement(StreamStatus.IDLE, 0, 1);
 			testHarness.processElement(StreamStatus.IDLE, 1, 1);
-			testHarness.processElement(StreamStatus.IDLE, 2, 0);
 			testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
 			testHarness.processElement(new Watermark(initialTime + 6), 1, 0);
 			testHarness.processElement(new Watermark(initialTime + 5), 2, 1); // this watermark should be advanced first
-			testHarness.processElement(StreamStatus.IDLE, 2, 1); // once this is acknowledged,
+			testHarness.processElement(StreamStatus.IDLE, 2, 0); // once this is acknowledged,
 
 			expectedOutput.add(new Watermark(initialTime + 5));
 			// We don't expect to see Watermark(6) here because the idle status of one
@@ -510,6 +509,8 @@ public class MultipleInputStreamTaskTest {
 			// make all input channels idle and check that the operator's idle status is forwarded
 			testHarness.processElement(StreamStatus.IDLE, 0, 0);
 			testHarness.processElement(StreamStatus.IDLE, 1, 0);
+			testHarness.processElement(StreamStatus.IDLE, 2, 1);
+
 			expectedOutput.add(StreamStatus.IDLE);
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
