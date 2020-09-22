@@ -20,6 +20,7 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.LogicalTypeParserTest;
@@ -175,13 +176,17 @@ public class DescriptorPropertiesTest {
 	@Test
 	public void testTableSchema() {
 		TableSchema schema = TableSchema.builder()
-			.field("f0", DataTypes.BIGINT().notNull())
-			.field("f1", DataTypes.ROW(
+			.add(TableColumn.physical("f0", DataTypes.BIGINT().notNull()))
+			.add(TableColumn.physical("f1", DataTypes.ROW(
 				DataTypes.FIELD("q1", DataTypes.STRING()),
-				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(9))))
-			.field("f2", DataTypes.STRING().notNull())
-			.field("f3", DataTypes.BIGINT().notNull(), "f0 + 1")
-			.field("f4", DataTypes.DECIMAL(10, 3))
+				DataTypes.FIELD("q2", DataTypes.TIMESTAMP(9)))))
+			.add(TableColumn.physical("f2", DataTypes.STRING().notNull()))
+			.add(TableColumn.computed("f3", DataTypes.BIGINT().notNull(), "f0 + 1"))
+			.add(TableColumn.physical("f4", DataTypes.DECIMAL(10, 3)))
+			.add(TableColumn.metadata("f5", DataTypes.DECIMAL(10, 3)))
+			.add(TableColumn.metadata("f6", DataTypes.INT(), "other.key"))
+			.add(TableColumn.metadata("f7", DataTypes.INT(), true))
+			.add(TableColumn.metadata("f8", DataTypes.INT(), "other.key", true))
 			.watermark(
 				"f1.q2",
 				"`f1`.`q2` - INTERVAL '5' SECOND",
@@ -193,22 +198,50 @@ public class DescriptorPropertiesTest {
 		properties.putTableSchema("schema", schema);
 		Map<String, String> actual = properties.asMap();
 		Map<String, String> expected = new HashMap<>();
+
 		expected.put("schema.0.name", "f0");
 		expected.put("schema.0.data-type", "BIGINT NOT NULL");
+
 		expected.put("schema.1.name", "f1");
 		expected.put("schema.1.data-type", "ROW<`q1` VARCHAR(2147483647), `q2` TIMESTAMP(9)>");
+
 		expected.put("schema.2.name", "f2");
 		expected.put("schema.2.data-type", "VARCHAR(2147483647) NOT NULL");
+
 		expected.put("schema.3.name", "f3");
 		expected.put("schema.3.data-type", "BIGINT NOT NULL");
 		expected.put("schema.3.expr", "f0 + 1");
+
 		expected.put("schema.4.name", "f4");
 		expected.put("schema.4.data-type", "DECIMAL(10, 3)");
+
+		expected.put("schema.5.name", "f5");
+		expected.put("schema.5.data-type", "DECIMAL(10, 3)");
+		expected.put("schema.5.metadata", "f5");
+		expected.put("schema.5.virtual", "false");
+
+		expected.put("schema.6.name", "f6");
+		expected.put("schema.6.data-type", "INT");
+		expected.put("schema.6.metadata", "other.key");
+		expected.put("schema.6.virtual", "false");
+
+		expected.put("schema.7.name", "f7");
+		expected.put("schema.7.data-type", "INT");
+		expected.put("schema.7.metadata", "f7");
+		expected.put("schema.7.virtual", "true");
+
+		expected.put("schema.8.name", "f8");
+		expected.put("schema.8.data-type", "INT");
+		expected.put("schema.8.metadata", "other.key");
+		expected.put("schema.8.virtual", "true");
+
 		expected.put("schema.watermark.0.rowtime", "f1.q2");
 		expected.put("schema.watermark.0.strategy.expr", "`f1`.`q2` - INTERVAL '5' SECOND");
 		expected.put("schema.watermark.0.strategy.data-type", "TIMESTAMP(3)");
+
 		expected.put("schema.primary-key.name", "constraint1");
 		expected.put("schema.primary-key.columns", "f0,f2");
+
 		assertEquals(expected, actual);
 
 		TableSchema restored = properties.getTableSchema("schema");

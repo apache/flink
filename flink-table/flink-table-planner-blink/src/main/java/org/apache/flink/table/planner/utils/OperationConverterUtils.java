@@ -176,7 +176,7 @@ public class OperationConverterUtils {
 		LogicalType logicalType = FlinkTypeFactory.toLogicalType(
 				typeSpec.deriveType(sqlValidator, typeSpec.getNullable()));
 		DataType dataType = TypeConversions.fromLogicalToDataType(logicalType);
-		return TableColumn.of(name, dataType);
+		return TableColumn.physical(name, dataType);
 	}
 
 	private static void setWatermarkAndPK(TableSchema.Builder builder, TableSchema schema) {

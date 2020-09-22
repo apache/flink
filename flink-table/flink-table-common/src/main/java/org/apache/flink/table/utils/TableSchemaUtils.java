@@ -42,18 +42,18 @@ public class TableSchemaUtils {
 
 	/**
 	 * Return {@link TableSchema} which consists of all physical columns. That means, the computed
-	 * columns are filtered out.
+	 * columns and metadata columns are filtered out.
 	 *
 	 * <p>Readers(or writers) such as {@link TableSource} and {@link TableSink} should use this physical
 	 * schema to generate {@link TableSource#getProducedDataType()} and {@link TableSource#getTableSchema()}
-	 * rather than using the raw TableSchema which may contains computed columns.
+	 * rather than using the raw TableSchema which may contains additional columns.
 	 */
 	public static TableSchema getPhysicalSchema(TableSchema tableSchema) {
 		Preconditions.checkNotNull(tableSchema);
 		TableSchema.Builder builder = new TableSchema.Builder();
 		tableSchema.getTableColumns().forEach(
 			tableColumn -> {
-				if (!tableColumn.isGenerated()) {
+				if (tableColumn.isPhysical()) {
 					builder.field(tableColumn.getName(), tableColumn.getType());
 				}
 			});
@@ -72,7 +72,7 @@ public class TableSchemaUtils {
 	 * @see org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 	 */
 	public static TableSchema projectSchema(TableSchema tableSchema, int[][] projectedFields) {
-		checkArgument(!containsGeneratedColumns(tableSchema), "It's illegal to project on a schema contains computed columns.");
+		checkArgument(containsPhysicalColumnsOnly(tableSchema), "Projection is only supported for physical columns.");
 		TableSchema.Builder schemaBuilder = TableSchema.builder();
 		List<TableColumn> tableColumns = tableSchema.getTableColumns();
 		for (int[] fieldPath : projectedFields) {
@@ -84,21 +84,21 @@ public class TableSchemaUtils {
 	}
 
 	/**
-	 * Returns true if there are any generated columns in the given {@link TableColumn}.
+	 * Returns true if there are only physical columns in the given {@link TableSchema}.
 	 */
-	public static boolean containsGeneratedColumns(TableSchema schema) {
+	public static boolean containsPhysicalColumnsOnly(TableSchema schema) {
 		Preconditions.checkNotNull(schema);
-		return schema.getTableColumns().stream().anyMatch(TableColumn::isGenerated);
+		return schema.getTableColumns().stream().allMatch(TableColumn::isPhysical);
 	}
 
 	/**
-	 * Throws exception if the given {@link TableSchema} contains any generated columns.
+	 * Throws an exception if the given {@link TableSchema} contains any non-physical columns.
 	 */
-	public static TableSchema checkNoGeneratedColumns(TableSchema schema) {
+	public static TableSchema checkOnlyPhysicalColumns(TableSchema schema) {
 		Preconditions.checkNotNull(schema);
-		if (containsGeneratedColumns(schema)) {
+		if (!containsPhysicalColumnsOnly(schema)) {
 			throw new ValidationException(
-				"The given schema contains generated columns, schema: " + schema.toString());
+				"The given schema contains non-physical columns, schema: \n" + schema.toString());
 		}
 		return schema;
 	}
@@ -164,14 +164,10 @@ public class TableSchemaUtils {
 	}
 
 	/** Returns the builder with copied columns info from the given table schema. */
-	private static TableSchema.Builder builderWithGivenColumns(List<TableColumn> oriColumns) {
-		TableSchema.Builder builder = TableSchema.builder();
-		for (TableColumn column : oriColumns) {
-			if (column.isGenerated()) {
-				builder.field(column.getName(), column.getType(), column.getExpr().get());
-			} else {
-				builder.field(column.getName(), column.getType());
-			}
+	private static TableSchema.Builder builderWithGivenColumns(List<TableColumn> originalColumns) {
+		final TableSchema.Builder builder = TableSchema.builder();
+		for (TableColumn column : originalColumns) {
+			builder.add(column);
 		}
 		return builder;
 	}

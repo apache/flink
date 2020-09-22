@@ -606,29 +606,16 @@ public class SqlToOperationConverter {
 	}
 
 	/**
-	 * Create a table schema from {@link SqlCreateTable}. This schema contains computed column
-	 * fields, say, we have a create table DDL statement:
-	 * <blockquote><pre>
-	 *   create table t(
-	 *     a int,
-	 *     b varchar,
-	 *     c as to_timestamp(b))
-	 *   with (
-	 *     'connector' = 'csv',
-	 *     'k1' = 'v1')
-	 * </pre></blockquote>
-	 *
-	 * <p>The returned table schema contains columns (a:int, b:varchar, c:timestamp).
-	 *
-	 * @param sqlCreateTable sql create table node.
-	 * @return TableSchema
+	 * Creates a {@link TableSchema} from {@link SqlCreateTable}.
 	 */
 	private TableSchema createTableSchema(SqlCreateTable sqlCreateTable) {
-		// setup table columns
-		SqlNodeList columnList = sqlCreateTable.getColumnList();
-		TableSchema physicalSchema = null;
-		TableSchema.Builder builder = new TableSchema.Builder();
-		// collect the regular, physical table schema first.
+		if (!sqlCreateTable.hasRegularColumnsOnly()) {
+			throw new TableException(
+				"Only regular columns are supported in the DDL of the old planner.");
+		}
+
+		final TableSchema.Builder builder = new TableSchema.Builder();
+		final SqlNodeList columnList = sqlCreateTable.getColumnList();
 		final List<SqlRegularColumn> physicalColumns = columnList.getList().stream()
 			.filter(SqlRegularColumn.class::isInstance)
 			.map(SqlRegularColumn.class::cast)
@@ -640,13 +627,8 @@ public class SqlToOperationConverter {
 					regularColumn.getType().getNullable());
 			builder.field(regularColumn.getName().getSimple(),
 				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
-			physicalSchema = builder.build();
 		}
-		assert physicalSchema != null;
-		if (!sqlCreateTable.hasRegularColumnsOnly()) {
-			throw new SqlConversionException("Only regular columns are supported in DDL.");
-		}
-		return physicalSchema;
+		return builder.build();
 	}
 
 	/**

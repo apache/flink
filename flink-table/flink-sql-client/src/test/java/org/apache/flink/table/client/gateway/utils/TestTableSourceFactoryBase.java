@@ -127,7 +127,7 @@ public abstract class TestTableSourceFactoryBase implements StreamTableSourceFac
 		private final List<RowtimeAttributeDescriptor> rowtime;
 
 		public TestTableSource(TableSchema schema, String property, String proctime, List<RowtimeAttributeDescriptor> rowtime) {
-			this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
+			this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
 			this.property = property;
 			this.proctime = proctime;
 			this.rowtime = rowtime;

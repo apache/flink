@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.TableColumn.{ComputedColumn, MetadataColumn, PhysicalColumn}
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
@@ -31,6 +32,7 @@ import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
 import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
+import org.apache.flink.table.utils.TableSchemaUtils.containsPhysicalColumnsOnly
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptSchema, RelOptTable}
@@ -79,9 +81,15 @@ class CatalogSourceTable[T](
     relBuilder.push(scan)
 
     // 2. push computed column project
-    if (containsGeneratedColumns(catalogTable)) {
+    if (!containsPhysicalColumnsOnly(catalogTable.getSchema)) {
       val fieldExprs = catalogTable.getSchema.getTableColumns
-        .map(c => if (c.isGenerated) c.getExpr.get() else s"`${c.getName}`")
+        .map {
+          case computedColumn: ComputedColumn => computedColumn.getExpression
+          case metadataColumn: MetadataColumn =>
+            throw new UnsupportedOperationException(
+              s"Metadata columns are not supported in the planner yet: $metadataColumn")
+          case physicalColumn: PhysicalColumn => s"`${physicalColumn.getName}`"
+        }
         .toArray
       val fieldNames = util.Arrays.asList(catalogTable.getSchema.getFieldNames: _*)
       val rexNodes = toRexFactory.create(scan.getRowType).convertToRexNodes(fieldExprs)
@@ -127,7 +135,7 @@ class CatalogSourceTable[T](
     // erase time indicator types in the rowType
     val erasedRowType = eraseTimeIndicator(rowType, typeFactory)
     val physicalFieldIndexes = catalogTable.getSchema.getTableColumns.zipWithIndex.flatMap {
-      case (column, index) => if (column.isGenerated) None else Some(index)
+      case (column, index) => if (column.isPhysical) Some(index) else None
     }.toArray
     val sourceRowType = typeFactory.projectStructType(erasedRowType, physicalFieldIndexes)
 
@@ -175,13 +183,6 @@ class CatalogSourceTable[T](
       }
     }
     factory.buildRelNodeRowType(fieldNames, fieldTypes)
-  }
-
-  /**
-   * Returns true if there is any generated columns defined on the catalog table.
-   */
-  private def containsGeneratedColumns(catalogTable: CatalogTable): Boolean = {
-    catalogTable.getSchema.getTableColumns.exists(_.isGenerated)
   }
 
   /**
