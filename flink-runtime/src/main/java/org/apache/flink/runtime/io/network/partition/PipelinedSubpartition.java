@@ -97,6 +97,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 	@GuardedBy("buffers")
 	private boolean isBlockedByCheckpoint = false;
 
+	private int sequenceNumber = 0;
+
 	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
@@ -287,7 +289,8 @@ public class PipelinedSubpartition extends ResultSubpartition implements Checkpo
 			return new BufferAndBacklog(
 				buffer,
 				getBuffersInBacklog(),
-				isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE);
+				isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,
+				sequenceNumber++);
 		}
 	}
 

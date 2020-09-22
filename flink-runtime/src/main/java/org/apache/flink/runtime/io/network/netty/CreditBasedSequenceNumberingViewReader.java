@@ -62,8 +62,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	/** The number of available buffers for holding data on the consumer side. */
 	private int numCreditsAvailable;
 
-	private int sequenceNumber = -1;
-
 	CreditBasedSequenceNumberingViewReader(
 			InputChannelID receiverId,
 			int initialCredit,
@@ -139,7 +137,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 *
 	 * @param bufferAndBacklog
 	 * 		current buffer and backlog including information about the next buffer
-	 * @return the next data type if the next buffer can be pulled immediately or {@link Buffer.DataType.NONE}
+	 * @return the next data type if the next buffer can be pulled immediately or {@link Buffer.DataType#NONE}
 	 */
 	private Buffer.DataType getNextDataType(BufferAndBacklog bufferAndBacklog) {
 		final Buffer.DataType nextDataType = bufferAndBacklog.getNextDataType();
@@ -152,11 +150,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	@Override
 	public InputChannelID getReceiverId() {
 		return receiverId;
-	}
-
-	@Override
-	public int getSequenceNumber() {
-		return sequenceNumber;
 	}
 
 	@VisibleForTesting
@@ -174,14 +167,16 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	public BufferAndAvailability getNextBuffer() throws IOException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
-			sequenceNumber++;
-
 			if (next.buffer().isBuffer() && --numCreditsAvailable < 0) {
 				throw new IllegalStateException("no credit available");
 			}
 
 			final Buffer.DataType nextDataType = getNextDataType(next);
-			return new BufferAndAvailability(next.buffer(), nextDataType, next.buffersInBacklog());
+			return new BufferAndAvailability(
+				next.buffer(),
+				nextDataType,
+				next.buffersInBacklog(),
+				next.getSequenceNumber());
 		} else {
 			return null;
 		}
@@ -212,7 +207,6 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 		return "CreditBasedSequenceNumberingViewReader{" +
 			"requestLock=" + requestLock +
 			", receiverId=" + receiverId +
-			", sequenceNumber=" + sequenceNumber +
 			", numCreditsAvailable=" + numCreditsAvailable +
 			", isRegisteredAsAvailable=" + isRegisteredAsAvailable +
 			'}';
