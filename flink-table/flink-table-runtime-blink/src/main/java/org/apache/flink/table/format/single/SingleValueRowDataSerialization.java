@@ -20,6 +20,8 @@ package org.apache.flink.table.format.single;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
@@ -27,11 +29,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
- * Serialization schema that serializes an object of Flink internal data structure into a SINGLE-VALUE bytes.
+ * Serialization schema that serializes an object of Flink internal data structure into a
+ * SINGLE-VALUE bytes.
  */
 @Internal
 public class SingleValueRowDataSerialization implements SerializationSchema<RowData> {
@@ -42,51 +44,104 @@ public class SingleValueRowDataSerialization implements SerializationSchema<RowD
 
 	private FieldGetter fieldGetter;
 
+	private MemorySegment segment;
+
 	public SingleValueRowDataSerialization(RowType rowType) {
 		this.rowType = rowType;
 		this.fieldGetter = RowData.createFieldGetter(rowType.getTypeAt(0), 0);
 		this.converter = createConverter(rowType.getTypeAt(0));
+		this.segment = createSegment(rowType.getTypeAt(0));
 	}
 
 	@Override
 	public byte[] serialize(RowData element) {
-		return converter.convert(fieldGetter.getFieldOrNull(element));
+		return converter.convert(segment, fieldGetter.getFieldOrNull(element));
 	}
 
 	/**
-	 *  Runtime converter that convert a single value to byte[].
+	 * Runtime converter that convert a single value to byte[].
 	 */
 	@FunctionalInterface
 	private interface SerializationRuntimeConverter extends Serializable {
-		byte[] convert(Object object);
+
+		byte[] convert(MemorySegment segment, Object object);
 	}
 
 	/**
-	 *  Creates a runtime converter.
+	 * Creates a runtime converter.
 	 */
 	private SerializationRuntimeConverter createConverter(LogicalType type) {
 		switch (type.getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
-				return value -> ((StringData) value).toBytes();
+				return (segment, value) -> ((StringData) value).toBytes();
 			case VARBINARY:
 			case BINARY:
-				return value -> (byte[]) value;
+				return (segment, value) -> (byte[]) value;
 			case TINYINT:
-				return value -> ByteBuffer.allocate(Byte.BYTES).put((Byte) value).array();
+				return (segment, value) -> {
+					segment.put(0, (byte) value);
+					return segment.getArray();
+				};
 			case SMALLINT:
-				return value -> ByteBuffer.allocate(Short.BYTES).putShort((Short) value).array();
+				return (segment, value) -> {
+					segment.putShort(0, (short) value);
+					return segment.getArray();
+				};
 			case INTEGER:
-				return value -> ByteBuffer.allocate(Integer.BYTES).putInt((Integer) value).array();
+				return (segment, value) -> {
+					segment.putInt(0, (int) value);
+					return segment.getArray();
+				};
 			case BIGINT:
-				return value -> ByteBuffer.allocate(Long.BYTES).putLong((Long) value).array();
+				return (segment, value) -> {
+					segment.putLong(0, (long) value);
+					return segment.getArray();
+				};
 			case FLOAT:
-				return value -> ByteBuffer.allocate(Float.BYTES).putFloat((Float) value).array();
+				return (segment, value) -> {
+					segment.putFloat(0, (float) value);
+					return segment.getArray();
+				};
 			case DOUBLE:
-				return value -> ByteBuffer.allocate(Double.BYTES).putDouble((Double) value).array();
+				return (segment, value) -> {
+					segment.putDouble(0, (double) value);
+					return segment.getArray();
+				};
 			case BOOLEAN:
-				return value -> ByteBuffer.allocate(Byte.BYTES).put(
-					(byte) ((Boolean) value ? 1 : 0)).array();
+				return (segment, value) -> {
+					segment.putBoolean(0, (boolean) value);
+					return segment.getArray();
+				};
+			default:
+				throw new UnsupportedOperationException("Unsupported type: " + type);
+		}
+	}
+
+	/**
+	 * Creates a memory segment.
+	 */
+	private MemorySegment createSegment(LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case CHAR:
+			case VARCHAR:
+			case VARBINARY:
+			case BINARY:
+				return MemorySegmentFactory.wrap(new byte[0]);
+			case TINYINT:
+				return MemorySegmentFactory.wrap(new byte[Byte.BYTES]);
+			case SMALLINT:
+				return MemorySegmentFactory.wrap(new byte[Short.BYTES]);
+			case INTEGER:
+				return MemorySegmentFactory.wrap(new byte[Integer.BYTES]);
+			case BIGINT:
+				return MemorySegmentFactory.wrap(new byte[Long.BYTES]);
+			case FLOAT:
+				return MemorySegmentFactory.wrap(new byte[Float.BYTES]);
+			case DOUBLE:
+				return MemorySegmentFactory.wrap(new byte[Double.BYTES]);
+			case BOOLEAN:
+				return MemorySegmentFactory.wrap(new byte[1]);
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}

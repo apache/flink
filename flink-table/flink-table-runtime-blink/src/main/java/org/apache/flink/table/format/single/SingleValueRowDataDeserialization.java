@@ -21,6 +21,7 @@ package org.apache.flink.table.format.single;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -29,7 +30,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
@@ -53,7 +53,7 @@ public class SingleValueRowDataDeserialization implements DeserializationSchema<
 	@Override
 	public RowData deserialize(byte[] message) throws IOException {
 		GenericRowData genericRowData = new GenericRowData(1);
-		genericRowData.setField(0, converter.convert(message));
+		genericRowData.setField(0, converter.convert(HeapMemorySegment.FACTORY.wrap(message)));
 		return genericRowData;
 	}
 
@@ -72,7 +72,7 @@ public class SingleValueRowDataDeserialization implements DeserializationSchema<
 	 */
 	@FunctionalInterface
 	private interface DeserializationRuntimeConverter extends Serializable {
-		Object convert(byte[] message);
+		Object convert(HeapMemorySegment segment);
 	}
 
 	/**
@@ -82,24 +82,24 @@ public class SingleValueRowDataDeserialization implements DeserializationSchema<
 		switch (type.getTypeRoot()) {
 			case CHAR:
 			case VARCHAR:
-				return bytes -> StringData.fromBytes(bytes);
+				return segment -> StringData.fromBytes(segment.getArray());
 			case VARBINARY:
 			case BINARY:
-				return bytes -> bytes;
+				return segment -> segment.getArray();
 			case TINYINT:
-				return bytes -> ByteBuffer.wrap(bytes).get();
+				return segment -> segment.get(0);
 			case SMALLINT:
-				return bytes -> ByteBuffer.wrap(bytes).getShort();
+				return segment -> segment.getShortLittleEndian(0);
 			case INTEGER:
-				return bytes -> ByteBuffer.wrap(bytes).getInt();
+				return segment -> segment.getIntLittleEndian(0);
 			case BIGINT:
-				return bytes -> ByteBuffer.wrap(bytes).getLong();
+				return segment -> segment.getLong(0);
 			case FLOAT:
-				return bytes -> ByteBuffer.wrap(bytes).getFloat();
+				return segment -> segment.getFloat(0);
 			case DOUBLE:
-				return bytes -> ByteBuffer.wrap(bytes).getDouble();
+				return segment -> segment.getDouble(0);
 			case BOOLEAN:
-				return bytes -> ByteBuffer.wrap(bytes).get() != 0;
+				return segment -> segment.getBoolean(0);
 			default:
 				throw new UnsupportedOperationException("Unsupported type: " + type);
 		}
