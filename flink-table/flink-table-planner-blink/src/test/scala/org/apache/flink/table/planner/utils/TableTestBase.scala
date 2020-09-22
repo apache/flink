@@ -71,6 +71,7 @@ import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
+import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -796,8 +797,8 @@ case class StreamTableTestUtil(
   def enableMiniBatch(): Unit = {
     tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     tableEnv.getConfig.getConfiguration.setLong(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3L)
   }

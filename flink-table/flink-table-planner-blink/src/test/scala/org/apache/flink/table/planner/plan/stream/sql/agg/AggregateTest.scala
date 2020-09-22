@@ -25,6 +25,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
+import java.time.Duration
+
 import org.junit.Test
 
 class AggregateTest extends TableTestBase {
@@ -64,8 +66,8 @@ class AggregateTest extends TableTestBase {
   def testAggWithMiniBatch(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     util.verifyPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
   }
 
@@ -73,8 +75,8 @@ class AggregateTest extends TableTestBase {
   def testAggAfterUnionWithMiniBatch(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val query =
       """
         |SELECT a, sum(b), count(distinct c)
@@ -97,8 +99,8 @@ class AggregateTest extends TableTestBase {
     // enable local global optimize
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
 
     val sql =
       """
@@ -130,8 +132,8 @@ class AggregateTest extends TableTestBase {
   def testAggWithFilterClauseWithLocalGlobal(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
 
     val sql =
       """
