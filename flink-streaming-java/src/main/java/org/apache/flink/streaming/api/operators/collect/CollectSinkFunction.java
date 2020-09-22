@@ -122,6 +122,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @Internal
 public class CollectSinkFunction<IN> extends RichSinkFunction<IN> implements CheckpointedFunction, CheckpointListener {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(CollectSinkFunction.class);
 
 	private final TypeSerializer<IN> serializer;
