@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -39,7 +40,7 @@ import java.util.List;
  * @param <K> Type of the key by which state is keyed.
  */
 @Internal
-public final class MultiStateKeyIterator<K> implements ClosableIterator<K> {
+public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
 	private final List<? extends StateDescriptor<?, ?>> descriptors;
 
 	private final KeyedStateBackend<K> backend;

@@ -30,10 +30,10 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
-import org.apache.flink.state.api.input.ClosableIterator;
 import org.apache.flink.state.api.input.MultiStateKeyIterator;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
 import java.util.Collections;
@@ -74,7 +74,7 @@ public class KeyedStateReaderOperator<KEY, OUT>
 	}
 
 	@Override
-	public ClosableIterator<Tuple2<KEY, VoidNamespace>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
+	public CloseableIterator<Tuple2<KEY, VoidNamespace>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
 		ctx.disableStateRegistration();
 		List<StateDescriptor<?, ?>> stateDescriptors = ctx.getStateDescriptors();
 		MultiStateKeyIterator<KEY> keys = new MultiStateKeyIterator<>(stateDescriptors, getKeyedStateBackend());
@@ -140,11 +140,11 @@ public class KeyedStateReaderOperator<KEY, OUT>
 		}
 	}
 
-	private static class NamespaceDecorator<KEY> implements ClosableIterator<Tuple2<KEY, VoidNamespace>> {
+	private static class NamespaceDecorator<KEY> implements CloseableIterator<Tuple2<KEY, VoidNamespace>> {
 
-		private final ClosableIterator<KEY> keys;
+		private final CloseableIterator<KEY> keys;
 
-		private NamespaceDecorator(ClosableIterator<KEY> keys) {
+		private NamespaceDecorator(CloseableIterator<KEY> keys) {
 			this.keys = keys;
 		}
 

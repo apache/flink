@@ -39,13 +39,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
-import org.apache.flink.state.api.input.ClosableIterator;
 import org.apache.flink.state.api.input.operator.window.WindowContents;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -159,7 +159,7 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 	}
 
 	@Override
-	public ClosableIterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
+	public CloseableIterator<Tuple2<KEY, W>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception {
 		Stream<Tuple2<KEY, W>> keysAndWindows = getKeyedStateBackend()
 			.getKeysAndNamespaces(descriptor.getName());
 
@@ -263,7 +263,7 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
 		}
 	}
 
-	private static class IteratorWithRemove<T> implements ClosableIterator<T> {
+	private static class IteratorWithRemove<T> implements CloseableIterator<T> {
 
 		private final Iterator<T> iterator;
 
