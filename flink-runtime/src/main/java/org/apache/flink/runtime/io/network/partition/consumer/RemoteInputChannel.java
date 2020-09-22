@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -66,7 +68,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
 	 * is consumed by the receiving task thread.
 	 */
-	private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
+	private final ArrayDeque<SequenceBuffer> receivedBuffers = new ArrayDeque<>();
 
 	/**
 	 * Flag indicating whether this channel has been released. Either called by the receiving task
@@ -78,8 +80,7 @@ public class RemoteInputChannel extends InputChannel {
 	private volatile PartitionRequestClient partitionRequestClient;
 
 	/**
-	 * The next expected sequence number for the next buffer. This is modified by the network
-	 * I/O thread only.
+	 * The next expected sequence number for the next buffer.
 	 */
 	private int expectedSequenceNumber = 0;
 
@@ -173,12 +174,12 @@ public class RemoteInputChannel extends InputChannel {
 	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
 		checkPartitionRequestQueueInitialized();
 
-		final Buffer next;
-		final Buffer.DataType nextDataType;
+		final SequenceBuffer next;
+		final DataType nextDataType;
 
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
-			nextDataType = receivedBuffers.peek() != null ? receivedBuffers.peek().getDataType() : Buffer.DataType.NONE;
+			nextDataType = receivedBuffers.peek() != null ? receivedBuffers.peek().buffer.getDataType() : DataType.NONE;
 		}
 
 		if (next == null) {
@@ -189,9 +190,9 @@ public class RemoteInputChannel extends InputChannel {
 			}
 		}
 
-		numBytesIn.inc(next.getSize());
+		numBytesIn.inc(next.buffer.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next, nextDataType, 0));
+		return Optional.of(new BufferAndAvailability(next.buffer, nextDataType, 0, next.sequenceNumber));
 	}
 
 	@Override
@@ -200,7 +201,8 @@ public class RemoteInputChannel extends InputChannel {
 			checkState(checkpointId > lastRequestedCheckpointId, "Need to request the next checkpointId");
 
 			final List<Buffer> inflightBuffers = new ArrayList<>(receivedBuffers.size());
-			for (Buffer buffer : receivedBuffers) {
+			for (SequenceBuffer sequenceBuffer : receivedBuffers) {
+				Buffer buffer = sequenceBuffer.buffer;
 				CheckpointBarrier checkpointBarrier = parseCheckpointBarrierOrNull(buffer);
 				if (checkpointBarrier != null && checkpointBarrier.getId() >= checkpointId) {
 					break;
@@ -250,7 +252,8 @@ public class RemoteInputChannel extends InputChannel {
 
 			final ArrayDeque<Buffer> releasedBuffers;
 			synchronized (receivedBuffers) {
-				releasedBuffers = new ArrayDeque<>(receivedBuffers);
+				releasedBuffers = receivedBuffers.stream().map(sb -> sb.buffer)
+					.collect(Collectors.toCollection(ArrayDeque::new));
 				receivedBuffers.clear();
 			}
 			bufferManager.releaseAllBuffers(releasedBuffers);
@@ -309,7 +312,8 @@ public class RemoteInputChannel extends InputChannel {
 
 	@VisibleForTesting
 	public Buffer getNextReceivedBuffer() {
-		return receivedBuffers.poll();
+		final SequenceBuffer sequenceBuffer = receivedBuffers.poll();
+		return sequenceBuffer != null ? sequenceBuffer.buffer : null;
 	}
 
 	@VisibleForTesting
@@ -454,7 +458,7 @@ public class RemoteInputChannel extends InputChannel {
 				}
 
 				wasEmpty = receivedBuffers.isEmpty();
-				receivedBuffers.add(buffer);
+				receivedBuffers.add(new SequenceBuffer(buffer, sequenceNumber));
 
 				if (listener != null && buffer.isBuffer() && receivedCheckpointId < lastRequestedCheckpointId) {
 					notifyReceivedBuffer = buffer.retainBuffer();
@@ -462,10 +466,10 @@ public class RemoteInputChannel extends InputChannel {
 					notifyReceivedBuffer = null;
 				}
 				notifyReceivedBarrier = listener != null ? parseCheckpointBarrierOrNull(buffer) : null;
+
+				++expectedSequenceNumber;
 			}
 			recycleBuffer = false;
-
-			++expectedSequenceNumber;
 
 			if (wasEmpty) {
 				notifyChannelNonEmpty();
@@ -540,6 +544,16 @@ public class RemoteInputChannel extends InputChannel {
 		public String getMessage() {
 			return String.format("Buffer re-ordering: expected buffer with sequence number %d, but received %d.",
 				expectedSequenceNumber, actualSequenceNumber);
+		}
+	}
+
+	private static final class SequenceBuffer {
+		final Buffer buffer;
+		final int sequenceNumber;
+
+		private SequenceBuffer(Buffer buffer, int sequenceNumber) {
+			this.buffer = buffer;
+			this.sequenceNumber = sequenceNumber;
 		}
 	}
 }

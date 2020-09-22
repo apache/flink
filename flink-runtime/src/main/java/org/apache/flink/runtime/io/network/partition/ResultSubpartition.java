@@ -128,15 +128,16 @@ public abstract class ResultSubpartition {
 	 * how many non-event buffers are available in the subpartition.
 	 */
 	public static final class BufferAndBacklog {
-
 		private final Buffer buffer;
 		private final int buffersInBacklog;
 		private final Buffer.DataType nextDataType;
+		private final int sequenceNumber;
 
-		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, Buffer.DataType nextDataType) {
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, Buffer.DataType nextDataType, int sequenceNumber) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
 			this.nextDataType = checkNotNull(nextDataType);
+			this.sequenceNumber = sequenceNumber;
 		}
 
 		public Buffer buffer() {
@@ -159,11 +160,20 @@ public abstract class ResultSubpartition {
 			return nextDataType;
 		}
 
-		public static BufferAndBacklog fromBufferAndLookahead(Buffer current, @Nullable Buffer lookahead, int backlog) {
+		public int getSequenceNumber() {
+			return sequenceNumber;
+		}
+
+		public static BufferAndBacklog fromBufferAndLookahead(
+				Buffer current,
+				@Nullable Buffer lookahead,
+				int backlog,
+				int sequenceNumber) {
 			return new BufferAndBacklog(
 				current,
 				backlog,
-				lookahead != null ? lookahead.getDataType() : Buffer.DataType.NONE);
+				lookahead != null ? lookahead.getDataType() : Buffer.DataType.NONE,
+				sequenceNumber);
 		}
 	}
 

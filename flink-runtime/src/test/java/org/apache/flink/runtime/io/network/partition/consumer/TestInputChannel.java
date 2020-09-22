@@ -58,6 +58,8 @@ public class TestInputChannel extends InputChannel {
 
 	private boolean isResumed;
 
+	private int sequenceNumber;
+
 	public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
 		this(inputGate, channelIndex, true, false);
 	}
@@ -73,7 +75,7 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	public TestInputChannel read(Buffer buffer, @Nullable Buffer.DataType nextType) throws IOException, InterruptedException {
-		addBufferAndAvailability(new BufferAndAvailability(buffer, nextType, 0));
+		addBufferAndAvailability(new BufferAndAvailability(buffer, nextType, 0, sequenceNumber++));
 		if (notifyChannelNonEmpty) {
 			notifyChannelNonEmpty();
 		}
@@ -96,7 +98,8 @@ public class TestInputChannel extends InputChannel {
 					new BufferAndAvailability(
 						EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
 						Buffer.DataType.NONE,
-						0));
+						0,
+						sequenceNumber++));
 			}
 		);
 		return this;

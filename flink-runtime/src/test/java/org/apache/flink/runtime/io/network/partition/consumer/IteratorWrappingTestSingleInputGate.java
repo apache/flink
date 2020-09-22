@@ -88,7 +88,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 					// Call getCurrentBuffer to ensure size is set
 					final Buffer.DataType nextDataType = hasData ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.EVENT_BUFFER;
-					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), nextDataType, 0));
+					return Optional.of(new BufferAndAvailability(bufferConsumer.build(), nextDataType, 0, 0));
 				} else {
 					inputChannel.setReleased();
 
@@ -96,6 +96,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 						new BufferAndAvailability(
 							EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
 							Buffer.DataType.NONE,
+							0,
 							0));
 				}
 			}

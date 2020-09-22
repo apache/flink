@@ -27,6 +27,8 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * A deque-like data structure that supports prioritization of elements, such they will be polled before any
@@ -247,5 +249,9 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 	@Nullable
 	public T peekLast() {
 		return deque.peekLast();
+	}
+
+	public Stream<T> stream() {
+		return StreamSupport.stream(spliterator(), false);
 	}
 }

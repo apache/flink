@@ -71,10 +71,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.runtime.io.network.api.serialization.EventSerializer.toBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
@@ -103,7 +105,7 @@ public class RemoteInputChannelTest {
 		// Setup
 		final SingleInputGate inputGate = createSingleInputGate(1);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
-		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
+		final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
 		// The test
 		inputChannel.onBuffer(buffer.retainBuffer(), 0, -1);
@@ -156,7 +158,7 @@ public class RemoteInputChannelTest {
 
 		// Setup
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
-		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
+		final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
 		try {
 			// Test
@@ -1116,6 +1118,30 @@ public class RemoteInputChannelTest {
 
 		remoteChannel.releaseAllResources();
 		remoteChannel.resumeConsumption();
+	}
+
+	@Test
+	public void testPrioritySequenceNumbers() throws Exception {
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
+		SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setChannelFactory(InputChannelBuilder::buildRemoteChannel)
+			.setBufferPoolFactory(networkBufferPool.createBufferPool(0, 4))
+			.setSegmentProvider(networkBufferPool)
+			.build();
+		final RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);
+		inputGate.setup();
+		inputGate.requestPartitions();
+
+		CheckpointOptions options = new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+		channel.onBuffer(createBuffer(1), 0, 0);
+		channel.onBuffer(toBuffer(new CheckpointBarrier(1L, 123L, options), true), 1, 0);
+		channel.onBuffer(createBuffer(1), 2, 0);
+		channel.onBuffer(createBuffer(1), 3, 0);
+
+		assertEquals(1, channel.getNextBuffer().get().getSequenceNumber());
+		assertEquals(0, channel.getNextBuffer().get().getSequenceNumber());
+		assertEquals(2, channel.getNextBuffer().get().getSequenceNumber());
+		assertEquals(3, channel.getNextBuffer().get().getSequenceNumber());
 	}
 
 	// ---------------------------------------------------------------------------------------------

@@ -216,7 +216,8 @@ public class PartitionRequestQueueTest {
 			return new BufferAndBacklog(
 				TestBufferFactory.createBuffer(10),
 				buffers,
-				buffers > 0 ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.NONE);
+				buffers > 0 ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.NONE,
+				0);
 		}
 
 		@Override
@@ -241,7 +242,8 @@ public class PartitionRequestQueueTest {
 			return new BufferAndBacklog(
 				nextBuffer.buffer().readOnlySlice(),
 				nextBuffer.buffersInBacklog(),
-				nextBuffer.getNextDataType());
+				nextBuffer.getNextDataType(),
+				0);
 		}
 	}
 

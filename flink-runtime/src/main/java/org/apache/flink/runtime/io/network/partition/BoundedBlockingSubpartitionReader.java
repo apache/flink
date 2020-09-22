@@ -55,6 +55,8 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** Flag whether this reader is released. Atomic, to avoid double release. */
 	private boolean isReleased;
 
+	private int sequenceNumber;
+
 	/**
 	 * Convenience constructor that takes a single buffer.
 	 */
@@ -93,7 +95,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		assert dataReader != null;
 		nextBuffer = dataReader.nextBuffer();
 
-		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog);
+		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog, sequenceNumber++);
 	}
 
 	/**
