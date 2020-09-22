@@ -48,6 +48,17 @@ under the License.
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Bumped for dependency convergence -->
+				<groupId>org.yaml</groupId>
+				<artifactId>snakeyaml</artifactId>
+				<version>1.27</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<build>
 		<plugins>
 			<plugin>

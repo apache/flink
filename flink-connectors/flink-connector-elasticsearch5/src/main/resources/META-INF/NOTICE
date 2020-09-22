@@ -53,7 +53,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.elasticsearch.plugin:reindex-client:5.3.3
 - org.elasticsearch.plugin:transport-netty3-client:5.3.3
 - org.elasticsearch.plugin:transport-netty4-client:5.3.3
-- org.yaml:snakeyaml:1.25
+- org.yaml:snakeyaml:1.27
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
 
