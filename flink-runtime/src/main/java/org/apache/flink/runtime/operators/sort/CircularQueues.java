@@ -33,8 +33,11 @@ final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
 	private final BlockingQueue<CircularElement<E>> empty;
 	private final BlockingQueue<CircularElement<E>> sort;
 	private final BlockingQueue<CircularElement<E>> spill;
-
-	private boolean isFinished = false;
+	/**
+	 * The close and take methods might be called from multiple threads (reading, sorting, spilling, ...),
+	 * therefore it must be volatile.
+	 */
+	private volatile boolean isFinished = false;
 
 	/**
 	 * The iterator to be returned by the sort-merger. This variable is null, while receiving and merging is still in
