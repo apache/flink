@@ -76,6 +76,4 @@ public interface NetworkSequenceViewReader {
 	Throwable getFailureCause();
 
 	InputChannelID getReceiverId();
-
-	int getSequenceNumber();
 }

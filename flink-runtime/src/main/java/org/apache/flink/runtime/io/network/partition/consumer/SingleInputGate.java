@@ -52,6 +52,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
@@ -157,6 +158,10 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private final BitSet channelsWithEndOfPartitionEvents;
 
+	/** Sequence number to verify that priority event is still at the head of the channel when notification arrives. */
+	@GuardedBy("inputChannelsWithData")
+	private int[] lastPrioritySequenceNumber;
+
 	/** The partition producer state listener. */
 	private final PartitionProducerStateProvider partitionProducerStateProvider;
 
@@ -220,6 +225,8 @@ public class SingleInputGate extends IndexedInputGate {
 		this.channels = new InputChannel[numberOfInputChannels];
 		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 		this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
+		this.lastPrioritySequenceNumber = new int[numberOfInputChannels];
+		Arrays.fill(lastPrioritySequenceNumber, Integer.MIN_VALUE);
 
 		this.partitionProducerStateProvider = checkNotNull(partitionProducerStateProvider);
 
