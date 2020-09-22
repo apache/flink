@@ -102,11 +102,10 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	@Override
 	protected void initializeInternal() throws Exception {
-		recoverWorkerNodesFromPreviousAttempts();
-
 		podsWatch = kubeClient.watchPodsAndDoCallback(
 				KubernetesUtils.getTaskManagerLabels(clusterId),
 				new PodCallbackHandlerImpl());
+		recoverWorkerNodesFromPreviousAttempts();
 	}
 
 	@Override
@@ -199,10 +198,15 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 		for (KubernetesPod pod : podList) {
 			final KubernetesWorkerNode worker = new KubernetesWorkerNode(new ResourceID(pod.getName()));
-			recoveredWorkers.add(worker);
 			final long attempt = worker.getAttempt();
 			if (attempt > currentMaxAttemptId) {
 				currentMaxAttemptId = attempt;
+			}
+
+			if (pod.isTerminated()) {
+				stopPod(pod.getName());
+			} else {
+				recoveredWorkers.add(worker);
 			}
 		}
 
