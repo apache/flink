@@ -194,40 +194,6 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 		env.execute();
 	}
 
-	@Test
-	public void testAlignedProcessingTimeWindows() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		env.setParallelism(1);
-
-		env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
-
-		env.addSource(new InfiniteTupleSource(10_000))
-				.keyBy(0)
-				.timeWindow(Time.seconds(3))
-				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
-							Tuple2<String, Integer> value2) throws Exception {
-						return Tuple2.of(value1.f0, value1.f1 + value2.f1);
-					}
-				})
-				.filter(new FilterFunction<Tuple2<String, Integer>>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public boolean filter(Tuple2<String, Integer> value) throws Exception {
-						return value.f0.startsWith("Tuple 0");
-					}
-				})
-				.print();
-
-		env.execute();
-	}
-
 	/**
 	 * A source that emits elements with a fixed set of keys as fast as possible. Used for
 	 * rough performance estimation.
