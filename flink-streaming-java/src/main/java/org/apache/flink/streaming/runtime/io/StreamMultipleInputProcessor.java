@@ -126,7 +126,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 				StreamTaskSourceInput<?> sourceTaskInput = operatorChain.getSourceTaskInput(sourceInput);
 
 				inputProcessors[i] = new SourceInputProcessor(
-					new AsyncDataOutputToOutput(chainedSourceOutput, operatorChain, inputWatermarkGauges[i]),
+					new StreamTaskSourceOutput(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauges[i], i),
 					sourceTaskInput);
 			}
 			else {
@@ -341,8 +341,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		@Override
 		public void emitStreamStatus(StreamStatus streamStatus) {
-			final StreamStatus anotherStreamStatus;
-
 			streamStatuses[inputIndex] = streamStatus;
 
 			// check if we need to toggle the task's stream status
@@ -359,6 +357,34 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
 			input.processLatencyMarker(latencyMarker);
+		}
+	}
+
+	private class StreamTaskSourceOutput extends AsyncDataOutputToOutput {
+		private final int inputIndex;
+
+		public StreamTaskSourceOutput(
+				Output<StreamRecord<?>> chainedSourceOutput,
+				StreamStatusMaintainer streamStatusMaintainer,
+				WatermarkGauge inputWatermarkGauge,
+				int inputIndex) {
+			super(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauge);
+			this.inputIndex = inputIndex;
+		}
+
+		@Override
+		public void emitStreamStatus(StreamStatus streamStatus) {
+			streamStatuses[inputIndex] = streamStatus;
+
+			// check if we need to toggle the task's stream status
+			if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
+				if (streamStatus.isActive()) {
+					// we're no longer idle if at least one input has become active
+					streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+				} else if (allStreamStatusesAreIdle()) {
+					streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
+				}
+			}
 		}
 	}
 }

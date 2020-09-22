@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
 	private final List<MockSourceSplit> assignedSplits = new ArrayList<>();
 	private final List<SourceEvent> receivedSourceEvents = new ArrayList<>();
+	private final boolean markIdleOnNoSplits;
 
 	private int currentSplitIndex = 0;
 	private boolean started;
@@ -45,14 +46,15 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	private CompletableFuture<Void> availableFuture;
 
 	public MockSourceReader() {
-		this(false);
+		this(false, false);
 	}
 
-	public MockSourceReader(boolean waitingForMoreSplits) {
+	public MockSourceReader(boolean waitingForMoreSplits, boolean markIdleOnNoSplits) {
 		this.started = false;
 		this.closed = false;
 		this.availableFuture = CompletableFuture.completedFuture(null);
 		this.waitingForMoreSplits = waitingForMoreSplits;
+		this.markIdleOnNoSplits = markIdleOnNoSplits;
 	}
 
 	@Override
@@ -79,6 +81,9 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 			return InputStatus.END_OF_INPUT;
 		}
 		else {
+			if (markIdleOnNoSplits) {
+				sourceOutput.markIdle();
+			}
 			markUnavailable();
 			return InputStatus.NOTHING_AVAILABLE;
 		}
