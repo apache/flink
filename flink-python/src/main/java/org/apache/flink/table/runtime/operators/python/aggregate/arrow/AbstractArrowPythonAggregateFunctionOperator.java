@@ -58,7 +58,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 	/**
 	 * The Pandas {@link AggregateFunction}s to be executed.
 	 */
-	private final PythonFunctionInfo[] pandasAggFunctions;
+	protected final PythonFunctionInfo[] pandasAggFunctions;
 
 	protected final int[] groupingSet;
 
