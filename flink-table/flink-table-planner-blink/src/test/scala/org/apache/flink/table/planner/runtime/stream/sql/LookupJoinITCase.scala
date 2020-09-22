@@ -470,7 +470,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     env.execute()
 
     val expected = Seq()
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(expected, sink.getAppendResults)
   }
 
   @Test
