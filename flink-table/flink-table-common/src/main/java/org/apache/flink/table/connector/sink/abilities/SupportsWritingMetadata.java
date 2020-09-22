@@ -32,11 +32,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enables to write metadata columns to a {@link DynamicTableSink}.
+ * Interface for {@link DynamicTableSink}s that support writing metadata columns.
  *
- * <p>Metadata columns add additional columns to the table's schema. A table sink is responsible to
- * accept requested metadata columns at the end of consumed rows and persist them. This includes potentially
- * forwarding metadata columns to contained formats.
+ * <p>Metadata columns add additional columns to the table's schema. A table sink is responsible for
+ * accepting requested metadata columns at the end of consumed rows and persist them. This includes
+ * potentially forwarding metadata columns to contained formats.
  *
  * <p>Examples in SQL look like:
  * <pre>{@code

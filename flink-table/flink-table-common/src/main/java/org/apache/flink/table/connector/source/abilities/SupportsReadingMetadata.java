@@ -34,11 +34,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enables to read metadata columns from a {@link ScanTableSource}.
+ * Interface for {@link ScanTableSource}s that support reading metadata columns.
  *
- * <p>Metadata columns add additional columns to the table's schema. A table source is responsible to
- * add requested metadata columns at the end of produced rows. This includes potentially forwarding metadata
- * columns from contained formats.
+ * <p>Metadata columns add additional columns to the table's schema. A table source is responsible for
+ * adding requested metadata columns at the end of produced rows. This includes potentially forwarding
+ * metadata columns from contained formats.
  *
  * <p>Examples in SQL look like:
  * <pre>{@code
