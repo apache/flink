@@ -1611,6 +1611,26 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>ban-unsafe-snakeyaml</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>org.yaml:snakeyaml:(,1.26]</exclude>
+									</excludes>
+									<includes>
+										<!-- Snakeyaml is pulled in by many modules without using it in production,
+											so there's no benefit in us investing time into bumping these. -->
+										<include>org.yaml:snakeyaml:(,1.26]:*:test</include>
+									</includes>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<id>ban-unsafe-jackson</id>
 						<goals>
 							<goal>enforce</goal>
