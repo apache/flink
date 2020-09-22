@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
@@ -31,6 +34,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -41,14 +45,26 @@ import java.util.Map;
  */
 public class PassThroughPythonAggregateFunctionRunner extends BeamTableStatelessPythonFunctionRunner {
 
+	private static final IntSerializer windowBoundarySerializer = IntSerializer.INSTANCE;
+
 	private final List<byte[]> buffer;
 
 	private final RowDataArrowSerializer arrowSerializer;
 
 	/**
+	 * Whether it is batch over window.
+	 */
+	private final boolean isBatchOverWindow;
+
+	/**
 	 * Reusable InputStream used to holding the execution results to be deserialized.
 	 */
 	private transient ByteArrayInputStreamWithPos bais;
+
+	/**
+	 * InputStream Wrapper.
+	 */
+	private transient DataInputViewStreamWrapper baisWrapper;
 
 	/**
 	 * Reusable OutputStream used to holding the serialized input elements.
@@ -64,10 +80,12 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTableStateless
 		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
 		String coderUrn,
 		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
+		FlinkMetricContainer flinkMetricContainer,
+		boolean isBatchOverWindow) {
 		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions,
 			coderUrn, jobOptions, flinkMetricContainer);
 		this.buffer = new LinkedList<>();
+		this.isBatchOverWindow = isBatchOverWindow;
 		arrowSerializer = new RowDataArrowSerializer(inputType, outputType);
 	}
 
@@ -75,6 +93,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTableStateless
 	public void open(PythonConfig config) throws Exception {
 		super.open(config);
 		bais = new ByteArrayInputStreamWithPos();
+		baisWrapper = new DataInputViewStreamWrapper(bais);
 		baos = new ByteArrayOutputStreamWithPos();
 		arrowSerializer.open(bais, baos);
 	}
@@ -85,8 +104,28 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTableStateless
 		this.mainInputReceiver = input -> {
 			byte[] data = input.getValue();
 			bais.setBuffer(data, 0, data.length);
-			arrowSerializer.load();
-			arrowSerializer.write(arrowSerializer.read(0));
+			if (isBatchOverWindow) {
+				int windowSize = windowBoundarySerializer.deserialize(baisWrapper);
+				List<Integer> lowerBoundarys = new ArrayList<>();
+				for (int i = 0; i < windowSize; i++) {
+					int windowLength = windowBoundarySerializer.deserialize(baisWrapper);
+					for (int j = 0; j < windowLength; j++) {
+						if (j % 2 == 0) {
+							lowerBoundarys.add(windowBoundarySerializer.deserialize(baisWrapper));
+						} else {
+							windowBoundarySerializer.deserialize(baisWrapper);
+						}
+					}
+				}
+				arrowSerializer.load();
+				for (Integer lowerBoundary : lowerBoundarys) {
+					RowData firstData = arrowSerializer.read(lowerBoundary);
+					arrowSerializer.write(firstData);
+				}
+			} else {
+				arrowSerializer.load();
+				arrowSerializer.write(arrowSerializer.read(0));
+			}
 			arrowSerializer.finishCurrentBatch();
 			buffer.add(baos.toByteArray());
 			baos.reset();

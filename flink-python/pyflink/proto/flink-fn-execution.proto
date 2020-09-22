@@ -44,12 +44,33 @@ message UserDefinedFunction {
   // 2. The result of another user-defined function
   // 3. The constant value of the column
   repeated Input inputs = 2;
+
+  // The index of the over window used in pandas batch over window aggregation
+  int32 window_index = 3;
 }
 
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
   bool metric_enabled = 2;
+  repeated OverWindow windows = 3;
+}
+
+// Used to describe the info of over window in pandas batch over window aggregation
+message OverWindow {
+  enum WindowType {
+    RANGE_UNBOUNDED = 0;
+    RANGE_UNBOUNDED_PRECEDING = 1;
+    RANGE_UNBOUNDED_FOLLOWING = 2;
+    RANGE_SLIDING = 3;
+    ROW_UNBOUNDED = 4;
+    ROW_UNBOUNDED_PRECEDING = 5;
+    ROW_UNBOUNDED_FOLLOWING = 6;
+    ROW_SLIDING = 7;
+  }
+  WindowType window_type = 1;
+  int64 lower_boundary = 2;
+  int64 upper_boundary = 3;
 }
 
 // User defined DataStream function definition.

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -39,35 +40,42 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.junit.Assert.assertEquals;
+
 /**
- * Test for {@link BatchArrowPythonGroupAggregateFunctionOperator}. These test that:
+ * Test for {@link BatchArrowPythonOverWindowAggregateFunctionOperator}. These test that:
  *
  * <ul>
  * 		<li>FinishBundle is called when bundled element count reach to max bundle size</li>
  * 		<li>FinishBundle is called when bundled time reach to max bundle time</li>
  * </ul>
  */
-public class BatchArrowPythonGroupAggregateFunctionOperatorTest
-	extends ArrowPythonAggregateFunctionOperatorTestBase {
+public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest extends ArrowPythonAggregateFunctionOperatorTestBase {
 
 	@Test
-	public void testGroupAggregateFunction() throws Exception {
+	public void testOverWindowAggregateFunction() throws Exception {
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(
 			new Configuration());
+
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c4", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", "c6", 2L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 0L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+
 		testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 0L, 3L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -75,7 +83,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 	@Test
 	public void testFinishBundleTriggeredByCount() throws Exception {
 		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 3);
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
@@ -83,18 +91,21 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 1L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 0L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10L), initialTime + 3));
 		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", "c6", 2L), initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 0L, 3L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -111,26 +122,54 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 
 		testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c2", "c6", 2L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 0L), initialTime + 1));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 0L), initialTime + 2));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 10L), initialTime + 3));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c2", "c8", 3L, 0L), initialTime + 3));
 		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
 		testHarness.setProcessingTime(1000L);
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 0L, 0L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
+
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 0L, 3L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testUserDefinedFunctionsProto() throws Exception {
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(
+			new Configuration());
+		testHarness.open();
+		BatchArrowPythonOverWindowAggregateFunctionOperator operator =
+			(BatchArrowPythonOverWindowAggregateFunctionOperator) testHarness.getOneInputOperator();
+		FlinkFnApi.UserDefinedFunctions functionsProto = operator.getUserDefinedFunctionsProto();
+		List<FlinkFnApi.OverWindow> windows = functionsProto.getWindowsList();
+		assertEquals(2, windows.size());
+
+		// first window is a range sliding window.
+		FlinkFnApi.OverWindow firstWindow = windows.get(0);
+		assertEquals(firstWindow.getWindowType(), FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
+
+		// second window is a row unbounded preceding window.
+		FlinkFnApi.OverWindow secondWindow = windows.get(1);
+		assertEquals(secondWindow.getWindowType(), FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
+		assertEquals(secondWindow.getUpperBoundary(), 2L);
 	}
 
 	@Override
 	public LogicalType[] getOutputLogicalType() {
 		return new LogicalType[]{
 			DataTypes.STRING().getLogicalType(),
+			DataTypes.STRING().getLogicalType(),
+			DataTypes.BIGINT().getLogicalType(),
+			DataTypes.BIGINT().getLogicalType(),
 			DataTypes.BIGINT().getLogicalType()
 		};
 	}
@@ -140,14 +179,18 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 		return new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
+			new RowType.RowField("f3", new BigIntType()),
+			new RowType.RowField("rowTime", new BigIntType())));
 	}
 
 	@Override
 	public RowType getOutputType() {
 		return new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new BigIntType())));
+			new RowType.RowField("f2", new VarCharType()),
+			new RowType.RowField("f3", new BigIntType()),
+			new RowType.RowField("rowTime", new BigIntType()),
+			new RowType.RowField("agg", new BigIntType())));
 	}
 
 	@Override
@@ -158,28 +201,41 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 		RowType outputType,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		return new PassThroughBatchArrowPythonGroupAggregateFunctionOperator(
+		return new PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
 			config,
 			pandasAggregateFunctions,
 			inputType,
 			outputType,
+			new long[]{0L, Long.MIN_VALUE},
+			new long[]{0L, 2L},
+			new boolean[]{true, false},
+			new int[]{0},
 			groupingSet,
 			groupingSet,
-			udafInputOffsets);
+			udafInputOffsets,
+			3,
+			true);
 	}
 
-	private static class PassThroughBatchArrowPythonGroupAggregateFunctionOperator
-		extends BatchArrowPythonGroupAggregateFunctionOperator {
+	private static class PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator
+		extends BatchArrowPythonOverWindowAggregateFunctionOperator {
 
-		PassThroughBatchArrowPythonGroupAggregateFunctionOperator(
+		PassThroughBatchArrowPythonOverWindowAggregateFunctionOperator(
 			Configuration config,
-			PythonFunctionInfo[] pandasAggregateFunctions,
+			PythonFunctionInfo[] pandasAggFunctions,
 			RowType inputType,
 			RowType outputType,
+			long[] lowerBoundary,
+			long[] upperBoundary,
+			boolean[] isRangeWindow,
+			int[] aggWindowIndex,
 			int[] groupKey,
 			int[] groupingSet,
-			int[] udafInputOffsets) {
-			super(config, pandasAggregateFunctions, inputType, outputType, groupKey, groupingSet, udafInputOffsets);
+			int[] udafInputOffsets,
+			int inputTimeFieldIndex,
+			boolean asc) {
+			super(config, pandasAggFunctions, inputType, outputType, lowerBoundary, upperBoundary,
+				isRangeWindow, aggWindowIndex, groupKey, groupingSet, udafInputOffsets, inputTimeFieldIndex, asc);
 		}
 
 		@Override
@@ -194,8 +250,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
 				getInputOutputCoderUrn(),
 				new HashMap<>(),
 				PythonTestUtils.createMockFlinkMetricContainer(),
-				false
-			);
+				true);
 		}
 	}
 }
