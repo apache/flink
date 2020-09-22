@@ -60,13 +60,15 @@ public class ExecutionConfigOptions {
 	// ------------------------------------------------------------------------
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-	public static final ConfigOption<String> TABLE_EXEC_SOURCE_IDLE_TIMEOUT =
+	public static final ConfigOption<Duration> TABLE_EXEC_SOURCE_IDLE_TIMEOUT =
 		key("table.exec.source.idle-timeout")
-			.defaultValue("-1 ms")
+			.durationType()
+			.defaultValue(Duration.ofMillis(0))
 			.withDescription("When a source do not receive any elements for the timeout time, " +
 				"it will be marked as temporarily idle. This allows downstream " +
 				"tasks to advance their watermarks without the need to wait for " +
-				"watermarks from this source while it is idle.");
+				"watermarks from this source while it is idle. " +
+				"Default value is 0, which means detecting source idleness is not enabled.");
 
 	// ------------------------------------------------------------------------
 	//  Sink Options
@@ -203,9 +205,10 @@ public class ExecutionConfigOptions {
 			.withDescription("The max number of async i/o operation that the async lookup join can trigger.");
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-	public static final ConfigOption<String> TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT =
+	public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT =
 		key("table.exec.async-lookup.timeout")
-			.defaultValue("3 min")
+			.durationType()
+			.defaultValue(Duration.ofMinutes(3))
 			.withDescription("The async timeout for the asynchronous operation to complete.");
 
 	// ------------------------------------------------------------------------
@@ -222,9 +225,10 @@ public class ExecutionConfigOptions {
 				"'table.exec.mini-batch.size' must be set.");
 
 	@Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-	public static final ConfigOption<String> TABLE_EXEC_MINIBATCH_ALLOW_LATENCY =
+	public static final ConfigOption<Duration> TABLE_EXEC_MINIBATCH_ALLOW_LATENCY =
 		key("table.exec.mini-batch.allow-latency")
-			.defaultValue("-1 ms")
+			.durationType()
+			.defaultValue(Duration.ofMillis(0))
 			.withDescription("The maximum latency can be used for MiniBatch to buffer input records. " +
 				"MiniBatch is an optimization to buffer input records to reduce state access. " +
 				"MiniBatch is triggered with the allowed latency interval and when the maximum number of buffered records reached. " +
