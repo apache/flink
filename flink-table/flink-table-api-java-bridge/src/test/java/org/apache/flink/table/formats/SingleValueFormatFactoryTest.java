@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.format.single;
+package org.apache.flink.table.formats;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -27,15 +28,14 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.DynamicTableSource.DataStructureConverter;
+import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestDynamicTableFactory;
-import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
-import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -53,6 +53,8 @@ public class SingleValueFormatFactoryTest extends TestLogger {
 
 	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
 
+	private static final TypeInformation<RowData> rowDataInformation = new MockRowDataTypeInfo(ROW_TYPE);
+
 	@Test
 	public void testSeDeSchema() {
 		final Map<String, String> tableOptions = getAllOptions();
@@ -65,7 +67,7 @@ public class SingleValueFormatFactoryTest extends TestLogger {
 		final SingleValueRowDataDeserialization expectedDeser =
 			new SingleValueRowDataDeserialization(
 				ROW_TYPE,
-				new RowDataTypeInfo(ROW_TYPE));
+				rowDataInformation);
 
 		final DynamicTableSource actualSource = createTableSource(options);
 		assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
@@ -74,7 +76,7 @@ public class SingleValueFormatFactoryTest extends TestLogger {
 
 		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
 			.createRuntimeDecoder(
-				ScanRuntimeProviderContext.INSTANCE,
+				new TestSourceProviderContext(),
 				SCHEMA.toRowDataType());
 
 		assertEquals(expectedDeser, actualDeser);
@@ -92,10 +94,45 @@ public class SingleValueFormatFactoryTest extends TestLogger {
 
 		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
 			.createRuntimeEncoder(
-				new SinkRuntimeProviderContext(false),
+				new TestSinkProviderContext(),
 				SCHEMA.toRowDataType());
 
 		assertEquals(expectedSer, actualSer);
+	}
+
+	private static class TestSourceProviderContext implements ScanTableSource.ScanContext {
+
+		@Override
+		public TypeInformation<?> createTypeInformation(
+			DataType producedDataType) {
+			return rowDataInformation;
+		}
+
+		@Override
+		public DataStructureConverter createDataStructureConverter(
+			DataType producedDataType) {
+			return null;
+		}
+	}
+
+	private static class TestSinkProviderContext implements DynamicTableSink.Context{
+
+		@Override
+		public boolean isBounded() {
+			return false;
+		}
+
+		@Override
+		public TypeInformation<?> createTypeInformation(
+			DataType consumedDataType) {
+			return rowDataInformation;
+		}
+
+		@Override
+		public DynamicTableSink.DataStructureConverter createDataStructureConverter(
+			DataType consumedDataType) {
+			return null;
+		}
 	}
 
 	private static DynamicTableSource createTableSource(Map<String, String> options) {

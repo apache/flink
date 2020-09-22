@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.format.single;
+package org.apache.flink.table.formats;
 
+import java.util.Collections;
+import java.util.Set;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -38,9 +40,6 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
-
-import java.util.Collections;
-import java.util.Set;
 
 /**
  * SingleValueFormatFactory for single value.

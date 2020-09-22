@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.format.single;
+package org.apache.flink.table.formats;
 
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.util.DataFormatConverters;
-import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
-
 import org.junit.Test;
 
 import java.io.IOException;
@@ -59,26 +57,21 @@ public class SingleValueRowDataSerDeSchemaTest {
 
 	private void testParse(TestSpec testSpec) throws IOException {
 		SingleValueRowDataDeserialization deserializationSchema = new SingleValueRowDataDeserialization(
-			testSpec.rowType, new RowDataTypeInfo(testSpec.rowType));
+			testSpec.rowType, new MockRowDataTypeInfo(testSpec.rowType));
 		SingleValueRowDataSerialization serializationSchema = new SingleValueRowDataSerialization(
 			testSpec.rowType);
 
 		FieldGetter fieldGetter = RowData.createFieldGetter(testSpec.rowType.getTypeAt(0), 0);
-		RowData originRowData = convertToInternal(testSpec.expected, testSpec.dataType);
+		GenericRowData originRowData = new GenericRowData(1);
+		originRowData.setField(0, testSpec.singleValue);
 
 		byte[] serializedBytes = serializationSchema.serialize(originRowData);
-		RowData deserializedRowData = deserializationSchema.deserialize(serializedBytes);
+		RowData deserializeRowData = deserializationSchema.deserialize(serializedBytes);
 
-		assertEquals(testSpec.expected, convertToExternal(deserializedRowData, testSpec.dataType));
-		assertEquals(Row.of(testSpec.singleValue), Row.of(fieldGetter.getFieldOrNull(deserializedRowData)));
-	}
+		Object expectedValue = testSpec.singleValue;
+		Object deserializeValue = fieldGetter.getFieldOrNull(deserializeRowData);
 
-	private static Row convertToExternal(RowData rowData, DataType dataType) {
-		return (Row) DataFormatConverters.getConverterForDataType(dataType).toExternal(rowData);
-	}
-
-	private static RowData convertToInternal(Row row, DataType dataType) {
-		return (RowData) DataFormatConverters.getConverterForDataType(dataType).toInternal(row);
+		assertEquals(expectedValue, deserializeValue);
 	}
 
 	private static List<TestSpec> testData = Arrays.asList(
