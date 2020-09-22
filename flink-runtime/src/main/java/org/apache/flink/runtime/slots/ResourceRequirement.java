@@ -24,11 +24,11 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * Represents the number of required resource for a specific {@link ResourceProfile}.
+ * Represents the number of required resources for a specific {@link ResourceProfile}.
  */
 public class ResourceRequirement implements Serializable {
 
-	private static final long serialVersionUID = -928823805589379478L;
+	private static final long serialVersionUID = 1L;
 
 	private final ResourceProfile resourceProfile;
 

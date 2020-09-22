@@ -31,7 +31,7 @@ import java.util.Objects;
  */
 public class ResourceRequirements implements Serializable {
 
-	private static final long serialVersionUID = 3350991568345837268L;
+	private static final long serialVersionUID = 1L;
 
 	private final JobID jobId;
 
