@@ -137,7 +137,7 @@ public class PythonStreamGroupAggregateOperator
 	/**
 	 * The maximum NUMBER of the states cached in Python side.
 	 */
-	private int stateCacheSize = PythonOptions.STATE_CACHE_SIZE.defaultValue();
+	private int stateCacheSize;
 
 	/**
 	 * Indicates whether state cleaning is enabled. Can be calculated from the `minRetentionTime`.
@@ -352,6 +352,7 @@ public class PythonStreamGroupAggregateOperator
 			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
 		}
 		stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
+		jobOptions.put(PythonOptions.STATE_CACHE_SIZE.key(), String.valueOf(stateCacheSize));
 		return jobOptions;
 	}
 
