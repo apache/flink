@@ -85,7 +85,7 @@ public class TableSchema {
 		validateNameTypeNumberEqual(fieldNames, fieldDataTypes);
 		List<TableColumn> columns = new ArrayList<>();
 		for (int i = 0; i < fieldNames.length; i++) {
-			columns.add(TableColumn.of(fieldNames[i], fieldDataTypes[i]));
+			columns.add(TableColumn.physical(fieldNames[i], fieldDataTypes[i]));
 		}
 		validateColumnsAndWatermarkSpecs(columns, Collections.emptyList());
 		this.columns = columns;
@@ -256,7 +256,7 @@ public class TableSchema {
 	 */
 	public DataType toPhysicalRowDataType() {
 		final Field[] fields = columns.stream()
-			.filter(column -> !column.isGenerated())
+			.filter(TableColumn::isPhysical)
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
 		return ROW(fields);
@@ -291,20 +291,14 @@ public class TableSchema {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("root\n");
 		for (TableColumn column : columns) {
-			sb.append(" |-- ")
-				.append(column.getName())
-				.append(": ");
-			sb.append(column.getType());
-			if (column.getExpr().isPresent()) {
-				sb.append(" AS ").append(column.getExpr().get());
-			}
+			sb.append(" |-- ");
+			sb.append(column.asSummaryString());
 			sb.append('\n');
 		}
 		if (!watermarkSpecs.isEmpty()) {
-			for (WatermarkSpec watermark : watermarkSpecs) {
-				sb.append(" |-- ").append("WATERMARK FOR ")
-					.append(watermark.getRowtimeAttribute()).append(" AS ")
-					.append(watermark.getWatermarkExpr());
+			for (WatermarkSpec watermarkSpec : watermarkSpecs) {
+				sb.append(" |-- ");
+				sb.append(watermarkSpec.asSummaryString());
 				sb.append('\n');
 			}
 		}
@@ -441,9 +435,9 @@ public class TableSchema {
 					columnName));
 			}
 
-			if (column.isGenerated()) {
+			if (!column.isPhysical()) {
 				throw new ValidationException(String.format(
-					"Could not create a PRIMARY KEY '%s' with a generated column '%s'.",
+					"Could not create a PRIMARY KEY '%s'. Column '%s' is not a physical column.",
 					primaryKey.getName(),
 					columnName));
 			}
@@ -525,7 +519,7 @@ public class TableSchema {
 		public Builder field(String name, DataType dataType) {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
-			columns.add(TableColumn.of(name, dataType));
+			columns.add(TableColumn.physical(name, dataType));
 			return this;
 		}
 
@@ -557,7 +551,7 @@ public class TableSchema {
 			Preconditions.checkNotNull(name);
 			Preconditions.checkNotNull(dataType);
 			Preconditions.checkNotNull(expression);
-			columns.add(TableColumn.of(name, dataType, expression));
+			columns.add(TableColumn.computed(name, dataType, expression));
 			return this;
 		}
 
@@ -581,7 +575,7 @@ public class TableSchema {
 			Preconditions.checkNotNull(dataTypes);
 			validateNameTypeNumberEqual(names, dataTypes);
 			List<TableColumn> columns = IntStream.range(0, names.length)
-				.mapToObj(idx -> TableColumn.of(names[idx], dataTypes[idx]))
+				.mapToObj(idx -> TableColumn.physical(names[idx], dataTypes[idx]))
 				.collect(Collectors.toList());
 			this.columns.addAll(columns);
 			return this;

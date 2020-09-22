@@ -114,7 +114,7 @@ public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory
 		private final String property;
 
 		public TestTableSink(TableSchema schema, String property) {
-			this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
+			this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
 			this.property = property;
 		}
 
