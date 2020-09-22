@@ -64,6 +64,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<dependency>
+			<!-- Bumped for security purposes -->
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+			<version>1.27</version>
+		</dependency>
+
 		<!-- Dependency for Elasticsearch 6.x REST Client -->
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>

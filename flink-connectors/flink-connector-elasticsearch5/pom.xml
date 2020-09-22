@@ -40,17 +40,6 @@ under the License.
 		<elasticsearch.version>5.3.3</elasticsearch.version>
 	</properties>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- Bump version to 1.25 to make it work with Jackson dependencies (2.10.1) -->
-			<dependency>
-				<groupId>org.yaml</groupId>
-				<artifactId>snakeyaml</artifactId>
-				<version>1.25</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -129,6 +118,13 @@ under the License.
 			<groupId>io.netty</groupId>
 			<artifactId>netty-transport</artifactId>
 			<version>4.1.44.Final</version>
+		</dependency>
+
+		<dependency>
+			<!-- Bumped for security purposes and making it work with Jackson dependencies (2.10.1) -->
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+			<version>1.27</version>
 		</dependency>
 
 		<!-- test dependencies -->
