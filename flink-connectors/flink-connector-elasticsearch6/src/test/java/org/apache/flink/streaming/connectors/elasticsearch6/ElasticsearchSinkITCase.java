@@ -41,7 +41,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 
 	@Before
 	public void ensureClusterIsUp() throws IOException {
-		RestClientBuilder builder = RestClient.builder(HttpHost.create("http://127.0.0.2:9200"));
+		RestClientBuilder builder = RestClient.builder(HttpHost.create("http://127.0.0.1:9200"));
 		RestHighLevelClient client = new RestHighLevelClient(builder);
 		if (!client.ping()) {
 			throw new RuntimeException("Cannot ping cluster!");
