@@ -245,7 +245,8 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperatorTest extends Ar
 				getUserDefinedFunctionsProto(),
 				getInputOutputCoderUrn(),
 				new HashMap<>(),
-				PythonTestUtils.createMockFlinkMetricContainer()
+				PythonTestUtils.createMockFlinkMetricContainer(),
+				false
 			);
 		}
 	}
