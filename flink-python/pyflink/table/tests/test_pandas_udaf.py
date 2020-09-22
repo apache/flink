@@ -39,7 +39,7 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
         # general udf
         add = udf(lambda a: a + 1, result_type=DataTypes.INT())
         # pandas udf
-        substract = udf(lambda a: a - 1, result_type=DataTypes.INT(), function_type="pandas")
+        substract = udf(lambda a: a - 1, result_type=DataTypes.INT(), udf_type="pandas")
         max_udaf = udaf(lambda a: a.max(), result_type=DataTypes.INT())
         t.group_by("a") \
             .select(t.a, mean_udaf(add(t.b)), max_udaf(substract(t.c))) \
@@ -92,7 +92,7 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
         self.assert_equals(actual, ["1,2,2.0,6", "2,3,3.0,8", "3,4,4.0,10"])
 
 
-@udaf(result_type=DataTypes.FLOAT(), function_type="pandas")
+@udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
 def mean_udaf(v):
     return v.mean()
 
