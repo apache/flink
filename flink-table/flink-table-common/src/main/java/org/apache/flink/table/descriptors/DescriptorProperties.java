@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableColumn.ComputedColumn;
+import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -81,6 +84,10 @@ public class DescriptorProperties {
 	public static final String DATA_TYPE = "data-type";
 
 	public static final String EXPR = "expr";
+
+	public static final String METADATA = "metadata";
+
+	public static final String VIRTUAL = "virtual";
 
 	public static final String PARTITION_KEYS = "partition.keys";
 
@@ -212,7 +219,28 @@ public class DescriptorProperties {
 		final String[] fieldNames = schema.getFieldNames();
 		final DataType[] fieldTypes = schema.getFieldDataTypes();
 		final String[] fieldExpressions = schema.getTableColumns().stream()
-			.map(column -> column.getExpr().orElse(null))
+			.map(column -> {
+				if (column instanceof ComputedColumn) {
+					return ((ComputedColumn) column).getExpression();
+				}
+				return null;
+			})
+			.toArray(String[]::new);
+		final String[] fieldMetadata = schema.getTableColumns().stream()
+			.map(column -> {
+				if (column instanceof MetadataColumn) {
+					return ((MetadataColumn) column).getMetadataAlias().orElse(column.getName());
+				}
+				return null;
+			})
+			.toArray(String[]::new);
+		final String[] fieldVirtual = schema.getTableColumns().stream()
+			.map(column -> {
+				if (column instanceof MetadataColumn) {
+					return Boolean.toString(((MetadataColumn) column).isVirtual());
+				}
+				return null;
+			})
 			.toArray(String[]::new);
 
 		final List<List<String>> values = new ArrayList<>();
@@ -221,12 +249,14 @@ public class DescriptorProperties {
 				Arrays.asList(
 					fieldNames[i],
 					fieldTypes[i].getLogicalType().asSerializableString(),
-					fieldExpressions[i]));
+					fieldExpressions[i],
+					fieldMetadata[i],
+					fieldVirtual[i]));
 		}
 
 		putIndexedOptionalProperties(
 			key,
-			Arrays.asList(NAME, DATA_TYPE, EXPR),
+			Arrays.asList(NAME, DATA_TYPE, EXPR, METADATA, VIRTUAL),
 			values);
 
 		if (!schema.getWatermarkSpecs().isEmpty()) {
@@ -633,6 +663,8 @@ public class DescriptorProperties {
 			final String legacyTypeKey = key + '.' + i + '.' + TYPE;
 			final String typeKey = key + '.' + i + '.' + DATA_TYPE;
 			final String exprKey = key + '.' + i + '.' + EXPR;
+			final String metadataKey = key + '.' + i + '.' + METADATA;
+			final String virtualKey = key + '.' + i + '.' + VIRTUAL;
 
 			final String name = optionalGet(nameKey).orElseThrow(exceptionSupplier(nameKey));
 
@@ -646,13 +678,24 @@ public class DescriptorProperties {
 			}
 
 			final Optional<String> expr = optionalGet(exprKey);
+			final Optional<String> metadata = optionalGet(metadataKey);
+			final boolean virtual = getOptionalBoolean(virtualKey).orElse(false);
+			// computed column
 			if (expr.isPresent()) {
-				schemaBuilder.field(
-					name,
-					type,
-					expr.get());
-			} else {
-				schemaBuilder.field(name, type);
+				schemaBuilder.add(TableColumn.computed(name, type, expr.get()));
+			}
+			// metadata column
+			else if (metadata.isPresent()) {
+				final String metadataAlias = metadata.get();
+				if (metadataAlias.equals(name)) {
+					schemaBuilder.add(TableColumn.metadata(name, type, virtual));
+				} else {
+					schemaBuilder.add(TableColumn.metadata(name, type, metadataAlias, virtual));
+				}
+			}
+			// physical column
+			else {
+				schemaBuilder.add(TableColumn.physical(name, type));
 			}
 		}
 

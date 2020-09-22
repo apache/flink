@@ -97,7 +97,7 @@ class SqlCreateTableConverter {
 			sourceTableSchema = table.getSchema();
 			sourcePartitionKeys = table.getPartitionKeys();
 			likeOptions = sqlTableLike.getOptions();
-			sourceProperties = table.getProperties();
+			sourceProperties = table.getOptions();
 		} else {
 			sourceTableSchema = TableSchema.builder().build();
 			sourcePartitionKeys = Collections.emptyList();

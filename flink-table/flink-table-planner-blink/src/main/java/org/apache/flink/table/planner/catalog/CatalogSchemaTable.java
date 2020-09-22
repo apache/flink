@@ -153,7 +153,7 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
 		// It should be removed after we remove DefinedProctimeAttribute/DefinedRowtimeAttributes.
 		Optional<TableSource<?>> sourceOpt = findAndCreateTableSource();
 		if (isStreamingMode
-			&& tableSchema.getTableColumns().stream().noneMatch(TableColumn::isGenerated)
+			&& tableSchema.getTableColumns().stream().allMatch(TableColumn::isPhysical)
 			&& tableSchema.getWatermarkSpecs().isEmpty()
 			&& sourceOpt.isPresent()) {
 			TableSource<?> source = sourceOpt.get();

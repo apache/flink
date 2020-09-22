@@ -20,6 +20,9 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableColumn.ComputedColumn;
+import org.apache.flink.table.api.TableColumn.MetadataColumn;
+import org.apache.flink.table.api.TableColumn.PhysicalColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -79,8 +82,9 @@ public class CatalogTableSchemaResolver {
 			TableColumn tableColumn = tableSchema.getTableColumns().get(i);
 			DataType fieldType = fieldTypes[i];
 
-			if (tableColumn.isGenerated()) {
-				fieldType = resolveExpressionDataType(tableColumn.getExpr().get(), tableSchema);
+			if (tableColumn instanceof ComputedColumn) {
+				final ComputedColumn computedColumn = (ComputedColumn) tableColumn;
+				fieldType = resolveExpressionDataType(computedColumn.getExpression(), tableSchema);
 				if (isProctime(fieldType)) {
 					if (fieldNames[i].equals(rowtime)) {
 						throw new TableException("Watermark can not be defined for a processing time attribute column.");
@@ -97,10 +101,24 @@ public class CatalogTableSchemaResolver {
 				fieldType = TypeConversions.fromLogicalToDataType(rowtimeType);
 			}
 
-			if (tableColumn.isGenerated()) {
-				builder.field(fieldNames[i], fieldType, tableColumn.getExpr().get());
-			} else {
-				builder.field(fieldNames[i], fieldType);
+			if (tableColumn instanceof PhysicalColumn) {
+				builder.add(
+					TableColumn.physical(fieldNames[i], fieldType)
+				);
+			} else if (tableColumn instanceof ComputedColumn) {
+				final ComputedColumn computedColumn = (ComputedColumn) tableColumn;
+				builder.add(
+					TableColumn.computed(fieldNames[i], fieldType, computedColumn.getExpression())
+				);
+			} else if (tableColumn instanceof MetadataColumn) {
+				final MetadataColumn metadataColumn = (MetadataColumn) tableColumn;
+				builder.add(
+					TableColumn.metadata(
+						fieldNames[i],
+						fieldType,
+						metadataColumn.getMetadataAlias().orElse(null),
+						metadataColumn.isVirtual())
+				);
 			}
 		}
 
