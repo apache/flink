@@ -24,8 +24,6 @@ under the License.
 
 用户通过算子能将一个或多个 DataStream 转换成新的 DataStream，在应用程序中可以将多个数据转换算子合并成一个复杂的数据流拓扑。
 
-这部分内容将描述 Flink DataStream API 中基本的数据转换 API，数据转换后各种数据分区方式，以及算子的链接策略。
-
 <a name="datastream-transformations"/>
 
 # 数据流转换
@@ -36,21 +34,22 @@ Python Flink DataStream 程序主要是通过实现各种算子完成对 DataStr
 <a name="functions"/>
 
 # 算子函数接口
-在 Python DataStream API 中，大部分的算子需要用户实现自定义函数，接下来的内容将描述几种实现自定义函数的方式：
+在 Python DataStream API 中，大部分的算子需要用户实现自定义函数作为算子接口的输入，接下来的内容将描述几种实现自定义函数的方式：
 
 <a name="implementing-function-interfaces"/>
 
 ## 实现方法接口
-Python DataStream API 给各种算子提供了函数接口，用户可以定义接口的实现，并作为参数传递给算子。以 MapFunction 接口为例：
+Python DataStream API 给各种算子提供了函数接口，用户可以定义接口的实现，并作为参数传递给算子。例如， `MapFunction` 对应 `map` 转换算子，
+`FilterFunction` 对应 `filter` 算子等等。下面以 MapFunction 接口为例：
 <p>
 {% highlight python %}
-# Implement a MapFunction that return plus one value of input value.
+# Implementing MapFunction
 class MyMapFunction(MapFunction):
     
     def map(value):
         return value + 1
         
-data_stream = env.from_collection([1, 2, 3, 4, 5],type_info=Types.INT())
+data_stream = env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())
 mapped_stream = data_stream.map(MyMapFunction(), output_type=Types.INT())
 {% endhighlight %}
 </p>
@@ -64,7 +63,7 @@ mapped_stream = data_stream.map(MyMapFunction(), output_type=Types.INT())
 如此前的例子中所示，大部分算子 API 也能以 lambda 函数的形式定义具体的数据转换逻辑：
 <p>
 {% highlight python %}
-data_stream = env.from_collection([1, 2, 3, 4, 5],type_info=Types.INT())
+data_stream = env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())
 mapped_stream = data_stream.map(lambda x: x + 1, output_type=Types.INT())
 {% endhighlight %}
 </p>
@@ -80,8 +79,7 @@ CoMapFunction 接口和 CoFlatMapFunction 接口。
 def my_map_func(value):
     return value + 1
 
-data_stream = env.from_collection([1, 2, 3, 4, 5],type_info=Types.INT())
+data_stream = env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())
 mapped_stream = data_stream.map(my_map_func, output_type=Types.INT())
 {% endhighlight %}
 </p> 
-<span class="label label-info">注意</span> Python 函数的参数应该和算子对应的函数接口参数对应。

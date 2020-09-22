@@ -949,7 +949,7 @@ DataStream<Tuple2<String, Integer>> out = in.project(2,0);
       <td>
         <p>Selects a subset of fields from the tuples
 {% highlight python %}
-data_stream = env.from_collection([(1, 2, 3, 4), (5, 6, 7, 8)],type_info=Types.TUPLE([Types.INT(), Types.INT(), Types.INT(), Types.INT()]))
+data_stream = env.from_collection([(1, 2, 3, 4), (5, 6, 7, 8)], type_info=Types.TUPLE([Types.INT(), Types.INT(), Types.INT(), Types.INT()]))
 out_stream = data_stream.project(2, 0)
 {% endhighlight %}
         </p>
@@ -1294,6 +1294,8 @@ data_stream.broadcast()
 
 # Task chaining and resource groups
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 Chaining two subsequent transformations means co-locating them within the same thread for better
 performance. Flink by default chains operators if this is possible (e.g., two subsequent map
 transformations). The API gives fine-grained control over chaining if desired:
@@ -1307,9 +1309,6 @@ you cannot use `someStream.startNewChain()`.
 A resource group is a slot in Flink, see
 [slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 
 <br />
 
@@ -1365,6 +1364,19 @@ someStream.filter(...).slotSharingGroup("name");
 </div>
 
 <div data-lang="scala" markdown="1">
+Chaining two subsequent transformations means co-locating them within the same thread for better
+performance. Flink by default chains operators if this is possible (e.g., two subsequent map
+transformations). The API gives fine-grained control over chaining if desired:
+
+Use `StreamExecutionEnvironment.disableOperatorChaining()` if you want to disable chaining in
+the whole job. For more fine grained control, the following functions are available. Note that
+these functions can only be used right after a DataStream transformation as they refer to the
+previous transformation. For example, you can use `someStream.map(...).startNewChain()`, but
+you cannot use `someStream.startNewChain()`.
+
+A resource group is a slot in Flink, see
+[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+manually isolate operators in separate slots if desired.
 
 <br />
 
@@ -1420,6 +1432,19 @@ someStream.filter(...).slotSharingGroup("name")
 </div>
 
 <div data-lang="python" markdown="1">
+Chaining two subsequent transformations means co-locating them within the same thread for better
+performance. Flink by default chains operators if this is possible (e.g., two subsequent map
+transformations). The API gives fine-grained control over chaining if desired:
+
+Use `stream_execution_environment.disable_operator_chaining()` if you want to disable chaining in
+the whole job. For more fine grained control, the following functions are available. Note that
+these functions can only be used right after a DataStream transformation as they refer to the
+previous transformation. For example, you can use `some_stream.map(...).start_new_chain()`, but
+you cannot use `some_stream.start_new_chain()`.
+
+A resource group is a slot in Flink, see
+[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+manually isolate operators in separate slots if desired.
 
 <br />
 

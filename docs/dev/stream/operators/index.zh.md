@@ -1280,7 +1280,9 @@ data_stream.broadcast()
 <a name="task-chaining-and-resource-groups"/>
 
 # 算子链和资源组
-将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 连个 map 转换操作)。此外，
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外，
 Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
 如果想对整个作业禁用算子链，可以调用 `StreamExecutionEnvironment.disableOperatorChaining()`。下列方法还提供了更细粒度的控制。需要注
@@ -1289,10 +1291,6 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
 一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-
 <br />
 
 <table class="table table-bordered">
@@ -1341,7 +1339,15 @@ someStream.filter(...).slotSharingGroup("name");
 </div>
 
 <div data-lang="scala" markdown="1">
+将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外，
+Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
+如果想对整个作业禁用算子链，可以调用 `StreamExecutionEnvironment.disableOperatorChaining()`。下列方法还提供了更细粒度的控制。需要注
+意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
+这样调用，而不能 `someStream.startNewChain()`这样。
+
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
 <table class="table table-bordered">
@@ -1390,7 +1396,15 @@ someStream.filter(...).slotSharingGroup("name")
 </div>
 
 <div data-lang="python" markdown="1">
+将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外，
+Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
+如果想对整个作业禁用算子链，可以调用 `stream_execution_environment.disable_operator_chaining()`。下列方法还提供了更细粒度的控制。需要注
+意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `some_stream.map(...).start_new_chain()`
+这样调用，而不能 `some_stream.start_new_chain()`这样。
+
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
 <table class="table table-bordered">
