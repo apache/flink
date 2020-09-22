@@ -264,9 +264,8 @@ public class ExecutionEntry extends ConfigEntry {
 			.orElseGet(() -> useDefaultValue(EXECUTION_MAX_STATE_RETENTION, 0L));
 	}
 
-	public int getParallelism() {
-		return properties.getOptionalInt(EXECUTION_PARALLELISM)
-			.orElseGet(() -> useDefaultValue(EXECUTION_PARALLELISM, 1));
+	public Optional<Integer> getParallelism() {
+		return properties.getOptionalInt(EXECUTION_PARALLELISM);
 	}
 
 	public int getMaxParallelism() {

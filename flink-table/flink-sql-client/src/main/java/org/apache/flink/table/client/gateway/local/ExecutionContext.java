@@ -550,7 +550,9 @@ public class ExecutionContext<ClusterID> {
 				Time.milliseconds(execution.getMinStateRetention()),
 				Time.milliseconds(execution.getMaxStateRetention()));
 
-		conf.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism());
+		if (execution.getParallelism().isPresent()) {
+			conf.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism().get());
+		}
 		conf.set(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
 		conf.set(StreamPipelineOptions.TIME_CHARACTERISTIC, execution.getTimeCharacteristic());
 		if (execution.getTimeCharacteristic() == TimeCharacteristic.EventTime) {
