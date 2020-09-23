@@ -36,6 +36,7 @@ __all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
 
 FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
 FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
+FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:aggregate_function:v1"
 FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1"
 FLINK_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1"
 FLINK_MAP_FUNCTION_DATA_STREAM_CODER_URN = "flink:coder:datastream:map_function:v1"
@@ -69,6 +70,35 @@ class TableFunctionRowCoder(BaseCoder):
 
     def __repr__(self):
         return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._flatten_row_coder == other._flatten_row_coder)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._flatten_row_coder)
+
+
+class AggregateFunctionRowCoder(BaseCoder):
+    """
+    Coder for Aggregate Function Input Row.
+    """
+
+    def __init__(self, flatten_row_coder):
+        self._flatten_row_coder = flatten_row_coder
+
+    def get_impl(self):
+        return coder_impl.AggregateFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
+
+    @staticmethod
+    def from_schema_proto(schema_proto):
+        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(schema_proto))
+
+    def __repr__(self):
+        return 'AggregateFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__
@@ -182,7 +212,7 @@ class FieldCoder(ABC):
         pass
 
 
-class RowCoder(FieldCoder):
+class RowCoder(FieldCoder, BaseCoder):
     """
     Coder for Row.
     """
@@ -195,6 +225,18 @@ class RowCoder(FieldCoder):
 
     def __repr__(self):
         return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and len(self._field_coders) == len(other._field_coders)
+                and [self._field_coders[i] == other._field_coders[i] for i in
+                     range(len(self._field_coders))])
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._field_coders)
 
 
 class CollectionCoder(FieldCoder):

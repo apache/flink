@@ -201,7 +201,7 @@ class BatchExecPythonGroupAggregate(
       config: Configuration): OneInputTransformation[RowData, RowData] = {
 
     val (pythonUdafInputOffsets, pythonFunctionInfos) =
-      extractPythonAggregateFunctionInfos(aggCalls)
+      extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls)
 
     val pythonOperator = getPythonAggregateFunctionOperator(
       config,
