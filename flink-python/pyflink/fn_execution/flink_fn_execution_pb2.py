@@ -192,7 +192,7 @@ _SCHEMA_TYPENAME = _descriptor.EnumDescriptor(
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='ARRAY', index=16, number=16,
+      name='BASIC_ARRAY', index=16, number=16,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
@@ -214,6 +214,8 @@ _SCHEMA_TYPENAME = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
+  serialized_start=2877,
+  serialized_end=3166,
   serialized_start=3315,
   serialized_end=3598,
 )
@@ -286,7 +288,7 @@ _TYPEINFO_TYPENAME = _descriptor.EnumDescriptor(
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='ARRAY', index=15, number=15,
+      name='BASIC_ARRAY', index=15, number=15,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
@@ -297,9 +299,15 @@ _TYPEINFO_TYPENAME = _descriptor.EnumDescriptor(
       name='TUPLE', index=17, number=17,
       options=None,
       type=None),
+    _descriptor.EnumValueDescriptor(
+      name='PRIMITIVE_ARRAY', index=18, number=18,
+      options=None,
+      type=None),
   ],
   containing_type=None,
   options=None,
+  serialized_start=3687,
+  serialized_end=3945,
   serialized_start=4119,
   serialized_end=4350,
 )
@@ -1155,6 +1163,8 @@ _SCHEMA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
+  serialized_start=1138,
+  serialized_end=3166,
   serialized_start=1576,
   serialized_end=3598,
 )
@@ -1212,6 +1222,8 @@ _TYPEINFO_FIELDTYPE = _descriptor.Descriptor(
   ],
   serialized_start=3679,
   serialized_end=4004,
+  serialized_start=3247,
+  serialized_end=3572,
 )
 
 _TYPEINFO_FIELD = _descriptor.Descriptor(
@@ -1256,6 +1268,8 @@ _TYPEINFO_FIELD = _descriptor.Descriptor(
   ],
   serialized_start=4006,
   serialized_end=4116,
+  serialized_start=3574,
+  serialized_end=3684,
 )
 
 _TYPEINFO = _descriptor.Descriptor(
