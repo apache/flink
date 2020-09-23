@@ -26,6 +26,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -43,6 +44,8 @@ import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBen
 import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getListState;
 import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getMapState;
 import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getValueState;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
 
 /**
  * Test for {@link StateBackendBenchmarkUtils}.
@@ -96,6 +99,7 @@ public class StateBackendBenchmarkUtilsTest {
 
 	@Test
 	public void testApplyToAllKeys() throws Exception {
+		Assume.assumeThat(backendType, not(equalTo(StateBackendBenchmarkUtils.StateBackendType.BATCH_EXECUTION)));
 		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
 		ListState<Long> listState = getListState(backend, listStateDescriptor);
 		for (long i = 0; i < 10; i++) {
