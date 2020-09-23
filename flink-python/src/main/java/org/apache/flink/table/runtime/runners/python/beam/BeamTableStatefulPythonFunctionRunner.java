@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.runtime.runners.python.beam;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -33,45 +34,56 @@ import java.util.Map;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.getRowCoderProto;
 
 /**
- * A {@link BeamTableStatelessPythonFunctionRunner} used to execute Python stateless functions.
+ * A {@link BeamTableStatefulPythonFunctionRunner} used to execute Python stateful functions.
  */
-@Internal
-public class BeamTableStatelessPythonFunctionRunner extends BeamPythonFunctionRunner {
+public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRunner {
 
 	private final RowType inputType;
 	private final RowType outputType;
-	private final String coderUrn;
-	private final FlinkFnApi.UserDefinedFunctions userDefinedFunctions;
+	private final String inputCoderUrn;
+	private final String outputCoderUrn;
+	private final FlinkFnApi.UserDefinedAggregateFunctions userDefinedAggregateFunctions;
 
-	public BeamTableStatelessPythonFunctionRunner(
-		String taskName,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		String functionUrn,
-		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-		String coderUrn,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, null, null);
-		this.coderUrn = Preconditions.checkNotNull(coderUrn);
+	public BeamTableStatefulPythonFunctionRunner(
+			String taskName,
+			PythonEnvironmentManager environmentManager,
+			RowType inputType,
+			RowType outputType,
+			String functionUrn,
+			FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
+			String inputCoderUrn,
+			String outputCoderUrn,
+			Map<String, String> jobOptions,
+			FlinkMetricContainer flinkMetricContainer,
+			KeyedStateBackend keyedStateBackend,
+			TypeSerializer keySerializer) {
+		super(
+			taskName,
+			environmentManager,
+			functionUrn,
+			jobOptions,
+			flinkMetricContainer,
+			keyedStateBackend,
+			keySerializer);
+		this.inputCoderUrn = Preconditions.checkNotNull(inputCoderUrn);
+		this.outputCoderUrn = Preconditions.checkNotNull(outputCoderUrn);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
-		this.userDefinedFunctions = userDefinedFunctions;
+		this.userDefinedAggregateFunctions = userDefinedFunctions;
 	}
 
 	@Override
 	protected byte[] getUserDefinedFunctionsProtoBytes() {
-		return this.userDefinedFunctions.toByteArray();
+		return this.userDefinedAggregateFunctions.toByteArray();
 	}
 
 	@Override
 	protected RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(inputType, coderUrn);
+		return getRowCoderProto(inputType, inputCoderUrn);
 	}
 
 	@Override
 	protected RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(outputType, coderUrn);
+		return getRowCoderProto(outputType, outputCoderUrn);
 	}
 }

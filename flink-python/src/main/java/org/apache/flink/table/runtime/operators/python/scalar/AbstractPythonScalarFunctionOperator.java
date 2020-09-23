@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -106,7 +107,7 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
 		// add udf proto
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
+			builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
 		}
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		return builder.build();

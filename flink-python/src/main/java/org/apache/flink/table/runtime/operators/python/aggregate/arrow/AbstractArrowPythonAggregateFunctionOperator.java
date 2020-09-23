@@ -36,8 +36,11 @@ import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
 
 /**
  * The Abstract class of Arrow Aggregate Operator for Pandas {@link AggregateFunction}.

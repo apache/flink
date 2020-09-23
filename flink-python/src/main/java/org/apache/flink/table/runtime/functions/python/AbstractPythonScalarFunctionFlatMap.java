@@ -27,6 +27,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -105,7 +106,7 @@ public abstract class AbstractPythonScalarFunctionFlatMap extends AbstractPython
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
 		// add udf proto
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
+			builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
 		}
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		return builder.build();
