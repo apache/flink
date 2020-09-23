@@ -55,7 +55,7 @@ public class ResourceCounterTest extends TestLogger {
 		counter.incrementCount(ResourceProfile.ANY, 1);
 
 		ResourceCounter copy = counter.copy();
-		counter.decrementCount(ResourceProfile.ANY, 0);
+		counter.decrementCount(ResourceProfile.ANY, 1);
 
 		// check that copy is independent from original
 		assertThat(copy.getResourceCount(ResourceProfile.ANY), is(1));
