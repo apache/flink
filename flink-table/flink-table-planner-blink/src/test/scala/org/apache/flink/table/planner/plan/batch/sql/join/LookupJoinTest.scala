@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
@@ -29,8 +28,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
-
+import org.junit.{Assume, Before, Test}
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.{Collection => JCollection}
 
@@ -65,6 +63,19 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
           |  'bounded' = 'true'
           |)
           |""".stripMargin)
+
+      testUtil.addTable(
+        """
+          |CREATE TABLE LookupTableWithComputedColumn (
+          |  `id` INT,
+          |  `name` STRING,
+          |  `age` INT,
+          |  `nominal_age` as age + 1
+          |) WITH (
+          |  'connector' = 'values',
+          |  'bounded' = 'true'
+          |)
+          |""".stripMargin)
     }
   }
 
@@ -85,7 +96,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
     // only support left or inner join
     // Calcite does not allow FOR SYSTEM_TIME AS OF non-nullable left table field to Right Join.
-    // There is a exception:
+    // There is an exception:
     // java.lang.AssertionError
     //    at SqlToRelConverter.getCorrelationUse(SqlToRelConverter.java:2517)
     //    at SqlToRelConverter.createJoin(SqlToRelConverter.java:2426)
@@ -283,6 +294,36 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON true
         |WHERE T.c > 1000
+      """.stripMargin
+    testUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumn(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id
+      """.stripMargin
+    testUtil.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id and D.nominal_age > 12
       """.stripMargin
     testUtil.verifyPlan(sql)
   }

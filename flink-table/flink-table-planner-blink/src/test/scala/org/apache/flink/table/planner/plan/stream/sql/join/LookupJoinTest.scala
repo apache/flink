@@ -37,7 +37,7 @@ import org.apache.flink.table.utils.EncodingUtils
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
+import org.junit.{Assume, Before, Test}
 
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.sql.Timestamp
@@ -73,6 +73,19 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           |  `age` INT
           |) WITH (
           |  'connector' = 'values'
+          |)
+          |""".stripMargin)
+
+      util.addTable(
+        """
+          |CREATE TABLE LookupTableWithComputedColumn (
+          |  `id` INT,
+          |  `name` STRING,
+          |  `age` INT,
+          |  `nominal_age` as age + 1
+          |) WITH (
+          |  'connector' = 'values',
+          |  'bounded' = 'true'
           |)
           |""".stripMargin)
     }
@@ -426,6 +439,36 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
       """.stripMargin
 
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumn(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id and D.nominal_age > 12
+        |""".stripMargin
     util.verifyPlan(sql)
   }
 

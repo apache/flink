@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlShowCatalogs, SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases, SqlShowFunctions, SqlShowPartitions, SqlShowTables, SqlShowViews}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
@@ -31,13 +30,14 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
-import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql.{SqlCall, SqlExplain, SqlKind, SqlNode, SqlOperatorTable, SqlSnapshot}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
-
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
+
+import org.apache.calcite.rel.logical.LogicalValues
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -163,7 +163,36 @@ class FlinkPlannerImpl(
         sqlValidator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]),
         cluster,
         convertletTable,
-        sqlToRelConverterConfig)
+        sqlToRelConverterConfig) {
+        // override convertFrom() to support flexible Temporal Table Syntax,
+        // TODO: This should be reverted in FLINK-19342 once FLINK-16579
+        //  (Upgrade Calcite to 1.23) resolved.
+        val relBuilder = config.getRelBuilderFactory.create(cluster, null)
+
+        override def convertFrom(bb: SqlToRelConverter#Blackboard, from: SqlNode): Unit = {
+          if (from == null) {
+            bb.setRoot(LogicalValues.createOneRow(cluster), false)
+            return
+          }
+
+          from.getKind match {
+            case SqlKind.SNAPSHOT =>
+              convertTemporalTable(bb, from.asInstanceOf[SqlCall])
+            case _ => super.convertFrom(bb, from)
+          }
+        }
+
+        private def convertTemporalTable(bb: SqlToRelConverter#Blackboard, call: SqlCall): Unit = {
+          val snapshot = call.asInstanceOf[SqlSnapshot]
+          val period = bb.convertExpression(snapshot.getPeriod)
+          // convert inner query, could be a table name or a derived table
+          val expr = snapshot.getTableRef
+          convertFrom(bb, expr)
+          val snapshotRel = relBuilder.push(bb.root).snapshot(period).build
+          bb.setRoot(snapshotRel, false)
+        }
+      }
+
       sqlToRelConverter.convertQuery(validatedSqlNode, false, true)
       // we disable automatic flattening in order to let composite types pass without modification
       // we might enable it again once Calcite has better support for structured types

@@ -71,6 +71,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     createScanTable("nullable_src", dataWithNull)
     createLookupTable("user_table", userData)
     createLookupTable("nullable_user_table", userDataWithNull)
+    createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
   }
   
   @After
@@ -99,6 +100,24 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
            |  `age` INT,
            |  `id` BIGINT,
            |  `name` STRING
+           |) WITH (
+           |  'connector' = 'values',
+           |  'data-id' = '$dataId'
+           |)
+           |""".stripMargin)
+    }
+  }
+
+  private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
+    if (!legacyTableSource) {
+      val dataId = TestValuesTableFactory.registerData(data)
+      tEnv.executeSql(
+        s"""
+           |CREATE TABLE $tableName (
+           |  `age` INT,
+           |  `id` BIGINT,
+           |  `name` STRING,
+           |  `nominal_age` as age + 1
            |) WITH (
            |  'connector' = 'values',
            |  'data-id' = '$dataId'
@@ -452,6 +471,46 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testJoinTemporalTableWithComputedColumn(): Unit = {
+    if (legacyTableSource) {
+      //Computed column do not support in legacyTableSource.
+      return
+    }
+    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
+      "FROM src AS T JOIN userTableWithComputedColumn " +
+      "for system_time as of T.proctime AS D ON T.id = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,12,Julian,Julian,11,12",
+      "2,15,Hello,Jark,22,23",
+      "3,15,Fabian,Fabian,33,34")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
+    if (legacyTableSource) {
+      //Computed column do not support in legacyTableSource.
+      return
+    }
+    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
+      "FROM src AS T JOIN userTableWithComputedColumn " +
+      "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "2,15,Hello,Jark,22,23",
+      "3,15,Fabian,Fabian,33,34")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }
 
 object LookupJoinITCase {
