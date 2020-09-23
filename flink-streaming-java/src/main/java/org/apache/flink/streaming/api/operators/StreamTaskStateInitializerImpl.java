@@ -110,7 +110,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		this.taskStateManager = Preconditions.checkNotNull(environment.getTaskStateManager());
 		this.stateBackend = Preconditions.checkNotNull(stateBackend);
 		this.ttlTimeProvider = ttlTimeProvider;
-		this.timeServiceManagerProvider = timeServiceManagerProvider;
+		this.timeServiceManagerProvider = Preconditions.checkNotNull(timeServiceManagerProvider);
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
@@ -172,12 +172,16 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
-			timeServiceManager = timeServiceManagerProvider.create(
-				keyedStatedBackend,
-				environment.getUserCodeClassLoader().asClassLoader(),
-				keyContext,
-				processingTimeService,
-				rawKeyedStateInputs);
+			if (keyedStatedBackend != null) {
+				timeServiceManager = timeServiceManagerProvider.create(
+					keyedStatedBackend,
+					environment.getUserCodeClassLoader().asClassLoader(),
+					keyContext,
+					processingTimeService,
+					rawKeyedStateInputs);
+			} else {
+				timeServiceManager = null;
+			}
 
 			// -------------- Preparing return value --------------
 

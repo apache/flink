@@ -102,11 +102,6 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
 			Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-
-		if (keyedStatedBackend == null) {
-			return null;
-		}
-
 		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 		final boolean requiresSnapshotLegacyTimers = keyedStatedBackend instanceof AbstractKeyedStateBackend &&
 			((AbstractKeyedStateBackend<K>) keyedStatedBackend).requiresLegacySynchronousTimerSnapshots();
