@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
@@ -30,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader} and then converts into {@link RemoteInputChannel} finally.
+ * and then converts into {@link RemoteInputChannel} finally.
  */
 public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 	private final ConnectionID connectionId;

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -33,7 +32,6 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -49,7 +47,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionTest;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
@@ -66,14 +63,9 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
@@ -142,102 +134,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 						((RemoteInputChannel) inputChannel).getNumberOfAvailableBuffers());
 				}
 			}
-		}
-	}
-
-	/**
-	 * Tests when the total buffer amount is less than the number of recovered states, all the states
-	 * can be read and processed correctly via reusing the recycled buffers.
-	 */
-	@Test
-	public void testReadRecoveredState() throws Exception {
-		final int totalStates = 7;
-		final int[] states = {1, 2, 3, 4, 5, 6};
-		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
-
-		final int totalBuffers = 5; // the total buffers are less than the requirement from total states
-		final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder()
-			.setBufferSize(states.length * Integer.BYTES)
-			.setNumNetworkBuffers(totalBuffers)
-			.build();
-		final SingleInputGate inputGate = createInputGate(environment);
-
-		final ExecutorService executor = Executors.newFixedThreadPool(1);
-		try (Closer closer = Closer.create()) {
-			closer.register(environment::close);
-			closer.register(executor::shutdown);
-
-			inputGate.setup();
-			CompletableFuture<?> future = inputGate.readRecoveredState(executor, stateReader);
-
-			int numConsumedBuffers = 0;
-			// consume all the state buffers from one local channel and one remote channel
-			while (!(future.isDone() && numConsumedBuffers == totalStates * 2)) {
-				if (getNextBufferAndVerify(inputGate, states)) {
-					numConsumedBuffers++;
-				} else {
-					Thread.sleep(3);
-				}
-			}
-
-			// release the gate to verify that all the requested buffers are recycled
-			inputGate.close();
-			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
-		}
-	}
-
-	/**
-	 * Tests that {@link SingleInputGate#readRecoveredState(ExecutorService, ChannelStateReader)} and
-	 * {@link SingleInputGate#pollNext()} and {@link SingleInputGate#close()} execute concurrently, then
-	 * it should not have deadlock issue and potential buffer leak.
-	 */
-	@Test
-	public void testConcurrentReadStateAndProcessAndClose() throws Exception {
-		final int totalStates = 7;
-		final int[] states = {1, 2, 3, 4, 5, 6};
-		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
-
-		final int totalBuffers = 5;
-		final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder()
-			.setBufferSize(states.length * Integer.BYTES)
-			.setNumNetworkBuffers(totalBuffers)
-			.build();
-		final SingleInputGate inputGate = createInputGate(environment);
-
-		final ExecutorService executor = Executors.newFixedThreadPool(3);
-		try (Closer closer = Closer.create()) {
-			closer.register(environment::close);
-			closer.register(executor::shutdown);
-
-			inputGate.setup();
-
-			Callable<Void> closeTask = () -> {
-				inputGate.close();
-				return null;
-			};
-
-			Callable<Void> readRecoveredStateTask = () -> {
-				inputGate.readRecoveredState(executor, stateReader);
-				return null;
-			};
-
-			Callable<Void> processStateTask = () -> {
-				while (true) {
-					try {
-						if (!getNextBufferAndVerify(inputGate, states)) {
-							Thread.sleep(1);
-						}
-					} catch (Throwable t) {
-						return null;
-					}
-				}
-			};
-
-			executor.invokeAll(Arrays.asList(closeTask, readRecoveredStateTask, processStateTask));
-
-			// wait until the internal channel state recover task finishes
-			assertEquals(totalBuffers, environment.getNetworkBufferPool().getNumberOfAvailableMemorySegments());
-			assertTrue(inputGate.getCloseFuture().isDone());
 		}
 	}
 
@@ -951,18 +847,6 @@ public class SingleInputGateTest extends InputGateTestBase {
 		InputChannel unknownChannel = new InputChannelBuilder().setChannelIndex(2).buildUnknownChannel(inputGate);
 		inputGate.setInputChannels(remoteChannel, localChannel, unknownChannel);
 		return inputGate;
-	}
-
-	private boolean getNextBufferAndVerify(SingleInputGate inputGate, int[] states) throws Exception {
-		Optional<BufferOrEvent> bufferOrEvent = inputGate.pollNext();
-		if (bufferOrEvent.isPresent()) {
-			assertTrue(bufferOrEvent.get().isBuffer());
-			Buffer buffer = bufferOrEvent.get().getBuffer();
-			BufferBuilderAndConsumerTest.assertContent(buffer, null, states);
-			buffer.recycleBuffer();
-			return true;
-		}
-		return false;
 	}
 
 	/**

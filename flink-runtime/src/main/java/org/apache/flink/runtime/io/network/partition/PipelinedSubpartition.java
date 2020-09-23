@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -113,29 +111,6 @@ public class PipelinedSubpartition extends ResultSubpartition
 	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
 		checkState(this.channelStateWriter == null, "Already initialized");
 		this.channelStateWriter = checkNotNull(channelStateWriter);
-	}
-
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		boolean recycleBuffer = true;
-		for (ReadResult readResult = ReadResult.HAS_MORE_DATA; readResult == ReadResult.HAS_MORE_DATA;) {
-			BufferBuilder bufferBuilder = parent.getBufferPool().requestBufferBuilderBlocking(subpartitionInfo.getSubPartitionIdx());
-			BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-			try {
-				readResult = stateReader.readOutputData(subpartitionInfo, bufferBuilder);
-
-				// check whether there are some states data filled in this time
-				if (bufferConsumer.isDataAvailable()) {
-					add(bufferConsumer, false);
-					recycleBuffer = false;
-					bufferBuilder.finish();
-				}
-			} finally {
-				if (recycleBuffer) {
-					bufferConsumer.close();
-				}
-			}
-		}
 	}
 
 	@Override
