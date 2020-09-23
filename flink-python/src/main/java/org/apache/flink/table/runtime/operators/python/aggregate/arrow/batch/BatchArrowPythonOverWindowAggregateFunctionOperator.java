@@ -34,6 +34,9 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
+
+import static org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
 
 /**
  * The Batch Arrow Python {@link AggregateFunction} Operator for Over Window Aggregation.
@@ -44,7 +47,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String SCHEMA_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:over_window_arrow:v1";
+	private static final String SCHEMA_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:batch_over_window:arrow:v1";
 
 	private static final String PANDAS_BATCH_OVER_WINDOW_AGG_FUNCTION_URN = "flink:transform:batch_over_window_aggregate_function:arrow:v1";
 
@@ -69,7 +72,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 	private final boolean[] isRangeWindows;
 
 	/**
-	 * The window index of the specified aggregate function belongs to.
+	 * The window index of the specified aggregate function belonging to.
 	 */
 	private final int[] aggWindowIndex;
 
@@ -81,7 +84,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 	/**
 	 * The order of row time. True for ascending.
 	 */
-	private final boolean order;
+	private final boolean asc;
 
 	/**
 	 * The type serializer for the forwarded fields.
@@ -111,7 +114,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 	/**
 	 * Stores index of the bounded range window.
 	 */
-	private ArrayList<Integer> boundedRangeWindowIndex;
+	private transient ArrayList<Integer> boundedRangeWindowIndex;
 
 	public BatchArrowPythonOverWindowAggregateFunctionOperator(
 		Configuration config,
@@ -126,14 +129,14 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 		int[] groupingSet,
 		int[] udafInputOffsets,
 		int inputTimeFieldIndex,
-		boolean order) {
+		boolean asc) {
 		super(config, pandasAggFunctions, inputType, outputType, groupKey, groupingSet, udafInputOffsets);
 		this.lowerBoundary = lowerBoundary;
 		this.upperBoundary = upperBoundary;
 		this.isRangeWindows = isRangeWindows;
 		this.aggWindowIndex = aggWindowIndex;
 		this.inputTimeFieldIndex = inputTimeFieldIndex;
-		this.order = order;
+		this.asc = asc;
 	}
 
 	@Override
@@ -174,11 +177,11 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 	protected void invokeCurrentBatch() throws Exception {
 		if (currentBatchCount > 0) {
 			arrowSerializer.finishCurrentBatch();
-			RowData[] boundaryInputData =
-				forwardedInputQueue.subList(lastKeyDataStartPos, forwardedInputQueue.size()).toArray(new RowData[0]);
+			ListIterator<RowData> iter = forwardedInputQueue.listIterator(lastKeyDataStartPos);
 			int[] lowerBoundaryPos = new int[boundedRangeWindowIndex.size()];
 			int[] upperBoundaryPos = new int[boundedRangeWindowIndex.size()];
-			for (RowData curData : boundaryInputData) {
+			while (iter.hasNext()) {
+				RowData curData = iter.next();
 				// loop every bounded range window
 				for (int j = 0; j < boundedRangeWindowIndex.size(); j++) {
 					int windowPos = boundedRangeWindowIndex.get(j);
@@ -188,7 +191,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 					if (lowerBoundary[windowPos] != Long.MIN_VALUE) {
 						int curLowerBoundaryPos = lowerBoundaryPos[j];
 						long lowerBoundaryTime = curMills + lowerBoundary[windowPos];
-						while (isInCurrentOverWindow(boundaryInputData[curLowerBoundaryPos], lowerBoundaryTime, false)) {
+						while (isInCurrentOverWindow(forwardedInputQueue.get(curLowerBoundaryPos), lowerBoundaryTime, false)) {
 							curLowerBoundaryPos += 1;
 						}
 						lowerBoundaryPos[j] = curLowerBoundaryPos;
@@ -198,8 +201,8 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 					if (upperBoundary[windowPos] != Long.MAX_VALUE) {
 						int curUpperBoundaryPos = upperBoundaryPos[j];
 						long upperBoundaryTime = curMills + upperBoundary[windowPos];
-						while (curUpperBoundaryPos < boundaryInputData.length &&
-							isInCurrentOverWindow(boundaryInputData[curUpperBoundaryPos], upperBoundaryTime, true)) {
+						while (curUpperBoundaryPos < forwardedInputQueue.size() &&
+							isInCurrentOverWindow(forwardedInputQueue.get(curUpperBoundaryPos), upperBoundaryTime, true)) {
 							curUpperBoundaryPos += 1;
 						}
 						upperBoundaryPos[j] = curUpperBoundaryPos;
@@ -263,24 +266,24 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		// add windows
 		for (int i = 0; i < lowerBoundary.length; i++) {
-			FlinkFnApi.Window.Builder windowBuilder = FlinkFnApi.Window.newBuilder();
+			FlinkFnApi.OverWindow.Builder windowBuilder = FlinkFnApi.OverWindow.newBuilder();
 			if (isRangeWindows[i]) {
 				// range window
 				if (lowerBoundary[i] != Long.MIN_VALUE) {
 					if (upperBoundary[i] != Long.MAX_VALUE) {
 						// range sliding window
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.RANGE_SLIDING);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
 					} else {
 						// range unbounded following window
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.RANGE_UNBOUNDED_FOLLOWING);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.RANGE_UNBOUNDED_FOLLOWING);
 					}
 				} else {
 					if (upperBoundary[i] != Long.MAX_VALUE) {
 						// range unbounded preceding window
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.RANGE_UNBOUNDED_PRECEDING);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.RANGE_UNBOUNDED_PRECEDING);
 					} else {
 						// range unbounded window
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.RANGE_UNBOUNDED);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.RANGE_UNBOUNDED);
 					}
 				}
 			} else {
@@ -290,19 +293,19 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 					if (upperBoundary[i] != Long.MAX_VALUE) {
 						// row sliding window
 						windowBuilder.setUpperBoundary(upperBoundary[i]);
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.ROW_SLIDING);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.ROW_SLIDING);
 					} else {
 						// row unbounded following window
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.ROW_UNBOUNDED_FOLLOWING);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_FOLLOWING);
 					}
 				} else {
 					if (upperBoundary[i] != Long.MAX_VALUE) {
 						// row unbounded preceding window
 						windowBuilder.setUpperBoundary(upperBoundary[i]);
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.ROW_UNBOUNDED_PRECEDING);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
 					} else {
 						// row unbounded window
-						windowBuilder.setWindowType(FlinkFnApi.Window.WindowType.ROW_UNBOUNDED);
+						windowBuilder.setWindowType(FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED);
 					}
 				}
 			}
@@ -324,6 +327,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 	private boolean isInCurrentOverWindow(RowData data, long time, boolean includeEqual) {
 		long dataTime = data.getTimestamp(inputTimeFieldIndex, 3).getMillisecond();
 		long diff = time - dataTime;
-		return diff > 0 && order || diff == 0 && includeEqual;
+		return (diff > 0 && asc) || (diff == 0 && includeEqual);
 	}
 }

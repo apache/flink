@@ -150,16 +150,16 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest extends Arr
 		BatchArrowPythonOverWindowAggregateFunctionOperator operator =
 			(BatchArrowPythonOverWindowAggregateFunctionOperator) testHarness.getOneInputOperator();
 		FlinkFnApi.UserDefinedFunctions functionsProto = operator.getUserDefinedFunctionsProto();
-		List<FlinkFnApi.Window> windows = functionsProto.getWindowsList();
+		List<FlinkFnApi.OverWindow> windows = functionsProto.getWindowsList();
 		assertEquals(2, windows.size());
 
 		// first window is a range sliding window.
-		FlinkFnApi.Window firstWindow = windows.get(0);
-		assertEquals(firstWindow.getWindowType(), FlinkFnApi.Window.WindowType.RANGE_SLIDING);
+		FlinkFnApi.OverWindow firstWindow = windows.get(0);
+		assertEquals(firstWindow.getWindowType(), FlinkFnApi.OverWindow.WindowType.RANGE_SLIDING);
 
 		// second window is a row unbounded preceding window.
-		FlinkFnApi.Window secondWindow = windows.get(1);
-		assertEquals(secondWindow.getWindowType(), FlinkFnApi.Window.WindowType.ROW_UNBOUNDED_PRECEDING);
+		FlinkFnApi.OverWindow secondWindow = windows.get(1);
+		assertEquals(secondWindow.getWindowType(), FlinkFnApi.OverWindow.WindowType.ROW_UNBOUNDED_PRECEDING);
 		assertEquals(secondWindow.getUpperBoundary(), 2L);
 	}
 
@@ -233,9 +233,9 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest extends Arr
 			int[] groupingSet,
 			int[] udafInputOffsets,
 			int inputTimeFieldIndex,
-			boolean order) {
+			boolean asc) {
 			super(config, pandasAggFunctions, inputType, outputType, lowerBoundary, upperBoundary,
-				isRangeWindow, aggWindowIndex, groupKey, groupingSet, udafInputOffsets, inputTimeFieldIndex, order);
+				isRangeWindow, aggWindowIndex, groupKey, groupingSet, udafInputOffsets, inputTimeFieldIndex, asc);
 		}
 
 		@Override
