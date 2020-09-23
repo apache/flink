@@ -59,6 +59,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Additional tests for {@link PipelinedSubpartition} which require an availability listener and a
@@ -438,6 +439,94 @@ public class PipelinedSubpartitionWithReadViewTest {
 		resumeConsumptionAndCheckAvailability(Integer.MAX_VALUE, true);
 		assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
 		assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
+	}
+
+	@Test
+	public void testNotifyDataAvailable() throws IOException, InterruptedException {
+		// notify available after adding an event
+		subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.EVENT_BUFFER));
+		assertEquals(1, availablityListener.getNumNotifications());
+
+		// no notification after flushing for already notified
+		subpartition.flush();
+		assertEquals(1, availablityListener.getNumNotifications());
+
+		// no notification after adding the second buffer for already notified
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		assertEquals(1, availablityListener.getNumNotifications());
+
+		// consume one buffer
+		assertNextEvent(readView, BUFFER_SIZE, null, false, 0, false, true);
+
+		// notify available after flushing
+		subpartition.flush();
+		assertEquals(2, availablityListener.getNumNotifications());
+
+		// no notification after adding the second buffer for already notified
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		assertEquals(2, availablityListener.getNumNotifications());
+
+		// consume one buffer
+		assertNextBuffer(readView, BUFFER_SIZE, true, 1, false, true);
+
+		// no notification after flushing for still in polling loop (flush requested)
+		subpartition.flush();
+		assertEquals(2, availablityListener.getNumNotifications());
+
+		// no notification after adding the second buffer (event) for still in polling loop (flush requested)
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		assertEquals(2, availablityListener.getNumNotifications());
+
+		// consume all buffers
+		assertNextBuffer(readView, BUFFER_SIZE, true, 1, false, true);
+		assertTrue(subpartition.isDataAvailableNotified());
+		assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
+
+		// notify available after adding the second buffer
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.EVENT_BUFFER));
+		assertEquals(3, availablityListener.getNumNotifications());
+
+		// consume one buffer
+		assertNextBuffer(readView, BUFFER_SIZE, true, 0, true, true);
+
+		// no notification after flushing for still in polling loop (next buffer is event)
+		subpartition.flush();
+		assertEquals(3, availablityListener.getNumNotifications());
+
+		// no notification after adding the second buffer for still in polling loop (next buffer is event)
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		assertEquals(3, availablityListener.getNumNotifications());
+
+		// consume one buffer
+		assertNextEvent(readView, BUFFER_SIZE, null, false, 0, false, true);
+
+		// notify available after adding the second buffer
+		subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+		assertEquals(4, availablityListener.getNumNotifications());
+
+		// no notification after adding the third buffer for already notified
+		subpartition.add(createFilledUnfinishedBufferConsumer(BUFFER_SIZE));
+		assertEquals(4, availablityListener.getNumNotifications());
+
+		// consume two buffers
+		assertNextBuffer(readView, BUFFER_SIZE, true, 1, false, true);
+		assertTrue(subpartition.isDataAvailableNotified());
+		assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
+
+		// notify available after flushing
+		subpartition.flush();
+		assertEquals(5, availablityListener.getNumNotifications());
+
+		// consume one buffer
+		assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, false);
+
+		// unfinished buffer will not be removed
+		assertEquals(1, readView.unsynchronizedGetNumberOfQueuedBuffers());
+
+		// no notification after flushing for no readable data available
+		subpartition.flush();
+		assertEquals(5, availablityListener.getNumNotifications());
 	}
 
 	// ------------------------------------------------------------------------
