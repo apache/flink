@@ -166,6 +166,7 @@ object FlinkBatchRuleSets {
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
+    FlinkFilterSnapshotTransposeRule.INSTNACE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
     // push partition into the table scan

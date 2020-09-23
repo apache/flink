@@ -52,7 +52,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM(
 GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c) AS EXPR$2, SUM_RETRACT(d) AS EXPR$3])
 +- Exchange(distribution=[hash[b]])
    +- Calc(select=[b, a, c, d])
-      +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[>(age, 10)], select=[b, a, c, d, id])
+      +- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[>(age, 10)], select=[b, a, c, d, id])
          +- Calc(select=[b, a, c, d])
             +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS c, SUM(d) AS d])
                +- Exchange(distribution=[hash[a, b]])
@@ -71,19 +71,19 @@ WHERE cast(D.name as bigint) > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>(CAST($6):BIGINT, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), =($2, 10))])
          +- LogicalSnapshot(period=[$cor0.proctime])
-            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[AND(=(age, 10), >(CAST(name), 1000))], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[AND(=(age, 10), >(CAST(name), 1000))], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -116,7 +116,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM(
          :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
          +- LogicalFilter(condition=[=($cor0.a, $0)])
             +- LogicalSnapshot(period=[$cor0.proc])
-               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -138,7 +138,7 @@ GroupAggregate(groupBy=[b], select=[b, COUNT_RETRACT(a) AS EXPR$1, SUM_RETRACT(c
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -148,8 +148,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -160,18 +160,18 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -187,7 +187,7 @@ WHERE cast(D.name as bigint) > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>(CAST($6):BIGINT, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -198,8 +198,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[AND(=(age, 10), >(CAST(name), 1000))], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[AND(=(age, 10), >(CAST(name), 1000))], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -215,7 +215,7 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -226,8 +226,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[=(age, 10)], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[=(age, 10)], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -244,19 +244,19 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), =($2, 10))])
          +- LogicalSnapshot(period=[$cor0.proctime])
-            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[=(age, 10)], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(10) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[=(age, 10)], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -272,7 +272,7 @@ ON T.b = concat(D.name, '!') AND D.age = 11
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.b, CONCAT($1, _UTF-16LE'!')), =($2, 11))])
@@ -282,8 +282,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[=(b, $f3)], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, CONCAT(name, _UTF-16LE'!') AS $f3])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[=(b, $f4)], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, info, CONCAT(name, _UTF-16LE'!') AS $f4])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -294,20 +294,20 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
+LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5], info=[$6])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
    :- LogicalProject(a=[$0], b=[$1], proctime=[$3])
    :  +- LogicalFilter(condition=[>($2, 1000)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
+Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age, info])
    +- Calc(select=[a, b, proctime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -323,18 +323,18 @@ ON T.b = concat(D.name, '!') AND D.age = 11
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.b, CONCAT($1, _UTF-16LE'!')), =($2, 11))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[=(b, $f3)], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, CONCAT(name, _UTF-16LE'!') AS $f3])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[=(b, $f4)], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, info, CONCAT(name, _UTF-16LE'!') AS $f4])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -350,7 +350,7 @@ WHERE D.name LIKE 'Jack%'
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[LIKE($6, _UTF-16LE'Jack%')])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -361,8 +361,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[LIKE(name, _UTF-16LE'Jack%')], joinCondition=[=(b, $f3)], select=[a, b, c, proctime, rowtime, id, name, age, CONCAT(name, _UTF-16LE'!') AS $f3])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[LIKE(name, _UTF-16LE'Jack%')], joinCondition=[=(b, $f4)], select=[a, b, c, proctime, rowtime, id, name, age, info, CONCAT(name, _UTF-16LE'!') AS $f4])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -378,19 +378,19 @@ WHERE D.name LIKE 'Jack%'
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[LIKE($6, _UTF-16LE'Jack%')])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.b, CONCAT($1, _UTF-16LE'!')))])
          +- LogicalSnapshot(period=[$cor0.proctime])
-            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[LIKE(name, _UTF-16LE'Jack%')], joinCondition=[=(b, $f3)], select=[a, b, c, proctime, rowtime, id, name, age, CONCAT(name, _UTF-16LE'!') AS $f3])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[LIKE(name, _UTF-16LE'Jack%')], joinCondition=[=(b, $f4)], select=[a, b, c, proctime, rowtime, id, name, age, info, CONCAT(name, _UTF-16LE'!') AS $f4])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -405,7 +405,7 @@ ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.a, +($0, 1)), =($cor0.b, CONCAT($1, _UTF-16LE'!')), =($2, 11))])
@@ -415,8 +415,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[AND(=(a, $f3), =(b, $f4))], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, +(id, 1) AS $f3, CONCAT(name, _UTF-16LE'!') AS $f4])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[AND(=(a, $f4), =(b, $f5))], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, info, +(id, 1) AS $f4, CONCAT(name, _UTF-16LE'!') AS $f5])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -431,18 +431,18 @@ ON T.a = D.id + 1 AND T.b = concat(D.name, '!') AND D.age = 11
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[AND(=($cor0.a, +($0, 1)), =($cor0.b, CONCAT($1, _UTF-16LE'!')), =($2, 11))])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[AND(=(a, $f3), =(b, $f4))], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, +(id, 1) AS $f3, CONCAT(name, _UTF-16LE'!') AS $f4])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, CAST(11) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=11], where=[=(age, 11)], joinCondition=[AND(=(a, $f4), =(b, $f5))], select=[a, b, c, proctime, rowtime, id, name, CAST(11) AS age, info, +(id, 1) AS $f4, CONCAT(name, _UTF-16LE'!') AS $f5])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -458,7 +458,7 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -469,8 +469,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, name=_UTF-16LE'AAA', id=a], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[age=10, name=_UTF-16LE'AAA', id=a], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -487,19 +487,19 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[AND(=($cor0.a, $0), =($2, 10), =($1, _UTF-16LE'AAA'))])
          +- LogicalSnapshot(period=[$cor0.proctime])
-            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, name=_UTF-16LE'AAA', id=a], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, CAST(_UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS name, CAST(10) AS age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, name=_UTF-16LE'AAA', id=a], where=[AND(=(age, 10), =(name, _UTF-16LE'AAA':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -511,7 +511,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, C
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
+LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5], info=[$6])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
    :- LogicalProject(a=[$0], b=[$1], proctime=[$3])
    :  +- LogicalFilter(condition=[>($2, 1000)])
@@ -523,8 +523,8 @@ LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
+Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age, info])
    +- Calc(select=[a, b, proctime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -552,29 +552,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=true]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 3}])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalFilter(condition=[=($cor0.a, $0)])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -595,13 +573,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -617,7 +595,7 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -627,8 +605,8 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -645,18 +623,18 @@ WHERE T.c > 1000
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalFilter(condition=[>($2, 1000)])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- Calc(select=[a, b, c, proctime, rowtime], where=[>(c, 1000)])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -686,7 +664,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[a, b, c, name])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[=(CONCAT(_UTF-16LE'Hello-', name), _UTF-16LE'Hello-Jark':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, c, id, name])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[]], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[=(CONCAT(_UTF-16LE'Hello-', name), _UTF-16LE'Hello-Jark':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, c, id, name])
    +- Calc(select=[a, b, c])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -710,7 +688,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], name=[$6])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalSnapshot(period=[$cor0.proctime])
-            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -728,7 +706,7 @@ Calc(select=[a, b, c, name])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7])
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalFilter(condition=[=($cor0.a, $0)])
@@ -738,8 +716,142 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 3}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalTableFilterPartialPushDown[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable as T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.info = 'flink' AND D.age > 10
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
++- LogicalFilter(condition=[AND(=($8, _UTF-16LE'flink'), >($7, 10))])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, CAST(_UTF-16LE'flink':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[equals(info, 'flink')]], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[>(age, 10)], select=[a, b, c, proctime, rowtime, id, name, age, info])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalTableFilterPartialPushDown[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable as T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.info = 'flink' AND D.age > 10
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
++- LogicalFilter(condition=[AND(=($8, _UTF-16LE'flink'), >($7, 10))])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, CAST(_UTF-16LE'flink':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[info=_UTF-16LE'flink', id=a], where=[AND(=(info, _UTF-16LE'flink':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), >(age, 10))], select=[a, b, c, proctime, rowtime, id, name, age, info])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalTableFilterPushDownWithUdf[LegacyTableSource=true]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable as T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE UPPER(D.info) = 'flink'
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
++- LogicalFilter(condition=[=(UPPER($8), _UTF-16LE'flink')])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age, info)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[=(UPPER(info), _UTF-16LE'flink':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, c, proctime, rowtime, id, name, age, info])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalTableFilterPushDownWithUdf[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable as T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE UPPER(D.info) = 'flink'
+]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], name=[$6], age=[$7], info=[$8])
++- LogicalFilter(condition=[=(UPPER($8), _UTF-16LE'flink')])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, info])
++- LookupJoin(table=[default_catalog.default_database.LookupTable, filter=[equals(upper(info), 'flink')]], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, info])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

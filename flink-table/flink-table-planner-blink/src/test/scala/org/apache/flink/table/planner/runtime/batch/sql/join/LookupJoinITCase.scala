@@ -48,15 +48,15 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     rowOf(9L, 12L, "Hello world!"))
 
   val userData = List(
-    rowOf(11, 1L, "Julian"),
-    rowOf(22, 2L, "Jark"),
-    rowOf(33, 3L, "Fabian"))
+    rowOf(11, 1L, "Julian", "dog"),
+    rowOf(22, 2L, "Jark", "cat"),
+    rowOf(33, 3L, "Fabian", "golden fish"))
 
   val userDataWithNull = List(
-    rowOf(11, 1L, "Julian"),
-    rowOf(22, null, "Hello"),
-    rowOf(33, 3L, "Fabian"),
-    rowOf(44, null, "Hello world"))
+    rowOf(11, 1L, "Julian", "dog"),
+    rowOf(22, null, "Hello", "cat"),
+    rowOf(33, 3L, "Fabian", "golden fish"),
+    rowOf(44, null, "Hello world", "tiger"))
 
   @Before
   override def before() {
@@ -86,6 +86,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
         .field("age", Types.INT)
         .field("id", Types.LONG)
         .field("name", Types.STRING)
+        .field("pets", Types.STRING())
         .build()
       InMemoryLookupableTableSource.createTemporaryTable(
         tEnv, isAsyncMode, data, userSchema, tableName, isBounded = true)
@@ -96,12 +97,14 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
            |CREATE TABLE $tableName (
            |  `age` INT,
            |  `id` BIGINT,
-           |  `name` STRING
+           |  `name` STRING,
+           |  `pets` STRING
            |) WITH (
            |  'connector' = 'values',
            |  'data-id' = '$dataId',
            |  'async' = '$isAsyncMode',
-           |  'bounded' = 'true'
+           |  'bounded' = 'true',
+           |  'filterable-fields' = 'pets'
            |)
            |""".stripMargin)
     }
@@ -255,6 +258,38 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
     val expected = Seq()
+    checkResult(sql, expected)
+  }
+
+  @Test
+  def testJoinTemporalTableWithFilterPushDown(): Unit = {
+    val sql =
+      """
+        |SELECT T.id, T.len, D.name FROM T
+        |JOIN userTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.content = D.name
+        |WHERE D.pets = 'dog' AND D.age < 10
+        |""".stripMargin
+
+    val expected = Seq()
+    checkResult(sql, expected)
+  }
+
+  @Test
+  def testJoinTemporalTableWithFilterPushDownWithUdf(): Unit = {
+    val sql =
+      """
+        |SELECT T.id, T.len, D.name, D.pets FROM nullableT as T
+        |JOIN userTableWithNull FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.content = D.name
+        |WHERE UPPER(D.pets) <> 'DOG'
+        |""".stripMargin
+
+    val expected = Seq(
+      BatchTestBase.row(3, 15, "Fabian", "golden fish"),
+      BatchTestBase.row(null, 11, "Hello world", "tiger"),
+      BatchTestBase.row(null, 15, "Hello", "cat")
+    )
     checkResult(sql, expected)
   }
 }
