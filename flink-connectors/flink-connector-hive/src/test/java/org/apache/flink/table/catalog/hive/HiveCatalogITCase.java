@@ -67,6 +67,11 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
@@ -411,6 +416,21 @@ public class HiveCatalogITCase {
 			System.setOut(originalSystemOut);
 			tEnv.executeSql("DROP TABLE csv_table");
 			tEnv.executeSql("DROP TABLE print_table");
+		}
+	}
+
+	@Test
+	public void testConcurrentAccessHiveCatalog() throws Exception {
+		int numThreads = 5;
+		ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
+		Callable<List<String>> listDBCallable = () -> hiveCatalog.listDatabases();
+		List<Future<List<String>>> listDBFutures = new ArrayList<>();
+		for (int i = 0; i < numThreads; i++) {
+			listDBFutures.add(executorService.submit(listDBCallable));
+		}
+		executorService.shutdown();
+		for (Future<List<String>> future : listDBFutures) {
+			future.get(5, TimeUnit.SECONDS);
 		}
 	}
 }
