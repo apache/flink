@@ -71,6 +71,24 @@ message UserDefinedDataStreamFunctions {
   bool metric_enabled = 2;
 }
 
+// A list of the user-defined aggregate functions to be executed in a group aggregate operation.
+message UserDefinedAggregateFunctions {
+  repeated UserDefinedFunction udfs = 1;
+  bool metric_enabled = 2;
+  // The array of the key indexes.
+  repeated int32 grouping = 3;
+  // Generate retract messages if true.
+  bool generate_update_before = 4;
+  // The schema of the grouping keys.
+  Schema.FieldType key_type = 5;
+  // The index of a count aggregate used to calculate the number of accumulated rows.
+  int32 index_of_count_star = 6;
+  // The state cache size.
+  int32 state_cache_size = 7;
+  // Cleanup the expired state if true.
+  bool state_cleaning_enabled = 8;
+}
+
 // A representation of the data schema.
 message Schema {
   enum TypeName {

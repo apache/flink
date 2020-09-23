@@ -36,7 +36,7 @@ import java.util.Map;
  * defined python function.
  */
 @Internal
-public class BeamDataStreamStatelessPythonFunctionRunner extends BeamStatelessPythonFunctionRunner {
+public class BeamDataStreamStatelessPythonFunctionRunner extends BeamPythonFunctionRunner {
 
 	private final TypeInformation inputType;
 	private final TypeInformation outputTupe;
@@ -53,7 +53,7 @@ public class BeamDataStreamStatelessPythonFunctionRunner extends BeamStatelessPy
 		String coderUrn,
 		Map<String, String> jobOptions,
 		@Nullable FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer);
+		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, null, null);
 		this.inputType = inputType;
 		this.outputTupe = outputType;
 		this.userDefinedDataStreamFunctions = userDefinedDataStreamFunctions;

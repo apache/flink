@@ -66,6 +66,8 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -92,6 +94,21 @@ public final class PythonTypeUtils {
 	 * The number of milliseconds in a day.
 	 */
 	private static final long MILLIS_PER_DAY = 86400000L; // = 24 * 60 * 60 * 1000
+
+	public static RunnerApi.Coder getRowCoderProto(RowType rowType, String coderUrn) {
+		return RunnerApi.Coder.newBuilder()
+			.setSpec(
+				RunnerApi.FunctionSpec.newBuilder()
+					.setUrn(coderUrn)
+					.setPayload(org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
+						toProtoType(rowType).getRowSchema().toByteArray()))
+					.build())
+			.build();
+	}
+
+	public static FlinkFnApi.Schema.FieldType toProtoType(LogicalType logicalType) {
+		return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
+	}
 
 	public static TypeSerializer toFlinkTypeSerializer(LogicalType logicalType) {
 		return logicalType.accept(new LogicalTypeToTypeSerializerConverter());

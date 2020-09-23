@@ -28,6 +28,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -146,7 +147,7 @@ public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFun
 	@Override
 	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
-		builder.addUdfs(getUserDefinedFunctionProto(tableFunction));
+		builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		return builder.build();
 	}
