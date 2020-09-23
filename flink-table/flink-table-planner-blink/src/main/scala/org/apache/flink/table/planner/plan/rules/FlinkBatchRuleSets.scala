@@ -419,6 +419,7 @@ object FlinkBatchRuleSets {
     BatchExecOverAggregateRule.INSTANCE,
     // window agg
     BatchExecWindowAggregateRule.INSTANCE,
+    BatchExecPythonWindowAggregateRule.INSTANCE,
     // join
     BatchExecHashJoinRule.INSTANCE,
     BatchExecSortMergeJoinRule.INSTANCE,
