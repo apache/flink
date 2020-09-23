@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.formats;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Objects;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,6 +27,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Deserialization schema from SINGLE-VALUE to Flink Table/SQL internal data structure {@link RowData}.

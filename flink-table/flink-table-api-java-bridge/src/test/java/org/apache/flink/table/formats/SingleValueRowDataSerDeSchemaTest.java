@@ -25,6 +25,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+
 import org.junit.Test;
 
 import java.io.IOException;

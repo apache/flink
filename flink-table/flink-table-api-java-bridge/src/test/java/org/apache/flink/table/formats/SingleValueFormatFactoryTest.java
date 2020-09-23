@@ -36,6 +36,7 @@ import org.apache.flink.table.factories.TestDynamicTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.HashMap;

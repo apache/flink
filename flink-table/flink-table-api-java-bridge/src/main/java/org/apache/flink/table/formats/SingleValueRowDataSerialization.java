@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.formats;
 
-import java.io.Serializable;
-import java.util.Objects;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.core.memory.MemorySegment;
@@ -29,6 +27,9 @@ import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Serialization schema that serializes an object of Flink internal data structure into a
