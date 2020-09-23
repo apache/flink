@@ -524,14 +524,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// output can request more floating buffers from global firstly.
 		InputGate[] inputGates = getEnvironment().getAllInputGates();
 		if (inputGates != null && inputGates.length > 0) {
-			CompletableFuture[] futures = new CompletableFuture[inputGates.length];
-			for (int i = 0; i < inputGates.length; i++) {
-				futures[i] = inputGates[i].readRecoveredState(channelIOExecutor, reader);
+			for (InputGate inputGate : inputGates) {
+				inputGate
+					.readRecoveredState(channelIOExecutor, reader)
+					.thenRun(() -> mainMailboxExecutor.execute(inputGate::requestPartitions, "Input gate request partitions"));
 			}
-
-			// Note that we must request partition after all the single gates finished recovery.
-			CompletableFuture.allOf(futures).thenRun(() -> mainMailboxExecutor.execute(
-				this::requestPartitions, "Input gates request partitions"));
 		}
 	}
 
