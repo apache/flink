@@ -28,6 +28,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.Schema;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -92,6 +93,43 @@ public class AvroSchemaConverterTest {
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
 		AvroSchemaConverter.convertToSchema(rowType);
+	}
+
+	@Test
+	public void testRowTypeAvroSchemaConversion(){
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("row", DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
+			.field("row_array", DataTypes.ARRAY(DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING()))))
+			.build().toRowDataType().getLogicalType();
+		Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		assertEquals("{\n" +
+			"  \"type\" : \"record\",\n" +
+			"  \"name\" : \"row_0\",\n" +
+			"  \"fields\" : [ {\n" +
+			"    \"name\" : \"row\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"row\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"a\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"row_array\",\n" +
+			"    \"type\" : [ {\n" +
+			"      \"type\" : \"array\",\n" +
+			"      \"items\" : {\n" +
+			"        \"type\" : \"record\",\n" +
+			"        \"name\" : \"row_array\",\n" +
+			"        \"fields\" : [ {\n" +
+			"          \"name\" : \"a\",\n" +
+			"          \"type\" : [ \"string\", \"null\" ]\n" +
+			"        } ]\n" +
+			"      }\n" +
+			"    }, \"null\" ]\n" +
+			"  } ]\n" +
+			"}", schema.toString(true));
 	}
 
 	private void validateUserSchema(TypeInformation<?> actual) {
