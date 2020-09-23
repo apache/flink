@@ -22,10 +22,17 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
+from typing import Tuple
 
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
+from pyflink.fn_execution.coders import from_proto
+from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
+from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
+from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, \
+    GroupAggFunction
 from pyflink.metrics.metricbase import GenericMetricGroup
-from pyflink.table import FunctionContext
+from pyflink.table import FunctionContext, Row
+from pyflink.table.functions import Count1AggFunction
 
 
 class StatelessFunctionOperation(Operation):
@@ -44,6 +51,9 @@ class StatelessFunctionOperation(Operation):
         self.base_metric_group = None
         if self._metric_enabled:
             self.base_metric_group = GenericMetricGroup(None, None)
+        self.open_func()
+
+    def open_func(self):
         for user_defined_func in self.user_defined_funcs:
             user_defined_func.open(FunctionContext(self.base_metric_group))
 
@@ -278,6 +288,86 @@ class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation
                 results.append(pd.Series(result))
             yield results
 
+
+class StatefulFunctionOperation(StatelessFunctionOperation):
+
+    def __init__(self, name, spec, counter_factory, sampler, consumers, keyed_state_backend):
+        self.keyed_state_backend = keyed_state_backend
+        super(StatefulFunctionOperation, self).__init__(
+            name, spec, counter_factory, sampler, consumers)
+
+    def finish(self):
+        super().finish()
+        with self.scoped_finish_state:
+            if self.keyed_state_backend:
+                self.keyed_state_backend.commit()
+
+    def reset(self):
+        super().reset()
+        if self.keyed_state_backend:
+            self.keyed_state_backend.reset()
+
+
+TRIGGER_TIMER = 1
+
+
+class StreamGroupAggregateOperation(StatefulFunctionOperation):
+
+    def __init__(self, name, spec, counter_factory, sampler, consumers, keyed_state_backend):
+        self.generate_update_before = spec.serialized_fn.generate_update_before
+        self.grouping = [i for i in spec.serialized_fn.grouping]
+        self.group_agg_function = None
+        # If the upstream generates retract message, we need to add an additional count1() agg
+        # to track current accumulated messages count. If all the messages are retracted, we need
+        # to send a DELETE message to downstream.
+        self.index_of_count_star = spec.serialized_fn.index_of_count_star
+        self.state_cache_size = spec.serialized_fn.state_cache_size
+        self.state_cleaning_enabled = spec.serialized_fn.state_cleaning_enabled
+        super(StreamGroupAggregateOperation, self).__init__(
+            name, spec, counter_factory, sampler, consumers, keyed_state_backend)
+
+    def open_func(self):
+        self.group_agg_function.open(FunctionContext(self.base_metric_group))
+
+    def generate_func(self, udfs):
+        user_defined_aggs = []
+        input_offsets = []
+        for i in range(len(udfs)):
+            if i != self.index_of_count_star:
+                user_defined_agg, input_offset = extract_user_defined_aggregate_function(udfs[i])
+            else:
+                user_defined_agg = Count1AggFunction()
+                input_offset = []
+            user_defined_aggs.append(user_defined_agg)
+            input_offsets.append(input_offset)
+        aggs_handler_function = SimpleAggsHandleFunction(
+            user_defined_aggs, input_offsets, self.index_of_count_star)
+        key_selector = RowKeySelector(self.grouping)
+        self.group_agg_function = GroupAggFunction(
+            aggs_handler_function,
+            key_selector,
+            self.keyed_state_backend,
+            self.generate_update_before,
+            self.state_cleaning_enabled,
+            self.index_of_count_star)
+        return lambda it: map(self.process_element_or_timer, it), []
+
+    def process_element_or_timer(self, input_data: Tuple[int, Row, int, Row]):
+        # the structure of the input data:
+        # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
+        # all the fields are nullable except the "element_type"
+        if input_data[0] != TRIGGER_TIMER:
+            return self.group_agg_function.process_element(input_data[1])
+        else:
+            self.group_agg_function.on_timer(input_data[3])
+            return []
+
+    def teardown(self):
+        if self.group_agg_function is not None:
+            self.group_agg_function.close()
+        super().teardown()
+
+
 @bundle_processor.BeamTransformFactory.register_urn(
     operation_utils.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
@@ -317,6 +407,14 @@ def create_pandas_over_window_aggregate_function(
         PandasBatchOverWindowAggregateFunctionOperation)
 
 
+@bundle_processor.BeamTransformFactory.register_urn(
+    operation_utils.STREAM_GROUP_AGGREGATE_URN,
+    flink_fn_execution_pb2.UserDefinedAggregateFunctions)
+def create_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter, StreamGroupAggregateOperation)
+
+
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
                                             operation_cls):
     output_tags = list(transform_proto.outputs.keys())
@@ -328,9 +426,25 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
         side_inputs=None,
         output_coders=[output_coders[tag] for tag in output_tags])
 
-    return operation_cls(
-        transform_proto.unique_name,
-        spec,
-        factory.counter_factory,
-        factory.state_sampler,
-        consumers)
+    if hasattr(spec.serialized_fn, "key_type"):
+        # keyed operation, need to create the KeyedStateBackend.
+        key_row_coder = from_proto(spec.serialized_fn.key_type)
+        keyed_state_backend = RemoteKeyedStateBackend(
+            factory.state_handler,
+            key_row_coder,
+            spec.serialized_fn.state_cache_size)
+
+        return operation_cls(
+            transform_proto.unique_name,
+            spec,
+            factory.counter_factory,
+            factory.state_sampler,
+            consumers,
+            keyed_state_backend)
+    else:
+        return operation_cls(
+            transform_proto.unique_name,
+            spec,
+            factory.counter_factory,
+            factory.state_sampler,
+            consumers)
