@@ -99,7 +99,7 @@ final class SpillingThread<E> extends ThreadBase<E> {
 
 	private final SpillingBehaviour<E> spillingBehaviour;
 
-	private boolean spillingBehaviourOpened = false;
+	private volatile boolean spillingBehaviourOpened = false;
 
 	private final int minNumWriteBuffers;
 
@@ -138,8 +138,10 @@ final class SpillingThread<E> extends ThreadBase<E> {
 	/**
 	 * Entry point of the thread.
 	 */
+	@Override
 	public void go() throws IOException, InterruptedException {
 
+		// ------------------- In-Memory Cache ------------------------
 		final Queue<CircularElement<E>> cache = new ArrayDeque<>();
 		boolean cacheOnly = readCache(cache);
 
@@ -193,13 +195,10 @@ final class SpillingThread<E> extends ThreadBase<E> {
 	}
 
 	private boolean readCache(Queue<CircularElement<E>> cache) throws InterruptedException {
-		CircularElement<E> element;
-
-		// ------------------- In-Memory Cache ------------------------
 		// fill cache
 		while (isRunning()) {
 			// take next element from queue
-			element = this.dispatcher.take(SortStage.SPILL);
+			final CircularElement<E> element = this.dispatcher.take(SortStage.SPILL);
 
 			if (element == SPILLING_MARKER) {
 				return false;
@@ -321,10 +320,9 @@ final class SpillingThread<E> extends ThreadBase<E> {
 		List<ChannelWithBlockCount> channelIDs = new ArrayList<>();
 
 		// loop as long as the thread is marked alive and we do not see the final element
-		CircularElement<E> element;
 		openSpillingBehaviour();
 		while (isRunning()) {
-			element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
+			final CircularElement<E> element = cache.isEmpty() ? this.dispatcher.take(SortStage.SPILL) : cache.poll();
 
 			// check if we are still running
 			if (!isRunning()) {

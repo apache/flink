@@ -96,7 +96,7 @@ abstract class ThreadBase<E> extends Thread implements Thread.UncaughtExceptionH
 	 *
 	 * @return true, if the thread is alive, false otherwise.
 	 */
-	public boolean isRunning() {
+	protected boolean isRunning() {
 		return this.alive;
 	}
 
