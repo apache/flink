@@ -26,9 +26,9 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-此连接器可以向 JDBC 数据库写入数据。
+该连接器可以向 JDBC 数据库写入数据。
 
-添加下面的依赖以便使用此连接器（同时添加 JDBC 驱动）：
+添加下面的依赖以便使用该连接器（同时添加 JDBC 驱动）：
 
 {% highlight xml %}
 <dependency>
