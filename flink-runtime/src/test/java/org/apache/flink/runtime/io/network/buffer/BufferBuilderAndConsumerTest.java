@@ -28,6 +28,8 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilder.BUFFER_BUILDER_HEADER_SIZE;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilder.Header;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -104,12 +106,12 @@ public class BufferBuilderAndConsumerTest {
 	public void appendOverSize() {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-		ByteBuffer bytesToWrite = toByteBuffer(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 42);
+		ByteBuffer bytesToWrite = toByteBuffer(0, 1, 2, 3, 4, 5, 6, 7, 8, 42);
 
-		assertEquals(BUFFER_SIZE, bufferBuilder.appendAndCommit(bytesToWrite));
+		assertEquals(BUFFER_SIZE - BUFFER_BUILDER_HEADER_SIZE, bufferBuilder.appendAndCommit(bytesToWrite));
 
 		assertTrue(bufferBuilder.isFull());
-		assertContent(bufferConsumer, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+		assertContent(bufferConsumer, 0, 1, 2, 3, 4, 5, 6, 7, 8);
 
 		bufferBuilder = createBufferBuilder();
 		bufferConsumer = bufferBuilder.createBufferConsumer();
@@ -195,7 +197,7 @@ public class BufferBuilderAndConsumerTest {
 
 	@Test
 	public void fullIsFinished() {
-		testIsFinished(BUFFER_INT_SIZE);
+		testIsFinished(BUFFER_INT_SIZE - 1);
 	}
 
 	@Test
@@ -215,6 +217,33 @@ public class BufferBuilderAndConsumerTest {
 		BufferBuilder bufferBuilder = createBufferBuilder();
 		bufferBuilder.append(toByteBuffer(new int[bufferBuilder.getMaxCapacity()]));
 		assertEquals(0, bufferBuilder.getWritableBytes());
+	}
+
+	@Test
+	public void testBufferBuilderHeader() {
+		testHeader(0);
+		testHeader(Integer.MAX_VALUE);
+		testHeader(1234567);
+		testHeader(7654321);
+
+		boolean illegal = false;
+		try {
+			testHeader(-12345);
+		} catch (IllegalStateException e) {
+			illegal = true;
+		}
+
+		assertTrue(illegal);
+	}
+
+	private static void testHeader(int length) {
+		int headerPartial = Header.headerEncode(true, length);
+		assertTrue(Header.isPartial(headerPartial));
+		assertEquals(Header.length(headerPartial), length);
+
+		int headerComplete = Header.headerEncode(false, length);
+		assertFalse(Header.isPartial(headerComplete));
+		assertEquals(Header.length(headerComplete), length);
 	}
 
 	private static void testIsFinished(int writes) {

@@ -25,6 +25,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Closeable;
 
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilder.BUFFER_BUILDER_HEADER_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -96,15 +98,43 @@ public class BufferConsumer implements Closeable {
 		return writerPosition.isFinished();
 	}
 
+	public boolean startOfDataBuffer() {
+		return buffer.getDataType() == DATA_BUFFER && currentReaderPosition == 0;
+	}
+
 	/**
+	 * BufferConsumer skips the buffer header before building buffer.
 	 * @return sliced {@link Buffer} containing the not yet consumed data. Returned {@link Buffer} shares the reference
 	 * counter with the parent {@link BufferConsumer} - in order to recycle memory both of them must be recycled/closed.
 	 */
 	public Buffer build() {
 		writerPosition.update();
 		int cachedWriterPosition = writerPosition.getCached();
-		Buffer slice = buffer.readOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition);
+
+		Buffer slice = null;
+
+		// data buffer && starting from the beginning of the buffer
+		if (startOfDataBuffer()) {
+			// either do not have any data, or at least have 4 bytes (header + data)
+			checkState(
+				(cachedWriterPosition - currentReaderPosition > BUFFER_BUILDER_HEADER_SIZE)
+					|| (currentReaderPosition == cachedWriterPosition)
+			);
+
+			// remove the header
+			if (cachedWriterPosition - currentReaderPosition > BUFFER_BUILDER_HEADER_SIZE) {
+				slice = buffer.readOnlySlice(
+					currentReaderPosition + BUFFER_BUILDER_HEADER_SIZE,
+					cachedWriterPosition - currentReaderPosition - BUFFER_BUILDER_HEADER_SIZE);
+			}
+		}
+
+		if (slice == null) {
+			slice = buffer.readOnlySlice(currentReaderPosition, cachedWriterPosition - currentReaderPosition);
+		}
+
 		currentReaderPosition = cachedWriterPosition;
+
 		return slice.retainBuffer();
 	}
 
@@ -153,10 +183,6 @@ public class BufferConsumer implements Closeable {
 
 	public int getWrittenBytes() {
 		return writerPosition.getCached();
-	}
-
-	int getCurrentReaderPosition() {
-		return currentReaderPosition;
 	}
 
 	/**
