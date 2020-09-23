@@ -77,12 +77,8 @@ public class PythonStreamGroupAggregateOperator
 	private static final long serialVersionUID = 1L;
 
 	@VisibleForTesting
-	protected static final String FLINK_AGGREGATE_FUNCTION_INPUT_SCHEMA_CODER_URN =
-		"flink:coder:schema:aggregate_function_input:v1";
-
-	@VisibleForTesting
-	protected static final String FLINK_AGGREGATE_FUNCTION_OUTPUT_SCHEMA_CODER_URN =
-		"flink:coder:schema:aggregate_function_output:v1";
+	protected static final String FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN =
+		"flink:coder:schema:aggregate_function:v1";
 
 	@VisibleForTesting
 	protected static final String STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1";
@@ -267,8 +263,7 @@ public class PythonStreamGroupAggregateOperator
 			outputType,
 			STREAM_GROUP_AGGREGATE_URN,
 			getUserDefinedFunctionsProto(),
-			FLINK_AGGREGATE_FUNCTION_INPUT_SCHEMA_CODER_URN,
-			FLINK_AGGREGATE_FUNCTION_OUTPUT_SCHEMA_CODER_URN,
+			FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
 			jobOptions,
 			getFlinkMetricContainer(),
 			getKeyedStateBackend(),

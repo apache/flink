@@ -40,8 +40,7 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
 
 	private final RowType inputType;
 	private final RowType outputType;
-	private final String inputCoderUrn;
-	private final String outputCoderUrn;
+	private final String coderUrn;
 	private final FlinkFnApi.UserDefinedAggregateFunctions userDefinedAggregateFunctions;
 
 	public BeamTableStatefulPythonFunctionRunner(
@@ -51,8 +50,7 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
 			RowType outputType,
 			String functionUrn,
 			FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-			String inputCoderUrn,
-			String outputCoderUrn,
+			String coderUrn,
 			Map<String, String> jobOptions,
 			FlinkMetricContainer flinkMetricContainer,
 			KeyedStateBackend keyedStateBackend,
@@ -65,8 +63,7 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
 			flinkMetricContainer,
 			keyedStateBackend,
 			keySerializer);
-		this.inputCoderUrn = Preconditions.checkNotNull(inputCoderUrn);
-		this.outputCoderUrn = Preconditions.checkNotNull(outputCoderUrn);
+		this.coderUrn = Preconditions.checkNotNull(coderUrn);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 		this.userDefinedAggregateFunctions = userDefinedFunctions;
@@ -79,11 +76,11 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
 
 	@Override
 	protected RunnerApi.Coder getInputCoderProto() {
-		return getRowCoderProto(inputType, inputCoderUrn);
+		return getRowCoderProto(inputType, coderUrn);
 	}
 
 	@Override
 	protected RunnerApi.Coder getOutputCoderProto() {
-		return getRowCoderProto(outputType, outputCoderUrn);
+		return getRowCoderProto(outputType, coderUrn);
 	}
 }

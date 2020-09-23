@@ -148,7 +148,8 @@ class BatchExecPythonOverAggregate(
       groupingSet: Array[Int],
       config: Configuration): OneInputTransformation[RowData, RowData] = {
     val (pythonUdafInputOffsets, pythonFunctionInfos) =
-      extractPythonAggregateFunctionInfos(aggCallToAggFunctionToWindowIndex.map(_._1._1))
+      extractPythonAggregateFunctionInfosFromAggregateCall(
+        aggCallToAggFunctionToWindowIndex.map(_._1._1))
     val pythonOperator = getPythonOverWindowAggregateFunctionOperator(
       config,
       inputRowType,

@@ -436,6 +436,10 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
         super(UserDefinedAggregateFunctionWrapper, self).__init__(
             func, input_types, func_type, deterministic, name)
 
+        if accumulator_type is None and func_type == "general":
+            accumulator_type = func.get_accumulator_type()
+        if result_type is None:
+            result_type = func.get_result_type()
         if not isinstance(result_type, DataType):
             raise TypeError(
                 "Invalid returnType: returnType should be DataType but is {}".format(result_type))

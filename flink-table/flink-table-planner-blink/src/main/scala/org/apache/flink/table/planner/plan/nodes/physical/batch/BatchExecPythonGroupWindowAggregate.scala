@@ -179,7 +179,7 @@ class BatchExecPythonGroupWindowAggregate(
     }.toArray
 
     val (pythonUdafInputOffsets, pythonFunctionInfos) =
-      extractPythonAggregateFunctionInfos(aggCalls)
+      extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls)
 
     val pythonOperator = getPythonGroupWindowAggregateFunctionOperator(
       config,

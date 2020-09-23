@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupAggregate
-
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
@@ -49,7 +49,7 @@ class StreamExecGroupAggregateRule
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
-    true
+    !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def convert(rel: RelNode): RelNode = {

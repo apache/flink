@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.batch.table
+package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.PandasAggregateFunction
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.Test
 
 class PythonAggregateTest extends TableTestBase {
 
   @Test
-  def testPandasGroupAggregateWithoutKeys(): Unit = {
-    val util = batchTestUtil()
+  def testPythonGroupAggregateWithoutKeys(): Unit = {
+    val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
-    val func = new PandasAggregateFunction
+    val func = new TestPythonAggregateFunction
 
     val resultTable = sourceTable.select(func('a, 'c))
 
@@ -39,10 +38,10 @@ class PythonAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testPandasGroupAggregate(): Unit = {
-    val util = batchTestUtil()
+  def testPythonGroupAggregate(): Unit = {
+    val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
-    val func = new PandasAggregateFunction
+    val func = new TestPythonAggregateFunction
 
     val resultTable = sourceTable.groupBy('b)
       .select('b, func('a, 'c))
@@ -51,10 +50,10 @@ class PythonAggregateTest extends TableTestBase {
   }
 
   @Test(expected = classOf[TableException])
-  def testMixedUsePandasAggAndJavaAgg(): Unit = {
-    val util = batchTestUtil()
+  def testMixedUsePythonAggAndJavaAgg(): Unit = {
+    val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
-    val func = new PandasAggregateFunction
+    val func = new TestPythonAggregateFunction
 
     val resultTable = sourceTable.groupBy('b)
       .select('b, func('a, 'c), 'a.count())

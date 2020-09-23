@@ -23,10 +23,11 @@ from typing import Any, Tuple, Dict, List
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
-    PandasAggregateFunctionWrapper
+    AggregateFunction, PandasAggregateFunctionWrapper
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
 PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
@@ -177,3 +178,12 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
 
     constant_value_name = 'c%s' % _next_constant_num()
     return constant_value_name, parsed_constant_value
+
+
+def extract_user_defined_aggregate_function(user_defined_function_proto):
+    user_defined_agg = cloudpickle.loads(user_defined_function_proto.payload)
+    assert isinstance(user_defined_agg, AggregateFunction)
+    inputs = []
+    for arg in user_defined_function_proto.inputs:
+        inputs.append(arg.inputOffset)
+    return user_defined_agg, inputs

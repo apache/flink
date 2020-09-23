@@ -19,16 +19,22 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
+import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
+import org.apache.flink.table.planner.plan.utils.AggregateInfo
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 trait CommonPythonAggregate extends CommonPythonBase {
 
-  protected def extractPythonAggregateFunctionInfos(
+  /**
+    * For batch execution we extract the PythonFunctionInfo from AggregateCall.
+    */
+  protected def extractPythonAggregateFunctionInfosFromAggregateCall(
       aggCalls: Seq[AggregateCall]): (Array[Int], Array[PythonFunctionInfo]) = {
     val inputNodes = new mutable.LinkedHashMap[Integer, Integer]()
     val pythonFunctionInfos: Seq[PythonFunctionInfo] = aggCalls.map {
@@ -53,5 +59,24 @@ trait CommonPythonAggregate extends CommonPythonBase {
     }
     val udafInputOffsets = inputNodes.toArray.map(_._1.toInt)
     (udafInputOffsets, pythonFunctionInfos.toArray)
+  }
+
+  /**
+    * For streaming execution we extract the PythonFunctionInfo from AggregateInfo.
+    */
+  protected def extractPythonAggregateFunctionInfosFromAggregateInfo(
+      pythonAggregateInfo: AggregateInfo): PythonFunctionInfo = {
+    pythonAggregateInfo.function match {
+      case function: PythonFunction =>
+        new PythonFunctionInfo(
+          function,
+          pythonAggregateInfo.argIndexes.map(_.asInstanceOf[AnyRef]))
+      case _: Count1AggFunction =>
+        // The count star will be treated specially in Python UDF worker
+        PythonFunctionInfo.DUMMY_PLACEHOLDER
+      case _ =>
+        throw new TableException(
+          "Unsupported python aggregate function: " + pythonAggregateInfo.function)
+    }
   }
 }

@@ -219,3 +219,9 @@ class Row(tuple):
         return self.__class__ == other.__class__ and \
             self._row_kind == other._row_kind and \
             super(Row, self).__eq__(other)
+
+    def __hash__(self):
+        if hasattr(self, "_fields"):
+            return hash(self._fields)
+        else:
+            return super(Row, self).__hash__()

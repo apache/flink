@@ -38,6 +38,8 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -539,7 +541,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 				byte[] keyBytes = bagUserState.getKey().toByteArray();
 				bais.setBuffer(keyBytes, 0, keyBytes.length);
 				Object key = keySerializer.deserialize(baisWrapper);
-				keyedStateBackend.setCurrentKey(key);
+				keyedStateBackend.setCurrentKey(
+					((RowDataSerializer) keyedStateBackend.getKeySerializer()).toBinaryRow((RowData) key));
 			} else {
 				throw new RuntimeException("Unsupported bag state request: " + request);
 			}

@@ -749,7 +749,7 @@ public final class ArrowUtils {
 					OutputConversionModifyOperation.UpdateMode.APPEND);
 				tableEnv.getPlanner().translate(Collections.singletonList(modifyOperation));
 			} catch (Throwable t) {
-				if (t.getMessage().contains("doesn't support consuming update changes") ||
+				if (t.getMessage().contains("doesn't support consuming update") ||
 						t.getMessage().contains("Table is not an append-only table")) {
 					return false;
 				} else {

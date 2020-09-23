@@ -51,15 +51,14 @@ public class PassThroughStreamAggregatePythonFunctionRunner extends BeamTableSta
 			RowType outputType,
 			String functionUrn,
 			FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-			String inputCoderUrn,
-			String outputCoderUrn,
+			String coderUrn,
 			Map<String, String> jobOptions,
 			FlinkMetricContainer flinkMetricContainer,
 			KeyedStateBackend keyedStateBackend,
 			TypeSerializer keySerializer,
 			Function<byte[], byte[]> processFunction) {
 		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions,
-			inputCoderUrn, outputCoderUrn, jobOptions, flinkMetricContainer, keyedStateBackend, keySerializer);
+			coderUrn, jobOptions, flinkMetricContainer, keyedStateBackend, keySerializer);
 		this.buffer = new LinkedList<>();
 		this.processFunction = processFunction;
 	}
