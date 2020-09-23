@@ -35,6 +35,14 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @NotThreadSafe
 public class BufferBuilder {
+	/**
+	 * For each buffer builder, a header with 4-byte integer is attached.
+	 * Since length can only be 0 or positive numbers, the first bit of the integer
+	 * is used to identify whether the first record is partial (1) or not (0)
+	 * The remaining 31 bits stand for the length of the first record remaining.
+	 */
+	public static final int BUFFER_BUILDER_HEADER_SIZE = 4;
+
 	private final MemorySegment memorySegment;
 
 	private final BufferRecycler recycler;
@@ -86,9 +94,32 @@ public class BufferBuilder {
 		int available = getMaxCapacity() - positionMarker.getCached();
 		int toCopy = Math.min(needed, available);
 
+		// Each Data BufferBuilder starts with a 4-byte integer header
+		// Since length can only be 0 or positive numbers, the first bit of the integer
+		// is used to identify whether the first record is partial (1) or not (0)
+		// The remaining 31 bits stands for the length of the record remaining.
+		// The data written is not made visible to reader until {@link #commit()}, so the BufferBuilder
+		// ends either with a complete record or full buffer after append();
+		if (isEmptyBufferBuilder()) {
+			available = available - BUFFER_BUILDER_HEADER_SIZE;
+			toCopy = Math.min(needed, available);
+			int header = Header.headerEncode(isPartialRecord(source), toCopy);
+			memorySegment.putIntBigEndian(positionMarker.getCached(), header);
+			positionMarker.move(BUFFER_BUILDER_HEADER_SIZE);
+		}
+
 		memorySegment.put(positionMarker.getCached(), source, toCopy);
 		positionMarker.move(toCopy);
 		return toCopy;
+	}
+
+	/** Whether the source byteBuffer is a partial record. */
+	private boolean isPartialRecord(ByteBuffer source) {
+		return source.position() != 0;
+	}
+
+	private boolean isEmptyBufferBuilder() {
+		return positionMarker.isEmpty();
 	}
 
 	/**
@@ -196,6 +227,10 @@ public class BufferBuilder {
 			return PositionMarker.getAbsolute(cachedPosition);
 		}
 
+		public boolean isEmpty() {
+			return cachedPosition == 0;
+		}
+
 		/**
 		 * Marks this position as finished and returns the current position.
 		 *
@@ -221,6 +256,28 @@ public class BufferBuilder {
 
 		public void commit() {
 			position = cachedPosition;
+		}
+	}
+
+	/**
+	 * For each buffer builder, a header with 4-byte integer is attached.
+	 * Since length can only be 0 or positive numbers, the first bit of the integer
+	 * is used to identify whether the first record is partial (1) or not (0)
+	 * The remaining 31 bits stands for the length of the record remaining.
+	 */
+	@ThreadSafe
+	static class Header {
+		static int headerEncode(boolean partial, int length) {
+			checkState(length >= 0, "length can not be negative");
+			return partial ? length | 0x80000000 : length & 0x7FFFFFFF;
+		}
+
+		static boolean isPartial(int header) {
+			return (header >> 31 & 0x00000001) == 1;
+		}
+
+		static int length(int header) {
+			return header & 0x7FFFFFFF;
 		}
 	}
 }
