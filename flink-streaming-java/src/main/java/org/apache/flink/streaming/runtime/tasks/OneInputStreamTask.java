@@ -26,11 +26,11 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.EndOfInputAwareDataOutput;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
@@ -44,6 +44,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import javax.annotation.Nullable;
 
+import static org.apache.flink.streaming.runtime.io.EndOfInputUtil.endInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -87,7 +88,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 		if (numberOfInputs > 0) {
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
-			DataOutput<IN> output = createDataOutput();
+			EndOfInputAwareDataOutput<IN> output = createDataOutput();
 			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
@@ -112,7 +113,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			mainMailboxExecutor);
 	}
 
-	private DataOutput<IN> createDataOutput() {
+	private EndOfInputAwareDataOutput<IN> createDataOutput() {
 		return new StreamTaskNetworkOutput<>(
 			mainOperator,
 			getStreamStatusMaintainer(),
@@ -176,9 +177,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 		@Override
 		public void endOutput() throws Exception {
-			if (operator instanceof BoundedOneInput) {
-				((BoundedOneInput) operator).endInput();
-			}
+			endInput(operator);
 		}
 	}
 }

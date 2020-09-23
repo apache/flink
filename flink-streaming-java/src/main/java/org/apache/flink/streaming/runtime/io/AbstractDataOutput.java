@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The output type
  */
 @Internal
-public abstract class AbstractDataOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
+public abstract class AbstractDataOutput<T> implements EndOfInputAwareDataOutput<T> {
 
 	/** The maintainer toggles the current stream status. */
 	protected final StreamStatusMaintainer streamStatusMaintainer;

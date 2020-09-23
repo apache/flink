@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +41,11 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
 	private final StreamTaskInput<IN> input;
-	private final DataOutput<IN> output;
+	private final EndOfInputAwareDataOutput<IN> output;
 
 	public StreamOneInputProcessor(
 			StreamTaskInput<IN> input,
-			DataOutput<IN> output) {
+			EndOfInputAwareDataOutput<IN> output) {
 
 		this.input = checkNotNull(input);
 		this.output = checkNotNull(output);

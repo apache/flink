@@ -25,11 +25,9 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -43,6 +41,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.streaming.runtime.io.EndOfInputUtil.endInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -58,8 +57,8 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	private final StreamTaskInput<IN1> input1;
 	private final StreamTaskInput<IN2> input2;
-	private final DataOutput<IN1> output1;
-	private final DataOutput<IN2> output2;
+	private final EndOfInputAwareDataOutput<IN1> output1;
+	private final EndOfInputAwareDataOutput<IN2> output2;
 
 	/** Input status to keep track for determining whether the input is finished or not. */
 	private InputStatus firstInputStatus = InputStatus.MORE_AVAILABLE;
@@ -148,7 +147,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		if (inputSelectionHandler.areAllInputsSelected()) {
 			return isAnyInputAvailable();
 		} else {
-			StreamTaskInput input = (inputSelectionHandler.isFirstInputSelected()) ? input1 : input2;
+			StreamTaskInput<?> input = (inputSelectionHandler.isFirstInputSelected()) ? input1 : input2;
 			return input.getAvailableFuture();
 		}
 	}
@@ -201,7 +200,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		return selectNextReadingInputIndex();
 	}
 
-	private void checkFinished(InputStatus status, DataOutput<?> output) throws Exception {
+	private void checkFinished(InputStatus status, EndOfInputAwareDataOutput<?> output) throws Exception {
 		if (status == InputStatus.END_OF_INPUT) {
 			output.endOutput();
 			inputSelectionHandler.nextSelection();
@@ -281,7 +280,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		updateAvailability(secondInputStatus, input2);
 	}
 
-	private void updateAvailability(InputStatus status, StreamTaskInput input) {
+	private void updateAvailability(InputStatus status, StreamTaskInput<?> input) {
 		if (status == InputStatus.MORE_AVAILABLE || (status != InputStatus.END_OF_INPUT && input.isApproximatelyAvailable())) {
 			inputSelectionHandler.setAvailableInput(input.getInputIndex());
 		} else {
@@ -315,7 +314,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		return AvailabilityProvider.or(input1.getAvailableFuture(), input2.getAvailableFuture());
 	}
 
-	private StreamTaskInput getInput(int inputIndex) {
+	private StreamTaskInput<?> getInput(int inputIndex) {
 		return inputIndex == 0 ? input1 : input2;
 	}
 
@@ -398,9 +397,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		@Override
 		public void endOutput() throws Exception {
-			if (operator instanceof BoundedMultiInput) {
-				((BoundedMultiInput) operator).endInput(inputIndex + 1);
-			}
+			endInput(operator, inputIndex + 1);
 		}
 	}
 }

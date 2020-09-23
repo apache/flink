@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.NetworkInputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.SourceInputConfig;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -47,6 +46,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.streaming.runtime.io.EndOfInputUtil.endInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -240,11 +240,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 	}
 
 	private class InputProcessor<T> implements Closeable {
-		private final PushingAsyncDataInput.DataOutput<T> dataOutput;
+		private final EndOfInputAwareDataOutput<T> dataOutput;
 		private final StreamTaskInput<T> taskInput;
 
 		public InputProcessor(
-				PushingAsyncDataInput.DataOutput<T> dataOutput,
+				EndOfInputAwareDataOutput<T> dataOutput,
 				StreamTaskInput<T> taskInput) {
 			this.dataOutput = dataOutput;
 			this.taskInput = taskInput;
@@ -272,7 +272,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	private class SourceInputProcessor<T> extends InputProcessor<T> {
 		public SourceInputProcessor(
-				PushingAsyncDataInput.DataOutput<T> dataOutput,
+				EndOfInputAwareDataOutput<T> dataOutput,
 				StreamTaskInput<T> taskInput) {
 			super(dataOutput, taskInput);
 		}
@@ -343,9 +343,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		@Override
 		public void endOutput() throws Exception {
-			if (input instanceof BoundedOneInput) {
-				((BoundedOneInput) input).endInput();
-			}
+			endInput(input);
 		}
 	}
 }

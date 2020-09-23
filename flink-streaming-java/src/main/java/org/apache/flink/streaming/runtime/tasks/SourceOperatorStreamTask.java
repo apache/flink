@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
+import org.apache.flink.streaming.runtime.io.EndOfInputAwareDataOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
@@ -47,7 +48,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 	@Override
 	public void init() {
 		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator, 0);
-		DataOutput<T> output = new AsyncDataOutputToOutput<>(
+		EndOfInputAwareDataOutput<T> output = new AsyncDataOutputToOutput<>(
 			operatorChain.getMainOperatorOutput(),
 			getStreamStatusMaintainer());
 
@@ -85,6 +86,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 		@Override
 		public void emitWatermark(Watermark watermark) {
 			output.emitWatermark(watermark);
+		}
+
+		@Override
+		public void endOutput() throws Exception {
+
 		}
 	}
 }
