@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -28,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader} and then converts into {@link LocalInputChannel} finally.
+ * and then converts into {@link LocalInputChannel} finally.
  */
 public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 	private final ResultPartitionManager partitionManager;

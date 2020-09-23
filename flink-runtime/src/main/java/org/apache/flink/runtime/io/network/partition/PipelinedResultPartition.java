@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -134,15 +133,6 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 	@Override
 	public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
 		return (CheckpointedResultSubpartition) subpartitions[subpartitionIndex];
-	}
-
-	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		for (ResultSubpartition subPar : subpartitions) {
-			((PipelinedSubpartition) subPar).readRecoveredState(stateReader);
-		}
-
-		LOG.debug("{}: Finished reading recovered state.", this);
 	}
 
 	@Override

@@ -18,10 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-
-import java.io.IOException;
-
 /**
  * Interface for partitions that are checkpointed, meaning they store data as part of unaligned checkpoints.
  */
@@ -32,9 +28,4 @@ public interface CheckpointedResultPartition {
 	 */
 	CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex);
 
-	/**
-	 * Reads the previous output states with the given reader for unaligned checkpoint.
-	 * It should be done before task processing the inputs.
-	 */
-	void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException;
 }

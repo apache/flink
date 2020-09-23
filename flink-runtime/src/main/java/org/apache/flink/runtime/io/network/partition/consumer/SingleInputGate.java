@@ -20,9 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegmentProvider;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -54,14 +52,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -247,27 +243,6 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
-		synchronized (requestLock) {
-			if (closeFuture.isDone()) {
-				return FutureUtils.completedVoidFuture();
-			}
-		}
-
-		CompletableFuture<?> stateConsumedFuture = getStateConsumedFuture();
-
-		executor.submit(() -> {
-			Collection<InputChannel> channels;
-			synchronized (requestLock) {
-				channels = inputChannels.values();
-			}
-			internalReadRecoveredState(reader, channels);
-		});
-
-		return stateConsumedFuture;
-	}
-
-	@Override
 	public CompletableFuture<Void> getStateConsumedFuture() {
 		synchronized (requestLock) {
 			List<CompletableFuture<?>> futures = new ArrayList<>(inputChannels.size());
@@ -277,19 +252,6 @@ public class SingleInputGate extends IndexedInputGate {
 				}
 			}
 			return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-		}
-	}
-
-	private void internalReadRecoveredState(ChannelStateReader reader, Collection<InputChannel> inputChannels) {
-		for (InputChannel inputChannel : inputChannels) {
-			try {
-				if (inputChannel instanceof RecoveredInputChannel) {
-					((RecoveredInputChannel) inputChannel).readRecoveredState(reader);
-				}
-			} catch (Throwable t) {
-				inputChannel.setError(t);
-				return;
-			}
 		}
 	}
 

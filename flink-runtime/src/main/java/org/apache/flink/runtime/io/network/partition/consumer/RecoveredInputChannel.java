@@ -20,8 +20,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -46,8 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader}.
+ * An input channel reads recovered state from previous unaligned checkpoint snapshots.
  */
 public abstract class RecoveredInputChannel extends InputChannel implements ChannelStateHolder {
 
@@ -98,31 +95,6 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
 	CompletableFuture<?> getStateConsumedFuture() {
 		return stateConsumedFuture;
-	}
-
-	protected void readRecoveredState(ChannelStateReader reader) throws IOException, InterruptedException {
-		ReadResult result = ReadResult.HAS_MORE_DATA;
-		while (result == ReadResult.HAS_MORE_DATA) {
-			Buffer buffer = bufferManager.requestBufferBlocking();
-			result = internalReaderRecoveredState(reader, buffer);
-		}
-		finishReadRecoveredState();
-	}
-
-	private ReadResult internalReaderRecoveredState(ChannelStateReader reader, Buffer buffer) throws IOException {
-		ReadResult result;
-		try {
-			result = reader.readInputData(channelInfo, buffer);
-		} catch (Throwable t) {
-			buffer.recycleBuffer();
-			throw t;
-		}
-		if (buffer.readableBytes() > 0) {
-			onRecoveredStateBuffer(buffer);
-		} else {
-			buffer.recycleBuffer();
-		}
-		return result;
 	}
 
 	public void onRecoveredStateBuffer(Buffer buffer) {
