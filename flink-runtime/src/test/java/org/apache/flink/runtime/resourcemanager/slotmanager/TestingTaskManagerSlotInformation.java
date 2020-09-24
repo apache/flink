@@ -22,6 +22,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 
 /**
  * Testing implementation of {@link TaskManagerSlotInformation}.
@@ -31,6 +33,9 @@ public final class TestingTaskManagerSlotInformation implements TaskManagerSlotI
 	private final SlotID slotId;
 	private final InstanceID instanceId;
 	private final ResourceProfile resourceProfile;
+	private final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(
+		ResourceID.generate(),
+		new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
 
 	private TestingTaskManagerSlotInformation(SlotID slotId, InstanceID instanceId, ResourceProfile resourceProfile) {
 		this.slotId = slotId;
@@ -46,6 +51,11 @@ public final class TestingTaskManagerSlotInformation implements TaskManagerSlotI
 	@Override
 	public InstanceID getInstanceId() {
 		return instanceId;
+	}
+
+	@Override
+	public TaskExecutorConnection getTaskManagerConnection() {
+		return taskExecutorConnection;
 	}
 
 	@Override
