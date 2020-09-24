@@ -85,9 +85,10 @@ public class StreamGraphGeneratorTest extends TestLogger {
 	@Test
 	public void generatorForwardsSavepointRestoreSettings() {
 		StreamGraphGenerator streamGraphGenerator =
-				new StreamGraphGenerator(Collections.emptyList(),
-				new ExecutionConfig(),
-				new CheckpointConfig());
+				new StreamGraphGenerator(
+					Collections.emptyList(),
+					new ExecutionConfig(),
+					new CheckpointConfig());
 
 		streamGraphGenerator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("hello"));
 
@@ -468,7 +469,9 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 		// all stream nodes share default group by default
 		StreamGraph streamGraph = new StreamGraphGenerator(
-				transformations, env.getConfig(), env.getCheckpointConfig())
+				transformations,
+				env.getConfig(),
+				env.getCheckpointConfig())
 			.generate();
 
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
@@ -495,7 +498,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 		}
 	}
 
-	private static class OutputTypeConfigurableOperationWithTwoInputs
+	static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
 		private static final long serialVersionUID = 1L;

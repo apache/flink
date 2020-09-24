@@ -1065,8 +1065,8 @@ public class StreamExecutionEnvironment {
 
 	// private helper for passing different names
 	private <OUT> DataStreamSource<OUT> fromParallelCollection(
-			SplittableIterator<OUT> iterator, TypeInformation<OUT>
-			typeInfo,
+			SplittableIterator<OUT> iterator,
+			TypeInformation<OUT> typeInfo,
 			String operatorName) {
 		return addSource(new FromSplittableIteratorFunction<>(iterator), operatorName, typeInfo, Boundedness.BOUNDED);
 	}

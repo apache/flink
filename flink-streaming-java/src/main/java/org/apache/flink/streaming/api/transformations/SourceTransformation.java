@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -33,7 +34,7 @@ import java.util.Collections;
  * A {@link PhysicalTransformation} for {@link Source}.
  */
 @Internal
-public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> {
+public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> implements WithBoundedness {
 	private final SourceOperatorFactory<OUT> sourceFactory;
 	/**
 	 * Creates a new {@code Transformation} with the given name, output type and parallelism.
@@ -50,6 +51,11 @@ public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> {
 			int parallelism) {
 		super(name, outputType, parallelism);
 		this.sourceFactory = sourceFactory;
+	}
+
+	@Override
+	public Boundedness getBoundedness() {
+		return sourceFactory.getBoundedness();
 	}
 
 	/**

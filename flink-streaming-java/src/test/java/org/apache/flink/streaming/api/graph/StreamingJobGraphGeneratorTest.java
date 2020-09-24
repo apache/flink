@@ -686,26 +686,13 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// use eager schedule mode by default
-		StreamGraph streamGraph = new StreamGraphGenerator(Collections.emptyList(),
-			env.getConfig(), env.getCheckpointConfig())
+		StreamGraph streamGraph = new StreamGraphGenerator(
+				Collections.emptyList(),
+				env.getConfig(),
+				env.getCheckpointConfig())
 			.generate();
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 		assertEquals(ScheduleMode.EAGER, jobGraph.getScheduleMode());
-	}
-
-	/**
-	 * Test schedule mode is configurable or not.
-	 */
-	@Test
-	public void testSetScheduleMode() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		StreamGraph streamGraph = new StreamGraphGenerator(Collections.emptyList(),
-			env.getConfig(), env.getCheckpointConfig())
-			.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES)
-			.generate();
-		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
-		assertEquals(ScheduleMode.LAZY_FROM_SOURCES, jobGraph.getScheduleMode());
 	}
 
 	@Test
