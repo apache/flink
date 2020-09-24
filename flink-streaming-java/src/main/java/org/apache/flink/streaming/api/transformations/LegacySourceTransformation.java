@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements that this source produces
  */
 @Internal
-public class LegacySourceTransformation<T> extends PhysicalTransformation<T> {
+public class LegacySourceTransformation<T> extends PhysicalTransformation<T> implements WithBoundedness {
 
 	private final StreamOperatorFactory<T> operatorFactory;
 
@@ -74,6 +74,7 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T> {
 		this.boundedness = checkNotNull(boundedness);
 	}
 
+	@Override
 	public Boundedness getBoundedness() {
 		return boundedness;
 	}
