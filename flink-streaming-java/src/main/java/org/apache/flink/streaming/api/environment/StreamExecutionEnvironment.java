@@ -34,6 +34,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -95,6 +96,8 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -961,7 +964,7 @@ public class StreamExecutionEnvironment {
 		catch (IOException e) {
 			throw new RuntimeException(e.getMessage(), e);
 		}
-		return addSource(function, "Collection Source", typeInfo).setParallelism(1);
+		return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED).setParallelism(1);
 	}
 
 	/**
@@ -1011,7 +1014,7 @@ public class StreamExecutionEnvironment {
 		Preconditions.checkNotNull(data, "The iterator must not be null");
 
 		SourceFunction<OUT> function = new FromIteratorFunction<>(data);
-		return addSource(function, "Collection Source", typeInfo);
+		return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED);
 	}
 
 	/**
@@ -1061,9 +1064,11 @@ public class StreamExecutionEnvironment {
 	}
 
 	// private helper for passing different names
-	private <OUT> DataStreamSource<OUT> fromParallelCollection(SplittableIterator<OUT> iterator, TypeInformation<OUT>
-			typeInfo, String operatorName) {
-		return addSource(new FromSplittableIteratorFunction<>(iterator), operatorName, typeInfo);
+	private <OUT> DataStreamSource<OUT> fromParallelCollection(
+			SplittableIterator<OUT> iterator, TypeInformation<OUT>
+			typeInfo,
+			String operatorName) {
+		return addSource(new FromSplittableIteratorFunction<>(iterator), operatorName, typeInfo, Boundedness.BOUNDED);
 	}
 
 	/**
@@ -1515,7 +1520,11 @@ public class StreamExecutionEnvironment {
 		ContinuousFileReaderOperatorFactory<OUT, TimestampedFileInputSplit> factory =
 				new ContinuousFileReaderOperatorFactory<>(inputFormat);
 
-		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName)
+		final Boundedness boundedness = monitoringMode == FileProcessingMode.PROCESS_ONCE
+				? Boundedness.BOUNDED
+				: Boundedness.CONTINUOUS_UNBOUNDED;
+
+		SingleOutputStreamOperator<OUT> source = addSource(monitoringFunction, sourceName, null, boundedness)
 				.transform("Split Reader: " + sourceName, typeInfo, factory);
 
 		return new DataStreamSource<>(source);
@@ -1593,6 +1602,17 @@ public class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
+		return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);
+	}
+
+	private <OUT> DataStreamSource<OUT> addSource(
+			final SourceFunction<OUT> function,
+			final String sourceName,
+			@Nullable final TypeInformation<OUT> typeInfo,
+			final Boundedness boundedness) {
+		checkNotNull(function);
+		checkNotNull(sourceName);
+		checkNotNull(boundedness);
 
 		TypeInformation<OUT> resolvedTypeInfo = getTypeInfo(function, sourceName, SourceFunction.class, typeInfo);
 
@@ -1601,7 +1621,7 @@ public class StreamExecutionEnvironment {
 		clean(function);
 
 		final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
-		return new DataStreamSource<>(this, resolvedTypeInfo, sourceOperator, isParallel, sourceName);
+		return new DataStreamSource<>(this, resolvedTypeInfo, sourceOperator, isParallel, sourceName, boundedness);
 	}
 
 	/**
