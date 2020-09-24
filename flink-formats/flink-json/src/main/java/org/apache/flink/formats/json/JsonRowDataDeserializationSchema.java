@@ -73,11 +73,11 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
 	private final TimestampFormat timestampFormat;
 
 	public JsonRowDataDeserializationSchema(
-		    RowType rowType,
-		    TypeInformation<RowData> resultTypeInfo,
-		    boolean failOnMissingField,
-		    boolean ignoreParseErrors,
-		    TimestampFormat timestampFormat) {
+			RowType rowType,
+			TypeInformation<RowData> resultTypeInfo,
+			boolean failOnMissingField,
+			boolean ignoreParseErrors,
+			TimestampFormat timestampFormat) {
 		if (ignoreParseErrors && failOnMissingField) {
 			throw new IllegalArgumentException(
 				"JSON format doesn't support failOnMissingField and ignoreParseErrors are both enabled.");

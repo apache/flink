@@ -84,9 +84,9 @@ public class JsonToRowDataConverters implements Serializable {
 	private final TimestampFormat timestampFormat;
 
 	public JsonToRowDataConverters(
-		    boolean failOnMissingField,
-		    boolean ignoreParseErrors,
-		    TimestampFormat timestampFormat) {
+			boolean failOnMissingField,
+			boolean ignoreParseErrors,
+			TimestampFormat timestampFormat) {
 		this.failOnMissingField = failOnMissingField;
 		this.ignoreParseErrors = ignoreParseErrors;
 		this.timestampFormat = timestampFormat;
