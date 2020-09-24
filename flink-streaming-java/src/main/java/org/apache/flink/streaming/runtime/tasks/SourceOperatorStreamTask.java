@@ -49,7 +49,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
 	@Override
 	public void init() {
-		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator, 0);
+		StreamTaskInput<T> input = new StreamTaskSourceInput<>(mainOperator, 0, 0);
 		/**
 		 * {@link SourceOperatorStreamTask} doesn't have any inputs, so there is no need for
 		 * {@link WatermarkGauge} on the input.

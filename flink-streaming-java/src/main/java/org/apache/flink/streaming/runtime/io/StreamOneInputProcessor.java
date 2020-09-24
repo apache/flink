@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
-public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
+public class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
@@ -67,7 +67,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		InputStatus status = input.emitNext(output);
 
 		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endMainOperatorInput(1);
+			operatorChain.endMainOperatorInput(input.getInputIndex() + 1);
 		}
 
 		return status;
