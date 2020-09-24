@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 
 /**
  * Basic information about a {@link TaskManagerSlot}.
@@ -30,6 +31,8 @@ public interface TaskManagerSlotInformation {
 	SlotID getSlotId();
 
 	InstanceID getInstanceId();
+
+	TaskExecutorConnection getTaskManagerConnection();
 
 	/**
 	 * Returns true if the required {@link ResourceProfile} can be fulfilled
