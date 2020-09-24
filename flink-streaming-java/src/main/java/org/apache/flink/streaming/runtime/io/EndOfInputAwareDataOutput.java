@@ -20,12 +20,14 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 
+import java.io.Closeable;
+
 /**
  * A {@link PushingAsyncDataInput.DataOutput} interface that will be notified upon receiving end of input.
  *
  * @param <T> The type encapsulated with the stream record.
  */
 @Internal
-public interface EndOfInputAwareDataOutput<T> extends PushingAsyncDataInput.DataOutput<T> {
+public interface EndOfInputAwareDataOutput<T> extends PushingAsyncDataInput.DataOutput<T>, Closeable {
 	void endOutput() throws Exception;
 }

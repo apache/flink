@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +77,21 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	@Override
 	public void close() throws IOException {
-		input.close();
+		IOException ex = null;
+		try {
+			input.close();
+		} catch (IOException e) {
+			ex = e;
+		}
+
+		try {
+			output.close();
+		} catch (IOException e) {
+			ex = ExceptionUtils.firstOrSuppressed(e, ex);
+		}
+
+		if (ex != null) {
+			throw ex;
+		}
 	}
 }

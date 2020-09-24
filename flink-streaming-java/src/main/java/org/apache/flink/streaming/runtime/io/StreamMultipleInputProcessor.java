@@ -260,7 +260,22 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		}
 
 		public void close() throws IOException {
-			taskInput.close();
+			IOException ex = null;
+			try {
+				taskInput.close();
+			} catch (IOException e) {
+				ex = e;
+			}
+
+			try {
+				dataOutput.close();
+			} catch (IOException e) {
+				ex = ExceptionUtils.firstOrSuppressed(e, ex);
+			}
+
+			if (ex != null) {
+				throw ex;
+			}
 		}
 
 		public CompletableFuture<?> prepareSnapshot(

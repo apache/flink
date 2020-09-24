@@ -21,6 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
+import java.io.IOException;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -42,5 +44,10 @@ public abstract class AbstractDataOutput<T> implements EndOfInputAwareDataOutput
 	@Override
 	public void emitStreamStatus(StreamStatus streamStatus) {
 		streamStatusMaintainer.toggleStreamStatus(streamStatus);
+	}
+
+	@Override
+	public void close() throws IOException {
+		// do nothing by default
 	}
 }

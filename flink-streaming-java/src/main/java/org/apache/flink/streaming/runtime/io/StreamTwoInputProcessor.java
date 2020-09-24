@@ -231,11 +231,23 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		try {
 			input1.close();
 		} catch (IOException e) {
-			ex = ExceptionUtils.firstOrSuppressed(e, ex);
+			ex = e;
 		}
 
 		try {
 			input2.close();
+		} catch (IOException e) {
+			ex = ExceptionUtils.firstOrSuppressed(e, ex);
+		}
+
+		try {
+			output1.close();
+		} catch (IOException e) {
+			ex = ExceptionUtils.firstOrSuppressed(e, ex);
+		}
+
+		try {
+			output2.close();
 		} catch (IOException e) {
 			ex = ExceptionUtils.firstOrSuppressed(e, ex);
 		}
