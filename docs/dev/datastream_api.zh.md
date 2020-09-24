@@ -231,7 +231,7 @@ just submitted. For instance, here is how to implement the semantics of
 {% highlight java %}
 final JobClient jobClient = env.executeAsync();
 
-final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
 {% endhighlight %}
 
 That last part about program execution is crucial to understanding when and how

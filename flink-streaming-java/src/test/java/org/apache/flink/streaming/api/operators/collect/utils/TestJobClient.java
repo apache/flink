@@ -90,12 +90,12 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
 		return CompletableFuture.completedFuture(jobExecutionResult);
 	}
 

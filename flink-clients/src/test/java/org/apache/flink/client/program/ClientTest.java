@@ -340,7 +340,7 @@ public class ClientTest extends TestLogger {
 				env.fromElements(1, 2).output(new DiscardingOutputFormat<>());
 				JobClient jc = env.executeAsync();
 
-				jc.getJobExecutionResult(TestMultiExecute.class.getClassLoader());
+				jc.getJobExecutionResult();
 			}
 		}
 	}
@@ -429,7 +429,7 @@ public class ClientTest extends TestLogger {
 						jobGraph.setClasspaths(accessor.getClasspaths());
 
 						final JobID jobID = clusterClient.submitJob(jobGraph).get();
-						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID));
+						return CompletableFuture.completedFuture(new ClusterClientJobClientAdapter<>(() -> clusterClient, jobID, classLoader));
 					};
 				}
 			};

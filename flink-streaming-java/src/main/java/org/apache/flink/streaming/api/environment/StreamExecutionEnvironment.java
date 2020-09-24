@@ -1723,7 +1723,7 @@ public class StreamExecutionEnvironment {
 			final JobExecutionResult jobExecutionResult;
 
 			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-				jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+				jobExecutionResult = jobClient.getJobExecutionResult().get();
 			} else {
 				jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}

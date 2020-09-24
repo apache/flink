@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Collects results using accumulators and returns them as table snapshots.
  */
@@ -47,7 +45,6 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 	private final String accumulatorName;
 	private final CollectBatchTableSink tableSink;
 	private final Object resultLock;
-	private final ClassLoader classLoader;
 
 	private int pageSize;
 	private int pageCount;
@@ -58,14 +55,12 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	public MaterializedCollectBatchResult(
 			TableSchema tableSchema,
-			ExecutionConfig config,
-			ClassLoader classLoader) {
+			ExecutionConfig config) {
 
 		accumulatorName = new AbstractID().toString();
 		TypeSerializer<Row> serializer = tableSchema.toRowType().createSerializer(config);
 		tableSink = new CollectBatchTableSink(accumulatorName, serializer, tableSchema);
 		resultLock = new Object();
-		this.classLoader = checkNotNull(classLoader);
 
 		pageCount = 0;
 	}
@@ -77,7 +72,7 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	@Override
 	public void startRetrieval(JobClient jobClient) {
-		jobClient.getJobExecutionResult(classLoader)
+		jobClient.getJobExecutionResult()
 				.thenAccept(new ResultRetrievalHandler())
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {

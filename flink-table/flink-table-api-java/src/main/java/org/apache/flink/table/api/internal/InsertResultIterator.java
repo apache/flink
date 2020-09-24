@@ -54,7 +54,7 @@ class InsertResultIterator implements CloseableIterator<Row> {
 	public boolean hasNext() {
 		if (hasNext == null) {
 			try {
-				jobClient.getJobExecutionResult(classLoader).get();
+				jobClient.getJobExecutionResult().get();
 			} catch (Exception e) {
 				throw new TableException("Failed to wait job finish", e);
 			}

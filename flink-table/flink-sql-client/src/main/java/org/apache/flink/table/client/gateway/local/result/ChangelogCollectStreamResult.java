@@ -42,9 +42,8 @@ public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C> impl
 			TableSchema tableSchema,
 			ExecutionConfig config,
 			InetAddress gatewayAddress,
-			int gatewayPort,
-			ClassLoader classLoader) {
-		super(tableSchema, config, gatewayAddress, gatewayPort, classLoader);
+			int gatewayPort) {
+		super(tableSchema, config, gatewayAddress, gatewayPort);
 
 		// prepare for changelog
 		changeRecordBuffer = new ArrayList<>();

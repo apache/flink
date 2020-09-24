@@ -61,10 +61,10 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 
 		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
 
-		JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+		JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
 		assertThat(jobExecutionResult, is(notNullValue()));
 
-		Map<String, Object> actual = jobClient.getAccumulators(getClass().getClassLoader()).get();
+		Map<String, Object> actual = jobClient.getAccumulators().get();
 		assertThat(actual, is(notNullValue()));
 
 		assertThatMiniClusterIsShutdown();
@@ -87,7 +87,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		assertThrows(
 			"Job was cancelled.",
 			ExecutionException.class,
-			() -> jobClient.getJobExecutionResult(getClass().getClassLoader()).get()
+			() -> jobClient.getJobExecutionResult().get()
 		);
 
 		assertThatMiniClusterIsShutdown();
@@ -127,12 +127,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 		{
 			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+			jobClient.getJobExecutionResult().get();
 			assertThatMiniClusterIsShutdown();
 		}
 		{
 			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+			jobClient.getJobExecutionResult().get();
 			assertThatMiniClusterIsShutdown();
 		}
 	}
@@ -141,7 +141,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 	public void testJobClientInteractionAfterShutdown() throws Exception {
 		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
-		jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+		jobClient.getJobExecutionResult().get();
 		assertThatMiniClusterIsShutdown();
 
 		assertThrows(
