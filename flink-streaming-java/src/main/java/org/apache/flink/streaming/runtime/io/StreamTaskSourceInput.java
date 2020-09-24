@@ -46,12 +46,14 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Check
 	private final int inputGateIndex;
 	private final AvailabilityHelper isBlockedAvailability = new AvailabilityHelper();
 	private final List<InputChannelInfo> inputChannelInfos;
+	private final int inputIndex;
 
-	public StreamTaskSourceInput(SourceOperator<T, ?> operator, int inputGateIndex) {
+	public StreamTaskSourceInput(SourceOperator<T, ?> operator, int inputGateIndex, int inputIndex) {
 		this.operator = checkNotNull(operator);
 		this.inputGateIndex = inputGateIndex;
 		inputChannelInfos = Collections.singletonList(new InputChannelInfo(inputGateIndex, 0));
 		isBlockedAvailability.resetAvailable();
+		this.inputIndex = inputIndex;
 	}
 
 	@Override
@@ -126,12 +128,9 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Check
 		return inputGateIndex;
 	}
 
-	/**
-	 * This method is invalid and never called by the one/source input processor.
-	 */
 	@Override
 	public int getInputIndex() {
-		throw new UnsupportedOperationException();
+		return inputIndex;
 	}
 
 	@Override
