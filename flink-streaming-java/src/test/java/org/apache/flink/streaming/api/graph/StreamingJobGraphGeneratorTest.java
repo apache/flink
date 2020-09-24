@@ -817,7 +817,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		operatorScopeManagedMemoryUseCaseWeights.add(Collections.singletonMap(ManagedMemoryUseCase.BATCH_OP, 1));
 		slotScopeManagedMemoryUseCases.add(Collections.emptySet());
 
-
 		// slotSharingGroup1 contains batch and python use cases: v1(source[batch]) -> map1[batch, python]), v2(map2[python])
 		// slotSharingGroup2 contains batch use case only: v3(map3[batch])
 		final JobGraph jobGraph = createJobGraphForManagedMemoryFractionTest(
