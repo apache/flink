@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.EndOfInputUtil;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -71,10 +72,6 @@ public abstract class AbstractInput<IN, OUT> implements Input<IN>, BoundedOneInp
 
 	@Override
 	public void endInput() throws Exception {
-		if (owner instanceof BoundedOneInput && inputId == 1) {
-			((BoundedOneInput) owner).endInput();
-		} else if (owner instanceof BoundedMultiInput) {
-			((BoundedMultiInput) owner).endInput(inputId);
-		}
+		EndOfInputUtil.endInput(owner, inputId);
 	}
 }
