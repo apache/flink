@@ -169,7 +169,7 @@ public class CollectResultFetcher<T> {
 		JobExecutionResult executionResult;
 		try {
 			// this timeout is sort of hack, see comments in isJobTerminated for explanation
-			executionResult = jobClient.getJobExecutionResult(getClass().getClassLoader()).get(
+			executionResult = jobClient.getJobExecutionResult().get(
 				DEFAULT_ACCUMULATOR_GET_MILLIS, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException | ExecutionException | TimeoutException e) {
 			throw new IOException("Failed to fetch job execution result", e);

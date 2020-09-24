@@ -75,7 +75,8 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 					}))
 					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(
 							clusterClientProvider,
-							jobID))
+							jobID,
+							userCodeClassloader))
 					.whenComplete((ignored1, ignored2) -> clusterClient.close());
 		}
 	}

@@ -45,7 +45,7 @@ public class TestingJobClient implements JobClient {
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
 		return CompletableFuture.completedFuture(new JobExecutionResult(new JobID(), 0L, Collections.emptyMap()));
 	}
 
@@ -65,7 +65,7 @@ public class TestingJobClient implements JobClient {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators() {
 		return CompletableFuture.completedFuture(Collections.emptyMap());
 	}
 }

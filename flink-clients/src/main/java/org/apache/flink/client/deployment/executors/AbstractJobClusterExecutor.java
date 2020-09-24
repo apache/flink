@@ -71,7 +71,7 @@ public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends Cluster
 			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
 
 			return CompletableFuture.completedFuture(
-					new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID()));
+					new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID(), userCodeClassloader));
 		}
 	}
 }

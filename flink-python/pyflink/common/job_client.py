@@ -19,7 +19,6 @@ from pyflink.common.completable_future import CompletableFuture
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
-from pyflink.java_gateway import get_gateway
 
 __all__ = ['JobClient']
 
@@ -103,7 +102,7 @@ class JobClient(object):
         """
         return CompletableFuture(self._j_job_client.triggerSavepoint(savepoint_directory), str)
 
-    def get_accumulators(self, class_loader=None):
+    def get_accumulators(self):
         """
         Requests the accumulators of the associated job. Accumulators can be requested while it
         is running or after it has finished. The class loader is used to deserialize the incoming
@@ -115,21 +114,16 @@ class JobClient(object):
 
         .. versionadded:: 1.11.0
         """
-        if class_loader is None:
-            class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        return CompletableFuture(self._j_job_client.getAccumulators(class_loader), dict)
+        return CompletableFuture(self._j_job_client.getAccumulators(), dict)
 
-    def get_job_execution_result(self, user_class_loader=None):
+    def get_job_execution_result(self):
         """
         Returns the JobExecutionResult result of the job execution of the submitted job.
 
-        :param user_class_loader: Class loader used to deserialize the accumulators of the job.
         :return: A CompletableFuture containing the JobExecutionResult result of the job execution.
         :rtype: pyflink.common.CompletableFuture
 
         .. versionadded:: 1.11.0
         """
-        if user_class_loader is None:
-            user_class_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        return CompletableFuture(self._j_job_client.getJobExecutionResult(user_class_loader),
+        return CompletableFuture(self._j_job_client.getJobExecutionResult(),
                                  JobExecutionResult)

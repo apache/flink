@@ -106,7 +106,7 @@ public class TpcdsTestProgram {
 			TableResult tableResult = resultTable.executeInsert(sinkTableName);
 			// wait job finish
 			tableResult.getJobClient().get()
-					.getJobExecutionResult(Thread.currentThread().getContextClassLoader())
+					.getJobExecutionResult()
 					.get();
 			System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
 		}
