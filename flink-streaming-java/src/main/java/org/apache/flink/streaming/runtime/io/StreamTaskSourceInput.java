@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.SourceOperator;
-import org.apache.flink.util.IOUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -135,7 +134,7 @@ public final class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Check
 
 	@Override
 	public void close() {
-		IOUtils.closeQuietly(operator::close);
+		// SourceOperator is closed via OperatorChain
 	}
 
 	@Override

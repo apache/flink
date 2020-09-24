@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
-public class StreamOneInputProcessor<IN> implements StreamInputProcessor {
+public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 

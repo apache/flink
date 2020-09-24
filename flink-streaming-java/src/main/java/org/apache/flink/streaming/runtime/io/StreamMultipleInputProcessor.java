@@ -130,15 +130,14 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 				Output<StreamRecord<?>> chainedSourceOutput = operatorChain.getChainedSourceOutput(sourceInput);
 				StreamTaskSourceInput<?> sourceTaskInput = operatorChain.getSourceTaskInput(sourceInput);
 
-				inputProcessors[i] = new SourceInputProcessor(
-					new StreamTaskSourceOutput(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauges[i], i),
+				inputProcessors[i] = new StreamOneInputProcessor(
 					sourceTaskInput,
+					new StreamTaskSourceOutput(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauges[i], i),
 					operatorChain);
 			}
 			else {
 				throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
 			}
-
 		}
 	}
 
@@ -258,20 +257,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			}
 		}
 		return true;
-	}
-
-	private static class SourceInputProcessor<T> extends StreamOneInputProcessor<T> {
-		public SourceInputProcessor(
-				PushingAsyncDataInput.DataOutput<T> dataOutput,
-				StreamTaskInput<T> taskInput,
-				OperatorChain<?, ?> operatorChain) {
-			super(taskInput, dataOutput, operatorChain);
-		}
-
-		@Override
-		public void close() throws IOException {
-			// SourceOperator is closed via OperatorChain
-		}
 	}
 
 	/**
