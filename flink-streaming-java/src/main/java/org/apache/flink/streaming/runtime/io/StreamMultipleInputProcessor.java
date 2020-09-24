@@ -43,7 +43,6 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask.AsyncDataOutputToOutput;
 import org.apache.flink.util.ExceptionUtils;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -60,9 +59,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	private final MultipleInputSelectionHandler inputSelectionHandler;
 
-	private final InputProcessor<?>[] inputProcessors;
-
-	private final OperatorChain<?, ?> operatorChain;
+	private final StreamOneInputProcessor<?>[] inputProcessors;
 
 	/**
 	 * Stream status for the two inputs. We need to keep track for determining when
@@ -90,13 +87,14 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 			MultipleInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge[] inputWatermarkGauges,
 			OperatorChain<?, ?> operatorChain) {
+		checkNotNull(operatorChain);
 
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
 		List<Input> operatorInputs = mainOperator.getInputs();
 		int inputsCount = operatorInputs.size();
 
-		this.inputProcessors = new InputProcessor[inputsCount];
+		this.inputProcessors = new StreamOneInputProcessor[inputsCount];
 		this.streamStatuses = new StreamStatus[inputsCount];
 		this.mainOperatorRecordsIn = mainOperatorRecordsIn;
 		ioMetricGroup.reuseRecordsInputCounter(networkRecordsIn);
@@ -117,14 +115,15 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 					inputWatermarkGauges[i],
 					i);
 
-				inputProcessors[i] = new InputProcessor(
-					dataOutput,
+				inputProcessors[i] = new StreamOneInputProcessor(
 					new StreamTaskNetworkInput<>(
 						checkpointedInputGates[networkInput.getInputGateIndex()],
 						networkInput.getTypeSerializer(),
 						ioManager,
 						new StatusWatermarkValve(checkpointedInputGates[networkInput.getInputGateIndex()].getNumberOfInputChannels()),
-						i));
+						i),
+					dataOutput,
+					operatorChain);
 			}
 			else if (configuredInput instanceof SourceInputConfig) {
 				SourceInputConfig sourceInput = (SourceInputConfig) configuredInput;
@@ -133,15 +132,14 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 				inputProcessors[i] = new SourceInputProcessor(
 					new StreamTaskSourceOutput(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauges[i], i),
-					sourceTaskInput);
+					sourceTaskInput,
+					operatorChain);
 			}
 			else {
 				throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
 			}
 
 		}
-
-		this.operatorChain = checkNotNull(operatorChain);
 	}
 
 	@Override
@@ -152,7 +150,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
 		for (int i = 0; i < inputProcessors.length; i++) {
 			if (!inputSelectionHandler.isInputFinished(i) && inputSelectionHandler.isInputSelected(i)) {
-				inputProcessors[i].taskInput.getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
+				inputProcessors[i].getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
 			}
 		}
 		return anyInputAvailable;
@@ -174,7 +172,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		lastReadInputIndex = readingInputIndex;
 		InputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
-		checkFinished(inputStatus, readingInputIndex);
+		checkFinished(inputStatus);
 		return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
 	}
 
@@ -189,9 +187,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		return selectNextReadingInputIndex();
 	}
 
-	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
+	private void checkFinished(InputStatus status) throws Exception {
 		if (status == InputStatus.END_OF_INPUT) {
-			operatorChain.endMainOperatorInput(getInputId(inputIndex));
 			inputSelectionHandler.nextSelection();
 		}
 	}
@@ -199,7 +196,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 	@Override
 	public void close() throws IOException {
 		IOException ex = null;
-		for (InputProcessor<?> input : inputProcessors) {
+		for (StreamOneInputProcessor<?> input : inputProcessors) {
 			try {
 				input.close();
 			} catch (IOException e) {
@@ -244,18 +241,14 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 	private void fullCheckAndSetAvailable() {
 		for (int i = 0; i < inputProcessors.length; i++) {
-			InputProcessor<?> inputProcessor = inputProcessors[i];
+			StreamOneInputProcessor<?> inputProcessor = inputProcessors[i];
 			// TODO: isAvailable() can be a costly operation (checking volatile). If one of
 			// the input is constantly available and another is not, we will be checking this volatile
 			// once per every record. This might be optimized to only check once per processed NetworkBuffer
-			if (inputProcessor.taskInput.isApproximatelyAvailable() || inputProcessor.taskInput.isAvailable()) {
+			if (inputProcessor.isApproximatelyAvailable() || inputProcessor.isAvailable()) {
 				inputSelectionHandler.setAvailableInput(i);
 			}
 		}
-	}
-
-	private int getInputId(int inputIndex) {
-		return inputIndex + 1;
 	}
 
 	private boolean allStreamStatusesAreIdle() {
@@ -267,37 +260,12 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		return true;
 	}
 
-	private class InputProcessor<T> implements Closeable {
-		private final PushingAsyncDataInput.DataOutput<T> dataOutput;
-		private final StreamTaskInput<T> taskInput;
-
-		public InputProcessor(
-				PushingAsyncDataInput.DataOutput<T> dataOutput,
-				StreamTaskInput<T> taskInput) {
-			this.dataOutput = dataOutput;
-			this.taskInput = taskInput;
-		}
-
-		public InputStatus processInput() throws Exception {
-			return taskInput.emitNext(dataOutput);
-		}
-
-		public void close() throws IOException {
-			taskInput.close();
-		}
-
-		public CompletableFuture<?> prepareSnapshot(
-				ChannelStateWriter channelStateWriter,
-				long checkpointId) throws IOException {
-			return taskInput.prepareSnapshot(channelStateWriter, checkpointId);
-		}
-	}
-
-	private class SourceInputProcessor<T> extends InputProcessor<T> {
+	private static class SourceInputProcessor<T> extends StreamOneInputProcessor<T> {
 		public SourceInputProcessor(
 				PushingAsyncDataInput.DataOutput<T> dataOutput,
-				StreamTaskInput<T> taskInput) {
-			super(dataOutput, taskInput);
+				StreamTaskInput<T> taskInput,
+				OperatorChain<?, ?> operatorChain) {
+			super(taskInput, dataOutput, operatorChain);
 		}
 
 		@Override

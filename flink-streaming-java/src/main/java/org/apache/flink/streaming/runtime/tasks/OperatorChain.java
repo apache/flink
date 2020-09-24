@@ -305,7 +305,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				sourceInput,
 				new ChainedSource(
 					chainedSourceOutput,
-					new StreamTaskSourceInput<>(sourceOperator, sourceInputGateIndex++)));
+					new StreamTaskSourceInput<>(sourceOperator, sourceInputGateIndex++, inputId)));
 		}
 		return chainedSourceInputs;
 	}
