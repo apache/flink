@@ -890,7 +890,7 @@ public class ExecutionEnvironment {
 
 		try {
 			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
-				lastJobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
+				lastJobExecutionResult = jobClient.getJobExecutionResult().get();
 			} else {
 				lastJobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}

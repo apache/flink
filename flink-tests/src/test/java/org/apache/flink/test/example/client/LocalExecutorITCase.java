@@ -82,7 +82,7 @@ public class LocalExecutorITCase extends TestLogger {
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
 			JobClient jobClient = executor.execute(wcPlan, config, ClassLoader.getSystemClassLoader()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+			jobClient.getJobExecutionResult().get();
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
@@ -104,7 +104,7 @@ public class LocalExecutorITCase extends TestLogger {
 		assertThrows(
 			"Job execution failed.",
 			Exception.class,
-			() -> jobClient.getJobExecutionResult(getClass().getClassLoader()).get());
+			() -> jobClient.getJobExecutionResult().get());
 
 		assertThat(miniCluster.isRunning(), is(false));
 	}

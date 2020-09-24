@@ -508,8 +508,7 @@ public class LocalExecutor implements Executor {
 		final DynamicResult<C> result = resultStore.createResult(
 				context.getEnvironment(),
 				removeTimeAttributes(table.getSchema()),
-				context.getExecutionConfig(),
-				context.getClassLoader());
+				context.getExecutionConfig());
 		final String jobName = sessionId + ": " + query;
 		final String tableName = String.format("_tmp_table_%s", Math.abs(query.hashCode()));
 		final Pipeline pipeline;

@@ -75,12 +75,10 @@ public interface JobClient {
 	 * Requests the accumulators of the associated job. Accumulators can be requested while it is running
 	 * or after it has finished. The class loader is used to deserialize the incoming accumulator results.
 	 */
-	CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader);
+	CompletableFuture<Map<String, Object>> getAccumulators();
 
 	/**
 	 * Returns the {@link JobExecutionResult result of the job execution} of the submitted job.
-	 *
-	 * @param userClassloader the classloader used to de-serialize the accumulators of the job.
 	 */
-	CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader);
+	CompletableFuture<JobExecutionResult> getJobExecutionResult();
 }

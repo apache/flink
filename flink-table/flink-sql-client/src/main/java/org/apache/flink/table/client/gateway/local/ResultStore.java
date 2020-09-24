@@ -59,8 +59,7 @@ public class ResultStore {
 	public <T> DynamicResult<T> createResult(
 			Environment env,
 			TableSchema schema,
-			ExecutionConfig config,
-			ClassLoader classLoader) {
+			ExecutionConfig config) {
 
 		if (env.getExecution().inStreamingMode()) {
 			// determine gateway address (and port if possible)
@@ -72,22 +71,20 @@ public class ResultStore {
 						schema,
 						config,
 						gatewayAddress,
-						gatewayPort,
-						classLoader);
+						gatewayPort);
 			} else {
 				return new MaterializedCollectStreamResult<>(
 						schema,
 						config,
 						gatewayAddress,
 						gatewayPort,
-						env.getExecution().getMaxTableResultRows(),
-						classLoader);
+						env.getExecution().getMaxTableResultRows());
 			}
 
 		} else {
 			// Batch Execution
 			if (env.getExecution().isTableMode() || env.getExecution().isTableauMode()) {
-				return new MaterializedCollectBatchResult<>(schema, config, classLoader);
+				return new MaterializedCollectBatchResult<>(schema, config);
 			} else {
 				throw new SqlExecutionException(
 						"Results of batch queries can only be served in table or tableau mode.");

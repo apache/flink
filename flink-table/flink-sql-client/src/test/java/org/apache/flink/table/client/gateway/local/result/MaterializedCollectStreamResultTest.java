@@ -162,8 +162,7 @@ public class MaterializedCollectStreamResultTest {
 				gatewayAddress,
 				gatewayPort,
 				maxRowCount,
-				overcommitThreshold,
-				MaterializedCollectStreamResultTest.class.getClassLoader());
+				overcommitThreshold);
 		}
 
 		public TestMaterializedCollectStreamResult(
@@ -178,8 +177,7 @@ public class MaterializedCollectStreamResultTest {
 				config,
 				gatewayAddress,
 				gatewayPort,
-				maxRowCount,
-				MaterializedCollectStreamResultTest.class.getClassLoader());
+				maxRowCount);
 		}
 
 		@Override
