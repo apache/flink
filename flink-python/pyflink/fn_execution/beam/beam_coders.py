@@ -215,6 +215,30 @@ class ArrowCoder(FastCoder):
         return 'ArrowCoder[%s]' % self._schema
 
 
+class OverWindowArrowCoder(FastCoder):
+    """
+    Coder for batch pandas over window aggregation.
+    """
+    def __init__(self, arrow_coder):
+        self._arrow_coder = arrow_coder
+
+    def _create_impl(self):
+        return beam_coder_impl_slow.OverWindowArrowCoderImpl(
+            self._arrow_coder._create_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(coders.FLINK_OVER_WINDOW_ARROW_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return OverWindowArrowCoder(
+            ArrowCoder._pickle_from_runner_api_parameter(
+                schema_proto, unused_components, unused_context))
+
+    def __repr__(self):
+        return 'OverWindowArrowCoder[%s]' % self._arrow_coder
+
+
 class BeamDataStreamStatelessMapCoder(FastCoder):
 
     def __init__(self, field_coder):
