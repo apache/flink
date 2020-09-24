@@ -564,7 +564,7 @@ public class StreamGraph implements Pipeline {
 			Set<ManagedMemoryUseCase> slotScopeUseCases) {
 		if (getStreamNode(vertexID) != null) {
 			getStreamNode(vertexID).setManagedMemoryUseCaseWeights(operatorScopeUseCaseWeights, slotScopeUseCases);
-		} 
+		}
 	}
 
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
