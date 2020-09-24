@@ -578,7 +578,7 @@ class ArrowCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         while in_stream.size() > 0:
-            yield self._decode_one_batch_from_stream(in_stream)
+            yield self._decode_one_batch_from_stream(in_stream, in_stream.read_var_int64())
 
     @staticmethod
     def _load_from_stream(stream):
@@ -586,13 +586,42 @@ class ArrowCoderImpl(StreamCoderImpl):
         for batch in reader:
             yield batch
 
-    def _decode_one_batch_from_stream(self, in_stream: create_InputStream) -> List:
-        self._resettable_io.set_input_bytes(in_stream.read_all(True))
+    def _decode_one_batch_from_stream(self, in_stream: create_InputStream, size: int) -> List:
+        self._resettable_io.set_input_bytes(in_stream.read(size))
         # there is only one arrow batch in the underlying input stream
         return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
 
     def __repr__(self):
         return 'ArrowCoderImpl[%s]' % self._schema
+
+
+class OverWindowArrowCoderImpl(StreamCoderImpl):
+    def __init__(self, arrow_coder):
+        self._arrow_coder = arrow_coder
+        self._int_coder = IntCoderImpl()
+
+    def encode_to_stream(self, value, stream, nested):
+        self._arrow_coder.encode_to_stream(value, stream, nested)
+
+    def decode_from_stream(self, in_stream, nested):
+        while in_stream.size():
+            remaining_size = in_stream.read_var_int64()
+            window_num = self._int_coder.decode_from_stream(in_stream, nested)
+            remaining_size -= 4
+            window_boundaries_and_arrow_data = []
+            for _ in range(window_num):
+                window_size = self._int_coder.decode_from_stream(in_stream, nested)
+                remaining_size -= 4
+                window_boundaries_and_arrow_data.append(
+                    [self._int_coder.decode_from_stream(in_stream, nested)
+                     for _ in range(window_size)])
+                remaining_size -= 4 * window_size
+            window_boundaries_and_arrow_data.append(
+                self._arrow_coder._decode_one_batch_from_stream(in_stream, remaining_size))
+            yield window_boundaries_and_arrow_data
+
+    def __repr__(self):
+        return 'OverWindowArrowCoderImpl[%s]' % self._arrow_coder
 
 
 class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):

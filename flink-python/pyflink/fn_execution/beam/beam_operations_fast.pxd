@@ -45,3 +45,10 @@ cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
 
 cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
     pass
+
+cdef class PandasBatchOverWindowAggregateFunctionOperation(BeamStatelessFunctionOperation):
+    cdef list windows
+    cdef list bounded_range_window_index
+    cdef list is_bounded_range_window
+    cdef list window_indexes
+    cdef list mapper

@@ -180,6 +180,10 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 			ListIterator<RowData> iter = forwardedInputQueue.listIterator(lastKeyDataStartPos);
 			int[] lowerBoundaryPos = new int[boundedRangeWindowIndex.size()];
 			int[] upperBoundaryPos = new int[boundedRangeWindowIndex.size()];
+			for (int i = 0; i < lowerBoundaryPos.length; i++) {
+				lowerBoundaryPos[i] = lastKeyDataStartPos;
+				upperBoundaryPos[i] = lastKeyDataStartPos;
+			}
 			while (iter.hasNext()) {
 				RowData curData = iter.next();
 				// loop every bounded range window
@@ -195,7 +199,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 							curLowerBoundaryPos += 1;
 						}
 						lowerBoundaryPos[j] = curLowerBoundaryPos;
-						curWindowBoundary.add(curLowerBoundaryPos);
+						curWindowBoundary.add(curLowerBoundaryPos - lastKeyDataStartPos);
 					}
 					// bounded following
 					if (upperBoundary[windowPos] != Long.MAX_VALUE) {
@@ -206,7 +210,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 							curUpperBoundaryPos += 1;
 						}
 						upperBoundaryPos[j] = curUpperBoundaryPos;
-						curWindowBoundary.add(curUpperBoundaryPos);
+						curWindowBoundary.add(curUpperBoundaryPos - lastKeyDataStartPos);
 					}
 				}
 			}
