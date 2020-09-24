@@ -29,6 +29,8 @@ SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
+PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
+    "flink:transform:batch_over_window_aggregate_function:arrow:v1"
 
 _func_num = 0
 _constant_num = 0
@@ -37,6 +39,11 @@ _constant_num = 0
 def wrap_pandas_result(it):
     import pandas as pd
     return [pd.Series([result]) for result in it]
+
+
+def extract_over_window_user_defined_function(user_defined_function_proto):
+    window_index = user_defined_function_proto.window_index
+    return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
 
 
 def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False)\
