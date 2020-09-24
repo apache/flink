@@ -30,6 +30,7 @@ import java.util.ArrayList;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilder.BUFFER_BUILDER_HEADER_SIZE;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilder.Header;
+import static org.apache.flink.runtime.io.network.buffer.BufferConsumer.PartialRecordCleanupResult;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -244,6 +245,121 @@ public class BufferBuilderAndConsumerTest {
 		int headerComplete = Header.headerEncode(false, length);
 		assertFalse(Header.isPartial(headerComplete));
 		assertEquals(Header.length(headerComplete), length);
+	}
+
+	// case 1: long record spanning multiple buffers, haven't yet cleaned up, skip the whole buffer
+	@Test
+	public void skipPartialRecordTestCase1() {
+		int bufferSize = 20;
+		BufferBuilder bufferBuilder1 =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+
+		BufferBuilder bufferBuilder2 =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+		BufferConsumer bufferConsumer2 = bufferBuilder2.createBufferConsumer();
+
+		BufferBuilder bufferBuilder3 =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+		BufferConsumer bufferConsumer3 = bufferBuilder3.createBufferConsumer();
+
+
+		// size = 4 * 10 = 40;
+		int[] record1 = new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 42};
+		ByteBuffer bytesToWrite1 = toByteBuffer(record1);
+
+		assertEquals(bufferSize - BUFFER_BUILDER_HEADER_SIZE, bufferBuilder1.appendAndCommit(bytesToWrite1));
+		bufferBuilder1.finish();
+
+		assertEquals(bufferSize - BUFFER_BUILDER_HEADER_SIZE, bufferBuilder2.appendAndCommit(bytesToWrite1));
+		bufferBuilder2.finish();
+		PartialRecordCleanupResult recordCleanupResult2 = bufferConsumer2.skipPartialRecord();
+		assertFalse(recordCleanupResult2.getCleaned());
+		assertEquals(recordCleanupResult2.getBuffer().readableBytes(), 0);
+
+		int[] record3 = new int[] {10, 11};
+		ByteBuffer bytesToWrite3 = toByteBuffer(record3);
+		assertEquals(4 * 2, bufferBuilder3.appendAndCommit(bytesToWrite3));
+
+		PartialRecordCleanupResult recordCleanupResult3 = bufferConsumer3.skipPartialRecord();
+		assertTrue(recordCleanupResult3.getCleaned());
+		assertContent(recordCleanupResult3.getBuffer(), FreeingBufferRecycler.INSTANCE, 10, 11);
+	}
+
+	// case 2: the partial record ends within the buffer, cleaned up successfully, skip the partial record
+	// case 3: the first record is not a partial record, cleaned up successfully, skip the head
+	@Test
+	public void skipPartialRecordTestCase2And3() {
+		int bufferSize = 20;
+		BufferBuilder bufferBuilder1 =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+		BufferConsumer bufferConsumer1 = bufferBuilder1.createBufferConsumer();
+
+		BufferBuilder bufferBuilder2 =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+		BufferConsumer bufferConsumer2 = bufferBuilder2.createBufferConsumer();
+
+		int[] record1 = new int[] {0, 1, 2, 3, 42};
+		ByteBuffer bytesToWrite1 = toByteBuffer(record1);
+
+		assertEquals(bufferSize - BUFFER_BUILDER_HEADER_SIZE, bufferBuilder1.appendAndCommit(bytesToWrite1));
+		bufferBuilder1.finish();
+
+		// case 3
+		PartialRecordCleanupResult recordCleanupResult1 = bufferConsumer1.skipPartialRecord();
+		assertTrue(recordCleanupResult1.getCleaned());
+		assertContent(recordCleanupResult1.getBuffer(), FreeingBufferRecycler.INSTANCE, 0, 1, 2, 3);
+
+		assertEquals(4 * 5 - (bufferSize - BUFFER_BUILDER_HEADER_SIZE), bufferBuilder2.appendAndCommit(bytesToWrite1));
+
+		int[] record2 = new int[] {10, 11};
+		ByteBuffer bytesToWrite2 = toByteBuffer(record2);
+		assertEquals(4 * 2, bufferBuilder2.appendAndCommit(bytesToWrite2));
+
+		// case 2
+		PartialRecordCleanupResult recordCleanupResult2 = bufferConsumer2.skipPartialRecord();
+		assertTrue(recordCleanupResult2.getCleaned());
+		assertContent(recordCleanupResult2.getBuffer(), FreeingBufferRecycler.INSTANCE, 10, 11);
+	}
+
+	// case 4: written data is not visible yet, haven't yet cleaned up, return an empty slicer
+	@Test
+	public void skipPartialRecordTestCase4() {
+		int bufferSize = 20;
+		BufferBuilder bufferBuilder =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+
+		int[] record1 = new int[] {0, 1, 2, 3, 42};
+		ByteBuffer bytesToWrite1 = toByteBuffer(record1);
+
+		assertEquals(bufferSize - BUFFER_BUILDER_HEADER_SIZE, bufferBuilder.append(bytesToWrite1));
+		PartialRecordCleanupResult recordCleanupResult = bufferConsumer.skipPartialRecord();
+		assertFalse(recordCleanupResult.getCleaned());
+		assertEquals(recordCleanupResult.getBuffer().readableBytes(), 0);
+	}
+
+	// case 5: read from the middle of the buffer or event buffer; no clean up needed
+	@Test
+	public void skipPartialRecordTestCase5() {
+		int bufferSize = 50;
+		BufferBuilder bufferBuilder =
+			new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+
+		int[] record1 = new int[] {0, 1, 2, 3, 42};
+		ByteBuffer bytesToWrite1 = toByteBuffer(record1);
+
+		int[] record2 = new int[] {10, 11};
+		ByteBuffer bytesToWrite2 = toByteBuffer(record2);
+
+
+		assertEquals(bytesToWrite1.limit(), bufferBuilder.appendAndCommit(bytesToWrite1));
+		bufferConsumer.build();
+
+		assertEquals(bytesToWrite2.limit(), bufferBuilder.appendAndCommit(bytesToWrite2));
+		PartialRecordCleanupResult recordCleanupResult = bufferConsumer.skipPartialRecord();
+		assertTrue(recordCleanupResult.getCleaned());
+		assertContent(recordCleanupResult.getBuffer(), FreeingBufferRecycler.INSTANCE, 10, 11);
 	}
 
 	private static void testIsFinished(int writes) {

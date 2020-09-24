@@ -101,6 +101,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 	@GuardedBy("buffers")
 	private boolean isBlockedByCheckpoint = false;
 
+	private boolean isPartialBuffer = false;
+
 	private int sequenceNumber = 0;
 
 	// ------------------------------------------------------------------------
@@ -285,7 +287,14 @@ public class PipelinedSubpartition extends ResultSubpartition
 			while (!buffers.isEmpty()) {
 				BufferConsumer bufferConsumer = buffers.peek();
 
-				buffer = bufferConsumer.build();
+				// `isPartialBuffer` is set to true in the same Netty thread when ResultPartitionView is released
+				if (isPartialBuffer) {
+					BufferConsumer.PartialRecordCleanupResult result = bufferConsumer.skipPartialRecord();
+					buffer = result.getBuffer();
+					isPartialBuffer = result.getCleaned();
+				} else {
+					buffer = bufferConsumer.build();
+				}
 
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
@@ -303,8 +312,10 @@ public class PipelinedSubpartition extends ResultSubpartition
 				if (buffer.readableBytes() > 0) {
 					break;
 				}
+
 				buffer.recycleBuffer();
 				buffer = null;
+
 				if (!bufferConsumer.isFinished()) {
 					break;
 				}
