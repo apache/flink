@@ -539,7 +539,7 @@ public class SlotManagerImpl implements SlotManager {
 		TaskManagerSlot slot = slots.get(slotId);
 
 		if (null != slot) {
-			if (slot.getState() == TaskManagerSlot.State.ALLOCATED) {
+			if (slot.getState() == SlotState.ALLOCATED) {
 				if (Objects.equals(allocationId, slot.getAllocationId())) {
 
 					TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(slot.getInstanceId());
@@ -632,7 +632,7 @@ public class SlotManagerImpl implements SlotManager {
 		optionalMatchingSlot.ifPresent(taskManagerSlot -> {
 			// sanity check
 			Preconditions.checkState(
-				taskManagerSlot.getState() == TaskManagerSlot.State.FREE,
+				taskManagerSlot.getState() == SlotState.FREE,
 				"TaskManagerSlot %s is not in state FREE but %s.",
 				taskManagerSlot.getSlotId(), taskManagerSlot.getState());
 
@@ -984,7 +984,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * @param pendingSlotRequest to allocate the given slot for
 	 */
 	private void allocateSlot(TaskManagerSlot taskManagerSlot, PendingSlotRequest pendingSlotRequest) {
-		Preconditions.checkState(taskManagerSlot.getState() == TaskManagerSlot.State.FREE);
+		Preconditions.checkState(taskManagerSlot.getState() == SlotState.FREE);
 
 		TaskExecutorConnection taskExecutorConnection = taskManagerSlot.getTaskManagerConnection();
 		TaskExecutorGateway gateway = taskExecutorConnection.getTaskExecutorGateway();
@@ -1068,7 +1068,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * @param freeSlot to find a new slot request for
 	 */
 	private void handleFreeSlot(TaskManagerSlot freeSlot) {
-		Preconditions.checkState(freeSlot.getState() == TaskManagerSlot.State.FREE);
+		Preconditions.checkState(freeSlot.getState() == SlotState.FREE);
 
 		PendingSlotRequest pendingSlotRequest = findMatchingRequest(freeSlot.getResourceProfile());
 
@@ -1103,7 +1103,7 @@ public class SlotManagerImpl implements SlotManager {
 		if (null != slot) {
 			freeSlots.remove(slotId);
 
-			if (slot.getState() == TaskManagerSlot.State.PENDING) {
+			if (slot.getState() == SlotState.PENDING) {
 				// reject the pending slot request --> triggering a new allocation attempt
 				rejectPendingSlotRequest(
 					slot.getAssignedSlotRequest(),
@@ -1140,7 +1140,7 @@ public class SlotManagerImpl implements SlotManager {
 		TaskManagerSlot taskManagerSlot = slots.get(slotId);
 
 		if (null != taskManagerSlot) {
-			if (taskManagerSlot.getState() == TaskManagerSlot.State.PENDING && Objects.equals(allocationId, taskManagerSlot.getAssignedSlotRequest().getAllocationId())) {
+			if (taskManagerSlot.getState() == SlotState.PENDING && Objects.equals(allocationId, taskManagerSlot.getAssignedSlotRequest().getAllocationId())) {
 
 				TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(taskManagerSlot.getInstanceId());
 
