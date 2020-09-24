@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -59,7 +60,8 @@ public class BatchExecutorTest extends TestLogger {
 				}
 			}),
 			BasicTypeInfo.STRING_TYPE_INFO,
-			1);
+			1,
+			Boundedness.BOUNDED);
 		Pipeline pipeline = batchExecutor.createPipeline(
 			Collections.singletonList(testTransform), new TableConfig(), "Test Job");
 		streamGraph = (StreamGraph) pipeline;

@@ -18,9 +18,11 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
@@ -36,7 +38,16 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 @Public
 public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 
-	boolean isParallel;
+	private final boolean isParallel;
+
+	public DataStreamSource(
+			StreamExecutionEnvironment environment,
+			TypeInformation<T> outTypeInfo,
+			StreamSource<T, ?> operator,
+			boolean isParallel,
+			String sourceName) {
+		this(environment, outTypeInfo, operator, isParallel, sourceName, Boundedness.CONTINUOUS_UNBOUNDED);
+	}
 
 	/**
 	 * The constructor used to create legacy sources.
@@ -46,8 +57,9 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 			TypeInformation<T> outTypeInfo,
 			StreamSource<T, ?> operator,
 			boolean isParallel,
-			String sourceName) {
-		super(environment, new LegacySourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism()));
+			String sourceName,
+			Boundedness boundedness) {
+		super(environment, new LegacySourceTransformation<>(sourceName, operator, outTypeInfo, environment.getParallelism(), boundedness));
 
 		this.isParallel = isParallel;
 		if (!isParallel) {
@@ -79,6 +91,11 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 						outTypeInfo,
 						environment.getParallelism()));
 		this.isParallel = true;
+	}
+
+	@VisibleForTesting
+	boolean isParallel() {
+		return isParallel;
 	}
 
 	@Override

@@ -46,7 +46,7 @@ public class DataStreamSourceTest {
 			"TestingSource");
 		stream.setParallelism(expectParallelism);
 
-		assertEquals(expectIsParallel, stream.isParallel);
+		assertEquals(expectIsParallel, stream.isParallel());
 
 		assertEquals(expectParallelism, stream.getParallelism());
 	}
