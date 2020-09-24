@@ -92,6 +92,8 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 				throw new IllegalStateException("Subpartition already requested");
 			}
 		}
+
+		notifyDataAvailable();
 	}
 
 	@Override

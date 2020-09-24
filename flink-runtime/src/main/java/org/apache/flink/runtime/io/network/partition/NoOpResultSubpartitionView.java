@@ -40,7 +40,7 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 
 	@Override
 	public boolean isReleased() {
-		return true;
+		return false;
 	}
 
 	@Override

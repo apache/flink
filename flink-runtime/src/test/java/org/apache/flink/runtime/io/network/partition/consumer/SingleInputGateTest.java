@@ -64,7 +64,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -240,19 +239,16 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// check channel error during above partition request
 			gate.pollNext();
 
-			Collection<InputChannel> channels = gate.getInputChannels().values();
-			for (InputChannel channel: channels) {
-				if (channel.getChannelIndex() == 0) {
-					assertThat(channel, instanceOf(RemoteInputChannel.class));
-					assertNotNull(((RemoteInputChannel) channel).getPartitionRequestClient());
-					assertEquals(2, ((RemoteInputChannel) channel).getInitialCredit());
-				} else if (channel.getChannelIndex() == 1) {
-					assertThat(channel, instanceOf(LocalInputChannel.class));
-					assertNotNull(((LocalInputChannel) channel).getSubpartitionView());
-				} else if (channel.getChannelIndex() == 2) {
-					assertThat(channel, instanceOf(UnknownInputChannel.class));
-				}
-			}
+			final InputChannel remoteChannel = gate.getChannel(0);
+			assertThat(remoteChannel, instanceOf(RemoteInputChannel.class));
+			assertNotNull(((RemoteInputChannel) remoteChannel).getPartitionRequestClient());
+			assertEquals(2, ((RemoteInputChannel) remoteChannel).getInitialCredit());
+
+			final InputChannel localChannel = gate.getChannel(1);
+			assertThat(localChannel, instanceOf(LocalInputChannel.class));
+			assertNotNull(((LocalInputChannel) localChannel).getSubpartitionView());
+
+			assertThat(gate.getChannel(2), instanceOf(UnknownInputChannel.class));
 		} finally {
 			gate.close();
 			environment.close();

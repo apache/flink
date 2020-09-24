@@ -73,8 +73,6 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 			subpartitionView = partition.createSubpartitionView(subpartitionIndex, availabilityListener);
 		}
 
-		availabilityListener.notifyDataAvailable();
-
 		return subpartitionView;
 	}
 
