@@ -38,7 +38,9 @@ public interface TaskManagerSlotInformation {
 	 * @param required resources
 	 * @return true if the this slot can fulfill the resource requirements
 	 */
-	boolean isMatchingRequirement(ResourceProfile required);
+	default boolean isMatchingRequirement(ResourceProfile required) {
+		return getResourceProfile().isMatching(required);
+	}
 
 	/**
 	 * Get resource profile of this slot.
