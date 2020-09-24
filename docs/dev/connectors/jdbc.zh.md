@@ -26,9 +26,9 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-This connector provides a sink that writes data to a JDBC database.
+该连接器可以向 JDBC 数据库写入数据。
 
-To use it, add the following dependency to your project (along with your JDBC-driver):
+添加下面的依赖以便使用该连接器（同时添加 JDBC 驱动）：
 
 {% highlight xml %}
 <dependency>
@@ -38,12 +38,12 @@ To use it, add the following dependency to your project (along with your JDBC-dr
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
+注意该连接器目前还 __不是__ 二进制发行版的一部分，如何在集群中运行请参考 [这里]({% link dev/project-configuration.zh.md %})。
 
-Created JDBC sink provides at-least-once guarantee.
-Effectively exactly-once can be achieved using upsert statements or idempotent updates.
+已创建的 JDBC Sink 能够保证至少一次的语义。
+更有效的精确执行一次可以通过 upsert 语句或幂等更新实现。
 
-Example usage:
+用法示例：
 {% highlight java %}
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env
@@ -64,4 +64,4 @@ env
 env.execute();
 {% endhighlight %}
 
-Please refer to the [API documentation]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcSink.html) for more details.
+更多细节请查看 [API documentation]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/jdbc/JdbcSink.html) 。
