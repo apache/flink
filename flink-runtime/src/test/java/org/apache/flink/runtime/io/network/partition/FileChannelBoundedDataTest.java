@@ -132,10 +132,6 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
 
 		final VerifyNotificationBufferAvailabilityListener listener = new VerifyNotificationBufferAvailabilityListener();
 		final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
-		// the notification is triggered while creating view
-		assertTrue(listener.isAvailable);
-
-		listener.resetAvailable();
 		assertFalse(listener.isAvailable);
 
 		final BufferAndBacklog buffer1 = subpartitionView.getNextBuffer();

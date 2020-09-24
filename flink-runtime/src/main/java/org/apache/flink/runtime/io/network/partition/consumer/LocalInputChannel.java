@@ -37,6 +37,8 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
@@ -64,7 +66,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	private final TaskEventPublisher taskEventPublisher;
 
 	/** The consumed subpartition. */
-	private volatile ResultSubpartitionView subpartitionView;
+	@Nullable private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
 
@@ -120,6 +122,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 	protected void requestSubpartition(int subpartitionIndex) throws IOException {
 
 		boolean retriggerRequest = false;
+		boolean notifyDataAvailable = false;
 
 		// The lock is required to request only once in the presence of retriggered requests.
 		synchronized (requestLock) {
@@ -144,6 +147,8 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 					if (isReleased) {
 						subpartitionView.releaseAllResources();
 						this.subpartitionView = null;
+					} else {
+						notifyDataAvailable = true;
 					}
 				} catch (PartitionNotFoundException notFound) {
 					if (increaseBackoff()) {
@@ -153,6 +158,10 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 					}
 				}
 			}
+		}
+
+		if (notifyDataAvailable) {
+			notifyDataAvailable();
 		}
 
 		// Do this outside of the lock scope as this might lead to a

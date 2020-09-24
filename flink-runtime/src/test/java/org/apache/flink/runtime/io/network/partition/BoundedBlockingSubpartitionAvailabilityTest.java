@@ -47,7 +47,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 	private static final int BUFFER_SIZE = 32 * 1024;
 
 	@Test
-	public void testInitiallyAvailable() throws Exception {
+	public void testInitiallyNotAvailable() throws Exception {
 		final ResultSubpartition subpartition = createPartitionWithData(10);
 		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
 
@@ -55,7 +55,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
 
 		// assert
-		assertEquals(1, listener.numNotifications);
+		assertEquals(0, listener.numNotifications);
 
 		// cleanup
 		subpartitionView.releaseAllResources();
@@ -95,7 +95,7 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 
 		// assert
 		assertTrue(reader.isAvailable(Integer.MAX_VALUE));
-		assertEquals(2, listener.numNotifications); // one initial, one for new availability
+		assertEquals(1, listener.numNotifications);
 
 		// cleanup
 		reader.releaseAllResources();
