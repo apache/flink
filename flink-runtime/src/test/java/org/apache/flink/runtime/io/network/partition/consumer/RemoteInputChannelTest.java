@@ -1126,7 +1126,7 @@ public class RemoteInputChannelTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(4, 4096);
 		SingleInputGate inputGate = new SingleInputGateBuilder()
 			.setChannelFactory(InputChannelBuilder::buildRemoteChannel)
-			.setBufferPoolFactory(networkBufferPool.createBufferPool(0, 4))
+			.setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
 			.setSegmentProvider(networkBufferPool)
 			.build();
 		final RemoteInputChannel channel = (RemoteInputChannel) inputGate.getChannel(0);

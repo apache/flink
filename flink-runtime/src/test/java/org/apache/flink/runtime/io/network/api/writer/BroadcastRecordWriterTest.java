@@ -125,28 +125,28 @@ public class BroadcastRecordWriterTest extends RecordWriterTest {
 		// force materialization of both buffers for easier availability tests
 		List<Buffer> buffers = Arrays.asList(bufferPool.requestBuffer(), bufferPool.requestBuffer());
 		buffers.forEach(Buffer::recycleBuffer);
-		assertEquals(2, bufferPool.getNumberOfAvailableMemorySegments());
+		assertEquals(3, bufferPool.getNumberOfAvailableMemorySegments());
 
 		// fill first buffer
 		writer.broadcastEmit(new IntType(1));
 		writer.broadcastEmit(new IntType(2));
-		assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
+		assertEquals(2, bufferPool.getNumberOfAvailableMemorySegments());
 
 		// simulate consumption of first buffer consumer; this should not free buffers
 		assertEquals(1, partition.getNumberOfQueuedBuffers(0));
 		ResultSubpartitionView view0 = partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
 		closeConsumer(view0, 2 * recordSize);
-		assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
+		assertEquals(2, bufferPool.getNumberOfAvailableMemorySegments());
 
 		// use second buffer
 		writer.emit(new IntType(3), 0);
-		assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
+		assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
 
 		// fully free first buffer
 		assertEquals(1, partition.getNumberOfQueuedBuffers(1));
 		ResultSubpartitionView view1 = partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
 		closeConsumer(view1, 2 * recordSize);
-		assertEquals(1, bufferPool.getNumberOfAvailableMemorySegments());
+		assertEquals(2, bufferPool.getNumberOfAvailableMemorySegments());
 	}
 
 	public void closeConsumer(ResultSubpartitionView view, int expectedSize) throws IOException {
