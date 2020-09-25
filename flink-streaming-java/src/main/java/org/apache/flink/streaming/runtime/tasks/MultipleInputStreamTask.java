@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -66,6 +67,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		super(env);
 	}
 
+	@SuppressWarnings("rawtypes")
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
@@ -73,12 +75,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 		InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
-		ArrayList[] inputLists = new ArrayList[configuration.getNumberOfNetworkInputs()];
 		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputs.length];
-
-		for (int i = 0; i < inputLists.length; i++) {
-			inputLists[i] = new ArrayList<>();
-		}
 
 		for (int i = 0; i < inputs.length; i++) {
 			watermarkGauges[i] = new WatermarkGauge();
@@ -89,9 +86,20 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
-		for (int i = 0; i < numberOfInputs; i++) {
+		// Those two number may differ for example when one of the inputs is a union. In that case
+		// the number of logical network inputs is smaller compared to the number of inputs (input gates)
+		int numberOfNetworkInputs = configuration.getNumberOfNetworkInputs();
+		int numberOfLogicalNetworkInputs = (int) Arrays.stream(inputs)
+			.filter(input -> (input instanceof StreamConfig.NetworkInputConfig))
+			.count();
+
+		ArrayList[] inputLists = new ArrayList[numberOfLogicalNetworkInputs];
+		for (int i = 0; i < inputLists.length; i++) {
+			inputLists[i] = new ArrayList<>();
+		}
+
+		for (int i = 0; i < numberOfNetworkInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
 			IndexedInputGate reader = getEnvironment().getInputGate(i);
 			inputLists[inputType - 1].add(reader);
