@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * A tracker for required/acquired resources of a job.
+ * Tracks for each job how many resource are required/acquired.
  */
 public interface ResourceTracker {
 
