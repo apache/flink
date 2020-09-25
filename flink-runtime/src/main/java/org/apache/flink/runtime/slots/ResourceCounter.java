@@ -51,7 +51,10 @@ public class ResourceCounter {
 
 	public void decrementCount(ResourceProfile profile, int decrement) {
 		Preconditions.checkArgument(decrement > 0);
-		resources.computeIfPresent(profile, (ignored, currentCount) -> currentCount == decrement ? null : guardAgainstNegativeCount(currentCount - decrement));
+		resources.compute(profile, (p, currentCount) -> {
+			Preconditions.checkState(currentCount != null, "Attempting to decrement count of profile %s, but no count was present.", p);
+			return currentCount == decrement ? null : guardAgainstNegativeCount(currentCount - decrement);
+		});
 	}
 
 	private static int guardAgainstNegativeCount(int count) {
