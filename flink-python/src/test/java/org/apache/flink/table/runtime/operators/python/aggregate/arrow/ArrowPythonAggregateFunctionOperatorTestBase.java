@@ -19,12 +19,9 @@
 package org.apache.flink.table.runtime.operators.python.aggregate.arrow;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -41,28 +38,6 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 public abstract class ArrowPythonAggregateFunctionOperatorTestBase {
 
 	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(getOutputLogicalType());
-
-	protected OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(
-		Configuration config) throws Exception {
-		RowType inputType = getInputType();
-		RowType outputType = getOutputType();
-		AbstractArrowPythonAggregateFunctionOperator operator = getTestOperator(
-			config,
-			new PythonFunctionInfo[]{
-				new PythonFunctionInfo(
-					PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-					new Integer[]{0})},
-			inputType,
-			outputType,
-			new int[]{0},
-			new int[]{2});
-
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
-		testHarness.setup(new RowDataSerializer(outputType));
-		return testHarness;
-	}
 
 	protected RowData newRow(boolean accumulateMsg, Object... fields) {
 		if (accumulateMsg) {
@@ -87,6 +62,8 @@ public abstract class ArrowPythonAggregateFunctionOperatorTestBase {
 	protected void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
 		assertor.assertOutputEquals(message, expected, actual);
 	}
+
+	public abstract OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(Configuration config) throws Exception;
 
 	public abstract LogicalType[] getOutputLogicalType();
 
