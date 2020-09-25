@@ -107,27 +107,20 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
 	private void maybeProcess() throws Exception {
 		if (autoProcess) {
-			processWhileAvailable();
+			processAll();
 		}
 	}
 
-	public void processWhileAvailable() throws Exception {
-		while (processIfAvailable()) {
+	public void processAll() throws Exception {
+		while (processSingleStep()) {
 		}
 	}
 
-	public boolean processIfAvailable() throws Exception {
-		if (streamTask.inputProcessor.isAvailable() && streamTask.mailboxProcessor.isMailboxLoopRunning()) {
-			streamTask.runMailboxStep();
-			return true;
+	public boolean processSingleStep() throws Exception {
+		if (streamTask.mailboxProcessor.isMailboxLoopRunning()) {
+			return streamTask.runMailboxStep();
 		}
 		return false;
-	}
-
-	public void processSingleStep() throws Exception {
-		if (streamTask.mailboxProcessor.isMailboxLoopRunning()) {
-			streamTask.runMailboxStep();
-		}
 	}
 
 	public void endInput() {

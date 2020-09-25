@@ -157,7 +157,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 			testHarness.endInput();
 
 			if (!autoProcess) {
-				testHarness.processWhileAvailable();
+				testHarness.processAll();
 			}
 			testHarness.waitForTaskCompletion();
 
@@ -187,7 +187,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 
 			testHarness.setAutoProcess(false);
 			// StreamMultipleInputProcessor starts with all inputs available. Let it rotate and refresh properly.
-			testHarness.processIfAvailable();
+			testHarness.processSingleStep();
 			assertTrue(testHarness.getOutput().isEmpty());
 
 			testHarness.processElement(new StreamRecord<>("NOT_SELECTED"), 0);
@@ -197,16 +197,16 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 			testHarness.processElement(new StreamRecord<>("3"), 1);
 			testHarness.processElement(new StreamRecord<>("4"), 1);
 
-			testHarness.processIfAvailable();
+			testHarness.processSingleStep();
 			expectedOutput.add(new StreamRecord<>("[2]: 1"));
-			testHarness.processIfAvailable();
+			testHarness.processSingleStep();
 			expectedOutput.add(new StreamRecord<>("[2]: 2"));
 			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
 			// InputGate 2 was not available in previous steps, so let's check if we are not starving it
 			testHarness.processElement(new StreamRecord<>("1"), 2);
-			testHarness.processIfAvailable();
-			testHarness.processIfAvailable();
+			testHarness.processSingleStep();
+			testHarness.processSingleStep();
 
 			// One of those processing single step should pick up InputGate 2, however it's not
 			// important which one. We just must avoid starvation.

@@ -102,7 +102,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
 			assertThat(testHarness.getOutput(), contains(checkpointBarrier));
 
-			testHarness.processWhileAvailable();
+			testHarness.processAll();
 
 			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
 			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
@@ -128,7 +128,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 			addRecordsAndBarriers(testHarness);
 
-			testHarness.processWhileAvailable();
+			testHarness.processAll();
 
 			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, options, false);
 			processSingleStepUntil(testHarness, checkpointFuture::isDone);
@@ -165,9 +165,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			addNetworkRecords(testHarness);
 			addBarriers(testHarness);
 
-			testHarness.processWhileAvailable();
+			testHarness.processAll();
 			addSourceRecords(testHarness, 1, 1337, 1337, 1337);
-			testHarness.processWhileAvailable();
+			testHarness.processAll();
 
 			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
 			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));

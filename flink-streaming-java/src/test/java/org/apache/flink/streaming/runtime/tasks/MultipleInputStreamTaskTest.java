@@ -377,7 +377,7 @@ public class MultipleInputStreamTaskTest {
 			testHarness.processElement(new StreamRecord<>("0"), 2);
 			testHarness.processElement(new StreamRecord<>("1"), 2);
 
-			testHarness.processWhileAvailable();
+			testHarness.processAll();
 
 			// We do not know which of the input will be picked first, but we are expecting them
 			// to alternate
