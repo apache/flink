@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Input processor for {@link MultipleInputStreamOperator}.
@@ -100,6 +101,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		this.mainOperatorRecordsIn = mainOperatorRecordsIn;
 		ioMetricGroup.reuseRecordsInputCounter(networkRecordsIn);
 
+		checkState(
+			configuredInputs.length == inputsCount,
+			"Number of configured inputs in StreamConfig [%s] doesn't match the main operator's number of inputs [%s]",
+			configuredInputs.length,
+			inputsCount);
 		for (int i = 0; i < inputsCount; i++) {
 			InputConfig configuredInput = configuredInputs[i];
 			streamStatuses[i] = StreamStatus.ACTIVE;
