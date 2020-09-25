@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.calcite.CalciteParser;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
@@ -152,7 +153,7 @@ public class SqlToOperationConverterTest {
 		assertEquals("db1", ((UseDatabaseOperation) operation2).getDatabaseName());
 	}
 
-	@Test(expected = SqlConversionException.class)
+	@Test(expected = ValidationException.class)
 	public void testUseDatabaseWithException() {
 		final String sql = "USE cat1.db1.tbl1";
 		Operation operation = parse(sql, SqlDialect.DEFAULT);
@@ -294,7 +295,7 @@ public class SqlToOperationConverterTest {
 		assertEquals(expected, sortedProperties.toString());
 	}
 
-	@Test(expected = SqlConversionException.class)
+	@Test(expected = TableException.class)
 	public void testCreateTableWithPkUniqueKeys() {
 		final String sql = "CREATE TABLE tbl1 (\n" +
 			"  a bigint,\n" +

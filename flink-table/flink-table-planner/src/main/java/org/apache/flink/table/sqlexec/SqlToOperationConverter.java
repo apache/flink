@@ -220,16 +220,16 @@ public class SqlToOperationConverter {
 	private Operation convertCreateTable(SqlCreateTable sqlCreateTable) {
 		// primary key and unique keys are not supported
 		if (sqlCreateTable.getFullConstraints().size() > 0) {
-			throw new SqlConversionException("Primary key and unique key are not supported yet.");
+			throw new TableException("Primary key and unique key are not supported yet.");
 		}
 
 		if (sqlCreateTable.getWatermark().isPresent()) {
-			throw new SqlConversionException(
+			throw new TableException(
 				"Watermark statement is not supported in Old Planner, please use Blink Planner instead.");
 		}
 
 		if (sqlCreateTable.getTableLike().isPresent()) {
-			throw new SqlConversionException(
+			throw new TableException(
 				"CREATE TABLE ... LIKE statement is not supported in Old Planner, please use Blink Planner instead.");
 		}
 
@@ -425,7 +425,7 @@ public class SqlToOperationConverter {
 	private Operation convertUseDatabase(SqlUseDatabase useDatabase) {
 		String[] fullDatabaseName = useDatabase.fullDatabaseName();
 		if (fullDatabaseName.length > 2) {
-			throw new SqlConversionException("use database identifier format error");
+			throw new ValidationException("use database identifier format error");
 		}
 		String catalogName = fullDatabaseName.length == 2 ? fullDatabaseName[0] : catalogManager.getCurrentCatalog();
 		String databaseName = fullDatabaseName.length == 2 ? fullDatabaseName[1] : fullDatabaseName[0];
@@ -436,7 +436,7 @@ public class SqlToOperationConverter {
 	private Operation convertCreateDatabase(SqlCreateDatabase sqlCreateDatabase) {
 		String[] fullDatabaseName = sqlCreateDatabase.fullDatabaseName();
 		if (fullDatabaseName.length > 2) {
-			throw new SqlConversionException("create database identifier format error");
+			throw new ValidationException("create database identifier format error");
 		}
 		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
 		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
@@ -455,7 +455,7 @@ public class SqlToOperationConverter {
 	private Operation convertDropDatabase(SqlDropDatabase sqlDropDatabase) {
 		String[] fullDatabaseName = sqlDropDatabase.fullDatabaseName();
 		if (fullDatabaseName.length > 2) {
-			throw new SqlConversionException("drop database identifier format error");
+			throw new ValidationException("drop database identifier format error");
 		}
 		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
 		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
@@ -470,7 +470,7 @@ public class SqlToOperationConverter {
 	private Operation convertAlterDatabase(SqlAlterDatabase sqlAlterDatabase) {
 		String[] fullDatabaseName = sqlAlterDatabase.fullDatabaseName();
 		if (fullDatabaseName.length > 2) {
-			throw new SqlConversionException("alter database identifier format error");
+			throw new ValidationException("alter database identifier format error");
 		}
 		String catalogName = (fullDatabaseName.length == 1) ? catalogManager.getCurrentCatalog() : fullDatabaseName[0];
 		String databaseName = (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
@@ -482,10 +482,10 @@ public class SqlToOperationConverter {
 				originCatalogDatabase = catalog.get().getDatabase(databaseName);
 				properties.putAll(originCatalogDatabase.getProperties());
 			} catch (DatabaseNotExistException e) {
-				throw new SqlConversionException(String.format("Database %s not exists", databaseName), e);
+				throw new ValidationException(String.format("Database %s not exists", databaseName), e);
 			}
 		} else {
-			throw new SqlConversionException(String.format("Catalog %s not exists", catalogName));
+			throw new ValidationException(String.format("Catalog %s not exists", catalogName));
 		}
 		// set with properties
 		sqlAlterDatabase.getPropertyList().getList().forEach(p ->
@@ -543,7 +543,7 @@ public class SqlToOperationConverter {
 					.toArray(String[]::new);
 
 			if (inputFieldNames.length != aliasFieldNames.length) {
-				throw new SqlConversionException(String.format(
+				throw new ValidationException(String.format(
 						"VIEW definition and input fields not match:\n\tDef fields: %s.\n\tInput fields: %s.",
 						Arrays.toString(aliasFieldNames), Arrays.toString(inputFieldNames)));
 			}
