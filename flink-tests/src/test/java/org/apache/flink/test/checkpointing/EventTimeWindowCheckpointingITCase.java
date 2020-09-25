@@ -700,25 +700,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	}
 
 	private int numElementsPerKey() {
-		switch (this.stateBackendEnum) {
-			case ROCKSDB_FULLY_ASYNC:
-			case ROCKSDB_INCREMENTAL:
-			case ROCKSDB_INCREMENTAL_ZK:
-				return 3000;
-			default:
-				return 300;
-		}
+		return 3000;
 	}
 
 	private int windowSize() {
-		switch (this.stateBackendEnum) {
-			case ROCKSDB_FULLY_ASYNC:
-			case ROCKSDB_INCREMENTAL:
-			case ROCKSDB_INCREMENTAL_ZK:
-				return 1000;
-			default:
-				return 100;
-		}
+		return 1000;
 	}
 
 	private int windowSlide() {
@@ -726,13 +712,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	}
 
 	private int numKeys() {
-		switch (this.stateBackendEnum) {
-			case ROCKSDB_FULLY_ASYNC:
-			case ROCKSDB_INCREMENTAL:
-			case ROCKSDB_INCREMENTAL_ZK:
-				return 100;
-			default:
-				return 20;
-		}
+		return 100;
 	}
 }
