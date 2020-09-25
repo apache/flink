@@ -43,7 +43,7 @@ public class WebSubmissionJobClient implements JobClient {
 
 	private final JobID jobId;
 
-	public WebSubmissionJobClient(final JobID jobId, final ClassLoader userCodeClassloader) {
+	public WebSubmissionJobClient(final JobID jobId) {
 		this.jobId = checkNotNull(jobId);
 	}
 
