@@ -291,7 +291,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 				if (isPartialBuffer) {
 					BufferConsumer.PartialRecordCleanupResult result = bufferConsumer.skipPartialRecord();
 					buffer = result.getBuffer();
-					isPartialBuffer = result.getCleaned();
+					isPartialBuffer = !result.getCleaned();
 				} else {
 					buffer = bufferConsumer.build();
 				}
@@ -371,6 +371,13 @@ public class PipelinedSubpartition extends ResultSubpartition
 		}
 
 		return readView;
+	}
+
+	public void releaseView() {
+		readView = null;
+		isPartialBuffer = true;
+		isBlockedByCheckpoint = false;
+		sequenceNumber = 0;
 	}
 
 	public boolean isAvailable(int numCreditsAvailable) {
