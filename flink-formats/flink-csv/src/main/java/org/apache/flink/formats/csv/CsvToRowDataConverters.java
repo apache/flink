@@ -76,7 +76,11 @@ public class CsvToRowDataConverters implements Serializable {
 		return jsonNode -> {
 			int nodeSize = jsonNode.size();
 
-			validateArity(arity, nodeSize, ignoreParseErrors);
+			if (nodeSize != 0) {
+				validateArity(arity, nodeSize, ignoreParseErrors);
+			} else {
+				return null;
+			}
 
 			GenericRowData row = new GenericRowData(arity);
 			for (int i = 0; i < arity; i++) {
