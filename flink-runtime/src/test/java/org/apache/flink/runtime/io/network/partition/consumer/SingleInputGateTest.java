@@ -629,7 +629,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// only the exclusive buffers should be assigned/available now
 			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
-			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel - 1,
 				bufferPool.getNumberOfAvailableMemorySegments());
 			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
 			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
@@ -658,7 +658,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			inputGate.setup();
 			NetworkBufferPool bufferPool = network.getNetworkBufferPool();
 
-			assertEquals(bufferPool.getTotalNumberOfMemorySegments(),
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - 1,
 				bufferPool.getNumberOfAvailableMemorySegments());
 			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
 			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
@@ -673,7 +673,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 			// only the exclusive buffers should be assigned/available now
 			assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
-			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel,
+			assertEquals(bufferPool.getTotalNumberOfMemorySegments() - buffersPerChannel - 1,
 				bufferPool.getNumberOfAvailableMemorySegments());
 			// note: exclusive buffers are not handed out into LocalBufferPool and are thus not counted
 			assertEquals(extraNetworkBuffersPerGate, bufferPool.countBuffers());
