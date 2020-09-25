@@ -738,7 +738,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
             generateDot(ctx, operands)
 
-          case _ => throw new CodeGenException("Expect an array or a map.")
+          case _ => throw new CodeGenException("Expect an array, a map or a row.")
         }
 
       case CARDINALITY =>
