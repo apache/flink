@@ -801,15 +801,15 @@ function extract_job_id_from_job_submission_return() {
     echo "$JOB_ID"
 }
 
-#
-# NOTE: This function requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
-#
 kill_test_watchdog() {
     local watchdog_pid=$(cat $TEST_DATA_DIR/job_watchdog.pid)
     echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
     kill $watchdog_pid
 }
 
+#
+# NOTE: This function requires at least Bash version >= 4 due to the usage of $BASHPID. Mac OS in 2020 still ships 3.x
+#
 internal_run_with_timeout() {
   local timeout_in_seconds="$1"
   local on_failure="$2"
