@@ -372,7 +372,7 @@ public class HBaseSerde {
 			if (hasFamily(fieldType, LogicalTypeFamily.CHARACTER_STRING)) {
 				return value -> {
 					if (value == null || Arrays.equals(value, nullStringBytes)) {
-						return null;
+						return decoder.decode(nullStringBytes);
 					} else {
 						return decoder.decode(value);
 					}
