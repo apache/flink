@@ -104,7 +104,8 @@ class JobScopedResourceTracker {
 			for (ResourceProfile requirementProfile : fulfilledRequirements) {
 				assignedRequirement = requirementProfile;
 
-				// try finding a requirement that has too many resources, otherwise use any
+				// try finding a requirement that has too many resources; if non are exceeding the requirements we deduct
+				// the resource from any requirement having such a resource
 				if (resourceRequirements.getResourceCount(requirementProfile) < resourceToRequirementMapping.getNumFulfillingResources(requirementProfile)) {
 					break;
 				}
