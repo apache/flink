@@ -471,7 +471,8 @@ class Types(object):
         elif element_type == Types.STRING():
             return BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO()
         else:
-            raise TypeError("Invalid element type for a boxed primitive array.")
+            raise TypeError("Invalid element type for a boxed primitive array: %s" %
+                            str(element_type))
 
 
 def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
