@@ -62,7 +62,19 @@ The checkpoint history keeps statistics about recently triggered checkpoints, in
 - **Latest Acknowledgement**: The time when the latest acknowledgement for any subtask was received at the JobManager (or n/a if no acknowledgement received yet).
 - **End to End Duration**: The duration from the trigger timestamp until the latest acknowledgement (or n/a if no acknowledgement received yet). This end to end duration for a complete checkpoint is determined by the last subtask that acknowledges the checkpoint. This time is usually larger than single subtasks need to actually checkpoint the state.
 - **Checkpointed Data Size**: The checkpointed data size over all acknowledged subtasks. If incremental checkpointing is enabled this value is the checkpointed data size delta.
-- **Buffered During Alignment**: The number of bytes buffered during alignment over all acknowledged subtasks. This is only > 0 if a stream alignment takes place during checkpointing. If the checkpointing mode is `AT_LEAST_ONCE` this will always be zero as at least once mode does not require stream alignment.
+- **Processed in-flight data**: The approximate number of bytes processed during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks.
+- **Persisted in-flight data**: The number of bytes persisted during the alignment (time between receiving the first and the last checkpoint barrier) over all acknowledged subtasks. This is > 0 only if the unaligned checkpoints are enabled.
+
+For subtasks there are a couple of more detailed stats available.
+
+<center>
+  <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History">
+</center>
+
+- **Sync Duration**: The duration of the synchronous part of the checkpoint. This includes snapshotting state of the operators and blocks all other activity on the subtask (processing records, firing timers, etc).
+- **Async Duration**: The duration of the asynchronous part of the checkpoint. This includes time it took to write the checkpoint on to the selected filesystem. For unaligned checkpoints this also includes also the time the subtask had to wait for last of the checkpoint barriers to arrive (alignment duration) and the time it took to persist the in-flight data.
+- **Alignment Duration**: The time between processing the first and the last checkpoint barrier. For aligned checkpoints, during the alignment, the channels that have already received checkpoint barrier are blocked from processing more data.
+- **Start Delay**: The time it took for the first checkpoint barrier to reach this subtasks since the checkpoint barrier has been created.
 
 #### History Size Configuration
 
