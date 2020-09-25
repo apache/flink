@@ -41,8 +41,8 @@ public class BiDirectionalResourceToRequirementMappingTest extends TestLogger {
 
 		mapping.incrementCount(requirement, resource, 1);
 
-		assertThat(mapping.getFulfilledRequirementsBy(resource).getResourceCount(requirement), is(1));
-		assertThat(mapping.getFulfillingResourcesFor(requirement).getResourceCount(resource), is(1));
+		assertThat(mapping.getRequirementsFulfilledBy(resource).get(requirement), is(1));
+		assertThat(mapping.getResourcesFulfilling(requirement).get(resource), is(1));
 
 		assertThat(mapping.getAllRequirementProfiles(), contains(requirement));
 		assertThat(mapping.getAllResourceProfiles(), contains(resource));
@@ -58,8 +58,8 @@ public class BiDirectionalResourceToRequirementMappingTest extends TestLogger {
 		mapping.incrementCount(requirement, resource, 1);
 		mapping.decrementCount(requirement, resource, 1);
 
-		assertThat(mapping.getFulfilledRequirementsBy(resource).getResourceCount(requirement), is(0));
-		assertThat(mapping.getFulfillingResourcesFor(requirement).getResourceCount(resource), is(0));
+		assertThat(mapping.getRequirementsFulfilledBy(resource).getOrDefault(requirement, 0), is(0));
+		assertThat(mapping.getResourcesFulfilling(requirement).getOrDefault(resource, 0), is(0));
 
 		assertThat(mapping.getAllRequirementProfiles(), empty());
 		assertThat(mapping.getAllResourceProfiles(), empty());

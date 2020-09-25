@@ -20,7 +20,6 @@ package org.apache.flink.runtime.slots;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,8 +61,8 @@ public class ResourceCounter {
 		return count;
 	}
 
-	public Collection<Map.Entry<ResourceProfile, Integer>> getResourceProfilesWithCount() {
-		return Collections.unmodifiableMap(resources).entrySet();
+	public Map<ResourceProfile, Integer> getResourceProfilesWithCount() {
+		return Collections.unmodifiableMap(resources);
 	}
 
 	public Set<ResourceProfile> getResourceProfiles() {

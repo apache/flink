@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -64,14 +65,14 @@ class BiDirectionalResourceToRequirementMapping {
 			});
 	}
 
-	public ResourceCounter getFulfillingResourcesFor(ResourceProfile requirement) {
+	public Map<ResourceProfile, Integer> getResourcesFulfilling(ResourceProfile requirement) {
 		Preconditions.checkNotNull(requirement);
-		return requirementToFulfillingResources.getOrDefault(requirement, ResourceCounter.EMPTY);
+		return requirementToFulfillingResources.getOrDefault(requirement, ResourceCounter.EMPTY).getResourceProfilesWithCount();
 	}
 
-	public ResourceCounter getFulfilledRequirementsBy(ResourceProfile resource) {
+	public Map<ResourceProfile, Integer> getRequirementsFulfilledBy(ResourceProfile resource) {
 		Preconditions.checkNotNull(resource);
-		return resourceToFulfilledRequirement.getOrDefault(resource, ResourceCounter.EMPTY);
+		return resourceToFulfilledRequirement.getOrDefault(resource, ResourceCounter.EMPTY).getResourceProfilesWithCount();
 	}
 
 	public Set<ResourceProfile> getAllResourceProfiles() {
