@@ -57,9 +57,10 @@ class BiDirectionalResourceToRequirementMapping {
 	}
 
 	private static void internalDecrementCount(Map<ResourceProfile, ResourceCounter> primaryMap, ResourceProfile primaryKey, ResourceProfile secondaryKey, int decrement) {
-		primaryMap.computeIfPresent(
+		primaryMap.compute(
 			primaryKey,
 			(resourceProfile, resourceCounter) -> {
+				Preconditions.checkState(resourceCounter != null, "Attempting to decrement count of %s->%s, but primary key was unknown.", resourceProfile, secondaryKey);
 				resourceCounter.decrementCount(secondaryKey, decrement);
 				return resourceCounter.isEmpty() ? null : resourceCounter;
 			});
