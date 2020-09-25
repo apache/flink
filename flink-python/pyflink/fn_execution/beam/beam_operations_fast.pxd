@@ -48,7 +48,7 @@ cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
 
 cdef class PandasBatchOverWindowAggregateFunctionOperation(BeamStatelessFunctionOperation):
     cdef list windows
-    cdef list window_to_bounded_range_window_index
-    cdef list window_is_bounded_range_type
+    cdef list bounded_range_window_index
+    cdef list is_bounded_range_window
     cdef list window_indexes
     cdef list mapper

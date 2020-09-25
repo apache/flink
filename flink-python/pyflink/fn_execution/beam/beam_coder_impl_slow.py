@@ -587,19 +587,19 @@ class OverWindowArrowCoderImpl(StreamCoderImpl):
 
     def decode_from_stream(self, in_stream, nested):
         while in_stream.size():
-            all_size = in_stream.read_var_int64()
+            remaining_size = in_stream.read_var_int64()
             window_num = self._int_coder.decode_from_stream(in_stream, nested)
-            all_size -= 4
+            remaining_size -= 4
             window_boundaries_and_arrow_data = []
             for _ in range(window_num):
                 window_size = self._int_coder.decode_from_stream(in_stream, nested)
-                all_size -= 4
+                remaining_size -= 4
                 window_boundaries_and_arrow_data.append(
                     [self._int_coder.decode_from_stream(in_stream, nested)
                      for _ in range(window_size)])
-                all_size -= 4 * window_size
+                remaining_size -= 4 * window_size
             window_boundaries_and_arrow_data.append(
-                self._arrow_coder._decode_one_batch_from_stream(in_stream, all_size))
+                self._arrow_coder._decode_one_batch_from_stream(in_stream, remaining_size))
             yield window_boundaries_and_arrow_data
 
     def __repr__(self):

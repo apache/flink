@@ -177,11 +177,10 @@ class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation
         super(PandasBatchOverWindowAggregateFunctionOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers)
         self.windows = [window for window in self.spec.serialized_fn.windows]
-        # Set a serial number for each over window to indicate which bounded range over window
-        # it is.
-        self.window_to_bounded_range_window_index = [-1 for _ in range(len(self.windows))]
+        # the index among all the bounded range over window
+        self.bounded_range_window_index = [-1 for _ in range(len(self.windows))]
         # Whether the specified position window is a bounded range window.
-        self.window_is_bounded_range_type = []
+        self.is_bounded_range_window = []
         window_types = flink_fn_execution_pb2.OverWindow
 
         bounded_range_window_nums = 0
@@ -190,11 +189,11 @@ class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation
             if (window_type is window_types.RANGE_UNBOUNDED_PRECEDING) or (
                     window_type is window_types.RANGE_UNBOUNDED_FOLLOWING) or (
                     window_type is window_types.RANGE_SLIDING):
-                self.window_to_bounded_range_window_index[i] = bounded_range_window_nums
-                self.window_is_bounded_range_type.append(True)
+                self.bounded_range_window_index[i] = bounded_range_window_nums
+                self.is_bounded_range_window.append(True)
                 bounded_range_window_nums += 1
             else:
-                self.window_is_bounded_range_type.append(False)
+                self.is_bounded_range_window.append(False)
 
     def generate_func(self, udfs):
         user_defined_funcs = []
@@ -206,15 +205,15 @@ class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation
             user_defined_funcs.extend(user_defined_func)
             self.window_indexes.append(window_index)
             self.mapper.append(eval('lambda value: %s' % pandas_agg_function, variable_dict))
-        return self.wrap_over_window_function, user_defined_funcs
+        return self.wrapped_over_window_function, user_defined_funcs
 
-    def wrap_over_window_function(self, it):
+    def wrapped_over_window_function(self, it):
         import pandas as pd
-        window_types = flink_fn_execution_pb2.OverWindow
+        OverWindow = flink_fn_execution_pb2.OverWindow
         for boundaries_series in it:
-            series = boundaries_series[-1]
+            input_series = boundaries_series[-1]
             # the row number of the arrow format data
-            rows_count = len(series[0])
+            input_cnt = len(input_series[0])
             results = []
             # loop every agg func
             for i in range(len(self.window_indexes)):
@@ -224,57 +223,57 @@ class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation
                 window_type = window.window_type
                 func = self.mapper[i]
                 result = []
-                if self.window_is_bounded_range_type[window_index]:
+                if self.is_bounded_range_window[window_index]:
                     window_boundaries = boundaries_series[
-                        self.window_to_bounded_range_window_index[window_index]]
-                    if window_type is window_types.RANGE_UNBOUNDED_PRECEDING:
+                        self.bounded_range_window_index[window_index]]
+                    if window_type is OverWindow.RANGE_UNBOUNDED_PRECEDING:
                         # range unbounded preceding window
-                        for j in range(rows_count):
+                        for j in range(input_cnt):
                             end = window_boundaries[j]
-                            series_slices = [s.iloc[:end] for s in series]
+                            series_slices = [s.iloc[:end] for s in input_series]
                             result.append(func(series_slices))
-                    elif window_type is window_types.RANGE_UNBOUNDED_FOLLOWING:
+                    elif window_type is OverWindow.RANGE_UNBOUNDED_FOLLOWING:
                         # range unbounded following window
-                        for j in range(rows_count):
+                        for j in range(input_cnt):
                             start = window_boundaries[j]
-                            series_slices = [s.iloc[start:] for s in series]
+                            series_slices = [s.iloc[start:] for s in input_series]
                             result.append(func(series_slices))
                     else:
                         # range sliding window
-                        for j in range(rows_count):
+                        for j in range(input_cnt):
                             start = window_boundaries[j * 2]
                             end = window_boundaries[j * 2 + 1]
-                            series_slices = [s.iloc[start:end] for s in series]
+                            series_slices = [s.iloc[start:end] for s in input_series]
                             result.append(func(series_slices))
                 else:
                     # unbounded range window or unbounded row window
-                    if (window_type is window_types.RANGE_UNBOUNDED) or (
-                            window_type is window_types.ROW_UNBOUNDED):
-                        series_slices = [s.iloc[:] for s in series]
+                    if (window_type is OverWindow.RANGE_UNBOUNDED) or (
+                            window_type is OverWindow.ROW_UNBOUNDED):
+                        series_slices = [s.iloc[:] for s in input_series]
                         func_result = func(series_slices)
-                        result = [func_result for _ in range(rows_count)]
-                    elif window_type is window_types.ROW_UNBOUNDED_PRECEDING:
+                        result = [func_result for _ in range(input_cnt)]
+                    elif window_type is OverWindow.ROW_UNBOUNDED_PRECEDING:
                         # row unbounded preceding window
                         window_end = window.upper_boundary
-                        for j in range(rows_count):
-                            end = min(j + window_end + 1, rows_count)
-                            series_slices = [s.iloc[: end] for s in series]
+                        for j in range(input_cnt):
+                            end = min(j + window_end + 1, input_cnt)
+                            series_slices = [s.iloc[: end] for s in input_series]
                             result.append(func(series_slices))
-                    elif window_type is window_types.ROW_UNBOUNDED_FOLLOWING:
+                    elif window_type is OverWindow.ROW_UNBOUNDED_FOLLOWING:
                         # row unbounded following window
                         window_start = window.lower_boundary
-                        for j in range(rows_count):
+                        for j in range(input_cnt):
                             start = max(j + window_start, 0)
-                            series_slices = [s.iloc[start: rows_count] for s in series]
+                            series_slices = [s.iloc[start: input_cnt] for s in input_series]
                             result.append(func(series_slices))
                     else:
                         # row sliding window
                         window_start = window.lower_boundary
                         window_end = window.upper_boundary
-                        for j in range(rows_count):
+                        for j in range(input_cnt):
                             start = max(j + window_start, 0)
-                            end = min(j + window_end + 1, rows_count)
-                            series_slices = [s.iloc[start: end] for s in series]
+                            end = min(j + window_end + 1, input_cnt)
+                            series_slices = [s.iloc[start: end] for s in input_series]
                             result.append(func(series_slices))
                 results.append(pd.Series(result))
             yield results
