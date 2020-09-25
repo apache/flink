@@ -21,12 +21,10 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.csv.CsvRowDataDeserializationSchema.DeserializationRuntimeConverter;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
@@ -227,7 +225,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		private transient long emitted;
 		// reuse object for per record
 		private transient GenericRowData rowData;
-		private transient DeserializationRuntimeConverter runtimeConverter;
+		private transient CsvToRowDataConverters.CsvToRowDataConverter runtimeConverter;
 		private transient MappingIterator<JsonNode> iterator;
 
 		public CsvInputFormat(
@@ -273,10 +271,8 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		}
 
 		private void prepareRuntimeConverter() {
-			CsvRowDataDeserializationSchema.Builder builder = new CsvRowDataDeserializationSchema.Builder(
-				formatRowType, new GenericTypeInfo<>(RowData.class))
-				.setIgnoreParseErrors(ignoreParseErrors);
-			this.runtimeConverter = builder.build().createRowConverter(formatRowType, true);
+			this.runtimeConverter = new CsvToRowDataConverters(ignoreParseErrors)
+				.createRowConverter(formatRowType, true);
 		}
 
 		@Override
