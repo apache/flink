@@ -27,7 +27,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
-import org.apache.flink.table.runtime.operators.python.aggregate.arrow.ArrowPythonAggregateFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -50,7 +49,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * </ul>
  */
 public class BatchArrowPythonGroupAggregateFunctionOperatorTest
-	extends ArrowPythonAggregateFunctionOperatorTestBase {
+	extends AbstractBatchArrowPythonAggregateFunctionOperatorTest {
 
 	@Test
 	public void testGroupAggregateFunction() throws Exception {

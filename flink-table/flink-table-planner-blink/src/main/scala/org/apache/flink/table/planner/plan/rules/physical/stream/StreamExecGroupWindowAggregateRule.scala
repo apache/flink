@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupWindowAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{isRowtimeAttribute, timeFieldIndex}
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -53,7 +54,7 @@ class StreamExecGroupWindowAggregateRule
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
-    true
+    !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def convert(rel: RelNode): RelNode = {

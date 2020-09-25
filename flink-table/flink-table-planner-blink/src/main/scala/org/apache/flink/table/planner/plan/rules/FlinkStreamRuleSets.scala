@@ -404,6 +404,7 @@ object FlinkStreamRuleSets {
     // window agg
     StreamExecGroupWindowAggregateRule.INSTANCE,
     StreamExecGroupWindowTableAggregateRule.INSTANCE,
+    StreamExecPythonGroupWindowAggregateRule.INSTANCE,
     // join
     StreamExecJoinRule.INSTANCE,
     StreamExecIntervalJoinRule.INSTANCE,
