@@ -90,7 +90,6 @@ def log_processing():
     env = StreamExecutionEnvironment.get_execution_environment()
     env_settings = EnvironmentSettings.Builder().use_blink_planner().build()
     t_env = StreamTableEnvironment.create(stream_execution_environment=env, environment_settings=env_settings)
-    t_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
     # specify connector and format jars
     t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
     

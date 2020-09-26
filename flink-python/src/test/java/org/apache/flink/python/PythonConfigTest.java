@@ -42,10 +42,6 @@ public class PythonConfigTest {
 			is(equalTo(PythonOptions.MAX_BUNDLE_SIZE.defaultValue())));
 		assertThat(pythonConfig.getMaxBundleTimeMills(),
 			is(equalTo(PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue())));
-		assertThat(pythonConfig.getPythonFrameworkMemorySize(),
-			is(equalTo(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE.defaultValue())));
-		assertThat(pythonConfig.getPythonDataBufferMemorySize(),
-			is(equalTo(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE.defaultValue())));
 		assertThat(pythonConfig.getMaxArrowBatchSize(),
 			is(equalTo(PythonOptions.MAX_ARROW_BATCH_SIZE.defaultValue())));
 		assertThat(pythonConfig.getPythonFilesInfo().isEmpty(), is(true));
@@ -71,22 +67,6 @@ public class PythonConfigTest {
 		config.set(PythonOptions.MAX_BUNDLE_TIME_MILLS, 10L);
 		PythonConfig pythonConfig = new PythonConfig(config);
 		assertThat(pythonConfig.getMaxBundleTimeMills(), is(equalTo(10L)));
-	}
-
-	@Test
-	public void testPythonFrameworkMemorySize() {
-		Configuration config = new Configuration();
-		config.set(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE, "100mb");
-		PythonConfig pythonConfig = new PythonConfig(config);
-		assertThat(pythonConfig.getPythonFrameworkMemorySize(), is(equalTo("100mb")));
-	}
-
-	@Test
-	public void testPythonDataBufferMemorySize() {
-		Configuration config = new Configuration();
-		config.set(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE, "100mb");
-		PythonConfig pythonConfig = new PythonConfig(config);
-		assertThat(pythonConfig.getPythonDataBufferMemorySize(), is(equalTo("100mb")));
 	}
 
 	@Test

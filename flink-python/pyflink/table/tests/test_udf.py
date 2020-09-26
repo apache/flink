@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import datetime
+import os
 import unittest
 
 import pytz
@@ -50,19 +51,25 @@ class UserDefinedFunctionTests(object):
         add_one_partial = udf(functools.partial(partial_func, param=1),
                               result_type=DataTypes.BIGINT())
 
+        # check memory limit is set
+        @udf(result_type=DataTypes.BIGINT())
+        def check_memory_limit():
+            assert os.environ['_PYTHON_WORKER_MEMORY_LIMIT'] is not None
+            return 1
+
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd', 'e', 'f'],
+            ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT(),
-             DataTypes.BIGINT(), DataTypes.BIGINT()])
+             DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3).select(
             add_one(t.a), subtract_one(t.b), add(t.a, t.c), add_one_callable(t.a),
-            add_one_partial(t.a), t.a) \
+            add_one_partial(t.a), check_memory_limit(), t.a) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,1,4,2,2,1", "4,0,12,4,4,3"])
+        self.assert_equals(actual, ["2,1,4,2,2,1,1", "4,0,12,4,4,1,3"])
 
     def test_chaining_scalar_function(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
