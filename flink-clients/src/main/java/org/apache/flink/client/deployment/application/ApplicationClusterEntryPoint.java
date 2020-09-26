@@ -18,8 +18,11 @@
 
 package org.apache.flink.client.deployment.application;
 
+import org.apache.flink.client.cli.CliArgsException;
+import org.apache.flink.client.cli.ProgramOptionsUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -80,10 +83,16 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
 		return new MemoryArchivedExecutionGraphStore();
 	}
 
-	protected static void configureExecution(final Configuration configuration, final PackagedProgram program) throws MalformedURLException {
+	protected static void configureExecution(final Configuration configuration, final PackagedProgram program) throws MalformedURLException, IllegalAccessException, NoSuchFieldException, CliArgsException {
 		configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.JARS, program.getJobJarAndDependencies(), URL::toString);
 		ConfigUtils.encodeCollectionToConfig(configuration, PipelineOptions.CLASSPATHS, getClasspath(configuration, program), URL::toString);
+
+		// If it is a PyFlink Application, we need to extract Python dependencies from the program arguments, and
+		// configure to execution configurations.
+		if (PackagedProgramUtils.isPython(program.getMainClassName())){
+			ProgramOptionsUtils.configurePythonExecution(configuration, program);
+		}
 	}
 
 	private static List<URL> getClasspath(final Configuration configuration, final PackagedProgram program) throws MalformedURLException {

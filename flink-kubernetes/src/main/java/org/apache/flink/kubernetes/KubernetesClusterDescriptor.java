@@ -25,6 +25,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -169,8 +170,12 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
 		applicationConfiguration.applyToConfiguration(flinkConfig);
 
-		final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(flinkConfig);
-		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+		// No need to do pipelineJars validation if it is a PyFlink job.
+		if (!(PackagedProgramUtils.isPython(applicationConfiguration.getApplicationClassName()) ||
+			PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
+			final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(flinkConfig);
+			Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+		}
 
 		final ClusterClientProvider<String> clusterClientProvider = deployClusterInternal(
 			KubernetesApplicationClusterEntrypoint.class.getName(),

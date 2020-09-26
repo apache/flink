@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
@@ -99,17 +100,19 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
 			final String[] programArguments,
 			@Nullable final String jobClassName) throws IOException {
 
-		final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(configuration);
-		Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-
 		final File userLibDir = tryFindUserLibDirectory().orElse(null);
-
 		final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
 			ClassPathPackagedProgramRetriever
 				.newBuilder(programArguments)
 				.setUserLibDirectory(userLibDir)
-				.setJarFile(pipelineJars.get(0))
 				.setJobClassName(jobClassName);
+
+		// No need to do pipelineJars validation if it is a PyFlink job.
+		if (!(PackagedProgramUtils.isPython(jobClassName) || PackagedProgramUtils.isPython(programArguments))) {
+			final List<File> pipelineJars = KubernetesUtils.checkJarFileForApplicationMode(configuration);
+			Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+			retrieverBuilder.setJarFile(pipelineJars.get(0));
+		}
 		return retrieverBuilder.build();
 	}
 }
