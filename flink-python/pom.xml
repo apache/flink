@@ -468,6 +468,25 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>dummy-job-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.client.cli.TestJob</mainClass>
+								</manifest>
+							</archive>
+							<includes>
+								<include>**/TestJob.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/dummy-job-jar
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
 						<id>test-jar</id>
 						<goals>
 							<goal>test-jar</goal>
