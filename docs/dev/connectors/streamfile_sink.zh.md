@@ -289,20 +289,18 @@ stream.addSink(StreamingFileSink.forBulkFormat(
 </div>
 </div>
 
-#### ORC Format
+#### ORC 格式
 
-To enable the data to be bulk encoded in ORC format, Flink offers [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/writers/OrcBulkWriterFactory.html)
-which takes a concrete implementation of [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html).
+为了数据能够批量编码成 ORC 格式，Flink 提供具体实现了 [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html) 
+的 [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/writers/OrcBulkWriterFactory.html) 实例。
 
-Like any other columnar format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes the input elements in batches. It uses
-ORC's `VectorizedRowBatch` to achieve this.
+与其它批量编码列式存储格式一样，`OrcBulkWriter` 使用 ORC `VectorizedRowBatch` 实现输入数据批量写入功能。
 
-Since the input element has to be transformed to a `VectorizedRowBatch`, users have to extend the abstract `Vectorizer`
-class and override the `vectorize(T element, VectorizedRowBatch batch)` method. As you can see, the method provides an
-instance of `VectorizedRowBatch` to be used directly by the users so users just have to write the logic to transform the
-input `element` to `ColumnVectors` and set them in the provided `VectorizedRowBatch` instance.
+因为输入的数据需要转换成 `VectorizedRowBatch`，用户需要继承抽象类 `Vectorizer`
+同时实现 `vectorize(T element, VectorizedRowBatch batch)` 方法。正如你所看到的，这个方法提供用户一个 `VectorizedRowBatch` 实例，
+用户需要将输入的 `element` 转化成 `ColumnVectors`，同时设置在 `VectorizedRowBatch` 实例中。
 
-For example, if the input element is of type `Person` which looks like:
+我们看下输入数据类型为 `Person` 的一个例子，类型定义如下:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -318,7 +316,7 @@ class Person {
 </div>
 </div>
 
-Then a child implementation to convert the element of type `Person` and set them in the `VectorizedRowBatch` can be like:
+然后我们实现一个能够转换 `Person` 类型的 `Vectorizer`，同时将它设置在 `VectorizedRowBatch` 实例中:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -366,7 +364,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 </div>
 </div>
 
-To use the ORC bulk encoder in an application, users need to add the following dependency:
+为了能够在应用中使用 ORC 批量编码的功能，用户必须添加以下依赖:
 
 {% highlight xml %}
 <dependency>
@@ -376,7 +374,7 @@ To use the ORC bulk encoder in an application, users need to add the following d
 </dependency>
 {% endhighlight %}
 
-And then a `StreamingFileSink` that writes data in ORC format can be created like this:
+使用 `StreamingFileSink` 将数据以 ORC 格式写入的例子如下:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -416,8 +414,7 @@ input.addSink(sink)
 </div>
 </div>
 
-OrcBulkWriterFactory can also take Hadoop `Configuration` and `Properties` so that a custom Hadoop configuration and ORC
-writer properties can be provided.
+`OrcBulkWriterFactory` 能够使用 `Configuration` 和 `Properties` 来自定义 Hadoop 属性以及 ORC 写入属性。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -449,10 +446,9 @@ val writerFactory = new OrcBulkWriterFactory(
 </div>
 </div>
 
-The complete list of ORC writer properties can be found [here](https://orc.apache.org/docs/hive-config.html).
+完整的 ORC 写入属性列表能够在这里查找到 [here](https://orc.apache.org/docs/hive-config.html)。
 
-Users who want to add user metadata to the ORC files can do so by calling `addUserMetadata(...)` inside the overriding
-`vectorize(...)` method.
+想要向 ORC 文件添加元数据的用户可以在 `vectorize(...)` 方法中调用 `addUserMetadata(...)` 方法。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
