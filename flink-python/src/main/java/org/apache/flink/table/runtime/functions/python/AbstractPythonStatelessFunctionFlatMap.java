@@ -318,7 +318,9 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 			getUserDefinedFunctionsProto(),
 			getInputOutputCoderUrn(),
 			jobOptions,
-			getFlinkMetricContainer());
+			getFlinkMetricContainer(),
+			null,
+			0.0);
 	}
 
 	private Map<String, String> buildJobOptions(Configuration config) {

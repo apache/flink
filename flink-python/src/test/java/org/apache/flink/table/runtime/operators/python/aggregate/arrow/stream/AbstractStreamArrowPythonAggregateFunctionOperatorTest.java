@@ -59,7 +59,7 @@ public abstract class AbstractStreamArrowPythonAggregateFunctionOperatorTest
 			KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(getInputType()));
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keySelector.getProducedType());
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.5);
+		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
 		testHarness.setup(new RowDataSerializer(outputType));
 		return testHarness;
 	}

@@ -17,10 +17,9 @@
 ################################################################################
 import datetime
 
-import cloudpickle
 from typing import Any, Tuple, Dict, List
 
-from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.fn_execution import flink_fn_execution_pb2, pickle
 from pyflink.serializers import PickleSerializer
 from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
     AggregateFunction, PandasAggregateFunctionWrapper
@@ -66,7 +65,7 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     variable_dict = {}
     user_defined_funcs = []
 
-    user_defined_func = cloudpickle.loads(user_defined_function_proto.payload)
+    user_defined_func = pickle.loads(user_defined_function_proto.payload)
     if pandas_udaf:
         user_defined_func = PandasAggregateFunctionWrapper(user_defined_func)
     func_name = 'f%s' % _next_func_num()
@@ -111,12 +110,14 @@ def extract_data_stream_stateless_funcs(udf_proto):
     Extracts user-defined-function from the proto representation of a
     :class:`Function`.
 
-    :param udf: the proto representation of the Python :class:`Function`
+    :param udf_proto: the proto representation of the Python :class:`Function`
     """
     func_type = udf_proto.function_type
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
     func = None
-    user_defined_func = cloudpickle.loads(udf_proto.payload)
+    # import pyflink.datastream.tests.test_data_stream
+    # from pyflink.datastream.tests.test_data_stream import MyKeySelector
+    user_defined_func = pickle.loads(udf_proto.payload)
     if func_type == UserDefinedDataStreamFunction.MAP:
         func = user_defined_func.map
     elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
@@ -180,7 +181,7 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
 
 
 def extract_user_defined_aggregate_function(user_defined_function_proto):
-    user_defined_agg = cloudpickle.loads(user_defined_function_proto.payload)
+    user_defined_agg = pickle.loads(user_defined_function_proto.payload)
     assert isinstance(user_defined_agg, AggregateFunction)
     args_str = []
     local_variable_dict = {}

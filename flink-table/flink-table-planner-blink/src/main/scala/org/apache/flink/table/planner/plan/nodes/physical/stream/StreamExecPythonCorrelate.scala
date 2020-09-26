@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.StreamPlanner
@@ -28,7 +29,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexNode, RexProgram}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 
 /**
   * Flink RelNode which matches along with join a python user defined table function.
@@ -85,8 +85,7 @@ class StreamExecPythonCorrelate(
       getConfig(planner.getExecEnv, planner.getTableConfig),
       joinType)
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
-      ExecNode.setManagedMemoryWeight(
-        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
+      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret
   }
