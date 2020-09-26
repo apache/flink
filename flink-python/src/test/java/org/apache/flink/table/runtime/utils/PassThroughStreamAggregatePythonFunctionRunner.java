@@ -58,7 +58,7 @@ public class PassThroughStreamAggregatePythonFunctionRunner extends BeamTableSta
 			TypeSerializer keySerializer,
 			Function<byte[], byte[]> processFunction) {
 		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions,
-			coderUrn, jobOptions, flinkMetricContainer, keyedStateBackend, keySerializer);
+			coderUrn, jobOptions, flinkMetricContainer, keyedStateBackend, keySerializer, null, 0.0);
 		this.buffer = new LinkedList<>();
 		this.processFunction = processFunction;
 	}

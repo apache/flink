@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
@@ -68,7 +69,12 @@ public class PythonPartitionCustomOperator<IN, OUT> extends
 			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), internalParameters),
 			DATA_STREAM_MAP_FUNCTION_CODER_URN,
 			jobOptions,
-			getFlinkMetricContainer()
+			getFlinkMetricContainer(),
+			getContainingTask().getEnvironment().getMemoryManager(),
+			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
+				ManagedMemoryUseCase.PYTHON,
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
 		);
 	}
 

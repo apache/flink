@@ -29,13 +29,16 @@ from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkTestCase, invoke_java_object_method
 
 
 class DataStreamTests(PyFlinkTestCase):
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        getConfigurationMethod = invoke_java_object_method(
+            self.env._j_stream_execution_environment, "getConfiguration")
+        getConfigurationMethod.setString("akka.ask.timeout", "20 s")
         self.test_sink = DataStreamTestSinkFunction()
 
     def test_data_stream_name(self):

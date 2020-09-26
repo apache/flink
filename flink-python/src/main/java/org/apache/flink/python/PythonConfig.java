@@ -53,16 +53,6 @@ public class PythonConfig implements Serializable {
 	private final int maxArrowBatchSize;
 
 	/**
-	 * The amount of memory to be allocated by the Python framework.
-	 */
-	private final String pythonFrameworkMemorySize;
-
-	/**
-	 * The amount of memory to be allocated by the input/output buffer of a Python worker.
-	 */
-	private final String pythonDataBufferMemorySize;
-
-	/**
 	 * The python files uploaded by pyflink.table.TableEnvironment#add_python_file() or command line
 	 * option "-pyfs". The key is the file key in distribute cache and the value is the corresponding
 	 * origin file name.
@@ -117,8 +107,6 @@ public class PythonConfig implements Serializable {
 		maxBundleSize = config.get(PythonOptions.MAX_BUNDLE_SIZE);
 		maxBundleTimeMills = config.get(PythonOptions.MAX_BUNDLE_TIME_MILLS);
 		maxArrowBatchSize = config.get(PythonOptions.MAX_ARROW_BATCH_SIZE);
-		pythonFrameworkMemorySize = config.get(PythonOptions.PYTHON_FRAMEWORK_MEMORY_SIZE);
-		pythonDataBufferMemorySize = config.get(PythonOptions.PYTHON_DATA_BUFFER_MEMORY_SIZE);
 		pythonFilesInfo = config.getOptional(PythonDependencyUtils.PYTHON_FILES).orElse(new HashMap<>());
 		pythonRequirementsFileInfo = config.getOptional(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
 			.orElse(new HashMap<>())
@@ -142,14 +130,6 @@ public class PythonConfig implements Serializable {
 
 	public int getMaxArrowBatchSize() {
 		return maxArrowBatchSize;
-	}
-
-	public String getPythonFrameworkMemorySize() {
-		return pythonFrameworkMemorySize;
-	}
-
-	public String getPythonDataBufferMemorySize() {
-		return pythonDataBufferMemorySize;
 	}
 
 	public Map<String, String> getPythonFilesInfo() {
