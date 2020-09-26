@@ -76,7 +76,12 @@ Please follow our [configuration guide]({{ site.baseurl }}/ops/config.html) if y
 
 If you do not specify a particular name for your session by `kubernetes.cluster-id`, the Flink client will generate a UUID name.
 
+<span class="label label-info">Note</span> A docker image with Python and PyFlink installed is required if you are going to start a session cluster for Python Flink Jobs.
+Please refer to the following [section](#custom-flink-docker-image).
+
 ### Custom Flink Docker image
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 If you want to use a custom Docker image to deploy Flink containers, check [the Flink Docker image documentation](docker.html),
 [its tags](docker.html#image-tags), [how to customize the Flink Docker image](docker.html#customize-flink-image) and [enable plugins](docker.html#using-plugins).
@@ -91,14 +96,61 @@ $ ./bin/kubernetes-session.sh \
   -Dresourcemanager.taskmanager-timeout=3600000 \
   -Dkubernetes.container.image=<CustomImageName>
 {% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+To build a custom image which has Python and Pyflink prepared, you can refer to the following Dockerfile:
+{% highlight Dockerfile %}
+FROM flink
+
+# install python3 and pip3
+RUN apt-get update -y && \
+    apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+    
+# install Python Flink
+RUN pip3 install apache-flink
+{% endhighlight %}
+
+Build the image named as **pyflink:latest**:
+
+{% highlight bash %}
+sudo docker build -t pyflink:latest .
+{% endhighlight %}
+
+Then you are able to start a PyFlink session cluster by setting the [`kubernetes.container.image`](../config.html#kubernetes-container-image) 
+configuration option value to be the name of custom image:
+
+{% highlight bash %}
+$ ./bin/kubernetes-session.sh \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dresourcemanager.taskmanager-timeout=3600000 \
+  -Dkubernetes.container.image=pyflink:latest
+{% endhighlight %}
+</div>
+
+</div>
 
 ### Submitting jobs to an existing Session
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 Use the following command to submit a Flink Job to the Kubernetes cluster.
-
 {% highlight bash %}
 $ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> examples/streaming/WindowJoin.jar
 {% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+Use the following command to submit a PyFlink Job to the Kubernetes cluster.
+{% highlight bash %}
+$ ./bin/flink run -d -t kubernetes-session -Dkubernetes.cluster-id=<ClusterId> -pym scala_function -pyfs examples/python/table/udf
+{% endhighlight %}
+</div>
+</div>
 
 ### Accessing Job Manager UI
 
@@ -155,9 +207,9 @@ $ kubectl delete deployment/<ClusterID>
 ## Flink Kubernetes Application
 
 ### Start Flink Application
-
+<div class="codetabs" markdown="1">
 Application mode allows users to create a single image containing their Job and the Flink runtime, which will automatically create and destroy cluster components as needed. The Flink community provides base docker images [customized](docker.html#customize-flink-image) for any use case.
-
+<div data-lang="java" markdown="1">
 {% highlight dockerfile %}
 FROM flink
 RUN mkdir -p $FLINK_HOME/usrlib
@@ -174,7 +226,44 @@ $ ./bin/flink run-application -p 8 -t kubernetes-application \
   -Dkubernetes.container.image=<CustomImageName> \
   local:///opt/flink/usrlib/my-flink-job.jar
 {% endhighlight %}
+</div>
 
+<div data-lang="python" markdown="1">
+{% highlight dockerfile %}
+FROM flink
+
+# install python3 and pip3
+RUN apt-get update -y && \
+    apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# install Python Flink
+RUN pip3 install apache-flink
+COPY /path/of/python/codes /opt/python_codes
+
+# if there are third party python dependencies, users can install them when building the image
+COPY /path/to/requirements.txt /opt/requirements.txt
+RUN pip3 install -r requirements.txt
+
+# if the job requires external java dependencies, they should be built into the image as well
+RUN mkdir -p $FLINK_HOME/usrlib
+COPY /path/of/external/jar/dependencies $FLINK_HOME/usrlib/
+{% endhighlight %}
+
+Use the following command to start a PyFlink application, assuming the application image name is **my-pyflink-app:latest**.
+{% highlight bash %}
+$ ./bin/flink run-application -p 8 -t kubernetes-application \
+  -Dkubernetes.cluster-id=<ClusterId> \
+  -Dtaskmanager.memory.process.size=4096m \
+  -Dkubernetes.taskmanager.cpu=2 \
+  -Dtaskmanager.numberOfTaskSlots=4 \
+  -Dkubernetes.container.image=my-pyflink-app:latest \
+  -pym <ENTRY_MODULE_NAME> (or -py /opt/python_codes/<ENTRY_FILE_NAME>) -pyfs /opt/python_codes
+{% endhighlight %}
+You are able to specify the python main entry script path with `-py` or main entry module name with `-pym`, the path
+ of the python codes in the image with `-pyfs` and some other options.
+</div>
+</div>
 Note: Only "local" is supported as schema for application mode. This assumes that the jar is located in the image, not the Flink client.
 
 Note: All the jars in the "$FLINK_HOME/usrlib" directory in the image will be added to user classpath.
