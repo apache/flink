@@ -27,7 +27,7 @@ under the License.
 
 ## 什么是 Savepoint ？ Savepoint 与 Checkpoint 有什么不同？
 
-Savepoint 是依据 Flink [checkpointing 机制]({% link learn-flink/fault_tolerance.zh.md %})所创建的流作业执行状态的一致镜像。 你可以使用 Savepoint 进行 Flink 作业的停止与重启、fork 或者更新。 Savepoint 由两部分组成：稳定存储（列入 HDFS，S3，...) 上包含二进制文件的目录（通常很大），和元数据文件（相对较小）。 稳定存储上的文件表示作业执行状态的数据镜像。 Savepoint 的元数据文件以（绝对路径）的形式包含（主要）指向作为 Savepoint 一部分的稳定存储上的所有文件的指针。
+Savepoint 是依据 Flink [checkpointing 机制]({% link learn-flink/fault_tolerance.zh.md %})所创建的流作业执行状态的一致镜像。 你可以使用 Savepoint 进行 Flink 作业的停止与重启、fork 或者更新。 Savepoint 由两部分组成：稳定存储（列入 HDFS，S3，...) 上包含二进制文件的目录（通常很大），和元数据文件（相对较小）。 稳定存储上的文件表示作业执行状态的数据镜像。 Savepoint 的元数据文件以（相对路径）的形式包含（主要）指向作为 Savepoint 一部分的稳定存储上的所有文件的指针。
 
 <div class="alert alert-warning">
 <strong>注意:</strong> 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
@@ -81,7 +81,7 @@ mapper-id   | State of StatefulMapper
 当触发 Savepoint 时，将创建一个新的 Savepoint 目录，其中存储数据和元数据。可以通过[配置默认目标目录](#配置)或使用触发器命令指定自定义目标目录(参见[`:targetDirectory`参数](#触发-savepoint-1)来控制该目录的位置。
 
 <div class="alert alert-warning">
-<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统上的位置。
+<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统（或者对象存储系统）上的位置。
 </div>
 
 以 `FsStateBackend`  或 `RocksDBStateBackend` 为例：
@@ -100,13 +100,16 @@ mapper-id   | State of StatefulMapper
 /savepoint/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-<div class="alert alert-info">
-  <strong>注意:</strong>
-虽然看起来好像可以移动 Savepoint ，但由于 <code>_metadata</code> 中保存的是绝对路径，因此暂时不支持。
-请按照<a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a>了解取消此限制的进度。
+从 1.11.0 开始，你可以通过移动（拷贝）savepoint 目录到任意地方，然后再进行恢复。
+<div class="alert alert-warning">
+在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{% link ops/filesystems/s3.zh.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
+由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAhreadLog` sink）。
 </div>
-请注意，如果使用 `MemoryStateBackend`，则元数据*和*  Savepoint 状态将存储在 `_metadata` 文件中。 由于它是自包含的，你可以移动文件并从任何位置恢复。
 
+<div class="alert alert-warning">
+和 savepoint 不同，checkpoint 不支持任意移动文件，因为 checkpoint 可能包含一些文件的绝对路径。
+</div>
+如果你使用 `MemoryStateBackend` 的话，metadata 和 savepoint 的数据都会保存在 `_metadata` 文件中，因此不要因为没看到目录下没有数据文件而困惑。
 <div class="alert alert-warning">
   <strong>注意:</strong> 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
 </div>
@@ -224,6 +227,6 @@ $ bin/flink run -s :savepointPath -n [:runArgs]
 
 ### 我可以将 savepoint 文件移动到稳定存储上吗?
 
-这个问题的快速答案目前是“否”，因为元数据文件由于技术原因将稳定存储上的文件作为绝对路径引用。 更长的答案是：如果你因某种原因必须移动文件，那么有两个潜在的方法作为解决方法。 首先，更简单但可能更危险，你可以使用编辑器在元数据文件中查找旧路径并将其替换为新路径。 其次，你可以使用这个类 `SavepointV2Serializer`作为以新路径以编程方式读取，操作和重写元数据文件的起点。
+这个问题的快速答案目前是“是”，从 Flink 1.11.0 版本开始，savepoint 是自包含的，你可以按需迁移 savepoint 文件后进行恢复。
 
 {% top %}
