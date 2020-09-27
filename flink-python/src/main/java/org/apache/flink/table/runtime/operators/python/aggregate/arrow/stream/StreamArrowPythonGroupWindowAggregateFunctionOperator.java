@@ -119,7 +119,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 	/**
 	 * For serializing the window in checkpoints.
 	 */
-	private TypeSerializer<W> windowSerializer;
+	private transient TypeSerializer<W> windowSerializer;
 
 	/**
 	 * The queue holding the input groupSet with the Window for which the execution results
@@ -223,7 +223,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 			triggerContext.window = window;
 			boolean triggerResult = triggerContext.onElement(value, timestamp);
 			if (triggerResult) {
-				emitWindowResult(window);
+				triggerWindowProcess(window);
 			}
 			// register a clean up timer for the window
 			registerCleanupTimer(window);
@@ -254,7 +254,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		triggerContext.window = timer.getNamespace();
 		if (triggerContext.onEventTime(timer.getTimestamp())) {
 			// fire
-			emitWindowResult(triggerContext.window);
+			triggerWindowProcess(triggerContext.window);
 		}
 
 		if (windowAssigner.isEventTime()) {
@@ -269,7 +269,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		triggerContext.window = timer.getNamespace();
 		if (triggerContext.onProcessingTime(timer.getTimestamp())) {
 			// fire
-			emitWindowResult(triggerContext.window);
+			triggerWindowProcess(triggerContext.window);
 		}
 
 		if (!windowAssigner.isEventTime()) {
@@ -304,14 +304,15 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		}
 	}
 
-	private void emitWindowResult(W window) throws Exception {
+	private void triggerWindowProcess(W window) throws Exception {
 		windowAccumulateData.setCurrentNamespace(window);
 		windowRetractData.setCurrentNamespace(window);
-		Iterable<RowData> currentWindowAccumulateDatas = windowAccumulateData.get();
-		if (currentWindowAccumulateDatas != null) {
+		Iterable<RowData> currentWindowAccumulateData = windowAccumulateData.get();
+		Iterable<RowData> currentWindowRetractData = windowRetractData.get();
+		if (currentWindowAccumulateData != null) {
 			currentBatchCount = 0;
-			for (RowData accumulateData : currentWindowAccumulateDatas) {
-				if (!hasRetractData(accumulateData)) {
+			for (RowData accumulateData : currentWindowAccumulateData) {
+				if (!hasRetractData(accumulateData, currentWindowRetractData)) {
 					arrowSerializer.write(getFunctionInput(accumulateData));
 					currentBatchCount++;
 				}
@@ -328,11 +329,10 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		}
 	}
 
-	private boolean hasRetractData(RowData accumulateData) throws Exception {
+	private boolean hasRetractData(RowData accumulateData, Iterable<RowData> currentWindowRetractData) {
 		BinaryRowData binaryAccumulateRowData = (BinaryRowData) accumulateData;
-		Iterable<RowData> currentWindowRetractDatas = windowRetractData.get();
-		if (currentWindowRetractDatas != null) {
-			for (RowData retractData : currentWindowRetractDatas) {
+		if (currentWindowRetractData != null) {
+			for (RowData retractData : currentWindowRetractData) {
 				if (retractData.getRowKind() == RowKind.UPDATE_BEFORE) {
 					retractData.setRowKind(RowKind.UPDATE_AFTER);
 				} else {
@@ -346,7 +346,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 						binaryAccumulateRowData.getSizeInBytes())) {
 					return true;
 				}
-
 			}
 		}
 		return false;
@@ -481,19 +480,18 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public K currentKey() {
-			return (K) StreamArrowPythonGroupWindowAggregateFunctionOperator.this.getCurrentKey();
+			throw new RuntimeException("The method currentKey should not be called.");
 		}
 
 		@Override
 		public long currentProcessingTime() {
-			return internalTimerService.currentProcessingTime();
+			throw new RuntimeException("The method currentProcessingTime should not be called.");
 		}
 
 		@Override
 		public long currentWatermark() {
-			return internalTimerService.currentWatermark();
+			throw new RuntimeException("The method currentWatermark should not be called.");
 		}
 
 		@Override
@@ -508,10 +506,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
 		@Override
 		public void clearWindowState(W window) {
-			windowAccumulateData.setCurrentNamespace(window);
-			windowAccumulateData.clear();
-			windowRetractData.setCurrentNamespace(window);
-			windowRetractData.clear();
+			throw new RuntimeException("The method clearWindowState should not be called.");
 		}
 
 		@Override
@@ -520,9 +515,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		}
 
 		@Override
-		public void clearTrigger(W window) throws Exception {
-			triggerContext.window = window;
-			triggerContext.clear();
+		public void clearTrigger(W window) {
+			throw new RuntimeException("The method clearTrigger should not be called.");
 		}
 
 		@Override
@@ -531,17 +525,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		}
 
 		@Override
-		public void deleteCleanupTimer(W window) throws Exception {
-			long cleanupTime = cleanupTime(window);
-			if (cleanupTime == Long.MAX_VALUE) {
-				// no need to clean up because we didn't set one
-				return;
-			}
-			if (windowAssigner.isEventTime()) {
-				triggerContext.deleteEventTimeTimer(cleanupTime);
-			} else {
-				triggerContext.deleteProcessingTimeTimer(cleanupTime);
-			}
+		public void deleteCleanupTimer(W window) {
+			throw new RuntimeException("The method deleteCleanupTimer should not be called.");
 		}
 	}
 }
