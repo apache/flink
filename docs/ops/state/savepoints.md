@@ -110,13 +110,10 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 /savepoints/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
+After <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> savepoint is self-contained and relocatable now, you can move the file and restore from any location.
 <div class="alert alert-info">
-  <strong>Note:</strong>
-Although it looks as if the savepoints may be moved, it is currently not possible due to absolute paths in the <code>_metadata</code> file.
-Please follow <a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a> for progress on lifting this restriction.
+<strong>Note: </strong>savepoint relocatable does not support taskowned state(such as GenericWriteAhreadLog sink) and <a href="{% link ops/filesystems/s3.md %}#entropy-injection-for-s3-file-systems">entropy injection</a> currently.
 </div>
-
-Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. Since it is self-contained, you may move the file and restore from any location.
 
 <div class="alert alert-warning">
   <strong>Attention:</strong> It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 

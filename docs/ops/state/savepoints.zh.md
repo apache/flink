@@ -100,13 +100,10 @@ mapper-id   | State of StatefulMapper
 /savepoint/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
+从 <a href="https://issues.apache.org/jira/browse/FLINK-5763">FLINK-5763</a> 开始 savepoint 已经是自包含的，你可以按需迁移 savepoint 文件后进行恢复。
 <div class="alert alert-info">
-  <strong>注意:</strong>
-虽然看起来好像可以移动 Savepoint ，但由于 <code>_metadata</code> 中保存的是绝对路径，因此暂时不支持。
-请按照<a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a>了解取消此限制的进度。
+<strong>请注意：</strong> 现在 savepoint 可任意迁移的特性不支持 taskowned state（比如 GenericWriteAhreadLog sink) 以及 <a href="{% link ops/filesystems/s3.zh.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>。
 </div>
-请注意，如果使用 `MemoryStateBackend`，则元数据*和*  Savepoint 状态将存储在 `_metadata` 文件中。 由于它是自包含的，你可以移动文件并从任何位置恢复。
-
 <div class="alert alert-warning">
   <strong>注意:</strong> 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
 </div>
