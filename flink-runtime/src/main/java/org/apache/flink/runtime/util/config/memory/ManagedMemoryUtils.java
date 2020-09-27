@@ -71,7 +71,7 @@ public enum ManagedMemoryUtils {
 					case TaskManagerOptions.ManagedMemoryConsumerNames.DATAPROC:
 						return Stream.of(
 							Tuple2.of(ManagedMemoryUseCase.BATCH_OP, weight),
-							Tuple2.of(ManagedMemoryUseCase.ROCKSDB, weight));
+							Tuple2.of(ManagedMemoryUseCase.STATE_BACKEND, weight));
 					case TaskManagerOptions.ManagedMemoryConsumerNames.PYTHON:
 						return Stream.of(Tuple2.of(ManagedMemoryUseCase.PYTHON, weight));
 					default:

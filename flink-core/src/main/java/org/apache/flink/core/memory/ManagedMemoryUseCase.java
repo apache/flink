@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public enum ManagedMemoryUseCase {
 	BATCH_OP(Scope.OPERATOR),
-	ROCKSDB(Scope.SLOT),
+	STATE_BACKEND(Scope.SLOT),
 	PYTHON(Scope.SLOT);
 
 	public final Scope scope;
