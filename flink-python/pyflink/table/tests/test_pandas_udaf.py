@@ -268,12 +268,12 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         import os
         tmp_dir = tempfile.gettempdir()
         data = [
-            '1,2,2018-03-11 03:10:00',
-            '3,2,2018-03-11 03:10:00',
-            '2,1,2018-03-11 03:10:00',
-            '1,3,2018-03-11 03:40:00',
-            '1,8,2018-03-11 04:20:00',
-            '2,3,2018-03-11 03:30:00'
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+            '2,2,3,2018-03-11 03:30:00'
         ]
         source_path = tmp_dir + '/test_sliding_group_window_over_time.csv'
         with open(source_path, 'w') as fd:
@@ -288,6 +288,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
             create table source_table(
                 a TINYINT,
                 b SMALLINT,
+                c SMALLINT,
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
@@ -310,8 +311,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 DataTypes.FLOAT()])
         self.t_env.register_table_sink("Results", table_sink)
         t.window(Slide.over("1.hours").every("30.minutes").on("rowtime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, w.start, w.end, mean_udaf(b) as b") \
+            .group_by("a, b, w") \
+            .select("a, w.start, w.end, mean_udaf(c) as b") \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -334,13 +335,13 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         import os
         tmp_dir = tempfile.gettempdir()
         data = [
-            '1,2,2018-03-11 03:10:00',
-            '3,2,2018-03-11 03:10:00',
-            '2,1,2018-03-11 03:10:00',
-            '1,3,2018-03-11 03:40:00',
-            '1,8,2018-03-11 04:20:00',
-            '2,3,2018-03-11 03:30:00',
-            '3,3,2018-03-11 03:30:00'
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+            '2,2,3,2018-03-11 03:30:00',
+            '3,3,3,2018-03-11 03:30:00'
         ]
         source_path = tmp_dir + '/test_sliding_group_window_over_count.csv'
         with open(source_path, 'w') as fd:
@@ -356,6 +357,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
             create table source_table(
                 a TINYINT,
                 b SMALLINT,
+                c SMALLINT,
                 protime as PROCTIME()
             ) with(
                 'connector.type' = 'filesystem',
@@ -375,8 +377,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 DataTypes.FLOAT()])
         self.t_env.register_table_sink("Results", table_sink)
         t.window(Slide.over("2.rows").every("1.rows").on("protime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, mean_udaf(b) as b") \
+            .group_by("a, b, w") \
+            .select("a, mean_udaf(c) as b") \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -389,12 +391,12 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         import os
         tmp_dir = tempfile.gettempdir()
         data = [
-            '1,2,2018-03-11 03:10:00',
-            '3,2,2018-03-11 03:10:00',
-            '2,1,2018-03-11 03:10:00',
-            '1,3,2018-03-11 03:40:00',
-            '1,8,2018-03-11 04:20:00',
-            '2,3,2018-03-11 03:30:00'
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+            '2,2,3,2018-03-11 03:30:00'
         ]
         source_path = tmp_dir + '/test_tumbling_group_window_over_time.csv'
         with open(source_path, 'w') as fd:
@@ -409,6 +411,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
             create table source_table(
                 a TINYINT,
                 b SMALLINT,
+                c SMALLINT,
                 rowtime TIMESTAMP(3),
                 WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
             ) with(
@@ -431,8 +434,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 DataTypes.FLOAT()])
         self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over("1.hours").on("rowtime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, w.start, w.end, mean_udaf(b) as b") \
+            .group_by("a, b, w") \
+            .select("a, w.start, w.end, mean_udaf(c) as b") \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -450,14 +453,14 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         import os
         tmp_dir = tempfile.gettempdir()
         data = [
-            '1,2,2018-03-11 03:10:00',
-            '3,2,2018-03-11 03:10:00',
-            '2,1,2018-03-11 03:10:00',
-            '1,3,2018-03-11 03:40:00',
-            '1,8,2018-03-11 04:20:00',
-            '2,3,2018-03-11 03:30:00',
-            '3,3,2018-03-11 03:30:00',
-            '1,4,2018-03-11 04:20:00',
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+            '2,2,3,2018-03-11 03:30:00',
+            '3,3,3,2018-03-11 03:30:00',
+            '1,1,4,2018-03-11 04:20:00',
         ]
         source_path = tmp_dir + '/test_group_window_aggregate_function_over_count.csv'
         with open(source_path, 'w') as fd:
@@ -473,6 +476,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
             create table source_table(
                 a TINYINT,
                 b SMALLINT,
+                c SMALLINT,
                 protime as PROCTIME()
             ) with(
                 'connector.type' = 'filesystem',
@@ -492,8 +496,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 DataTypes.FLOAT()])
         self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over("2.rows").on("protime").alias("w")) \
-            .group_by("a, w") \
-            .select("a, mean_udaf(b) as b") \
+            .group_by("a, b, w") \
+            .select("a, mean_udaf(c) as b") \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()

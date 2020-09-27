@@ -422,6 +422,10 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 			return trigger.onEventTime(time, window);
 		}
 
+		void clear() throws Exception {
+			trigger.clear(window);
+		}
+
 		@Override
 		public long getCurrentProcessingTime() {
 			return internalTimerService.currentProcessingTime();
@@ -455,10 +459,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 		@Override
 		public void deleteEventTimeTimer(long time) {
 			internalTimerService.deleteEventTimeTimer(window, time);
-		}
-
-		public void clear() throws Exception {
-			trigger.clear(window);
 		}
 
 		@Override
