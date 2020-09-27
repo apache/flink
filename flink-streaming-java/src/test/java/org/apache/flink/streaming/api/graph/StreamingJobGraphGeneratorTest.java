@@ -900,12 +900,12 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			StreamConfig streamConfig,
 			double expectedBatchFrac,
 			double expectedPythonFrac,
-			double expectedRocksdbFrac,
+			double expectedStateBackendFrac,
 			Configuration tmConfig) {
 		final double delta = 0.000001;
 		assertEquals(
-			expectedRocksdbFrac,
-			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.ROCKSDB, tmConfig),
+			expectedStateBackendFrac,
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.STATE_BACKEND, tmConfig),
 			delta);
 		assertEquals(
 			expectedPythonFrac,
