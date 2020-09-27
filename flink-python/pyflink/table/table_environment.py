@@ -1747,7 +1747,7 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
 
-    def from_data_stream(self, data_stream: DataStream, fields: List[str] = None) -> Table:
+    def from_data_stream(self, data_stream: DataStream, *fields: Union[str, Expression]) -> Table:
         """
         Converts the given DataStream into a Table with specified field names.
 
@@ -1769,12 +1769,21 @@ class StreamTableEnvironment(TableEnvironment):
         :param fields: The fields expressions to map original fields of the DataStream to the fields
                        of the Table
         :return: The converted Table.
+
+        .. versionadded:: 1.12.0
         """
-        if fields is not None:
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream, fields)
-        else:
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream)
-        return Table(j_table=j_table, t_env=self._j_tenv)
+        j_data_stream = data_stream._j_data_stream
+        if len(fields) == 0:
+            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
+        elif all(isinstance(f, Expression) for f in fields):
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, to_expression_jarray(fields)), t_env=self)
+        elif len(fields) == 1 and isinstance(fields[0], str):
+            warnings.warn(
+                "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
+                DeprecationWarning)
+            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream, fields[0]), t_env=self)
+        raise ValueError("Invalid arguments for 'fields': %r" % fields)
 
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
@@ -1788,6 +1797,8 @@ class StreamTableEnvironment(TableEnvironment):
         :param table: The Table to convert.
         :param type_info: The TypeInformation that specifies the type of the DataStream.
         :return: The converted DataStream.
+
+        .. versionadded:: 1.12.0
         """
         j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
@@ -1806,6 +1817,8 @@ class StreamTableEnvironment(TableEnvironment):
         :param table: The Table to convert.
         :param type_info: The TypeInformation of the requested record type.
         :return: The converted DataStream.
+
+        .. versionadded:: 1.12.0
         """
         j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
