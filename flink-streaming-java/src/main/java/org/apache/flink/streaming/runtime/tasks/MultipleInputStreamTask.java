@@ -94,7 +94,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			.filter(input -> (input instanceof StreamConfig.NetworkInputConfig))
 			.count();
 
-		ArrayList[] inputLists = new ArrayList[numberOfLogicalNetworkInputs];
+		ArrayList[] inputLists = new ArrayList[inputs.length];
 		for (int i = 0; i < inputLists.length; i++) {
 			inputLists[i] = new ArrayList<>();
 		}
@@ -105,7 +105,13 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			inputLists[inputType - 1].add(reader);
 		}
 
-		createInputProcessor(inputLists, inputs, watermarkGauges);
+		ArrayList<ArrayList<?>> networkInputLists = new ArrayList<>();
+		for (ArrayList<?> inputList : inputLists) {
+			if (!inputList.isEmpty()) {
+				networkInputLists.add(inputList);
+			}
+		}
+		createInputProcessor(networkInputLists.toArray(new ArrayList[0]), inputs, watermarkGauges);
 
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
