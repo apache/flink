@@ -34,7 +34,6 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Module, Expression
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor
-from pyflink.table.expression import _get_java_expression
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
@@ -47,7 +46,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import utils
 from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray
+    to_j_explain_detail_arr
 
 __all__ = [
     'BatchTableEnvironment',
@@ -1771,20 +1770,19 @@ class StreamTableEnvironment(TableEnvironment):
                        of the Table
         :return: The converted Table.
         """
-        j_table = None
+        j_data_stream = data_stream._j_data_stream
         if len(fields) == 0:
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream)
+            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
+        elif all(isinstance(f, Expression) for f in fields):
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, to_expression_jarray(fields)), t_env=self)
         elif len(fields) == 1 and isinstance(fields[0], str):
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream, fields[0])
-        elif len(fields) > 0 and \
-                [isinstance(f, Expression) for f in fields] == [True] * len(fields):
-            gateway = get_gateway()
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream,
-                                                  to_jarray(gateway.jvm.Expression,
-                                                            [_get_java_expression(f)
-                                                             for f in fields]))
-        return None if j_table is None else Table(j_table=j_table, t_env=self)
-
+            warnings.warn(
+                "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
+                DeprecationWarning)
+            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream, fields[0]), t_env=self)
+        raise ValueError("invalid value for 'fields': %r" % fields)
+    
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
         Converts the given Table into a DataStream of a specified type. The Table must only have
