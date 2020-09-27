@@ -29,7 +29,7 @@ under the License.
 
 A Savepoint is a consistent image of the execution state of a streaming job, created via Flink's [checkpointing mechanism]({% link learn-flink/fault_tolerance.md %}). You can use Savepoints to stop-and-resume, fork,
 or update your Flink jobs. Savepoints consist of two parts: a directory with (typically large) binary files on stable storage (e.g. HDFS, S3, ...) and a (relatively small) meta data file. The files on stable storage represent the net data of the job's execution state
-image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of absolute paths.
+image. The meta data file of a Savepoint contains (primarily) pointers to all files on stable storage that are part of the Savepoint, in form of relative paths.
 
 <div class="alert alert-warning">
 <strong>Attention:</strong> In order to allow upgrades between programs and Flink versions, it is important to check out the following section about <a href="#assigning-operator-ids">assigning IDs to your operators</a>.
@@ -91,7 +91,7 @@ With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the we
 When triggering a savepoint, a new savepoint directory is created where the data as well as the meta data will be stored. The location of this directory can be controlled by [configuring a default target directory](#configuration) or by specifying a custom target directory with the trigger commands (see the [`:targetDirectory` argument](#trigger-a-savepoint)).
 
 <div class="alert alert-warning">
-<strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
+<strong>Attention:</strong> The target directory has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system or Object Store.
 </div>
 
 For example with a `FsStateBackend` or `RocksDBStateBackend`:
@@ -110,13 +110,17 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 /savepoints/savepoint-:shortjobid-:savepointid/...
 {% endhighlight %}
 
-<div class="alert alert-info">
-  <strong>Note:</strong>
-Although it looks as if the savepoints may be moved, it is currently not possible due to absolute paths in the <code>_metadata</code> file.
-Please follow <a href="https://issues.apache.org/jira/browse/FLINK-5778">FLINK-5778</a> for progress on lifting this restriction.
+Since Flink 1.11.0, savepoints can generally be moved by moving (or copying) the entire savepoint directory to a different location, and Flink will be able to restore from the moved savepoint.
+
+<div class="alert alert-warning">There are two exceptions: 1) if *<a href="{% link ops/filesystems/s3.zh.md %}#entropy-injection-for-s3-file-systems">entropy injection</a>* is activated: In that case the savepoint directory will not contain all savepoint data files,
+because the injected path entropy spreads the files over many directories. Lacking a common savepoint root directory, the savepoints will contain absolute path references, which prevent moving the directory.
+
+2) The job contains task-owned state(such as `GenericWriteAhreadLog` sink).
 </div>
 
-Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file. Since it is self-contained, you may move the file and restore from any location.
+<div class="alert alert-warning">Unlike savepoints, checkpoints cannot generally be moved to a different location, because checkpoints may include some absolute path references.</div>
+
+If you use the `MemoryStateBackend`, metadata *and* savepoint state will be stored in the `_metadata` file, so don't be confused by the absence of additional data files.
 
 <div class="alert alert-warning">
   <strong>Attention:</strong> It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 
@@ -230,8 +234,6 @@ If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now d
 
 ### Can I move the Savepoint files on stable storage?
 
-The quick answer to this question is currently "no" because the meta data file references the files on stable storage as absolute paths for technical reasons. The longer answer is: if you MUST move the files for some reason there are two
-potential approaches as workaround. First, simpler but potentially more dangerous, you can use an editor to find the old path in the meta data file and replace them with the new path. Second, you can use the class
-SavepointV2Serializer as starting point to programmatically read, manipulate, and rewrite the meta data file with the new paths.
+The quick answer to this question is currently "yes". Sink Flink 1.11.0, savepoints are self-contained and relocatable. You can move the file and restore from any location.
 
 {% top %}

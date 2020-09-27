@@ -162,9 +162,7 @@ Besides operator uids, there are currently two *hard* preconditions for job migr
 under the same (absolute) path. 
 This also includes access to any additional files that are referenced from inside the 
 savepoint file (the output from state backend snapshots), including, but not limited to additional referenced 
-savepoints from modifications with the [State Processor API]({% link dev/libs/state_processor_api.md %}). 
-Any savepoint data is currently referenced by absolute paths inside the meta data file and thus a savepoint is 
-not relocatable via typical filesystem operations.
+savepoints from modifications with the [State Processor API]({% link dev/libs/state_processor_api.md %}).
 
 ### STEP 1: Stop the existing job with a savepoint
 
