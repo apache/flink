@@ -23,15 +23,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 提供了 [Apache Kafka](https://kafka.apache.org) 连接器，用于向 Kafka topic 中读取或者写入数据，可提供精确一次的处理语义。
+Flink 提供了 [Apache Kafka](https://kafka.apache.org) 连接器，用于从 Kafka topic 中读取或者向其中写入数据，可提供精确一次的处理语义。
 
 * This will be replaced by the TOC
 {:toc}
 
+<a name="dependency"></a>
+
 ## 依赖
 
-Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client 的最新版本保持同步。
-该连接器使用的 Kafka client 版本可能会在 Flink 版本之间发生变化。
+Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client 的最新版本保持同步。该连接器使用的 Kafka client 版本可能会在 Flink 版本之间发生变化。
 当前 Kafka client 向后兼容 0.10.0 或更高版本的 Kafka broker。
 有关 Kafka 兼容性的更多细节，请参考  [Kafka 官方文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
 
@@ -48,7 +49,9 @@ Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client �
 </div>
 
 Flink 目前的流连接器还不是二进制发行版的一部分。
-[在此处]({{ site.baseurl }}/zh/dev/project-configuration.html)可以了解到如何链接它们以实现在集群中执行。
+[在此处]({% link dev/project-configuration.zh.md %})可以了解到如何链接它们，从而在集群中运行。
+
+<a name="kafka-consumer"></a>
 
 ## Kafka Consumer
 
@@ -83,9 +86,11 @@ val stream = env
 </div>
 </div>
 
+<a name="the-deserializationschema"></a>
+
 ### `DeserializationSchema`
 
-Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 Java 或者 Scala 对象。`KafkaDeserializationSchema` 允许用户指定这样的 schema，为每条 Kafka 消息调用 `T deserialize(ConsumerRecord<byte[], byte[]> record)` 方法，传递来自 Kafka 的值。
+Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 Java 或者 Scala 对象。`KafkaDeserializationSchema` 允许用户指定这样的 schema，每条 Kafka 中的消息会调用 `T deserialize(ConsumerRecord<byte[], byte[]> record)` 反序列化。
 
 为了方便使用，Flink 提供了以下几种 schemas：
 
@@ -126,6 +131,8 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 </div>
 
 当遇到因一些原因而无法反序列化的损坏消息时，反序列化 schema 会返回 `null`，以允许 Flink Kafka 消费者悄悄地跳过损坏的消息。请注意，由于 consumer 的容错能力（请参阅下面的部分以获取更多详细信息），在损坏的消息上失败作业将使 consumer 尝试再次反序列化消息。因此，如果反序列化仍然失败，则 consumer 将在该损坏的消息上进入不间断重启和失败的循环。
+
+<a name="kafka-consumers-start-position-configuration"></a>
 
 ### 配置 Kafka Consumer 开始消费的位置 
 
@@ -199,23 +206,31 @@ myConsumer.setStartFromSpecificOffsets(specificStartOffsets)
 
 请注意：当 Job 从故障中自动恢复或使用 savepoint 手动恢复时，这些起始位置配置方法不会影响消费的起始位置。在恢复时，每个 Kafka 分区的起始位置由存储在 savepoint 或 checkpoint 中的 offset 确定（有关 checkpointing 的信息，请参阅下一节，以便为 consumer 启用容错功能）。
 
+<a name="kafka-consumers-and-fault-tolerance"></a>
+
 ### Kafka Consumer 和容错
 
 伴随着启用 Flink 的 checkpointing 后，Flink Kafka Consumer 将使用 topic 中的记录，并以一致的方式定期检查其所有 Kafka offset 和其他算子的状态。如果 Job 失败，Flink 会将流式程序恢复到最新 checkpoint 的状态，并从存储在 checkpoint 中的 offset 开始重新消费 Kafka 中的消息。
 
 因此，设置 checkpoint 的间隔定义了程序在发生故障时最多需要返回多少。
 
-要使用容错的 Kafka Consumer，需要在 [执行环境]({{ site.baseurl }}/ops/config.html#execution-checkpointing-interval) 中启用拓扑的 checkpointing。
+为了使 Kafka Consumer 支持容错，需要在 [执行环境]({% link ops/config.zh.md %}#execution-checkpointing-interval) 中启用拓扑的 checkpointing。
 
 如果未启用 checkpoint，那么 Kafka consumer 将定期向 Zookeeper 提交 offset。
 
+<a name="kafka-consumers-topic-and-partition-discovery"></a>
+
 ### Kafka Consumer Topic 和分区发现
+
+<a name="partition-discovery"></a>
 
 #### 分区发现
 
 Flink Kafka Consumer 支持发现动态创建的 Kafka 分区，并使用精准一次的语义保证去消耗它们。在初始检索分区元数据之后（即，当 Job 开始运行时）发现的所有分区将从最早可能的 offset 中消费。
 
 默认情况下，是禁用了分区发现的。若要启用它，请在提供的属性配置中为 `flink.partition-discovery.interval-millis` 设置大于 0 的值，表示发现分区的间隔是以毫秒为单位的。
+
+<a name="topic-discovery"></a>
 
 #### Topic 发现
 
@@ -262,6 +277,8 @@ val stream = env.addSource(myConsumer)
 
 要允许 consumer 在作业开始运行后发现动态创建的主题，那么请为 `flink.partition-discovery.interval-millis` 设置非负值。这允许 consumer 发现名称与指定模式匹配的新主题的分区。
 
+<a name="kafka-consumers-offset-committing-behaviour-configuration"></a>
+
 ### Kafka Consumer 提交 Offset 的行为配置
 
 Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker 的行为。请注意：Flink Kafka Consumer 不依赖于提交的 offset 来实现容错保证。提交的 offset 只是一种方法，用于公开 consumer 的进度以便进行监控。
@@ -276,11 +293,13 @@ Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker 的�
  用户可以通过调用 consumer 上的 `setCommitOffsetsOnCheckpoints(boolean)` 方法来禁用或启用 offset 的提交(默认情况下，这个值是 true )。
  注意，在这个场景中，`Properties` 中的自动定期 offset 提交设置会被完全忽略。
 
+<a name="kafka-consumers-and-timestamp-extractionwatermark-emission"></a>
+
 ### Kafka Consumer 和 时间戳抽取以及 watermark 发送
 
 在许多场景中，记录的时间戳是(显式或隐式)嵌入到记录本身中。此外，用户可能希望定期或以不规则的方式 Watermark，例如基于 Kafka 流中包含当前事件时间的 watermark 的特殊记录。对于这些情况，Flink Kafka Consumer 允许指定 `AssignerWithPeriodicWatermarks` 或 `AssignerWithPunctuatedWatermarks`。
 
-你可以按照[此处]({{ site.baseurl }}/zh/dev/event_timestamps_watermarks.html)的说明指定自定义时间戳抽取器或者 Watermark 发送器，或者使用 [内置的]({{ site.baseurl }}/zh/dev/event_timestamp_extractors.html)。你也可以通过以下方式将其传递给你的 consumer：
+你可以按照[此处]({% link dev/event_timestamps_watermarks.zh.md %})的说明指定自定义时间戳抽取器或者 Watermark 发送器，或者使用 [内置的]({% link dev/event_timestamp_extractors.zh.md %})。你也可以通过以下方式将其传递给你的 consumer：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -315,7 +334,9 @@ val stream = env.addSource(myConsumer)
 </div>
 </div>
 
-**请注意**：如果 watermark assigner 依赖于从 Kafka 读取的消息来上涨其 watermark （通常就是这种情况），那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的 watermark 将无法上涨，所有基于时间的算子（例如时间窗口或带有计时器的函数）也无法运行。单个的 Kafka 分区也会导致这种反应。考虑设置适当的 [idelness timeouts]({{ site.baseurl }}/dev/event_timestamps_watermarks.html#dealing-with-idle-sources) 来缓解这个问题。
+**请注意**：如果 watermark assigner 依赖于从 Kafka 读取的消息来上涨其 watermark （通常就是这种情况），那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的 watermark 将无法上涨，所有基于时间的算子（例如时间窗口或带有计时器的函数）也无法运行。单个的 Kafka 分区也会导致这种反应。考虑设置适当的 [idelness timeouts]({% link dev/event_timestamps_watermarks.zh.md %}#dealing-with-idle-sources) 来缓解这个问题。
+
+<a name="kafka-producer"></a>
 
 ## Kafka Producer
 
@@ -364,21 +385,25 @@ stream.addSink(myProducer)
 </div>
 </div>
 
+<a name="the-serializationschema"></a>
+
 ## `SerializationSchema`
 
 Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制数据。
 
 `KafkaSerializationSchema` 允许用户指定这样的 schema。它会为每个记录调用 `ProducerRecord<byte[], byte[]> serialize(T element, @Nullable Long timestamp)` 方法，产生一个写入到 Kafka 的 `ProducerRecord`。
 
-用户可以对如何将数据写到Kafka进行细粒度的控制。你可以通过 producer record：
+用户可以对如何将数据写到 Kafka 进行细粒度的控制。你可以通过 producer record：
 
 * 设置 header 值
 * 为每个 record 定义 key
 * 指定数据的自定义分区
 
+<a name="kafka-producers-and-fault-tolerance"></a>
+
 ### Kafka Producer 和容错
 
-启用 Flink 的checkpointing 后，`FlinkKafkaProducer` 可以提供精确一次的语义保证。
+启用 Flink 的 checkpointing 后，`FlinkKafkaProducer` 可以提供精确一次的语义保证。
 
 除了启用 Flink 的 checkpointing，你也可以通过将适当的 `semantic` 参数传递给 `FlinkKafkaProducer` 来选择三种不同的操作模式：
 
@@ -409,13 +434,17 @@ Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制�
 
 **注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。
 
+<a name="kafka-connector-metrics"></a>
+
 ## Kafka 连接器指标
 
-Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({{ site.baseurl }}/zh/monitoring/metrics.html) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.10 版本开始导出所有指标。Kafka 文档在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
+Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({% link monitoring/metrics.zh.md %}) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.10 版本开始导出所有指标。Kafka 在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
 
 除了这些指标之外，所有 consumer 都暴露了每个主题分区的 `current-offsets` 和 `committed-offsets`。`current-offsets` 是指分区中的当前偏移量。指的是我们成功检索和发出的最后一个元素的偏移量。`committed-offsets` 是最后提交的偏移量。这为用户提供了 at-least-once 语义，用于提交给 Zookeeper 或 broker 的偏移量。对于 Flink 的偏移检查点，系统提供精准一次语义。
 
 提交给 ZK 或 broker 的偏移量也可以用来跟踪 Kafka consumer 的读取进度。每个分区中提交的偏移量和最近偏移量之间的差异称为 *consumer lag*。如果 Flink 拓扑消耗来自 topic 的数据的速度比添加新数据的速度慢，那么延迟将会增加，consumer 将会滞后。对于大型生产部署，我们建议监视该指标，以避免增加延迟。
+
+<a name="enabling-kerberos-authentication"></a>
 
 ## 启用 Kerberos 身份验证
 
@@ -429,14 +458,16 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 
 一旦启用了基于 Kerberos 的 Flink 安全性后，只需在提供的属性配置中包含以下两个设置（通过传递给内部 Kafka 客户端），即可使用 Flink Kafka Consumer 或 Producer 向 Kafk a进行身份验证：
 
-- 将 `security.protocol` 设置为 `SASL_PLAINTEXT`（默认为 `NONE`）：用于与 Kafka broker 进行通信的协议。使用独立 Flink 部署时，也可以使用 `SASL_SSL`;请在[此处](https://kafka.apache.org/documentation/#security_configclients)查看如何为 SSL 配置 Kafka 客户端。
+- 将 `security.protocol` 设置为 `SASL_PLAINTEXT`（默认为 `NONE`）：用于与 Kafka broker 进行通信的协议。使用独立 Flink 部署时，也可以使用 `SASL_SSL`；请在[此处](https://kafka.apache.org/documentation/#security_configclients)查看如何为 SSL 配置 Kafka 客户端。
 - 将 `sasl.kerberos.service.name` 设置为 `kafka`（默认为 `kafka`）：此值应与用于 Kafka broker 配置的 `sasl.kerberos.service.name` 相匹配。客户端和服务器配置之间的服务名称不匹配将导致身份验证失败。
 
-有关 Kerberos 安全性 Flink 配置的更多信息，请参见[这里]({{ site.baseurl }}/zh/ops/config.html)。你也可以在[这里]({{ site.baseurl }}/zh/ops/security-kerberos.html)进一步了解 Flink 如何在内部设置基于 kerberos 的安全性。
+有关 Kerberos 安全性 Flink 配置的更多信息，请参见[这里]({% link ops/config.zh.md %})。你也可以在[这里]({% link ops/security-kerberos.zh.md %})进一步了解 Flink 如何在内部设置基于 kerberos 的安全性。
+
+<a name="upgrading-to-the-latest-connector-version"></a>
 
 ## 升级到最近的连接器版本
 
-通用的升级步骤概述见 [升级 Jobs 和 Flink 版本指南]({{ site.baseurl }}/ops/upgrading.html)。对于 Kafka，你还需要遵循这些步骤：
+通用的升级步骤概述见 [升级 Jobs 和 Flink 版本指南]({% link ops/upgrading.zh.md %})。对于 Kafka，你还需要遵循这些步骤：
 
 * 不要同时升级 Flink 和 Kafka 连接器
 * 确保你对 Consumer 设置了 `group.id`
@@ -445,11 +476,15 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 * 修改 source/sink 分配到的 `uid`。这会确保新的 source/sink 不会从旧的 sink/source 算子中读取状态。
 * 使用 `--allow-non-restored-state` 参数启动新 job，因为我们在 savepoint 中仍然有先前连接器版本的状态。
 
+<a name="troubleshooting"></a>
+
 ## 问题排查
 
 <div class="alert alert-warning">
 如果你在使用 Flink 时对 Kafka 有问题，请记住，Flink 只封装 <a href="https://kafka.apache.org/documentation/#consumerapi">KafkaConsumer</a> 或 <a href="https://kafka.apache.org/documentation/#producerapi">KafkaProducer</a>，你的问题可能独立于 Flink，有时可以通过升级 Kafka broker 程序、重新配置 Kafka broker 程序或在 Flink 中重新配置 <tt>KafkaConsumer</tt> 或 <tt>KafkaProducer</tt> 来解决。下面列出了一些常见问题的示例。
 </div>
+
+<a name="data-loss"></a>
 
 ### 数据丢失
 
@@ -461,6 +496,8 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 - `log.flush.*`
 
 上述选项的默认值是很容易导致数据丢失的。请参考 Kafka 文档以获得更多的解释。
+
+<a name="unknowntopicorpartitionexception"></a>
 
 ### UnknownTopicOrPartitionException
 
