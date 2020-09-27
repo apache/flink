@@ -59,7 +59,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 	@Test
 	public void testGetWeightsFromConfig() {
 		final Map<ManagedMemoryUseCase, Integer> expectedWeights = new HashMap<ManagedMemoryUseCase, Integer>() {{
-			put(ManagedMemoryUseCase.ROCKSDB, DATA_PROC_WEIGHT);
+			put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
 			put(ManagedMemoryUseCase.BATCH_OP, DATA_PROC_WEIGHT);
 			put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
 		}};

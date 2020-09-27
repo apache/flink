@@ -47,9 +47,9 @@ public class TransformationTest extends TestLogger {
 	@Test
 	public void testDeclareManagedMemoryUseCase() {
 		transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 123);
-		transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.ROCKSDB);
+		transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.STATE_BACKEND);
 		assertThat(transformation.getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(123));
-		assertThat(transformation.getManagedMemorySlotScopeUseCases(), contains(ManagedMemoryUseCase.ROCKSDB));
+		assertThat(transformation.getManagedMemorySlotScopeUseCases(), contains(ManagedMemoryUseCase.STATE_BACKEND));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
