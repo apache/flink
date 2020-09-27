@@ -66,6 +66,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.lang3.StringUtils;
@@ -138,7 +139,7 @@ public class StreamingJobGraphGenerator {
 	private final StreamGraphHasher defaultStreamGraphHasher;
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
-	private final boolean chainSourceInputs = true;
+	private final Map<Integer, OperatorChainInfo> chainInfos;
 
 	private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
 		this.streamGraph = streamGraph;
@@ -154,6 +155,7 @@ public class StreamingJobGraphGenerator {
 		this.chainedPreferredResources = new HashMap<>();
 		this.chainedInputOutputFormats = new HashMap<>();
 		this.physicalEdgesInOrder = new ArrayList<>();
+		this.chainInfos = new HashMap<>();
 
 		jobGraph = new JobGraph(jobID, streamGraph.getJobName());
 	}
@@ -268,38 +270,39 @@ public class StreamingJobGraphGenerator {
 		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
 			final StreamNode sourceNode = streamGraph.getStreamNode(sourceNodeId);
 
-			if (sourceNode.getOperatorFactory() instanceof SourceOperatorFactory) {
-				checkState(sourceNode.getOutEdges().size() == 1);
-
+			if (sourceNode.getOperatorFactory() instanceof SourceOperatorFactory && sourceNode.getOutEdges().size() == 1) {
 				// as long as only NAry ops support this chaining, we need to skip the other parts
 				final StreamEdge sourceOutEdge = sourceNode.getOutEdges().get(0);
 				final StreamNode target = streamGraph.getStreamNode(sourceOutEdge.getTargetId());
-				final StreamOperatorFactory<?> targetFactory = target.getOperatorFactory();
 
-				// CHECK WHETHER TARGET IS NARY INPUT
+				if (isMultipleInput(target) && isChainableIgnoringInEdgesSize(sourceOutEdge, streamGraph)) {
+					final OperatorID opId = new OperatorID(hashes.get(sourceNodeId));
+					final StreamConfig.SourceInputConfig inputConfig = new StreamConfig.SourceInputConfig(sourceOutEdge);
+					final StreamConfig operatorConfig = new StreamConfig(new Configuration());
+					setVertexConfig(sourceNodeId, operatorConfig, Collections.emptyList(), Collections.emptyList(), Collections.emptyMap());
+					operatorConfig.setChainIndex(0); // sources are always first
+					operatorConfig.setOperatorID(opId);
+					operatorConfig.setOperatorName(sourceNode.getOperatorName());
+					chainedSources.put(sourceNodeId, new ChainedSourceInfo(operatorConfig, inputConfig));
 
-				final OperatorID opId = new OperatorID(hashes.get(sourceNodeId));
-				final StreamConfig.SourceInputConfig inputConfig = new StreamConfig.SourceInputConfig(sourceOutEdge);
-				final StreamConfig operatorConfig = new StreamConfig(new Configuration());
-				setVertexConfig(sourceNodeId, operatorConfig, Collections.emptyList(), Collections.emptyList(), Collections.emptyMap());
-				operatorConfig.setChainIndex(0); // sources are always first
-				operatorConfig.setOperatorID(opId);
-				operatorConfig.setOperatorName(sourceNode.getOperatorName());
-				chainedSources.put(sourceNodeId, new ChainedSourceInfo(operatorConfig, inputConfig));
+					final SourceOperatorFactory<?> sourceOpFact = (SourceOperatorFactory<?>) sourceNode.getOperatorFactory();
+					final OperatorCoordinator.Provider coord = sourceOpFact.getCoordinatorProvider(sourceNode.getOperatorName(), opId);
 
-				final SourceOperatorFactory<?> sourceOpFact = (SourceOperatorFactory<?>) sourceNode.getOperatorFactory();
-				final OperatorCoordinator.Provider coord = sourceOpFact.getCoordinatorProvider(sourceNode.getOperatorName(), opId);
-
-				final OperatorChainInfo chainInfo = chainEntryPoints.computeIfAbsent(
+					final OperatorChainInfo chainInfo = chainEntryPoints.computeIfAbsent(
 						sourceOutEdge.getTargetId(),
 						(k) -> new OperatorChainInfo(sourceOutEdge.getTargetId(), hashes, legacyHashes, chainedSources, streamGraph));
-				chainInfo.addCoordinatorProvider(coord);
+					chainInfo.addCoordinatorProvider(coord);
+					continue;
+				}
 			}
-			else {
-				chainEntryPoints.computeIfAbsent(
-						sourceNodeId,
-						(k) -> new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, chainedSources, streamGraph));
-			}
+
+			chainEntryPoints.computeIfAbsent(
+				sourceNodeId,
+				(k) -> new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, chainedSources, streamGraph));
+		}
+
+		for (Map.Entry<Integer, OperatorChainInfo> entry : chainEntryPoints.entrySet()) {
+			chainInfos.put(entry.getKey(), entry.getValue());
 		}
 		return chainEntryPoints.values();
 	}
@@ -351,7 +354,9 @@ public class StreamingJobGraphGenerator {
 				createChain(
 						nonChainable.getTargetId(),
 						1, // operators start at position 1 because 0 is for chained source inputs
-						chainInfo.newChain(nonChainable.getTargetId()));
+						chainInfos.computeIfAbsent(
+							nonChainable.getTargetId(),
+							(k) -> chainInfo.newChain(nonChainable.getTargetId())));
 			}
 
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
@@ -537,6 +542,7 @@ public class StreamingJobGraphGenerator {
 		final List<StreamEdge> inEdges = vertex.getInEdges();
 		final StreamConfig.InputConfig[] inputConfigs = new StreamConfig.InputConfig[inEdges.size()];
 
+		int inputGateCount = 0;
 		for (int i = 0; i < inEdges.size(); i++) {
 			final StreamEdge inEdge = inEdges.get(i);
 			final ChainedSourceInfo chainedSource = chainedSources.get(inEdge.getSourceId());
@@ -546,7 +552,8 @@ public class StreamingJobGraphGenerator {
 						.computeIfAbsent(vertexID, (key) -> new HashMap<>())
 						.put(inEdge.getSourceId(), chainedSource.getOperatorConfig());
 			} else {
-				inputConfigs[i] = new StreamConfig.NetworkInputConfig(vertex.getTypeSerializerIn(i), i);
+				inputConfigs[i] = new StreamConfig.NetworkInputConfig(
+					vertex.getTypeSerializerIn(Math.max(0, inEdge.getTypeNumber() - 1)), inputGateCount++);
 			}
 		}
 		config.setInputs(inputConfigs);
@@ -712,16 +719,22 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
 		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
 		return downStreamVertex.getInEdges().size() == 1
-				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
-				&& (edge.getPartitioner() instanceof ForwardPartitioner)
-				&& edge.getShuffleMode() != ShuffleMode.BATCH
-				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& streamGraph.isChainingEnabled();
+				&& isChainableIgnoringInEdgesSize(edge, streamGraph);
+	}
+
+	private static boolean isChainableIgnoringInEdgesSize(StreamEdge edge, StreamGraph streamGraph) {
+		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
+		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
+
+		return upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
+			&& areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
+			&& (edge.getPartitioner() instanceof ForwardPartitioner)
+			&& edge.getShuffleMode() != ShuffleMode.BATCH
+			&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
+			&& streamGraph.isChainingEnabled();
 	}
 
 	@VisibleForTesting
@@ -1078,6 +1091,15 @@ public class StreamingJobGraphGenerator {
 			serializedHooks);
 
 		jobGraph.setSnapshotSettings(settings);
+	}
+
+	private static boolean isMultipleInput(StreamNode vertex) {
+		StreamOperatorFactory<?> factory = vertex.getOperatorFactory();
+		// FIXME super hack!
+		return factory.getClass().getName().equals(
+			"org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory") ||
+			factory.getClass().getName().equals(
+				"org.apache.flink.table.runtime.operators.multipleinput.StreamMultipleInputStreamOperatorFactory");
 	}
 
 	/**
