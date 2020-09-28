@@ -119,7 +119,8 @@ public class ResultPartitionFactory {
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
 		final ResultPartition partition;
-		if (type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED) {
+		if (type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED ||
+			type == ResultPartitionType.PIPELINED_APPROXIMATE) {
 			final PipelinedResultPartition pipelinedPartition = new PipelinedResultPartition(
 				taskNameWithSubtaskAndId,
 				partitionIndex,
@@ -131,8 +132,15 @@ public class ResultPartitionFactory {
 				bufferCompressor,
 				bufferPoolFactory);
 
-			for (int i = 0; i < subpartitions.length; i++) {
-				subpartitions[i] = new PipelinedSubpartition(i, pipelinedPartition);
+			if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
+				for (int i = 0; i < subpartitions.length; i++) {
+					subpartitions[i] = new PipelinedApproximateSubpartition(i, pipelinedPartition);
+					// subpartitions[i] = new PipelinedSubpartition(i, pipelinedPartition);
+				}
+			} else {
+				for (int i = 0; i < subpartitions.length; i++) {
+					subpartitions[i] = new PipelinedSubpartition(i, pipelinedPartition);
+				}
 			}
 
 			partition = pipelinedPartition;

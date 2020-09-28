@@ -32,12 +32,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class PipelinedSubpartitionView implements ResultSubpartitionView {
 
 	/** The subpartition this view belongs to. */
-	private final PipelinedSubpartition parent;
+	final PipelinedSubpartition parent;
 
-	private final BufferAvailabilityListener availabilityListener;
+	final BufferAvailabilityListener availabilityListener;
 
 	/** Flag indicating whether this view has been released. */
-	private final AtomicBoolean isReleased;
+	final AtomicBoolean isReleased;
 
 	public PipelinedSubpartitionView(PipelinedSubpartition parent, BufferAvailabilityListener listener) {
 		this.parent = checkNotNull(parent);
@@ -66,7 +66,7 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
 		if (isReleased.compareAndSet(false, true)) {
 			// The view doesn't hold any resources and the parent cannot be restarted. Therefore,
 			// it's OK to notify about consumption as well.
-			parent.releaseView();
+			parent.onConsumedSubpartition();
 		}
 	}
 

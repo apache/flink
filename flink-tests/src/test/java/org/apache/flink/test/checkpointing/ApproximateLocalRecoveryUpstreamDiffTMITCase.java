@@ -1,5 +1,6 @@
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -17,6 +18,7 @@ import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.AfterClass;
@@ -78,6 +80,7 @@ public class ApproximateLocalRecoveryUpstreamDiffTMITCase {
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 		env.setBufferTimeout(0);
 		env.disableOperatorChaining();
+		env.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE);
 		// env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
 
 		DataStream<Tuple4<Integer, Long, Integer, String>> source =

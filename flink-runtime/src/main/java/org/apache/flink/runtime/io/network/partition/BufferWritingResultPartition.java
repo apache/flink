@@ -223,6 +223,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		ensureUnicastMode();
 
 		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
+		LOG.debug("bufferPool status after requesting a new builder: " + bufferPool.toString());
 		subpartitions[targetSubpartition].add(bufferBuilder.createBufferConsumer());
 		subpartitionBufferBuilders[targetSubpartition] = bufferBuilder;
 		return bufferBuilder;

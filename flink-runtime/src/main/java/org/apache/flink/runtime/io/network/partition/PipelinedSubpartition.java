@@ -70,23 +70,23 @@ public class PipelinedSubpartition extends ResultSubpartition
 	// ------------------------------------------------------------------------
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final PrioritizedDeque<BufferConsumer> buffers = new PrioritizedDeque<>();
+	final PrioritizedDeque<BufferConsumer> buffers = new PrioritizedDeque<>();
 
 	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
 	private int buffersInBacklog;
 
 	/** The read view to consume this subpartition. */
-	private PipelinedSubpartitionView readView;
+	PipelinedSubpartitionView readView;
 
 	/** Flag indicating whether the subpartition has been finished. */
-	private boolean isFinished;
+	boolean isFinished;
 
 	@GuardedBy("buffers")
-	private boolean flushRequested;
+	boolean flushRequested;
 
 	/** Flag indicating whether the subpartition has been released. */
-	private volatile boolean isReleased;
+	volatile boolean isReleased;
 
 	/** The total number of buffers (both data and event buffers). */
 	private long totalNumberOfBuffers;
@@ -99,11 +99,9 @@ public class PipelinedSubpartition extends ResultSubpartition
 
 	/** Whether this subpartition is blocked by exactly once checkpoint and is waiting for resumption. */
 	@GuardedBy("buffers")
-	private boolean isBlockedByCheckpoint = false;
+	boolean isBlockedByCheckpoint = false;
 
-	private boolean isPartialBuffer = false;
-
-	private int sequenceNumber = 0;
+	int sequenceNumber = 0;
 
 	// ------------------------------------------------------------------------
 
@@ -171,6 +169,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 			notifyDataAvailable = finish || shouldNotifyDataAvailable();
 
 			isFinished |= finish;
+
+			LOG.debug("buffers: add a new buffer consumer, current buffer size : " + buffers.size());
 		}
 
 		if (prioritySequenceNumber != -1) {
@@ -179,7 +179,6 @@ public class PipelinedSubpartition extends ResultSubpartition
 		if (notifyDataAvailable) {
 			notifyDataAvailable();
 		}
-
 		return true;
 	}
 
@@ -287,14 +286,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 			while (!buffers.isEmpty()) {
 				BufferConsumer bufferConsumer = buffers.peek();
 
-				// `isPartialBuffer` is set to true in the same Netty thread when ResultPartitionView is released
-				if (isPartialBuffer) {
-					BufferConsumer.PartialRecordCleanupResult result = bufferConsumer.skipPartialRecord();
-					buffer = result.getBuffer();
-					isPartialBuffer = !result.getCleaned();
-				} else {
-					buffer = bufferConsumer.build();
-				}
+				buffer = bufferConsumer.build();
 
 				checkState(bufferConsumer.isFinished() || buffers.size() == 1,
 					"When there are multiple buffers, an unfinished bufferConsumer can not be at the head of the buffers queue.");
@@ -373,13 +365,6 @@ public class PipelinedSubpartition extends ResultSubpartition
 		return readView;
 	}
 
-	public void releaseView() {
-		readView = null;
-		isPartialBuffer = true;
-		isBlockedByCheckpoint = false;
-		sequenceNumber = 0;
-	}
-
 	public boolean isAvailable(int numCreditsAvailable) {
 		synchronized (buffers) {
 			if (numCreditsAvailable > 0) {
@@ -391,13 +376,13 @@ public class PipelinedSubpartition extends ResultSubpartition
 		}
 	}
 
-	private boolean isDataAvailableUnsafe() {
+	boolean isDataAvailableUnsafe() {
 		assert Thread.holdsLock(buffers);
 
 		return !isBlockedByCheckpoint && (flushRequested || getNumberOfFinishedBuffers() > 0);
 	}
 
-	private Buffer.DataType getNextBufferTypeUnsafe() {
+	Buffer.DataType getNextBufferTypeUnsafe() {
 		assert Thread.holdsLock(buffers);
 
 		final BufferConsumer first = buffers.peek();
@@ -472,12 +457,12 @@ public class PipelinedSubpartition extends ResultSubpartition
 		totalNumberOfBuffers++;
 	}
 
-	private void updateStatistics(Buffer buffer) {
+	void updateStatistics(Buffer buffer) {
 		totalNumberOfBytes += buffer.getSize();
 	}
 
 	@GuardedBy("buffers")
-	private void decreaseBuffersInBacklogUnsafe(boolean isBuffer) {
+	void decreaseBuffersInBacklogUnsafe(boolean isBuffer) {
 		assert Thread.holdsLock(buffers);
 		if (isBuffer) {
 			buffersInBacklog--;
