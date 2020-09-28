@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.{EnvironmentSettings, ImplicitExpressionConversions}
@@ -48,7 +47,6 @@ class StreamingTestBase extends AbstractTestBase {
   def before(): Unit = {
     this.env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(4)
-    this.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     if (enableObjectReuse) {
       this.env.getConfig.enableObjectReuse()
     }

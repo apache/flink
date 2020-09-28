@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api._
@@ -231,7 +230,6 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   /** test row time inner join with equi-times **/
   @Test
   def testRowTimeInnerJoinWithEquiTimeAttrs(): Unit = {
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """

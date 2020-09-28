@@ -51,7 +51,6 @@ class TableSinkITCase extends AbstractTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   env.getConfig.enableObjectReuse()
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
@@ -95,7 +94,6 @@ class TableSinkITCase extends AbstractTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(4)
 
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()

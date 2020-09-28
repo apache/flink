@@ -50,7 +50,6 @@ class LegacyTableSinkValidationTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(TestData.tupleData3)

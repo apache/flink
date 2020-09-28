@@ -105,7 +105,6 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -167,7 +166,6 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build
     val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
