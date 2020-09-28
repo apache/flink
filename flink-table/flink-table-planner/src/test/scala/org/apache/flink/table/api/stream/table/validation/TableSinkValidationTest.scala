@@ -51,7 +51,6 @@ class TableSinkValidationTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(env)
 
     val t = StreamTestData.get3TupleDataStream(env)

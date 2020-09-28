@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.state.{AggregatingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, OutputTypeConfigurable}
 import org.apache.flink.streaming.api.scala.function.{ProcessWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
@@ -62,8 +61,6 @@ class WindowTranslationTest {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
     source
       .keyBy(0)
       .window(SlidingEventTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
@@ -82,8 +79,6 @@ class WindowTranslationTest {
   def testAggregateWithRichFunctionFails() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     source
       .keyBy(0)
@@ -136,7 +131,6 @@ class WindowTranslationTest {
   @Test
   def testMergingWindowsWithEvictor() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -175,7 +169,6 @@ class WindowTranslationTest {
   @Test
   def testReduceEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -209,7 +202,6 @@ class WindowTranslationTest {
   @Test
   def testReduceProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -243,7 +235,6 @@ class WindowTranslationTest {
   @Test
   def testReduceEventTimeWithScalaFunction() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -277,7 +268,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithWindowFunctionEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -318,7 +308,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithWindowFunctionProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -359,7 +348,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithProcessWindowFunctionEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -401,7 +389,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithProcessWindowFunctionProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -443,7 +430,6 @@ class WindowTranslationTest {
   @Test
   def testApplyWithPreReducerEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -484,7 +470,6 @@ class WindowTranslationTest {
   @Test
   def testApplyWithPreReducerAndEvictor() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -528,7 +513,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithWindowFunctionEventTimeWithScalaFunction() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -571,7 +555,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -605,7 +588,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -639,7 +621,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithWindowFunctionEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -673,7 +654,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithWindowFunctionProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -707,7 +687,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithProcessWindowFunctionEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -741,7 +720,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithProcessWindowFunctionProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -775,7 +753,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithWindowFunctionEventTimeWithScalaFunction() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -817,7 +794,6 @@ class WindowTranslationTest {
   @Test
   def testApplyEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -858,7 +834,6 @@ class WindowTranslationTest {
   @Test
   def testApplyProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -899,7 +874,6 @@ class WindowTranslationTest {
   @Test
   def testProcessEventTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -940,7 +914,6 @@ class WindowTranslationTest {
   @Test
   def testProcessProcessingTime() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -981,7 +954,6 @@ class WindowTranslationTest {
   @Test
   def testApplyEventTimeWithScalaFunction() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1018,7 +990,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithCustomTrigger() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1053,7 +1024,6 @@ class WindowTranslationTest {
   @Test
   def testApplyWithCustomTrigger() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1095,7 +1065,6 @@ class WindowTranslationTest {
   @Test
   def testProcessWithCustomTrigger() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1138,7 +1107,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithEvictor() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1175,7 +1143,6 @@ class WindowTranslationTest {
   @Test
   def testReduceWithEvictorAndProcessFunction() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1212,7 +1179,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithEvictor() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1247,7 +1213,6 @@ class WindowTranslationTest {
   @Test
   def testAggregateWithEvictorAndProcessFunction() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1282,7 +1247,6 @@ class WindowTranslationTest {
   @Test
   def testApplyWithEvictor() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
@@ -1325,7 +1289,6 @@ class WindowTranslationTest {
   @Test
   def testProcessWithEvictor() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
 
     val source = env.fromElements(("hello", 1), ("hello", 2))
 

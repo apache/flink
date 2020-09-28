@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.scala
 
 import java.util
 
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.{AssignerWithPunctuatedWatermarks, ProcessFunction}
 import org.apache.flink.streaming.api.scala.function.{ProcessAllWindowFunction, ProcessWindowFunction}
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -154,7 +153,6 @@ class SideOutputITCase extends AbstractTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
 
@@ -198,7 +196,6 @@ class SideOutputITCase extends AbstractTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
 
@@ -244,7 +241,6 @@ class SideOutputITCase extends AbstractTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
 
@@ -291,7 +287,6 @@ class SideOutputITCase extends AbstractTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
 
