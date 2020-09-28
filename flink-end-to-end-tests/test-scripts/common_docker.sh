@@ -50,7 +50,7 @@ function build_image() {
     ./add-custom.sh -u localhost:9999/flink.tgz -n ${image_name}
 
     echo "Building images"
-    docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
+    run_with_timeout 600 docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
     popd
 }
 
