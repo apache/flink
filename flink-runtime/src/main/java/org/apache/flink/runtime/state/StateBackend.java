@@ -155,6 +155,39 @@ public interface StateBackend extends java.io.Serializable {
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		CloseableRegistry cancelStreamRegistry) throws Exception;
+
+	/**
+	 * Creates a new {@link CheckpointableKeyedStateBackend} with the given managed memory fraction.
+	 * Backends that use managed memory are required to implement this interface.
+	 */
+	default <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider,
+			MetricGroup metricGroup,
+			@Nonnull Collection<KeyedStateHandle> stateHandles,
+			CloseableRegistry cancelStreamRegistry,
+			double managedMemoryFraction) throws Exception {
+
+		// ignore managed memory fraction by default
+		return createKeyedStateBackend(
+			env,
+			jobID,
+			operatorIdentifier,
+			keySerializer,
+			numberOfKeyGroups,
+			keyGroupRange,
+			kvStateRegistry,
+			ttlTimeProvider,
+			metricGroup,
+			stateHandles,
+			cancelStreamRegistry);
+	}
 	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.

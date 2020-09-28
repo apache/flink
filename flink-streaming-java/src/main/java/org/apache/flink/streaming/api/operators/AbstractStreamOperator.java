@@ -29,6 +29,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -250,7 +251,11 @@ public abstract class AbstractStreamOperator<OUT>
 				this,
 				keySerializer,
 				streamTaskCloseableRegistry,
-				metrics);
+				metrics,
+				config.getManagedMemoryFractionOperatorUseCaseOfSlot(
+					ManagedMemoryUseCase.STATE_BACKEND,
+					runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
+					runtimeContext.getUserCodeClassLoader()));
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), streamTaskCloseableRegistry);
 		timeServiceManager = context.internalTimerServiceManager();

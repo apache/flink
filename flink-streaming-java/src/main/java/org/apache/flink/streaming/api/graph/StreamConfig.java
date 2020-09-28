@@ -523,6 +523,11 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
+	@VisibleForTesting
+	public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
+		this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
+	}
+
 	public StateBackend getStateBackend(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
