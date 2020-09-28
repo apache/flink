@@ -39,7 +39,6 @@ import java.util.Collections
 class TableSourceValidationTest extends TableTestBase{
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 

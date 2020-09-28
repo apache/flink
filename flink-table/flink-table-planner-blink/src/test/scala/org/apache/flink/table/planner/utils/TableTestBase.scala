@@ -504,7 +504,6 @@ abstract class TableTestUtil(
     GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   override def getTableEnv: TableEnvironment = tableEnv
 
@@ -657,7 +656,6 @@ abstract class ScalaTableTestUtil(
   extends TableTestUtilBase(test, isStreamingMode) {
   // scala env
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   // scala tableEnv
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 
@@ -691,7 +689,6 @@ abstract class JavaTableTestUtil(
   extends TableTestUtilBase(test, isStreamingMode) {
   // java env
   val env = new LocalStreamEnvironment()
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   // java tableEnv
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
