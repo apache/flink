@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
@@ -231,12 +232,15 @@ public class TableSchema {
 	/**
 	 * Converts all columns of this schema into a (possibly nested) row data type.
 	 *
-	 * <p>Note: The returned row data type contains both physical and computed columns. Be careful when
-	 * using this method in a table source or table sink. In many cases, {@link #toPhysicalRowDataType()}
+	 * <p>This method returns the <b>source-to-query schema</b>.
+	 *
+	 * <p>Note: The returned row data type contains physical, computed, and metadata columns. Be careful
+	 * when using this method in a table source or table sink. In many cases, {@link #toPhysicalRowDataType()}
 	 * might be more appropriate.
 	 *
 	 * @see DataTypes#ROW(Field...)
 	 * @see #toPhysicalRowDataType()
+	 * @see #toPersistedRowDataType()
 	 */
 	public DataType toRowDataType() {
 		final Field[] fields = columns.stream()
@@ -249,14 +253,35 @@ public class TableSchema {
 	 * Converts all physical columns of this schema into a (possibly nested) row data type.
 	 *
 	 * <p>Note: The returned row data type contains only physical columns. It does not include computed
-	 * columns.
+	 * or metadata columns.
 	 *
 	 * @see DataTypes#ROW(Field...)
 	 * @see #toRowDataType()
+	 * @see #toPersistedRowDataType()
 	 */
 	public DataType toPhysicalRowDataType() {
 		final Field[] fields = columns.stream()
 			.filter(TableColumn::isPhysical)
+			.map(column -> FIELD(column.getName(), column.getType()))
+			.toArray(Field[]::new);
+		return ROW(fields);
+	}
+
+	/**
+	 * Converts all persisted columns of this schema into a (possibly nested) row data type.
+	 *
+	 * <p>This method returns the <b>query-to-sink schema</b>.
+	 *
+	 * <p>Note: Computed columns and virtual columns are excluded in the returned row data type. The
+	 * data type contains the columns of {@link #toPhysicalRowDataType()} plus persisted metadata columns.
+	 *
+	 * @see DataTypes#ROW(Field...)
+	 * @see #toRowDataType()
+	 * @see #toPhysicalRowDataType()
+	 */
+	public DataType toPersistedRowDataType() {
+		final Field[] fields = columns.stream()
+			.filter(c -> c.isPhysical() || (c instanceof MetadataColumn && !((MetadataColumn) c).isVirtual()))
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
 		return ROW(fields);
