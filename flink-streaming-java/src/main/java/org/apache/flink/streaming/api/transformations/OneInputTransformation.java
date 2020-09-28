@@ -114,6 +114,7 @@ public class OneInputTransformation<IN, OUT> extends PhysicalTransformation<OUT>
 	 */
 	public void setStateKeySelector(KeySelector<IN, ?> stateKeySelector) {
 		this.stateKeySelector = stateKeySelector;
+		updateManagedMemoryStateBackendUseCase(stateKeySelector != null);
 	}
 
 	/**

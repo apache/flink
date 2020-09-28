@@ -103,6 +103,7 @@ public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 	 */
 	public void setStateKeySelector(KeySelector<T, ?> stateKeySelector) {
 		this.stateKeySelector = stateKeySelector;
+		updateManagedMemoryStateBackendUseCase(stateKeySelector != null);
 	}
 
 	/**
