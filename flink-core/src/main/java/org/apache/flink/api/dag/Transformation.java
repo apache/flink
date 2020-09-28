@@ -303,6 +303,14 @@ public abstract class Transformation<T> {
 		managedMemorySlotScopeUseCases.add(managedMemoryUseCase);
 	}
 
+	protected void updateManagedMemoryStateBackendUseCase(boolean hasStateBackend) {
+		if (hasStateBackend) {
+			managedMemorySlotScopeUseCases.add(ManagedMemoryUseCase.STATE_BACKEND);
+		} else {
+			managedMemorySlotScopeUseCases.remove(ManagedMemoryUseCase.STATE_BACKEND);
+		}
+	}
+
 	/**
 	 * Get operator scope use cases that this transformation needs managed memory for, and the use-case-specific weights
 	 * for this transformation. The weights are used for sharing managed memory across transformations for the use cases.

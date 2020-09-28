@@ -147,6 +147,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
 	public void setStateKeySelectors(KeySelector<IN1, ?> stateKeySelector1, KeySelector<IN2, ?> stateKeySelector2) {
 		this.stateKeySelector1 = stateKeySelector1;
 		this.stateKeySelector2 = stateKeySelector2;
+		updateManagedMemoryStateBackendUseCase(stateKeySelector1 != null || stateKeySelector2 != null);
 	}
 
 	/**

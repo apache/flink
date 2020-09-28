@@ -43,6 +43,7 @@ public class KeyedMultipleInputTransformation<OUT> extends AbstractMultipleInput
 			TypeInformation<?> stateKeyType) {
 		super(name, operatorFactory, outputType, parallelism);
 		this.stateKeyType = stateKeyType;
+		updateManagedMemoryStateBackendUseCase(true);
 	}
 
 	public KeyedMultipleInputTransformation<OUT> addInput(Transformation<?> input, KeySelector<?, ?> keySelector) {
