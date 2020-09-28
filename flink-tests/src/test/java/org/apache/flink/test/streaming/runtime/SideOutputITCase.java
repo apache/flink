@@ -21,7 +21,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -90,7 +89,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(3);
 
 		DataStream<Integer> dataStream = env.addSource(new SourceFunction<Integer>() {
@@ -754,7 +752,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -799,7 +796,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(3);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -841,7 +837,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(3);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
@@ -876,7 +871,6 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 		see.setParallelism(1);
-		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
