@@ -126,7 +126,7 @@ You can exclude a heading from the table of contents:
 
 	{% top %}
 
-This will be replaced by default back to top link. It is recommended to use these links at least at the end of each level-2 section.
+This will be replaced by a back to top link. It is recommended to use these links at least at the end of each level-2 section.
 
 #### Labels
 
