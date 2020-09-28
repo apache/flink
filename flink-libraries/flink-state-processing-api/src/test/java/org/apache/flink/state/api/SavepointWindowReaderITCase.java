@@ -26,7 +26,6 @@ import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.utils.AggregateSum;
 import org.apache.flink.state.api.utils.ReduceSum;
 import org.apache.flink.state.api.utils.SavepointTestBase;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
@@ -59,7 +58,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testReduceWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -93,7 +91,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testReduceEvictorWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -129,7 +126,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testAggregateWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -163,7 +159,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testAggregateEvictorWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -199,7 +194,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testProcessWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -233,7 +227,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testProcessEvictorWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -269,7 +262,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testApplyWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 
@@ -303,7 +295,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 	public void testApplyEvictorWindowStateReader() throws Exception {
 		String savepointPath = takeSavepoint(numbers, source -> {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.setStateBackend(getStateBackend());
 			env.setParallelism(4);
 

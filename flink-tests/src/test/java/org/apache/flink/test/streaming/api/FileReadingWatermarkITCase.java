@@ -20,7 +20,6 @@ package org.apache.flink.test.streaming.api;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -51,7 +50,6 @@ public class FileReadingWatermarkITCase {
 	@Test
 	public void testWatermarkEmissionWithChaining() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(WATERMARK_INTERVAL_MILLIS);
 
 		checkState(env.isChainingEnabled());

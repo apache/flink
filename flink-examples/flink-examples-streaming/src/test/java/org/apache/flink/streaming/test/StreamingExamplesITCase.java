@@ -18,10 +18,15 @@
 
 package org.apache.flink.streaming.test;
 
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData;
@@ -71,19 +76,20 @@ public class StreamingExamplesITCase extends AbstractTestBase {
 
 		try {
 			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 			DataStream<Tuple2<String, Integer>> grades = env
-				.fromElements(WindowJoinData.GRADES_INPUT.split("\n"))
-				.map(new Parser());
+					.fromElements(WindowJoinData.GRADES_INPUT.split("\n"))
+					.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
+					.map(new Parser());
 
 			DataStream<Tuple2<String, Integer>> salaries = env
-				.fromElements(WindowJoinData.SALARIES_INPUT.split("\n"))
-				.map(new Parser());
+					.fromElements(WindowJoinData.SALARIES_INPUT.split("\n"))
+					.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
+					.map(new Parser());
 
 			org.apache.flink.streaming.examples.join.WindowJoin
-				.runWindowJoin(grades, salaries, 100)
-				.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+					.runWindowJoin(grades, salaries, 100)
+					.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 			env.execute();
 
@@ -151,4 +157,28 @@ public class StreamingExamplesITCase extends AbstractTestBase {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 
+	/**
+	 * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
+	 * In a real use case you should use proper timestamps and an appropriate {@link
+	 * WatermarkStrategy}.
+	 */
+	private static class IngestionTimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
+
+		private IngestionTimeWatermarkStrategy() {
+		}
+
+		public static <T> IngestionTimeWatermarkStrategy<T> create() {
+			return new IngestionTimeWatermarkStrategy<>();
+		}
+
+		@Override
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return new AscendingTimestampsWatermarks<>();
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return (event, timestamp) -> System.currentTimeMillis();
+		}
+	}
 }

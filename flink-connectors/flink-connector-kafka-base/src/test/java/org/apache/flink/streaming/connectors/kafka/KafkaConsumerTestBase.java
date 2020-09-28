@@ -47,7 +47,6 @@ import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -1548,7 +1547,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
 		// read using custom schema
 		final StreamExecutionEnvironment env1 = StreamExecutionEnvironment.getExecutionEnvironment();
-		env1.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env1.setParallelism(1);
 		env1.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 

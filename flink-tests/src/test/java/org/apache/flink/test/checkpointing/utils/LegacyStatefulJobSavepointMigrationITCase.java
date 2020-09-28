@@ -31,7 +31,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -99,7 +98,6 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
 	public void writeSavepoint() throws Exception {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		switch (flinkGenerateSavepointBackendType) {
 			case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
@@ -146,7 +144,6 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		switch (testStateBackend) {
 			case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
