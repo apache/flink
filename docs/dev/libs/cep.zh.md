@@ -1648,7 +1648,6 @@ public interface TimeContext {
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = ...
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 DataStream<Event> input = ...
 
@@ -1686,7 +1685,6 @@ DataStream<Alert> alerts = patternStream.select(new PatternSelectFunction<Event,
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env : StreamExecutionEnvironment = ...
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val input : DataStream[Event] = ...
 
