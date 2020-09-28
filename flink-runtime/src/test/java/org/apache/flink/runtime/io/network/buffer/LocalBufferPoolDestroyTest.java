@@ -41,7 +41,7 @@ public class LocalBufferPoolDestroyTest {
 	 * request Thread threw the expected Exception.
 	 */
 	@Test
-	public void testDestroyWhileBlockingRequest() throws Exception {
+	public void testDestroyWhileBlockingRequest() throws InterruptedException {
 		AtomicReference<Exception> asyncException = new AtomicReference<>();
 
 		NetworkBufferPool networkBufferPool = null;

@@ -257,7 +257,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	 * currently containing the number of required free segments.
 	 */
 	@Test
-	public void testRequestMemorySegmentsLessThanTotalBuffers() throws Exception {
+	public void testRequestMemorySegmentsLessThanTotalBuffers() throws IOException {
 		final int numBuffers = 10;
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
@@ -281,7 +281,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	 * buffers exceeding the capacity of {@link NetworkBufferPool}.
 	 */
 	@Test
-	public void testRequestMemorySegmentsMoreThanTotalBuffers() throws Exception {
+	public void testRequestMemorySegmentsMoreThanTotalBuffers() {
 		final int numBuffers = 10;
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
@@ -301,7 +301,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	 * cause exception.
 	 */
 	@Test(expected = IllegalArgumentException.class)
-	public void testRequestMemorySegmentsWithInvalidArgument() throws Exception {
+	public void testRequestMemorySegmentsWithInvalidArgument() throws IOException {
 		NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 		// the number of requested buffers should be larger than zero
 		globalPool.requestMemorySegments(0);
@@ -380,7 +380,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 		final OneShotLatch isRunning = new OneShotLatch();
 		CheckedThread asyncRequest = new CheckedThread() {
 			@Override
-			public void go() throws Exception {
+			public void go() throws IOException {
 				isRunning.trigger();
 				globalPool.requestMemorySegments(10);
 			}
@@ -419,7 +419,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 		final OneShotLatch isRunning = new OneShotLatch();
 		CheckedThread asyncRequest = new CheckedThread() {
 			@Override
-			public void go() throws Exception {
+			public void go() throws IOException {
 				isRunning.trigger();
 				globalPool.requestMemorySegments(10);
 			}
@@ -494,7 +494,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	 * and recycled by {@link NetworkBufferPool#recycle(MemorySegment)}.
 	 */
 	@Test
-	public void testIsAvailableOrNotAfterRequestAndRecycleSingleSegment() throws Exception {
+	public void testIsAvailableOrNotAfterRequestAndRecycleSingleSegment() {
 		final int numBuffers = 2;
 
 		final NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
@@ -533,7 +533,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	 * and recycled by {@link NetworkBufferPool#recycleMemorySegments(Collection)}.
 	 */
 	@Test(timeout = 10000L)
-	public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments() throws Exception {
+	public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments() throws InterruptedException, IOException {
 		final int numberOfSegmentsToRequest = 5;
 		final int numBuffers = 2 * numberOfSegmentsToRequest;
 
@@ -594,7 +594,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	 * to the global network buffer pool.
 	 */
 	@Test(timeout = 10000L)
-	public void testBlockingRequestFromMultiLocalBufferPool() throws Exception {
+	public void testBlockingRequestFromMultiLocalBufferPool() throws IOException, InterruptedException {
 		final int localPoolRequiredSize = 5;
 		final int localPoolMaxSize = 10;
 		final int numLocalBufferPool = 2;

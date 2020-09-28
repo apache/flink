@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -233,27 +232,27 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public Buffer requestBuffer() throws IOException {
+	public Buffer requestBuffer() {
 		return toBuffer(requestMemorySegment());
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder() throws IOException {
+	public BufferBuilder requestBufferBuilder() {
 		return toBufferBuilder(requestMemorySegment(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+	public BufferBuilder requestBufferBuilder(int targetChannel) {
 		return toBufferBuilder(requestMemorySegment(targetChannel), targetChannel);
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
 		return toBufferBuilder(requestMemorySegmentBlocking(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws InterruptedException {
 		return toBufferBuilder(requestMemorySegmentBlocking(targetChannel), targetChannel);
 	}
 
@@ -276,7 +275,7 @@ class LocalBufferPool implements BufferPool {
 		}
 	}
 
-	private MemorySegment requestMemorySegmentBlocking(int targetChannel) throws InterruptedException, IOException {
+	private MemorySegment requestMemorySegmentBlocking(int targetChannel) throws InterruptedException {
 		MemorySegment segment;
 		while ((segment = requestMemorySegment(targetChannel)) == null) {
 			try {
@@ -291,7 +290,7 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Nullable
-	private MemorySegment requestMemorySegment(int targetChannel) throws IOException {
+	private MemorySegment requestMemorySegment(int targetChannel) {
 		MemorySegment segment = null;
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
@@ -318,12 +317,12 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Nullable
-	private MemorySegment requestMemorySegment() throws IOException {
+	private MemorySegment requestMemorySegment() {
 		return requestMemorySegment(UNKNOWN_CHANNEL);
 	}
 
 	@Nullable
-	private MemorySegment requestMemorySegmentFromGlobal() throws IOException {
+	private MemorySegment requestMemorySegmentFromGlobal() {
 		assert Thread.holdsLock(availableMemorySegments);
 
 		if (isDestroyed) {
@@ -428,11 +427,7 @@ class LocalBufferPool implements BufferPool {
 
 		mayNotifyAvailable(toNotify);
 
-		try {
-			networkBufferPool.destroyBufferPool(this);
-		} catch (IOException e) {
-			ExceptionUtils.rethrow(e);
-		}
+		networkBufferPool.destroyBufferPool(this);
 	}
 
 	@Override
@@ -448,7 +443,7 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public void setNumBuffers(int numBuffers) throws IOException {
+	public void setNumBuffers(int numBuffers) {
 		int numExcessBuffers;
 		CompletableFuture<?> toNotify = null;
 		synchronized (availableMemorySegments) {

@@ -88,7 +88,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 		}
 	}
 
-	Buffer requestBufferBlocking() throws IOException, InterruptedException {
+	Buffer requestBufferBlocking() throws InterruptedException {
 		synchronized (bufferQueue) {
 			Buffer buffer;
 			while ((buffer = bufferQueue.takeBuffer()) == null) {
@@ -142,7 +142,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
 	 * Requests floating buffers from the buffer pool based on the given required amount, and returns the actual
 	 * requested amount. If the required amount is not fully satisfied, it will register as a listener.
 	 */
-	int requestFloatingBuffers(int numRequired) throws IOException {
+	int requestFloatingBuffers(int numRequired) {
 		int numRequestedBuffers = 0;
 		synchronized (bufferQueue) {
 			// Similar to notifyBufferAvailable(), make sure that we never add a buffer after channel
