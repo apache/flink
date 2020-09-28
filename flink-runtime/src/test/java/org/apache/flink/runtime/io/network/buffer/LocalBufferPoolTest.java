@@ -29,7 +29,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -78,7 +77,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@After
-	public void destroyAndVerifyAllBuffersReturned() throws IOException {
+	public void destroyAndVerifyAllBuffersReturned() {
 		if (!localBufferPool.isDestroyed()) {
 			localBufferPool.lazyDestroy();
 		}
@@ -96,7 +95,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testRequestMoreThanAvailable() throws IOException {
+	public void testRequestMoreThanAvailable() {
 		localBufferPool.setNumBuffers(numBuffers);
 
 		List<Buffer> requests = new ArrayList<Buffer>(numBuffers);
@@ -123,7 +122,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testRequestAfterDestroy() throws IOException {
+	public void testRequestAfterDestroy() {
 		localBufferPool.lazyDestroy();
 
 		try {
@@ -136,7 +135,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testRecycleAfterDestroy() throws IOException {
+	public void testRecycleAfterDestroy() {
 		localBufferPool.setNumBuffers(numBuffers);
 
 		List<Buffer> requests = new ArrayList<Buffer>(numBuffers);
@@ -157,7 +156,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testRecycleExcessBuffersAfterRecycling() throws Exception {
+	public void testRecycleExcessBuffersAfterRecycling() {
 		localBufferPool.setNumBuffers(numBuffers);
 
 		List<Buffer> requests = new ArrayList<Buffer>(numBuffers);
@@ -186,7 +185,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testRecycleExcessBuffersAfterChangingNumBuffers() throws Exception {
+	public void testRecycleExcessBuffersAfterChangingNumBuffers() {
 		localBufferPool.setNumBuffers(numBuffers);
 
 		List<Buffer> requests = new ArrayList<Buffer>(numBuffers);
@@ -209,7 +208,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testSetLessThanRequiredNumBuffers() throws IOException {
+	public void testSetLessThanRequiredNumBuffers() {
 		localBufferPool.setNumBuffers(1);
 
 		localBufferPool.setNumBuffers(0);
@@ -220,7 +219,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testPendingRequestWithListenersAfterRecycle() throws Exception {
+	public void testPendingRequestWithListenersAfterRecycle() {
 		BufferListener twoTimesListener = createBufferListener(2);
 		BufferListener oneTimeListener = createBufferListener(1);
 
@@ -251,7 +250,7 @@ public class LocalBufferPoolTest extends TestLogger {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testCancelPendingRequestsAfterDestroy() throws IOException {
+	public void testCancelPendingRequestsAfterDestroy() {
 		BufferListener listener = Mockito.mock(BufferListener.class);
 
 		localBufferPool.setNumBuffers(1);
@@ -276,7 +275,7 @@ public class LocalBufferPoolTest extends TestLogger {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testConcurrentRequestRecycle() throws ExecutionException, InterruptedException, IOException {
+	public void testConcurrentRequestRecycle() throws ExecutionException, InterruptedException {
 		int numConcurrentTasks = 128;
 		int numBuffersToRequestPerTask = 1024;
 
@@ -349,7 +348,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testBoundedBuffer() throws Exception {
+	public void testBoundedBuffer() {
 		localBufferPool.lazyDestroy();
 
 		localBufferPool = new LocalBufferPool(networkBufferPool, 1, 2);
@@ -407,7 +406,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testMaxBuffersPerChannelAndAvailability() throws IOException, InterruptedException {
+	public void testMaxBuffersPerChannelAndAvailability() throws InterruptedException {
 		localBufferPool.lazyDestroy();
 		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 1);
 		localBufferPool.setNumBuffers(10);
@@ -444,7 +443,7 @@ public class LocalBufferPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testIsAvailableOrNot() throws Exception {
+	public void testIsAvailableOrNot() throws InterruptedException {
 
 		// the local buffer pool should be in available state initially
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
