@@ -1782,7 +1782,7 @@ class StreamTableEnvironment(TableEnvironment):
                 DeprecationWarning)
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream, fields[0]), t_env=self)
         raise ValueError("invalid value for 'fields': %r" % fields)
-    
+
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
         Converts the given Table into a DataStream of a specified type. The Table must only have
