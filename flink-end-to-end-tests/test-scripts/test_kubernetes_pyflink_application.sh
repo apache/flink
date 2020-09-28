@@ -22,7 +22,7 @@ source "$(dirname "$0")"/common_kubernetes.sh
 CURRENT_DIR=`cd "$(dirname "$0")" && pwd -P`
 CLUSTER_ROLE_BINDING="flink-role-binding-default"
 CLUSTER_ID="flink-native-k8s-pyflink-application-1"
-PURE_FLINK_IMAGE_NAME="test_kubernetes_application"
+PURE_FLINK_IMAGE_NAME="test_kubernetes_application-1"
 PYFLINK_IMAGE_NAME="test_kubernetes_pyflink_application"
 LOCAL_LOGS_PATH="${TEST_DATA_DIR}/log"
 
@@ -35,29 +35,43 @@ start_kubernetes
 
 build_image ${PURE_FLINK_IMAGE_NAME}
 
-# Build PyFlink wheel package
 FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
-cd ${FLINK_PYTHON_DIR}
-# use lint-python.sh script to create a python environment.
-dev/lint-python.sh -s basic
-source dev/.conda/bin/activate
-pip install -r dev/dev-requirements.txt
-python setup.py bdist_wheel
-conda deactivate
-PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache_flink-*.whl)
+
+CONDA_HOME="${FLINK_PYTHON_DIR}/dev/.conda"
+
+"${FLINK_PYTHON_DIR}/dev/lint-python.sh" -s miniconda
+
+PYTHON_EXEC="${CONDA_HOME}/bin/python"
+
+source "${CONDA_HOME}/bin/activate"
+
+cd "${FLINK_PYTHON_DIR}"
+
+if [[ -d "dist" ]]; then rm -Rf dist; fi
+
+python setup.py sdist
+
+cd dev
+
+rm -rf .conda/pkgs
+
+deactivate
+
+PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
 echo ${PYFLINK_PACKAGE_FILE}
 # Create a new docker image that has python and PyFlink installed.
 PYFLINK_DOCKER_DIR="$TEST_DATA_DIR/pyflink_docker"
 mkdir -p "$PYFLINK_DOCKER_DIR"
 cp "${FLINK_PYTHON_DIR}/dist/${PYFLINK_PACKAGE_FILE}" $PYFLINK_DOCKER_DIR/
+if [[ -d "dist" ]]; then rm -Rf dist; fi
 cd ${PYFLINK_DOCKER_DIR}
 echo "FROM ${PURE_FLINK_IMAGE_NAME}" >> Dockerfile
 echo "RUN apt-get update -y && apt-get install -y python3.7 python3-pip python3.7-dev && rm -rf /var/lib/apt/lists/*" >> Dockerfile
 echo "RUN ln -s /usr/bin/python3 /usr/bin/python" >> Dockerfile
-echo "ADD ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
+echo "COPY ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN pip3 install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
-docker build -t ${PYFLINK_IMAGE_NAME} .
+docker build --no-cache --network="host" -t ${PYFLINK_IMAGE_NAME} .
 
 kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
