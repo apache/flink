@@ -24,9 +24,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.state.StateBackendLoader;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,9 +45,20 @@ public enum ManagedMemoryUtils {
 			ManagedMemoryUseCase useCase,
 			double fractionOfUseCase,
 			Set<ManagedMemoryUseCase> allUseCases,
-			Configuration config) {
+			Configuration config,
+			Optional<Boolean> stateBackendFromApplicationUsesManagedMemory,
+			ClassLoader classLoader) {
+
+		final boolean stateBackendUsesManagedMemory = StateBackendLoader
+				.stateBackendFromApplicationOrConfigOrDefaultUseManagedMemory(config, stateBackendFromApplicationUsesManagedMemory, classLoader);
+
+		if (useCase.equals(ManagedMemoryUseCase.STATE_BACKEND) && !stateBackendUsesManagedMemory) {
+			return 0.0;
+		}
+
 		final Map<ManagedMemoryUseCase, Integer> allUseCaseWeights = getManagedMemoryUseCaseWeightsFromConfig(config);
 		final int totalWeights = allUseCases.stream()
+			.filter((uc) -> !uc.equals(ManagedMemoryUseCase.STATE_BACKEND) || stateBackendUsesManagedMemory)
 			.mapToInt((uc) -> allUseCaseWeights.getOrDefault(uc, 0))
 			.sum();
 		final int useCaseWeight = allUseCaseWeights.getOrDefault(useCase, 0);

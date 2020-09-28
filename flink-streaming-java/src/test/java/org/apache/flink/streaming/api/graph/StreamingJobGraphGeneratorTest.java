@@ -905,15 +905,15 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		final double delta = 0.000001;
 		assertEquals(
 			expectedStateBackendFrac,
-			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.STATE_BACKEND, tmConfig),
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.STATE_BACKEND, tmConfig, ClassLoader.getSystemClassLoader()),
 			delta);
 		assertEquals(
 			expectedPythonFrac,
-			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.PYTHON, tmConfig),
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.PYTHON, tmConfig, ClassLoader.getSystemClassLoader()),
 			delta);
 		assertEquals(
 			expectedBatchFrac,
-			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, tmConfig),
+			streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(ManagedMemoryUseCase.BATCH_OP, tmConfig, ClassLoader.getSystemClassLoader()),
 			delta);
 	}
 

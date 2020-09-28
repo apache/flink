@@ -210,7 +210,7 @@ public class BufferDataOverWindowOperatorTest {
 				StreamConfig conf = mock(StreamConfig.class);
 				when(conf.<RowData>getTypeSerializerIn1(getUserCodeClassloader()))
 						.thenReturn(inputSer);
-				when(conf.getManagedMemoryFractionOperatorUseCaseOfSlot(eq(ManagedMemoryUseCase.BATCH_OP), any(Configuration.class)))
+				when(conf.getManagedMemoryFractionOperatorUseCaseOfSlot(eq(ManagedMemoryUseCase.BATCH_OP), any(Configuration.class), any(ClassLoader.class)))
 						.thenReturn(0.99);
 				return conf;
 			}

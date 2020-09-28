@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators;
 
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
@@ -51,9 +52,11 @@ public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 	 * Compute memory size from memory faction.
 	 */
 	public long computeMemorySize() {
-		return getContainingTask().getEnvironment().getMemoryManager().computeMemorySize(
+		final Environment environment = getContainingTask().getEnvironment();
+		return environment.getMemoryManager().computeMemorySize(
 				getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 					ManagedMemoryUseCase.BATCH_OP,
-					getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration()));
+					environment.getTaskManagerInfo().getConfiguration(),
+					environment.getUserCodeClassLoader().asClassLoader()));
 	}
 }
