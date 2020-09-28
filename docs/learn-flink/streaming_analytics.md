@@ -49,14 +49,6 @@ implementations.
 
 ### Working with Event Time
 
-By default, Flink will use processing time. To change this, you can set the Time Characteristic:
-
-{% highlight java %}
-final StreamExecutionEnvironment env =
-    StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-{% endhighlight %}
-
 If you want to use event time, you will also need to supply a Timestamp Extractor and Watermark
 Generator that Flink will use to track the progress of event time. This will be covered in the
 section below on [Working with Watermarks]({% link
