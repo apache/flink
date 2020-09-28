@@ -276,7 +276,9 @@ public abstract class TableColumn {
 			sb.append("METADATA");
 			if (metadataAlias != null) {
 				sb.append(" FROM ");
+				sb.append("'");
 				sb.append(metadataAlias);
+				sb.append("'");
 			}
 			if (isVirtual) {
 				sb.append(" VIRTUAL");
