@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
+import org.apache.flink.table.planner.sinks.DynamicSinkUtils.prepareDynamicSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateSchemaAndApplyImplicitCast, validateTableSink}
 import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
@@ -239,11 +240,11 @@ abstract class PlannerBase(
 
           case (table, sink: DynamicTableSink) =>
             // validate TableSink
-            validateTableSink(catalogSink, identifier, sink, table.getPartitionKeys)
+            prepareDynamicSink(catalogSink, identifier, sink, table.getPartitionKeys)
             // validate query schema and sink schema, and apply cast if possible
             val query = validateSchemaAndApplyImplicitCast(
               input,
-              TableSchemaUtils.getPhysicalSchema(table.getSchema),
+              table.getSchema,
               getTypeFactory,
               Some(catalogSink.getTableIdentifier.asSummaryString()))
             LogicalSink.create(
