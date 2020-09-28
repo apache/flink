@@ -104,7 +104,8 @@ public class StreamOperatorStateHandlerTest {
 				new UnUsedKeyContext(),
 				IntSerializer.INSTANCE,
 				closeableRegistry,
-				new InterceptingOperatorMetricGroup());
+				new InterceptingOperatorMetricGroup(),
+				1.0);
 			StreamOperatorStateHandler stateHandler = new StreamOperatorStateHandler(stateContext, new ExecutionConfig(), closeableRegistry);
 
 			final String keyedStateField = "keyedStateField";
