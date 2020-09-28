@@ -176,4 +176,11 @@ public interface StateBackend extends java.io.Serializable {
 		String operatorIdentifier,
 		@Nonnull Collection<OperatorStateHandle> stateHandles,
 		CloseableRegistry cancelStreamRegistry) throws Exception;
+
+	/**
+	 * Whether the state backend uses Flink's managed memory.
+	 */
+	default boolean useManagedMemory() {
+		return false;
+	}
 }
