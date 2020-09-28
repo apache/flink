@@ -22,8 +22,6 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
-
 /**
  * A buffer provider to request buffers from in a synchronous or asynchronous fashion.
  *
@@ -37,7 +35,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 *
 	 * @return {@code null} if no buffer is available or the buffer provider has been destroyed.
 	 */
-	@Nullable Buffer requestBuffer() throws IOException;
+	@Nullable Buffer requestBuffer();
 
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider. This equals to {@link #requestBufferBuilder(int)}
@@ -45,7 +43,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 *
 	 * @return {@code null} if no buffer is available or the buffer provider has been destroyed.
 	 */
-	@Nullable BufferBuilder requestBufferBuilder() throws IOException;
+	@Nullable BufferBuilder requestBufferBuilder();
 
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.
@@ -53,7 +51,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 * @param targetChannel to which the request will be accounted to.
 	 * @return {@code null} if no buffer is available or the buffer provider has been destroyed.
 	 */
-	@Nullable BufferBuilder requestBufferBuilder(int targetChannel) throws IOException;
+	@Nullable BufferBuilder requestBufferBuilder(int targetChannel);
 
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider. This equals to {@link #requestBufferBuilderBlocking(int)}
@@ -62,7 +60,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 * <p>If there is no buffer available, the call will block until one becomes available again or the
 	 * buffer provider has been destroyed.
 	 */
-	BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException;
+	BufferBuilder requestBufferBuilderBlocking() throws InterruptedException;
 
 	/**
 	 * Returns a {@link BufferBuilder} instance from the buffer provider.
@@ -72,7 +70,7 @@ public interface BufferProvider extends AvailabilityProvider {
 	 *
 	 * @param targetChannel to which the request will be accounted to.
 	 */
-	BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException;
+	BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws InterruptedException;
 
 	/**
 	 * Adds a buffer availability listener to the buffer provider.

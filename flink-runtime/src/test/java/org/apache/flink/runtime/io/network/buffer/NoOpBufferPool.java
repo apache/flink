@@ -24,7 +24,6 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -37,27 +36,27 @@ public class NoOpBufferPool implements BufferPool {
 	}
 
 	@Override
-	public Buffer requestBuffer() throws IOException {
+	public Buffer requestBuffer() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder() throws IOException {
+	public BufferBuilder requestBufferBuilder() {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilder(int targetChannel) throws IOException {
+	public BufferBuilder requestBufferBuilder(int targetChannel) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws IOException, InterruptedException {
+	public BufferBuilder requestBufferBuilderBlocking(int targetChannel) throws InterruptedException {
 		throw new UnsupportedOperationException();
 	}
 
@@ -87,7 +86,7 @@ public class NoOpBufferPool implements BufferPool {
 	}
 
 	@Override
-	public void setNumBuffers(int numBuffers) throws IOException {
+	public void setNumBuffers(int numBuffers) {
 		throw new UnsupportedOperationException();
 	}
 
