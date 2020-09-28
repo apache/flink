@@ -801,32 +801,44 @@ function extract_job_id_from_job_submission_return() {
     echo "$JOB_ID"
 }
 
-
-#
-# NOTE: This function requires at least Bash version >= 4. Mac OS in 2020 still ships 3.x
-#
 kill_test_watchdog() {
-    local watchdog_pid=`cat $TEST_DATA_DIR/job_watchdog.pid`
+    local watchdog_pid=$(cat $TEST_DATA_DIR/job_watchdog.pid)
     echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
     kill $watchdog_pid
 }
 
-run_test_with_timeout() {
-  local TEST_TIMEOUT_SECONDS=$1
-  shift
-  local TEST_COMMAND=$@
+#
+# NOTE: This function requires at least Bash version >= 4 due to the usage of $BASHPID. Mac OS in 2020 still ships 3.x
+#
+internal_run_with_timeout() {
+  local timeout_in_seconds="$1"
+  local on_failure="$2"
+  local command_label="$3"
+  local command="${@:4}"
 
   on_exit kill_test_watchdog
 
   (
-      cmdpid=$BASHPID
-      (sleep $TEST_TIMEOUT_SECONDS # set a timeout for this test
-      echo "Test (pid: $cmdpid) did not finish after $TEST_TIMEOUT_SECONDS seconds."
-      echo "Printing Flink logs and killing it:"
-      cat ${FLINK_DIR}/log/*
-      kill "$cmdpid") & watchdog_pid=$!
+      command_pid=$BASHPID
+      (sleep "${timeout_in_seconds}" # set a timeout for this command
+      echo "${command_label:-"The command '${command}'"} (pid: $command_pid) did not finish after $timeout_in_seconds seconds."
+      eval "${on_failure}"
+      kill "$command_pid") & watchdog_pid=$!
       echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
       # invoke
-      $TEST_COMMAND
+      $command
   )
+}
+
+run_on_test_failure() {
+  echo "Printing Flink logs and killing it:"
+  cat ${FLINK_DIR}/log/*
+}
+
+run_test_with_timeout() {
+  internal_run_with_timeout $1 run_on_test_failure "Test" ${@:2}
+}
+
+run_with_timeout() {
+  internal_run_with_timeout $1 "" "" ${@:2}
 }
