@@ -28,7 +28,6 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -58,8 +57,6 @@ public class AsyncIOExample {
 	private static final Logger LOG = LoggerFactory.getLogger(AsyncIOExample.class);
 
 	private static final String EXACTLY_ONCE_MODE = "exactly_once";
-	private static final String EVENT_TIME = "EventTime";
-	private static final String INGESTION_TIME = "IngestionTime";
 	private static final String ORDERED = "ordered";
 
 	/**
@@ -210,7 +207,6 @@ public class AsyncIOExample {
 		final float failRatio;
 		final String mode;
 		final int taskNum;
-		final String timeType;
 		final long shutdownWaitTS;
 		final long timeout;
 
@@ -223,7 +219,6 @@ public class AsyncIOExample {
 			failRatio = params.getFloat("failRatio", 0.001f);
 			mode = params.get("waitMode", "ordered");
 			taskNum = params.getInt("waitOperatorParallelism", 1);
-			timeType = params.get("eventType", "EventTime");
 			shutdownWaitTS = params.getLong("shutdownWaitTS", 20000);
 			timeout = params.getLong("timeout", 10000L);
 		} catch (Exception e) {
@@ -245,7 +240,6 @@ public class AsyncIOExample {
 			.append("Fail ratio=").append(failRatio).append(lineSeparator)
 			.append("Waiting mode=").append(mode).append(lineSeparator)
 			.append("Parallelism for async wait operator=").append(taskNum).append(lineSeparator)
-			.append("Event type=").append(timeType).append(lineSeparator)
 			.append("Shutdown wait timestamp=").append(shutdownWaitTS);
 
 		LOG.info(configStringBuilder.toString());
@@ -260,14 +254,6 @@ public class AsyncIOExample {
 		}
 		else {
 			env.enableCheckpointing(1000L, CheckpointingMode.AT_LEAST_ONCE);
-		}
-
-		// enable watermark or not
-		if (EVENT_TIME.equals(timeType)) {
-			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		}
-		else if (INGESTION_TIME.equals(timeType)) {
-			env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 		}
 
 		// create input stream of a single integer

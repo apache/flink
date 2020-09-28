@@ -34,7 +34,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -103,7 +102,6 @@ public class StreamSQLTestProgram {
 			3,
 			Time.of(10, TimeUnit.SECONDS)
 		));
-		sEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		sEnv.enableCheckpointing(4000);
 		sEnv.getConfig().setAutoWatermarkInterval(1000);
 
