@@ -101,7 +101,8 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -212,7 +213,8 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
