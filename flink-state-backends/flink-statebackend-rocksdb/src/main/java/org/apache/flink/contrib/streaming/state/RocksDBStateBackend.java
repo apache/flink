@@ -451,6 +451,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		return initializedDbBasePaths[ni];
 	}
 
+	@Override
+	public boolean useManagedMemory() {
+		return true;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Checkpoint initialization and persistent storage
 	// ------------------------------------------------------------------------
