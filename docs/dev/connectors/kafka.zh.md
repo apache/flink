@@ -411,6 +411,8 @@ Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制�
 * `Semantic.AT_LEAST_ONCE`（默认设置）：可以保证不会丢失任何记录（但是记录可能会重复）
 * `Semantic.EXACTLY_ONCE`：使用 Kafka 事务提供精确一次语义。无论何时，在使用事务写入 Kafka 时，都要记得为所有消费 Kafka 消息的应用程序设置所需的 `isolation.level`（`read_committed` 或 `read_uncommitted` - 后者是默认值）。
 
+<a name="caveats"></a>
+
 ##### 注意事项
 
 `Semantic.EXACTLY_ONCE` 模式依赖于事务提交的能力。事务提交发生于触发 checkpoint 之前，以及从 checkpoint 恢复之后。如果从 Flink 应用程序崩溃到完全重启的时间超过了 Kafka 的事务超时时间，那么将会有数据丢失（Kafka 会自动丢弃超出超时时间的事务）。考虑到这一点，请根据预期的宕机时间来合理地配置事务超时时间。
