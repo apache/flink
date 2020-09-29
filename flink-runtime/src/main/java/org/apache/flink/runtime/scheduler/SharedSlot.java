@@ -35,9 +35,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Shared slot implementation for the {@link SlotSharingExecutionSlotAllocator}.
@@ -203,6 +205,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 	}
 
 	private void removeLogicalSlotRequest(SlotRequestId logicalSlotRequestId) {
+		LOG.debug("Remove {}", getLogicalSlotString(logicalSlotRequestId));
 		Preconditions.checkState(
 			requestedLogicalSlots.removeKeyB(logicalSlotRequestId) != null,
 			"Trying to remove a logical slot request which has been either already removed or never created.");
@@ -215,10 +218,19 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 			slotContextFuture.isDone(),
 			"Releasing of the shared slot is expected only from its successfully allocated physical slot ({})",
 			physicalSlotRequestId);
-		for (ExecutionVertexID executionVertexId : requestedLogicalSlots.keySetA()) {
-			LOG.debug("Release {}", getLogicalSlotString(executionVertexId));
+		LOG.debug("Release shared slot ({})", physicalSlotRequestId);
+
+		// copy the logical slot collection to avoid ConcurrentModificationException
+		// if logical slot releases cause cancellation of other executions
+		// which will try to call returnLogicalSlot and modify requestedLogicalSlots collection
+		Map<ExecutionVertexID, CompletableFuture<SingleLogicalSlot>> logicalSlotFutures = requestedLogicalSlots
+			.keySetA()
+			.stream()
+			.collect(Collectors.toMap(executionVertexId -> executionVertexId, requestedLogicalSlots::getValueByKeyA));
+		for (Map.Entry<ExecutionVertexID, CompletableFuture<SingleLogicalSlot>> entry : logicalSlotFutures.entrySet()) {
+			LOG.debug("Release {}", getLogicalSlotString(entry.getKey()));
 			CompletableFuture<SingleLogicalSlot> logicalSlotFuture =
-				requestedLogicalSlots.getValueByKeyA(executionVertexId);
+				entry.getValue();
 			Preconditions.checkNotNull(logicalSlotFuture);
 			Preconditions.checkState(
 				logicalSlotFuture.isDone(),
@@ -231,8 +243,9 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 	}
 
 	private void releaseExternally() {
-		if (state == State.ALLOCATED && requestedLogicalSlots.values().isEmpty()) {
+		if (state != State.RELEASED && requestedLogicalSlots.values().isEmpty()) {
 			state = State.RELEASED;
+			LOG.debug("Release shared slot externally ({})", physicalSlotRequestId);
 			externalReleaseCallback.accept(executionSlotSharingGroup);
 		}
 	}
