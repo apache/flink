@@ -17,7 +17,7 @@
 ################################################################################
 from abc import ABC, abstractmethod
 
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Iterable, List, Iterator
 
 T = TypeVar('T')
 
@@ -63,3 +63,48 @@ class ValueState(State, Generic[T]):
         key will be removed and the default value is returned on the next access.
         """
         pass
+
+
+class ListState(State, Generic[T]):
+    """
+    :class:`State` interface for partitioned list state in Operations.
+    The state is accessed and modified by user functions, and checkpointed consistently
+    by the system as part of the distributed snapshots.
+
+    Currently only keyed list state is supported.
+
+    When it is a keyed list state, the key is automatically supplied by the system, so the function
+    always sees the value mapped to the key of the current element. That way, the system can handle
+    stream and state partitioning consistently together.
+    """
+
+    @abstractmethod
+    def get(self) -> Iterable[T]:
+        """
+        Returns the elements under the current key.
+        """
+        pass
+
+    @abstractmethod
+    def add(self, value: T) -> None:
+        """
+        Adding the given value to the tail of this list state.
+        """
+        pass
+
+    @abstractmethod
+    def update(self, values: List[T]) -> None:
+        """
+        Updating existing values to to the given list of values.
+        """
+        pass
+
+    @abstractmethod
+    def add_all(self, values: List[T]) -> None:
+        """
+        Adding the given values to the tail of this list state.
+        """
+        pass
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self.get())

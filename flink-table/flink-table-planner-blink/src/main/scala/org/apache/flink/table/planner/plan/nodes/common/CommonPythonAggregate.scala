@@ -19,12 +19,19 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.{DataTypes, TableException}
+import org.apache.flink.table.api.dataview.ListView
+import org.apache.flink.table.dataview.ListViewTypeInfo
+import org.apache.flink.table.functions.python.{PythonAggregateFunction, PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec}
+import org.apache.flink.table.types.utils.TypeConversions
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -65,18 +72,69 @@ trait CommonPythonAggregate extends CommonPythonBase {
     * For streaming execution we extract the PythonFunctionInfo from AggregateInfo.
     */
   protected def extractPythonAggregateFunctionInfosFromAggregateInfo(
-      pythonAggregateInfo: AggregateInfo): PythonFunctionInfo = {
+      aggIndex: Int,
+      pythonAggregateInfo: AggregateInfo): (PythonFunctionInfo, Array[DataViewSpec]) = {
     pythonAggregateInfo.function match {
       case function: PythonFunction =>
-        new PythonFunctionInfo(
-          function,
-          pythonAggregateInfo.argIndexes.map(_.asInstanceOf[AnyRef]))
+        (
+          new PythonFunctionInfo(
+            function,
+            pythonAggregateInfo.argIndexes.map(_.asInstanceOf[AnyRef])),
+          extractDataViewSpecs(
+            aggIndex,
+            function.asInstanceOf[PythonAggregateFunction].getAccumulatorType)
+        )
       case _: Count1AggFunction =>
         // The count star will be treated specially in Python UDF worker
-        PythonFunctionInfo.DUMMY_PLACEHOLDER
+        (PythonFunctionInfo.DUMMY_PLACEHOLDER, Array())
       case _ =>
         throw new TableException(
           "Unsupported python aggregate function: " + pythonAggregateInfo.function)
+    }
+  }
+
+  protected def extractDataViewSpecs(
+      index: Int,
+      accType: TypeInformation[_]): Array[DataViewSpec] = {
+    if (!accType.isInstanceOf[CompositeType[_]]) {
+      return Array()
+    }
+
+    def includesDataView(ct: CompositeType[_]): Boolean = {
+      (0 until ct.getArity).exists(i =>
+        ct.getTypeAt(i) match {
+          case nestedCT: CompositeType[_] => includesDataView(nestedCT)
+          case t: TypeInformation[_] if t.getTypeClass == classOf[ListView[_]] => true
+          case _ => false
+        }
+      )
+    }
+
+    if (includesDataView(accType.asInstanceOf[CompositeType[_]])) {
+      accType match {
+        case rowType: RowTypeInfo =>
+            (0 until rowType.getArity).flatMap(i => {
+              rowType.getFieldTypes()(i) match {
+                case ct: CompositeType[_] if includesDataView(ct) =>
+                  throw new TableException(
+                    "For Python AggregateFunction DataView only supported at first " +
+                      "level of accumulators of Row type.")
+                case listView: ListViewTypeInfo[_] =>
+                  Some(new ListViewSpec(
+                    "agg" + index + "$" + rowType.getFieldNames()(i),
+                    i,
+                    DataTypes.ARRAY(
+                      TypeConversions.fromLegacyInfoToDataType(listView.getElementType))))
+                case _ =>
+                  None
+              }
+            }).toArray
+        case _ =>
+          throw new TableException("For Python AggregateFunction you can only use DataView in " +
+            "Row type.")
+      }
+    } else {
+      Array()
     }
   }
 }

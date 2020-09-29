@@ -46,6 +46,7 @@ import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils;
@@ -104,6 +105,8 @@ public class PythonStreamGroupAggregateOperator
 	private final Map<String, String> jobOptions;
 
 	private final PythonFunctionInfo[] aggregateFunctions;
+
+	private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
 
 	/**
 	 * The array of the key indexes.
@@ -195,6 +198,7 @@ public class PythonStreamGroupAggregateOperator
 			RowType inputType,
 			RowType outputType,
 			PythonFunctionInfo[] aggregateFunctions,
+			DataViewUtils.DataViewSpec[][] dataViewSpecs,
 			int[] grouping,
 			int indexOfCountStar,
 			boolean generateUpdateBefore,
@@ -204,6 +208,7 @@ public class PythonStreamGroupAggregateOperator
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 		this.aggregateFunctions = aggregateFunctions;
+		this.dataViewSpecs = dataViewSpecs;
 		this.jobOptions = buildJobOptions(config);
 		this.grouping = grouping;
 		this.indexOfCountStar = indexOfCountStar;
@@ -380,6 +385,28 @@ public class PythonStreamGroupAggregateOperator
 			FlinkFnApi.UserDefinedAggregateFunctions.newBuilder();
 		for (PythonFunctionInfo pythonFunctionInfo : aggregateFunctions) {
 			builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
+		}
+		for (DataViewUtils.DataViewSpec[] specs : dataViewSpecs) {
+			FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpecs.Builder specsBuilder =
+				FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpecs.newBuilder();
+			for (DataViewUtils.DataViewSpec spec : specs) {
+				FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.Builder specBuilder =
+					FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.newBuilder();
+				specBuilder.setName(spec.getStateId());
+				if (spec instanceof DataViewUtils.ListViewSpec) {
+					DataViewUtils.ListViewSpec listViewSpec = (DataViewUtils.ListViewSpec) spec;
+					specBuilder.setType(FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.DataViewType.LIST);
+					specBuilder.setElementType(toProtoType(listViewSpec.getElementDataType().getLogicalType()));
+				} else {
+					DataViewUtils.MapViewSpec mapViewSpec = (DataViewUtils.MapViewSpec) spec;
+					specBuilder.setType(FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.DataViewType.MAP);
+					specBuilder.setElementType(toProtoType(mapViewSpec.getValueDataType().getLogicalType()));
+					specBuilder.setKeyType(toProtoType(mapViewSpec.getKeyDataType().getLogicalType()));
+				}
+				specBuilder.setFieldIndex(spec.getFieldIndex());
+				specsBuilder.addSpecs(specBuilder.build());
+			}
+			builder.addUdfDataViewSpecs(specsBuilder.build());
 		}
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));

@@ -18,10 +18,16 @@
 
 package org.apache.flink.table.planner.plan.stream.table
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.dataview.ListViewTypeInfo
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec}
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PythonAggregateTest extends TableTestBase {
@@ -59,5 +65,43 @@ class PythonAggregateTest extends TableTestBase {
       .select('b, func('a, 'c), 'a.count())
 
     util.verifyPlan(resultTable)
+  }
+
+  @Test
+  def testExtractDataViewSpecs(): Unit = {
+    val accTypeInfo =
+      new RowTypeInfo(Types.STRING(), new ListViewTypeInfo(Types.STRING()))
+
+    val specs = TestCommonPythonAggregate.extractDataViewSpecs(accTypeInfo)
+
+    val expected = Array(
+      new ListViewSpec("agg0$f1", 1, DataTypes.ARRAY(DataTypes.STRING())))
+
+    assertEquals(expected(0).getClass, specs(0).getClass)
+    assertEquals(expected(0).getDataType, specs(0).getDataType)
+    assertEquals(expected(0).getStateId, specs(0).getStateId)
+    assertEquals(expected(0).getFieldIndex, specs(0).getFieldIndex)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testExtractSecondLevelDataViewSpecs(): Unit = {
+    val accTypeInfo =
+      new RowTypeInfo(Types.STRING(), new RowTypeInfo(new ListViewTypeInfo(Types.STRING())))
+
+    val specs = TestCommonPythonAggregate.extractDataViewSpecs(accTypeInfo)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testExtractDataViewSpecsFromTupleType(): Unit = {
+    val accTypeInfo =
+      new TupleTypeInfo(Types.STRING(), new ListViewTypeInfo(Types.STRING()))
+
+    val specs = TestCommonPythonAggregate.extractDataViewSpecs(accTypeInfo)
+  }
+}
+
+object TestCommonPythonAggregate extends CommonPythonAggregate {
+  def extractDataViewSpecs(accType: TypeInformation[_]): Array[DataViewSpec] = {
+    extractDataViewSpecs(0, accType)
   }
 }

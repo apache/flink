@@ -94,6 +94,21 @@ message UserDefinedDataStreamFunctions {
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
 message UserDefinedAggregateFunctions {
+  message DataViewSpec {
+    enum DataViewType {
+      LIST = 0;
+      MAP = 1;
+    }
+    string name = 1;
+    int32 field_index = 2;
+    DataViewType type = 3;
+    Schema.FieldType element_type = 4;
+    Schema.FieldType key_type = 5;
+  }
+  message DataViewSpecs {
+    repeated DataViewSpec specs = 1;
+  }
+
   repeated UserDefinedFunction udfs = 1;
   bool metric_enabled = 2;
   // The array of the key indexes.
@@ -108,6 +123,8 @@ message UserDefinedAggregateFunctions {
   int32 state_cache_size = 7;
   // Cleanup the expired state if true.
   bool state_cleaning_enabled = 8;
+  // The data view specifications
+  repeated DataViewSpecs udf_data_view_specs = 9;
 }
 
 // A representation of the data schema.

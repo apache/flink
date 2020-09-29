@@ -28,7 +28,7 @@ import java.io.Serializable;
  * the actual Python function, the input arguments, etc.
  */
 @Internal
-public final class PythonFunctionInfo implements Serializable {
+public class PythonFunctionInfo implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
