@@ -120,6 +120,14 @@ public class TaskStateStats implements Serializable {
 		return summaryStats.getStateSizeStats().getSum();
 	}
 
+	public long getProcessedDataStats() {
+		return summaryStats.getProcessedDataStats().getSum();
+	}
+
+	public long getPersistedDataStats() {
+		return summaryStats.getPersistedDataStats().getSum();
+	}
+
 	/**
 	 * Returns the duration of this checkpoint at the task/operator calculated
 	 * as the time since triggering until the latest acknowledged subtask
@@ -168,6 +176,8 @@ public class TaskStateStats implements Serializable {
 		private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();
 		private MinMaxAvgStats syncCheckpointDuration = new MinMaxAvgStats();
 		private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
+		private MinMaxAvgStats processedData = new MinMaxAvgStats();
+		private MinMaxAvgStats persistedData = new MinMaxAvgStats();
 		private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
 		private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
 
@@ -176,6 +186,8 @@ public class TaskStateStats implements Serializable {
 			ackTimestamp.add(subtaskStats.getAckTimestamp());
 			syncCheckpointDuration.add(subtaskStats.getSyncCheckpointDuration());
 			asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
+			processedData.add(subtaskStats.getProcessedData());
+			persistedData.add(subtaskStats.getPersistedData());
 			alignmentDuration.add(subtaskStats.getAlignmentDuration());
 			checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
 		}
@@ -194,6 +206,14 @@ public class TaskStateStats implements Serializable {
 
 		public MinMaxAvgStats getAsyncCheckpointDurationStats() {
 			return asyncCheckpointDuration;
+		}
+
+		public MinMaxAvgStats getProcessedDataStats() {
+			return processedData;
+		}
+
+		public MinMaxAvgStats getPersistedDataStats() {
+			return persistedData;
 		}
 
 		public MinMaxAvgStats getAlignmentDurationStats() {

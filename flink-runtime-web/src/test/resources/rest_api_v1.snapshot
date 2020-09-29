@@ -939,6 +939,14 @@
             "alignment_buffered" : {
               "type" : "object",
               "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "processed_data" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "persisted_data" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
             }
           }
         },
@@ -975,6 +983,12 @@
                 "alignment_buffered" : {
                   "type" : "integer"
                 },
+                "processed_data" : {
+                   "type" : "integer"
+                },
+                "persisted_data" : {
+                   "type" : "integer"
+                },
                 "num_subtasks" : {
                   "type" : "integer"
                 },
@@ -1004,6 +1018,12 @@
                         "type" : "integer"
                       },
                       "alignment_buffered" : {
+                        "type" : "integer"
+                      },
+                      "processed_data" : {
+                        "type" : "integer"
+                      },
+                      "persisted_data" : {
                         "type" : "integer"
                       },
                       "num_subtasks" : {
@@ -1055,6 +1075,12 @@
                 },
                 "alignment_buffered" : {
                   "type" : "integer"
+                },
+                "processed_data" : {
+                   "type" : "integer"
+                },
+                "persisted_data" : {
+                   "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1126,6 +1152,12 @@
                 "type" : "integer"
               },
               "alignment_buffered" : {
+                "type" : "integer"
+              },
+              "processed_data" : {
+                "type" : "integer"
+              },
+              "persisted_data" : {
                 "type" : "integer"
               },
               "num_subtasks" : {
@@ -1248,6 +1280,12 @@
         "alignment_buffered" : {
           "type" : "integer"
         },
+        "processed_data" : {
+           "type" : "integer"
+        },
+        "persisted_data" : {
+           "type" : "integer"
+        },
         "num_subtasks" : {
           "type" : "integer"
         },
@@ -1277,6 +1315,12 @@
                 "type" : "integer"
               },
               "alignment_buffered" : {
+                "type" : "integer"
+              },
+              "processed_data" : {
+                "type" : "integer"
+              },
+              "persisted_data" : {
                 "type" : "integer"
               },
               "num_subtasks" : {
@@ -1333,6 +1377,12 @@
         "alignment_buffered" : {
           "type" : "integer"
         },
+        "processed_data" : {
+           "type" : "integer"
+        },
+        "persisted_data" : {
+           "type" : "integer"
+        },
         "num_subtasks" : {
           "type" : "integer"
         },
@@ -1381,6 +1431,14 @@
               "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointAlignment",
               "properties" : {
                 "buffered" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                },
+                "processed" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                },
+                "persisted" : {
                   "type" : "object",
                   "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
                 },

@@ -321,7 +321,9 @@ public class CompletedCheckpointTest {
 			taskStats,
 			1337,
 			123129837912L,
-			new SubtaskStateStats(123, 213123, 123123, 0, 0, 0, 0),
+			42L,
+			44L,
+			new SubtaskStateStats(123, 213123, 123123, 0, 0, 0, 0, 0, 0),
 			null);
 
 		CompletedCheckpointStats copy = CommonTestUtils.createCopySerializable(completed);
@@ -333,6 +335,8 @@ public class CompletedCheckpointTest {
 		assertEquals(completed.getNumberOfAcknowledgedSubtasks(), copy.getNumberOfAcknowledgedSubtasks());
 		assertEquals(completed.getEndToEndDuration(), copy.getEndToEndDuration());
 		assertEquals(completed.getStateSize(), copy.getStateSize());
+		assertEquals(completed.getProcessedData(), copy.getProcessedData());
+		assertEquals(completed.getPersistedData(), copy.getPersistedData());
 		assertEquals(completed.getLatestAcknowledgedSubtaskStats().getSubtaskIndex(), copy.getLatestAcknowledgedSubtaskStats().getSubtaskIndex());
 		assertEquals(completed.getStatus(), copy.getStatus());
 	}

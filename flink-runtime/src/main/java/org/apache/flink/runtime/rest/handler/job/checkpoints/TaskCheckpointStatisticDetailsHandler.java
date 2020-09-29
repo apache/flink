@@ -132,6 +132,8 @@ public class TaskCheckpointStatisticDetailsHandler
 			taskStatistics.getStateSize(),
 			taskStatistics.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
 			0,
+			taskStatistics.getProcessedDataStats(),
+			taskStatistics.getPersistedDataStats(),
 			taskStatistics.getNumberOfSubtasks(),
 			taskStatistics.getNumberOfAcknowledgedSubtasks(),
 			summary,
@@ -147,6 +149,8 @@ public class TaskCheckpointStatisticDetailsHandler
 
 		final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment checkpointAlignment = new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
 			new MinMaxAvgStatistics(0, 0, 0),
+			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getProcessedDataStats()),
+			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getPersistedDataStats()),
 			MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getAlignmentDurationStats()));
 
 		return new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
@@ -179,6 +183,8 @@ public class TaskCheckpointStatisticDetailsHandler
 						subtask.getAsyncCheckpointDuration()),
 					new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(
 						0,
+						subtask.getProcessedData(),
+						subtask.getPersistedData(),
 						subtask.getAlignmentDuration()),
 					subtask.getCheckpointStartDelay()
 				));

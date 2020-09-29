@@ -53,6 +53,10 @@ public class SubtaskStateStats implements Serializable {
 	/** Checkpoint duration at the operator (async part) in milliseconds. */
 	private final long asyncCheckpointDuration;
 
+	private final long processedData;
+
+	private final long persistedData;
+
 	/** Alignment duration in milliseconds. */
 	private final long alignmentDuration;
 
@@ -65,6 +69,8 @@ public class SubtaskStateStats implements Serializable {
 			long stateSize,
 			long syncCheckpointDuration,
 			long asyncCheckpointDuration,
+			long processedData,
+			long persistedData,
 			long alignmentDuration,
 			long checkpointStartDelay) {
 
@@ -75,6 +81,8 @@ public class SubtaskStateStats implements Serializable {
 		this.ackTimestamp = ackTimestamp;
 		this.syncCheckpointDuration = syncCheckpointDuration;
 		this.asyncCheckpointDuration = asyncCheckpointDuration;
+		this.processedData = processedData;
+		this.persistedData = persistedData;
 		this.alignmentDuration = alignmentDuration;
 		this.checkpointStartDelay = checkpointStartDelay;
 	}
@@ -129,6 +137,20 @@ public class SubtaskStateStats implements Serializable {
 	 */
 	public long getAsyncCheckpointDuration() {
 		return asyncCheckpointDuration;
+	}
+
+	/**
+	 * @return the total number of processed bytes during the checkpoint.
+	 */
+	public long getProcessedData() {
+		return processedData;
+	}
+
+	/**
+	 * @return the total number of persisted bytes during the checkpoint.
+	 */
+	public long getPersistedData() {
+		return persistedData;
 	}
 
 	/**

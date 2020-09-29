@@ -44,6 +44,8 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest extends RestResponse
 				new MinMaxAvgStatistics(1L, 2L, 3L)),
 			new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
 				new MinMaxAvgStatistics(1L, 2L, 3L),
+				new MinMaxAvgStatistics(1L, 2L, 3L),
+				new MinMaxAvgStatistics(1L, 2L, 3L),
 				new MinMaxAvgStatistics(1L, 2L, 3L)),
 			new MinMaxAvgStatistics(1L, 2L, 3L));
 
@@ -56,7 +58,7 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest extends RestResponse
 			13L,
 			1337L,
 			new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointDuration(1L, 2L),
-			new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(2L, 3L),
+			new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.CheckpointAlignment(2L, 4L, 5L, 3L),
 			42L));
 
 		return new TaskCheckpointStatisticsWithSubtaskDetails(
@@ -66,6 +68,8 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest extends RestResponse
 			1337L,
 			1L,
 			2L,
+			10,
+			11,
 			8,
 			9,
 			summary,

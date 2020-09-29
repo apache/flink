@@ -35,16 +35,24 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	/** Duration statistics for all completed checkpoints. */
 	private final MinMaxAvgStats duration;
 
+	private final MinMaxAvgStats processedData;
+
+	private final MinMaxAvgStats persistedData;
+
 	CompletedCheckpointStatsSummary() {
-		this(new MinMaxAvgStats(), new MinMaxAvgStats());
+		this(new MinMaxAvgStats(), new MinMaxAvgStats(), new MinMaxAvgStats(), new MinMaxAvgStats());
 	}
 
 	private CompletedCheckpointStatsSummary(
 			MinMaxAvgStats stateSize,
-			MinMaxAvgStats duration) {
+			MinMaxAvgStats duration,
+			MinMaxAvgStats processedData,
+			MinMaxAvgStats persistedData) {
 
 		this.stateSize = checkNotNull(stateSize);
 		this.duration = checkNotNull(duration);
+		this.processedData = checkNotNull(processedData);
+		this.persistedData = checkNotNull(persistedData);
 	}
 
 	/**
@@ -55,6 +63,8 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	void updateSummary(CompletedCheckpointStats completed) {
 		stateSize.add(completed.getStateSize());
 		duration.add(completed.getEndToEndDuration());
+		processedData.add(completed.getProcessedData());
+		persistedData.add(completed.getPersistedData());
 	}
 
 	/**
@@ -65,7 +75,9 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	CompletedCheckpointStatsSummary createSnapshot() {
 		return new CompletedCheckpointStatsSummary(
 				stateSize.createSnapshot(),
-				duration.createSnapshot());
+				duration.createSnapshot(),
+				processedData.createSnapshot(),
+				persistedData.createSnapshot());
 	}
 
 	/**
@@ -84,5 +96,13 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 	 */
 	public MinMaxAvgStats getEndToEndDurationStats() {
 		return duration;
+	}
+
+	public MinMaxAvgStats getProcessedDataStats() {
+		return processedData;
+	}
+
+	public MinMaxAvgStats getPersistedDataStats() {
+		return persistedData;
 	}
 }
