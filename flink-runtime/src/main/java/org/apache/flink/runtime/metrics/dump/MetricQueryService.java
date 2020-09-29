@@ -217,6 +217,7 @@ public class MetricQueryService extends RpcEndpoint implements MetricQueryServic
 				case '.':
 				case ':':
 				case ',':
+			    case '+':
 					if (chars == null) {
 						chars = str.toCharArray();
 					}
