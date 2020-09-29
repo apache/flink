@@ -389,7 +389,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				metricGroup,
 				restoreStateHandles,
 				ttlCompactFiltersManager,
-				writeBufferManagerCapacity);
+				optionsContainer.getWriteBufferManagerCapacity();
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
 		if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
