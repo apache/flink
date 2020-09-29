@@ -200,7 +200,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 				// Otherwise this followup exception could race the original exception in failing the task.
 				try {
 					taskEnvironment.declineCheckpoint(checkpointMetaData.getCheckpointId(),
-							new CheckpointException(CheckpointFailureReason.EXCEPTION, checkpointException));
+							new CheckpointException(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION, checkpointException));
 				} catch (Exception unhandled) {
 					AsynchronousException asyncException = new AsynchronousException(unhandled);
 					asyncExceptionHandler.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
