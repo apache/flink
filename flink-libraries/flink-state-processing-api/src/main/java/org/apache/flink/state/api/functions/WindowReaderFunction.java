@@ -21,6 +21,8 @@ package org.apache.flink.state.api.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -60,6 +62,18 @@ public abstract class WindowReaderFunction<IN, OUT, KEY, W extends Window> exten
 		 * Returns the window that is being evaluated.
 		 */
 		W window();
+
+		/**
+		 * Retrieves a {@link State} object that can be used to interact with
+		 * fault-tolerant state that is scoped to the trigger which corresponds
+		 * to the current window.
+		 *
+		 * @param descriptor The StateDescriptor that contains the name and type of the
+		 *                        state that is being accessed.
+		 * @param <S>             The type of the state.
+		 * @return The partitioned state object.
+		 */
+		<S extends State> S triggerState(StateDescriptor<S, ?> descriptor);
 
 		/**
 		 * State accessor for per-key and per-window state.

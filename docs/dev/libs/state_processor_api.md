@@ -509,8 +509,6 @@ savepoint
 </div>
 </div>
 
-{% panel **Note:** Reading state written by a Trigger is not currently supported. %}
-
 ## Writing New Savepoints
 
 `Savepoint`'s may also be written, which allows such use cases as bootstrapping state based on historical data.
