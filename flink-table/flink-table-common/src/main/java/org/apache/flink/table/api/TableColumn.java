@@ -114,6 +114,11 @@ public abstract class TableColumn {
 	 */
 	public abstract boolean isPhysical();
 
+	/**
+	 * Returns whether the given column is persisted in a sink operation.
+	 */
+	public abstract boolean isPersisted();
+
 	/** Returns the data type of this column. */
 	public DataType getType() {
 		return this.type;
@@ -186,6 +191,11 @@ public abstract class TableColumn {
 		}
 
 		@Override
+		public boolean isPersisted() {
+			return true;
+		}
+
+		@Override
 		public Optional<String> explainExtras() {
 			return Optional.empty();
 		}
@@ -205,6 +215,11 @@ public abstract class TableColumn {
 
 		@Override
 		public boolean isPhysical() {
+			return false;
+		}
+
+		@Override
+		public boolean isPersisted() {
 			return false;
 		}
 
@@ -268,6 +283,11 @@ public abstract class TableColumn {
 		@Override
 		public boolean isPhysical() {
 			return false;
+		}
+
+		@Override
+		public boolean isPersisted() {
+			return !isVirtual;
 		}
 
 		@Override

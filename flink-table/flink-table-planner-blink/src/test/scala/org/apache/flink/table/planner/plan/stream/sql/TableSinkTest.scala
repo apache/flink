@@ -49,7 +49,7 @@ class TableSinkTest extends TableTestBase {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
       "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
-        "Sink schema: [name: STRING, email: STRING, message_offset: BIGINT]")
+      "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
     util.verifyPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable")
   }
 
