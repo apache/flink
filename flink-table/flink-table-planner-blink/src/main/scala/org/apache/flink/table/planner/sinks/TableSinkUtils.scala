@@ -52,62 +52,6 @@ import _root_.scala.collection.JavaConversions._
 object TableSinkUtils {
 
   /**
-    * Checks if the given query can be written into the given sink. It checks the field types
-    * should be compatible (types should equal including precisions). If types are not compatible,
-    * but can be implicitly casted, a cast projection will be applied. Otherwise, an exception will
-    * be thrown.
-    *
-    * @param query the query to be checked
-    * @param sinkSchema the schema of sink to be checked
-    * @param typeFactory type factory
-    * @return the query RelNode which may be applied the implicitly cast projection.
-    */
-  def validateSchemaAndApplyImplicitCast(
-      query: RelNode,
-      sinkSchema: TableSchema,
-      typeFactory: FlinkTypeFactory,
-      sinkIdentifier: Option[String] = None): RelNode = {
-
-    val queryLogicalType = FlinkTypeFactory.toLogicalRowType(query.getRowType)
-    val sinkDataType = sinkSchema.toPersistedRowDataType
-    val sinkLogicalType = DataTypeUtils
-      // we recognize legacy decimal is the same to default decimal
-      // we ignore NULL constraint, the NULL constraint will be checked during runtime
-      // see StreamExecSink and BatchExecSink
-      .transform(sinkDataType, legacyDecimalToDefaultDecimal, legacyRawToTypeInfoRaw, toNullable)
-      .getLogicalType
-      .asInstanceOf[RowType]
-    if (supportsImplicitCast(queryLogicalType, sinkLogicalType)) {
-      // the query can be written into sink
-      // but we may need to add a cast project if the types are not compatible
-      if (supportsAvoidingCast(queryLogicalType, sinkLogicalType)) {
-        query
-      } else {
-        // otherwise, add a cast project
-        val castedDataType = typeFactory.buildRelNodeRowType(
-          sinkLogicalType.getFieldNames,
-          sinkLogicalType.getFields.map(_.getType))
-        RelOptUtil.createCastRel(query, castedDataType, true)
-      }
-    } else {
-      // format query and sink schema strings
-      val srcSchema = queryLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
-        .mkString("[", ", ", "]")
-      val sinkSchema = sinkLogicalType.getFields
-        .map(f => s"${f.getName}: ${f.getType.asSummaryString()}")
-        .mkString("[", ", ", "]")
-
-      val sinkDesc: String = sinkIdentifier.getOrElse("")
-
-      throw new ValidationException(
-        s"Field types of query result and registered TableSink $sinkDesc do not match.\n" +
-          s"Query schema: $srcSchema\n" +
-          s"Sink schema: $sinkSchema")
-    }
-  }
-
-  /**
     * It checks whether the [[TableSink]] is compatible to the INSERT INTO clause, e.g.
     * whether the sink is a [[PartitionableTableSink]] and the partitions are valid.
     *

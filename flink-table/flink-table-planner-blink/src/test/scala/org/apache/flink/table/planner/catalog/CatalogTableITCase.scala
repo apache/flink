@@ -593,8 +593,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Field types of query result and registered TableSink "
-      + "default_catalog.default_database.t2 do not match.")
+    expectedEx.expectMessage("Incompatible types for sink column 'c' at position 1.")
     tableEnv.executeSql(query).await()
   }
 
