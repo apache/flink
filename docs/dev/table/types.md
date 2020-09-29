@@ -282,6 +282,7 @@ The following data types are supported:
 | `ROW` | |
 | `RAW` | |
 | structured types | Only exposed in user-defined functions yet. |
+
 </div>
 <div data-lang="Python" markdown="1">
 N/A

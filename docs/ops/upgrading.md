@@ -90,7 +90,6 @@ Operator state can be either user-defined or internal.
 | Operator                                            | Data Type of Internal Operator State |
 |:----------------------------------------------------|:-------------------------------------|
 | ReduceFunction[IOT]                                 | IOT (Input and output type) [, KEY]  |
-| FoldFunction[IT, OT]                                | OT (Output type) [, KEY]             |
 | WindowFunction[IT, OT, KEY, WINDOW]                 | IT (Input type), KEY                 |
 | AllWindowFunction[IT, OT, WINDOW]                   | IT (Input type)                      |
 | JoinFunction[IT1, IT2, OT]                          | IT1, IT2 (Type of 1. and 2. input), KEY |
@@ -167,13 +166,15 @@ savepoints from modifications with the [State Processor API]({{ site.baseurl }}/
 Any savepoint data is currently referenced by absolute paths inside the meta data file and thus a savepoint is 
 not relocatable via typical filesystem operations.
 
-### STEP 1: Take a savepoint in the old Flink version.
+### STEP 1: Stop the existing job with a savepoint
 
-First major step in job migration is taking a savepoint of your job running in the older Flink version.
+The first major step in version migration is taking a savepoint and stopping your job running on
+the old Flink version.
+
 You can do this with the command:
 
 {% highlight shell %}
-$ bin/flink savepoint :jobId [:targetDirectory]
+$ bin/flink stop [--savepointPath :savepointPath] :jobId
 {% endhighlight %}
 
 For more details, please read the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).

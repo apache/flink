@@ -27,6 +27,8 @@ Table API 和 SQL 集成在同一套 API 中。这套 API 的核心概念是`Tab
 * This will be replaced by the TOC
 {:toc}
 
+<a name="main-differences-between-the-two-planners"></a>
+
 两种计划器（Planner）的主要区别
 -----------------------------------------
 
@@ -38,6 +40,7 @@ Table API 和 SQL 集成在同一套 API 中。这套 API 的核心概念是`Tab
 6. Blink 计划器会将多sink（multiple-sinks）优化成一张有向无环图（DAG），`TableEnvironment` 和 `StreamTableEnvironment` 都支持该特性。旧计划器总是将每个sink都优化成一个新的有向无环图，且所有图相互独立。
 7. 旧计划器目前不支持 catalog 统计数据，而 Blink 支持。
 
+<a name="structure-of-table-api-and-sql-programs"></a>
 
 Table API 和 SQL 程序的结构
 ---------------------------------------
@@ -128,6 +131,8 @@ table_env.execute("python_job")
 **注意：** Table API 和 SQL 查询可以很容易地集成并嵌入到 DataStream 或 DataSet 程序中。 请参阅[与 DataStream 和 DataSet API 结合](#integration-with-datastream-and-dataset-api) 章节了解如何将 DataSet 和 DataStream 与表之间的相互转化。
 
 {% top %}
+
+<a name="create-a-tableenvironment"></a>
 
 创建 TableEnvironment
 -------------------------
@@ -294,12 +299,16 @@ b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 
 {% top %}
 
+<a name="create-tables-in-the-catalog"></a>
+
 在 Catalog 中创建表
 -------------------------------
 
-`TableEnvironment` 维护着一个由标识符（identifier）创建的表 catalog 的映射。标识符由三个部分组成：catalog 名称、数据库名称以及对象名称。如果 catalog 或者数据库没有指明，就会使用当前默认值（参见[表标识符扩展]({{ site.baseurl }}/zh/dev/table/common.html#table-identifier-expanding)章节中的例子）。
+`TableEnvironment` 维护着一个由标识符（identifier）创建的表 catalog 的映射。标识符由三个部分组成：catalog 名称、数据库名称以及对象名称。如果 catalog 或者数据库没有指明，就会使用当前默认值（参见[表标识符扩展](#expanding-table-identifiers)章节中的例子）。
 
 `Table` 可以是虚拟的（视图 `VIEWS`）也可以是常规的（表 `TABLES`）。视图 `VIEWS`可以从已经存在的`Table`中创建，一般是 Table API 或者 SQL 的查询结果。 表`TABLES`描述的是外部数据，例如文件、数据库表或者消息队列。
+
+<a name="temporary-vs-permanent-tables"></a>
 
 ### 临时表（Temporary Table）和永久表（Permanent Table）
 
@@ -309,13 +318,19 @@ b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 
 另一方面，临时表通常保存于内存中并且仅在创建它们的 Flink 会话持续期间存在。这些表对于其它会话是不可见的。它们不与任何 catalog 或者数据库绑定但可以在一个命名空间（namespace）中创建。即使它们对应的数据库被删除，临时表也不会被删除。
 
+<a name="shadowing"></a>
+
 #### 屏蔽（Shadowing）
 
 可以使用与已存在的永久表相同的标识符去注册临时表。临时表会屏蔽永久表，并且只要临时表存在，永久表就无法访问。所有使用该标识符的查询都将作用于临时表。
 
 这可能对实验（experimentation）有用。它允许先对一个临时表进行完全相同的查询，例如只有一个子集的数据，或者数据是不确定的。一旦验证了查询的正确性，就可以对实际的生产表进行查询。
 
+<a name="create-a-table"></a>
+
 ### 创建表
+
+<a name="virtual-tables"></a>
 
 #### 虚拟表
 
@@ -368,6 +383,8 @@ table_env.register_table("projectedTable", proj_table)
 
 {% top %}
 
+<a name="connector-tables"></a>
+
 #### Connector Tables
 
 另外一个方式去创建 `TABLE` 是通过 [connector]({{ site.baseurl }}/dev/table/connect.html) 声明。Connector 描述了存储表数据的外部系统。存储系统例如 Apache Kafka 或者常规的文件系统都可以通过这种方式来声明。
@@ -413,8 +430,9 @@ tableEnvironment.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
 </div>
 </div>
 
+<a name="expanding-table-identifiers"></a>
+
 ### 扩展表标识符
-<a name="table-identifier-expanding"></a>
 
 表总是通过三元标识符注册，包括 catalog 名、数据库名和表名。
 
@@ -480,8 +498,12 @@ tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table)
 
 </div>
 
+<a name="query-a-table"></a>
+
 查询表
 -------------
+
+<a name="table-api"></a>
 
 ### Table API
 
@@ -549,9 +571,9 @@ table_env = # see "Create a TableEnvironment" section
 orders = table_env.from_path("Orders")
 # compute revenue for all customers from France
 revenue = orders \
-    .filter("cCountry === 'FRANCE'") \
-    .group_by("cID, cName") \
-    .select("cID, cName, revenue.sum AS revSum")
+    .filter(orders.cCountry == 'FRANCE') \
+    .group_by(orders.cID, orders.cName) \
+    .select(orders.cID, orders.cName, orders.revenue.sum.alias('revSum'))
 
 # emit or convert Table
 # execute query
@@ -560,6 +582,8 @@ revenue = orders \
 </div>
 
 {% top %}
+
+<a name="sql"></a>
 
 ### SQL
 
@@ -699,6 +723,8 @@ table_env.execute_sql(
 
 {% top %}
 
+<a name="mixing-table-api-and-sql"></a>
+
 ### 混用 Table API 和 SQL
 
 Table API 和 SQL 查询的混用非常简单因为它们都返回 `Table` 对象：
@@ -707,6 +733,8 @@ Table API 和 SQL 查询的混用非常简单因为它们都返回 `Table` 对�
 * 在 `TableEnvironment` 中注册的[结果表](#register-a-table)可以在 SQL 查询的 `FROM` 子句中引用，通过这种方法就可以在 Table API 查询的结果上定义 SQL 查询。
 
 {% top %}
+
+<a name="emit-a-table"></a>
 
 输出表
 ------------
@@ -731,9 +759,9 @@ TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 final Schema schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG());
+    .field("c", DataTypes.BIGINT());
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable");
@@ -755,9 +783,9 @@ val tableEnv = ... // see "Create a TableEnvironment" section
 val schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG())
+    .field("c", DataTypes.BIGINT())
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable")
@@ -799,6 +827,7 @@ result.execute_insert("CsvSinkTable")
 
 {% top %}
 
+<a name="translate-and-execute-a-query"></a>
 
 翻译与执行查询
 -----------------------------
@@ -846,6 +875,8 @@ Table API 或者 SQL 查询在下列情况下会被翻译：
 
 {% top %}
 
+<a name="integration-with-datastream-and-dataset-api"></a>
+
 与 DataStream 和 DataSet API 结合
 -------------------------------------------
 
@@ -857,9 +888,13 @@ Table API 和 SQL 可以被很容易地集成并嵌入到 [DataStream]({{ site.b
 
 这种交互可以通过 `DataStream` 或 `DataSet` 与 `Table` 的相互转化实现。本节我们会介绍这些转化是如何实现的。
 
+<a name="implicit-conversion-for-scala"></a>
+
 ### Scala 隐式转换
 
 Scala Table API 含有对 `DataSet`、`DataStream` 和 `Table` 类的隐式转换。 通过为 Scala DataStream API 导入 `org.apache.flink.table.api.bridge.scala._` 包以及 `org.apache.flink.api.scala._` 包，可以启用这些转换。
+
+<a name="create-a-view-from-a-datastream-or-dataset"></a>
 
 ### 通过 DataSet 或 DataStream 创建`视图`
 
@@ -903,6 +938,8 @@ tableEnv.createTemporaryView("myTable2", stream, 'myLong, 'myString)
 
 {% top %}
 
+<a name="convert-a-datastream-or-dataset-into-a-table"></a>
+
 ### 将 DataStream 或 DataSet 转换成表
 
 与在 `TableEnvironment` 注册 `DataStream` 或 `DataSet` 不同，DataStream 和 DataSet 还可以直接转换成 `Table`。如果你想在 Table API 的查询中使用表，这将非常便捷。
@@ -943,7 +980,7 @@ val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 
 {% top %}
 
-<a name="convert-a-table-into-a-datastream"></a>
+<a name="convert-a-table-into-a-datastream-or-dataset"></a>
 
 ### 将表转换成 DataStream 或 DataSet
 
@@ -956,6 +993,8 @@ val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 - **Case Class**: 字段按位置映射，不支持 `null` 值，有类型安全检查。
 - **Tuple**: 字段按位置映射，字段数量少于 22（Scala）或者 25（Java），不支持 `null` 值，无类型安全检查。
 - **Atomic Type**: `Table` 必须有一个字段，不支持 `null` 值，有类型安全检查。
+
+<a name="convert-a-table-into-a-datastream"></a>
 
 #### 将表转换成 DataStream
 
@@ -1025,6 +1064,8 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataStream，必须使用 StreamExecutionEnvironment 的 execute 方法执行该 DataStream 作业。**
 
+<a name="convert-a-table-into-a-dataset"></a>
+
 #### 将表转换成 DataSet
 
 将 `Table` 转换成 `DataSet` 的过程如下：
@@ -1071,6 +1112,8 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataSet，必须使用 ExecutionEnvironment 的 execute 方法执行该 DataSet 作业。**
 
 {% top %}
+
+<a name="mapping-of-data-types-to-table-schema"></a>
 
 ### 数据类型到 Table Schema 的映射
 
@@ -1172,6 +1215,8 @@ val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myInt", $"_1" as "m
 </div>
 </div>
 
+<a name="atomic-types"></a>
+
 #### 原子类型
 
 Flink 将基础数据类型（`Integer`、`Double`、`String`）或者通用数据类型（不可再拆分的数据类型）视为原子类型。原子类型的 `DataStream` 或者 `DataSet` 会被转换成只有一条属性的 `Table`。属性的数据类型可以由原子类型推断出，还可以重新命名属性。
@@ -1207,6 +1252,8 @@ val table: Table = tableEnv.fromDataStream(stream, $"myLong")
 {% endhighlight %}
 </div>
 </div>
+
+<a name="tuples-scala-and-java-and-case-classes-scala-only"></a>
 
 #### Tuple类型（Scala 和 Java）和 Case Class类型（仅 Scala）
 
@@ -1276,9 +1323,11 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 </div>
 </div>
 
+<a name="pojo-java-and-scala"></a>
+
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{ site.baseurl }}{% link dev/types_serialization.zh.md %}#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({% link dev/types_serialization.zh.md %}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
@@ -1327,6 +1376,8 @@ val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 {% endhighlight %}
 </div>
 </div>
+
+<a name="row"></a>
 
 #### Row类型
 
@@ -1386,6 +1437,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 
 {% top %}
 
+<a name="query-optimization"></a>
 
 查询优化
 ------------------
@@ -1420,6 +1472,7 @@ Apache Flink 利用 Apache Calcite 来优化和翻译查询。当前执行的优
 </div>
 </div>
 
+<a name="explaining-a-table"></a>
 
 解释表
 ------------------
@@ -1478,7 +1531,7 @@ t_env = StreamTableEnvironment.create(env)
 table1 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table2 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table = table1 \
-    .where("LIKE(word, 'F%')") \
+    .where(table1.word.like('F%')) \
     .union_all(table2)
 print(table.explain())
 
@@ -1535,19 +1588,19 @@ final Schema schema = new Schema()
     .field("count", DataTypes.INT())
     .field("word", DataTypes.STRING());
 
-tEnv.connect(new FileSystem("/source/path1"))
+tEnv.connect(new FileSystem().path("/source/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource1");
-tEnv.connect(new FileSystem("/source/path2"))
+tEnv.connect(new FileSystem().path("/source/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource2");
-tEnv.connect(new FileSystem("/sink/path1"))
+tEnv.connect(new FileSystem().path("/sink/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink1");
-tEnv.connect(new FileSystem("/sink/path2"))
+tEnv.connect(new FileSystem().path("/sink/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink2");
@@ -1575,19 +1628,19 @@ val schema = new Schema()
     .field("count", DataTypes.INT())
     .field("word", DataTypes.STRING())
 
-tEnv.connect(new FileSystem("/source/path1"))
+tEnv.connect(new FileSystem().path("/source/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource1")
-tEnv.connect(new FileSystem("/source/path2"))
+tEnv.connect(new FileSystem().path("/source/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource2")
-tEnv.connect(new FileSystem("/sink/path1"))
+tEnv.connect(new FileSystem().path("/sink/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink1")
-tEnv.connect(new FileSystem("/sink/path2"))
+tEnv.connect(new FileSystem().path("/sink/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink2")
@@ -1634,7 +1687,7 @@ t_env.connect(FileSystem().path("/sink/path2")))
 
 stmt_set = t_env.create_statement_set()
 
-table1 = t_env.from_path("MySource1").where("LIKE(word, 'F%')")
+table1 = t_env.from_path("MySource1").where(col('word').like('F%'))
 stmt_set.add_insert("MySink1", table1)
 
 table2 = table1.union_all(t_env.from_path("MySource2"))

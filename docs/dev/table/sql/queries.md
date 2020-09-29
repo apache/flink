@@ -25,6 +25,9 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
+
 SELECT statements and VALUES statements are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SELECT statement (or the VALUES statements) as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries]({{ site.baseurl }}/dev/table/common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream]({{ site.baseurl }}/dev/table/common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink]({{ site.baseurl }}/dev/table/common.html#emit-a-table). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
 In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({{ site.baseurl }}/dev/table/common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource]({{ site.baseurl }}/dev/table/common.html#register-a-tablesource), [Table]({{ site.baseurl }}/dev/table/common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet]({{ site.baseurl }}/dev/table/common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment]({{ site.baseurl }}/dev/table/catalogs.html) to specify the location of the data sources.
@@ -32,6 +35,21 @@ In order to access a table in a SQL query, it must be [registered in the TableEn
 For convenience, `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
 
 **Note:** Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+SELECT statements and VALUES statements are specified with the `sql_query()` method of the `TableEnvironment`. The method returns the result of the SELECT statement (or the VALUES statements) as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries]({{ site.baseurl }}/dev/table/common.html#mixing-table-api-and-sql) or [written to a TableSink]({{ site.baseurl }}/dev/table/common.html#emit-a-table). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
+
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({{ site.baseurl }}/dev/table/common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource]({{ site.baseurl }}/dev/table/common.html#register-a-tablesource), [Table]({{ site.baseurl }}/dev/table/common.html#register-a-table), [CREATE TABLE statement](#create-table). Alternatively, users can also [register catalogs in a TableEnvironment]({{ site.baseurl }}/dev/table/catalogs.html) to specify the location of the data sources.
+
+For convenience, `str(Table)` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
+
+**Note:** Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
+
+</div>
+</div>
 
 ## Specifying a Query
 
@@ -63,7 +81,7 @@ final Schema schema = new Schema()
     .field("product", DataTypes.STRING())
     .field("amount", DataTypes.INT());
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(...)
     .withSchema(schema)
     .createTemporaryTable("RubberOrders");
@@ -99,7 +117,7 @@ val schema = new Schema()
     .field("product", DataTypes.STRING())
     .field("amount", DataTypes.INT())
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(...)
     .withSchema(schema)
     .createTemporaryTable("RubberOrders")
@@ -141,6 +159,9 @@ table_env \
 {% top %}
 
 ## Execute a Query
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
+
 A SELECT statement or a VALUES statement can be executed to collect the content to local through the `TableEnvironment.executeSql()` method. The method returns the result of the SELECT statement (or the VALUES statement) as a `TableResult`. Similar to a SELECT statement, a `Table` object can be executed using the `Table.execute()` method to collect the content of the query to the local client.
 `TableResult.collect()` method returns a closeable row iterator. The select job will not be finished unless all result data has been collected. We should actively close the job to avoid resource leak through the `CloseableIterator#close()` method. 
 We can also print the select result to client console through the `TableResult.print()` method. The result data in `TableResult` can be accessed only once. Thus, `collect()` and `print()` must not be called after each other.
@@ -149,6 +170,21 @@ We can also print the select result to client console through the `TableResult.p
 * For batch jobs or streaming jobs without checkpointing, `TableResult.collect()` and `TableResult.print()` have neither exactly-once nor at-least-once guarantee. Query results are immediately accessible by the clients once they're produced, but exceptions will be thrown when the job fails and restarts.
 * For streaming jobs with exactly-once checkpointing, `TableResult.collect()` and `TableResult.print()` guarantee an end-to-end exactly-once record delivery. A result will be accessible by clients only after its corresponding checkpoint completes.
 * For streaming jobs with at-least-once checkpointing, `TableResult.collect()` and `TableResult.print()` guarantee an end-to-end at-least-once record delivery. Query results are immediately accessible by the clients once they're produced, but it is possible for the same result to be delivered multiple times.
+</div>
+
+<div data-lang="python" markdown="1">
+
+A SELECT statement or a VALUES statement can be executed to collect the content to local through the `TableEnvironment.execute_sql()` method. The method returns the result of the SELECT statement (or the VALUES statement) as a `TableResult`. Similar to a SELECT statement, a `Table` object can be executed using the `Table.execute()` method to collect the content of the query to the local client.
+`TableResult.collect()` method returns a closeable row iterator. The select job will not be finished unless all result data has been collected. We should actively close the job to avoid resource leak through the `CloseableIterator#close()` method. 
+We can also print the select result to client console through the `TableResult.print()` method. The result data in `TableResult` can be accessed only once. Thus, `collect()` and `print()` must not be called after each other.
+
+`TableResult.collect()` and `TableResult.print()` have slightly different behaviors under different checkpointing settings (to enable checkpointing for a streaming job, see <a href="{{ site.baseurl }}/ops/config.html#checkpointing">checkpointing config</a>).
+* For batch jobs or streaming jobs without checkpointing, `TableResult.collect()` and `TableResult.print()` have neither exactly-once nor at-least-once guarantee. Query results are immediately accessible by the clients once they're produced, but exceptions will be thrown when the job fails and restarts.
+* For streaming jobs with exactly-once checkpointing, `TableResult.collect()` and `TableResult.print()` guarantee an end-to-end exactly-once record delivery. A result will be accessible by clients only after its corresponding checkpoint completes.
+* For streaming jobs with at-least-once checkpointing, `TableResult.collect()` and `TableResult.print()` guarantee an end-to-end at-least-once record delivery. Query results are immediately accessible by the clients once they're produced, but it is possible for the same result to be delivered multiple times.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -659,14 +695,20 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
         <p>A row of the left (outer) table is dropped, if its table function call returns an empty result.</p>
 {% highlight sql %}
 SELECT users, tag
-FROM Orders, LATERAL TABLE(unnest_udtf(tags)) t AS tag
+FROM Orders, LATERAL TABLE(unnest_udtf(tags)) AS t(tag)
+-- from 1.11, we can also do it like below:
+SELECT users, tag
+FROM Orders, LATERAL TABLE(unnest_udtf(tags))
 {% endhighlight %}
 
         <p><b>Left Outer Join</b></p>
         <p>If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
 {% highlight sql %}
 SELECT users, tag
-FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
+FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) AS t(tag) ON TRUE
+-- from 1.11, we can also do it like below:
+SELECT users, tag
+FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) ON TRUE
 {% endhighlight %}
 
         <p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>

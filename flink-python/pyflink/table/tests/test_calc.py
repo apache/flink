@@ -20,32 +20,35 @@ import array
 import datetime
 from decimal import Decimal
 
-from pyflink.table import DataTypes, Row, BatchTableEnvironment, EnvironmentSettings
+from pyflink.common import Row
+from pyflink.table import DataTypes, BatchTableEnvironment, EnvironmentSettings
+from pyflink.table.expressions import row
 from pyflink.table.tests.test_types import ExamplePoint, PythonOnlyPoint, ExamplePointUDT, \
     PythonOnlyUDT
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, exec_insert_table
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_select(self):
         t = self.t_env.from_elements([(1, 'hi', 'hello')], ['a', 'b', 'c'])
-        result = t.select("a + 1, b, c")
+        result = t.select(t.a + 1, t.b, t.c)
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('[plus(a, 1), b, c]',
                          query_operation.getProjectList().toString())
 
     def test_alias(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.alias("d, e, f").select("d, e, f")
+        t = t.alias("d, e, f")
+        result = t.select(t.d, t.e, t.f)
         table_schema = result._j_table.getQueryOperation().getTableSchema()
         self.assertEqual(['d', 'e', 'f'], list(table_schema.getFieldNames()))
 
     def test_where(self):
         t_env = self.t_env
         t = t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.where("a > 1 && b = 'Hello'")
+        result = t.where((t.a > 1) & (t.b == 'Hello'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual("and("
                          "greaterThan(a, 1), "
@@ -54,7 +57,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_filter(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.filter("a > 1 && b = 'Hello'")
+        result = t.filter((t.a > 1) & (t.b == 'Hello'))
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual("and("
                          "greaterThan(a, 1), "
@@ -95,12 +98,31 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
               {"key": 1.0}, bytearray(b'ABCD'), ExamplePoint(1.0, 2.0),
               PythonOnlyPoint(3.0, 4.0))],
             schema)
-        exec_insert_table(t, "Results")
+        t.execute_insert("Results").wait()
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'
                     '86400000,[1.0, null],[1.0, 2.0],[abc],[1970-01-02],'
                     '1,1,2.0,{key=1.0},[65, 66, 67, 68],[1.0, 2.0],[3.0, 4.0]']
+        self.assert_equals(actual, expected)
+
+    def test_from_element_expression(self):
+        t_env = self.t_env
+
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.FLOAT()]
+
+        schema = DataTypes.ROW(
+            list(map(lambda field_name, field_type: DataTypes.FIELD(field_name, field_type),
+                     field_names,
+                     field_types)))
+        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
+        t_env.register_table_sink("Results", table_sink)
+        t = t_env.from_elements([row(1, 'abc', 2.0), row(2, 'def', 3.0)], schema)
+        t.execute_insert("Results").wait()
+        actual = source_sink_utils.results()
+
+        expected = ['1,abc,2.0', '2,def,3.0']
         self.assert_equals(actual, expected)
 
     def test_blink_from_element(self):
@@ -139,7 +161,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
               {"key": 1.0}, bytearray(b'ABCD'),
               PythonOnlyPoint(3.0, 4.0))],
             schema)
-        exec_insert_table(t, "Results")
+        t.execute_insert("Results").wait()
         actual = source_sink_utils.results()
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'

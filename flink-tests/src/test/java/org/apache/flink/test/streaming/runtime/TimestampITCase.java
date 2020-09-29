@@ -19,6 +19,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -840,7 +841,7 @@ public class TimestampITCase extends TestLogger {
 	private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
 		Collection<JobStatusMessage> statusMessages = client.listJobs().get();
 		return statusMessages.stream()
-			.filter(status -> !status.getJobState().isGloballyTerminalState())
+			.filter(status -> !status.getJobState().isGloballyTerminalState() && status.getJobState() != JobStatus.INITIALIZING)
 			.map(JobStatusMessage::getJobId)
 			.collect(Collectors.toList());
 	}

@@ -36,7 +36,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 @Internal
 public final class PojoComparator<T> extends CompositeTypeComparator<T> implements java.io.Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	// Reflection fields for the comp fields
@@ -69,6 +69,10 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		int nKeys = 0;
 		int nKeyLen = 0;
 		boolean inverted = false;
+
+		for (Field keyField : keyFields) {
+			keyField.setAccessible(true);
+		}
 
 		for (int i = 0; i < this.comparators.length; i++) {
 			TypeComparator<?> k = this.comparators[i];
@@ -170,7 +174,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 			}
 		}
 	}
-	
+
 	/**
 	 * This method is handling the IllegalAccess exceptions of Field.get()
 	 */
@@ -180,7 +184,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		} catch (NullPointerException npex) {
 			throw new NullKeyFieldException("Unable to access field "+field+" on object "+object);
 		} catch (IllegalAccessException iaex) {
-			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo."
+			throw new RuntimeException("This should not happen since we call setAccesssible(true) in the ctor."
 			+ " fields: " + field + " obj: " + object);
 		}
 		return object;

@@ -21,7 +21,6 @@ package org.apache.flink.sql.parser.ddl;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -32,6 +31,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.List;
@@ -42,54 +42,40 @@ import static java.util.Objects.requireNonNull;
 /**
  * Table column of a CREATE TABLE DDL.
  */
-public class SqlTableColumn extends SqlCall {
+public abstract class SqlTableColumn extends SqlCall {
+
 	private static final SqlSpecialOperator OPERATOR =
 		new SqlSpecialOperator("COLUMN_DECL", SqlKind.COLUMN_DECL);
 
-	private SqlIdentifier name;
-	private SqlDataTypeSpec type;
+	protected final SqlIdentifier name;
 
-	private SqlTableConstraint constraint;
+	protected final SqlNode comment;
 
-	private SqlCharStringLiteral comment;
-
-	public SqlTableColumn(SqlIdentifier name,
-			SqlDataTypeSpec type,
-			@Nullable SqlTableConstraint constraint,
-			@Nullable SqlCharStringLiteral comment,
-			SqlParserPos pos) {
+	private SqlTableColumn(
+			SqlParserPos pos,
+			SqlIdentifier name,
+			@Nullable SqlNode comment) {
 		super(pos);
 		this.name = requireNonNull(name, "Column name should not be null");
-		this.type = requireNonNull(type, "Column type should not be null");
-		this.constraint = constraint;
 		this.comment = comment;
 	}
 
+	protected abstract void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec);
+
 	@Override
-	public SqlOperator getOperator() {
+	public @Nonnull SqlOperator getOperator() {
 		return OPERATOR;
 	}
 
 	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(name, type, comment);
-	}
-
-	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		this.name.unparse(writer, leftPrec, rightPrec);
-		writer.print(" ");
-		this.type.unparse(writer, leftPrec, rightPrec);
-		if (!this.type.getNullable()) {
-			// Default is nullable.
-			writer.keyword("NOT NULL");
-		}
-		if (this.constraint != null) {
-			this.constraint.unparse(writer, leftPrec, rightPrec);
-		}
-		if (this.comment != null) {
-			writer.print(" COMMENT ");
-			this.comment.unparse(writer, leftPrec, rightPrec);
+		name.unparse(writer, leftPrec, rightPrec);
+
+		unparseColumn(writer, leftPrec, rightPrec);
+
+		if (comment != null) {
+			writer.keyword("COMMENT");
+			comment.unparse(writer, leftPrec, rightPrec);
 		}
 	}
 
@@ -97,27 +83,144 @@ public class SqlTableColumn extends SqlCall {
 		return name;
 	}
 
-	public void setName(SqlIdentifier name) {
-		this.name = name;
-	}
-
-	public SqlDataTypeSpec getType() {
-		return type;
-	}
-
-	public void setType(SqlDataTypeSpec type) {
-		this.type = type;
-	}
-
-	public Optional<SqlTableConstraint> getConstraint() {
-		return Optional.ofNullable(constraint);
-	}
-
-	public Optional<SqlCharStringLiteral> getComment() {
+	public Optional<SqlNode> getComment() {
 		return Optional.ofNullable(comment);
 	}
 
-	public void setComment(SqlCharStringLiteral comment) {
-		this.comment = comment;
+	/**
+	 * A regular, physical column.
+	 */
+	public static class SqlRegularColumn extends SqlTableColumn {
+
+		private SqlDataTypeSpec type;
+
+		private final @Nullable SqlTableConstraint constraint;
+
+		public SqlRegularColumn(
+				SqlParserPos pos,
+				SqlIdentifier name,
+				@Nullable SqlNode comment,
+				SqlDataTypeSpec type,
+				@Nullable SqlTableConstraint constraint) {
+			super(pos, name, comment);
+			this.type = requireNonNull(type, "Column type should not be null");
+			this.constraint = constraint;
+		}
+
+		public SqlDataTypeSpec getType() {
+			return type;
+		}
+
+		public void setType(SqlDataTypeSpec type) {
+			this.type = type;
+		}
+
+		public Optional<SqlTableConstraint> getConstraint() {
+			return Optional.ofNullable(constraint);
+		}
+
+		@Override
+		protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
+			type.unparse(writer, leftPrec, rightPrec);
+			if (!type.getNullable()) {
+				// Default is nullable.
+				writer.keyword("NOT NULL");
+			}
+			if (constraint != null) {
+				constraint.unparse(writer, leftPrec, rightPrec);
+			}
+		}
+
+		@Override
+		public @Nonnull List<SqlNode> getOperandList() {
+			return ImmutableNullableList.of(name, type, constraint, comment);
+		}
+	}
+
+	/**
+	 * A column derived from metadata.
+	 */
+	public static class SqlMetadataColumn extends SqlTableColumn {
+
+		private final SqlDataTypeSpec type;
+
+		private final @Nullable SqlNode metadataAlias;
+
+		private final boolean isVirtual;
+
+		public SqlMetadataColumn(
+				SqlParserPos pos,
+				SqlIdentifier name,
+				@Nullable SqlNode comment,
+				SqlDataTypeSpec type,
+				@Nullable SqlNode metadataAlias,
+				boolean isVirtual) {
+			super(pos, name, comment);
+			this.type = requireNonNull(type, "Column type should not be null");
+			this.metadataAlias = metadataAlias;
+			this.isVirtual = isVirtual;
+		}
+
+		public Optional<SqlNode> getMetadataAlias() {
+			return Optional.ofNullable(metadataAlias);
+		}
+
+		public boolean isVirtual() {
+			return isVirtual;
+		}
+
+		@Override
+		protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
+			type.unparse(writer, leftPrec, rightPrec);
+			if (!type.getNullable()) {
+				// Default is nullable.
+				writer.keyword("NOT NULL");
+			}
+			writer.keyword("METADATA");
+			if (metadataAlias != null) {
+				writer.keyword("FROM");
+				metadataAlias.unparse(writer, leftPrec, rightPrec);
+			}
+			if (isVirtual) {
+				writer.keyword("VIRTUAL");
+			}
+		}
+
+		@Override
+		public @Nonnull List<SqlNode> getOperandList() {
+			return ImmutableNullableList.of(name, type, comment);
+		}
+	}
+
+	/**
+	 * A column derived from an expression.
+	 */
+	public static class SqlComputedColumn extends SqlTableColumn {
+
+		private final SqlNode expr;
+
+		public SqlComputedColumn(
+				SqlParserPos pos,
+				SqlIdentifier name,
+				@Nullable SqlNode comment,
+				SqlNode expr) {
+			super(pos, name, comment);
+			this.expr = requireNonNull(expr, "Column expression should not be null");
+		}
+
+		public SqlNode getExpr() {
+			return expr;
+		}
+
+		@Override
+		protected void unparseColumn(SqlWriter writer, int leftPrec, int rightPrec) {
+			writer.keyword("AS");
+			expr.unparse(writer, leftPrec, rightPrec);
+		}
+
+		@Override
+		public @Nonnull List<SqlNode> getOperandList() {
+			return ImmutableNullableList.of(name, expr, comment);
+		}
 	}
 }

@@ -70,6 +70,11 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 	}
 
 	@Test
+	public void testUnregisterUnregisteredReader() {
+		context.unregisterSourceReader(0);
+	}
+
+	@Test
 	public void testAssignSplitsFromCoordinatorExecutor() throws Exception {
 		testAssignSplits(true);
 	}

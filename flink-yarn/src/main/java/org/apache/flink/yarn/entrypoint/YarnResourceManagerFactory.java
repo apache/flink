@@ -38,6 +38,8 @@ import org.apache.flink.yarn.YarnWorkerNode;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * {@link ResourceManagerFactory} implementation which creates a {@link YarnResourceManager}.
  */
@@ -62,7 +64,8 @@ public class YarnResourceManagerFactory extends LegacyActiveResourceManagerFacto
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) {
+			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
+			Executor ioExecutor) {
 
 		return new YarnResourceManager(
 			rpcService,
@@ -77,7 +80,8 @@ public class YarnResourceManagerFactory extends LegacyActiveResourceManagerFacto
 			clusterInformation,
 			fatalErrorHandler,
 			webInterfaceUrl,
-			resourceManagerMetricGroup);
+			resourceManagerMetricGroup,
+			ioExecutor);
 	}
 
 	@Override

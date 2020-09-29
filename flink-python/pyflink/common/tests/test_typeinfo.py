@@ -16,12 +16,11 @@
 # limitations under the License.
 ################################################################################
 
-import unittest
-
 from pyflink.common.typeinfo import Types, RowTypeInfo, TupleTypeInfo, _from_java_type
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-class TypeInfoTests(unittest.TestCase):
+class TypeInfoTests(PyFlinkTestCase):
 
     def test_row_type(self):
         self.assertEqual(RowTypeInfo([Types.STRING(), Types.STRING()])

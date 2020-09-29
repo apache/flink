@@ -17,12 +17,38 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+
 /**
  * An {@link InputGate} with a specific index.
  */
-public abstract class IndexedInputGate extends InputGate {
+public abstract class IndexedInputGate extends InputGate implements CheckpointableInput {
 	/**
 	 * Returns the index of this input gate. Only supported on
 	 */
 	public abstract int getGateIndex();
+
+	@Override
+	public void checkpointStarted(CheckpointBarrier barrier) {
+		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
+			getChannel(index).checkpointStarted(barrier);
+		}
+	}
+
+	@Override
+	public void checkpointStopped(long cancelledCheckpointId) {
+		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
+			getChannel(index).checkpointStopped(cancelledCheckpointId);
+		}
+	}
+
+	@Override
+	public int getInputGateIndex() {
+		return getGateIndex();
+	}
+
+	@Override
+	public void blockConsumption(int inputChannelIdx) {
+		// Unused. Network stack is blocking consumption automatically by revoking credits.
+	}
 }

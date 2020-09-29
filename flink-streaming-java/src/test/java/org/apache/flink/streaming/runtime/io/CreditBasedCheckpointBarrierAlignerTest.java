@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
 /**
  * Tests for the behaviors of the {@link CheckpointedInputGate}.
@@ -27,7 +28,10 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 public class CreditBasedCheckpointBarrierAlignerTest extends CheckpointBarrierAlignerTestBase {
 
 	@Override
-	CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) {
-		return new CheckpointedInputGate(gate, new CheckpointBarrierAligner("Testing", toNotify, gate));
+	CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) {
+		return new CheckpointedInputGate(
+			gate,
+			new CheckpointBarrierAligner("Testing", toNotify, gate),
+			new SyncMailboxExecutor());
 	}
 }

@@ -70,6 +70,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.ResourceManagerAddress;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
@@ -1130,6 +1131,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			getAddress(),
 			getResourceID(),
 			unresolvedTaskManagerLocation.getDataPort(),
+			JMXService.getPort().orElse(-1),
 			hardwareDescription,
 			memoryConfiguration,
 			taskManagerConfiguration.getDefaultSlotResourceProfile(),

@@ -167,7 +167,7 @@ public class ShuffleCompressionITCase {
 				writer.broadcastEmit(RECORD_TO_SEND);
 			}
 			writer.flushAll();
-			writer.clearBuffers();
+			writer.close();
 		}
 	}
 

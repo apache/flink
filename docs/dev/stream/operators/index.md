@@ -139,28 +139,6 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
-          <td>
-          <p>A "rolling" fold on a keyed data stream with an initial value.
-          Combines the current element with the last folded value and
-          emits the new value.
-          <br/>
-          <br/>
-          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
-          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
-{% highlight java %}
-DataStream<String> result =
-  keyedStream.fold("start", new FoldFunction<Integer, String>() {
-    @Override
-    public String fold(String current, Integer value) {
-        return current + "-" + value;
-    }
-  });
-{% endhighlight %}
-          </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
@@ -247,21 +225,6 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
 windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
-    }
-});
-{% endhighlight %}
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
-          <td>
-            <p>Applies a functional fold function to the window and returns the folded value.
-               The example function, when applied on the sequence (1,2,3,4,5),
-               folds the sequence into the string "start-1-2-3-4-5":</p>
-{% highlight java %}
-windowedStream.fold("start", new FoldFunction<Integer, String>() {
-    public String fold(String current, Integer value) {
-        return current + "-" + value;
     }
 });
 {% endhighlight %}
@@ -383,43 +346,6 @@ connectedStreams.flatMap(new CoFlatMapFunction<Integer, String, String>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Split</strong><br>DataStream &rarr; SplitStream</td>
-          <td>
-            <p>
-                Split the stream into two or more streams according to some criterion.
-{% highlight java %}
-SplitStream<Integer> split = someDataStream.split(new OutputSelector<Integer>() {
-    @Override
-    public Iterable<String> select(Integer value) {
-        List<String> output = new ArrayList<String>();
-        if (value % 2 == 0) {
-            output.add("even");
-        }
-        else {
-            output.add("odd");
-        }
-        return output;
-    }
-});
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Select</strong><br>SplitStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Select one or more streams from a split stream.
-{% highlight java %}
-SplitStream<Integer> split;
-DataStream<Integer> even = split.select("even");
-DataStream<Integer> odd = split.select("odd");
-DataStream<Integer> all = split.select("even","odd");
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream &rarr; DataStream</td>
           <td>
             <p>
@@ -523,23 +449,6 @@ keyedStream.reduce { _ + _ }
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
-          <td>
-          <p>A "rolling" fold on a keyed data stream with an initial value.
-          Combines the current element with the last folded value and
-          emits the new value.
-          <br/>
-          <br/>
-          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
-          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
-{% highlight scala %}
-val result: DataStream[String] =
-    keyedStream.fold("start")((str, i) => { str + "-" + i })
-{% endhighlight %}
-          </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
@@ -607,18 +516,6 @@ windowedStream.reduce { _ + _ }
 {% endhighlight %}
           </td>
         </tr>
-        <tr>
-          <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
-          <td>
-            <p>Applies a functional fold function to the window and returns the folded value.
-               The example function, when applied on the sequence (1,2,3,4,5),
-               folds the sequence into the string "start-1-2-3-4-5":</p>
-{% highlight scala %}
-val result: DataStream[String] =
-    windowedStream.fold("start", (str, i) => { str + "-" + i })
-{% endhighlight %}
-          </td>
-	</tr>
         <tr>
           <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
           <td>
@@ -703,37 +600,6 @@ connectedStreams.flatMap(
           </td>
         </tr>
         <tr>
-          <td><strong>Split</strong><br>DataStream &rarr; SplitStream</td>
-          <td>
-            <p>
-                Split the stream into two or more streams according to some criterion.
-{% highlight scala %}
-val split = someDataStream.split(
-  (num: Int) =>
-    (num % 2) match {
-      case 0 => List("even")
-      case 1 => List("odd")
-    }
-)
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Select</strong><br>SplitStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Select one or more streams from a split stream.
-{% highlight scala %}
-
-val even = split select "even"
-val odd = split select "odd"
-val all = split.select("even","odd")
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream  &rarr; DataStream</td>
           <td>
             <p>
@@ -768,6 +634,137 @@ is not supported by the API out-of-the-box. To use this feature, you should use 
 
 
 </div>
+
+<div data-lang="python" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+          <td><strong>Map</strong><br>DataStream &rarr; DataStream</td>
+          <td>
+            <p>Takes one element and produces one element. A map function that doubles the values of the input stream:</p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[1, 2, 3, 4, 5])
+data_stream.map(lambda x: 2 * x, output_type=Types.INT())
+{% endhighlight %}
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>FlatMap</strong><br>DataStream &rarr; DataStream</td>
+          <td>
+            <p>Takes one element and produces zero, one, or more elements. A flatmap function that splits sentences to words:</p>
+{% highlight python %}
+data_stream = env.from_collection(collection=['hello apache flink', 'streaming compute'])
+data_stream.flat_map(lambda x: x.split(' '), result_type=Types.STRING())
+{% endhighlight %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Filter</strong><br>DataStream &rarr; DataStream</td>
+          <td>
+            <p>Evaluates a boolean function for each element and retains those for which the function returns true.
+            A filter that filters out zero values:
+            </p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[0, 1, 2, 3, 4, 5])
+data_stream.filter(lambda x: x != 0)
+{% endhighlight %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
+          <td>
+            <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{% link dev/stream/state/state.md %}#keyed-datastream">specify keys</a>.</p>
+            <p>This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
+data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) // Key by the result of KeySelector
+{% endhighlight %}
+            <p>
+            <span class="label label-danger">Attention</span>
+            A type <strong>cannot be a key</strong> if it is an array of any type.
+    	    </p>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Reduce</strong><br>KeyedStream &rarr; DataStream</td>
+          <td>
+            <p>A "rolling" reduce on a keyed data stream. Combines the current element with the last reduced value and
+            emits the new value.
+              <br/>
+            	<br/>
+            <p>A reduce function that creates a stream of partial sums:</p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')], type_info=Types.ROW([Types.INT(), Types.STRING()]))
+data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
+{% endhighlight %}
+            </p>
+          </td>
+        </tr>
+         <tr>
+                  <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
+                  <td>
+                    <p>Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream
+                    with itself you will get each element twice in the resulting stream.</p>
+{% highlight python %}
+data_stream.union(otherStream1, otherStream2, ...)
+{% endhighlight %}
+                  </td>
+               </tr>
+         <tr>
+                   <td><strong>Connect</strong><br>DataStream,DataStream &rarr; ConnectedStreams</td>
+                   <td>
+                     <p>"Connects" two data streams retaining their types, allowing for shared state between
+                    the two streams.</p>
+{% highlight python %}
+stream_1 = ...
+stream_2 = ...
+connected_streams = stream_1.connect(stream_2)
+{% endhighlight %}
+                   </td>
+                 </tr>
+         <tr>
+                   <td><strong>CoMap, CoFlatMap</strong><br>ConnectedStreams &rarr; DataStream</td>
+                   <td>
+                     <p>Similar to map and flatMap on a connected data stream</p>
+{% highlight python %}
+
+class MyCoMapFunction(CoMapFunction):
+    
+    def map1(self, value):
+        return value[0] + 1, value[1]
+       
+    def map2(self, value):
+        return value[0], value[1] + 'flink'
+        
+class MyCoFlatMapFunction(CoFlatMapFunction):
+    
+    def flat_map1(self, value)
+        for i in range(value[0]):
+            yield i
+    
+    def flat_map2(self, value):
+        yield value[0] + 1
+        
+connectedStreams.map(MyCoMapFunction())
+connectedStreams.flatMap(MyCoFlatMapFunction())
+{% endhighlight %}
+                   </td>
+                 </tr>
+  </tbody>
+</table>
+
+</div>
+
 </div>
 
 The following transformations are available on data streams of Tuples:
@@ -801,6 +798,34 @@ DataStream<Tuple2<String, Integer>> out = in.project(2,0);
 </table>
 
 </div>
+<div data-lang="python" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>Selects a subset of fields from the tuples
+{% highlight python %}
+data_stream = env.from_collection([(1, 2, 3, 4), (5, 6, 7, 8)], type_info=Types.TUPLE([Types.INT(), Types.INT(), Types.INT(), Types.INT()]))
+out_stream = data_stream.project(2, 0)
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+
 </div>
 
 
@@ -1024,10 +1049,119 @@ dataStream.broadcast()
 </table>
 
 </div>
+
+<div data-lang="python" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>Uses a user-defined Partitioner to select the target task for each element.
+{% highlight python %}
+data_stream = env.from_collection(collection=[(2, 'a'), (2, 'a'), (3, 'b')])
+data_stream.partition_custom(lambda key, num_partition: key % partition, lambda x: x[0])
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+   <tr>
+     <td><strong>Random partitioning</strong><br>DataStream &rarr; DataStream</td>
+     <td>
+       <p>
+            Partitions elements randomly according to a uniform distribution.
+{% highlight python %}
+data_stream.shuffle()
+{% endhighlight %}
+       </p>
+     </td>
+   </tr>
+   <tr>
+      <td><strong>Rebalancing (Round-robin partitioning)</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            Partitions elements round-robin, creating equal load per partition. Useful for performance
+            optimization in the presence of data skew.
+{% highlight python %}
+data_stream.rebalance()
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            Partitions elements, round-robin, to a subset of downstream operations. This is
+            useful if you want to have pipelines where you, for example, fan out from
+            each parallel instance of a source to a subset of several mappers to distribute load
+            but don't want the full rebalance that rebalance() would incur. This would require only
+            local data transfers instead of transferring data over network, depending on
+            other configuration values such as the number of slots of TaskManagers.
+        </p>
+        <p>
+            The subset of downstream operations to which the upstream operation sends
+            elements depends on the degree of parallelism of both the upstream and downstream operation.
+            For example, if the upstream operation has parallelism 2 and the downstream operation
+            has parallelism 6, then one upstream operation would distribute elements to three
+            downstream operations while the other upstream operation would distribute to the other
+            three downstream operations. If, on the other hand, the downstream operation has parallelism
+            2 while the upstream operation has parallelism 6 then three upstream operations would
+            distribute to one downstream operation while the other three upstream operations would
+            distribute to the other downstream operation.
+        </p>
+        <p>
+            In cases where the different parallelisms are not multiples of each other one or several
+            downstream operations will have a differing number of inputs from upstream operations.
+        </p>
+        <p>
+            Please see this figure for a visualization of the connection pattern in the above
+            example:
+        </p>
+
+        <div style="text-align: center">
+            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            </div>
+
+
+        <p>
+{% highlight python %}
+data_stream.rescale()
+{% endhighlight %}
+
+        </p>
+      </td>
+    </tr>
+   <tr>
+      <td><strong>Broadcasting</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            Broadcasts elements to every partition.
+{% highlight python %}
+data_stream.broadcast()
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+
 </div>
 
 # Task chaining and resource groups
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 Chaining two subsequent transformations means co-locating them within the same thread for better
 performance. Flink by default chains operators if this is possible (e.g., two subsequent map
 transformations). The API gives fine-grained control over chaining if desired:
@@ -1041,9 +1175,6 @@ you cannot use `someStream.startNewChain()`.
 A resource group is a slot in Flink, see
 [slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
 manually isolate operators in separate slots if desired.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 
 <br />
 
@@ -1099,6 +1230,19 @@ someStream.filter(...).slotSharingGroup("name");
 </div>
 
 <div data-lang="scala" markdown="1">
+Chaining two subsequent transformations means co-locating them within the same thread for better
+performance. Flink by default chains operators if this is possible (e.g., two subsequent map
+transformations). The API gives fine-grained control over chaining if desired:
+
+Use `StreamExecutionEnvironment.disableOperatorChaining()` if you want to disable chaining in
+the whole job. For more fine grained control, the following functions are available. Note that
+these functions can only be used right after a DataStream transformation as they refer to the
+previous transformation. For example, you can use `someStream.map(...).startNewChain()`, but
+you cannot use `someStream.startNewChain()`.
+
+A resource group is a slot in Flink, see
+[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+manually isolate operators in separate slots if desired.
 
 <br />
 
@@ -1152,6 +1296,75 @@ someStream.filter(...).slotSharingGroup("name")
 </table>
 
 </div>
+
+<div data-lang="python" markdown="1">
+Chaining two subsequent transformations means co-locating them within the same thread for better
+performance. Flink by default chains operators if this is possible (e.g., two subsequent map
+transformations). The API gives fine-grained control over chaining if desired:
+
+Use `stream_execution_environment.disable_operator_chaining()` if you want to disable chaining in
+the whole job. For more fine grained control, the following functions are available. Note that
+these functions can only be used right after a DataStream transformation as they refer to the
+previous transformation. For example, you can use `some_stream.map(...).start_new_chain()`, but
+you cannot use `some_stream.start_new_chain()`.
+
+A resource group is a slot in Flink, see
+[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
+manually isolate operators in separate slots if desired.
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td>Start new chain</td>
+      <td>
+        <p>Begin a new chain, starting with this operator. The two
+	mappers will be chained, and filter will not be chained to
+	the first mapper.
+{% highlight python %}
+some_stream.filter(...).map(...).start_new_chain().map(...)
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+   <tr>
+      <td>Disable chaining</td>
+      <td>
+        <p>Do not chain the map operator
+{% highlight python %}
+some_stream.map(...).disable_chaining()
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td>Set slot sharing group</td>
+      <td>
+        <p>Set the slot sharing group of an operation. Flink will put operations with the same
+        slot sharing group into the same slot while keeping operations that don't have the
+        slot sharing group in other slots. This can be used to isolate slots. The slot sharing
+        group is inherited from input operations if all input operations are in the same slot
+        sharing group.
+        The name of the default slot sharing group is "default", operations can explicitly
+        be put into this group by calling slotSharingGroup("default").
+{% highlight python %}
+some_stream.filter(...).slot_sharing_group("name")
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+
 </div>
 
 

@@ -99,7 +99,8 @@ public class ExecutionGraphBuilder {
 			Time allocationTimeout,
 			Logger log,
 			ShuffleMaster<?> shuffleMaster,
-			JobMasterPartitionTracker partitionTracker) throws JobExecutionException, JobException {
+			JobMasterPartitionTracker partitionTracker,
+			long initializationTimestamp) throws JobExecutionException, JobException {
 
 		final FailoverStrategy.Factory failoverStrategy =
 			FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
@@ -123,7 +124,8 @@ public class ExecutionGraphBuilder {
 			partitionTracker,
 			failoverStrategy,
 			NoOpExecutionDeploymentListener.get(),
-			(execution, newState) -> {});
+			(execution, newState) -> {},
+			initializationTimestamp);
 	}
 
 	public static ExecutionGraph buildGraph(
@@ -145,7 +147,8 @@ public class ExecutionGraphBuilder {
 		JobMasterPartitionTracker partitionTracker,
 		FailoverStrategy.Factory failoverStrategyFactory,
 		ExecutionDeploymentListener executionDeploymentListener,
-		ExecutionStateUpdateListener executionStateUpdateListener) throws JobExecutionException, JobException {
+		ExecutionStateUpdateListener executionStateUpdateListener,
+		long initializationTimestamp) throws JobExecutionException, JobException {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
 
@@ -187,7 +190,8 @@ public class ExecutionGraphBuilder {
 					partitionTracker,
 					jobGraph.getScheduleMode(),
 					executionDeploymentListener,
-					executionStateUpdateListener);
+					executionStateUpdateListener,
+					initializationTimestamp);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

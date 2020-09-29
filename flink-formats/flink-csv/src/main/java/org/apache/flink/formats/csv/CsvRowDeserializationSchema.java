@@ -248,7 +248,11 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
 		return (node) -> {
 			final int nodeSize = node.size();
 
-			validateArity(rowArity, nodeSize, ignoreParseErrors);
+			if (nodeSize != 0) {
+				validateArity(rowArity, nodeSize, ignoreParseErrors);
+			} else {
+				return null;
+			}
 
 			final Row row = new Row(rowArity);
 			for (int i = 0; i < Math.min(rowArity, nodeSize); i++) {

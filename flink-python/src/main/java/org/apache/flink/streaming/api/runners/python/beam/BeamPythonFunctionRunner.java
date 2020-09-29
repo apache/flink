@@ -18,20 +18,41 @@
 
 package org.apache.flink.streaming.api.runners.python.beam;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.SideInputReference;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
+import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -40,28 +61,61 @@ import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+
 /**
- * An base class for {@link PythonFunctionRunner} based on beam.
+ * A {@link BeamPythonFunctionRunner} used to execute Python functions.
  */
+@Internal
 public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
 
-	private transient boolean bundleStarted;
+	private static final String PYTHON_STATE_PREFIX = "python-state-";
 
-	private static final String MAIN_INPUT_ID = "input";
+	private static final String INPUT_ID = "input";
+	private static final String OUTPUT_ID = "output";
+	private static final String TRANSFORM_ID = "transform";
+
+	private static final String MAIN_INPUT_NAME = "input";
+	private static final String MAIN_OUTPUT_NAME = "output";
+
+	private static final String INPUT_CODER_ID = "input_coder";
+	private static final String OUTPUT_CODER_ID = "output_coder";
+	private static final String WINDOW_CODER_ID = "window_coder";
+
+	private static final String WINDOW_STRATEGY = "windowing_strategy";
+
+	private transient boolean bundleStarted;
 
 	private final String taskName;
 
@@ -125,17 +179,22 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	@Nullable
 	private FlinkMetricContainer flinkMetricContainer;
 
+	private final String functionUrn;
+
 	public BeamPythonFunctionRunner(
-		String taskName,
-		PythonEnvironmentManager environmentManager,
-		StateRequestHandler stateRequestHandler,
-		Map<String, String> jobOptions,
-		@Nullable FlinkMetricContainer flinkMetricContainer) {
+			String taskName,
+			PythonEnvironmentManager environmentManager,
+			String functionUrn,
+			Map<String, String> jobOptions,
+			FlinkMetricContainer flinkMetricContainer,
+			@Nullable KeyedStateBackend keyedStateBackend,
+			@Nullable TypeSerializer keySerializer) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
-		this.stateRequestHandler = Preconditions.checkNotNull(stateRequestHandler);
+		this.functionUrn = functionUrn;
 		this.jobOptions = Preconditions.checkNotNull(jobOptions);
 		this.flinkMetricContainer = flinkMetricContainer;
+		this.stateRequestHandler = getStateRequestHandler(keyedStateBackend, keySerializer);
 		this.resultTuple = new Tuple2<>();
 	}
 
@@ -151,6 +210,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
 		// one operator has one Python SDK harness
 		portableOptions.setSdkWorkerParallelism(1);
+
+		if (jobOptions.containsKey(PythonOptions.STATE_CACHE_SIZE.key())) {
+			portableOptions.as(ExperimentalOptions.class).setExperiments(
+				Collections.singletonList(
+					ExperimentalOptions.STATE_CACHE_SIZE + "=" +
+						jobOptions.get(PythonOptions.STATE_CACHE_SIZE.key())));
+		}
 
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
@@ -227,19 +293,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			remoteBundle = stageBundleFactory.getBundle(createOutputReceiverFactory(), stateRequestHandler, progressHandler);
 			mainInputReceiver =
 				Preconditions.checkNotNull(
-					remoteBundle.getInputReceivers().get(MAIN_INPUT_ID),
+					Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()),
 					"Failed to retrieve main input receiver.");
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start remote bundle", t);
 		}
 	}
-
-	/**
-	 * Creates a {@link ExecutableStage} which contains the Python user-defined functions to be executed
-	 * and all the other information needed to execute them, such as the execution environment, the input
-	 * and output coder, etc.
-	 */
-	public abstract ExecutableStage createExecutableStage() throws Exception;
 
 	private void finishBundle() {
 		try {
@@ -306,4 +365,276 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		}
 	}
 
+	/**
+	 * Creates a {@link ExecutableStage} which contains the Python user-defined functions to be executed
+	 * and all the other information needed to execute them, such as the execution environment, the input
+	 * and output coder, etc.
+	 */
+	@SuppressWarnings("unchecked")
+	private ExecutableStage createExecutableStage() throws Exception {
+		RunnerApi.Components components =
+			RunnerApi.Components.newBuilder()
+				.putPcollections(
+					INPUT_ID,
+					RunnerApi.PCollection.newBuilder()
+						.setWindowingStrategyId(WINDOW_STRATEGY)
+						.setCoderId(INPUT_CODER_ID)
+						.build())
+				.putPcollections(
+					OUTPUT_ID,
+					RunnerApi.PCollection.newBuilder()
+						.setWindowingStrategyId(WINDOW_STRATEGY)
+						.setCoderId(OUTPUT_CODER_ID)
+						.build())
+				.putTransforms(
+					TRANSFORM_ID,
+					RunnerApi.PTransform.newBuilder()
+						.setUniqueName(TRANSFORM_ID)
+						.setSpec(RunnerApi.FunctionSpec.newBuilder()
+							.setUrn(functionUrn)
+							.setPayload(
+								org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(
+									getUserDefinedFunctionsProtoBytes()))
+							.build())
+						.putInputs(MAIN_INPUT_NAME, INPUT_ID)
+						.putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID)
+						.build())
+				.putWindowingStrategies(
+					WINDOW_STRATEGY,
+					RunnerApi.WindowingStrategy.newBuilder()
+						.setWindowCoderId(WINDOW_CODER_ID)
+						.build())
+				.putCoders(
+					INPUT_CODER_ID,
+					getInputCoderProto())
+				.putCoders(
+					OUTPUT_CODER_ID,
+					getOutputCoderProto())
+				.putCoders(
+					WINDOW_CODER_ID,
+					getWindowCoderProto())
+				.build();
+
+		PipelineNode.PCollectionNode input =
+			PipelineNode.pCollection(INPUT_ID, components.getPcollectionsOrThrow(INPUT_ID));
+		List<SideInputReference> sideInputs = Collections.EMPTY_LIST;
+		List<UserStateReference> userStates = Collections.EMPTY_LIST;
+		List<TimerReference> timers = Collections.EMPTY_LIST;
+		List<PipelineNode.PTransformNode> transforms =
+			Collections.singletonList(
+				PipelineNode.pTransform(TRANSFORM_ID, components.getTransformsOrThrow(TRANSFORM_ID)));
+		List<PipelineNode.PCollectionNode> outputs =
+			Collections.singletonList(
+				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
+		return ImmutableExecutableStage.of(
+			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
+	}
+
+	private Collection<RunnerApi.ExecutableStagePayload.WireCoderSetting> createValueOnlyWireCoderSetting() throws
+		IOException {
+		WindowedValue<byte[]> value = WindowedValue.valueInGlobalWindow(new byte[0]);
+		Coder<? extends BoundedWindow> windowCoder = GlobalWindow.Coder.INSTANCE;
+		WindowedValue.FullWindowedValueCoder<byte[]> windowedValueCoder =
+			WindowedValue.FullWindowedValueCoder.of(ByteArrayCoder.of(), windowCoder);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		windowedValueCoder.encode(value, baos);
+
+		return Arrays.asList(
+			RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
+				.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+				.setPayload(
+					org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
+				.setInputOrOutputId(INPUT_ID)
+				.build(),
+			RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
+				.setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
+				.setPayload(
+					org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString.copyFrom(baos.toByteArray()))
+				.setInputOrOutputId(OUTPUT_ID)
+				.build()
+		);
+	}
+
+	protected abstract byte[] getUserDefinedFunctionsProtoBytes();
+
+	protected abstract RunnerApi.Coder getInputCoderProto();
+
+	protected abstract RunnerApi.Coder getOutputCoderProto();
+
+	/**
+	 * Gets the proto representation of the window coder.
+	 */
+	private RunnerApi.Coder getWindowCoderProto() {
+		return RunnerApi.Coder.newBuilder()
+			.setSpec(
+				RunnerApi.FunctionSpec.newBuilder()
+					.setUrn(ModelCoders.GLOBAL_WINDOW_CODER_URN)
+					.build())
+			.build();
+	}
+
+	private static StateRequestHandler getStateRequestHandler(
+			KeyedStateBackend keyedStateBackend,
+			TypeSerializer keySerializer) {
+		if (keyedStateBackend == null) {
+			return StateRequestHandler.unsupported();
+		} else {
+			assert keySerializer != null;
+			return new SimpleStateRequestHandler(keyedStateBackend, keySerializer);
+		}
+	}
+
+	/**
+	 * A state request handler which handles the state request from Python side.
+	 */
+	private static class SimpleStateRequestHandler implements StateRequestHandler {
+
+		private final TypeSerializer keySerializer;
+		private final TypeSerializer<byte[]> valueSerializer;
+		private final KeyedStateBackend keyedStateBackend;
+
+		/**
+		 * Reusable InputStream used to holding the elements to be deserialized.
+		 */
+		private final ByteArrayInputStreamWithPos bais;
+
+		/**
+		 * InputStream Wrapper.
+		 */
+		private final DataInputViewStreamWrapper baisWrapper;
+
+		/**
+		 * The cache of the stateDescriptors.
+		 */
+		final Map<String, StateDescriptor> stateDescriptorCache;
+
+		SimpleStateRequestHandler(
+			KeyedStateBackend keyedStateBackend,
+			TypeSerializer keySerializer) {
+			this.keyedStateBackend = keyedStateBackend;
+			this.keySerializer = keySerializer;
+			this.valueSerializer = PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
+				.createSerializer(new ExecutionConfig());
+			bais = new ByteArrayInputStreamWithPos();
+			baisWrapper = new DataInputViewStreamWrapper(bais);
+			stateDescriptorCache = new HashMap<>();
+		}
+
+		@Override
+		public CompletionStage<BeamFnApi.StateResponse.Builder> handle(
+				BeamFnApi.StateRequest request) throws Exception {
+			BeamFnApi.StateKey.TypeCase typeCase = request.getStateKey().getTypeCase();
+			synchronized (keyedStateBackend) {
+				if (typeCase.equals(BeamFnApi.StateKey.TypeCase.BAG_USER_STATE)) {
+					return handleBagState(request);
+				} else {
+					throw new RuntimeException("Unsupported state type: " + typeCase);
+				}
+			}
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagState(
+				BeamFnApi.StateRequest request) throws Exception {
+			if (request.getStateKey().hasBagUserState()) {
+				BeamFnApi.StateKey.BagUserState bagUserState = request.getStateKey().getBagUserState();
+				// get key
+				byte[] keyBytes = bagUserState.getKey().toByteArray();
+				bais.setBuffer(keyBytes, 0, keyBytes.length);
+				Object key = keySerializer.deserialize(baisWrapper);
+				keyedStateBackend.setCurrentKey(
+					((RowDataSerializer) keyedStateBackend.getKeySerializer()).toBinaryRow((RowData) key));
+			} else {
+				throw new RuntimeException("Unsupported bag state request: " + request);
+			}
+
+			switch (request.getRequestCase()) {
+				case GET:
+					return handleGetRequest(request);
+				case APPEND:
+					return handleAppendRequest(request);
+				case CLEAR:
+					return handleClearRequest(request);
+				default:
+					throw new RuntimeException(
+						String.format(
+							"Unsupported request type %s for user state.", request.getRequestCase()));
+			}
+		}
+
+		private List<ByteString> convertToByteString(ListState<byte[]> listState) throws Exception {
+			List<ByteString> ret = new LinkedList<>();
+			if (listState.get() == null) {
+				return ret;
+			}
+			for (byte[] v: listState.get()) {
+				ret.add(ByteString.copyFrom(v));
+			}
+			return ret;
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleGetRequest(
+			BeamFnApi.StateRequest request) throws Exception {
+
+			ListState<byte[]> partitionedState = getListState(request);
+			List<ByteString> byteStrings = convertToByteString(partitionedState);
+
+			return CompletableFuture.completedFuture(
+				BeamFnApi.StateResponse.newBuilder()
+					.setId(request.getId())
+					.setGet(
+						BeamFnApi.StateGetResponse.newBuilder()
+							.setData(ByteString.copyFrom(byteStrings))));
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleAppendRequest(
+			BeamFnApi.StateRequest request) throws Exception {
+
+			ListState<byte[]> partitionedState = getListState(request);
+			// get values
+			byte[] valueBytes = request.getAppend().getData().toByteArray();
+			partitionedState.add(valueBytes);
+
+			return CompletableFuture.completedFuture(
+				BeamFnApi.StateResponse.newBuilder()
+					.setId(request.getId())
+					.setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance()));
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleClearRequest(
+			BeamFnApi.StateRequest request) throws Exception {
+
+			ListState<byte[]> partitionedState = getListState(request);
+
+			partitionedState.clear();
+			return CompletableFuture.completedFuture(
+				BeamFnApi.StateResponse.newBuilder()
+					.setId(request.getId())
+					.setClear(BeamFnApi.StateClearResponse.getDefaultInstance()));
+		}
+
+		private ListState<byte[]> getListState(BeamFnApi.StateRequest request) throws Exception {
+			BeamFnApi.StateKey.BagUserState bagUserState = request.getStateKey().getBagUserState();
+			String stateName = PYTHON_STATE_PREFIX + bagUserState.getUserStateId();
+			ListStateDescriptor<byte[]> listStateDescriptor;
+			StateDescriptor cachedStateDescriptor = stateDescriptorCache.get(stateName);
+			if (cachedStateDescriptor instanceof ListStateDescriptor) {
+				listStateDescriptor = (ListStateDescriptor<byte[]>) cachedStateDescriptor;
+			} else if (cachedStateDescriptor == null) {
+				listStateDescriptor = new ListStateDescriptor<>(stateName, valueSerializer);
+				stateDescriptorCache.put(stateName, listStateDescriptor);
+			} else {
+				throw new RuntimeException(
+					String.format(
+						"State name corrupt detected: " +
+						"'%s' is used both as LIST state and '%s' state at the same time.",
+						stateName,
+						cachedStateDescriptor.getType()));
+			}
+
+			return (ListState<byte[]>) keyedStateBackend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE,
+				listStateDescriptor);
+		}
+	}
 }

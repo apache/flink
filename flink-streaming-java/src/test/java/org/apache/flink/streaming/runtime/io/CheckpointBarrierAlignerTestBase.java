@@ -33,7 +33,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -79,19 +79,19 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		testStartTimeNanos = System.nanoTime();
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(
-		int numberOfChannels,
-		BufferOrEvent[] sequence,
-		AbstractInvokable toNotify) throws IOException {
+	protected CheckpointedInputGate createCheckpointedInputGate(
+			int numberOfChannels,
+			BufferOrEvent[] sequence,
+			AbstractInvokable toNotify) throws IOException {
 		mockInputGate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
-		return createBarrierBuffer(mockInputGate, toNotify);
+		return createCheckpointedInputGate(mockInputGate, toNotify);
 	}
 
-	protected CheckpointedInputGate createBarrierBuffer(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
-		return createBarrierBuffer(numberOfChannels, sequence, new DummyCheckpointInvokable());
+	protected CheckpointedInputGate createCheckpointedInputGate(int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
+		return createCheckpointedInputGate(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	abstract CheckpointedInputGate createBarrierBuffer(InputGate gate, AbstractInvokable toNotify) throws IOException;
+	abstract CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) throws IOException;
 
 	@After
 	public void ensureEmpty() throws Exception {
@@ -115,7 +115,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0), createBuffer(0),
 			createBuffer(0), createEndOfPartition(0)
 		};
-		inputGate = createBarrierBuffer(1, sequence);
+		inputGate = createCheckpointedInputGate(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -136,7 +136,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(3), createBuffer(1), createEndOfPartition(3),
 			createBuffer(1), createEndOfPartition(1), createBuffer(2), createEndOfPartition(2)
 		};
-		inputGate = createBarrierBuffer(4, sequence);
+		inputGate = createCheckpointedInputGate(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -161,7 +161,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0), createEndOfPartition(0)
 		};
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(1, sequence, handler);
+		inputGate = createCheckpointedInputGate(1, sequence, handler);
 
 		handler.setNextExpectedCheckpointId(1L);
 
@@ -201,7 +201,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2)
 		};
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, handler);
+		inputGate = createCheckpointedInputGate(3, sequence, handler);
 
 		handler.setNextExpectedCheckpointId(1L);
 
@@ -298,7 +298,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(1), createEndOfPartition(1)
 		};
 		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, handler);
+		inputGate = createCheckpointedInputGate(3, sequence, handler);
 
 		handler.setNextExpectedCheckpointId(1L);
 
@@ -366,12 +366,10 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0)
 		};
 		AbstractInvokable validator = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(2, sequence, validator);
+		inputGate = createCheckpointedInputGate(2, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
-			if (boe.isBuffer() || boe.getEvent().getClass() != CancelCheckpointMarker.class) {
-				assertEquals(boe, inputGate.pollNext().get());
-			}
+			assertEquals(boe, inputGate.pollNext().get());
 		}
 
 		Integer[] expectedUnblockedChannels = new Integer[] {0};
@@ -401,7 +399,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(3),
 			createEndOfPartition(3)
 		};
-		inputGate = createBarrierBuffer(4, sequence);
+		inputGate = createCheckpointedInputGate(4, sequence);
 
 		// pre checkpoint 2
 		check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
@@ -461,7 +459,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			// final end of stream
 			createEndOfPartition(0)
 		};
-		inputGate = createBarrierBuffer(3, sequence);
+		inputGate = createCheckpointedInputGate(3, sequence);
 
 		// data after first checkpoint
 		check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
@@ -506,7 +504,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			createBuffer(0)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(1, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(1, sequence, toNotify);
 
 		toNotify.setNextExpectedCheckpointId(1);
 		check(sequence[0], inputGate.pollNext().get(), PAGE_SIZE);
@@ -523,6 +521,11 @@ public abstract class CheckpointBarrierAlignerTestBase {
 
 		toNotify.setNextExpectedCheckpointId(5);
 		check(sequence[4], inputGate.pollNext().get(), PAGE_SIZE);
+		check(sequence[5], inputGate.pollNext().get(), 0);
+		assertEquals(4L, inputGate.getLatestCheckpointId());
+		assertEquals(4, toNotify.getLastCanceledCheckpointId());
+		assertEquals(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER, toNotify.getCheckpointFailureReason());
+		assertEquals(0L, inputGate.getAlignmentDurationNanos());
 		check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
 		assertEquals(5L, inputGate.getLatestCheckpointId());
 		assertEquals(4, toNotify.getLastCanceledCheckpointId());
@@ -532,6 +535,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		assertArrayEquals(expectedUnblockedChannels3, mockInputGate.getAndResetLastUnblockedChannels().toArray());
 
 		check(sequence[7], inputGate.pollNext().get(), PAGE_SIZE);
+		check(sequence[8], inputGate.pollNext().get(), 0);
 		check(sequence[9], inputGate.pollNext().get(), PAGE_SIZE);
 		assertEquals(6L, inputGate.getLatestCheckpointId());
 		assertEquals(6, toNotify.getLastCanceledCheckpointId());
@@ -579,7 +583,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			/* 35 */ createBuffer(0)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(3, sequence, toNotify);
 
 		long startTs;
 
@@ -608,11 +612,12 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[11], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// canceled checkpoint on last barrier
-		check(sequence[13], inputGate.pollNext().get(), PAGE_SIZE);
+		check(sequence[12], inputGate.pollNext().get(), 0);
 		assertEquals(2, toNotify.getLastCanceledCheckpointId());
 		Integer[] expectedUnblockedChannels2 = new Integer[] {0, 2};
 		assertArrayEquals(expectedUnblockedChannels2, mockInputGate.getAndResetLastUnblockedChannels().toArray());
 		assertEquals(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER, toNotify.getCheckpointFailureReason());
+		check(sequence[13], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[14], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// one more successful checkpoint
@@ -628,10 +633,11 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[19], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// this checkpoint gets immediately canceled
-		check(sequence[21], inputGate.pollNext().get(), PAGE_SIZE);
+		check(sequence[20], inputGate.pollNext().get(), 0);
 		assertEquals(4, toNotify.getLastCanceledCheckpointId());
 		assertEquals(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER, toNotify.getCheckpointFailureReason());
 		assertEquals(0L, inputGate.getAlignmentDurationNanos());
+		check(sequence[21], inputGate.pollNext().get(), PAGE_SIZE);
 		Integer[] expectedUnblockedChannels4 = new Integer[] {2};
 		assertArrayEquals(expectedUnblockedChannels4, mockInputGate.getAndResetLastUnblockedChannels().toArray());
 		check(sequence[22], inputGate.pollNext().get(), PAGE_SIZE);
@@ -657,10 +663,12 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[31], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// this checkpoint gets immediately canceled
-		check(sequence[34], inputGate.pollNext().get(), PAGE_SIZE);
+		check(sequence[32], inputGate.pollNext().get(), 0);
+		check(sequence[33], inputGate.pollNext().get(), 0);
 		assertEquals(6, toNotify.getLastCanceledCheckpointId());
 		assertEquals(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER, toNotify.getCheckpointFailureReason());
 		assertEquals(0L, inputGate.getAlignmentDurationNanos());
+		check(sequence[34], inputGate.pollNext().get(), PAGE_SIZE);
 		Integer[] expectedUnblockedChannels7 = new Integer[] {0};
 		assertArrayEquals(expectedUnblockedChannels7, mockInputGate.getAndResetLastUnblockedChannels().toArray());
 		check(sequence[35], inputGate.pollNext().get(), PAGE_SIZE);
@@ -707,7 +715,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			/* 14 */ createBuffer(0), createBuffer(1), createBuffer(2)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(3, sequence, toNotify);
 
 		long startTs;
 
@@ -719,6 +727,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[3], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// cancelled by cancellation barrier
+		check(sequence[4], inputGate.pollNext().get(), 0);
 		check(sequence[5], inputGate.pollNext().get(), PAGE_SIZE);
 		assertEquals(1, toNotify.getLastCanceledCheckpointId());
 		assertEquals(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER, toNotify.getCheckpointFailureReason());
@@ -786,7 +795,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 			/* 12 */ createBuffer(0), createBuffer(1), createBuffer(2)
 		};
 		ValidatingCheckpointHandler toNotify = new ValidatingCheckpointHandler();
-		inputGate = createBarrierBuffer(3, sequence, toNotify);
+		inputGate = createCheckpointedInputGate(3, sequence, toNotify);
 
 		long startTs;
 
@@ -810,6 +819,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		check(sequence[6], inputGate.pollNext().get(), PAGE_SIZE);
 
 		// alignment of next checkpoint
+		check(sequence[7], inputGate.pollNext().get(), 0);
 		check(sequence[8], inputGate.pollNext().get(), PAGE_SIZE);
 		check(sequence[9], inputGate.pollNext().get(), PAGE_SIZE);
 

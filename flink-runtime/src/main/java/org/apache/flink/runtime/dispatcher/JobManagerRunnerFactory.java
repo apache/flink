@@ -42,5 +42,6 @@ public interface JobManagerRunnerFactory {
 		HeartbeatServices heartbeatServices,
 		JobManagerSharedServices jobManagerServices,
 		JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-		FatalErrorHandler fatalErrorHandler) throws Exception;
+		FatalErrorHandler fatalErrorHandler,
+		long initializationTimestamp) throws Exception;
 }

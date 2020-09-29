@@ -928,7 +928,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           },
           "status" : {
             "type" : "string",
-            "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+            "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
           }
         }
       }
@@ -1180,7 +1180,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "state" : {
       "type" : "string",
-      "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+      "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
     },
     "status-counts" : {
       "type" : "object",
@@ -1791,6 +1791,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "timeout" : {
       "type" : "integer"
+    },
+    "unaligned_checkpoints" : {
+      "type" : "boolean"
     }
   }
 }            </code>
@@ -4109,6 +4112,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "id" : {
             "type" : "any"
           },
+          "jmxPort" : {
+            "type" : "integer"
+          },
           "memoryConfiguration" : {
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:taskexecutor:TaskExecutorMemoryConfiguration",
@@ -4315,6 +4321,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     },
     "id" : {
       "type" : "any"
+    },
+    "jmxPort" : {
+      "type" : "integer"
     },
     "memoryConfiguration" : {
       "type" : "object",

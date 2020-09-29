@@ -22,8 +22,8 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
@@ -40,7 +40,7 @@ import java.util.stream.IntStream;
 /**
  * Mock {@link InputGate}.
  */
-public class MockInputGate extends InputGate {
+public class MockInputGate extends IndexedInputGate {
 
 	private final int numberOfChannels;
 
@@ -149,6 +149,7 @@ public class MockInputGate extends InputGate {
 	}
 
 	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener listener) {
+	public int getGateIndex() {
+		return 0;
 	}
 }

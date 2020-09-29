@@ -46,6 +46,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.StreamConsumerRegistrarUtil;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -211,7 +212,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		this.configProps = checkNotNull(configProps, "configProps can not be null");
 
 		// check the configuration properties for any conflicting settings
-		KinesisConfigUtil.validateConsumerConfiguration(this.configProps);
+		KinesisConfigUtil.validateConsumerConfiguration(this.configProps, streams);
 
 		checkNotNull(deserializer, "deserializer can not be null");
 		checkArgument(
@@ -219,6 +220,8 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 			"The provided deserialization schema is not serializable: " + deserializer.getClass().getName() + ". " +
 				"Please check that it does not contain references to non-serializable instances.");
 		this.deserializer = deserializer;
+
+		StreamConsumerRegistrarUtil.eagerlyRegisterStreamConsumers(configProps, streams);
 
 		if (LOG.isInfoEnabled()) {
 			StringBuilder sb = new StringBuilder();

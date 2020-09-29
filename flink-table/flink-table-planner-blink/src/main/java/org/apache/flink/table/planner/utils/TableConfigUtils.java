@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -26,8 +25,6 @@ import org.apache.flink.table.planner.plan.utils.OperatorType;
 
 import java.util.HashSet;
 import java.util.Set;
-
-import scala.concurrent.duration.Duration;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS;
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY;
@@ -78,27 +75,6 @@ public class TableConfigUtils {
 			return AggregatePhaseStrategy.AUTO;
 		} else {
 			return AggregatePhaseStrategy.valueOf(aggPhaseConf);
-		}
-	}
-
-	/**
-	 * Returns time in milli second.
-	 *
-	 * @param tableConfig TableConfig object
-	 * @param config config to fetch
-	 * @return time in milli second.
-	 */
-	public static Long getMillisecondFromConfigDuration(TableConfig tableConfig, ConfigOption<String> config) {
-		String timeStr = tableConfig.getConfiguration().getString(config);
-		if (timeStr != null) {
-			Duration duration = Duration.create(timeStr);
-			if (duration.isFinite()) {
-				return duration.toMillis();
-			} else {
-				throw new IllegalArgumentException(config.key() + " must be finite.");
-			}
-		} else {
-			return null;
 		}
 	}
 

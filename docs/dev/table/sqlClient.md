@@ -222,7 +222,7 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            --pyExecutable
                                            /usr/local/bin/python3). The python
                                            UDF worker depends on Python 3.5+,
-                                           Apache Beam (version == 2.19.0), Pip
+                                           Apache Beam (version == 2.23.0), Pip
                                            (version >= 7.1.0) and SetupTools
                                            (version >= 37.0.0). Please ensure
                                            that the specified environment meets
@@ -469,7 +469,7 @@ The SQL Client allows users to create custom, user-defined functions to be used 
 
 In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
 
-In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({% link dev/python/user-guide/table/udfs/python_udfs.md %})). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({% link dev/python/user-guide/table/python_config.md %})) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
+In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %})). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({% link dev/python/table-api-users-guide/python_config.md %})) in environment file or the command line options (see [Command Line Usage]({{ site.baseurl }}/ops/cli.html#usage)).
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 

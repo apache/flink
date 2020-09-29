@@ -18,9 +18,6 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonPartitionCustomFunctionOperator;
-import org.apache.flink.datastream.runtime.operators.python.DataStreamPythonStatelessFunctionOperator;
-import org.apache.flink.datastream.runtime.operators.python.DataStreamTwoInputPythonStatelessFunctionOperator;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -29,7 +26,10 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperatorBase;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.PythonPartitionCustomOperator;
+import org.apache.flink.streaming.api.operators.python.StatelessOneInputPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.StatelessTwoInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import java.lang.reflect.InvocationTargetException;
@@ -84,7 +84,7 @@ public class PythonConfigUtil {
 	}
 
 	/**
-	 * Configure the {@link DataStreamPythonStatelessFunctionOperator} to be chained with the upstream/downstream
+	 * Configure the {@link StatelessOneInputPythonFunctionOperator} to be chained with the upstream/downstream
 	 * operator by setting their parallelism, slot sharing group, co-location group to be the same, and applying a
 	 * {@link ForwardPartitioner}.
 	 * 1. operator with name "_keyed_stream_values_operator" should align with its downstream operator.
@@ -115,7 +115,7 @@ public class PythonConfigUtil {
 
 	/**
 	 * Generate a {@link StreamGraph} for transformations maintained by current {@link StreamExecutionEnvironment}, and
-	 * reset the merged env configurations with dependencies to every {@link DataStreamPythonStatelessFunctionOperator}.
+	 * reset the merged env configurations with dependencies to every {@link StatelessOneInputPythonFunctionOperator}.
 	 * It is an idempotent operation that can be call multiple times. Remember that only when need to execute the
 	 * StreamGraph can we set the clearTransformations to be True.
 	 */
@@ -133,14 +133,14 @@ public class PythonConfigUtil {
 			StreamOperatorFactory streamOperatorFactory = streamNode.getOperatorFactory();
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
-				if ((streamOperator instanceof DataStreamPythonStatelessFunctionOperator) ||
-					(streamOperator instanceof DataStreamTwoInputPythonStatelessFunctionOperator)) {
-					AbstractPythonFunctionOperatorBase abstractPythonFunctionOperatorBase =
-						(AbstractPythonFunctionOperatorBase) streamOperator;
+				if ((streamOperator instanceof StatelessOneInputPythonFunctionOperator) ||
+					(streamOperator instanceof StatelessTwoInputPythonFunctionOperator)) {
+					AbstractPythonFunctionOperator abstractPythonFunctionOperator =
+						(AbstractPythonFunctionOperator) streamOperator;
 
-					Configuration oldConfig = abstractPythonFunctionOperatorBase.getPythonConfig()
+					Configuration oldConfig = abstractPythonFunctionOperator.getPythonConfig()
 						.getMergedConfig();
-					abstractPythonFunctionOperatorBase.setPythonConfig(generateNewPythonConfig(oldConfig,
+					abstractPythonFunctionOperator.setPythonConfig(generateNewPythonConfig(oldConfig,
 						mergedConfig));
 				}
 			}
@@ -157,9 +157,9 @@ public class PythonConfigUtil {
 			StreamOperatorFactory streamOperatorFactory = streamNode.getOperatorFactory();
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
-				if (streamOperator instanceof DataStreamPythonPartitionCustomFunctionOperator) {
-					DataStreamPythonPartitionCustomFunctionOperator paritionCustomFunctionOperator =
-						(DataStreamPythonPartitionCustomFunctionOperator) streamOperator;
+				if (streamOperator instanceof PythonPartitionCustomOperator) {
+					PythonPartitionCustomOperator paritionCustomFunctionOperator =
+						(PythonPartitionCustomOperator) streamOperator;
 
 					// Update the numPartitions of PartitionCustomOperator after aligned all operators.
 					paritionCustomFunctionOperator.setNumPartitions(

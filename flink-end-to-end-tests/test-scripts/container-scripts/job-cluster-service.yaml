@@ -29,13 +29,9 @@ spec:
     port: 6123
   - name: blob
     port: 6124
-  - name: query
-    port: 6125
-    nodePort: 30025
   - name: ui
     port: 8081
-    nodePort: 30081
-  type: NodePort
+  type: ClusterIP
   selector:
     app: flink
     component: job-cluster

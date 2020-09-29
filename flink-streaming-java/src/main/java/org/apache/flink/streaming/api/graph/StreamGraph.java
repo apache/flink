@@ -32,13 +32,13 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -106,7 +106,6 @@ public class StreamGraph implements Pipeline {
 	private Map<Integer, StreamNode> streamNodes;
 	private Set<Integer> sources;
 	private Set<Integer> sinks;
-	private Map<Integer, Tuple2<Integer, List<String>>> virtualSelectNodes;
 	private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
 	private Map<Integer, Tuple3<Integer, StreamPartitioner<?>, ShuffleMode>> virtualPartitionNodes;
 
@@ -129,7 +128,6 @@ public class StreamGraph implements Pipeline {
 	 */
 	public void clear() {
 		streamNodes = new HashMap<>();
-		virtualSelectNodes = new HashMap<>();
 		virtualSideOutputNodes = new HashMap<>();
 		virtualPartitionNodes = new HashMap<>();
 		vertexIDtoBrokerID = new HashMap<>();
@@ -392,33 +390,11 @@ public class StreamGraph implements Pipeline {
 				coLocationGroup,
 				operatorFactory,
 				operatorName,
-				new ArrayList<OutputSelector<?>>(),
 				vertexClass);
 
 		streamNodes.put(vertexID, vertex);
 
 		return vertex;
-	}
-
-	/**
-	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs
-	 * with the selected names.
-	 *
-	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
-	 * to the original node, only with the selected names given here.
-	 *
-	 * @param originalId ID of the node that should be connected to.
-	 * @param virtualId ID of the virtual node.
-	 * @param selectedNames The selected names.
-	 */
-	public void addVirtualSelectNode(Integer originalId, Integer virtualId, List<String> selectedNames) {
-
-		if (virtualSelectNodes.containsKey(virtualId)) {
-			throw new IllegalStateException("Already has virtual select node with id " + virtualId);
-		}
-
-		virtualSelectNodes.put(virtualId,
-				new Tuple2<Integer, List<String>>(originalId, selectedNames));
 	}
 
 	/**
@@ -488,9 +464,6 @@ public class StreamGraph implements Pipeline {
 		if (virtualSideOutputNodes.containsKey(id)) {
 			Integer mappedId = virtualSideOutputNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
-		} else if (virtualSelectNodes.containsKey(id)) {
-			Integer mappedId = virtualSelectNodes.get(id).f0;
-			return getSlotSharingGroup(mappedId);
 		} else if (virtualPartitionNodes.containsKey(id)) {
 			Integer mappedId = virtualPartitionNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
@@ -526,14 +499,6 @@ public class StreamGraph implements Pipeline {
 				outputTag = virtualSideOutputNodes.get(virtualId).f1;
 			}
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, null, outputTag, shuffleMode);
-		} else if (virtualSelectNodes.containsKey(upStreamVertexID)) {
-			int virtualId = upStreamVertexID;
-			upStreamVertexID = virtualSelectNodes.get(virtualId).f0;
-			if (outputNames.isEmpty()) {
-				// selections that happen downstream override earlier selections
-				outputNames = virtualSelectNodes.get(virtualId).f1;
-			}
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag, shuffleMode);
 		} else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
@@ -567,26 +532,12 @@ public class StreamGraph implements Pipeline {
 				shuffleMode = ShuffleMode.UNDEFINED;
 			}
 
-			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber, outputNames, partitioner, outputTag, shuffleMode);
+			StreamEdge edge = new StreamEdge(upstreamNode, downstreamNode, typeNumber,
+				partitioner, outputTag, shuffleMode);
 
 			getStreamNode(edge.getSourceId()).addOutEdge(edge);
 			getStreamNode(edge.getTargetId()).addInEdge(edge);
 		}
-	}
-
-	public <T> void addOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
-		if (virtualPartitionNodes.containsKey(vertexID)) {
-			addOutputSelector(virtualPartitionNodes.get(vertexID).f0, outputSelector);
-		} else if (virtualSelectNodes.containsKey(vertexID)) {
-			addOutputSelector(virtualSelectNodes.get(vertexID).f0, outputSelector);
-		} else {
-			getStreamNode(vertexID).addOutputSelector(outputSelector);
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Outputselector set for {}", vertexID);
-			}
-		}
-
 	}
 
 	public void setParallelism(Integer vertexID, int parallelism) {
@@ -607,9 +558,12 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
-	public void setManagedMemoryWeight(int vertexID, int managedMemoryWeight) {
+	public void setManagedMemoryUseCaseWeights(
+			int vertexID,
+			Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
+			Set<ManagedMemoryUseCase> slotScopeUseCases) {
 		if (getStreamNode(vertexID) != null) {
-			getStreamNode(vertexID).setManagedMemoryWeight(managedMemoryWeight);
+			getStreamNode(vertexID).setManagedMemoryUseCaseWeights(operatorScopeUseCaseWeights, slotScopeUseCases);
 		}
 	}
 

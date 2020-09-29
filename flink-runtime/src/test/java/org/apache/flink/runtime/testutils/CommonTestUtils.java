@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.SupplierWithException;
@@ -31,6 +32,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -128,6 +131,17 @@ public class CommonTestUtils {
 		if (!timeout.hasTimeLeft()) {
 			throw new TimeoutException("Condition was not met in given timeout.");
 		}
+	}
+
+	public static void waitUntilJobManagerIsInitialized(SupplierWithException<JobStatus, Exception> jobStatusSupplier) throws
+		Exception {
+		waitUntilJobManagerIsInitialized(jobStatusSupplier, Deadline.fromNow(Duration.of(1,
+			ChronoUnit.MINUTES)));
+	}
+
+	public static void waitUntilJobManagerIsInitialized(SupplierWithException<JobStatus, Exception> jobStatusSupplier, Deadline timeout) throws
+		Exception {
+		waitUntilCondition(() -> jobStatusSupplier.get() != JobStatus.INITIALIZING, timeout, 20L);
 	}
 
 	/**

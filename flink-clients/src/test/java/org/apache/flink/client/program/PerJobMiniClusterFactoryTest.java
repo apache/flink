@@ -59,12 +59,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 	public void testJobExecution() throws Exception {
 		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 
-		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
+		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
 
-		JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+		JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
 		assertThat(jobExecutionResult, is(notNullValue()));
 
-		Map<String, Object> actual = jobClient.getAccumulators(getClass().getClassLoader()).get();
+		Map<String, Object> actual = jobClient.getAccumulators().get();
 		assertThat(actual, is(notNullValue()));
 
 		assertThatMiniClusterIsShutdown();
@@ -76,7 +76,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 
 		JobGraph cancellableJobGraph = getCancellableJobGraph();
 		JobClient jobClient = perJobMiniClusterFactory
-			.submitJob(cancellableJobGraph)
+			.submitJob(cancellableJobGraph, ClassLoader.getSystemClassLoader())
 			.get();
 
 		assertThat(jobClient.getJobID(), is(cancellableJobGraph.getJobID()));
@@ -87,7 +87,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		assertThrows(
 			"Job was cancelled.",
 			ExecutionException.class,
-			() -> jobClient.getJobExecutionResult(getClass().getClassLoader()).get()
+			() -> jobClient.getJobExecutionResult().get()
 		);
 
 		assertThatMiniClusterIsShutdown();
@@ -96,7 +96,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 	@Test
 	public void testJobClientSavepoint() throws Exception {
 		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-		JobClient jobClient = perJobMiniClusterFactory.submitJob(getCancellableJobGraph()).get();
+		JobClient jobClient = perJobMiniClusterFactory.submitJob(getCancellableJobGraph(), ClassLoader.getSystemClassLoader()).get();
 
 		assertThrows(
 			"is not a streaming job.",
@@ -117,24 +117,22 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 		JobGraph jobGraph = new JobGraph();
 
 		assertThrows(
-			"Failed to submit job.",
+			"Could not instantiate JobManager",
 			ExecutionException.class,
-			() -> perJobMiniClusterFactory.submitJob(jobGraph).get());
-
-		assertThatMiniClusterIsShutdown();
+			() -> perJobMiniClusterFactory.submitJob(jobGraph, ClassLoader.getSystemClassLoader()).get());
 	}
 
 	@Test
 	public void testMultipleExecutions() throws Exception {
 		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
 		{
-			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
+			jobClient.getJobExecutionResult().get();
 			assertThatMiniClusterIsShutdown();
 		}
 		{
-			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+			JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
+			jobClient.getJobExecutionResult().get();
 			assertThatMiniClusterIsShutdown();
 		}
 	}
@@ -142,8 +140,8 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 	@Test
 	public void testJobClientInteractionAfterShutdown() throws Exception {
 		PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph()).get();
-		jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
+		JobClient jobClient = perJobMiniClusterFactory.submitJob(getNoopJobGraph(), ClassLoader.getSystemClassLoader()).get();
+		jobClient.getJobExecutionResult().get();
 		assertThatMiniClusterIsShutdown();
 
 		assertThrows(

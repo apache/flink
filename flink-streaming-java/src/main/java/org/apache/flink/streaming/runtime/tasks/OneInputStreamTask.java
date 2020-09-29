@@ -82,18 +82,20 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
-		int numberOfInputs = configuration.getNumberOfInputs();
+		int numberOfInputs = configuration.getNumberOfNetworkInputs();
 
 		if (numberOfInputs > 0) {
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
-			DataOutput<IN> output = createDataOutput();
+			Counter numRecordsIn = setupNumRecordsInCounter(mainOperator);
+			DataOutput<IN> output = createDataOutput(numRecordsIn);
 			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
+			getEnvironment().getMetricGroup().getIOMetricGroup().reuseRecordsInputCounter(numRecordsIn);
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
 				output,
 				operatorChain);
 		}
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
 	}
@@ -107,15 +109,16 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			getCheckpointCoordinator(),
 			inputGates,
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
-			getTaskNameWithSubtaskAndId());
+			getTaskNameWithSubtaskAndId(),
+			mainMailboxExecutor);
 	}
 
-	private DataOutput<IN> createDataOutput() {
+	private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
 		return new StreamTaskNetworkOutput<>(
-			headOperator,
+			mainOperator,
 			getStreamStatusMaintainer(),
 			inputWatermarkGauge,
-			setupNumRecordsInCounter(headOperator));
+			numRecordsIn);
 	}
 
 	private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate, DataOutput<IN> output) {

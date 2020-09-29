@@ -30,5 +30,6 @@ public interface JobMasterServiceFactory {
 	JobMasterService createJobMasterService(
 		JobGraph jobGraph,
 		OnCompletionActions jobCompletionActions,
-		ClassLoader userCodeClassloader) throws Exception;
+		ClassLoader userCodeClassloader,
+		long initializationTimestamp) throws Exception;
 }

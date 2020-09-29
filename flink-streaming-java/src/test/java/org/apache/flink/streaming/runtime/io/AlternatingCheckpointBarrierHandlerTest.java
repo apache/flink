@@ -33,8 +33,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 
@@ -141,15 +141,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 			if (!type.isSavepoint()) {
 				assertFalse(barrierHandler.getAllBarriersReceivedFuture(i).isDone());
-				assertInflightDataEquals(unalignedHandler, barrierHandler, i, inputGate.getNumberOfInputChannels());
 			}
-		}
-	}
-
-	private static void assertInflightDataEquals(CheckpointBarrierHandler expected, CheckpointBarrierHandler actual, long barrierId, int numChannels) {
-		for (int channelId = 0; channelId < numChannels; channelId++) {
-			InputChannelInfo channelInfo = new InputChannelInfo(0, channelId);
-			assertEquals(expected.hasInflightData(barrierId, channelInfo), actual.hasInflightData(barrierId, channelInfo));
 		}
 	}
 
@@ -165,7 +157,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		final long id = 1;
 		unalignedHandler.processBarrier(new CheckpointBarrier(id, 0, new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 0));
 
-		assertInflightDataEquals(unalignedHandler, barrierHandler, id, inputGate.getNumberOfInputChannels());
 		assertFalse(barrierHandler.getAllBarriersReceivedFuture(id).isDone());
 	}
 
@@ -186,7 +177,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		barrierHandler.processBarrier(new CheckpointBarrier(outOfOrderSavepointId, 0, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 1));
 
 		assertEquals(checkpointId, barrierHandler.getLatestCheckpointId());
-		assertInflightDataEquals(unalignedHandler, barrierHandler, checkpointId, inputGate.getNumberOfInputChannels());
 		assertEquals(initialAlignedCheckpointId, alignedHandler.getLatestCheckpointId());
 	}
 
@@ -217,7 +207,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		TestInputChannel slow = new TestInputChannel(gate, 1, false, true);
 		gate.setInputChannels(fast, slow);
 		AlternatingCheckpointBarrierHandler barrierHandler = barrierHandler(gate, target);
-		CheckpointedInputGate checkpointedGate = new CheckpointedInputGate(gate, barrierHandler  /* offset */);
+		CheckpointedInputGate checkpointedGate = new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
 
 		sendBarrier(barrierId, checkpointType, fast, checkpointedGate);
 
@@ -265,10 +255,12 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	}
 
 	private Buffer barrier(long barrierId, CheckpointType checkpointType, long barrierTimestamp) throws IOException {
-		return toBuffer(new CheckpointBarrier(
-			barrierId,
-			barrierTimestamp,
-			new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault(), true, true)));
+		return toBuffer(
+			new CheckpointBarrier(
+				barrierId,
+				barrierTimestamp,
+				new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault(), true, true)),
+			true);
 	}
 
 	private static class TestInvokable extends AbstractInvokable {
@@ -280,11 +272,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 		@Override
 		public void invoke() {
-		}
-
-		@Override
-		public <E extends Exception> void executeInTaskThread(ThrowingRunnable<E> runnable, String descriptionFormat, Object... descriptionArgs) throws E {
-			runnable.run();
 		}
 
 		@Override
@@ -304,7 +291,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			channels[i] = new TestInputChannel(gate, i, false, true);
 		}
 		gate.setInputChannels(channels);
-		return new CheckpointedInputGate(gate, barrierHandler(gate, target));
+		return new CheckpointedInputGate(gate, barrierHandler(gate, target), new SyncMailboxExecutor());
 	}
 
 }

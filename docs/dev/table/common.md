@@ -561,9 +561,9 @@ table_env = # see "Create a TableEnvironment" section
 orders = table_env.from_path("Orders")
 # compute revenue for all customers from France
 revenue = orders \
-    .filter("cCountry === 'FRANCE'") \
-    .group_by("cID, cName") \
-    .select("cID, cName, revenue.sum AS revSum")
+    .filter(orders.cCountry == 'FRANCE') \
+    .group_by(orders.cID, orders.cName) \
+    .select(orders.cID, orders.cName, orders.revenue.sum.alias('revSum'))
 
 # emit or convert Table
 # execute query
@@ -743,9 +743,9 @@ TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 final Schema schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG());
+    .field("c", DataTypes.BIGINT());
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable");
@@ -768,9 +768,9 @@ val tableEnv = ... // see "Create a TableEnvironment" section
 val schema = new Schema()
     .field("a", DataTypes.INT())
     .field("b", DataTypes.STRING())
-    .field("c", DataTypes.LONG())
+    .field("c", DataTypes.BIGINT())
 
-tableEnv.connect(new FileSystem("/path/to/file"))
+tableEnv.connect(new FileSystem().path("/path/to/file"))
     .withFormat(new Csv().fieldDelimiter('|').deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("CsvSinkTable")
@@ -1489,7 +1489,7 @@ t_env = StreamTableEnvironment.create(env)
 table1 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table2 = t_env.from_elements([(1, "hello")], ["count", "word"])
 table = table1 \
-    .where("LIKE(word, 'F%')") \
+    .where(table1.word.like('F%')) \
     .union_all(table2)
 print(table.explain())
 
@@ -1548,19 +1548,19 @@ final Schema schema = new Schema()
     .field("count", DataTypes.INT())
     .field("word", DataTypes.STRING());
 
-tEnv.connect(new FileSystem("/source/path1"))
+tEnv.connect(new FileSystem().path("/source/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource1");
-tEnv.connect(new FileSystem("/source/path2"))
+tEnv.connect(new FileSystem().path("/source/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource2");
-tEnv.connect(new FileSystem("/sink/path1"))
+tEnv.connect(new FileSystem().path("/sink/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink1");
-tEnv.connect(new FileSystem("/sink/path2"))
+tEnv.connect(new FileSystem().path("/sink/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink2");
@@ -1588,19 +1588,19 @@ val schema = new Schema()
     .field("count", DataTypes.INT())
     .field("word", DataTypes.STRING())
 
-tEnv.connect(new FileSystem("/source/path1"))
+tEnv.connect(new FileSystem().path("/source/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource1")
-tEnv.connect(new FileSystem("/source/path2"))
+tEnv.connect(new FileSystem().path("/source/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySource2")
-tEnv.connect(new FileSystem("/sink/path1"))
+tEnv.connect(new FileSystem().path("/sink/path1"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink1")
-tEnv.connect(new FileSystem("/sink/path2"))
+tEnv.connect(new FileSystem().path("/sink/path2"))
     .withFormat(new Csv().deriveSchema())
     .withSchema(schema)
     .createTemporaryTable("MySink2")
@@ -1647,7 +1647,7 @@ t_env.connect(FileSystem().path("/sink/path2")))
     
 stmt_set = t_env.create_statement_set()
 
-table1 = t_env.from_path("MySource1").where("LIKE(word, 'F%')")
+table1 = t_env.from_path("MySource1").where(col('word').like('F%'))
 stmt_set.add_insert("MySink1", table1)
 
 table2 = table1.union_all(t_env.from_path("MySource2"))

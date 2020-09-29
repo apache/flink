@@ -94,7 +94,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 			@Nullable KeyedStateStore keyedStateStore,
 			ExternalResourceInfoProvider externalResourceInfoProvider) {
 		super(checkNotNull(env).getTaskInfo(),
-				env.getUserClassLoader(),
+				env.getUserCodeClassLoader(),
 				env.getExecutionConfig(),
 				accumulators,
 				env.getDistributedCacheEntries(),
@@ -243,14 +243,4 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	public CheckpointingMode getCheckpointMode() {
 		return streamConfig.getCheckpointMode();
 	}
-
-	/**
-	 * Returns the buffer timeout of the job.
-	 *
-	 * @return buffer timeout (in milliseconds)
-	 */
-	public long getBufferTimeout() {
-		return streamConfig.getBufferTimeout();
-	}
-
 }

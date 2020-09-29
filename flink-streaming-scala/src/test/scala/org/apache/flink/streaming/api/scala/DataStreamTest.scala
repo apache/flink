@@ -18,14 +18,13 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.lang
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.ParallelIteratorInputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
-import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
+import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators._
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
@@ -35,9 +34,12 @@ import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 
+import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
+
+import java.lang
 
 class DataStreamTest extends AbstractTestBase {
 
@@ -77,11 +79,11 @@ class DataStreamTest extends AbstractTestBase {
     val windowed = connected
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
-      .fold((0L, 0L))(func)
+      .reduce(func)
 
-    windowed.name("testWindowFold")
+    windowed.name("testWindowReduce")
 
-    assert("testWindowFold" == windowed.getName)
+    assert("testWindowReduce" == windowed.getName)
 
     windowed.print()
 
@@ -92,7 +94,7 @@ class DataStreamTest extends AbstractTestBase {
     assert(plan contains "testMap")
     assert(plan contains "testReduce")
     assert(plan contains "testCoFlatMap")
-    assert(plan contains "testWindowFold")
+    assert(plan contains "testWindowReduce")
   }
 
   /**
@@ -257,7 +259,7 @@ class DataStreamTest extends AbstractTestBase {
     val windowed: DataStream[(Long, Long)] = map
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
-      .fold((0L, 0L))((x: (Long, Long), y: (Long, Long)) => (0L, 0L))
+      .reduce((x: (Long, Long), y: (Long, Long)) => (0L, 0L))
 
     windowed.print()
     val sink = map.addSink(x => {})
@@ -364,7 +366,7 @@ class DataStreamTest extends AbstractTestBase {
     val windowed  = connected
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
-      .fold("")((accumulator: String, value: String) => "")
+      .reduce((accumulator: String, value: String) => "")
       .resource(minResource6, preferredResource6)
 
     var sink = windowed.print().resource(minResource7, preferredResource7)
@@ -418,13 +420,24 @@ class DataStreamTest extends AbstractTestBase {
 
     assert(TypeExtractor.getForClass(classOf[String]) == window.getType)
 
-    val flatten: DataStream[Int] = window
+    val flatten: DataStream[CustomCaseClass] = window
       .windowAll(GlobalWindows.create())
       .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
-      .fold(0)((accumulator: Int, value: String) => 0)
-    assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType())
+      .aggregate(new AggregateFunction[String, CustomCaseClass, CustomCaseClass] {
+        override def createAccumulator(): CustomCaseClass = CustomCaseClass(0, "")
 
-    // TODO check for custom case class
+        override def add(
+          value: String,
+          accumulator: CustomCaseClass): CustomCaseClass = ???
+
+        override def getResult(accumulator: CustomCaseClass): CustomCaseClass = ???
+
+        override def merge(
+          a: CustomCaseClass,
+          b: CustomCaseClass): CustomCaseClass = ???
+      })
+    val typeInfo = implicitly[TypeInformation[CustomCaseClass]]
+    assertThat(flatten.getType(), equalTo(typeInfo))
   }
 
   /**
@@ -558,49 +571,11 @@ class DataStreamTest extends AbstractTestBase {
       }
     }
 
-    val outputSelector = new OutputSelector[Int] {
-      override def select(value: Int): lang.Iterable[String] = null
-    }
-
-    val split = unionFilter.split(outputSelector)
-    split.print()
-    val outputSelectors = getStreamGraph(env).getStreamNode(unionFilter.getId).getOutputSelectors
-    assert(1 == outputSelectors.size)
-    assert(outputSelector == outputSelectors.get(0))
-
-    unionFilter.split(x => List("a")).print()
-    val moreOutputSelectors = getStreamGraph(env)
-      .getStreamNode(unionFilter.getId)
-      .getOutputSelectors
-    assert(2 == moreOutputSelectors.size)
-
-    val select = split.select("a")
-    val sink = select.print()
-    val splitEdge =
-      getStreamGraph(env).getStreamEdgesOrThrow(unionFilter.getId, sink.getTransformation.getId)
-    assert("a" == splitEdge.get(0).getSelectedNames.get(0))
-
-    val sinkWithIdentifier = select.print("identifier")
-    val newSplitEdge = getStreamGraph(env).getStreamEdgesOrThrow(
-      unionFilter.getId,
-      sinkWithIdentifier.getTransformation.getId)
-    assert("a" == newSplitEdge.get(0).getSelectedNames.get(0))
-
-    val foldFunction = new FoldFunction[Int, String] {
-      override def fold(accumulator: String, value: Int): String = ""
-    }
-    val fold = map.keyBy(x=>x).fold("", foldFunction)
-    assert(foldFunction == getFunctionForDataStream(fold))
-    assert(
-      getFunctionForDataStream(map.keyBy(x=>x)
-        .fold("")((x: String, y: Int) => ""))
-        .isInstanceOf[FoldFunction[_, _]])
-
-    val connect = fold.connect(flatMap)
+    val connect = map.connect(flatMap)
 
     val coMapFunction =
-      new CoMapFunction[String, Int, String] {
-        override def map1(value: String): String = ""
+      new CoMapFunction[Int, Int, String] {
+        override def map1(value: Int): String = ""
 
         override def map2(value: Int): String = ""
       }
@@ -608,7 +583,7 @@ class DataStreamTest extends AbstractTestBase {
     assert(coMapFunction == getFunctionForDataStream(coMap))
 
     try {
-      getStreamGraph(env).getStreamEdgesOrThrow(fold.getId, coMap.getId)
+      getStreamGraph(env).getStreamEdgesOrThrow(map.getId, coMap.getId)
     }
     catch {
       case e: Throwable => {
@@ -731,3 +706,5 @@ class DataStreamTest extends AbstractTestBase {
     m.getId
   }
 }
+
+case class CustomCaseClass(id: Int, name: String)

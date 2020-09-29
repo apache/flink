@@ -28,9 +28,9 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 
-import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -65,9 +65,6 @@ public class FlinkMetricContainerTest {
 	private MetricGroup metricGroup;
 
 	private FlinkMetricContainer container;
-
-	private static final String GAUGE_URN =
-		BeamUrns.getUrn(MetricsApi.MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
 
 	private static final List<String> DEFAULT_SCOPE_COMPONENTS = Arrays.asList(
 		"key",
@@ -121,11 +118,11 @@ public class FlinkMetricContainerTest {
 
 		MonitoringInfo userMonitoringInfo =
 			new SimpleMonitoringInfoBuilder()
-				.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+				.setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
 				.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
 				.setLabel(MonitoringInfoConstants.Labels.NAME, "myCounter")
 				.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-				.setInt64Value(111)
+				.setInt64SumValue(111)
 				.build();
 
 		assertThat(userCounter.getCount(), is(0L));
@@ -142,11 +139,11 @@ public class FlinkMetricContainerTest {
 
 		MonitoringInfo userMonitoringInfo =
 			new SimpleMonitoringInfoBuilder()
-				.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+				.setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
 				.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, namespace)
 				.setLabel(MonitoringInfoConstants.Labels.NAME, "myMeter")
 				.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-				.setInt64Value(111)
+				.setInt64SumValue(111)
 				.build();
 		assertThat(userMeter.getCount(), is(0L));
 		assertThat(userMeter.getRate(), is(0.0));
@@ -159,17 +156,12 @@ public class FlinkMetricContainerTest {
 
 	@Test
 	public void testGaugeMonitoringInfoUpdate() {
-		MonitoringInfo userMonitoringInfo = MonitoringInfo.newBuilder()
-			.setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-			.putLabels(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
-			.putLabels(MonitoringInfoConstants.Labels.NAME, "myGauge")
-			.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-			.setMetric(MetricsApi.Metric
-				.newBuilder()
-				.setCounterData(
-					MetricsApi.CounterData.newBuilder()
-						.setInt64Value(111L)))
-			.setType(GAUGE_URN)
+		MonitoringInfo userMonitoringInfo = new SimpleMonitoringInfoBuilder()
+			.setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+			.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
+			.setLabel(MonitoringInfoConstants.Labels.NAME, "myGauge")
+			.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+			.setInt64LatestValue(GaugeData.create(111L))
 			.build();
 
 		container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));
@@ -185,21 +177,12 @@ public class FlinkMetricContainerTest {
 
 	@Test
 	public void testDistributionMonitoringInfoUpdate() {
-		MonitoringInfo userMonitoringInfo = MonitoringInfo.newBuilder()
-			.setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
-			.putLabels(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
-			.putLabels(MonitoringInfoConstants.Labels.NAME, "myDistribution")
-			.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-			.setMetric(
-				MetricsApi.Metric.newBuilder()
-					.setDistributionData(
-						MetricsApi.DistributionData.newBuilder()
-							.setIntDistributionData(
-								MetricsApi.IntDistributionData.newBuilder()
-									.setSum(30)
-									.setCount(10)
-									.setMin(1)
-									.setMax(5))))
+		MonitoringInfo userMonitoringInfo = new SimpleMonitoringInfoBuilder()
+			.setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
+			.setLabel(MonitoringInfoConstants.Labels.NAMESPACE, DEFAULT_NAMESPACE)
+			.setLabel(MonitoringInfoConstants.Labels.NAME, "myDistribution")
+			.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
+			.setInt64DistributionValue(DistributionData.create(30, 10, 1, 5))
 			.build();
 
 		container.updateMetrics("step", ImmutableList.of(userMonitoringInfo));

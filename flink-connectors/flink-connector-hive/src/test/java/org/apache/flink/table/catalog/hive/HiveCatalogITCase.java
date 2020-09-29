@@ -35,11 +35,9 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -67,6 +65,11 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
@@ -108,7 +111,7 @@ public class HiveCatalogITCase {
 	}
 
 	@Test
-	public void testCsvTableViaSQL() throws Exception {
+	public void testCsvTableViaSQL() {
 		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
 		TableEnvironment tableEnv = TableEnvironment.create(settings);
 
@@ -125,7 +128,7 @@ public class HiveCatalogITCase {
 
 		Table t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.test2");
 
-		List<Row> result = Lists.newArrayList(t.execute().collect());
+		List<Row> result = CollectionUtil.iteratorToList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -140,7 +143,7 @@ public class HiveCatalogITCase {
 
 		t = tableEnv.sqlQuery("SELECT * FROM myhive.`default`.newtable");
 
-		result = Lists.newArrayList(t.execute().collect());
+		result = CollectionUtil.iteratorToList(t.execute().collect());
 
 		// assert query result
 		assertEquals(
@@ -207,7 +210,7 @@ public class HiveCatalogITCase {
 		Table t = tableEnv.sqlQuery(
 			String.format("select * from myhive.`default`.%s", sourceTableName));
 
-		List<Row> result = Lists.newArrayList(t.execute().collect());
+		List<Row> result = CollectionUtil.iteratorToList(t.execute().collect());
 		result.sort(Comparator.comparing(String::valueOf));
 
 		// assert query result
@@ -219,10 +222,11 @@ public class HiveCatalogITCase {
 			result
 		);
 
-		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
-			String.format("insert into myhive.`default`.%s select * from myhive.`default`.%s",
-				sinkTableName,
-				sourceTableName));
+		tableEnv.executeSql(
+				String.format("insert into myhive.`default`.%s select * from myhive.`default`.%s",
+						sinkTableName,
+						sourceTableName))
+				.await();
 
 		// assert written result
 		File resultFile = new File(p.toAbsolutePath().toString());
@@ -262,9 +266,10 @@ public class HiveCatalogITCase {
 				"window_end TIMESTAMP(3),max_ts TIMESTAMP(6),counter BIGINT,total_price DECIMAL(10, 2)) " +
 				String.format("WITH ('connector.type' = 'filesystem','connector.path' = '%s','format.type' = 'csv')", sinkPath));
 
-		TableEnvUtil.execInsertSqlAndWaitResult(tableEnv, "INSERT INTO sink " +
+		tableEnv.executeSql("INSERT INTO sink " +
 				"SELECT TUMBLE_END(ts, INTERVAL '5' SECOND),MAX(ts6),COUNT(*),MAX(price) FROM src " +
-				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)");
+				"GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)")
+				.await();
 
 		String expected = "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
 				"2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n";
@@ -283,7 +288,7 @@ public class HiveCatalogITCase {
 
 	private void testReadWriteCsvWithProctime(boolean isStreaming) {
 		TableEnvironment tableEnv = prepareTable(isStreaming);
-		ArrayList<Row> rows = Lists.newArrayList(
+		List<Row> rows = CollectionUtil.iteratorToList(
 				tableEnv.executeSql("SELECT * FROM proctime_src").collect());
 		Assert.assertEquals(5, rows.size());
 		tableEnv.executeSql("DROP TABLE proctime_src");
@@ -301,7 +306,7 @@ public class HiveCatalogITCase {
 
 	private void testTableApiWithProctime(boolean isStreaming) {
 		TableEnvironment tableEnv = prepareTable(isStreaming);
-		ArrayList<Row> rows = Lists.newArrayList(
+		List<Row> rows = CollectionUtil.iteratorToList(
 				tableEnv.from("proctime_src").select($("price"), $("ts"), $("l_proctime")).execute().collect());
 		Assert.assertEquals(5, rows.size());
 		tableEnv.executeSql("DROP TABLE proctime_src");
@@ -380,7 +385,7 @@ public class HiveCatalogITCase {
 	}
 
 	@Test
-	public void testNewTableFactory() {
+	public void testNewTableFactory() throws Exception {
 		TableEnvironment tEnv = TableEnvironment.create(
 				EnvironmentSettings.newInstance().inBatchMode().build());
 		tEnv.registerCatalog("myhive", hiveCatalog);
@@ -400,7 +405,7 @@ public class HiveCatalogITCase {
 					"'format.type' = 'csv')");
 			tEnv.executeSql("create table print_table (name String, age Int) with ('connector' = 'print')");
 
-			TableEnvUtil.execInsertSqlAndWaitResult(tEnv, "insert into print_table select * from csv_table");
+			tEnv.executeSql("insert into print_table select * from csv_table").await();
 
 			// assert query result
 			assertEquals("+I(1,1)\n+I(2,2)\n+I(3,3)\n", arrayOutputStream.toString());
@@ -411,6 +416,21 @@ public class HiveCatalogITCase {
 			System.setOut(originalSystemOut);
 			tEnv.executeSql("DROP TABLE csv_table");
 			tEnv.executeSql("DROP TABLE print_table");
+		}
+	}
+
+	@Test
+	public void testConcurrentAccessHiveCatalog() throws Exception {
+		int numThreads = 5;
+		ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
+		Callable<List<String>> listDBCallable = () -> hiveCatalog.listDatabases();
+		List<Future<List<String>>> listDBFutures = new ArrayList<>();
+		for (int i = 0; i < numThreads; i++) {
+			listDBFutures.add(executorService.submit(listDBCallable));
+		}
+		executorService.shutdown();
+		for (Future<List<String>> future : listDBFutures) {
+			future.get(5, TimeUnit.SECONDS);
 		}
 	}
 }

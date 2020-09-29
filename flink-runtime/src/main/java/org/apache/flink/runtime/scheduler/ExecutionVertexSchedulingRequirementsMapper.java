@@ -43,7 +43,7 @@ public final class ExecutionVertexSchedulingRequirementsMapper {
 			.withPreviousAllocationId(latestPriorAllocation)
 			.withTaskResourceProfile(executionVertex.getResourceProfile())
 			.withPhysicalSlotResourceProfile(getPhysicalSlotResourceProfile(executionVertex))
-			.withSlotSharingGroupId(slotSharingGroup == null ? null : slotSharingGroup.getSlotSharingGroupId())
+			.withSlotSharingGroupId(slotSharingGroup.getSlotSharingGroupId())
 			.withCoLocationConstraint(executionVertex.getLocationConstraint())
 			.build();
 	}
@@ -58,9 +58,7 @@ public final class ExecutionVertexSchedulingRequirementsMapper {
 	 */
 	public static ResourceProfile getPhysicalSlotResourceProfile(final ExecutionVertex executionVertex) {
 		final SlotSharingGroup slotSharingGroup = executionVertex.getJobVertex().getSlotSharingGroup();
-		return slotSharingGroup == null
-			? executionVertex.getResourceProfile()
-			: ResourceProfile.fromResourceSpec(slotSharingGroup.getResourceSpec(), MemorySize.ZERO);
+		return ResourceProfile.fromResourceSpec(slotSharingGroup.getResourceSpec(), MemorySize.ZERO);
 	}
 
 	private ExecutionVertexSchedulingRequirementsMapper() {

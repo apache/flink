@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -91,6 +92,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 	private TestingTaskExecutorGateway taskExecutorGateway;
 
 	private int dataPort = 1234;
+
+	private int jmxPort = 23456;
 
 	private HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
 
@@ -165,7 +168,8 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				fatalErrorHandler,
 				UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
 				Time.minutes(5L),
-				RpcUtils.INF_TIMEOUT);
+				RpcUtils.INF_TIMEOUT,
+				ForkJoinPool.commonPool());
 
 		resourceManager.start();
 
@@ -243,6 +247,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				taskExecutorGateway.getAddress(),
 				taskExecutorResourceID,
 				dataPort,
+				jmxPort,
 				hardwareDescription,
 				new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 				ResourceProfile.ZERO,
@@ -354,6 +359,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				taskExecutorAddress,
 				taskExecutorResourceID,
 				dataPort,
+				jmxPort,
 				hardwareDescription,
 				new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 				ResourceProfile.ZERO,

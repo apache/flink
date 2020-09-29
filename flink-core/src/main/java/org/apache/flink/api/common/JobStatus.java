@@ -21,10 +21,15 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Possible states of a job once it has been accepted by the job manager.
+ * Possible states of a job once it has been accepted by the dispatcher.
  */
 @PublicEvolving
 public enum JobStatus {
+	/**
+	 * The job has been received by the Dispatcher, and is waiting for the job manager to be
+	 * created.
+	 */
+	INITIALIZING(TerminalState.NON_TERMINAL),
 
 	/** Job is newly created, no task has started to run. */
 	CREATED(TerminalState.NON_TERMINAL),

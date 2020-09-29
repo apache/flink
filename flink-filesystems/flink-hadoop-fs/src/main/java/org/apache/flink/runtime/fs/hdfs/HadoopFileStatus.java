@@ -23,11 +23,11 @@ import org.apache.flink.core.fs.Path;
 
 /**
  * Concrete implementation of the {@link FileStatus} interface for the
- * Hadoop Distribution File System.
+ * Hadoop Distributed File System.
  */
-public final class HadoopFileStatus implements FileStatus {
+public class HadoopFileStatus implements FileStatus {
 
-	private org.apache.hadoop.fs.FileStatus fileStatus;
+	private final org.apache.hadoop.fs.FileStatus fileStatus;
 
 	/**
 	 * Creates a new file status from an HDFS file status.
@@ -46,12 +46,7 @@ public final class HadoopFileStatus implements FileStatus {
 
 	@Override
 	public long getBlockSize() {
-		long blocksize = fileStatus.getBlockSize();
-		if (blocksize > fileStatus.getLen()) {
-			return fileStatus.getLen();
-		}
-
-		return blocksize;
+		return Math.min(fileStatus.getBlockSize(), fileStatus.getLen());
 	}
 
 	@Override
@@ -69,18 +64,30 @@ public final class HadoopFileStatus implements FileStatus {
 		return fileStatus.getReplication();
 	}
 
-	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
-		return this.fileStatus;
-	}
-
 	@Override
 	public Path getPath() {
 		return new Path(fileStatus.getPath().toUri());
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	public boolean isDir() {
-		return fileStatus.isDir();
+		return fileStatus.isDirectory();
+	}
+
+	public org.apache.hadoop.fs.FileStatus getInternalFileStatus() {
+		return this.fileStatus;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new {@code HadoopFileStatus} from Hadoop's {@link org.apache.hadoop.fs.FileStatus}.
+	 * If Hadoop's file status is <i>located</i>, i.e., it contains block information, then this method
+	 * returns an implementation of Flink's {@link org.apache.flink.core.fs.LocatedFileStatus}.
+	 */
+	public static HadoopFileStatus fromHadoopStatus(final org.apache.hadoop.fs.FileStatus fileStatus) {
+		return fileStatus instanceof org.apache.hadoop.fs.LocatedFileStatus
+				? new LocatedHadoopFileStatus((org.apache.hadoop.fs.LocatedFileStatus) fileStatus)
+				: new HadoopFileStatus(fileStatus);
 	}
 }

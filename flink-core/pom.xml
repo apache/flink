@@ -184,6 +184,15 @@ under the License.
 							<!-- leaked constructor in TypeHint -->
 							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
 							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
+
+							<!-- removed in 1.12, before that the settings were ineffective anyway -->
+							<exclude>org.apache.flink.api.common.ExecutionConfig#disableSysoutLogging()</exclude>
+							<exclude>org.apache.flink.api.common.ExecutionConfig#enableSysoutLogging()</exclude>
+							<exclude>org.apache.flink.api.common.ExecutionConfig#isSysoutLoggingEnabled()</exclude>
+
+							<!-- it was decided to remove the fold opperations in 1.12 -->
+							<exclude>org.apache.flink.api.common.functions.FoldFunction</exclude>
+							<exclude>org.apache.flink.api.common.functions.RichFoldFunction</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

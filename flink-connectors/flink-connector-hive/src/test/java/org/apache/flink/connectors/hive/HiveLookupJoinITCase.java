@@ -30,10 +30,8 @@ import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.After;
 import org.junit.Before;
@@ -86,8 +84,9 @@ public class HiveLookupJoinITCase {
 		assertEquals(Duration.ofMinutes(5), lookupFunction.getCacheTTL());
 
 		try {
-			TableEnvUtil.execInsertSqlAndWaitResult(tableEnv,
-					"insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)");
+			tableEnv.executeSql(
+					"insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)")
+					.await();
 
 			TestCollectionTableFactory.initData(
 					Arrays.asList(Row.of(1, "a"), Row.of(1, "c"), Row.of(2, "b"), Row.of(2, "c"), Row.of(3, "c"), Row.of(4, "d")));
@@ -96,7 +95,7 @@ public class HiveLookupJoinITCase {
 
 			TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select p.x,p.y from default_catalog.default_database.probe as p join " +
 					"build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
-			List<Row> results = Lists.newArrayList(flinkTable.execute().collect());
+			List<Row> results = CollectionUtil.iteratorToList(flinkTable.execute().collect());
 			assertEquals("[1,a, 2,b, 3,c]", results.toString());
 		} finally {
 			tableEnv.executeSql("drop table build");

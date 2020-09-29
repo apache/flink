@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
+import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 
 /**
  * Some utilities specific to Amazon Web Service.
@@ -82,9 +83,7 @@ public class AWSUtil {
 	 */
 	public static AmazonKinesis createKinesisClient(Properties configProps, ClientConfiguration awsClientConfig) {
 		// set a Flink-specific user agent
-		awsClientConfig.setUserAgentPrefix(String.format(USER_AGENT_FORMAT,
-				EnvironmentInformation.getVersion(),
-				EnvironmentInformation.getRevisionInformation().commitId));
+		awsClientConfig.setUserAgentPrefix(formatFlinkUserAgentPrefix());
 
 		// utilize automatic refreshment of credentials by directly passing the AWSCredentialsProvider
 		AmazonKinesisClientBuilder builder = AmazonKinesisClientBuilder.standard()
@@ -104,6 +103,19 @@ public class AWSUtil {
 	}
 
 	/**
+	 * Creates a user agent prefix for Flink.
+	 * This can be used by HTTP Clients.
+	 *
+	 * @return a user agent prefix for Flink
+	 */
+	public static String formatFlinkUserAgentPrefix() {
+		return String.format(
+			USER_AGENT_FORMAT,
+			EnvironmentInformation.getVersion(),
+			EnvironmentInformation.getRevisionInformation().commitId);
+	}
+
+	/**
 	 * Return a {@link AWSCredentialsProvider} instance corresponding to the configuration properties.
 	 *
 	 * @param configProps the configuration properties
@@ -111,6 +123,26 @@ public class AWSUtil {
 	 */
 	public static AWSCredentialsProvider getCredentialsProvider(final Properties configProps) {
 		return getCredentialsProvider(configProps, AWSConfigConstants.AWS_CREDENTIALS_PROVIDER);
+	}
+
+	/**
+	 * Determines and returns the credential provider type from the given properties.
+	 *
+	 * @return the credential provider type
+	 */
+	static CredentialProvider getCredentialProviderType(final Properties configProps, final String configPrefix) {
+		if (!configProps.containsKey(configPrefix)) {
+			if (configProps.containsKey(AWSConfigConstants.accessKeyId(configPrefix))
+				&& configProps.containsKey(AWSConfigConstants.secretKey(configPrefix))) {
+				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
+				return CredentialProvider.BASIC;
+			} else {
+				// if the credential provider type is not specified, it will default to AUTO
+				return CredentialProvider.AUTO;
+			}
+		} else {
+			return CredentialProvider.valueOf(configProps.getProperty(configPrefix));
+		}
 	}
 
 	/**
@@ -124,19 +156,7 @@ public class AWSUtil {
 	 *                     for assuming a role, and so on.
 	 */
 	private static AWSCredentialsProvider getCredentialsProvider(final Properties configProps, final String configPrefix) {
-		CredentialProvider credentialProviderType;
-		if (!configProps.containsKey(configPrefix)) {
-			if (configProps.containsKey(AWSConfigConstants.accessKeyId(configPrefix))
-				&& configProps.containsKey(AWSConfigConstants.secretKey(configPrefix))) {
-				// if the credential provider type is not specified, but the Access Key ID and Secret Key are given, it will default to BASIC
-				credentialProviderType = CredentialProvider.BASIC;
-			} else {
-				// if the credential provider type is not specified, it will default to AUTO
-				credentialProviderType = CredentialProvider.AUTO;
-			}
-		} else {
-			credentialProviderType = CredentialProvider.valueOf(configProps.getProperty(configPrefix));
-		}
+		CredentialProvider credentialProviderType = getCredentialProviderType(configProps, configPrefix);
 
 		switch (credentialProviderType) {
 			case ENV_VAR:
@@ -188,9 +208,11 @@ public class AWSUtil {
 						.webIdentityTokenFile(configProps.getProperty(AWSConfigConstants.webIdentityTokenFile(configPrefix), null))
 						.build();
 
-			default:
 			case AUTO:
 				return new DefaultAWSCredentialsProviderChain();
+
+			default:
+				throw new IllegalArgumentException("Credential provider not supported: " + credentialProviderType);
 		}
 	}
 
@@ -256,7 +278,16 @@ public class AWSUtil {
 	 * @return the starting position
 	 */
 	public static StartingPosition getStartingPosition(final SequenceNumber sequenceNumber, final Properties configProps) {
-		if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
+		if (sequenceNumber.equals(SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+			// LATEST starting positions are translated to AT_TIMESTAMP starting positions. This is to prevent data loss
+			// in the situation where the first read times out and is re-attempted. Consider the following scenario:
+			// 1. Consume from LATEST
+			// 2. No records are consumed and Record Publisher throws retryable error
+			// 3. Restart consumption from LATEST
+			// Any records sent between steps 1 and 3 are lost. Using the timestamp of step 1 allows the consumer to
+			// restart from shard position of step 1, and hence no records are lost.
+			return StartingPosition.fromTimestamp(new Date());
+		} else if (SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get().equals(sequenceNumber)) {
 			Date timestamp = KinesisConfigUtil.parseStreamTimestampStartingPosition(configProps);
 			return StartingPosition.fromTimestamp(timestamp);
 		} else {

@@ -18,12 +18,9 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.functions.{FoldFunction, RichMapFunction}
 import org.apache.flink.core.fs.FileSystem
-import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
-import org.apache.flink.util.MathUtils
+
 import org.junit.rules.TemporaryFolder
 import org.junit.{After, Before, Rule, Test}
 
@@ -57,75 +54,6 @@ class StreamingOperatorsITCase extends AbstractTestBase {
     TestBaseUtils.compareResultsByLinesInMemory(expected1, resultPath1)
     TestBaseUtils.compareResultsByLinesInMemory(expected2, resultPath2)
     TestBaseUtils.compareResultsByLinesInMemory(expected3, resultPath3)
-  }
-
-  /** Tests the streaming fold operation. For this purpose a stream of Tuple[Int, Int] is created.
-    * The stream is grouped by the first field. For each group, the resulting stream is folded by
-    * summing up the second tuple field.
-    *
-    * This test relies on the hash function used by the [[DataStream#keyBy]], which is
-    * assumed to be [[MathUtils#murmurHash]].
-    */
-  @Test
-  def testGroupedFoldOperator(): Unit = {
-    val numElements = 10
-    val numKeys = 2
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-    env.setParallelism(2)
-    env.getConfig.setMaxParallelism(2)
-
-    val sourceStream = env.addSource(new SourceFunction[(Int, Int)] {
-
-      override def run(ctx: SourceContext[(Int, Int)]): Unit = {
-        0 until numElements foreach {
-          // keys '1' and '2' hash to different buckets
-          i => ctx.collect((1 + (MathUtils.murmurHash(i)) % numKeys, i))
-        }
-      }
-
-      override def cancel(): Unit = {}
-    })
-
-    val splittedResult = sourceStream
-      .keyBy(0)
-      .fold(0, new FoldFunction[(Int, Int), Int] {
-        override def fold(accumulator: Int, value: (Int, Int)): Int = {
-          accumulator + value._2
-        }
-      })
-      .map(new RichMapFunction[Int, (Int, Int)] {
-        var key: Int = -1
-        override def map(value: Int): (Int, Int) = {
-          if (key == -1) {
-            key = MathUtils.murmurHash(value) % numKeys
-          }
-          (key, value)
-        }
-      })
-      .split{
-        x =>
-          Seq(x._1.toString)
-      }
-
-    splittedResult
-      .select("0")
-      .map(_._2)
-      .javaStream
-      .writeAsText(resultPath1, FileSystem.WriteMode.OVERWRITE)
-    splittedResult
-      .select("1")
-      .map(_._2)
-      .javaStream
-      .writeAsText(resultPath2, FileSystem.WriteMode.OVERWRITE)
-
-    val groupedSequence = 0 until numElements groupBy( MathUtils.murmurHash(_) % numKeys )
-
-    expected1 = groupedSequence(0).scanLeft(0)(_ + _).tail.mkString("\n")
-    expected2 = groupedSequence(1).scanLeft(0)(_ + _).tail.mkString("\n")
-
-    env.execute()
   }
 
   @Test

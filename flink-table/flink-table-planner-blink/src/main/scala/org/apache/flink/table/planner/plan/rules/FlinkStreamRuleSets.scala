@@ -398,11 +398,13 @@ object FlinkStreamRuleSets {
     // group agg
     StreamExecGroupAggregateRule.INSTANCE,
     StreamExecGroupTableAggregateRule.INSTANCE,
+    StreamExecPythonGroupAggregateRule.INSTANCE,
     // over agg
     StreamExecOverAggregateRule.INSTANCE,
     // window agg
     StreamExecGroupWindowAggregateRule.INSTANCE,
     StreamExecGroupWindowTableAggregateRule.INSTANCE,
+    StreamExecPythonGroupWindowAggregateRule.INSTANCE,
     // join
     StreamExecJoinRule.INSTANCE,
     StreamExecIntervalJoinRule.INSTANCE,

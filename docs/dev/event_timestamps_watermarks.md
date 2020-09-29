@@ -235,7 +235,7 @@ public interface WatermarkGenerator<T> {
 There are two different styles of watermark generation: *periodic* and
 *punctuated*.
 
-A periodic generator usually observes to the incoming events via `onEvent()`
+A periodic generator usually observes the incoming events via `onEvent()`
 and then emits a watermark when the framework calls `onPeriodicEmit()`.
 
 A puncutated generator will look at events in `onEvent()` and wait for special

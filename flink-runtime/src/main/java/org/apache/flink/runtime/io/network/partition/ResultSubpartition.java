@@ -23,6 +23,8 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -82,25 +84,8 @@ public abstract class ResultSubpartition {
 	 * implementation.
 	 *
 	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
-	 * state. Because of the performance reasons, this is only enforced during the data reading.
-	 *
-	 * @param bufferConsumer
-	 * 		the buffer to add (transferring ownership to this writer)
-	 * @param isPriorityEvent
-	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
-	 * @throws IOException
-	 * 		thrown in case of errors while adding the buffer
-	 */
-	public abstract boolean add(BufferConsumer bufferConsumer, boolean isPriorityEvent) throws IOException;
-
-	/**
-	 * Adds the given buffer.
-	 *
-	 * <p>The request may be executed synchronously, or asynchronously, depending on the
-	 * implementation.
-	 *
-	 * <p><strong>IMPORTANT:</strong> Before adding new {@link BufferConsumer} previously added must be in finished
-	 * state. Because of the performance reasons, this is only enforced during the data reading.
+	 * state. Because of the performance reasons, this is only enforced during the data reading. Priority events can be
+	 * added while the previous buffer consumer is still open, in which case the open buffer consumer is overtaken.
 	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
@@ -108,9 +93,7 @@ public abstract class ResultSubpartition {
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	public boolean add(BufferConsumer bufferConsumer) throws IOException {
-		return add(bufferConsumer, false);
-	}
+	public abstract boolean add(BufferConsumer bufferConsumer) throws IOException;
 
 	public abstract void flush();
 
@@ -145,17 +128,16 @@ public abstract class ResultSubpartition {
 	 * how many non-event buffers are available in the subpartition.
 	 */
 	public static final class BufferAndBacklog {
-
 		private final Buffer buffer;
-		private final boolean isDataAvailable;
 		private final int buffersInBacklog;
-		private final boolean isEventAvailable;
+		private final Buffer.DataType nextDataType;
+		private final int sequenceNumber;
 
-		public BufferAndBacklog(Buffer buffer, boolean isDataAvailable, int buffersInBacklog, boolean isEventAvailable) {
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, Buffer.DataType nextDataType, int sequenceNumber) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
-			this.isDataAvailable = isDataAvailable;
-			this.isEventAvailable = isEventAvailable;
+			this.nextDataType = checkNotNull(nextDataType);
+			this.sequenceNumber = sequenceNumber;
 		}
 
 		public Buffer buffer() {
@@ -163,7 +145,7 @@ public abstract class ResultSubpartition {
 		}
 
 		public boolean isDataAvailable() {
-			return isDataAvailable;
+			return nextDataType != Buffer.DataType.NONE;
 		}
 
 		public int buffersInBacklog() {
@@ -171,15 +153,27 @@ public abstract class ResultSubpartition {
 		}
 
 		public boolean isEventAvailable() {
-			return isEventAvailable;
+			return nextDataType.isEvent();
 		}
 
-		public static BufferAndBacklog fromBufferAndLookahead(Buffer current, Buffer lookahead, int backlog) {
+		public Buffer.DataType getNextDataType() {
+			return nextDataType;
+		}
+
+		public int getSequenceNumber() {
+			return sequenceNumber;
+		}
+
+		public static BufferAndBacklog fromBufferAndLookahead(
+				Buffer current,
+				@Nullable Buffer lookahead,
+				int backlog,
+				int sequenceNumber) {
 			return new BufferAndBacklog(
-					current,
-					lookahead != null,
-					backlog,
-					lookahead != null && !lookahead.isBuffer());
+				current,
+				backlog,
+				lookahead != null ? lookahead.getDataType() : Buffer.DataType.NONE,
+				sequenceNumber);
 		}
 	}
 

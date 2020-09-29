@@ -35,7 +35,7 @@ from pyflink.datastream.state_backend import _from_j_state_backend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.utils import load_java_class
+from pyflink.util.utils import load_java_class, add_jars_to_context_class_loader
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -543,7 +543,7 @@ class StreamExecutionEnvironment(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.19.0).
+            The python udf worker depends on Apache Beam (version == 2.23.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
@@ -552,6 +552,41 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         env_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
+
+    def add_jars(self, *jars_path: str):
+        """
+        Adds a list of jar files that will be uploaded to the cluster and referenced by the job.
+
+        :param jars_path: Path of jars.
+        """
+        add_jars_to_context_class_loader(jars_path)
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
+            .getEnvironmentConfig(self._j_stream_execution_environment)
+        old_jar_paths = env_config.getString(jars_key, None)
+        jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join(jars_path)
+        if old_jar_paths is not None:
+            jars_path = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_jar_paths, jars_path])
+        env_config.setString(jars_key, jars_path)
+
+    def add_classpaths(self, *classpaths: str):
+        """
+        Adds a list of URLs that are added to the classpath of each user code classloader of the
+        program. Paths must specify a protocol (e.g. file://) and be accessible on all nodes
+
+        :param classpaths: Classpaths that will be added.
+        """
+        add_jars_to_context_class_loader(classpaths)
+        jvm = get_gateway().jvm
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
+            .getEnvironmentConfig(self._j_stream_execution_environment)
+        old_classpaths = env_config.getString(classpaths_key, None)
+        classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join(classpaths)
+        if old_classpaths is not None:
+            classpaths = jvm.PythonDependencyUtils.FILE_DELIMITER.join([old_classpaths, classpaths])
+        env_config.setString(classpaths_key, classpaths)
 
     def get_default_local_parallelism(self):
         """

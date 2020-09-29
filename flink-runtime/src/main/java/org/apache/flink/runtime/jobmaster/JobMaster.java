@@ -51,8 +51,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
-import org.apache.flink.runtime.jobmaster.slotpool.SchedulerFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
@@ -161,9 +159,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final SlotPool slotPool;
 
-	private final Scheduler scheduler;
-
 	private final SchedulerNGFactory schedulerNGFactory;
+
+	private final long initializationTimestamp;
 
 	// --------- BackPressure --------
 
@@ -218,7 +216,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityService,
 			SlotPoolFactory slotPoolFactory,
-			SchedulerFactory schedulerFactory,
 			JobManagerSharedServices jobManagerSharedServices,
 			HeartbeatServices heartbeatServices,
 			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
@@ -229,7 +226,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			ShuffleMaster<?> shuffleMaster,
 			PartitionTrackerFactory partitionTrackerFactory,
 			ExecutionDeploymentTracker executionDeploymentTracker,
-			ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory) throws Exception {
+			ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
+			long initializationTimestamp) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME), null);
 
@@ -276,6 +274,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.schedulerNGFactory = checkNotNull(schedulerNGFactory);
 		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
+		this.initializationTimestamp = initializationTimestamp;
 
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
@@ -285,8 +284,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
 		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
-
-		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPool);
 
 		this.registeredTaskManagers = new HashMap<>(4);
 		this.partitionTracker = checkNotNull(partitionTrackerFactory)
@@ -315,14 +312,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 	}
 
-	private SchedulerNG createScheduler(ExecutionDeploymentTracker executionDeploymentTracker, final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
+	private SchedulerNG createScheduler(ExecutionDeploymentTracker executionDeploymentTracker,
+										final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
 		return schedulerNGFactory.createInstance(
 			log,
 			jobGraph,
 			backPressureStatsTracker,
 			scheduledExecutorService,
 			jobMasterConfiguration.getConfiguration(),
-			scheduler,
+			slotPool,
 			scheduledExecutorService,
 			userCodeLoader,
 			highAvailabilityServices.getCheckpointRecoveryFactory(),
@@ -332,7 +330,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobMasterConfiguration.getSlotRequestTimeout(),
 			shuffleMaster,
 			partitionTracker,
-			executionDeploymentTracker);
+			executionDeploymentTracker,
+			initializationTimestamp);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -803,7 +802,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		// start the slot pool make sure the slot pool now accepts messages for this leader
 		slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
-		scheduler.start(getMainThreadExecutor());
 
 		//TODO: Remove once the ZooKeeperLeaderRetrieval returns the stored address upon start
 		// try to reconnect to previously known leader

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
@@ -55,7 +56,8 @@ public class TestableKinesisDataFetcherForShardConsumerException<T> extends Test
 			final AtomicReference<Throwable> thrownErrorUnderTest,
 			final LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
 			final HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
-			final KinesisProxyInterface fakeKinesis) {
+			final KinesisProxyInterface fakeKinesis,
+			final RecordPublisherFactory recordPublisherFactory) {
 		super(fakeStreams, sourceContext, fakeConfiguration, deserializationSchema, fakeTotalCountOfSubtasks,
 			fakeIndexOfThisSubtask, thrownErrorUnderTest, subscribedShardsStateUnderTest,
 			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest, fakeKinesis);

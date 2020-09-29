@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
@@ -65,7 +66,9 @@ class BatchExecSortAggRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    !isOperatorDisabled(tableConfig, OperatorType.SortAgg)
+    val agg: FlinkLogicalAggregate = call.rel(0)
+    !isOperatorDisabled(tableConfig, OperatorType.SortAgg) &&
+      !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

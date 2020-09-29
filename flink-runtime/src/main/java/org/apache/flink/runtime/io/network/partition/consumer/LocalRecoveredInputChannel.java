@@ -51,7 +51,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 
 	@Override
 	public InputChannel toInputChannel() {
-		return new LocalInputChannel(
+		final LocalInputChannel localInputChannel = new LocalInputChannel(
 			inputGate,
 			getChannelIndex(),
 			partitionId,
@@ -61,5 +61,9 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 			maxBackoff,
 			numBytesIn,
 			numBytesIn);
+		if (channelStateWriter != null) {
+			localInputChannel.setChannelStateWriter(channelStateWriter);
+		}
+		return localInputChannel;
 	}
 }

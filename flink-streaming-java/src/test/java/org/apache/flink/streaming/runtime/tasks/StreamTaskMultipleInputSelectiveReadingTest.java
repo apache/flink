@@ -157,7 +157,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 			testHarness.endInput();
 
 			if (!autoProcess) {
-				testHarness.process();
+				testHarness.processAll();
 			}
 			testHarness.waitForTaskCompletion();
 

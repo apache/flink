@@ -20,11 +20,9 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 
@@ -44,35 +42,32 @@ public class RecordOrEventCollectingResultPartitionWriter<T> extends AbstractCol
 
 	public RecordOrEventCollectingResultPartitionWriter(
 			Collection<Object> output,
-			BufferProvider bufferProvider,
 			TypeSerializer<T> serializer) {
-		super(bufferProvider);
 		this.output = checkNotNull(output);
 		this.delegate = new NonReusingDeserializationDelegate<>(checkNotNull(serializer));
 	}
 
 	@Override
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+		output.add(event);
+	}
+
+	@Override
 	protected void deserializeBuffer(Buffer buffer) throws IOException {
-		if (buffer.isBuffer()) {
-			deserializer.setNextBuffer(buffer);
+		deserializer.setNextBuffer(buffer);
 
-			while (deserializer.hasUnfinishedData()) {
-				RecordDeserializer.DeserializationResult result =
-					deserializer.getNextRecord(delegate);
+		while (deserializer.hasUnfinishedData()) {
+			RecordDeserializer.DeserializationResult result =
+				deserializer.getNextRecord(delegate);
 
-				if (result.isFullRecord()) {
-					output.add(delegate.getInstance());
-				}
-
-				if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
-					|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
-					break;
-				}
+			if (result.isFullRecord()) {
+				output.add(delegate.getInstance());
 			}
-		} else {
-			// is event
-			AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-			output.add(event);
+
+			if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
+				|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+				break;
+			}
 		}
 	}
 }

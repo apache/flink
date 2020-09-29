@@ -31,7 +31,8 @@ public interface EmbeddedJobClientCreator {
 	/**
 	 * Creates a {@link JobClient} that is adequate for the context in which the job is executed.
 	 * @param jobId the job id of the job associated with the returned client.
+	 * @param userCodeClassloader the class loader to deserialize user code.
 	 * @return the job client.
 	 */
-	JobClient getJobClient(final JobID jobId);
+	JobClient getJobClient(final JobID jobId, final ClassLoader userCodeClassloader);
 }

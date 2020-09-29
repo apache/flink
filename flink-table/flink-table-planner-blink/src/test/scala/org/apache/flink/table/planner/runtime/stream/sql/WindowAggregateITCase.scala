@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -38,6 +37,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import java.math.BigDecimal
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 @RunWith(classOf[Parameterized])
@@ -231,7 +231,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    execInsertTableAndWaitResult(result, "MySink")
+    result.executeInsert("MySink").await()
 
     val expected = Seq(
       "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1,1,1,1,1,1,1",
@@ -349,15 +349,16 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
-    val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
-      TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
-    if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
+    val lateFireDelay: Duration = tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
+      .orElse(null)
+    if (lateFireDelay != null && (lateFireDelay.toMillis != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
         "Currently not support different lateFireInterval configs in one job")
     }
     tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    tableConfig.getConfiguration.setString(
-      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
+    tableConfig.getConfiguration.set(
+      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
   }
 }

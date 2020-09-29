@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 /**
@@ -77,8 +76,6 @@ public class SchedulerImpl implements Scheduler {
 	@Nonnull
 	private final Map<SlotSharingGroupId, SlotSharingManager> slotSharingManagers;
 
-	private final BulkSlotProvider bulkSlotProvider;
-
 	public SchedulerImpl(
 		@Nonnull SlotSelectionStrategy slotSelectionStrategy,
 		@Nonnull SlotPool slotPool) {
@@ -97,15 +94,11 @@ public class SchedulerImpl implements Scheduler {
 		this.componentMainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
 			"Scheduler is not initialized with proper main thread executor. " +
 				"Call to Scheduler.start(...) required.");
-
-		this.bulkSlotProvider = new BulkSlotProviderImpl(slotSelectionStrategy, slotPool);
 	}
 
 	@Override
 	public void start(@Nonnull ComponentMainThreadExecutor mainThreadExecutor) {
 		this.componentMainThreadExecutor = mainThreadExecutor;
-
-		bulkSlotProvider.start(mainThreadExecutor);
 	}
 
 	//---------------------------
@@ -161,9 +154,11 @@ public class SchedulerImpl implements Scheduler {
 			ScheduledUnit scheduledUnit,
 			SlotProfile slotProfile,
 			Time allocationTimeout) {
-		CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
-			allocateSingleSlot(slotRequestId, slotProfile, allocationTimeout) :
-			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allocationTimeout);
+		CompletableFuture<LogicalSlot> allocationFuture = allocateSharedSlot(
+			slotRequestId,
+			scheduledUnit,
+			slotProfile,
+			allocationTimeout);
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
 			if (failure != null) {
@@ -203,34 +198,6 @@ public class SchedulerImpl implements Scheduler {
 
 	//---------------------------
 
-	private CompletableFuture<LogicalSlot> allocateSingleSlot(
-			SlotRequestId slotRequestId,
-			SlotProfile slotProfile,
-			@Nullable Time allocationTimeout) {
-
-		Optional<SlotAndLocality> slotAndLocality = tryAllocateFromAvailable(slotRequestId, slotProfile);
-
-		if (slotAndLocality.isPresent()) {
-			// already successful from available
-			try {
-				return CompletableFuture.completedFuture(
-					completeAllocationByAssigningPayload(slotRequestId, slotAndLocality.get()));
-			} catch (FlinkException e) {
-				return FutureUtils.completedExceptionally(e);
-			}
-		} else {
-			// we allocate by requesting a new slot
-			return requestNewAllocatedSlot(slotRequestId, slotProfile, allocationTimeout)
-				.thenApply((PhysicalSlot allocatedSlot) -> {
-					try {
-						return completeAllocationByAssigningPayload(slotRequestId, new SlotAndLocality(allocatedSlot, Locality.UNKNOWN));
-					} catch (FlinkException e) {
-						throw new CompletionException(e);
-					}
-				});
-		}
-	}
-
 	@Nonnull
 	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 			SlotRequestId slotRequestId,
@@ -240,28 +207,6 @@ public class SchedulerImpl implements Scheduler {
 			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile());
 		} else {
 			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile(), allocationTimeout);
-		}
-	}
-
-	@Nonnull
-	private LogicalSlot completeAllocationByAssigningPayload(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull SlotAndLocality slotAndLocality) throws FlinkException {
-
-		final PhysicalSlot allocatedSlot = slotAndLocality.getSlot();
-
-		try {
-			final SingleLogicalSlot singleTaskSlot = SingleLogicalSlot.allocateFromPhysicalSlot(
-				slotRequestId,
-				allocatedSlot,
-				slotAndLocality.getLocality(),
-				this,
-				true);
-			return singleTaskSlot;
-		} catch (Throwable t) {
-			final FlinkException flinkException = new FlinkException(t);
-			slotPool.releaseSlot(slotRequestId, flinkException);
-			throw flinkException;
 		}
 	}
 
@@ -565,13 +510,5 @@ public class SchedulerImpl implements Scheduler {
 	@Override
 	public boolean requiresPreviousExecutionGraphAllocations() {
 		return slotSelectionStrategy instanceof PreviousAllocationSlotSelectionStrategy;
-	}
-
-	@Override
-	public CompletableFuture<Collection<PhysicalSlotRequest.Result>> allocatePhysicalSlots(
-			final Collection<PhysicalSlotRequest> physicalSlotRequests,
-			final Time timeout) {
-
-		return bulkSlotProvider.allocatePhysicalSlots(physicalSlotRequests, timeout);
 	}
 }

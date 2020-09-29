@@ -34,6 +34,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -65,15 +66,20 @@ public class SchedulerImplTest extends TestLogger {
 	private TaskManagerLocation taskManagerLocation;
 	private SimpleAckingTaskManagerGateway taskManagerGateway;
 	private TestingResourceManagerGateway resourceManagerGateway;
-	private SlotPoolBuilder slotPoolBuilder;
+
+	private TestingSlotPoolImpl slotPool;
 
 	@Before
 	public void setUp() throws Exception {
 		taskManagerLocation = new LocalTaskManagerLocation();
 		taskManagerGateway = new SimpleAckingTaskManagerGateway();
 		resourceManagerGateway = new TestingResourceManagerGateway();
-		slotPoolBuilder = new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
-			.setResourceManagerGateway(resourceManagerGateway);
+		slotPool = createAndSetUpSlotPool();
+	}
+
+	@After
+	public void teardown() throws Exception {
+		testMainThreadExecutor.execute(() -> slotPool.close());
 	}
 
 	@Test
@@ -81,32 +87,29 @@ public class SchedulerImplTest extends TestLogger {
 		CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
 		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		try (SlotPoolImpl slotPool = createAndSetUpSlotPool()) {
+		final Scheduler scheduler = createAndSetUpScheduler(slotPool);
 
-			final Scheduler scheduler = createAndSetUpScheduler(slotPool);
+		final CompletableFuture<LogicalSlot> allocatedSlotFuture = allocateSlot(scheduler);
+		assertFalse(allocatedSlotFuture.isDone());
 
-			final CompletableFuture<LogicalSlot> allocatedSlotFuture = allocateSlot(scheduler);
-			assertFalse(allocatedSlotFuture.isDone());
+		final SlotRequest slotRequest = slotRequestFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-			final SlotRequest slotRequest = slotRequestFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+		testMainThreadExecutor.execute(() -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()));
 
-			testMainThreadExecutor.execute(() -> slotPool.registerTaskManager(taskManagerLocation.getResourceID()));
+		final SlotOffer slotOffer = new SlotOffer(
+			slotRequest.getAllocationId(),
+			0,
+			ResourceProfile.ANY);
 
-			final SlotOffer slotOffer = new SlotOffer(
-				slotRequest.getAllocationId(),
-				0,
-				ResourceProfile.ANY);
+		testMainThreadExecutor.execute(() -> slotPool.offerSlot(
+			taskManagerLocation,
+			taskManagerGateway,
+			slotOffer));
 
-			testMainThreadExecutor.execute(() -> slotPool.offerSlot(
-				taskManagerLocation,
-				taskManagerGateway,
-				slotOffer));
-
-			final LogicalSlot allocatedSlot = allocatedSlotFuture.get(1, TimeUnit.SECONDS);
-			assertTrue(allocatedSlotFuture.isDone());
-			assertTrue(allocatedSlot.isAlive());
-			assertEquals(taskManagerLocation, allocatedSlot.getTaskManagerLocation());
-		}
+		final LogicalSlot allocatedSlot = allocatedSlotFuture.get(1, TimeUnit.SECONDS);
+		assertTrue(allocatedSlotFuture.isDone());
+		assertTrue(allocatedSlot.isAlive());
+		assertEquals(taskManagerLocation, allocatedSlot.getTaskManagerLocation());
 	}
 
 	/**
@@ -115,29 +118,25 @@ public class SchedulerImplTest extends TestLogger {
 	 */
 	@Test
 	public void testProviderAndOwnerSlotAllocationTimeout() throws Exception {
+		final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
 
-		try (TestingSlotPoolImpl slotPool = createAndSetUpSlotPool()) {
+		slotPool.setReleaseSlotConsumer(releaseSlotFuture::complete);
 
-			final CompletableFuture<SlotRequestId> releaseSlotFuture = new CompletableFuture<>();
+		final Scheduler scheduler = createAndSetUpScheduler(slotPool);
 
-			slotPool.setReleaseSlotConsumer(releaseSlotFuture::complete);
-
-			final Scheduler scheduler = createAndSetUpScheduler(slotPool);
-
-			// test the pending request is clear when timed out
-			final CompletableFuture<LogicalSlot> allocateSlotFuture = allocateSlot(scheduler);
-			try {
-				allocateSlotFuture.get();
-				fail("We expected a TimeoutException.");
-			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-			}
-
-			// wait for the cancel call on the SlotPoolImpl
-			releaseSlotFuture.get();
-
-			assertEquals(0L, slotPool.getNumberOfPendingRequests());
+		// test the pending request is clear when timed out
+		final CompletableFuture<LogicalSlot> allocateSlotFuture = allocateSlot(scheduler);
+		try {
+			allocateSlotFuture.get();
+			fail("We expected a TimeoutException.");
+		} catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
 		}
+
+		// wait for the cancel call on the SlotPoolImpl
+		releaseSlotFuture.get();
+
+		assertEquals(0L, slotPool.getNumberOfPendingRequests());
 	}
 
 	private Scheduler createAndSetUpScheduler(SlotPool slotPool) {
@@ -147,7 +146,9 @@ public class SchedulerImplTest extends TestLogger {
 	}
 
 	private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
-		return slotPoolBuilder.build();
+		return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+			.setResourceManagerGateway(resourceManagerGateway)
+			.build();
 	}
 
 	private CompletableFuture<LogicalSlot> allocateSlot(Scheduler scheduler) {

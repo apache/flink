@@ -38,6 +38,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequestGatewa
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,14 +82,21 @@ public final class PerJobMiniClusterFactory {
 	/**
 	 * Starts a {@link MiniCluster} and submits a job.
 	 */
-	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph) throws Exception {
+	public CompletableFuture<JobClient> submitJob(JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
 		MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig(jobGraph.getMaximumParallelism());
 		MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
 		miniCluster.start();
 
 		return miniCluster
 			.submitJob(jobGraph)
-			.thenApply(result -> new PerJobMiniClusterJobClient(result.getJobID(), miniCluster))
+			.thenApplyAsync(FunctionUtils.uncheckedFunction(submissionResult -> {
+				org.apache.flink.client.ClientUtils.waitUntilJobInitializationFinished(
+					() -> miniCluster.getJobStatus(submissionResult.getJobID()).get(),
+					() -> miniCluster.requestJobResult(submissionResult.getJobID()).get(),
+					userCodeClassloader);
+				return submissionResult;
+			}))
+			.thenApply(result -> new PerJobMiniClusterJobClient(result.getJobID(), miniCluster, userCodeClassloader))
 			.whenComplete((ignored, throwable) -> {
 				if (throwable != null) {
 					// We failed to create the JobClient and must shutdown to ensure cleanup.
@@ -139,14 +147,16 @@ public final class PerJobMiniClusterFactory {
 		private final JobID jobID;
 		private final MiniCluster miniCluster;
 		private final CompletableFuture<JobResult> jobResultFuture;
+		private final ClassLoader classLoader;
 
-		private PerJobMiniClusterJobClient(JobID jobID, MiniCluster miniCluster) {
+		private PerJobMiniClusterJobClient(JobID jobID, MiniCluster miniCluster, ClassLoader classLoader) {
 			this.jobID = jobID;
 			this.miniCluster = miniCluster;
 			this.jobResultFuture = miniCluster
 				.requestJobResult(jobID)
 				// Make sure to shutdown the cluster when the job completes.
 				.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
+			this.classLoader = classLoader;
 		}
 
 		@Override
@@ -175,15 +185,15 @@ public final class PerJobMiniClusterFactory {
 		}
 
 		@Override
-		public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
-			return getJobExecutionResult(classLoader).thenApply(JobExecutionResult::getAllAccumulatorResults);
+		public CompletableFuture<Map<String, Object>> getAccumulators() {
+			return getJobExecutionResult().thenApply(JobExecutionResult::getAllAccumulatorResults);
 		}
 
 		@Override
-		public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader classLoader) {
+		public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
 			return jobResultFuture.thenApply(result -> {
 				try {
-					return result.toJobExecutionResult(classLoader);
+					return result.toJobExecutionResult(this.classLoader);
 				} catch (Exception e) {
 					throw new CompletionException("Failed to convert JobResult to JobExecutionResult.", e);
 				}

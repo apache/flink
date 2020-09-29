@@ -15,21 +15,24 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import glob
+import json
 import os
 import shutil
 import tempfile
-import json
 import time
-
 import unittest
 import uuid
 
 from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
+from pyflink.datastream.connectors import FlinkKafkaConsumer
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
@@ -197,7 +200,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.register_table_sink(
             "Results",
             CsvTableSink(field_names, field_types, tmp_csv))
-        exec_insert_table(t_env.from_path("Orders"), "Results")
+        t_env.from_path("Orders").execute_insert("Results").wait()
 
         plan = self.env.get_execution_plan()
 
@@ -420,6 +423,49 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         result.sort()
         expected.sort()
         self.assertEqual(expected, result)
+
+    def test_add_jars(self):
+        # find kafka connector jars
+        flink_source_root = _find_flink_source_root()
+        jars_abs_path = flink_source_root + '/flink-connectors/flink-sql-connector-kafka'
+        specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
+        specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
+
+        self.env.add_jars(*specific_jars)
+        source_topic = 'test_source_topic'
+        props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
+        type_info = Types.ROW([Types.INT(), Types.STRING()])
+
+        # Test for kafka consumer
+        deserialization_schema = JsonRowDeserializationSchema.builder() \
+            .type_info(type_info=type_info).build()
+
+        # Will get a ClassNotFoundException if not add the kafka connector into the pipeline jars.
+        kafka_consumer = FlinkKafkaConsumer(source_topic, deserialization_schema, props)
+        self.env.add_source(kafka_consumer).print()
+        self.env.get_execution_plan()
+
+    def test_add_classpaths(self):
+        # find kafka connector jars
+        flink_source_root = _find_flink_source_root()
+        jars_abs_path = flink_source_root + '/flink-connectors/flink-sql-connector-kafka'
+        specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
+        specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
+
+        self.env.add_classpaths(*specific_jars)
+        source_topic = 'test_source_topic'
+        props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'test_group'}
+        type_info = Types.ROW([Types.INT(), Types.STRING()])
+
+        # Test for kafka consumer
+        deserialization_schema = JsonRowDeserializationSchema.builder() \
+            .type_info(type_info=type_info).build()
+
+        # It Will raise a ClassNotFoundException if the kafka connector is not added into the
+        # pipeline classpaths.
+        kafka_consumer = FlinkKafkaConsumer(source_topic, deserialization_schema, props)
+        self.env.add_source(kafka_consumer).print()
+        self.env.get_execution_plan()
 
     def test_generate_stream_graph_with_dependencies(self):
 

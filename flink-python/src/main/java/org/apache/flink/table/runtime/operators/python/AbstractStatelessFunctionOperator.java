@@ -28,16 +28,9 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonStatelessFunctionRunner;
-import org.apache.flink.table.runtime.types.CRow;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
-
-import com.google.protobuf.ByteString;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -145,13 +138,14 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		IN value = element.getValue();
 		bufferInput(value);
 		processElementInternal(value);
+		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
 	}
 
 	@Override
 	public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-		return new BeamTablePythonStatelessFunctionRunner(
+		return new BeamTableStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			userDefinedFunctionInputType,
@@ -163,29 +157,11 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 			getFlinkMetricContainer());
 	}
 
-	protected FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
-		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
-		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
-		for (Object input : pythonFunctionInfo.getInputs()) {
-			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
-				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
-			if (input instanceof PythonFunctionInfo) {
-				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
-			} else if (input instanceof Integer) {
-				inputProto.setInputOffset((Integer) input);
-			} else {
-				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
-			}
-			builder.addInputs(inputProto);
-		}
-		return builder.build();
-	}
-
 	/**
 	 * Buffers the specified input, it will be used to construct
 	 * the operator result together with the user-defined function execution result.
 	 */
-	public abstract void bufferInput(IN input);
+	public abstract void bufferInput(IN input) throws Exception;
 
 	public abstract UDFIN getFunctionInput(IN element);
 
@@ -208,63 +184,4 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 		return jobOptions;
 	}
 
-	/**
-	 * The collector is used to convert a {@link Row} to a {@link CRow}.
-	 */
-	public static class StreamRecordCRowWrappingCollector implements Collector<Row> {
-
-		private final Collector<StreamRecord<CRow>> out;
-		private final CRow reuseCRow = new CRow();
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<CRow> reuseStreamRecord = new StreamRecord<>(reuseCRow);
-
-		public StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
-			this.out = out;
-		}
-
-		public void setChange(boolean change) {
-			this.reuseCRow.change_$eq(change);
-		}
-
-		@Override
-		public void collect(Row record) {
-			reuseCRow.row_$eq(record);
-			out.collect(reuseStreamRecord);
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
-	}
-
-	/**
-	 * The collector is used to convert a {@link RowData} to a {@link StreamRecord}.
-	 */
-	public static class StreamRecordRowDataWrappingCollector implements Collector<RowData> {
-
-		private final Collector<StreamRecord<RowData>> out;
-
-		/**
-		 * For Table API & SQL jobs, the timestamp field is not used.
-		 */
-		private final StreamRecord<RowData> reuseStreamRecord = new StreamRecord<>(null);
-
-		public StreamRecordRowDataWrappingCollector(Collector<StreamRecord<RowData>> out) {
-			this.out = out;
-		}
-
-		@Override
-		public void collect(RowData record) {
-			out.collect(reuseStreamRecord.replace(record));
-		}
-
-		@Override
-		public void close() {
-			out.close();
-		}
-	}
 }

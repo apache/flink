@@ -20,8 +20,8 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -96,6 +96,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		inputGate.setChannelStateWriter(channelStateWriter);
+	}
+
+	@Override
 	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 		return inputGate.getNext().map(this::updateMetrics);
 	}
@@ -116,8 +121,8 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
-	public void registerBufferReceivedListener(BufferReceivedListener listener) {
-		inputGate.registerBufferReceivedListener(listener);
+	public CompletableFuture<?> getPriorityEventAvailableFuture() {
+		return inputGate.getPriorityEventAvailableFuture();
 	}
 
 	private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {

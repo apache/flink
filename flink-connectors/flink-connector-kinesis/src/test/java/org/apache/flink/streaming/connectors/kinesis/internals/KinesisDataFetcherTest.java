@@ -26,11 +26,13 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.KinesisShardAssigner;
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.testutils.AlwaysThrowsDeserializationSchema;
@@ -67,12 +69,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.Collections.singletonList;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -114,7 +122,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 		final TestSourceContext<String> sourceContext = new TestSourceContext<>();
 
 		final TestableKinesisDataFetcher<String> fetcher = new TestableKinesisDataFetcher<>(
-			Collections.singletonList(stream),
+			singletonList(stream),
 			sourceContext,
 			TestUtils.getStandardProperties(),
 			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
@@ -761,7 +769,7 @@ public class KinesisDataFetcherTest extends TestLogger {
 
 		final KinesisDataFetcher<String> fetcher =
 			new TestableKinesisDataFetcher<String>(
-				Collections.singletonList(fakeStream1),
+				singletonList(fakeStream1),
 				sourceContext,
 				new java.util.Properties(),
 				new KinesisDeserializationSchemaWrapper<>(new org.apache.flink.streaming.util.serialization.SimpleStringSchema()),
@@ -825,14 +833,14 @@ public class KinesisDataFetcherTest extends TestLogger {
 		Map<String, List<BlockingQueue<String>>> streamsToShardQueues = new HashMap<>();
 		LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>(10);
 		queue.put("item1");
-		streamsToShardQueues.put(stream, Collections.singletonList(queue));
+		streamsToShardQueues.put(stream, singletonList(queue));
 
 		AlwaysThrowsDeserializationSchema deserializationSchema = new AlwaysThrowsDeserializationSchema();
 		KinesisProxyInterface fakeKinesis =
 			FakeKinesisBehavioursFactory.blockingQueueGetRecords(streamsToShardQueues);
 
 		TestableKinesisDataFetcherForShardConsumerException<String> fetcher = new TestableKinesisDataFetcherForShardConsumerException<>(
-			Collections.singletonList(stream),
+			singletonList(stream),
 			new TestSourceContext<>(),
 			TestUtils.getStandardProperties(),
 			new KinesisDeserializationSchemaWrapper<>(deserializationSchema),
@@ -841,7 +849,8 @@ public class KinesisDataFetcherTest extends TestLogger {
 			new AtomicReference<>(),
 			new LinkedList<>(),
 			new HashMap<>(),
-			fakeKinesis);
+			fakeKinesis,
+			(sequence, properties, metricGroup, streamShardHandle) -> mock(RecordPublisher.class));
 
 		DummyFlinkKinesisConsumer<String> consumer = new DummyFlinkKinesisConsumer<>(
 			TestUtils.getStandardProperties(), fetcher, 1, 0);
@@ -881,4 +890,33 @@ public class KinesisDataFetcherTest extends TestLogger {
 		assertTrue("Expected Fetcher to have been interrupted. This test didn't accomplish its goal.",
 			fetcher.wasInterrupted);
 	}
+
+	@Test
+	public void testRecordPublisherFactoryIsTornDown() {
+		Properties config = TestUtils.getStandardProperties();
+		config.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
+		config.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
+
+		KinesisProxyV2Interface kinesisV2 = mock(KinesisProxyV2Interface.class);
+
+		TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<String>(
+				singletonList("fakeStream1"),
+				new TestSourceContext<>(),
+				config,
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+				10,
+				2,
+				new AtomicReference<>(),
+				new LinkedList<>(),
+				new HashMap<>(),
+				mock(KinesisProxyInterface.class),
+				kinesisV2) {
+			};
+
+		fetcher.shutdownFetcher();
+
+		verify(kinesisV2).close();
+	}
+
 }

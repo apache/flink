@@ -97,8 +97,9 @@ import static org.junit.Assert.assertEquals;
  */
 @RunWith(Parameterized.class)
 public class NotifyCheckpointAbortedITCase extends TestLogger {
+
 	private static final long DECLINE_CHECKPOINT_ID = 2L;
-	private static final long TEST_TIMEOUT = 60000;
+	private static final long TEST_TIMEOUT = 100000;
 	private static final String DECLINE_SINK_NAME = "DeclineSink";
 	private static MiniClusterWithClientResource cluster;
 
@@ -176,17 +177,23 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 		clusterClient.submitJob(jobGraph).get();
 
 		TestingCompletedCheckpointStore.addCheckpointLatch.await();
+		log.info("The checkpoint to abort is ready to add to checkpoint store.");
 		TestingCompletedCheckpointStore.abortCheckpointLatch.trigger();
 
+		log.info("Verifying whether all operators have been notified of checkpoint-1 aborted.");
 		verifyAllOperatorsNotifyAborted();
+		log.info("Verified that all operators have been notified of checkpoint-1 aborted.");
 		resetAllOperatorsNotifyAbortedLatches();
 		verifyAllOperatorsNotifyAbortedTimes(1);
 
 		DeclineSink.waitLatch.trigger();
+		log.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
 		verifyAllOperatorsNotifyAborted();
+		log.info("Verified that all operators have been notified of checkpoint-2 aborted.");
 		verifyAllOperatorsNotifyAbortedTimes(2);
 
 		clusterClient.cancel(jobID).get();
+		log.info("Test is verified successfully as expected.");
 	}
 
 	private void verifyAllOperatorsNotifyAborted() throws InterruptedException {
@@ -379,7 +386,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 					new DeclineSinkFailingSnapshotStrategy());
 			} else {
 				return new DefaultOperatorStateBackendBuilder(
-					env.getUserClassLoader(),
+					env.getUserCodeClassLoader().asClassLoader(),
 					env.getExecutionConfig(),
 					false,
 					stateHandles,

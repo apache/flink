@@ -420,7 +420,7 @@ public class CliFrontend {
 		final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
 		final List<JobStatusMessage> terminatedJobs = new ArrayList<>();
 		jobDetails.forEach(details -> {
-			if (details.getJobState() == JobStatus.CREATED) {
+			if (details.getJobState() == JobStatus.CREATED || details.getJobState() == JobStatus.INITIALIZING) {
 				scheduledJobs.add(details);
 			} else if (!details.getJobState().isGloballyTerminalState()) {
 				runningJobs.add(details);

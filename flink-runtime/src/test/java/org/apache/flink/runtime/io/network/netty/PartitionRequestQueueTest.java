@@ -21,22 +21,21 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionTest;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -55,9 +54,11 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEventBufferConsumer;
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -215,9 +216,9 @@ public class PartitionRequestQueueTest {
 			int buffers = buffersInBacklog.decrementAndGet();
 			return new BufferAndBacklog(
 				TestBufferFactory.createBuffer(10),
-				buffers > 0,
 				buffers,
-				false);
+				buffers > 0 ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.NONE,
+				0);
 		}
 
 		@Override
@@ -241,9 +242,9 @@ public class PartitionRequestQueueTest {
 			BufferAndBacklog nextBuffer = super.getNextBuffer();
 			return new BufferAndBacklog(
 				nextBuffer.buffer().readOnlySlice(),
-				nextBuffer.isDataAvailable(),
 				nextBuffer.buffersInBacklog(),
-				nextBuffer.isEventAvailable());
+				nextBuffer.getNextDataType(),
+				0);
 		}
 	}
 
@@ -478,14 +479,12 @@ public class PartitionRequestQueueTest {
 	}
 
 	private static ResultPartition createFinishedPartitionWithFilledData(ResultPartitionManager partitionManager) throws Exception {
-		final ResultPartition partition = new ResultPartitionBuilder()
-			.setResultPartitionType(ResultPartitionType.BLOCKING)
-			.setFileChannelManager(fileChannelManager)
-			.setResultPartitionManager(partitionManager)
-			.build();
+		NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder().setResultPartitionManager(partitionManager).build();
+		ResultPartition partition = createPartition(environment, fileChannelManager, ResultPartitionType.BLOCKING, 1);
 
-		partitionManager.registerResultPartition(partition);
-		PartitionTestUtils.writeBuffers(partition, 1, BUFFER_SIZE);
+		partition.setup();
+		partition.emitRecord(ByteBuffer.allocate(BUFFER_SIZE), 0);
+		partition.finish();
 
 		return partition;
 	}

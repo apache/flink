@@ -108,7 +108,7 @@ public class UnalignedCheckpointCompatibilityITCase {
 	private Tuple2<String, Map<String, Object>> runAndTakeSavepoint() throws Exception {
 		JobClient jobClient = submitJobInitially(env(startAligned, 0, emptyMap()));
 		Thread.sleep(FIRST_RUN_EL_COUNT * FIRST_RUN_BACKPRESSURE_MS); // wait for all tasks to run and some backpressure from sink
-		Future<Map<String, Object>> accFuture = jobClient.getAccumulators(getClass().getClassLoader());
+		Future<Map<String, Object>> accFuture = jobClient.getAccumulators();
 		Future<String> savepointFuture = jobClient.stopWithSavepoint(false, tempFolder().toURI().toString());
 		return new Tuple2<>(savepointFuture.get(), accFuture.get());
 	}
@@ -141,7 +141,7 @@ public class UnalignedCheckpointCompatibilityITCase {
 	private void cancelJob(JobClient jobClient) throws InterruptedException, java.util.concurrent.ExecutionException {
 		jobClient.cancel().get();
 		try {
-			jobClient.getJobExecutionResult(getClass().getClassLoader()); // wait for cancellation
+			jobClient.getJobExecutionResult(); // wait for cancellation
 		} catch (Exception e) {
 			// ignore cancellation exception
 		}

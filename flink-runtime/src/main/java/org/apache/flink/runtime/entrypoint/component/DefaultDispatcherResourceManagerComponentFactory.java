@@ -174,7 +174,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				new ClusterInformation(hostname, blobServer.getPort()),
 				webMonitorEndpoint.getRestBaseUrl(),
 				metricRegistry,
-				hostname);
+				hostname,
+				ioExecutor);
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint, ioExecutor);
 
@@ -188,7 +189,8 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				historyServerArchivist,
-				metricRegistry.getMetricQueryServiceGatewayRpcAddress());
+				metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
+				ioExecutor);
 
 			log.debug("Starting Dispatcher.");
 			dispatcherRunner = dispatcherRunnerFactory.createDispatcherRunner(

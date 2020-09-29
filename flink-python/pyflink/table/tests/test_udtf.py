@@ -20,8 +20,7 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, PyFlinkBlinkBatchTableTestCase,\
-    exec_insert_table
+    PyFlinkBlinkStreamTableTestCase, PyFlinkBatchTableTestCase, PyFlinkBlinkBatchTableTestCase
 
 
 class UserDefinedTableFunctionTests(object):
@@ -31,17 +30,12 @@ class UserDefinedTableFunctionTests(object):
             ['a', 'b', 'c'],
             [DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 
-        self.t_env.register_function(
-            "multi_emit", udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()]))
-
-        self.t_env.register_function("condition_multi_emit", condition_multi_emit)
-
-        self.t_env.register_function(
-            "multi_num", udf(MultiNum(), result_type=DataTypes.BIGINT()))
+        multi_emit = udtf(MultiEmit(), result_types=[DataTypes.BIGINT(), DataTypes.BIGINT()])
+        multi_num = udf(MultiNum(), result_type=DataTypes.BIGINT())
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
-        t = t.join_lateral("multi_emit(a, multi_num(b)) as (x, y)") \
-            .left_outer_join_lateral("condition_multi_emit(x, y) as m") \
+        t = t.join_lateral(multi_emit(t.a, multi_num(t.b)).alias('x', 'y'))
+        t = t.left_outer_join_lateral(condition_multi_emit(t.x, t.y).alias('m')) \
             .select("x, y, m")
         actual = self._get_output(t)
         self.assert_equals(actual,
@@ -69,7 +63,7 @@ class UserDefinedTableFunctionTests(object):
         self.t_env.register_table_sink("Results", table_sink)
 
     def _get_output(self, t):
-        exec_insert_table(t, "Results")
+        t.execute_insert("Results").wait()
         return source_sink_utils.results()
 
 

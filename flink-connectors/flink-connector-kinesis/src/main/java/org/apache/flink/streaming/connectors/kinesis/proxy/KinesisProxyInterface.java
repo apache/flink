@@ -71,4 +71,5 @@ public interface KinesisProxyInterface {
 	 *                              if the backoff is interrupted.
 	 */
 	GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) throws InterruptedException;
+
 }

@@ -25,6 +25,8 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.TableTestBase
 
+import java.time.Duration
+
 import org.junit.Test
 
 class WindowAggregateTest extends TableTestBase {
@@ -432,7 +434,7 @@ class WindowAggregateTest extends TableTestBase {
   @Test
   def testWindowAggregateWithLateFire(): Unit = {
     util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    util.conf.getConfiguration.setString(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, "5s")
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
     util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val sql =
       """

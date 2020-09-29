@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -130,7 +131,9 @@ public class StreamOperatorStateHandlerTest {
 			stateHandler.initializeOperatorState(checkpointedStreamOperator);
 
 			assertThat(stateContext.operatorStateBackend().getRegisteredStateNames(), is(not(empty())));
-			assertThat(stateContext.keyedStateBackend().numKeyValueStatesByName(), equalTo(1));
+			assertThat(
+				((AbstractKeyedStateBackend<?>) stateContext.keyedStateBackend()).numKeyValueStatesByName(),
+				equalTo(1));
 
 			try {
 				stateHandler.snapshotState(
@@ -165,7 +168,9 @@ public class StreamOperatorStateHandlerTest {
 
 			assertThat(stateContext.operatorStateBackend().getRegisteredBroadcastStateNames(), is(empty()));
 			assertThat(stateContext.operatorStateBackend().getRegisteredStateNames(), is(empty()));
-			assertThat(stateContext.keyedStateBackend().numKeyValueStatesByName(), is(0));
+			assertThat(
+				((AbstractKeyedStateBackend<?>) stateContext.keyedStateBackend()).numKeyValueStatesByName(),
+				equalTo(0));
 		}
 	}
 

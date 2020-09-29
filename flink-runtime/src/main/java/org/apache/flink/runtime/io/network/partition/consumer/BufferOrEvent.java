@@ -35,6 +35,8 @@ public class BufferOrEvent {
 
 	private final AbstractEvent event;
 
+	private final boolean hasPriority;
+
 	/**
 	 * Indicate availability of further instances for the union input gate.
 	 * This is not needed outside of the input gate unioning logic and cannot
@@ -42,34 +44,40 @@ public class BufferOrEvent {
 	 */
 	private boolean moreAvailable;
 
+	private final boolean morePriorityEvents;
+
 	private InputChannelInfo channelInfo;
 
 	private final int size;
 
-	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo, boolean moreAvailable) {
+	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo, boolean moreAvailable, boolean morePriorityEvents) {
 		this.buffer = checkNotNull(buffer);
+		this.hasPriority = false;
 		this.event = null;
 		this.channelInfo = channelInfo;
 		this.moreAvailable = moreAvailable;
 		this.size = buffer.getSize();
+		this.morePriorityEvents = morePriorityEvents;
 	}
 
-	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo, boolean moreAvailable, int size) {
+	public BufferOrEvent(AbstractEvent event, boolean hasPriority, InputChannelInfo channelInfo, boolean moreAvailable, int size, boolean morePriorityEvents) {
 		this.buffer = null;
+		this.hasPriority = hasPriority;
 		this.event = checkNotNull(event);
 		this.channelInfo = channelInfo;
 		this.moreAvailable = moreAvailable;
 		this.size = size;
+		this.morePriorityEvents = morePriorityEvents;
 	}
 
 	@VisibleForTesting
 	public BufferOrEvent(Buffer buffer, InputChannelInfo channelInfo) {
-		this(buffer, channelInfo, true);
+		this(buffer, channelInfo, true, false);
 	}
 
 	@VisibleForTesting
 	public BufferOrEvent(AbstractEvent event, InputChannelInfo channelInfo) {
-		this(event, channelInfo, true, 0);
+		this(event, false, channelInfo, true, 0, false);
 	}
 
 	public boolean isBuffer() {
@@ -100,10 +108,14 @@ public class BufferOrEvent {
 		return moreAvailable;
 	}
 
+	public boolean morePriorityEvents() {
+		return morePriorityEvents;
+	}
+
 	@Override
 	public String toString() {
 		return String.format("BufferOrEvent [%s, channelInfo = %s, size = %d]",
-				isBuffer() ? buffer : event, channelInfo, size);
+			isBuffer() ? buffer : (event + " (prio=" + hasPriority + ")"), channelInfo, size);
 	}
 
 	public void setMoreAvailable(boolean moreAvailable) {
@@ -112,5 +124,9 @@ public class BufferOrEvent {
 
 	public int getSize() {
 		return size;
+	}
+
+	public boolean hasPriority() {
+		return hasPriority;
 	}
 }

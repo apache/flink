@@ -18,20 +18,13 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -42,14 +35,20 @@ import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class LargeRecordHandler<T> {
 	
@@ -89,9 +88,7 @@ public class LargeRecordHandler<T> {
 	
 	private final List<MemorySegment> memory;
 	
-	private TypeSerializerFactory<Tuple> keySerializerFactory;
-	
-	private UnilateralSortMerger<Tuple> keySorter;
+	private Sorter<Tuple> keySorter;
 	
 	private final AbstractInvokable memoryOwner;
 	
@@ -107,9 +104,14 @@ public class LargeRecordHandler<T> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public LargeRecordHandler(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
-			IOManager ioManager, MemoryManager memManager, List<MemorySegment> memory,
-			AbstractInvokable memoryOwner, int maxFilehandles)
+	public LargeRecordHandler(
+			TypeSerializer<T> serializer,
+			TypeComparator<T> comparator,
+			IOManager ioManager,
+			MemoryManager memManager,
+			List<MemorySegment> memory,
+			AbstractInvokable memoryOwner,
+			int maxFilehandles)
 	{
 		this.serializer = checkNotNull(serializer);
 		this.comparator = checkNotNull(comparator);
@@ -162,11 +164,8 @@ public class LargeRecordHandler<T> {
 				// add the long serializer for the offset
 				tupleSers[numKeyFields] = LongSerializer.INSTANCE;
 				
-				keySerializer = new TupleSerializer<Tuple>((Class<Tuple>) Tuple.getTupleClass(numKeyFields+1), tupleSers);
-				keyComparator = new TupleComparator<Tuple>(keyPos, keyComps, keySers);
-				
-				keySerializerFactory = new RuntimeSerializerFactory<Tuple>(keySerializer, keySerializer.getTupleClass());
-
+				keySerializer = new TupleSerializer<>((Class<Tuple>) Tuple.getTupleClass(numKeyFields + 1), tupleSers);
+				keyComparator = new TupleComparator<>(keyPos, keyComps, keySers);
 				keyTuple = keySerializer.createInstance();
 			}
 			
@@ -252,10 +251,26 @@ public class LargeRecordHandler<T> {
 		keysReader = new FileChannelInputView(ioManager.createBlockChannelReader(keysChannel),
 				memManager, memForKeysReader, lastBlockBytesKeys);
 		InputViewIterator<Tuple> keyIterator = new InputViewIterator<Tuple>(keysReader, keySerializer);
-		
-		keySorter = new UnilateralSortMerger<Tuple>(memManager, memory, ioManager, 
-				keyIterator, memoryOwner, keySerializerFactory, keyComparator, 1, maxFilehandles, 1.0f, false,
-				this.executionConfig.isObjectReuseEnabled());
+
+		try {
+			keySorter =
+				ExternalSorter.newBuilder(
+						memManager,
+						memoryOwner,
+						keySerializer,
+						keyComparator)
+					.maxNumFileHandles(maxFilehandles)
+					.sortBuffers(1)
+					.enableSpilling(ioManager, 1.0f)
+					.memory(memory)
+					.objectReuse(this.executionConfig.isObjectReuseEnabled())
+					.largeRecords(false)
+					.build(keyIterator);
+		} catch (MemoryAllocationException e) {
+			throw new IllegalStateException(
+				"We should not try allocating memory. Instead the sorter should use the provided memory.",
+				e);
+		}
 
 		// wait for the sorter to sort the keys
 		MutableObjectIterator<Tuple> result;
@@ -297,7 +312,7 @@ public class LargeRecordHandler<T> {
 					recordsOutFile = null;
 				} catch (Throwable t) {
 					LOG.error("Cannot close the large records spill file.", t);
-					ex = ex == null ? t : ex;
+					ex = t;
 				}
 			}
 			if (keysOutFile != null) {

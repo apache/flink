@@ -102,6 +102,21 @@ under the License.
 					<parameter>
 						<excludes combine.children="append">
 							<exclude>org.apache.flink.streaming.api.datastream.DataStream#assignTimestamps(org.apache.flink.streaming.api.functions.TimestampExtractor)</exclude>
+
+							<!-- DataStream#fold was removed in 1.12 -->
+							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.AllWindowFunction)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.AllWindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.KeyedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#fold(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.WindowFunction)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.WindowedStream#apply(java.lang.Object,org.apache.flink.api.common.functions.FoldFunction,org.apache.flink.streaming.api.functions.windowing.WindowFunction,org.apache.flink.api.common.typeinfo.TypeInformation)</exclude>
+
+							<!-- DataStream#split was removed in 1.12 -->
+							<exclude>org.apache.flink.streaming.api.datastream.DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
+							<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

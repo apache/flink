@@ -709,7 +709,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 </div>
 
-如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/user-guide/table/udfs/python_udfs.zh.md %}#标量函数scalarfunction)。
+如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#标量函数scalarfunction)。
 
 {% top %}
 
@@ -867,7 +867,7 @@ env.sqlQuery(
 
 如果你打算使用 Scala，不要把表值函数声明为 Scala `object`，Scala `object` 是单例对象，将导致并发问题。
 
-如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/user-guide/table/udfs/python_udfs.zh.md %}#表值函数)。
+如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#表值函数)。
 
 {% top %}
 

@@ -152,7 +152,7 @@ public class JdbcBatchingOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStat
 		try {
 			addToBatch(record, jdbcRecordExtractor.apply(record));
 			batchCount++;
-			if (batchCount >= executionOptions.getBatchSize()) {
+			if (executionOptions.getBatchSize() > 0 && batchCount >= executionOptions.getBatchSize()) {
 				flush();
 			}
 		} catch (Exception e) {

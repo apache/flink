@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
@@ -153,6 +154,30 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 				long t1 = createPodTimeFutures.get(0).get(TIMEOUT_SEC, TimeUnit.SECONDS);
 				long t2 = createPodTimeFutures.get(1).get(TIMEOUT_SEC, TimeUnit.SECONDS);
 				assertThat((t2 - t1), greaterThanOrEqualTo(POD_CREATION_INTERVAL.toMilliseconds()));
+			});
+		}};
+	}
+
+	@Test
+	public void testRecoverPreviousAttemptWorkersPodTerminated() throws Exception {
+		new Context() {{
+			final KubernetesPod previousAttemptPod = new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true);
+			final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
+			final CompletableFuture<Collection<KubernetesWorkerNode>> recoveredWorkersFuture = new CompletableFuture<>();
+
+			flinkKubeClientBuilder
+				.setGetPodsWithLabelsFunction((ignore) -> Collections.singletonList(previousAttemptPod))
+				.setStopPodFunction((podName) -> {
+					stopPodFuture.complete(podName);
+					return FutureUtils.completedVoidFuture();
+				});
+
+			resourceEventHandlerBuilder.setOnPreviousAttemptWorkersRecoveredConsumer(recoveredWorkersFuture::complete);
+
+			runTest(() -> {
+				// validate the terminated pod from previous attempt is not recovered and is removed
+				assertThat(recoveredWorkersFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), empty());
+				assertThat(stopPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS), is(previousAttemptPod.getName()));
 			});
 		}};
 	}

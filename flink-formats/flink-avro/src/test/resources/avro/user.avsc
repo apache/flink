@@ -1,6 +1,13 @@
 [
 {"namespace": "org.apache.flink.formats.avro.generated",
  "type": "record",
+ "name": "UnionLogicalType",
+ "fields": [
+     {"name": "nullableTimestamp", "type": [ "null", {"type": "long", "logicalType": "timestamp-millis"}]}
+  ]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
  "name": "Address",
  "fields": [
      {"name": "num", "type": "int"},
@@ -34,7 +41,7 @@
      {"name": "type_bytes", "type": "bytes"},
      {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},
      {"name": "type_time_millis", "type": {"type": "int", "logicalType": "time-millis"}},
-     {"name": "type_time_micros", "type": {"type": "int", "logicalType": "time-micros"}},
+     {"name": "type_time_micros", "type": {"type": "long", "logicalType": "time-micros"}},
      {"name": "type_timestamp_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
      {"name": "type_timestamp_micros", "type": {"type": "long", "logicalType": "timestamp-micros"}},
      {"name": "type_decimal_bytes", "type": {"type": "bytes", "logicalType": "decimal", "precision": 4, "scale": 2}},
@@ -102,7 +109,7 @@
 },
   {"namespace": "org.apache.flink.formats.avro.generated",
    "type": "record",
-   "name": "JodaTimeRecord",
+   "name": "LogicalTimeRecord",
    "fields": [
        {"name": "type_timestamp_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
        {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},

@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.BulkSlotProvider;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -29,14 +29,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class OneSlotPerExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
 
-	private final SlotProvider slotProvider;
+	private final BulkSlotProvider slotProvider;
 
 	private final boolean slotWillBeOccupiedIndefinitely;
 
 	private final Time allocationTimeout;
 
 	OneSlotPerExecutionSlotAllocatorFactory(
-			final SlotProvider slotProvider,
+			final BulkSlotProvider slotProvider,
 			final boolean slotWillBeOccupiedIndefinitely,
 			final Time allocationTimeout) {
 		this.slotProvider = checkNotNull(slotProvider);
@@ -45,10 +45,10 @@ class OneSlotPerExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorF
 	}
 
 	@Override
-	public ExecutionSlotAllocator createInstance(final PreferredLocationsRetriever preferredLocationsRetriever) {
+	public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
 		return new OneSlotPerExecutionSlotAllocator(
 			slotProvider,
-			preferredLocationsRetriever,
+			context::getPreferredLocations,
 			slotWillBeOccupiedIndefinitely,
 			allocationTimeout);
 	}

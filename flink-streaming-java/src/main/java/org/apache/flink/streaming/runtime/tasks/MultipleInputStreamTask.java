@@ -18,25 +18,37 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
-import java.util.ArrayList;
-import java.util.List;
+import javax.annotation.Nullable;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 /**
  * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting
@@ -44,39 +56,56 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputStreamOperator<OUT>> {
+	private static final int MAX_TRACKED_CHECKPOINTS = 100_000;
+
+	private final HashMap<Long, CompletableFuture<Boolean>> pendingCheckpointCompletedFutures = new HashMap<>();
+
+	@Nullable
+	private CheckpointBarrierHandler checkpointBarrierHandler;
+
 	public MultipleInputStreamTask(Environment env) throws Exception {
 		super(env);
 	}
 
+	@SuppressWarnings("rawtypes")
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		TypeSerializer<?>[] inputDeserializers = configuration.getTypeSerializersIn(userClassLoader);
+		InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
-		ArrayList<IndexedInputGate>[] inputLists = new ArrayList[inputDeserializers.length];
-		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputDeserializers.length];
+		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputs.length];
 
-		for (int i = 0; i < inputDeserializers.length; i++) {
-			inputLists[i] = new ArrayList<>();
+		for (int i = 0; i < inputs.length; i++) {
 			watermarkGauges[i] = new WatermarkGauge();
-			headOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
+			mainOperator.getMetricGroup().gauge(MetricNames.currentInputWatermarkName(i + 1), watermarkGauges[i]);
 		}
 
 		MinWatermarkGauge minInputWatermarkGauge = new MinWatermarkGauge(watermarkGauges);
-		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
+		mainOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge);
 
 		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
-		int numberOfInputs = configuration.getNumberOfInputs();
 
-		for (int i = 0; i < numberOfInputs; i++) {
+		// Those two number may differ for example when one of the inputs is a union. In that case
+		// the number of logical network inputs is smaller compared to the number of inputs (input gates)
+		int numberOfNetworkInputs = configuration.getNumberOfNetworkInputs();
+		int numberOfLogicalNetworkInputs = (int) Arrays.stream(inputs)
+			.filter(input -> (input instanceof StreamConfig.NetworkInputConfig))
+			.count();
+
+		ArrayList[] inputLists = new ArrayList[numberOfLogicalNetworkInputs];
+		for (int i = 0; i < inputLists.length; i++) {
+			inputLists[i] = new ArrayList<>();
+		}
+
+		for (int i = 0; i < numberOfNetworkInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();
 			IndexedInputGate reader = getEnvironment().getInputGate(i);
 			inputLists[inputType - 1].add(reader);
 		}
 
-		createInputProcessor(inputLists, inputDeserializers, watermarkGauges);
+		createInputProcessor(inputLists, inputs, watermarkGauges);
 
 		// wrap watermark gauge since registered metrics must be unique
 		getEnvironment().getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, minInputWatermarkGauge::getValue);
@@ -84,30 +113,116 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 
 	protected void createInputProcessor(
 			List<IndexedInputGate>[] inputGates,
-			TypeSerializer<?>[] inputDeserializers,
+			InputConfig[] inputs,
 			WatermarkGauge[] inputWatermarkGauges) {
 		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null,
-			inputGates.length);
+			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null,
+			inputs.length);
 
-		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
+		checkpointBarrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
 			this,
 			getConfiguration(),
 			getCheckpointCoordinator(),
-			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
-			inputGates);
-		checkState(checkpointedInputGates.length == inputGates.length);
+			inputGates,
+			operatorChain.getSourceTaskInputs());
+
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
+			mainMailboxExecutor,
+			inputGates,
+			getEnvironment().getMetricGroup().getIOMetricGroup(),
+			checkpointBarrierHandler);
 
 		inputProcessor = new StreamMultipleInputProcessor(
 			checkpointedInputGates,
-			inputDeserializers,
+			inputs,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMetricGroup().getIOMetricGroup(),
+			setupNumRecordsInCounter(mainOperator),
 			getStreamStatusMaintainer(),
-			headOperator,
+			mainOperator,
 			selectionHandler,
 			inputWatermarkGauges,
-			operatorChain,
-			setupNumRecordsInCounter(headOperator));
+			operatorChain);
+	}
+
+	@Override
+	public Future<Boolean> triggerCheckpointAsync(
+			CheckpointMetaData metadata,
+			CheckpointOptions options,
+			boolean advanceToEndOfEventTime) {
+
+		CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
+		mainMailboxExecutor.execute(
+			() -> {
+				try {
+					/**
+					 * Contrary to {@link SourceStreamTask}, we are not using here
+					 * {@link StreamTask#latestAsyncCheckpointStartDelayNanos} to measure the start delay
+					 * metric, but we will be using {@link CheckpointBarrierHandler#getCheckpointStartDelayNanos()}
+					 * instead.
+					 */
+					pendingCheckpointCompletedFutures.put(metadata.getCheckpointId(), resultFuture);
+					checkPendingCheckpointCompletedFuturesSize();
+					triggerSourcesCheckpoint(new CheckpointBarrier(metadata.getCheckpointId(), metadata.getTimestamp(), options));
+				}
+				catch (Exception ex) {
+					// Report the failure both via the Future result but also to the mailbox
+					pendingCheckpointCompletedFutures.remove(metadata.getCheckpointId());
+					resultFuture.completeExceptionally(ex);
+					throw ex;
+				}
+			},
+			"checkpoint %s with %s",
+			metadata,
+			options);
+		return resultFuture;
+	}
+
+	private void checkPendingCheckpointCompletedFuturesSize() {
+		if (pendingCheckpointCompletedFutures.size() > MAX_TRACKED_CHECKPOINTS) {
+			ArrayList<Long> pendingCheckpointIds = new ArrayList<>(pendingCheckpointCompletedFutures.keySet());
+			pendingCheckpointIds.sort(Long::compareTo);
+			for (Long checkpointId : pendingCheckpointIds.subList(0, pendingCheckpointIds.size() - MAX_TRACKED_CHECKPOINTS)) {
+				pendingCheckpointCompletedFutures.remove(checkpointId).completeExceptionally(new IllegalStateException("Too many pending checkpoints"));
+			}
+		}
+	}
+
+	private void triggerSourcesCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException {
+		for (StreamTaskSourceInput<?> sourceInput : operatorChain.getSourceTaskInputs()) {
+			for (InputChannelInfo channelInfo : sourceInput.getChannelInfos()) {
+				checkpointBarrierHandler.processBarrier(checkpointBarrier, channelInfo);
+			}
+		}
+	}
+
+	@Override
+	public void triggerCheckpointOnBarrier(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			CheckpointMetrics checkpointMetrics) throws IOException {
+		CompletableFuture<Boolean> resultFuture = pendingCheckpointCompletedFutures.remove(checkpointMetaData.getCheckpointId());
+		try {
+			super.triggerCheckpointOnBarrier(checkpointMetaData, checkpointOptions, checkpointMetrics);
+			if (resultFuture != null) {
+				resultFuture.complete(true);
+			}
+		}
+		catch (IOException ex) {
+			if (resultFuture != null) {
+				resultFuture.completeExceptionally(ex);
+			}
+			throw ex;
+		}
+	}
+
+	@Override
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
+		CompletableFuture<Boolean> resultFuture = pendingCheckpointCompletedFutures.remove(checkpointId);
+		if (resultFuture != null) {
+			resultFuture.completeExceptionally(cause);
+		}
+		super.abortCheckpointOnBarrier(checkpointId, cause);
 	}
 }

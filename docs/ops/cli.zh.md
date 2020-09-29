@@ -92,10 +92,6 @@ option.
         ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with flink log output disabled:
-
-            ./bin/flink run -q ./examples/batch/WordCount.jar
-
 -   Run example program in detached mode:
 
             ./bin/flink run -d ./examples/batch/WordCount.jar
@@ -122,11 +118,11 @@ option.
 
 <div data-lang="python" markdown="1">
 
-<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python的版本为3.5, 3.6 或者 3.7中的一个：
+<span class="label label-info">注意</span> 通过`flink run`提交Python任务时Flink会调用“python”命令。请执行以下命令以确认当前环境下的指令“python”指向Python的版本为3.5、3.6、3.7 或 3.8 中的一个：
 
 {% highlight bash %}
 $ python --version
-# the version printed here must be 3.5, 3.6 or 3.7
+# the version printed here must be 3.5, 3.6, 3.7 or 3.8
 {% endhighlight %}
 
 -   提交一个Python Table的作业:
@@ -377,8 +373,8 @@ Action "run" compiles and runs a program.
                                           UDF worker (e.g.: --pyExecutable
                                           /usr/local/bin/python3). The python
                                           UDF worker depends on a specified Python
-                                          version 3.5, 3.6 or 3.7, Apache Beam
-                                          (version == 2.19.0), Pip (version >= 7.1.0)
+                                          version 3.5, 3.6 3.7 or 3.8, Apache Beam
+                                          (version == 2.23.0), Pip (version >= 7.1.0)
                                           and SetupTools (version >= 37.0.0).
                                           Please ensure that the specified environment
                                           meets the above requirements.

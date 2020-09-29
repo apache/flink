@@ -103,9 +103,11 @@ public class JobVertex implements java.io.Serializable {
 	private String name;
 
 	/** Optionally, a sharing group that allows subtasks from different job vertices to run concurrently in one slot. */
+	@Nullable
 	private SlotSharingGroup slotSharingGroup;
 
 	/** The group inside which the vertex subtasks share slots. */
+	@Nullable
 	private CoLocationGroup coLocationGroup;
 
 	/** Optional, the name of the operator, such as 'Flat Map' or 'Join', to be included in the JSON plan. */
@@ -363,25 +365,29 @@ public class JobVertex implements java.io.Serializable {
 	 * @param grp The slot sharing group to associate the vertex with.
 	 */
 	public void setSlotSharingGroup(SlotSharingGroup grp) {
+		checkNotNull(grp);
+
 		if (this.slotSharingGroup != null) {
 			this.slotSharingGroup.removeVertexFromGroup(this.getID(), this.getMinResources());
 		}
 
+		grp.addVertexToGroup(this.getID(), this.getMinResources());
 		this.slotSharingGroup = grp;
-		if (grp != null) {
-			grp.addVertexToGroup(this.getID(), this.getMinResources());
-		}
 	}
 
 	/**
 	 * Gets the slot sharing group that this vertex is associated with. Different vertices in the same
-	 * slot sharing group can run one subtask each in the same slot. If the vertex is not associated with
-	 * a slot sharing group, this method returns {@code null}.
+	 * slot sharing group can run one subtask each in the same slot.
 	 *
-	 * @return The slot sharing group to associate the vertex with, or {@code null}, if not associated with one.
+	 * @return The slot sharing group to associate the vertex with
 	 */
-	@Nullable
 	public SlotSharingGroup getSlotSharingGroup() {
+		if (slotSharingGroup == null) {
+			// create a new slot sharing group for this vertex if it was in no other slot sharing group.
+			// this should only happen in testing cases at the moment because production code path will
+			// always set a value to it before used
+			setSlotSharingGroup(new SlotSharingGroup());
+		}
 		return slotSharingGroup;
 	}
 
@@ -433,6 +439,7 @@ public class JobVertex implements java.io.Serializable {
 		}
 	}
 
+	@Nullable
 	public CoLocationGroup getCoLocationGroup() {
 		return coLocationGroup;
 	}

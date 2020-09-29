@@ -23,28 +23,38 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.core.io.InputStatus;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A mock {@link SourceReader} for unit tests.
  */
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
-	private final AtomicReference<CompletableFuture<Void>> availableRef;
-	private List<MockSourceSplit> assignedSplits;
-	private List<SourceEvent> receivedSourceEvents;
+	private final List<MockSourceSplit> assignedSplits = new ArrayList<>();
+	private final List<SourceEvent> receivedSourceEvents = new ArrayList<>();
+	private final boolean markIdleOnNoSplits;
+
 	private int currentSplitIndex = 0;
 	private boolean started;
 	private boolean closed;
+	private boolean waitingForMoreSplits;
+
+	@GuardedBy("this")
+	private CompletableFuture<Void> availableFuture;
 
 	public MockSourceReader() {
-		this.assignedSplits = new ArrayList<>();
-		this.receivedSourceEvents = new ArrayList<>();
+		this(false, false);
+	}
+
+	public MockSourceReader(boolean waitingForMoreSplits, boolean markIdleOnNoSplits) {
 		this.started = false;
 		this.closed = false;
-		this.availableRef = new AtomicReference<>();
+		this.availableFuture = CompletableFuture.completedFuture(null);
+		this.waitingForMoreSplits = waitingForMoreSplits;
+		this.markIdleOnNoSplits = markIdleOnNoSplits;
 	}
 
 	@Override
@@ -54,7 +64,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	@Override
 	public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
-		boolean finished = true;
+		boolean finished = !waitingForMoreSplits;
 		currentSplitIndex = 0;
 		// Find first splits with available records.
 		while (currentSplitIndex < assignedSplits.size()
@@ -66,9 +76,16 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		if (currentSplitIndex < assignedSplits.size()) {
 			sourceOutput.collect(assignedSplits.get(currentSplitIndex).getNext(false)[0]);
 			return InputStatus.MORE_AVAILABLE;
-		} else {
+		} else if (finished) {
 			// In case no split has available record, return depending on whether all the splits has finished.
-			return finished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
+			return InputStatus.END_OF_INPUT;
+		}
+		else {
+			if (markIdleOnNoSplits) {
+				sourceOutput.markIdle();
+			}
+			markUnavailable();
+			return InputStatus.NOTHING_AVAILABLE;
 		}
 	}
 
@@ -78,23 +95,22 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	}
 
 	@Override
-	public CompletableFuture<Void> isAvailable() {
-		if (currentSplitIndex >= assignedSplits.size()) {
-			CompletableFuture<Void> future = new CompletableFuture<>();
-			availableRef.compareAndSet(null, future);
-			return availableRef.get();
-		} else {
-			return CompletableFuture.completedFuture(null);
-		}
+	public synchronized CompletableFuture<Void> isAvailable() {
+		return availableFuture;
 	}
 
 	@Override
 	public void addSplits(List<MockSourceSplit> splits) {
 		assignedSplits.addAll(splits);
+		markAvailable();
 	}
 
 	@Override
 	public void handleSourceEvents(SourceEvent sourceEvent) {
+		if (sourceEvent instanceof MockNoMoreSplitsEvent) {
+			waitingForMoreSplits = false;
+			markAvailable();
+		}
 		receivedSourceEvents.add(sourceEvent);
 	}
 
@@ -103,13 +119,23 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		this.closed = true;
 	}
 
+	private synchronized void markUnavailable() {
+		if (availableFuture.isDone()) {
+			availableFuture = new CompletableFuture<>();
+		}
+	}
+
 	// --------------- methods for unit tests ---------------
 
 	public void markAvailable() {
-		CompletableFuture<Void> future = availableRef.get();
-		if (future != null) {
-			future.complete(null);
-			availableRef.set(null);
+		CompletableFuture<?> toNotify = null;
+		synchronized (this) {
+			if (!availableFuture.isDone()) {
+				toNotify =  availableFuture;
+			}
+		}
+		if (toNotify != null) {
+			toNotify.complete(null);
 		}
 	}
 
@@ -127,5 +153,11 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
 	public List<SourceEvent> getReceivedSourceEvents() {
 		return receivedSourceEvents;
+	}
+
+	/**
+	 * Simple event allowing {@link MockSourceReader} to finish when requested.
+	 */
+	public static class MockNoMoreSplitsEvent implements SourceEvent {
 	}
 }

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
@@ -159,10 +158,12 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			if (bufferOrEvent.isPresent()) {
 				// return to the mailbox after receiving a checkpoint barrier to avoid processing of
 				// data after the barrier before checkpoint is performed for unaligned checkpoint mode
-				if (bufferOrEvent.get().isEvent() && bufferOrEvent.get().getEvent() instanceof CheckpointBarrier) {
+				if (bufferOrEvent.get().isBuffer()) {
+					processBuffer(bufferOrEvent.get());
+				} else {
+					processEvent(bufferOrEvent.get());
 					return InputStatus.MORE_AVAILABLE;
 				}
-				processBufferOrEvent(bufferOrEvent.get());
 			} else {
 				if (checkpointedInputGate.isFinished()) {
 					checkState(checkpointedInputGate.getAvailableFuture().isDone(), "Finished BarrierHandler should be available");
@@ -187,28 +188,25 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		}
 	}
 
-	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws IOException {
-		if (bufferOrEvent.isBuffer()) {
-			lastChannel = channelIndexes.get(bufferOrEvent.getChannelInfo());
-			checkState(lastChannel != StreamTaskInput.UNSPECIFIED);
-			currentRecordDeserializer = recordDeserializers[lastChannel];
-			checkState(currentRecordDeserializer != null,
-				"currentRecordDeserializer has already been released");
-
-			currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-		}
-		else {
-			// Event received
-			final AbstractEvent event = bufferOrEvent.getEvent();
-			// TODO: with checkpointedInputGate.isFinished() we might not need to support any events on this level.
-			if (event.getClass() != EndOfPartitionEvent.class) {
-				throw new IOException("Unexpected event: " + event);
-			}
-
+	private void processEvent(BufferOrEvent bufferOrEvent) {
+		// Event received
+		final AbstractEvent event = bufferOrEvent.getEvent();
+		// TODO: with checkpointedInputGate.isFinished() we might not need to support any events on this level.
+		if (event.getClass() == EndOfPartitionEvent.class) {
 			// release the record deserializer immediately,
 			// which is very valuable in case of bounded stream
 			releaseDeserializer(channelIndexes.get(bufferOrEvent.getChannelInfo()));
 		}
+	}
+
+	private void processBuffer(BufferOrEvent bufferOrEvent) throws IOException {
+		lastChannel = channelIndexes.get(bufferOrEvent.getChannelInfo());
+		checkState(lastChannel != StreamTaskInput.UNSPECIFIED);
+		currentRecordDeserializer = recordDeserializers[lastChannel];
+		checkState(currentRecordDeserializer != null,
+			"currentRecordDeserializer has already been released");
+
+		currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
 	}
 
 	@Override
@@ -229,19 +227,16 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			ChannelStateWriter channelStateWriter,
 			long checkpointId) throws IOException {
 		for (int channelIndex = 0; channelIndex < recordDeserializers.length; channelIndex++) {
-			final InputChannel channel = checkpointedInputGate.getChannel(channelIndex);
-
-			// Assumption for retrieving buffers = one concurrent checkpoint
 			RecordDeserializer<?> deserializer = recordDeserializers[channelIndex];
 			if (deserializer != null) {
+				final InputChannel channel = checkpointedInputGate.getChannel(channelIndex);
+
 				channelStateWriter.addInputData(
 					checkpointId,
 					channel.getChannelInfo(),
 					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
 					deserializer.getUnconsumedBuffer());
 			}
-
-			checkpointedInputGate.spillInflightBuffers(checkpointId, channelIndex, channelStateWriter);
 		}
 		return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);
 	}

@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from py4j.java_gateway import get_method
+
 from pyflink.common.job_client import JobClient
+from pyflink.java_gateway import get_gateway
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.table_schema import TableSchema
 
@@ -47,6 +50,24 @@ class TableResult(object):
             return JobClient(job_client.get())
         else:
             return None
+
+    def wait(self, timeout_ms=None):
+        """
+        Wait if necessary for at most the given time (milliseconds) for the data to be ready.
+
+        For a select operation, this method will wait until the first row can be accessed locally.
+        For an insert operation, this method will wait for the job to finish,
+        because the result contains only one row.
+        For other operations, this method will return immediately,
+        because the result is already available locally.
+
+        .. versionadded:: 1.12.0
+        """
+        if timeout_ms:
+            TimeUnit = get_gateway().jvm.java.util.concurrent.TimeUnit
+            get_method(self._j_table_result, "await")(timeout_ms, TimeUnit.MILLISECONDS)
+        else:
+            get_method(self._j_table_result, "await")()
 
     def get_table_schema(self):
         """

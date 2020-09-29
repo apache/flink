@@ -23,7 +23,6 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 
 import org.slf4j.Logger;
@@ -32,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,7 +64,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	private final AtomicReference<Throwable> uncaughtFetcherException;
 
 	/** The element queue that the split fetchers will put elements into. */
-	private final BlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
+	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 
 	/** A map keeping track of all the split fetchers. */
 	protected final Map<Integer, SplitFetcher<E, SplitT>> fetchers;
@@ -80,12 +78,10 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 	/**
 	 * Create a split fetcher manager.
 	 *
-	 * @param futureNotifier a notifier to notify the complete of a future.
 	 * @param elementsQueue the queue that split readers will put elements into.
 	 * @param splitReaderFactory a supplier that could be used to create split readers.
 	 */
 	public SplitFetcherManager(
-			FutureNotifier futureNotifier,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			Supplier<SplitReader<E, SplitT>> splitReaderFactory) {
 		this.elementsQueue = elementsQueue;
@@ -96,9 +92,9 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 				if (!uncaughtFetcherException.compareAndSet(null, t)) {
 					// Add the exception to the exception list.
 					uncaughtFetcherException.get().addSuppressed(t);
-					// Wake up the main thread to let it know the exception.
-					futureNotifier.notifyComplete();
 				}
+				// Wake up the main thread to let it know the exception.
+				elementsQueue.notifyAvailable();
 			}
 		};
 		this.splitReaderFactory = splitReaderFactory;
@@ -108,7 +104,8 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
 
 		// Create the executor with a thread factory that fails the source reader if one of
 		// the fetcher thread exits abnormally.
-		this.executors = Executors.newCachedThreadPool(r -> new Thread(r, "SourceFetcher"));
+		final String taskThreadName = Thread.currentThread().getName();
+		this.executors = Executors.newCachedThreadPool(r -> new Thread(r, "Source Data Fetcher for " + taskThreadName));
 		this.closed = false;
 	}
 

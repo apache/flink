@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Implementation of the {@link BlockLocation} interface for the
  * Hadoop Distributed File System.
@@ -57,19 +59,16 @@ public final class HadoopBlockLocation implements BlockLocation {
 	 *        the original HDFS block location
 	 */
 	public HadoopBlockLocation(final org.apache.hadoop.fs.BlockLocation blockLocation) {
-
-		this.blockLocation = blockLocation;
+		this.blockLocation = checkNotNull(blockLocation, "blockLocation");
 	}
 
 	@Override
 	public String[] getHosts() throws IOException {
 
-		/**
-		 * Unfortunately, the Hadoop API is not precise about if the list returned by BlockLocation.getHosts() contains
-		 * the hostnames with their respective domain suffix or not (FQDN or not). We have witnessed both versions,
-		 * depending on the cluster's network configuration. As a workaround, we therefore strip every hostname to make
-		 * sure it does not contain the domain suffix.
-		 */
+		// Unfortunately, the Hadoop API is not precise about if the list returned by BlockLocation.getHosts() contains
+		// the hostnames with their respective domain suffix or not (FQDN or not). We have witnessed both versions,
+		//depending on the cluster's network configuration. As a workaround, we therefore strip every hostname to make
+		//sure it does not contain the domain suffix.
 		if (this.hostnames == null) {
 
 			final String[] hadoopHostnames = blockLocation.getHosts();
@@ -82,6 +81,26 @@ public final class HadoopBlockLocation implements BlockLocation {
 
 		return this.hostnames;
 	}
+
+	@Override
+	public long getLength() {
+		return this.blockLocation.getLength();
+	}
+
+	@Override
+	public long getOffset() {
+		return this.blockLocation.getOffset();
+	}
+
+	@Override
+	public int compareTo(final BlockLocation o) {
+		final long diff = getOffset() - o.getOffset();
+		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+	}
+
+	// ------------------------------------------------------------------------
+	//  utilities
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Looks for a domain suffix in a FQDN and strips it if present.
@@ -109,25 +128,5 @@ public final class HadoopBlockLocation implements BlockLocation {
 		}
 
 		return originalHostname.substring(0, index);
-	}
-
-	@Override
-	public long getLength() {
-
-		return this.blockLocation.getLength();
-	}
-
-	@Override
-	public long getOffset() {
-
-		return this.blockLocation.getOffset();
-	}
-
-	@Override
-	public int compareTo(final BlockLocation o) {
-
-		final long diff = getOffset() - o.getOffset();
-
-		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
 }

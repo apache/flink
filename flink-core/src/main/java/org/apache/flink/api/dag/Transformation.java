@@ -24,11 +24,18 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -98,8 +105,6 @@ public abstract class Transformation<T> {
 	// Has to be equal to StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
 	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
 
-	public static final int DEFAULT_MANAGED_MEMORY_WEIGHT = 1;
-
 	// This is used to assign a unique ID to every Transformation
 	protected static Integer idCounter = 0;
 
@@ -139,12 +144,17 @@ public abstract class Transformation<T> {
 	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	/**
-	 * This weight indicates how much this transformation relies on managed memory, so that
-	 * transformation highly relies on managed memory would be able to acquire more managed
-	 * memory in runtime (linear association). Note that it only works in cases of UNKNOWN
-	 * resources.
+	 * Each entry in this map represents a operator scope use case that this transformation needs managed memory for.
+	 * The keys indicate the use cases, while the values are the use-case-specific weights for this transformation.
+	 * Managed memory reserved for a use case will be shared by all the declaring transformations within a slot
+	 * according to this weight.
 	 */
-	private int managedMemoryWeight = DEFAULT_MANAGED_MEMORY_WEIGHT;
+	private final Map<ManagedMemoryUseCase, Integer> managedMemoryOperatorScopeUseCaseWeights = new HashMap<>();
+
+	/**
+	 * Slot scope use cases that this transformation needs managed memory for.
+	 */
+	private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
 
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
@@ -242,7 +252,7 @@ public abstract class Transformation<T> {
 	 * @param preferredResources The preferred resource of this transformation.
 	 */
 	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-		OperatorValidationUtils.validateResourceRequirements(minResources, preferredResources, managedMemoryWeight);
+		OperatorValidationUtils.validateMinAndPreferredResources(minResources, preferredResources);
 		this.minResources = checkNotNull(minResources);
 		this.preferredResources = checkNotNull(preferredResources);
 	}
@@ -266,31 +276,46 @@ public abstract class Transformation<T> {
 	}
 
 	/**
-	 * Set the managed memory weight which indicates how much this transformation relies
-	 * on managed memory, so that a transformation highly relies on managed memory would
-	 * be able to acquire more managed memory in runtime (linear association). The default
-	 * weight value is 1. Note that currently it's only allowed to set the weight in cases
-	 * of UNKNOWN resources.
-	 *
-	 * @param managedMemoryWeight The managed memory weight of this transformation
-	 *
-	 * @throws IllegalArgumentException Thrown, if non-UNKNOWN resources are already set to this transformation
+	 * Declares that this transformation contains certain operator scope managed memory use case.
+	 * @param managedMemoryUseCase The use case that this transformation declares needing managed memory for.
+	 * @param weight Use-case-specific weights for this transformation. Used for sharing managed memory across
+	 *                 transformations for OPERATOR scope use cases.
+	 * @return The previous weight, if exist.
 	 */
-	public void setManagedMemoryWeight(int managedMemoryWeight) {
-		OperatorValidationUtils.validateResourceRequirements(minResources, preferredResources, managedMemoryWeight);
-		this.managedMemoryWeight = managedMemoryWeight;
+	public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase managedMemoryUseCase, int weight) {
+		Preconditions.checkNotNull(managedMemoryUseCase);
+		Preconditions.checkArgument(managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.OPERATOR,
+			"Use case is not operator scope.");
+		Preconditions.checkArgument(weight > 0,
+			"Weights for operator scope use cases must be greater than 0.");
+
+		return Optional.ofNullable(managedMemoryOperatorScopeUseCaseWeights.put(managedMemoryUseCase, weight));
 	}
 
 	/**
-	 * Get the managed memory weight which indicates how much this transformation relies
-	 * on managed memory, so that a transformation highly relies on managed memory would
-	 * be able to acquire more managed memory in runtime (linear association). The default
-	 * weight value is 1. Note that it only works in cases of UNKNOWN resources.
-	 *
-	 * @return The managed memory weight of this transformation
+	 * Declares that this transformation contains certain slot scope managed memory use case.
+	 * @param managedMemoryUseCase The use case that this transformation declares needing managed memory for.
 	 */
-	public int getManagedMemoryWeight() {
-		return managedMemoryWeight;
+	public void declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase managedMemoryUseCase) {
+		Preconditions.checkNotNull(managedMemoryUseCase);
+		Preconditions.checkArgument(managedMemoryUseCase.scope == ManagedMemoryUseCase.Scope.SLOT);
+
+		managedMemorySlotScopeUseCases.add(managedMemoryUseCase);
+	}
+
+	/**
+	 * Get operator scope use cases that this transformation needs managed memory for, and the use-case-specific weights
+	 * for this transformation. The weights are used for sharing managed memory across transformations for the use cases.
+	 */
+	public Map<ManagedMemoryUseCase, Integer> getManagedMemoryOperatorScopeUseCaseWeights() {
+		return Collections.unmodifiableMap(managedMemoryOperatorScopeUseCaseWeights);
+	}
+
+	/**
+	 * Get slot scope use cases that this transformation needs managed memory for.
+	 */
+	public Set<ManagedMemoryUseCase> getManagedMemorySlotScopeUseCases() {
+		return Collections.unmodifiableSet(managedMemorySlotScopeUseCases);
 	}
 
 	/**

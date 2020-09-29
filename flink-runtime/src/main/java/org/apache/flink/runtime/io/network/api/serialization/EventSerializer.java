@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.getDataType;
+
 /**
  * Utility class to serialize and deserialize task events.
  */
@@ -291,23 +293,23 @@ public class EventSerializer {
 	// Buffer helpers
 	// ------------------------------------------------------------------------
 
-	public static Buffer toBuffer(AbstractEvent event) throws IOException {
+	public static Buffer toBuffer(AbstractEvent event, boolean hasPriority) throws IOException {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
 		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
 
-		final Buffer buffer = new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, Buffer.DataType.getDataType(event));
+		final Buffer buffer = new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority));
 		buffer.setSize(serializedEvent.remaining());
 
 		return buffer;
 	}
 
-	public static BufferConsumer toBufferConsumer(AbstractEvent event) throws IOException {
+	public static BufferConsumer toBufferConsumer(AbstractEvent event, boolean hasPriority) throws IOException {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
 		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
 
-		return new BufferConsumer(data, FreeingBufferRecycler.INSTANCE, Buffer.DataType.getDataType(event));
+		return new BufferConsumer(data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority));
 	}
 
 	public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader) throws IOException {

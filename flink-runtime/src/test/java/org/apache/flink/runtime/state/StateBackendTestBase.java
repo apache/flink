@@ -24,12 +24,9 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -48,6 +45,7 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -96,11 +94,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.Random;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
@@ -119,6 +119,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.isOneOf;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.both;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -298,6 +302,49 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				}
 
 				assertFalse(actualIterator.hasNext());
+			}
+		}
+		finally {
+			IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testGetKeysAndNamespaces() throws Exception {
+		final int elementsNum = 1000;
+		String fieldName = "get-keys-test";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			final String ns1 = "ns1";
+			ValueState<Integer> keyedState1 = backend.getPartitionedState(
+				ns1,
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
+			);
+
+			final String ns2 = "ns2";
+			ValueState<Integer> keyedState2 = backend.getPartitionedState(
+				ns2,
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE)
+			);
+
+			for (int key = 0; key < elementsNum; key++) {
+				backend.setCurrentKey(key);
+				keyedState1.update(key * 2);
+				keyedState2.update(key * 2);
+			}
+
+			try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
+				final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
+				stream.forEach(entry -> {
+					assertThat("Unexpected namespace", entry.f1, isOneOf(ns1, ns2));
+					assertThat("Unexpected key", entry.f0, is(both(greaterThanOrEqualTo(0)).and(lessThan(elementsNum))));
+
+					Set<Integer> keys = keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
+					assertTrue("Duplicate key for namespace", keys.add(entry.f0));
+				});
 			}
 		}
 		finally {
@@ -2396,110 +2443,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	@Test
 	@SuppressWarnings("unchecked,rawtypes")
-	public void testFoldingState() throws Exception {
-		CheckpointStreamFactory streamFactory = createStreamFactory();
-		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-
-		FoldingStateDescriptor<Integer, String> kvId = new FoldingStateDescriptor<>("id",
-				"Fold-Initial:",
-				new AppendingFold(),
-				String.class);
-
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-
-		FoldingState<Integer, String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-		@SuppressWarnings("unchecked")
-		InternalKvState<Integer, VoidNamespace, String> kvState = (InternalKvState<Integer, VoidNamespace, String>) state;
-
-		// this is only available after the backend initialized the serializer
-		TypeSerializer<String> valueSerializer = kvId.getSerializer();
-
-		// some modifications to the state
-		backend.setCurrentKey(1);
-		assertNull(state.get());
-		assertNull(getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		state.add(1);
-		backend.setCurrentKey(2);
-		assertNull(state.get());
-		assertNull(getSerializedValue(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		state.add(2);
-		backend.setCurrentKey(1);
-		assertEquals("Fold-Initial:,1", state.get());
-		assertEquals("Fold-Initial:,1", getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-
-		// draw a snapshot
-		KeyedStateHandle snapshot1 = runSnapshot(
-			backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-			sharedStateRegistry);
-
-		// make some more modifications
-		backend.setCurrentKey(1);
-		state.clear();
-		state.add(101);
-		backend.setCurrentKey(2);
-		state.add(102);
-		backend.setCurrentKey(3);
-		state.add(103);
-
-		// draw another snapshot
-		KeyedStateHandle snapshot2 = runSnapshot(
-			backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation()),
-			sharedStateRegistry);
-
-		// validate the original state
-		backend.setCurrentKey(1);
-		assertEquals("Fold-Initial:,101", state.get());
-		assertEquals("Fold-Initial:,101", getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		backend.setCurrentKey(2);
-		assertEquals("Fold-Initial:,2,102", state.get());
-		assertEquals("Fold-Initial:,2,102", getSerializedValue(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		backend.setCurrentKey(3);
-		assertEquals("Fold-Initial:,103", state.get());
-		assertEquals("Fold-Initial:,103", getSerializedValue(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-
-		backend.dispose();
-		// restore the first snapshot and validate it
-		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
-		snapshot1.discardState();
-
-		FoldingState<Integer, String> restored1 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-		@SuppressWarnings("unchecked")
-		InternalKvState<Integer, VoidNamespace, String> restoredKvState1 = (InternalKvState<Integer, VoidNamespace, String>) restored1;
-
-		backend.setCurrentKey(1);
-		assertEquals("Fold-Initial:,1", restored1.get());
-		assertEquals("Fold-Initial:,1", getSerializedValue(restoredKvState1, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		backend.setCurrentKey(2);
-		assertEquals("Fold-Initial:,2", restored1.get());
-		assertEquals("Fold-Initial:,2", getSerializedValue(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-
-		backend.dispose();
-		// restore the second snapshot and validate it
-		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
-		snapshot1.discardState();
-
-		@SuppressWarnings("unchecked")
-		FoldingState<Integer, String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-		@SuppressWarnings("unchecked")
-		InternalKvState<Integer, VoidNamespace, String> restoredKvState2 = (InternalKvState<Integer, VoidNamespace, String>) restored2;
-
-		backend.setCurrentKey(1);
-		assertEquals("Fold-Initial:,101", restored2.get());
-		assertEquals("Fold-Initial:,101", getSerializedValue(restoredKvState2, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		backend.setCurrentKey(2);
-		assertEquals("Fold-Initial:,2,102", restored2.get());
-		assertEquals("Fold-Initial:,2,102", getSerializedValue(restoredKvState2, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		backend.setCurrentKey(3);
-		assertEquals("Fold-Initial:,103", restored2.get());
-		assertEquals("Fold-Initial:,103", getSerializedValue(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-
-		backend.dispose();
-	}
-
-	@Test
-	@SuppressWarnings("unchecked,rawtypes")
 	public void testMapState() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
@@ -2807,34 +2750,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		backend.dispose();
 	}
-
-	/**
-	 * Verify that an empty {@code FoldingState} yields {@code null}.
-	 */
-	@Test
-	public void testFoldingStateDefaultValue() throws Exception {
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-
-		FoldingStateDescriptor<Integer, String> kvId =
-				new FoldingStateDescriptor<>("id", "Fold-Initial:", new AppendingFold(), String.class);
-
-		FoldingState<Integer, String> state = backend.getPartitionedState(
-				VoidNamespace.INSTANCE,
-				VoidNamespaceSerializer.INSTANCE, kvId);
-
-		backend.setCurrentKey(1);
-		assertNull(state.get());
-
-		state.add(1);
-		state.add(2);
-		assertEquals("Fold-Initial:,1,2", state.get());
-
-		state.clear();
-		assertNull(state.get());
-
-		backend.dispose();
-	}
-
 
 	/**
 	 * Verify that an empty {@code ListState} yields {@code null}.
@@ -3460,33 +3375,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		{
-			// FoldingState
-			FoldingStateDescriptor<Integer, Integer> desc = new FoldingStateDescriptor<>(
-					"folding-state", 0, new FoldFunction<Integer, Integer>() {
-				@Override
-				public Integer fold(Integer accumulator, Integer value) throws Exception {
-					return accumulator + value;
-				}
-			}, Integer.class);
-			desc.setQueryable("my-query");
-
-			FoldingState<Integer, Integer> state = backend.getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					desc);
-
-			InternalKvState<Integer, VoidNamespace, Integer> kvState = (InternalKvState<Integer, VoidNamespace, Integer>) state;
-			assertTrue(kvState instanceof AbstractHeapState);
-
-			kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
-			backend.setCurrentKey(1);
-			state.add(121818273);
-
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
-			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
-		}
-
-		{
 			// MapState
 			MapStateDescriptor<Integer, String> desc = new MapStateDescriptor<>("map-state", Integer.class, String.class);
 			desc.setQueryable("my-query");
@@ -3963,15 +3851,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		} finally {
 			backend.dispose();
-		}
-	}
-
-	private static class AppendingFold implements FoldFunction<Integer, String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public String fold(String acc, Integer value) throws Exception {
-			return acc + "," + value;
 		}
 	}
 

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -54,6 +55,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
@@ -201,6 +203,33 @@ public class MiniDispatcherTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testShutdownIfJobCancelledInNormalMode() throws Exception {
+		final MiniDispatcher miniDispatcher = createMiniDispatcher(ClusterEntrypoint.ExecutionMode.NORMAL);
+		miniDispatcher.start();
+
+		try {
+			// wait until we have submitted the job
+			final TestingJobManagerRunner testingJobManagerRunner = testingJobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+			assertFalse(miniDispatcher.getTerminationFuture().isDone());
+
+			final DispatcherGateway dispatcherGateway = miniDispatcher.getSelfGateway(DispatcherGateway.class);
+
+			dispatcherGateway.cancelJob(jobGraph.getJobID(), Time.seconds(10L));
+			testingJobManagerRunner.completeResultFuture(new ArchivedExecutionGraphBuilder()
+				.setJobID(jobGraph.getJobID())
+				.setState(JobStatus.CANCELED)
+				.build());
+
+			ApplicationStatus applicationStatus = miniDispatcher.getShutDownFuture().get();
+			assertThat(applicationStatus, is(ApplicationStatus.CANCELED));
+		}
+		finally {
+			RpcUtils.terminateRpcEndpoint(miniDispatcher, timeout);
+		}
+	}
+
 	// --------------------------------------------------------
 	// Utilities
 	// --------------------------------------------------------
@@ -222,7 +251,8 @@ public class MiniDispatcherTest extends TestLogger {
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
-				testingJobManagerRunnerFactory),
+				testingJobManagerRunnerFactory,
+				ForkJoinPool.commonPool()),
 			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}

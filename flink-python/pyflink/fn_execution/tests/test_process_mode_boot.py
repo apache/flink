@@ -101,18 +101,7 @@ class PythonBootTests(PyFlinkTestCase):
 
         args = [self.runner_path, "--id", "1"]
         exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
-        self.assertIn("No logging endpoint provided.", exit_message)
-
-        args = [self.runner_path, "--id", "1",
-                "--logging_endpoint", "localhost:0000"]
-        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
         self.assertIn("No provision endpoint provided.", exit_message)
-
-        args = [self.runner_path, "--id", "1",
-                "--logging_endpoint", "localhost:0000",
-                "--provision_endpoint", "localhost:%d" % self.provision_port]
-        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
-        self.assertIn("No control endpoint provided.", exit_message)
 
     def test_set_working_directory(self):
         JProcessPythonEnvironmentManager = \

@@ -34,6 +34,7 @@ under the License.
 	<name>Flink : Connectors : Kinesis</name>
 	<properties>
 		<aws.sdk.version>1.11.754</aws.sdk.version>
+		<aws.sdkv2.version>2.13.52</aws.sdkv2.version>
 		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.0</aws.dynamodbstreams-kinesis-adapter.version>
@@ -102,6 +103,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Amazon AWS SDK v1.x dependencies -->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-kinesis</artifactId>
@@ -161,6 +163,30 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- Amazon AWS SDK v2.x dependencies -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>kinesis</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>netty-nio-client</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<dependencyManagement>
@@ -211,6 +237,12 @@ under the License.
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
+									<include>software.amazon.awssdk:*</include>
+									<include>software.amazon.eventstream:*</include>
+									<include>software.amazon.ion:*</include>
+									<include>org.reactivestreams:*</include>
+									<include>io.netty:*</include>
+									<include>com.typesafe.netty:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -228,12 +260,34 @@ under the License.
 									<pattern>org.apache.http</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>software.amazon</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.software.amazon</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.typesafe.netty</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.com.typesafe.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.reactivestreams</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.reactivestreams</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
 									<artifact>com.amazonaws:amazon-kinesis-producer</artifact>
 									<excludes>
 										<exclude>META-INF/THIRD_PARTY_NOTICES</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>software.amazon.awssdk:*</artifact>
+									<excludes>
+										<exclude>META-INF/services/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

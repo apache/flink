@@ -60,6 +60,8 @@ import java.io.Serializable;
 import java.util.Locale;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class
  * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class).
@@ -157,9 +159,6 @@ public abstract class AbstractStreamOperator<OUT>
 		try {
 			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
 			this.output = new CountingOutput<>(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
-			if (config.isChainStart()) {
-				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
-			}
 			if (config.isChainEnd()) {
 				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
 			}
@@ -556,11 +555,13 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 		@SuppressWarnings("unchecked")
 		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
+		KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+		checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
 		return keyedTimeServiceHandler.getInternalTimerService(
 			name,
+			keyedStateBackend.getKeySerializer(),
 			namespaceSerializer,
-			triggerable,
-			stateHandler.getKeyedStateBackend());
+			triggerable);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
@@ -591,16 +592,6 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public OperatorID getOperatorID() {
 		return config.getOperatorID();
-	}
-
-	@VisibleForTesting
-	public int numProcessingTimeTimers() {
-		return timeServiceManager == null ? 0 : timeServiceManager.numProcessingTimeTimers();
-	}
-
-	@VisibleForTesting
-	public int numEventTimeTimers() {
-		return timeServiceManager == null ? 0 : timeServiceManager.numEventTimeTimers();
 	}
 
 	protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {

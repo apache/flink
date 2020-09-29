@@ -37,7 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -63,6 +63,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -167,10 +168,10 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 				stateBackend = fsstateBackend;
 				break;
 			case ROCKSDB_FULLY_ASYNC:
-				stateBackend = new RocksDBStateBackend(fsstateBackend, false);
+				stateBackend = new RocksDBStateBackend(fsstateBackend, TernaryBoolean.FALSE);
 				break;
 			case ROCKSDB_INCREMENTAL:
-				stateBackend = new RocksDBStateBackend(fsstateBackend, true);
+				stateBackend = new RocksDBStateBackend(fsstateBackend, TernaryBoolean.TRUE);
 				break;
 			default:
 				throw new IllegalStateException(String.format("Do not support statebackend type %s", stateBackendEnum));
@@ -236,17 +237,21 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 				StateBackend stateBackend,
 				TtlTimeProvider ttlTimeProvider) {
 
-				return new StreamTaskStateInitializerImpl(env, stateBackend) {
-					@Override
-					protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-						AbstractKeyedStateBackend<K> keyedStatedBackend,
-						KeyContext keyContext,
-						ProcessingTimeService processingTimeService,
-						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-
-						return null;
-					}
-				};
+				return new StreamTaskStateInitializerImpl(
+						env,
+						stateBackend,
+						ttlTimeProvider,
+						new InternalTimeServiceManager.Provider() {
+							@Override
+							public <K> InternalTimeServiceManager<K> create(
+								CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+								ClassLoader userClassloader,
+								KeyContext keyContext,
+								ProcessingTimeService processingTimeService,
+								Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+								return null;
+							}
+						});
 			}
 		};
 
@@ -290,7 +295,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 			this.verifyRestore = verifyRestore;
 		}
 
-		private boolean verifyRestore;
+		private final boolean verifyRestore;
 		private ValueState<Integer> keyedState;
 		private ListState<Integer> opState;
 

@@ -54,7 +54,7 @@ public class TestingAbstractInvokables {
 				writer.emit(new IntValue(1337));
 				writer.flushAll();
 			} finally {
-				writer.clearBuffers();
+				writer.close();
 			}
 		}
 	}

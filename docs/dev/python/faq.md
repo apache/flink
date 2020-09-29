@@ -61,7 +61,7 @@ $ # specify the path of the python interpreter which is used to execute the pyth
 $ table_env.get_config().set_python_executable("venv.zip/venv/bin/python")
 {% endhighlight %}
 
-For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({% link dev/python/user-guide/table/dependency_management.md %}#usage).
+For details on the usage of `add_python_archive` and `set_python_executable`, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#usage).
 
 ## Adding Jar Files
 
@@ -76,7 +76,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/user-guide/table/dependency_management.md %}#java-dependency)
+For details about the APIs of adding Java dependency, you can refer to [the relevant documentation]({% link dev/python/table-api-users-guide/dependency_management.md %}#java-dependency)
 
 ## Adding Python Files
 You can use the command-line arguments `pyfs` or the API `add_python_file` of `TableEnvironment` to add python file dependencies which could be python files, python packages or local directories.
@@ -97,3 +97,23 @@ table_env.add_python_file('myDir')
 def my_udf():
     from utils import my_util
 {% endhighlight %}
+
+## Wait for jobs to finish when executing jobs in mini cluster
+
+When executing jobs in mini cluster(e.g. when executing jobs in IDE) and using the following APIs in the jobs(
+e.g. TableEnvironment.execute_sql, StatementSet.execute, etc in the Python Table API; StreamExecutionEnvironment.execute_async
+in the Python DataStream API), please remember to explicitly wait for the job execution to finish as these APIs are asynchronous.
+Otherwise you may could not find the execution results as the program will exit before the job execution finishes. Please refer
+to the following example on how to do that:
+
+{% highlight python %}
+# execute SQL / Table API query asynchronously
+t_result = table_env.execute_sql(...)
+t_result.wait()
+
+# execute DataStream Job asynchronously
+job_client = stream_execution_env.execute_async('My DataStream Job')
+job_client.get_job_execution_result().result()
+{% endhighlight %}
+
+<strong>Note:</strong> There is no need to wait for the job execution to finish when executing jobs in remote cluster and so remember to remove these codes when executing jobs in remote cluster.

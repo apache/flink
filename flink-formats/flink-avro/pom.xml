@@ -150,37 +150,6 @@ under the License.
 
 	</dependencies>
 
-	<profiles>
-		<!-- Create SQL Client uber jars by default -->
-		<profile>
-			<id>sql-jars</id>
-			<activation>
-				<property>
-					<name>!skipSqlJars</name>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-jar-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>jar</goal>
-								</goals>
-								<configuration>
-									<classifier>sql-jar</classifier>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
-
 	<build>
 		<plugins>
 			<plugin>

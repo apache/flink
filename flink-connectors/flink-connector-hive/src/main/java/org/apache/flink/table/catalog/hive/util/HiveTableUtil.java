@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat;
 import org.apache.flink.table.api.TableSchema;
@@ -401,6 +402,23 @@ public class HiveTableUtil {
 						e.getKey().equals(CatalogConfig.IS_GENERIC) ? e.getKey() : FLINK_PROPERTY_PREFIX + e.getKey(),
 						e.getValue()))
 				.collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+	}
+
+	/**
+	 * Check whether to read or write on the hive ACID table.
+	 *
+	 * @param catalogTable Hive catalog table.
+	 * @param tablePath    Identifier table path.
+	 * @throws FlinkHiveException Thrown, if the source or sink table is transactional.
+	 */
+	public static void checkAcidTable(CatalogTable catalogTable, ObjectPath tablePath) {
+		String tableIsTransactional = catalogTable.getOptions().get("transactional");
+		if (tableIsTransactional == null) {
+			tableIsTransactional = catalogTable.getOptions().get("transactional".toUpperCase());
+		}
+		if (tableIsTransactional != null && tableIsTransactional.equalsIgnoreCase("true")) {
+			throw new FlinkHiveException(String.format("Reading or writing ACID table %s is not supported.", tablePath));
+		}
 	}
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {

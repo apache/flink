@@ -66,7 +66,7 @@ public class RestOptions {
 		key("rest.address")
 			.noDefaultValue()
 			.withFallbackKeys(JobManagerOptions.ADDRESS.key())
-			.withDescription("The address that should be used by clients to connect to the server.");
+			.withDescription("The address that should be used by clients to connect to the server. Attention: This option is respected only if the high-availability configuration is NONE.");
 
 	/**
 	 * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
@@ -79,7 +79,7 @@ public class RestOptions {
 			.withDeprecatedKeys(WebOptions.PORT.key())
 			.withDescription(
 				Description.builder()
-					.text("The port that the client connects to. If %s has not been specified, then the REST server will bind to this port.", text(BIND_PORT.key()))
+					.text("The port that the client connects to. If %s has not been specified, then the REST server will bind to this port. Attention: This option is respected only if the high-availability configuration is NONE.", text(BIND_PORT.key()))
 					.build());
 
 	/**

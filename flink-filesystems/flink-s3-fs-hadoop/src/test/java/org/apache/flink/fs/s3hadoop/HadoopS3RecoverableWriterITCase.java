@@ -233,8 +233,16 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
 		boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
 		Assert.assertTrue(successfullyDeletedState);
 
-		// this should throw the exception as we deleted the file.
-		getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+		int retryTimes = 10;
+		final long delayMs = 1000;
+		// Because the s3 is eventually consistency the s3 file might still be found after we delete it.
+		// So we try multi-times to verify that the file was deleted at last.
+		while (retryTimes > 0) {
+			// this should throw the exception as we deleted the file.
+			getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+			retryTimes--;
+			Thread.sleep(delayMs);
+		}
 	}
 
 	@Test

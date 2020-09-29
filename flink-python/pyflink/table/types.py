@@ -29,10 +29,12 @@ from threading import RLock
 
 from py4j.java_gateway import get_java_class
 
+from pyflink.common.types import _create_row
 from pyflink.util.utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
+from pyflink.common import Row, RowKind
 
-__all__ = ['DataTypes', 'UserDefinedType', 'Row']
+__all__ = ['DataTypes', 'UserDefinedType', 'Row', 'RowKind']
 
 
 class DataType(object):
@@ -1613,7 +1615,7 @@ _primitive_array_element_types = {BooleanType, TinyIntType, SmallIntType, IntTyp
 
 def _to_java_type(data_type):
     """
-    Converts Python type to Java type.
+    Converts Python type to Java TypeInformation.
     """
 
     global _python_java_types_mapping
@@ -1739,6 +1741,9 @@ def _to_java_type(data_type):
 
 
 def _from_java_type(j_data_type):
+    """
+    Converts Java TypeInformation to Python DataType.
+    """
     gateway = get_gateway()
 
     if is_instance_of(j_data_type, gateway.jvm.TypeInformation):
@@ -1863,173 +1868,104 @@ def _from_java_type(j_data_type):
         TypeError("Unsupported data type: %s" % j_data_type)
 
 
-def _create_row(fields, values):
-    row = Row(*values)
-    row._fields = fields
-    return row
-
-
-class Row(tuple):
+def _to_java_data_type(data_type: DataType):
     """
-    A row in Table.
-    The fields in it can be accessed:
-
-    * like attributes (``row.key``)
-    * like dictionary values (``row[key]``)
-
-    ``key in row`` will search through row keys.
-
-    Row can be used to create a row object by using named arguments,
-    the fields will be sorted by names. It is not allowed to omit
-    a named argument to represent the value is None or missing. This should be
-    explicitly set to None in this case.
-
-    ::
-
-        >>> row = Row(name="Alice", age=11)
-        >>> row
-        Row(age=11, name='Alice')
-        >>> row['name'], row['age']
-        ('Alice', 11)
-        >>> row.name, row.age
-        ('Alice', 11)
-        >>> 'name' in row
-        True
-        >>> 'wrong_key' in row
-        False
-
-    Row can also be used to create another Row like class, then it
-    could be used to create Row objects, such as
-
-    ::
-
-        >>> Person = Row("name", "age")
-        >>> Person
-        <Row(name, age)>
-        >>> 'name' in Person
-        True
-        >>> 'wrong_key' in Person
-        False
-        >>> Person("Alice", 11)
-        Row(name='Alice', age=11)
+    Converts the specified Python DataType to Java DataType.
     """
+    gateway = get_gateway()
+    JDataTypes = gateway.jvm.org.apache.flink.table.api.DataTypes
 
-    def __new__(cls, *args, **kwargs):
-        if args and kwargs:
-            raise ValueError("Can not use both args "
-                             "and kwargs to create Row")
-        if kwargs:
-            # create row objects
-            names = sorted(kwargs.keys())
-            row = tuple.__new__(cls, [kwargs[n] for n in names])
-            row._fields = names
-            row._from_dict = True
-            return row
-
+    if isinstance(data_type, BooleanType):
+        j_data_type = JDataTypes.BOOLEAN()
+    elif isinstance(data_type, TinyIntType):
+        j_data_type = JDataTypes.TINYINT()
+    elif isinstance(data_type, SmallIntType):
+        j_data_type = JDataTypes.SMALLINT()
+    elif isinstance(data_type, IntType):
+        j_data_type = JDataTypes.INT()
+    elif isinstance(data_type, BigIntType):
+        j_data_type = JDataTypes.BIGINT()
+    elif isinstance(data_type, FloatType):
+        j_data_type = JDataTypes.FLOAT()
+    elif isinstance(data_type, DoubleType):
+        j_data_type = JDataTypes.DOUBLE()
+    elif isinstance(data_type, VarCharType):
+        j_data_type = JDataTypes.VARCHAR(data_type.length)
+    elif isinstance(data_type, CharType):
+        j_data_type = JDataTypes.CHAR(data_type.length)
+    elif isinstance(data_type, VarBinaryType):
+        j_data_type = JDataTypes.VARBINARY(data_type.length)
+    elif isinstance(data_type, BinaryType):
+        j_data_type = JDataTypes.BINARY(data_type.length)
+    elif isinstance(data_type, DecimalType):
+        j_data_type = JDataTypes.Decimal(data_type.precision, data_type.scale)
+    elif isinstance(data_type, DateType):
+        j_data_type = JDataTypes.DATE()
+    elif isinstance(data_type, TimeType):
+        j_data_type = JDataTypes.TIME(data_type.precision)
+    elif isinstance(data_type, TimestampType):
+        j_data_type = JDataTypes.TIMESTAMP(data_type.precision)
+    elif isinstance(data_type, LocalZonedTimestampType):
+        j_data_type = JDataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(data_type.precision)
+    elif isinstance(data_type, ZonedTimestampType):
+        j_data_type = JDataTypes.TIMESTAMP_WITH_TIME_ZONE(data_type.precision)
+    elif isinstance(data_type, ArrayType):
+        j_data_type = JDataTypes.ARRAY(_to_java_data_type(data_type.element_type))
+    elif isinstance(data_type, MapType):
+        j_data_type = JDataTypes.MAP(
+            _to_java_data_type(data_type.key_type),
+            _to_java_data_type(data_type.value_type))
+    elif isinstance(data_type, RowType):
+        fields = [JDataTypes.FIELD(f.name, _to_java_data_type(f.data_type))
+                  for f in data_type.fields]
+        j_data_type = JDataTypes.ROW(to_jarray(JDataTypes.Field, fields))
+    elif isinstance(data_type, MultisetType):
+        j_data_type = JDataTypes.MULTISET(_to_java_data_type(data_type.element_type))
+    elif isinstance(data_type, NullType):
+        j_data_type = JDataTypes.NULL()
+    elif isinstance(data_type, YearMonthIntervalType):
+        if data_type.resolution == YearMonthIntervalType.YearMonthResolution.YEAR:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.YEAR(data_type.precision))
+        elif data_type.resolution == YearMonthIntervalType.YearMonthResolution.MONTH:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.MONTH())
         else:
-            # create row class or objects
-            return tuple.__new__(cls, args)
-
-    def as_dict(self, recursive=False):
-        """
-        Returns as a dict.
-
-        Example:
-        ::
-
-            >>> Row(name="Alice", age=11).as_dict() == {'name': 'Alice', 'age': 11}
-            True
-            >>> row = Row(key=1, value=Row(name='a', age=2))
-            >>> row.as_dict() == {'key': 1, 'value': Row(age=2, name='a')}
-            True
-            >>> row.as_dict(True) == {'key': 1, 'value': {'name': 'a', 'age': 2}}
-            True
-
-        :param recursive: turns the nested Row as dict (default: False).
-        """
-        if not hasattr(self, "_fields"):
-            raise TypeError("Cannot convert a Row class into dict")
-
-        if recursive:
-            def conv(obj):
-                if isinstance(obj, Row):
-                    return obj.as_dict(True)
-                elif isinstance(obj, list):
-                    return [conv(o) for o in obj]
-                elif isinstance(obj, dict):
-                    return dict((k, conv(v)) for k, v in obj.items())
-                else:
-                    return obj
-
-            return dict(zip(self._fields, (conv(o) for o in self)))
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.YEAR(data_type.precision),
+                                              JDataTypes.MONTH())
+    elif isinstance(data_type, DayTimeIntervalType):
+        if data_type.resolution == DayTimeIntervalType.DayTimeResolution.DAY:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.DAY(data_type.day_precision))
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_HOUR:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.DAY(data_type.day_precision),
+                                              JDataTypes.HOUR())
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_MINUTE:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.DAY(data_type.day_precision),
+                                              JDataTypes.MINUTE())
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.DAY(data_type.day_precision),
+                                              JDataTypes.SECOND(data_type.fractional_precision))
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.HOUR:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.HOUR())
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_MINUTE:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.HOUR(), JDataTypes.MINUTE())
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.HOUR_TO_SECOND:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.HOUR(),
+                                              JDataTypes.SECOND(data_type.fractional_precision))
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.MINUTE:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.MINUTE())
+        elif data_type.resolution == DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND:
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.MINUTE(),
+                                              JDataTypes.SECOND(data_type.fractional_precision))
         else:
-            return dict(zip(self._fields, self))
+            j_data_type = JDataTypes.INTERVAL(JDataTypes.SECOND(data_type.fractional_precision))
+    else:
+        raise TypeError("Unsupported data type: %s" % data_type)
 
-    def __contains__(self, item):
-        if hasattr(self, "_fields"):
-            return item in self._fields
-        else:
-            return super(Row, self).__contains__(item)
+    if data_type._nullable:
+        j_data_type = j_data_type.nullable()
+    else:
+        j_data_type = j_data_type.notNull()
 
-    # let object acts like class
-    def __call__(self, *args):
-        """
-        Creates new Row object
-        """
-        if len(args) > len(self):
-            raise ValueError("Can not create Row with fields %s, expected %d values "
-                             "but got %s" % (self, len(self), args))
-        return _create_row(self, args)
-
-    def __getitem__(self, item):
-        if isinstance(item, (int, slice)):
-            return super(Row, self).__getitem__(item)
-        try:
-            # it will be slow when it has many fields,
-            # but this will not be used in normal cases
-            idx = self._fields.index(item)
-            return super(Row, self).__getitem__(idx)
-        except IndexError:
-            raise KeyError(item)
-        except ValueError:
-            raise ValueError(item)
-
-    def __getattr__(self, item):
-        if item.startswith("_"):
-            raise AttributeError(item)
-        try:
-            # it will be slow when it has many fields,
-            # but this will not be used in normal cases
-            idx = self._fields.index(item)
-            return self[idx]
-        except IndexError:
-            raise AttributeError(item)
-        except ValueError:
-            raise AttributeError(item)
-
-    def __setattr__(self, key, value):
-        if key != '_fields' and key != "_from_dict":
-            raise Exception("Row is read-only")
-        self.__dict__[key] = value
-
-    def __reduce__(self):
-        """
-        Returns a tuple so Python knows how to pickle Row.
-        """
-        if hasattr(self, "_fields"):
-            return _create_row, (self._fields, tuple(self))
-        else:
-            return tuple.__reduce__(self)
-
-    def __repr__(self):
-        """
-        Printable representation of Row used in Python REPL.
-        """
-        if hasattr(self, "_fields"):
-            return "Row(%s)" % ", ".join("%s=%r" % (k, v)
-                                         for k, v in zip(self._fields, tuple(self)))
-        else:
-            return "<Row(%s)>" % ", ".join("%r" % field for field in self)
+    return j_data_type
 
 
 _acceptable_types = {

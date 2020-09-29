@@ -34,15 +34,18 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
+import org.apache.flink.streaming.api.graph.StreamConfig.NetworkInputConfig;
+import org.apache.flink.streaming.api.graph.StreamConfig.SourceInputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.util.function.FunctionWithException;
 
@@ -55,6 +58,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -69,7 +73,6 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
 	protected long memorySize = 1024 * 1024;
 	protected int bufferSize = 1024;
-	protected long bufferTimeout = 0;
 	protected Configuration jobConfig = new Configuration();
 	protected Configuration taskConfig = new Configuration();
 	protected StreamConfig streamConfig = new StreamConfig(taskConfig);
@@ -79,7 +82,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	protected TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	protected Map<Long, TaskStateSnapshot> taskStateSnapshots;
 
-	protected final ArrayList<TypeSerializer<?>> inputSerializers = new ArrayList<>();
+	protected final ArrayList<InputConfig> inputs = new ArrayList<>();
 	protected final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
 
 	private boolean setupCalled = false;
@@ -89,6 +92,17 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			TypeInformation<OUT> outputType) {
 		this.taskFactory = checkNotNull(taskFactory);
 		outputSerializer = outputType.createSerializer(executionConfig);
+		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
+	}
+
+	public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyExecutionConfig(Consumer<ExecutionConfig> action) {
+		action.accept(executionConfig);
+		return this;
+	}
+
+	public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyStreamConfig(Consumer<StreamConfig> action) {
+		action.accept(streamConfig);
+		return this;
 	}
 
 	public StreamTaskMailboxTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType) {
@@ -103,14 +117,18 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			TypeInformation<?> inputType,
 			int inputChannels,
 			@Nullable KeySelector<?, ?> keySelector) {
-		streamConfig.setStatePartitioner(inputSerializers.size(), keySelector);
-		inputSerializers.add(inputType.createSerializer(executionConfig));
+		streamConfig.setStatePartitioner(inputs.size(), keySelector);
+		inputs.add(new NetworkInputConfig(inputType.createSerializer(executionConfig), inputChannelsPerGate.size()));
 		inputChannelsPerGate.add(inputChannels);
 		return this;
 	}
 
+	public StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(SourceOperatorFactory<?> sourceOperatorFactory) {
+		inputs.add(new SourceInputConfigPlaceHolder(sourceOperatorFactory));
+		return this;
+	}
+
 	public StreamTaskMailboxTestHarness<OUT> build() throws Exception {
-		streamConfig.setBufferTimeout(bufferTimeout);
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
 		if (taskStateSnapshots != null) {
@@ -149,39 +167,83 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	}
 
 	protected void initializeInputs(StreamMockEnvironment streamMockEnvironment) {
-		inputGates = new StreamTestSingleInputGate[inputSerializers.size()];
+		inputGates = new StreamTestSingleInputGate[inputChannelsPerGate.size()];
 		List<StreamEdge> inPhysicalEdges = new LinkedList<>();
 
-		StreamOperator<?> dummyOperator = new AbstractStreamOperator<Object>() {
-			private static final long serialVersionUID = 1L;
-		};
-
-		StreamNode sourceVertexDummy = new StreamNode(0, "default group", null, dummyOperator, "source dummy", new LinkedList<>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(1, "default group", null, dummyOperator, "target dummy", new LinkedList<>(), SourceStreamTask.class);
-
-		for (int i = 0; i < inputSerializers.size(); i++) {
-			TypeSerializer<?> inputSerializer = inputSerializers.get(i);
-			inputGates[i] = new StreamTestSingleInputGate<>(
-				inputChannelsPerGate.get(i),
-				i,
-				inputSerializer,
-				bufferSize);
-
-			StreamEdge streamEdge = new StreamEdge(
-				sourceVertexDummy,
-				targetVertexDummy,
-				i + 1,
-				new LinkedList<>(),
-				new BroadcastPartitioner<>(),
-				null);
-
-			inPhysicalEdges.add(streamEdge);
-			streamMockEnvironment.addInputGate(inputGates[i].getInputGate());
+		StreamNode mainNode = new StreamNode(StreamConfigChainer.MAIN_NODE_ID, null, null, (StreamOperator<?>) null, null, null);
+		for (int i = 0; i < inputs.size(); i++) {
+			if ((inputs.get(i) instanceof NetworkInputConfig)) {
+				NetworkInputConfig networkInput = (NetworkInputConfig) inputs.get(i);
+				initializeNetworkInput(networkInput, mainNode, streamMockEnvironment, inPhysicalEdges);
+			}
+			else if ((inputs.get(i) instanceof StreamTaskMailboxTestHarnessBuilder.SourceInputConfigPlaceHolder)) {
+				SourceInputConfigPlaceHolder sourceInput = (SourceInputConfigPlaceHolder) inputs.get(i);
+				inputs.set(i, initializeSourceInput(i, sourceInput, mainNode));
+			}
+			else {
+				throw new UnsupportedOperationException("Unknown input type " + inputs.get(i));
+			}
 		}
 
 		streamConfig.setInPhysicalEdges(inPhysicalEdges);
-		streamConfig.setNumberOfInputs(inputGates.length);
-		streamConfig.setTypeSerializersIn(inputSerializers.toArray(new TypeSerializer[inputSerializers.size()]));
+		streamConfig.setNumberOfNetworkInputs(inputGates.length);
+		streamConfig.setInputs(inputs.toArray(new InputConfig[inputs.size()]));
+	}
+
+	private void initializeNetworkInput(
+			NetworkInputConfig networkInput,
+			StreamNode targetVertexDummy,
+			StreamMockEnvironment streamMockEnvironment,
+			List<StreamEdge> inPhysicalEdges) {
+		int gateIndex = networkInput.getInputGateIndex();
+
+		TypeSerializer<?> inputSerializer = networkInput.getTypeSerializer();
+		inputGates[gateIndex] = new StreamTestSingleInputGate<>(
+			inputChannelsPerGate.get(gateIndex),
+			gateIndex,
+			inputSerializer,
+			bufferSize);
+
+		StreamNode sourceVertexDummy = new StreamNode(0, null, null, (StreamOperator<?>) null, null, SourceStreamTask.class);
+		StreamEdge streamEdge = new StreamEdge(
+			sourceVertexDummy,
+			targetVertexDummy,
+			gateIndex + 1,
+			new BroadcastPartitioner<>(),
+			null);
+
+		inPhysicalEdges.add(streamEdge);
+		streamMockEnvironment.addInputGate(inputGates[gateIndex].getInputGate());
+	}
+
+	private SourceInputConfig initializeSourceInput(
+			int inputId,
+			SourceInputConfigPlaceHolder sourceInput,
+			StreamNode mainNode) {
+		Map<Integer, StreamConfig> transitiveChainedTaskConfigs = streamConfig.getTransitiveChainedTaskConfigs(getClass().getClassLoader());
+		Integer maxNodeId = transitiveChainedTaskConfigs.isEmpty() ? StreamConfigChainer.MAIN_NODE_ID : Collections.max(transitiveChainedTaskConfigs.keySet());
+
+		List<StreamEdge> outEdgesInOrder = new LinkedList<>();
+
+		StreamEdge sourceToMainEdge = new StreamEdge(
+			new StreamNode(maxNodeId + inputId + 1337, null, null, (StreamOperator<?>) null, null, null),
+			mainNode,
+			0,
+			new ForwardPartitioner<>(),
+			null);
+		outEdgesInOrder.add(sourceToMainEdge);
+
+		StreamConfig sourceConfig = new StreamConfig(new Configuration());
+		sourceConfig.setTimeCharacteristic(streamConfig.getTimeCharacteristic());
+		sourceConfig.setOutEdgesInOrder(outEdgesInOrder);
+		sourceConfig.setChainedOutputs(outEdgesInOrder);
+		sourceConfig.setTypeSerializerOut(outputSerializer);
+		sourceConfig.setOperatorID(new OperatorID());
+		sourceConfig.setStreamOperatorFactory(sourceInput.getSourceOperatorFactory());
+
+		transitiveChainedTaskConfigs.put(sourceToMainEdge.getSourceId(), sourceConfig);
+		streamConfig.setTransitiveChainedTaskConfigs(transitiveChainedTaskConfigs);
+		return new SourceInputConfig(sourceToMainEdge);
 	}
 
 	public StreamTaskMailboxTestHarnessBuilder<OUT> setupOutputForSingletonOperatorChain(StreamOperator<?> operator) {
@@ -210,31 +272,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 			StreamOperatorFactory<?> factory,
 			OperatorID operatorID) {
 		checkState(!setupCalled, "This harness was already setup.");
-		setupCalled = true;
-		streamConfig.setChainStart();
-		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
-		streamConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
-		streamConfig.setNumberOfOutputs(1);
-		streamConfig.setTypeSerializerOut(outputSerializer);
-		streamConfig.setVertexID(0);
-
-		StreamOperator<OUT> dummyOperator = new AbstractStreamOperator<OUT>() {
-			private static final long serialVersionUID = 1L;
-		};
-
-		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertexDummy = new StreamNode(0, "group", null, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(1, "group", null, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-
-		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
-
-		streamConfig.setOutEdgesInOrder(outEdgesInOrder);
-		streamConfig.setNonChainedOutputs(outEdgesInOrder);
-
-		streamConfig.setStreamOperatorFactory(factory);
-		streamConfig.setOperatorID(operatorID);
-
-		return this;
+		return setupOperatorChain(operatorID, factory).finishForSingletonOperatorChain(outputSerializer);
 	}
 
 	public StreamConfigChainer<StreamTaskMailboxTestHarnessBuilder<OUT>> setupOperatorChain(StreamOperator<?> headOperator) {
@@ -269,6 +307,22 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 	public StreamTaskMailboxTestHarnessBuilder<OUT> setTaskStateSnapshot(long checkpointId, TaskStateSnapshot snapshot) {
 		taskStateSnapshots = Collections.singletonMap(checkpointId, snapshot);
 		return this;
+	}
+
+	/**
+	 * A place holder representation of a {@link SourceInputConfig}. When building the test harness
+	 * it is replaced with {@link SourceInputConfig}.
+	 */
+	public static class SourceInputConfigPlaceHolder implements InputConfig {
+		private SourceOperatorFactory<?> sourceOperatorFactory;
+
+		public SourceInputConfigPlaceHolder(SourceOperatorFactory<?> sourceOperatorFactory) {
+			this.sourceOperatorFactory = sourceOperatorFactory;
+		}
+
+		public SourceOperatorFactory<?> getSourceOperatorFactory() {
+			return sourceOperatorFactory;
+		}
 	}
 }
 

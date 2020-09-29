@@ -29,54 +29,173 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The DataGen connector allows for reading by data generation rules.
+The DataGen connector allows for creating tables based on in-memory data generation.
+This is useful when developing queries locally without access to external systems such as Kafka.
+Tables can include [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table) which allows for flexible record generation.
 
-The DataGen connector can work with [Computed Column syntax]({% link dev/table/sql/create.md %}#create-table).
-This allows you to generate records flexibly.
+The DataGen connector is built-in, no additional dependencies are required.
 
-The DataGen connector is built-in.
+Usage
+-----
 
-<span class="label label-danger">Attention</span> Complex types are not supported: Array, Map, Row. Please construct these types by computed column.
+By default, a DataGen table will create an unbounded number of rows with a random value for each column.
+For variable sized types, char/varchar/string/array/map/multiset, the length can be specified.
+Additionally, a total number of rows can be specified, resulting in a bounded table.
 
-How to create a DataGen table
-----------------
+There also exists a sequence generator, where users specify a sequence of start and end values.
+If any column in a table is a sequence type, the table will be bounded and end with the first sequence completes.
 
-The boundedness of table: when the generation of field data in the table is completed, the reading
-is finished. So the boundedness of the table depends on the boundedness of fields.
+Time types are always the local machines current system time.
 
-For each field, there are two ways to generate data:
-
-- Random generator is the default generator, you can specify random max and min values. For char/varchar/string, the length can be specified. It is a unbounded generator.
-- Sequence generator, you can specify sequence start and end values. It is a bounded generator, when the sequence number reaches the end value, the reading ends.
-
-<div class="codetabs" markdown="1">
-<div data-lang="SQL" markdown="1">
 {% highlight sql %}
-CREATE TABLE datagen (
- f_sequence INT,
- f_random INT,
- f_random_str STRING,
- ts AS localtimestamp,
- WATERMARK FOR ts AS ts
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>
+    order_time   TIMESTAMP(3)
 ) WITH (
- 'connector' = 'datagen',
-
- -- optional options --
-
- 'rows-per-second'='5',
-
- 'fields.f_sequence.kind'='sequence',
- 'fields.f_sequence.start'='1',
- 'fields.f_sequence.end'='1000',
-
- 'fields.f_random.min'='1',
- 'fields.f_random.max'='1000',
-
- 'fields.f_random_str.length'='10'
+  'connector' = 'datagen'
 )
 {% endhighlight %}
-</div>
-</div>
+
+Often, the data generator connector is used in conjuction with the ``LIKE`` clause to mock out physical tables. 
+
+{% highlight sql %}
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>
+    order_time   TIMESTAMP(3)
+) WITH (...)
+
+-- create a bounded mock table
+CREATE TEMPORARY TABLE GenOrders 
+WITH ( 
+    'connector' = 'datagen',
+    'number-of-rows' = '10'
+)
+LIKE Orders (EXCLUDING ALL)
+{% endhighlight %}
+
+Types
+-----
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 25%">Type</th>
+            <th class="text-center" style="width: 25%">Supported Generators</th>
+            <th class="text-center" style="width: 50%">Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>BOOLEAN</td>
+            <td>random</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>CHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>VARCHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>STRING</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>DECIMAL</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>TINYINT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>  
+        <tr>
+            <td>SMALLINT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr> 
+        <tr>
+            <td>INT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr> 
+        <tr>
+            <td>BIGINT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>FLOAT</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>DOUBLE</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>DATE</td>
+            <td>random</td>
+            <td>Always resolves to the current date of the local machine.</td>
+        </tr>
+        <tr>
+            <td>TIME</td>
+            <td>random</td>
+            <td>Always resolves to the current time of the local machine.</td>
+        </tr>
+        <tr>
+            <td>TIMESTAMP</td>
+            <td>random</td>
+            <td>Always resolves to the current timestamp of the local machine.</td>
+        </tr>    
+        <tr>
+            <td>TIMESTAMP WITH LOCAL TIMEZONE</td>
+            <td>random</td>
+            <td>Always resolves to the current timestamp of the local machine.</td>
+        </tr>   
+        <tr>
+            <td>INTERVAL YEAR TO MONTH</td>
+            <td>random</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>INTERVAL DAY TO MONTH</td>
+            <td>random</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>ROW</td>
+            <td>random</td>
+            <td>Generates a row with random subfields.</td>
+        </tr>
+        <tr>
+            <td>ARRAY</td>
+            <td>random</td>
+            <td>Generates an array with random entries.</td>
+        </tr>
+        <tr>
+            <td>MAP</td>
+            <td>random</td>
+            <td>Generates a map with random entries.</td>
+        </tr>
+        <tr>
+            <td>MULTISET</td>
+            <td>random</td>
+            <td>Generates a multiset with random entries.</td>
+        </tr>
+    </tbody>
+</table>
 
 Connector Options
 ----------------
@@ -106,6 +225,13 @@ Connector Options
       <td>Long</td>
       <td>Rows per second to control the emit rate.</td>
     </tr>
+        <tr>
+          <td><h5>number-of-rows</h5></td>
+          <td>optional</td>
+          <td style="word-wrap: break-word;">(none)</td>
+          <td>Long</td>
+          <td>The total number of rows to emit. By default, the table is unbounded.</td>
+        </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
@@ -118,21 +244,21 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(Minimum value of type)</td>
       <td>(Type of field)</td>
-      <td>Minimum value of random generator, work for number types.</td>
+      <td>Minimum value of random generator, work for numeric types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.max</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(Maximum value of type)</td>
       <td>(Type of field)</td>
-      <td>Maximum value of random generator, work for number types.</td>
+      <td>Maximum value of random generator, work for numeric types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>Length for string generating of random generator, work for char/varchar/string.</td>
+      <td>Size or length of the collection for generating char/varchar/string/array/map/multiset types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>

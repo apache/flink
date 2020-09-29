@@ -78,6 +78,7 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 						new SourceOperatorFactory<>(source, timestampsAndWatermarks),
 						outTypeInfo,
 						environment.getParallelism()));
+		this.isParallel = true;
 	}
 
 	@Override

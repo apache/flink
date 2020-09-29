@@ -180,6 +180,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(
           tagg, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
 
+      case agg: StreamExecPythonGroupAggregate =>
+        // agg support all changes in input
+        val children = visitChildren(agg, ModifyKindSetTrait.ALL_CHANGES)
+        val inputModifyKindSet = getModifyKindSet(children.head)
+        val builder = ModifyKindSet.newBuilder()
+          .addContainedKind(ModifyKind.INSERT)
+          .addContainedKind(ModifyKind.UPDATE)
+        if (inputModifyKindSet.contains(ModifyKind.UPDATE) ||
+          inputModifyKindSet.contains(ModifyKind.DELETE)) {
+          builder.addContainedKind(ModifyKind.DELETE)
+        }
+        val providedTrait = new ModifyKindSetTrait(builder.build())
+        createNewNode(agg, children, providedTrait, requiredTrait, requester)
+
       case window: StreamExecGroupWindowAggregateBase =>
         // WindowAggregate and WindowTableAggregate support insert-only in input
         val children = visitChildren(window, ModifyKindSetTrait.INSERT_ONLY)
@@ -435,7 +449,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         visitSink(sink, sinkRequiredTraits)
 
       case _: StreamExecGroupAggregate | _: StreamExecGroupTableAggregate |
-           _: StreamExecLimit =>
+           _: StreamExecLimit | _: StreamExecPythonGroupAggregate =>
         // Aggregate, TableAggregate and Limit requires update_before if there are updates
         val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
         val children = visitChildren(rel, requiredChildTrait)
@@ -444,7 +458,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamExecGroupWindowAggregate | _: StreamExecGroupWindowTableAggregate |
            _: StreamExecDeduplicate | _: StreamExecTemporalSort | _: StreamExecMatch |
-           _: StreamExecOverAggregate | _: StreamExecIntervalJoin =>
+           _: StreamExecOverAggregate | _: StreamExecIntervalJoin |
+           _: StreamExecPythonGroupWindowAggregate =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
         // and IntervalJoin require nothing about UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)

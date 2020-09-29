@@ -31,7 +31,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
@@ -628,22 +628,23 @@ public class SqlToOperationConverter {
 		SqlNodeList columnList = sqlCreateTable.getColumnList();
 		TableSchema physicalSchema = null;
 		TableSchema.Builder builder = new TableSchema.Builder();
-		// collect the physical table schema first.
-		final List<SqlNode> physicalColumns = columnList.getList().stream()
-			.filter(n -> n instanceof SqlTableColumn).collect(Collectors.toList());
-		for (SqlNode node : physicalColumns) {
-			SqlTableColumn column = (SqlTableColumn) node;
-			final RelDataType relType = column.getType()
+		// collect the regular, physical table schema first.
+		final List<SqlRegularColumn> physicalColumns = columnList.getList().stream()
+			.filter(SqlRegularColumn.class::isInstance)
+			.map(SqlRegularColumn.class::cast)
+			.collect(Collectors.toList());
+		for (SqlRegularColumn regularColumn : physicalColumns) {
+			final RelDataType relType = regularColumn.getType()
 				.deriveType(
 					flinkPlanner.getOrCreateSqlValidator(),
-					column.getType().getNullable());
-			builder.field(column.getName().getSimple(),
+					regularColumn.getType().getNullable());
+			builder.field(regularColumn.getName().getSimple(),
 				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
 			physicalSchema = builder.build();
 		}
 		assert physicalSchema != null;
-		if (sqlCreateTable.containsComputedColumn()) {
-			throw new SqlConversionException("Computed columns for DDL is not supported yet!");
+		if (!sqlCreateTable.hasRegularColumnsOnly()) {
+			throw new SqlConversionException("Only regular columns are supported in DDL.");
 		}
 		return physicalSchema;
 	}

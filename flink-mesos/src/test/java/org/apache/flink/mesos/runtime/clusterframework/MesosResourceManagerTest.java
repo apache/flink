@@ -104,6 +104,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
@@ -194,7 +195,8 @@ public class MesosResourceManagerTest extends TestLogger {
 				taskManagerParameters,
 				taskManagerContainerSpec,
 				null,
-				resourceManagerMetricGroup);
+				resourceManagerMetricGroup,
+				ForkJoinPool.commonPool());
 		}
 
 		@Override
@@ -663,12 +665,14 @@ public class MesosResourceManagerTest extends TestLogger {
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
 
 			final int dataPort = 1234;
+			final int jmxPort = 23456;
 			final HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
 			// send registration message
 			TaskExecutorRegistration taskExecutorRegistration = new TaskExecutorRegistration(
 				task1Executor.address,
 				task1Executor.resourceID,
 				dataPort,
+				jmxPort,
 				hardwareDescription,
 				new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 				ResourceProfile.ZERO,

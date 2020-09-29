@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.base.source.reader;
 
-import java.util.Collection;
-import java.util.Map;
+import javax.annotation.Nullable;
+
 import java.util.Set;
 
 /**
@@ -28,18 +28,18 @@ import java.util.Set;
 public interface RecordsWithSplitIds<E> {
 
 	/**
-	 * Get all the split ids.
-	 *
-	 * @return a collection of split ids.
+	 * Moves to the next split. This method is also called initially to move to the
+	 * first split. Returns null, if no splits are left.
 	 */
-	Collection<String> splitIds();
+	@Nullable
+	String nextSplit();
 
 	/**
-	 * Get all the records by Splits.
-	 *
-	 * @return a mapping from split ids to the records.
+	 * Gets the next record from the current split. Returns null if no more records are left
+	 * in this split.
 	 */
-	Map<String, Collection<E>> recordsBySplits();
+	@Nullable
+	E nextRecordFromSplit();
 
 	/**
 	 * Get the finished splits.
@@ -47,4 +47,13 @@ public interface RecordsWithSplitIds<E> {
 	 * @return the finished splits after this RecordsWithSplitIds is returned.
 	 */
 	Set<String> finishedSplits();
+
+	/**
+	 * This method is called when all records from this batch have been emitted.
+	 *
+	 * <p>Overriding this method gives implementations the opportunity to recycle/reuse this object,
+	 * which is a performance optimization that is important for cases where the record objects are
+	 * large or otherwise heavy to allocate.
+	 */
+	default void recycle() {}
 }

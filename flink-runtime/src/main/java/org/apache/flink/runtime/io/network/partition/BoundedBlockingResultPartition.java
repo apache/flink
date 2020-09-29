@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * per sub-partition. This implementation hence requires at least as many files (file handles) and
  * memory buffers as the parallelism of the target task that the data is shuffled to.
  */
-public class BoundedBlockingResultPartition extends ResultPartition {
+public class BoundedBlockingResultPartition extends BufferWritingResultPartition {
 
 	public BoundedBlockingResultPartition(
 			String owningTaskName,
@@ -61,6 +61,16 @@ public class BoundedBlockingResultPartition extends ResultPartition {
 			partitionManager,
 			bufferCompressor,
 			bufferPoolFactory);
+	}
+
+	@Override
+	public void flush(int targetSubpartition) {
+		flushSubpartition(targetSubpartition, true);
+	}
+
+	@Override
+	public void flushAll() {
+		flushAllSubpartitions(true);
 	}
 
 	private static ResultPartitionType checkResultPartitionType(ResultPartitionType type) {

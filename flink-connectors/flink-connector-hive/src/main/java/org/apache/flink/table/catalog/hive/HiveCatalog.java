@@ -170,7 +170,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
 		if (!allowEmbedded) {
-			checkArgument(!StringUtils.isNullOrWhitespaceOnly(this.hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS)),
+			checkArgument(!isEmbeddedMetastore(this.hiveConf),
 					"Embedded metastore is not allowed. Make sure you have set a valid value for " +
 							HiveConf.ConfVars.METASTOREURIS.toString());
 		}
@@ -1468,5 +1468,10 @@ public class HiveCatalog extends AbstractCatalog {
 			default:
 				throw new CatalogException("Unsupported alter table operation " + alterOp);
 		}
+	}
+
+	@VisibleForTesting
+	public static boolean isEmbeddedMetastore(HiveConf hiveConf) {
+		return StringUtils.isNullOrWhitespaceOnly(hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS));
 	}
 }

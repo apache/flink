@@ -25,13 +25,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -69,11 +66,11 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	public void close() throws IOException {
 	}
 
-	public abstract void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws Exception;
+	public abstract void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException;
 
-	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws Exception;
+	public abstract void processCancellationBarrier(CancelCheckpointMarker cancelBarrier) throws IOException;
 
-	public abstract void processEndOfPartition() throws Exception;
+	public abstract void processEndOfPartition() throws IOException;
 
 	public abstract long getLatestCheckpointId();
 
@@ -83,19 +80,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
 	public long getCheckpointStartDelayNanos() {
 		return latestCheckpointStartDelayNanos;
-	}
-
-	public Optional<BufferReceivedListener> getBufferReceivedListener() {
-		return Optional.empty();
-	}
-
-	/**
-	 * Returns true if there is in-flight data in the buffers for the given channel and checkpoint. More specifically,
-	 * this method returns true iff the unaligner still expects the respective barrier to be <i>consumed</i> on the
-	 * that channel.
-	 */
-	public boolean hasInflightData(long checkpointId, InputChannelInfo channelInfo) {
-		return false;
 	}
 
 	public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
@@ -129,13 +113,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
 			0,
 			System.currentTimeMillis() - checkpointCreationTimestamp);
-	}
-
-	protected <E extends Exception> void executeInTaskThread(
-			ThrowingRunnable<E> runnable,
-			String descriptionFormat,
-			Object... descriptionArgs) throws E {
-		toNotifyOnCheckpoint.executeInTaskThread(runnable, descriptionFormat, descriptionArgs);
 	}
 
 	protected abstract boolean isCheckpointPending();

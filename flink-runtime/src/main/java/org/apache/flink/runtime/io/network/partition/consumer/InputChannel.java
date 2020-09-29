@@ -30,15 +30,19 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel consumes a single {@link ResultSubpartitionView}.
@@ -51,7 +55,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ol>
  */
 public abstract class InputChannel {
-
 	/** The info of the input channel to identify it globally within a task. */
 	protected final InputChannelInfo channelInfo;
 
@@ -151,7 +154,8 @@ public abstract class InputChannel {
 		inputGate.notifyChannelNonEmpty(this);
 	}
 
-	public void spillInflightBuffers(long checkpointId, ChannelStateWriter channelStateWriter) throws IOException {
+	public void notifyPriorityEvent(int priorityBufferNumber) {
+		inputGate.notifyPriorityEvent(this, priorityBufferNumber);
 	}
 
 	protected void notifyBufferAvailable(int numAvailableBuffers) throws IOException {
@@ -174,6 +178,18 @@ public abstract class InputChannel {
 	 * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there is no data to return.
 	 */
 	abstract Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException;
+
+	/**
+	 * Called by task thread when checkpointing is started (e.g., any input channel received barrier).
+	 */
+	public void checkpointStarted(CheckpointBarrier barrier) {
+	}
+
+	/**
+	 * Called by task thread on cancel/complete to clean-up temporary data.
+	 */
+	public void checkpointStopped(long checkpointId) {
+	}
 
 	// ------------------------------------------------------------------------
 	// Task events
@@ -288,23 +304,6 @@ public abstract class InputChannel {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Parses the buffer as an event and returns the {@link CheckpointBarrier} if the event is indeed a barrier or
-	 * returns null in all other cases.
-	 */
-	@Nullable
-	protected CheckpointBarrier parseCheckpointBarrierOrNull(Buffer buffer) throws IOException {
-		if (buffer.isBuffer()) {
-			return null;
-		}
-
-		AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-		// reset the buffer because it would be deserialized again in SingleInputGate while getting next buffer.
-		// we can further improve to avoid double deserialization in the future.
-		buffer.setReaderIndex(0);
-		return event.getClass() == CheckpointBarrier.class ? (CheckpointBarrier) event : null;
-	}
-
-	/**
 	 * A combination of a {@link Buffer} and a flag indicating availability of further buffers,
 	 * and the backlog length indicating how many non-event buffers are available in the
 	 * subpartition.
@@ -312,13 +311,19 @@ public abstract class InputChannel {
 	public static final class BufferAndAvailability {
 
 		private final Buffer buffer;
-		private final boolean moreAvailable;
+		private final Buffer.DataType nextDataType;
 		private final int buffersInBacklog;
+		private final int sequenceNumber;
 
-		public BufferAndAvailability(Buffer buffer, boolean moreAvailable, int buffersInBacklog) {
+		public BufferAndAvailability(
+				Buffer buffer,
+				Buffer.DataType nextDataType,
+				int buffersInBacklog,
+				int sequenceNumber) {
 			this.buffer = checkNotNull(buffer);
-			this.moreAvailable = moreAvailable;
+			this.nextDataType = checkNotNull(nextDataType);
 			this.buffersInBacklog = buffersInBacklog;
+			this.sequenceNumber = sequenceNumber;
 		}
 
 		public Buffer buffer() {
@@ -326,11 +331,118 @@ public abstract class InputChannel {
 		}
 
 		public boolean moreAvailable() {
-			return moreAvailable;
+			return nextDataType != Buffer.DataType.NONE;
+		}
+
+		public boolean morePriorityEvents() {
+			return nextDataType.hasPriority();
 		}
 
 		public int buffersInBacklog() {
 			return buffersInBacklog;
 		}
+
+		public boolean hasPriority() {
+			return buffer.getDataType().hasPriority();
+		}
+
+		public int getSequenceNumber() {
+			return sequenceNumber;
+		}
+
+		@Override
+		public String toString() {
+			return "BufferAndAvailability{" +
+				"buffer=" + buffer +
+				", nextDataType=" + nextDataType +
+				", buffersInBacklog=" + buffersInBacklog +
+				", sequenceNumber=" + sequenceNumber +
+				'}';
+		}
 	}
+
+	/**
+	 * Helper class for persisting channel state via {@link ChannelStateWriter}.
+	 */
+	@NotThreadSafe
+	protected final class ChannelStatePersister {
+		private static final long CHECKPOINT_COMPLETED = -1;
+
+		private static final long BARRIER_RECEIVED = -2;
+
+		/** All started checkpoints where a barrier has not been received yet. */
+		private long pendingCheckpointBarrierId = CHECKPOINT_COMPLETED;
+
+		/** Writer must be initialized before usage. {@link #startPersisting(long, List)} enforces this invariant. */
+		@Nullable
+		private final ChannelStateWriter channelStateWriter;
+
+		public ChannelStatePersister(@Nullable ChannelStateWriter channelStateWriter) {
+			this.channelStateWriter = channelStateWriter;
+		}
+
+		protected void startPersisting(long barrierId, List<Buffer> knownBuffers) {
+			checkState(isInitialized(), "Channel state writer not injected");
+
+			if (pendingCheckpointBarrierId != BARRIER_RECEIVED) {
+				pendingCheckpointBarrierId = barrierId;
+			}
+			if (knownBuffers.size() > 0) {
+				channelStateWriter.addInputData(
+					barrierId,
+					channelInfo,
+					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+					CloseableIterator.fromList(knownBuffers, Buffer::recycleBuffer));
+			}
+		}
+
+		protected boolean isInitialized() {
+			return channelStateWriter != null;
+		}
+
+		protected void stopPersisting() {
+			pendingCheckpointBarrierId = CHECKPOINT_COMPLETED;
+		}
+
+		protected void maybePersist(Buffer buffer) {
+			if (pendingCheckpointBarrierId >= 0 && buffer.isBuffer()) {
+				channelStateWriter.addInputData(
+					pendingCheckpointBarrierId,
+					getChannelInfo(),
+					ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
+					CloseableIterator.ofElement(buffer.retainBuffer(), Buffer::recycleBuffer));
+			}
+		}
+
+		protected boolean checkForBarrier(Buffer buffer) throws IOException {
+			final AbstractEvent priorityEvent = parsePriorityEvent(buffer);
+			if (priorityEvent instanceof CheckpointBarrier) {
+				pendingCheckpointBarrierId = BARRIER_RECEIVED;
+				return true;
+			}
+			return false;
+		}
+
+		/**
+		 * Parses the buffer as an event and returns the {@link CheckpointBarrier} if the event is indeed a barrier or
+		 * returns null in all other cases.
+		 */
+		@Nullable
+		protected AbstractEvent parsePriorityEvent(Buffer buffer) throws IOException {
+			if (buffer.isBuffer() || !buffer.getDataType().hasPriority()) {
+				return null;
+			}
+
+			AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
+			// reset the buffer because it would be deserialized again in SingleInputGate while getting next buffer.
+			// we can further improve to avoid double deserialization in the future.
+			buffer.setReaderIndex(0);
+			return event;
+		}
+
+		protected boolean hasBarrierReceived() {
+			return pendingCheckpointBarrierId == BARRIER_RECEIVED;
+		}
+	}
+
 }

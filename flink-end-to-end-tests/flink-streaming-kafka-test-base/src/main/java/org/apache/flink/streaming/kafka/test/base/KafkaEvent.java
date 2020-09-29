@@ -18,11 +18,11 @@
 package org.apache.flink.streaming.kafka.test.base;
 
 /**
- * The event type used in the {@link Kafka010Example}.
+ * The event type used in the {@link KafkaExample}.
  *
  * <p>This is a Java POJO, which Flink recognizes and will allow "by-name" field referencing
  * when keying a {@link org.apache.flink.streaming.api.datastream.DataStream} of such a type.
- * For a demonstration of this, see the code in {@link Kafka010Example}.
+ * For a demonstration of this, see the code in {@link KafkaExample}.
  */
 public class KafkaEvent {
 

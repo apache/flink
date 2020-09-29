@@ -65,6 +65,7 @@ import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureSta
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.EagerSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -368,7 +369,7 @@ public class SchedulerTestingUtils {
 	public static class DefaultSchedulerBuilder {
 		private final JobGraph jobGraph;
 
-		private SchedulingStrategyFactory schedulingStrategyFactory;
+		private SchedulingStrategyFactory schedulingStrategyFactory = new PipelinedRegionSchedulingStrategy.Factory();
 
 		private Logger log = LOG;
 		private BackPressureStatsTracker backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
@@ -391,9 +392,6 @@ public class SchedulerTestingUtils {
 
 		private DefaultSchedulerBuilder(final JobGraph jobGraph) {
 			this.jobGraph = jobGraph;
-
-			// scheduling strategy is by default set according to the scheduleMode. It can be re-assigned later.
-			this.schedulingStrategyFactory = DefaultSchedulerFactory.createSchedulingStrategyFactory(jobGraph.getScheduleMode());
 		}
 
 		public DefaultSchedulerBuilder setLogger(final Logger log) {
@@ -498,6 +496,7 @@ public class SchedulerTestingUtils {
 				backPressureStatsTracker,
 				ioExecutor,
 				jobMasterConfiguration,
+				componentMainThreadExecutor -> {},
 				futureExecutor,
 				delayExecutor,
 				userCodeLoader,
@@ -513,7 +512,8 @@ public class SchedulerTestingUtils {
 				executionVertexOperations,
 				executionVertexVersioner,
 				executionSlotAllocatorFactory,
-				new DefaultExecutionDeploymentTracker());
+				new DefaultExecutionDeploymentTracker(),
+				System.currentTimeMillis());
 		}
 	}
 }

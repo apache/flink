@@ -30,4 +30,9 @@ public class SplitsAddition<SplitT> extends SplitsChange<SplitT> {
 	public SplitsAddition(List<SplitT> splits) {
 		super(splits);
 	}
+
+	@Override
+	public String toString() {
+		return String.format("SplitAddition:[%s]", splits());
+	}
 }

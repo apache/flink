@@ -97,7 +97,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 
 	private static JobDetailsInfo createJobDetailsInfo(AccessExecutionGraph executionGraph, @Nullable MetricFetcher metricFetcher) {
 		final long now = System.currentTimeMillis();
-		final long startTime = executionGraph.getStatusTimestamp(JobStatus.CREATED);
+		final long startTime = executionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
 		final long endTime = executionGraph.getState().isGloballyTerminalState() ?
 			executionGraph.getStatusTimestamp(executionGraph.getState()) : -1L;
 		final long duration = (endTime > 0L ? endTime : now) - startTime;

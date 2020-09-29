@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.operations;
 
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
@@ -36,7 +37,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.sql.SqlAsOperator;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
@@ -85,8 +85,8 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("three", DataTypes.INT()),
-				tableColumn("four", DataTypes.STRING()));
+				regularColumn("three", DataTypes.INT()),
+				regularColumn("four", DataTypes.STRING()));
 
 		TableSchema mergedSchema = util.mergeTables(
 				getDefaultMergingStrategies(),
@@ -112,8 +112,8 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("one", DataTypes.INT()),
-				tableColumn("four", DataTypes.STRING()));
+				regularColumn("one", DataTypes.INT()),
+				regularColumn("four", DataTypes.STRING()));
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("A column named 'one' already exists in the base table.");
@@ -133,8 +133,8 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("three", DataTypes.INT()),
-				tableColumn("four", plus("one", "3")));
+				regularColumn("three", DataTypes.INT()),
+				computedColumn("four", plus("one", "3")));
 
 		TableSchema mergedSchema = util.mergeTables(
 				getDefaultMergingStrategies(),
@@ -161,7 +161,7 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				computedColumn("two", plus("one", "3")));
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("A generated column named 'two' already exists in the base table. You " +
@@ -182,7 +182,7 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				computedColumn("two", plus("one", "3")));
 
 		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
 		mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.EXCLUDING);
@@ -210,7 +210,7 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				computedColumn("two", plus("one", "3")));
 
 		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
 		mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
@@ -238,7 +238,7 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				computedColumn("two", plus("one", "3")));
 
 		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
 		mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
@@ -267,8 +267,8 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("three", DataTypes.INT()),
-				tableColumn("four", plus("one", "3")));
+				regularColumn("three", DataTypes.INT()),
+				computedColumn("four", plus("one", "3")));
 
 		TableSchema mergedSchema = util.mergeTables(
 				getDefaultMergingStrategies(),
@@ -699,23 +699,24 @@ public class MergeTableLikeUtilTest {
 		return util.computeMergingStrategies(Collections.emptyList());
 	}
 
-	private SqlNode tableColumn(String name, DataType type) {
+	private SqlNode regularColumn(String name, DataType type) {
 		LogicalType logicalType = type.getLogicalType();
-		return new SqlTableColumn(
-			new SqlIdentifier(name, SqlParserPos.ZERO),
+		return new SqlRegularColumn(
+			SqlParserPos.ZERO,
+			identifier(name),
+			null,
 			SqlTypeUtil.convertTypeToSpec(typeFactory.createFieldTypeFromLogicalType(logicalType))
 				.withNullable(logicalType.isNullable()),
-			null,
-			null,
-			SqlParserPos.ZERO
+			null
 		);
 	}
 
-	private SqlNode tableColumn(String name, SqlNode expression) {
-		return new SqlBasicCall(
-			new SqlAsOperator(),
-			new SqlNode[]{expression, identifier(name)},
-			SqlParserPos.ZERO
+	private SqlNode computedColumn(String name, SqlNode expression) {
+		return new SqlComputedColumn(
+			SqlParserPos.ZERO,
+			identifier(name),
+			null,
+			expression
 		);
 	}
 

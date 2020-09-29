@@ -28,6 +28,7 @@ import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -51,7 +52,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		TypeSerializer<IN2> inputDeserializer2) {
 
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
-			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
+			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null);
 
 		// create an input instance for each input
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -60,8 +61,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			getCheckpointCoordinator(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getTaskNameWithSubtaskAndId(),
-			inputGates1,
-			inputGates2);
+			mainMailboxExecutor,
+			new List[]{ inputGates1, inputGates2 },
+			Collections.emptyList());
 		checkState(checkpointedInputGates.length == 2);
 
 		inputProcessor = new StreamTwoInputProcessor<>(
@@ -69,12 +71,13 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			inputDeserializer1,
 			inputDeserializer2,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getStreamStatusMaintainer(),
-			headOperator,
+			mainOperator,
 			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
 			operatorChain,
-			setupNumRecordsInCounter(headOperator));
+			setupNumRecordsInCounter(mainOperator));
 	}
 }

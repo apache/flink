@@ -26,8 +26,8 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -58,7 +58,7 @@ public abstract class StateBackendTestContext {
 
 	private MockEnvironment env;
 
-	private AbstractKeyedStateBackend<String> keyedStateBackend;
+	private CheckpointableKeyedStateBackend<String> keyedStateBackend;
 
 	protected StateBackendTestContext(TtlTimeProvider timeProvider) {
 		this.timeProvider = Preconditions.checkNotNull(timeProvider);
@@ -168,7 +168,7 @@ public abstract class StateBackendTestContext {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <B extends AbstractKeyedStateBackend> B getKeyedStateBackend() {
+	public <B extends CheckpointableKeyedStateBackend<String>> B getKeyedStateBackend() {
 		return (B) keyedStateBackend;
 	}
 }

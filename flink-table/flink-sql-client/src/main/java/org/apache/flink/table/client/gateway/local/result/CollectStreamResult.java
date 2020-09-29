@@ -41,8 +41,6 @@ import java.net.InetAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A result that works similarly to {@link DataStreamUtils#collect(DataStream)}.
  *
@@ -53,7 +51,6 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
 	private final CollectStreamTableSink collectTableSink;
 	private final ResultRetrievalThread retrievalThread;
-	private final ClassLoader classLoader;
 	private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
 
 	protected final Object resultLock;
@@ -63,8 +60,7 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 			TableSchema tableSchema,
 			ExecutionConfig config,
 			InetAddress gatewayAddress,
-			int gatewayPort,
-			ClassLoader classLoader) {
+			int gatewayPort) {
 		resultLock = new Object();
 
 		// create socket stream iterator
@@ -81,8 +77,6 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 		// pass binding address and port such that sink knows where to send to
 		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
 		retrievalThread = new ResultRetrievalThread();
-
-		this.classLoader = checkNotNull(classLoader);
 	}
 
 	@Override
@@ -90,7 +84,7 @@ public abstract class CollectStreamResult<C> extends BasicResult<C> implements D
 		// start listener thread
 		retrievalThread.start();
 
-		jobExecutionResultFuture = jobClient.getJobExecutionResult(classLoader)
+		jobExecutionResultFuture = jobClient.getJobExecutionResult()
 				.whenComplete((unused, throwable) -> {
 					if (throwable != null) {
 						executionException.compareAndSet(

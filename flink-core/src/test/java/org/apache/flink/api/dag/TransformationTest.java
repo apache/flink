@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.dag;
 
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -28,7 +28,9 @@ import org.junit.Test;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link Transformation}.
@@ -43,25 +45,31 @@ public class TransformationTest extends TestLogger {
 	}
 
 	@Test
-	public void testSetManagedMemoryWeight() {
-		transformation.setManagedMemoryWeight(123);
-		assertEquals(123, transformation.getManagedMemoryWeight());
+	public void testDeclareManagedMemoryUseCase() {
+		transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 123);
+		transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.ROCKSDB);
+		assertThat(transformation.getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(123));
+		assertThat(transformation.getManagedMemorySlotScopeUseCases(), contains(ManagedMemoryUseCase.ROCKSDB));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testSetManagedMemoryWeightFailIfResourcesIsSpecified() {
-		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-		transformation.setResources(resources, resources);
-
-		transformation.setManagedMemoryWeight(123);
+	public void testDeclareManagedMemoryOperatorScopeUseCaseFailWrongScope() {
+		transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.PYTHON, 123);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
-	public void testSetResourcesFailIfManagedMemoryWeightIsSpecified() {
-		transformation.setManagedMemoryWeight(123);
+	public void testDeclareManagedMemoryOperatorScopeUseCaseFailZeroWeight() {
+		transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 0);
+	}
 
-		final ResourceSpec resources = ResourceSpec.newBuilder(1.0, 100).build();
-		transformation.setResources(resources, resources);
+	@Test(expected = IllegalArgumentException.class)
+	public void testDeclareManagedMemoryOperatorScopeUseCaseFailNegativeWeight() {
+		transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, -1);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testDeclareManagedMemorySlotScopeUseCaseFailWrongScope() {
+		transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.BATCH_OP);
 	}
 
 	/**

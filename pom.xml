@@ -125,7 +125,7 @@ under the License.
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.10.1</jackson.version>
 		<prometheus.version>0.8.1</prometheus.version>
-		<avro.version>1.8.2</avro.version>
+		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit.version>4.12</junit.version>
@@ -133,8 +133,8 @@ under the License.
 		<powermock.version>2.0.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<py4j.version>0.10.8.1</py4j.version>
-		<beam.version>2.19.0</beam.version>
-		<protoc.version>3.7.1</protoc.version>
+		<beam.version>2.23.0</beam.version>
+		<protoc.version>3.11.1</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -468,7 +468,8 @@ under the License.
 				<version>3.4.0</version>
 			</dependency>
 
-			<!-- Make sure we use a consistent avro version between Flink and Hadoop -->
+			<!-- We no longer align the avro version with the version bundled in Hadoop.
+			 Users might need to downgrade the avro version for a particular Hadoop version. -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
@@ -1451,10 +1452,10 @@ under the License.
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
-						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-hive/src/test/resources/**</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
+						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/**/serializer-snapshot</exclude>
@@ -1606,6 +1607,26 @@ under the License.
 								<requireJavaVersion>
 									<version>${target.java.version}</version>
 								</requireJavaVersion>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
+						<id>ban-unsafe-snakeyaml</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>org.yaml:snakeyaml:(,1.26]</exclude>
+									</excludes>
+									<includes>
+										<!-- Snakeyaml is pulled in by many modules without using it in production,
+											so there's no benefit in us investing time into bumping these. -->
+										<include>org.yaml:snakeyaml:(,1.26]:*:test</include>
+									</includes>
+								</bannedDependencies>
 							</rules>
 						</configuration>
 					</execution>

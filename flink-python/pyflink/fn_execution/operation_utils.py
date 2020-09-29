@@ -22,22 +22,39 @@ from typing import Any, Tuple, Dict, List
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.serializers import PickleSerializer
-from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction
+from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction, \
+    AggregateFunction, PandasAggregateFunctionWrapper
 
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
 DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
+PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
+PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
+    "flink:transform:batch_over_window_aggregate_function:arrow:v1"
 
 _func_num = 0
 _constant_num = 0
 
 
-def extract_user_defined_function(user_defined_function_proto) -> Tuple[str, Dict, List]:
+def wrap_pandas_result(it):
+    import pandas as pd
+    return [pd.Series([result]) for result in it]
+
+
+def extract_over_window_user_defined_function(user_defined_function_proto):
+    window_index = user_defined_function_proto.window_index
+    return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
+
+
+def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False)\
+        -> Tuple[str, Dict, List]:
     """
     Extracts user-defined-function from the proto representation of a
     :class:`UserDefinedFunction`.
 
     :param user_defined_function_proto: the proto representation of the Python
+    :param pandas_udaf: whether the user_defined_function_proto is pandas udaf
     :class:`UserDefinedFunction`
     """
 
@@ -50,6 +67,8 @@ def extract_user_defined_function(user_defined_function_proto) -> Tuple[str, Dic
     user_defined_funcs = []
 
     user_defined_func = cloudpickle.loads(user_defined_function_proto.payload)
+    if pandas_udaf:
+        user_defined_func = PandasAggregateFunctionWrapper(user_defined_func)
     func_name = 'f%s' % _next_func_num()
     if isinstance(user_defined_func, DelegatingScalarFunction) \
             or isinstance(user_defined_func, DelegationTableFunction):
@@ -159,3 +178,12 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
 
     constant_value_name = 'c%s' % _next_constant_num()
     return constant_value_name, parsed_constant_value
+
+
+def extract_user_defined_aggregate_function(user_defined_function_proto):
+    user_defined_agg = cloudpickle.loads(user_defined_function_proto.payload)
+    assert isinstance(user_defined_agg, AggregateFunction)
+    inputs = []
+    for arg in user_defined_function_proto.inputs:
+        inputs.append(arg.inputOffset)
+    return user_defined_agg, inputs

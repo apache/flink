@@ -44,12 +44,33 @@ message UserDefinedFunction {
   // 2. The result of another user-defined function
   // 3. The constant value of the column
   repeated Input inputs = 2;
+
+  // The index of the over window used in pandas batch over window aggregation
+  int32 window_index = 3;
 }
 
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
   bool metric_enabled = 2;
+  repeated OverWindow windows = 3;
+}
+
+// Used to describe the info of over window in pandas batch over window aggregation
+message OverWindow {
+  enum WindowType {
+    RANGE_UNBOUNDED = 0;
+    RANGE_UNBOUNDED_PRECEDING = 1;
+    RANGE_UNBOUNDED_FOLLOWING = 2;
+    RANGE_SLIDING = 3;
+    ROW_UNBOUNDED = 4;
+    ROW_UNBOUNDED_PRECEDING = 5;
+    ROW_UNBOUNDED_FOLLOWING = 6;
+    ROW_SLIDING = 7;
+  }
+  WindowType window_type = 1;
+  int64 lower_boundary = 2;
+  int64 upper_boundary = 3;
 }
 
 // User defined DataStream function definition.
@@ -71,6 +92,24 @@ message UserDefinedDataStreamFunctions {
   bool metric_enabled = 2;
 }
 
+// A list of the user-defined aggregate functions to be executed in a group aggregate operation.
+message UserDefinedAggregateFunctions {
+  repeated UserDefinedFunction udfs = 1;
+  bool metric_enabled = 2;
+  // The array of the key indexes.
+  repeated int32 grouping = 3;
+  // Generate retract messages if true.
+  bool generate_update_before = 4;
+  // The schema of the grouping keys.
+  Schema.FieldType key_type = 5;
+  // The index of a count aggregate used to calculate the number of accumulated rows.
+  int32 index_of_count_star = 6;
+  // The state cache size.
+  int32 state_cache_size = 7;
+  // Cleanup the expired state if true.
+  bool state_cleaning_enabled = 8;
+}
+
 // A representation of the data schema.
 message Schema {
   enum TypeName {
@@ -90,7 +129,7 @@ message Schema {
     VARBINARY = 13;
     CHAR = 14;
     VARCHAR = 15;
-    ARRAY = 16;
+    BASIC_ARRAY = 16;
     MAP = 17;
     MULTISET = 18;
     LOCAL_ZONED_TIMESTAMP = 19;
@@ -185,9 +224,10 @@ message TypeInfo {
     SQL_DATE = 12;
     SQL_TIME = 13;
     SQL_TIMESTAMP = 14;
-    ARRAY = 15;
+    BASIC_ARRAY = 15;
     PICKLED_BYTES = 16;
     TUPLE = 17;
+    PRIMITIVE_ARRAY = 18;
   }
 
 

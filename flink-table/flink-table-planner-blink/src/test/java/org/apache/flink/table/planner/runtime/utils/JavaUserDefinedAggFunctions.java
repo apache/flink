@@ -28,6 +28,9 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
@@ -112,6 +115,48 @@ public class JavaUserDefinedAggFunctions {
 		public void accumulate(WeightedAvgAccum accumulator, int iValue, int iWeight) {
 			accumulator.sum += iValue * iWeight;
 			accumulator.count += iWeight;
+		}
+	}
+
+	/**
+	 * Test for General Python Aggregate Function.
+	 */
+	public static class TestPythonAggregateFunction extends WeightedAvg implements PythonFunction {
+
+		@Override
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.GENERAL;
+		}
+	}
+
+	/**
+	 * Test for Pandas Python Aggregate Function.
+	 */
+	public static class PandasAggregateFunction extends WeightedAvg implements PythonFunction {
+
+		@Override
+		public byte[] getSerializedPythonFunction() {
+			return new byte[0];
+		}
+
+		@Override
+		public PythonEnv getPythonEnv() {
+			return null;
+		}
+
+		@Override
+		public PythonFunctionKind getPythonFunctionKind() {
+			return PythonFunctionKind.PANDAS;
 		}
 	}
 

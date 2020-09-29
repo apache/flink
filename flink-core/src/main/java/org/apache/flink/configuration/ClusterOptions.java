@@ -92,4 +92,15 @@ public class ClusterOptions {
 					"to a JVM deadlock. See %s for details.",
 				link("https://issues.apache.org/jira/browse/FLINK-16510", "FLINK-16510"))
 				.build());
+
+	@Documentation.ExcludeFromDocumentation
+	public static final ConfigOption<Boolean> ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT = ConfigOptions
+		.key("cluster.declarative-resource-management.enabled")
+		.booleanType()
+		.defaultValue(false)
+		.withDescription("Defines whether the cluster uses declarative resource management.");
+
+	public static boolean isDeclarativeResourceManagementEnabled(Configuration configuration) {
+		return configuration.get(ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT) || System.getProperties().containsKey("flink.tests.enable-declarative");
+	}
 }

@@ -97,6 +97,43 @@ class BeamTableFunctionRowCoder(FastCoder):
         return hash(self._table_function_row_coder)
 
 
+class BeamAggregateFunctionRowCoder(FastCoder):
+    """
+    Coder for Aggregate Function input row.
+    """
+
+    def __init__(self, aggregate_function_row_coder):
+        self._aggregate_function_row_coder = aggregate_function_row_coder
+
+    def _create_impl(self):
+        return self._aggregate_function_row_coder.get_impl()
+
+    def get_impl(self):
+        return BeamCoderImpl(self._create_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(coders.FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
+                        flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return BeamAggregateFunctionRowCoder(
+            coders.AggregateFunctionRowCoder.from_schema_proto(schema_proto))
+
+    def __repr__(self):
+        return 'BeamAggregateFunctionRowCoder[%s]' % repr(self._aggregate_function_row_coder)
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+                and self._aggregate_function_row_coder == other._aggregate_function_row_coder)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash(self._aggregate_function_row_coder)
+
+
 class BeamFlattenRowCoder(FastCoder):
     """
     Coder for Row. The decoded result will be flattened as a list of column values of a row instead
@@ -151,6 +188,8 @@ class ArrowCoder(FastCoder):
         import pandas as pd
         return pd.Series
 
+    @Coder.register_urn(coders.FLINK_SCHEMA_ARROW_CODER_URN,
+                        flink_fn_execution_pb2.Schema)
     @Coder.register_urn(coders.FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN,
                         flink_fn_execution_pb2.Schema)
     def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
@@ -192,7 +231,7 @@ class ArrowCoder(FastCoder):
                                                field_type.nullable)
             elif field_type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
                 return TimestampType(field_type.timestamp_info.precision, field_type.nullable)
-            elif field_type.type_name == flink_fn_execution_pb2.Schema.ARRAY:
+            elif field_type.type_name == flink_fn_execution_pb2.Schema.BASIC_ARRAY:
                 return ArrayType(_to_data_type(field_type.collection_element_type),
                                  field_type.nullable)
             elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
@@ -211,6 +250,30 @@ class ArrowCoder(FastCoder):
 
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema
+
+
+class OverWindowArrowCoder(FastCoder):
+    """
+    Coder for batch pandas over window aggregation.
+    """
+    def __init__(self, arrow_coder):
+        self._arrow_coder = arrow_coder
+
+    def _create_impl(self):
+        return beam_coder_impl_slow.OverWindowArrowCoderImpl(
+            self._arrow_coder._create_impl())
+
+    def to_type_hint(self):
+        return typehints.List
+
+    @Coder.register_urn(coders.FLINK_OVER_WINDOW_ARROW_CODER_URN, flink_fn_execution_pb2.Schema)
+    def _pickle_from_runner_api_parameter(schema_proto, unused_components, unused_context):
+        return OverWindowArrowCoder(
+            ArrowCoder._pickle_from_runner_api_parameter(
+                schema_proto, unused_components, unused_context))
+
+    def __repr__(self):
+        return 'OverWindowArrowCoder[%s]' % self._arrow_coder
 
 
 class BeamDataStreamStatelessMapCoder(FastCoder):

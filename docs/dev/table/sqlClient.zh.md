@@ -223,7 +223,7 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            --pyExecutable
                                            /usr/local/bin/python3). The python
                                            UDF worker depends on Python 3.5+,
-                                           Apache Beam (version == 2.19.0), Pip
+                                           Apache Beam (version == 2.23.0), Pip
                                            (version >= 7.1.0) and SetupTools
                                            (version >= 37.0.0). Please ensure
                                            that the specified environment meets
@@ -469,7 +469,7 @@ SQL 客户端允许用户创建用户自定义的函数来进行 SQL 查询。�
 
 为提供 Java/Scala 的自定义函数，你首先需要实现和编译函数类，该函数继承自 `ScalarFunction`、 `AggregateFunction` 或 `TableFunction`（见[自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html)）。一个或多个函数可以打包到 SQL 客户端的 JAR 依赖中。
 
-为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({% link dev/python/user-guide/table/udfs/python_udfs.zh.md %}))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{ site.baseurl }}/zh/ops/cli.html#usage)）配置中特别指定（见 [Python 配置]({% link dev/python/user-guide/table/python_config.zh.md %})）。
+为提供 Python 的自定义函数，你需要编写 Python 函数并且用装饰器 `pyflink.table.udf.udf` 或 `pyflink.table.udf.udtf` 来装饰（见 [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}))）。Python 文件中可以放置一个或多个函数。其Python 文件和相关依赖需要通过在环境配置文件中或命令行选项（见 [命令行用法]({{ site.baseurl }}/zh/ops/cli.html#usage)）配置中特别指定（见 [Python 配置]({% link dev/python/table-api-users-guide/python_config.zh.md %})）。
 
 所有函数在被调用之前，必须在环境配置文件中提前声明。`functions` 列表中每个函数类都必须指定
 

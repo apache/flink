@@ -24,9 +24,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.planner.utils.TestTableSourceSinks
 import org.apache.flink.types.{Row, RowKind}
-import org.apache.flink.util.TestLogger
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+import org.apache.flink.util.{CollectionUtil, TestLogger}
 
 import org.junit.Assert.{assertEquals, assertNotEquals, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
@@ -94,8 +92,11 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
       Row.of(Integer.valueOf(4), "Peter Smith"),
       Row.of(Integer.valueOf(6), "Sally Miller"),
       Row.of(Integer.valueOf(8), "Kelly Williams"))
+    // wait for data ready
+    // this is just for testing, because iterator will also wait for data ready
+    tableResult.await()
     val it = tableResult.collect()
-    val actual = Lists.newArrayList(it)
+    val actual = CollectionUtil.iteratorToList(it)
     // actively close the job even it is finished
     it.close()
     actual.sort(new util.Comparator[Row]() {
@@ -160,7 +161,7 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
     } else {
       util.Arrays.asList(Row.of(JLong.valueOf(8)))
     }
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     assertEquals(expected, actual)
   }
 

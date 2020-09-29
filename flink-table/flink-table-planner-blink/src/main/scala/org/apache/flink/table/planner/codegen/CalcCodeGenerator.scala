@@ -19,8 +19,10 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
+import org.apache.flink.table.functions.FunctionKind
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -117,6 +119,12 @@ object CalcCodeGenerator {
       allowSplit: Boolean = false): String = {
 
     val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+
+    // according to the SQL standard, every table function should also be a scalar function
+    // but we don't allow that for now
+    projection.foreach(_.accept(ScalarFunctionsValidator))
+    condition.foreach(_.accept(ScalarFunctionsValidator))
+
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(inputType, inputTerm = inputTerm)
 
@@ -192,6 +200,19 @@ object CalcCodeGenerator {
            |  $projectionCode
            |}
            |""".stripMargin
+      }
+    }
+  }
+
+  private object ScalarFunctionsValidator extends RexVisitorImpl[Unit](true) {
+    override def visitCall(call: RexCall): Unit = {
+      super.visitCall(call)
+      call.getOperator match {
+        case bsf: BridgingSqlFunction if bsf.getDefinition.getKind != FunctionKind.SCALAR =>
+          throw new ValidationException(
+            s"Invalid use of function '$bsf'. " +
+              s"Currently, only scalar functions can be used in a projection or filter operation.")
+        case _ => // ok
       }
     }
   }

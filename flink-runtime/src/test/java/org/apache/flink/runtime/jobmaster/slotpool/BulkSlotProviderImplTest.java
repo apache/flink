@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -44,7 +45,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -91,8 +91,9 @@ public class BulkSlotProviderImplTest extends TestLogger {
 
 		slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
 
-		bulkSlotProvider = new BulkSlotProviderImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-		bulkSlotProvider.start(mainThreadExecutor);
+		PhysicalSlotRequestBulkCheckerImpl slotRequestBulkChecker = PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(slotPool, clock);
+		slotRequestBulkChecker.start(mainThreadExecutor);
+		bulkSlotProvider = new BulkSlotProviderImpl(LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool, slotRequestBulkChecker);
 	}
 
 	@After
@@ -143,7 +144,7 @@ public class BulkSlotProviderImplTest extends TestLogger {
 			exception,
 			"Slot request bulk is not fulfillable!");
 		assertThat(cause.isPresent(), is(true));
-		assertThat(cause.get(), instanceOf(TimeoutException.class));
+		assertThat(cause.get(), instanceOf(NoResourceAvailableException.class));
 	}
 
 	@Test

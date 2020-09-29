@@ -228,7 +228,7 @@ The following watermark strategies are supported:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 -- Sets a watermark strategy for strictly ascending rowtime attributes. Emits a watermark of the
--- maximum observed timestamp so far. Rows that have a timestamp smaller to the max timestamp
+-- maximum observed timestamp so far. Rows that have a timestamp bigger to the max timestamp
 -- are not late.
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),
@@ -238,7 +238,7 @@ CREATE TABLE MyTable (
 )
 
 -- Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
--- observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
+-- observed timestamp so far minus 1. Rows that have a timestamp bigger or equal to the max timestamp
 -- are not late.
 CREATE TABLE MyTable (
   ts_field TIMESTAMP(3),

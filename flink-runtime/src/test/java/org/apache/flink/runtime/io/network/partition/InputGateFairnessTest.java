@@ -39,23 +39,20 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests verifying fairness in input gates.
@@ -67,34 +64,39 @@ public class InputGateFairnessTest {
 		final int numberOfChannels = 37;
 		final int buffersPerChannel = 27;
 
-		final ResultPartition resultPartition = mock(ResultPartition.class);
+		PipelinedResultPartition[] resultPartitions = IntStream.range(0, numberOfChannels)
+			.mapToObj(i -> (PipelinedResultPartition) new ResultPartitionBuilder().build())
+			.toArray(PipelinedResultPartition[]::new);
 		final BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 
-		final PipelinedSubpartition[] sources = new PipelinedSubpartition[numberOfChannels];
+		final PipelinedSubpartition[] sources = Arrays.stream(resultPartitions)
+			.map(resultPartition -> resultPartition.getAllPartitions()[0])
+			.toArray(PipelinedSubpartition[]::new);
 
-		for (int i = 0; i < numberOfChannels; i++) {
-			PipelinedSubpartition partition = new PipelinedSubpartition(0, resultPartition);
-
+		for (final PipelinedSubpartition subpartition : sources) {
 			for (int p = 0; p < buffersPerChannel; p++) {
-				partition.add(bufferConsumer.copy());
+				subpartition.add(bufferConsumer.copy());
 			}
 
-			partition.finish();
-			sources[i] = partition;
+			subpartition.finish();
+		}
+
+		for (ResultPartition rp : resultPartitions) {
+			rp.setup();
 		}
 
 		// ----- create reading side -----
 
-		ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
-
 		final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
-		final InputChannel[] inputChannels = new InputChannel[numberOfChannels];
-
-		for (int i = 0; i < numberOfChannels; i++) {
-			inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
-		}
+		final InputChannel[] inputChannels = IntStream.range(0, numberOfChannels)
+			.mapToObj(i -> InputChannelBuilder.newBuilder()
+				.setChannelIndex(i)
+				.setPartitionManager(resultPartitions[i].partitionManager)
+				.setPartitionId(resultPartitions[i].getPartitionId())
+				.buildLocalChannel(gate))
+			.toArray(InputChannel[]::new);
 
 		setupInputGate(gate, inputChannels);
 
@@ -122,26 +124,30 @@ public class InputGateFairnessTest {
 		final int numberOfChannels = 37;
 		final int buffersPerChannel = 27;
 
-		final ResultPartition resultPartition = mock(ResultPartition.class);
+		PipelinedResultPartition[] resultPartitions = IntStream.range(0, numberOfChannels)
+			.mapToObj(i -> (PipelinedResultPartition) new ResultPartitionBuilder().build())
+			.toArray(PipelinedResultPartition[]::new);
 		try (BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(42)) {
 
 			// ----- create some source channels and fill them with one buffer each -----
 
-			final PipelinedSubpartition[] sources = new PipelinedSubpartition[numberOfChannels];
-
-			for (int i = 0; i < numberOfChannels; i++) {
-				sources[i] = new PipelinedSubpartition(0, resultPartition);
-			}
+			final PipelinedSubpartition[] sources = Arrays.stream(resultPartitions)
+				.map(resultPartition -> resultPartition.getAllPartitions()[0])
+				.toArray(PipelinedSubpartition[]::new);
 
 			// ----- create reading side -----
 
-			ResultPartitionManager resultPartitionManager = createResultPartitionManager(sources);
-
 			final SingleInputGate gate = createFairnessVerifyingInputGate(numberOfChannels);
-			final InputChannel[] inputChannels = new InputChannel[numberOfChannels];
+			final InputChannel[] inputChannels = IntStream.range(0, numberOfChannels)
+				.mapToObj(i -> InputChannelBuilder.newBuilder()
+					.setChannelIndex(i)
+					.setPartitionManager(resultPartitions[i].partitionManager)
+					.setPartitionId(resultPartitions[i].getPartitionId())
+					.buildLocalChannel(gate))
+				.toArray(InputChannel[]::new);
 
-			for (int i = 0; i < numberOfChannels; i++) {
-				inputChannels[i] = createLocalInputChannel(gate, i, resultPartitionManager);
+			for (ResultPartition rp : resultPartitions) {
+				rp.setup();
 			}
 
 			// seed one initial buffer
@@ -195,7 +201,7 @@ public class InputGateFairnessTest {
 			for (int p = 0; p < buffersPerChannel; p++) {
 				channel.onBuffer(mockBuffer, p, -1);
 			}
-			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
+			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false), buffersPerChannel, -1);
 		}
 
 		gate.setInputChannels(channels);
@@ -324,7 +330,7 @@ public class InputGateFairnessTest {
 		private static final SupplierWithException<BufferPool, IOException> STUB_BUFFER_POOL_FACTORY =
 			NoOpBufferPool::new;
 
-		private final ArrayDeque<InputChannel> channelsWithData;
+		private final PrioritizedDeque<InputChannel> channelsWithData;
 
 		private final HashSet<InputChannel> uniquenessChecker;
 
@@ -347,14 +353,7 @@ public class InputGateFairnessTest {
 				null,
 				new UnpooledMemorySegmentProvider(32 * 1024));
 
-			try {
-				Field f = SingleInputGate.class.getDeclaredField("inputChannelsWithData");
-				f.setAccessible(true);
-				channelsWithData = (ArrayDeque<InputChannel>) f.get(this);
-			}
-			catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+			channelsWithData = getInputChannelsWithData();
 
 			this.uniquenessChecker = new HashSet<>();
 		}
@@ -363,7 +362,7 @@ public class InputGateFairnessTest {
 		public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
 			synchronized (channelsWithData) {
 				assertTrue("too many input channels", channelsWithData.size() <= getNumberOfInputChannels());
-				ensureUnique(channelsWithData);
+				ensureUnique(channelsWithData.asUnmodifiableCollection());
 			}
 
 			return super.getNext();

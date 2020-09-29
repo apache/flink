@@ -41,11 +41,9 @@ import org.apache.flink.streaming.api.transformations.LegacySourceTransformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
-import org.apache.flink.streaming.api.transformations.SelectTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
-import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
@@ -104,9 +102,6 @@ public class StreamGraphGenerator {
 
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
-	/** The default buffer timeout (max delay of records in the network stack). */
-	public static final long DEFAULT_NETWORK_BUFFER_TIMEOUT = 100L;
-
 	public static final String DEFAULT_SLOT_SHARING_GROUP = "default";
 
 	private final List<Transformation<?>> transformations;
@@ -127,7 +122,7 @@ public class StreamGraphGenerator {
 
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
-	private long defaultBufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
+	private long defaultBufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
 	private String jobName = DEFAULT_JOB_NAME;
 
@@ -263,10 +258,6 @@ public class StreamGraphGenerator {
 			transformedIds = transformSink((SinkTransformation<?>) transform);
 		} else if (transform instanceof UnionTransformation<?>) {
 			transformedIds = transformUnion((UnionTransformation<?>) transform);
-		} else if (transform instanceof SplitTransformation<?>) {
-			transformedIds = transformSplit((SplitTransformation<?>) transform);
-		} else if (transform instanceof SelectTransformation<?>) {
-			transformedIds = transformSelect((SelectTransformation<?>) transform);
 		} else if (transform instanceof FeedbackTransformation<?>) {
 			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
 		} else if (transform instanceof CoFeedbackTransformation<?>) {
@@ -311,7 +302,10 @@ public class StreamGraphGenerator {
 			streamGraph.setResources(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
 		}
 
-		streamGraph.setManagedMemoryWeight(transform.getId(), transform.getManagedMemoryWeight());
+		streamGraph.setManagedMemoryUseCaseWeights(
+			transform.getId(),
+			transform.getManagedMemoryOperatorScopeUseCaseWeights(),
+			transform.getManagedMemorySlotScopeUseCases());
 
 		return transformedIds;
 	}
@@ -352,56 +346,6 @@ public class StreamGraphGenerator {
 		}
 
 		return resultIds;
-	}
-
-	/**
-	 * Transforms a {@code SplitTransformation}.
-	 *
-	 * <p>We add the output selector to previously transformed nodes.
-	 */
-	private <T> Collection<Integer> transformSplit(SplitTransformation<T> split) {
-
-		Transformation<T> input = split.getInput();
-		Collection<Integer> resultIds = transform(input);
-
-		validateSplitTransformation(input);
-
-		// the recursive transform call might have transformed this already
-		if (alreadyTransformed.containsKey(split)) {
-			return alreadyTransformed.get(split);
-		}
-
-		for (int inputId : resultIds) {
-			streamGraph.addOutputSelector(inputId, split.getOutputSelector());
-		}
-
-		return resultIds;
-	}
-
-	/**
-	 * Transforms a {@code SelectTransformation}.
-	 *
-	 * <p>For this we create a virtual node in the {@code StreamGraph} holds the selected names.
-	 *
-	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
-	 */
-	private <T> Collection<Integer> transformSelect(SelectTransformation<T> select) {
-		Transformation<T> input = select.getInput();
-		Collection<Integer> resultIds = transform(input);
-
-		// the recursive transform might have already transformed this
-		if (alreadyTransformed.containsKey(select)) {
-			return alreadyTransformed.get(select);
-		}
-
-		List<Integer> virtualResultIds = new ArrayList<>();
-
-		for (int inputId : resultIds) {
-			int virtualId = Transformation.getNewNodeId();
-			streamGraph.addVirtualSelectNode(inputId, virtualId, select.getSelectedNames());
-			virtualResultIds.add(virtualId);
-		}
-		return virtualResultIds;
 	}
 
 	/**
@@ -840,22 +784,6 @@ public class StreamGraphGenerator {
 				}
 			}
 			return inputGroup == null ? DEFAULT_SLOT_SHARING_GROUP : inputGroup;
-		}
-	}
-
-	private <T> void validateSplitTransformation(Transformation<T> input) {
-		if (input instanceof SelectTransformation || input instanceof SplitTransformation) {
-			throw new IllegalStateException("Consecutive multiple splits are not supported. Splits are deprecated. Please use side-outputs.");
-		} else if (input instanceof SideOutputTransformation) {
-			throw new IllegalStateException("Split after side-outputs are not supported. Splits are deprecated. Please use side-outputs.");
-		} else if (input instanceof UnionTransformation) {
-			for (Transformation<T> transformation : ((UnionTransformation<T>) input).getInputs()) {
-				validateSplitTransformation(transformation);
-			}
-		} else if (input instanceof PartitionTransformation) {
-			validateSplitTransformation(((PartitionTransformation) input).getInput());
-		} else {
-			return;
 		}
 	}
 }

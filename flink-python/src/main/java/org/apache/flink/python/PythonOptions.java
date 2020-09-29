@@ -18,6 +18,7 @@
 
 package org.apache.flink.python;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -136,7 +137,7 @@ public class PythonOptions {
 		.defaultValue("python")
 		.withDescription("Specify the path of the python interpreter used to execute the python " +
 			"UDF worker. The python UDF worker depends on Python 3.5+, Apache Beam " +
-			"(version == 2.19.0), Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). " +
+			"(version == 2.23.0), Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). " +
 			"Please ensure that the specified environment meets the above requirements. The " +
 			"option is equivalent to the command line option \"-pyexec\".");
 
@@ -162,4 +163,14 @@ public class PythonOptions {
 			"configuration key %s. For each Python worker, the required Task Off-Heap Memory " +
 			"is the sum of the value of %s and %s.", TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
 			PYTHON_FRAMEWORK_MEMORY_SIZE.key(), PYTHON_DATA_BUFFER_MEMORY_SIZE.key()));
+
+	/**
+	 * The maximum number of states cached in a Python UDF worker.
+	 */
+	@Experimental
+	public static final ConfigOption<Integer> STATE_CACHE_SIZE = ConfigOptions
+		.key("python.state.cache.size")
+		.defaultValue(1000)
+		.withDescription("The maximum number of states cached in a Python UDF worker. Note that this " +
+			"is an experimental flag and might not be available in future releases.");
 }

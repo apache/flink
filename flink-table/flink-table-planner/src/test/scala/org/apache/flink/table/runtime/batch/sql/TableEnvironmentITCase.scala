@@ -34,9 +34,7 @@ import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStag
 import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestingOverwritableTableSink}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-import org.apache.flink.util.FileUtils
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+import org.apache.flink.util.{CollectionUtil, FileUtils}
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit._
@@ -185,7 +183,7 @@ class TableEnvironmentITCase(
     } catch {
       case e: RuntimeException =>
         assertTrue(e.getMessage.contains("No data sinks have been created yet."))
-      case  _ =>
+      case _: Throwable =>
         fail("Should not happen")
     }
 
@@ -301,10 +299,6 @@ class TableEnvironmentITCase(
 
     val tableResult = tEnv.executeSql("INSERT INTO targetTable SELECT a, b, c FROM sourceTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
@@ -325,20 +319,12 @@ class TableEnvironmentITCase(
 
     val tableResult1 = tEnv.executeSql("INSERT overwrite MySink SELECT c FROM sourceTable")
     checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult1.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected1 = List("Hi", "Hello", "Hello world")
     val actual1 = FileUtils.readFileUtf8(resultFile).split("\n").toList
     assertEquals(expected1.sorted, actual1.sorted)
 
     val tableResult2 = tEnv.executeSql("INSERT overwrite MySink SELECT c FROM sourceTable")
     checkInsertTableResult(tableResult2, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult2.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected2 = List("Hi", "Hello", "Hello world")
     val actual2 = FileUtils.readFileUtf8(resultFile).split("\n").toList
     assertEquals(expected2.sorted, actual2.sorted)
@@ -366,10 +352,6 @@ class TableEnvironmentITCase(
 
     val tableResult = tEnv.executeSql("INSERT INTO targetTable SELECT a, b, c FROM sourceTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
     assertTrue(FileUtils.readFileUtf8(new File(sink1Path)).isEmpty)
@@ -404,10 +386,6 @@ class TableEnvironmentITCase(
 
     val tableResult = tEnv.executeSql("INSERT INTO targetTable SELECT a, b, c FROM sourceTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
     // the DataSet has not been executed
@@ -439,10 +417,6 @@ class TableEnvironmentITCase(
     val table = tEnv.sqlQuery("SELECT a, b, c FROM sourceTable")
     val tableResult = table.executeInsert("targetTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.targetTable")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected1 = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertEquals(expected1.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
@@ -464,19 +438,12 @@ class TableEnvironmentITCase(
     val tableResult1 = tEnv.sqlQuery("SELECT c FROM sourceTable").executeInsert("MySink", true)
     checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
     // wait job finished
-    tableResult1.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected1 = List("Hi", "Hello", "Hello world")
     val actual1 = FileUtils.readFileUtf8(resultFile).split("\n").toList
     assertEquals(expected1.sorted, actual1.sorted)
 
     val tableResult2 = tEnv.sqlQuery("SELECT c FROM sourceTable").executeInsert("MySink", true)
     checkInsertTableResult(tableResult2,  "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult2.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     val expected2 = List("Hi", "Hello", "Hello world")
     val actual2 = FileUtils.readFileUtf8(resultFile).split("\n").toList
     assertEquals(expected2.sorted, actual2.sorted)
@@ -514,10 +481,6 @@ class TableEnvironmentITCase(
     assertEquals(replaceStageId(expected), replaceTempVariables(replaceStageId(actual)))
 
     val tableResult = stmtSet.execute()
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     checkInsertTableResult(
       tableResult,
       "default_catalog.default_database.MySink1",
@@ -553,10 +516,6 @@ class TableEnvironmentITCase(
       .addInsertSql("INSERT INTO MySink SELECT a, b, c FROM MyTable where a <= 2")
 
     val tableResult = stmtSet.execute()
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     // only check the schema
     checkInsertTableResult(
       tableResult,
@@ -584,7 +543,7 @@ class TableEnvironmentITCase(
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Hello"),
       Row.of(Integer.valueOf(3), "Hello world"))
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     actual.sort(new util.Comparator[Row]() {
       override def compare(o1: Row, o2: Row): Int = {
         o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
@@ -615,6 +574,7 @@ class TableEnvironmentITCase(
     assertEquals(
       util.Arrays.asList(fieldNames: _*),
       util.Arrays.asList(tableResult.getTableSchema.getFieldNames: _*))
+    // return the result until the job is finished
     val it = tableResult.collect()
     assertTrue(it.hasNext)
     val affectedRowCounts = fieldNames.map(_ => JLong.valueOf(-1L))

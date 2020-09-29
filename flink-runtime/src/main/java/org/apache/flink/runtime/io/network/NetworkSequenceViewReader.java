@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -36,6 +38,7 @@ public interface NetworkSequenceViewReader {
 		ResultPartitionID resultPartitionId,
 		int subPartitionIndex) throws IOException;
 
+	@Nullable
 	BufferAndAvailability getNextBuffer() throws IOException;
 
 	/**
@@ -73,6 +76,4 @@ public interface NetworkSequenceViewReader {
 	Throwable getFailureCause();
 
 	InputChannelID getReceiverId();
-
-	int getSequenceNumber();
 }

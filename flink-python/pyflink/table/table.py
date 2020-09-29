@@ -19,13 +19,18 @@
 import warnings
 
 from py4j.java_gateway import get_method
+from typing import Union
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table import ExplainDetail
+from pyflink.table.expression import Expression, _get_java_expression
+from pyflink.table.expressions import col
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import create_arrow_schema
-from pyflink.table.utils import tz_convert_from_internal
+from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
+from pyflink.table.window import OverWindow, GroupWindow
 
 from pyflink.util.utils import to_jarray
 from pyflink.util.utils import to_j_explain_detail_arr
@@ -66,7 +71,25 @@ class Table(object):
         self._j_table = j_table
         self._t_env = t_env
 
-    def select(self, fields):
+    def __str__(self):
+        return self._j_table.toString()
+
+    def __getattr__(self, name) -> Expression:
+        """
+        Returns the :class:`Expression` of the column `name`.
+
+        Example:
+        ::
+
+            >>> tab.select(tab.a)
+        """
+        if name not in self.get_schema().get_field_names():
+            raise AttributeError(
+                "The current table has no column named '%s', available columns: [%s]"
+                % (name, ', '.join(self.get_schema().get_field_names())))
+        return col(name)
+
+    def select(self, *fields: Union[str, Expression]):
         """
         Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
         can contain complex expressions.
@@ -74,29 +97,35 @@ class Table(object):
         Example:
         ::
 
+            >>> from pyflink.table import expressions as expr
+            >>> tab.select(tab.key, expr.concat(tab.value, 'hello'))
+            >>> tab.select(expr.col('key'), expr.concat(expr.col('value'), 'hello'))
+
             >>> tab.select("key, value + 'hello'")
 
-        :param fields: Expression string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
 
-    def alias(self, field, *fields):
+    def alias(self, field: str, *fields: str):
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
-        joining to operations.
+        joining two tables.
 
         Example:
         ::
 
-            >>> tab.alias("a", "b")
+            >>> tab.alias("a", "b", "c")
+            >>> tab.alias("a, b, c")
 
         :param field: Field alias.
-        :type field: str
         :param fields: Additional field aliases.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
@@ -104,7 +133,7 @@ class Table(object):
         extra_fields = to_jarray(gateway.jvm.String, fields)
         return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
 
-    def filter(self, predicate):
+    def filter(self, predicate: Union[str, Expression[bool]]):
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
@@ -112,16 +141,16 @@ class Table(object):
         Example:
         ::
 
+            >>> tab.filter(tab.name == 'Fred')
             >>> tab.filter("name = 'Fred'")
 
         :param predicate: Predicate expression string.
-        :type predicate: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.filter(predicate), self._t_env)
+        return Table(self._j_table.filter(_get_java_expression(predicate)), self._t_env)
 
-    def where(self, predicate):
+    def where(self, predicate: Union[str, Expression[bool]]):
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
@@ -129,16 +158,16 @@ class Table(object):
         Example:
         ::
 
+            >>> tab.where(tab.name == 'Fred')
             >>> tab.where("name = 'Fred'")
 
         :param predicate: Predicate expression string.
-        :type predicate: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.where(predicate), self._t_env)
+        return Table(self._j_table.where(_get_java_expression(predicate)), self._t_env)
 
-    def group_by(self, fields):
+    def group_by(self, *fields: Union[str, Expression]):
         """
         Groups the elements on some grouping keys. Use this before a selection with aggregations
         to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
@@ -146,14 +175,19 @@ class Table(object):
         Example:
         ::
 
+            >>> tab.group_by(tab.key).select(tab.key, tab.value.avg)
             >>> tab.group_by("key").select("key, value.avg")
 
         :param fields: Group keys.
-        :type fields: str
         :return: The grouped table.
         :rtype: pyflink.table.GroupedTable
         """
-        return GroupedTable(self._j_table.groupBy(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return GroupedTable(self._j_table.groupBy(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return GroupedTable(self._j_table.groupBy(fields[0]), self._t_env)
 
     def distinct(self):
         """
@@ -162,14 +196,14 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.select("key, value").distinct()
+            >>> tab.select(tab.key, tab.value).distinct()
 
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.distinct(), self._t_env)
 
-    def join(self, right, join_predicate=None):
+    def join(self, right: 'Table', join_predicate: Union[str, Expression[bool]] = None):
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL join. The fields of the two joined
         operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
@@ -183,22 +217,22 @@ class Table(object):
         Example:
         ::
 
-            >>> left.join(right).where("a = b && c > 3").select("a, b, d")
-            >>> left.join(right, "a = b")
+            >>> left.join(right).where((left.a == right.b) && (left.c > 3))
+            >>> left.join(right).where("a = b && c > 3")
+            >>> left.join(right, left.a == right.b)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :param join_predicate: Optional, the join predicate expression string.
-        :type join_predicate: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         if join_predicate is not None:
-            return Table(self._j_table.join(right._j_table, join_predicate), self._t_env)
+            return Table(self._j_table.join(
+                right._j_table, _get_java_expression(join_predicate)), self._t_env)
         else:
             return Table(self._j_table.join(right._j_table), self._t_env)
 
-    def left_outer_join(self, right, join_predicate=None):
+    def left_outer_join(self, right: 'Table', join_predicate: Union[str, Expression[bool]] = None):
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL left outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -212,22 +246,22 @@ class Table(object):
         Example:
         ::
 
-            >>> left.left_outer_join(right).select("a, b, d")
-            >>> left.left_outer_join(right, "a = b").select("a, b, d")
+            >>> left.left_outer_join(right)
+            >>> left.left_outer_join(right, left.a == right.b)
+            >>> left.left_outer_join(right, "a = b")
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :param join_predicate: Optional, the join predicate expression string.
-        :type join_predicate: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoin(right._j_table), self._t_env)
         else:
-            return Table(self._j_table.leftOuterJoin(right._j_table, join_predicate), self._t_env)
+            return Table(self._j_table.leftOuterJoin(
+                right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
-    def right_outer_join(self, right, join_predicate):
+    def right_outer_join(self, right: 'Table', join_predicate: Union[str, Expression[bool]]):
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL right outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -241,18 +275,18 @@ class Table(object):
         Example:
         ::
 
-            >>> left.right_outer_join(right, "a = b").select("a, b, d")
+            >>> left.right_outer_join(right, left.a == right.b)
+            >>> left.right_outer_join(right, "a = b")
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :param join_predicate: The join predicate expression string.
-        :type join_predicate: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.rightOuterJoin(right._j_table, join_predicate), self._t_env)
+        return Table(self._j_table.rightOuterJoin(
+            right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
-    def full_outer_join(self, right, join_predicate):
+    def full_outer_join(self, right: 'Table', join_predicate: Union[str, Expression[bool]]):
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL full outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -266,18 +300,20 @@ class Table(object):
         Example:
         ::
 
-            >>> left.full_outer_join(right, "a = b").select("a, b, d")
+            >>> left.full_outer_join(right, left.a == right.b)
+            >>> left.full_outer_join(right, "a = b")
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :param join_predicate: The join predicate expression string.
-        :type join_predicate: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate), self._t_env)
+        return Table(self._j_table.fullOuterJoin(
+            right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
-    def join_lateral(self, table_function_call, join_predicate=None):
+    def join_lateral(self,
+                     table_function_call: Union[str, Expression],
+                     join_predicate: Union[str, Expression[bool]] = None):
         """
         Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
         join but works with a table function. Each row of the table is joined with the rows
@@ -290,21 +326,27 @@ class Table(object):
            ...     "java.table.function.class.name")
             >>> tab.join_lateral("split(text, ' ') as (b)", "a = b")
 
+            >>> from pyflink.table import expressions as expr
+            >>> tab.join_lateral(expr.call('split', ' ').alias('b'), expr.col('a') == expr.col('b'))
+
         :param table_function_call: An expression representing a table function call.
-        :type table_function_call: str
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
                                exist.
-        :type join_predicate: str
         :return: The result Table.
         :rtype: pyflink.table.Table
         """
         if join_predicate is None:
-            return Table(self._j_table.joinLateral(table_function_call), self._t_env)
+            return Table(self._j_table.joinLateral(
+                _get_java_expression(table_function_call)), self._t_env)
         else:
-            return Table(self._j_table.joinLateral(table_function_call, join_predicate),
-                         self._t_env)
+            return Table(self._j_table.joinLateral(
+                _get_java_expression(table_function_call),
+                _get_java_expression(join_predicate)),
+                self._t_env)
 
-    def left_outer_join_lateral(self, table_function_call, join_predicate=None):
+    def left_outer_join_lateral(self,
+                                table_function_call: Union[str, Expression],
+                                join_predicate: Union[str, Expression[bool]] = None):
         """
         Joins this Table with an user-defined TableFunction. This join is similar to
         a SQL left outer join but works with a table function. Each row of the table is joined
@@ -317,22 +359,25 @@ class Table(object):
             >>> t_env.create_java_temporary_system_function("split",
             ...     "java.table.function.class.name")
             >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
+            >>> from pyflink.table import expressions as expr
+            >>> tab.left_outer_join_lateral(expr.call('split', ' ').alias('b'))
 
         :param table_function_call: An expression representing a table function call.
-        :type table_function_call: str
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
                                exist.
-        :type join_predicate: str
         :return: The result Table.
         :rtype: pyflink.table.Table
         """
         if join_predicate is None:
-            return Table(self._j_table.leftOuterJoinLateral(table_function_call), self._t_env)
+            return Table(self._j_table.leftOuterJoinLateral(
+                _get_java_expression(table_function_call)), self._t_env)
         else:
-            return Table(self._j_table.leftOuterJoinLateral(table_function_call, join_predicate),
-                         self._t_env)
+            return Table(self._j_table.leftOuterJoinLateral(
+                _get_java_expression(table_function_call),
+                _get_java_expression(join_predicate)),
+                self._t_env)
 
-    def minus(self, right):
+    def minus(self, right: 'Table'):
         """
         Minus of two :class:`~pyflink.table.Table` with duplicate records removed.
         Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
@@ -349,13 +394,12 @@ class Table(object):
             >>> left.minus(right)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.minus(right._j_table), self._t_env)
 
-    def minus_all(self, right):
+    def minus_all(self, right: 'Table'):
         """
         Minus of two :class:`~pyflink.table.Table`. Similar to a SQL EXCEPT ALL.
         Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
@@ -373,13 +417,12 @@ class Table(object):
             >>> left.minus_all(right)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.minusAll(right._j_table), self._t_env)
 
-    def union(self, right):
+    def union(self, right: 'Table'):
         """
         Unions two :class:`~pyflink.table.Table` with duplicate records removed.
         Similar to a SQL UNION. The fields of the two union operations must fully overlap.
@@ -394,13 +437,12 @@ class Table(object):
             >>> left.union(right)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.union(right._j_table), self._t_env)
 
-    def union_all(self, right):
+    def union_all(self, right: 'Table'):
         """
         Unions two :class:`~pyflink.table.Table`. Similar to a SQL UNION ALL. The fields of the
         two union operations must fully overlap.
@@ -415,13 +457,12 @@ class Table(object):
             >>> left.union_all(right)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.unionAll(right._j_table), self._t_env)
 
-    def intersect(self, right):
+    def intersect(self, right: 'Table'):
         """
         Intersects two :class:`~pyflink.table.Table` with duplicate records removed. Intersect
         returns records that exist in both tables. If a record is present in one or both tables
@@ -439,13 +480,12 @@ class Table(object):
             >>> left.intersect(right)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.intersect(right._j_table), self._t_env)
 
-    def intersect_all(self, right):
+    def intersect_all(self, right: 'Table'):
         """
         Intersects two :class:`~pyflink.table.Table`. IntersectAll returns records that exist in
         both tables. If a record is present in both tables more than once, it is returned as many
@@ -463,13 +503,12 @@ class Table(object):
             >>> left.intersect_all(right)
 
         :param right: Right table.
-        :type right: pyflink.table.Table
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.intersectAll(right._j_table), self._t_env)
 
-    def order_by(self, fields):
+    def order_by(self, *fields: Union[str, Expression]):
         """
         Sorts the given :class:`~pyflink.table.Table`. Similar to SQL ORDER BY.
         The resulting Table is sorted globally sorted across all parallel partitions.
@@ -477,19 +516,24 @@ class Table(object):
         Example:
         ::
 
+            >>> tab.order_by(tab.name.desc)
             >>> tab.order_by("name.desc")
 
         For unbounded tables, this operation requires a sorting on a time attribute or a subsequent
         fetch operation.
 
         :param fields: Order fields expression string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.orderBy(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.orderBy(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.orderBy(fields[0]), self._t_env)
 
-    def offset(self, offset):
+    def offset(self, offset: int):
         """
         Limits a (possibly sorted) result from an offset position.
 
@@ -501,20 +545,20 @@ class Table(object):
         ::
 
             # skips the first 3 rows and returns all following rows.
+            >>> tab.order_by(tab.name.desc).offset(3)
             >>> tab.order_by("name.desc").offset(3)
             # skips the first 10 rows and returns the next 5 rows.
-            >>> tab.order_by("name.desc").offset(10).fetch(5)
+            >>> tab.order_by(tab.name.desc).offset(10).fetch(5)
 
         For unbounded tables, this operation requires a subsequent fetch operation.
 
         :param offset: Number of records to skip.
-        :type offset: int
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.offset(offset), self._t_env)
 
-    def fetch(self, fetch):
+    def fetch(self, fetch: int):
         """
         Limits a (possibly sorted) result to the first n rows.
 
@@ -527,21 +571,46 @@ class Table(object):
         Returns the first 3 records.
         ::
 
+            >>> tab.order_by(tab.name.desc).fetch(3)
             >>> tab.order_by("name.desc").fetch(3)
 
         Skips the first 10 rows and returns the next 5 rows.
         ::
 
-            >>> tab.order_by("name.desc").offset(10).fetch(5)
+            >>> tab.order_by(tab.name.desc).offset(10).fetch(5)
 
         :param fetch: The number of records to return. Fetch must be >= 0.
-        :type fetch: int
         :return: The result table.
         :rtype: pyflink.table.Table
         """
         return Table(self._j_table.fetch(fetch), self._t_env)
 
-    def window(self, window):
+    def limit(self, fetch: int, offset: int = 0):
+        """
+        Limits a (possibly sorted) result to the first n rows.
+
+        This method is a synonym for :func:`~pyflink.table.Table.offset` followed by
+        :func:`~pyflink.table.Table.fetch`.
+
+        Example:
+
+        Returns the first 3 records.
+        ::
+
+            >>> tab.limit(3)
+
+        Skips the first 10 rows and returns the next 5 rows.
+        ::
+
+            >>> tab.limit(5, 10)
+
+        :param fetch: the first number of rows to fetch.
+        :param offset: the number of records to skip, default 0.
+        :return: The result table.
+        """
+        return self.offset(offset).fetch(fetch)
+
+    def window(self, window: GroupWindow):
         """
         Defines group window on the records of a table.
 
@@ -565,20 +634,23 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.window(Tumble.over("10.minutes").on("rowtime").alias("w")) \\
-            ...     .group_by("w") \\
-            ...     .select("a.sum as a, w.start as b, w.end as c, w.rowtime as d")
+            >>> from pyflink.table import expressions as expr
+            >>> tab.window(Tumble.over(expr.lit(10).minutes).on(tab.rowtime).alias('w')) \\
+            ...     .group_by(col('w')) \\
+            ...     .select(tab.a.sum.alias('a'),
+            ...             col('w').start.alias('b'),
+            ...             col('w').end.alias('c'),
+            ...             col('w').rowtime.alias('d'))
 
         :param window: A :class:`~pyflink.table.window.GroupWindow` created from
                        :class:`~pyflink.table.window.Tumble`, :class:`~pyflink.table.window.Session`
                        or :class:`~pyflink.table.window.Slide`.
-        :type window: pyflink.table.window.GroupWindow
         :return: A group windowed table.
         :rtype: GroupWindowedTable
         """
         return GroupWindowedTable(self._j_table.window(window._java_window), self._t_env)
 
-    def over_window(self, *over_windows):
+    def over_window(self, *over_windows: OverWindow):
         """
         Defines over-windows on the records of a table.
 
@@ -588,9 +660,10 @@ class Table(object):
         Example:
         ::
 
-            >>> table.window(Over.partition_by("c").order_by("rowTime") \\
-            ...     .preceding("10.seconds").alias("ow")) \\
-            ...     .select("c, b.count over ow, e.sum over ow")
+            >>> from pyflink.table import expressions as expr
+            >>> tab.over_window(Over.partition_by(tab.c).order_by(tab.rowtime) \\
+            ...     .preceding(lit(10).seconds).alias("ow")) \\
+            ...     .select(tab.c, tab.b.count.over(col('ow'), tab.e.sum.over(col('ow'))))
 
         .. note::
 
@@ -603,7 +676,6 @@ class Table(object):
             Over-windows for batch tables are currently not supported.
 
         :param over_windows: over windows created from :class:`~pyflink.table.window.Over`.
-        :type over_windows: pyflink.table.window.OverWindow
         :return: A over windowed table.
         :rtype: pyflink.table.OverWindowedTable
         """
@@ -612,7 +684,7 @@ class Table(object):
                                  [item._java_over_window for item in over_windows])
         return OverWindowedTable(self._j_table.window(window_array), self._t_env)
 
-    def add_columns(self, fields):
+    def add_columns(self, *fields: Union[str, Expression]):
         """
         Adds additional columns. Similar to a SQL SELECT statement. The field expressions
         can contain complex expressions, but can not contain aggregations. It will throw an
@@ -621,16 +693,22 @@ class Table(object):
         Example:
         ::
 
+            >>> from pyflink.table import expressions as expr
+            >>> tab.add_columns((tab.a + 1).alias('a1'), expr.concat(tab.b, 'sunny').alias('b1'))
             >>> tab.add_columns("a + 1 as a1, concat(b, 'sunny') as b1")
 
         :param fields: Column list string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.addColumns(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.addColumns(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.addColumns(fields[0]), self._t_env)
 
-    def add_or_replace_columns(self, fields):
+    def add_or_replace_columns(self, *fields: Union[str, Expression]):
         """
         Adds additional columns. Similar to a SQL SELECT statement. The field expressions
         can contain complex expressions, but can not contain aggregations. Existing fields will be
@@ -640,16 +718,24 @@ class Table(object):
         Example:
         ::
 
+            >>> from pyflink.table import expressions as expr
+            >>> tab.add_or_replace_columns((tab.a + 1).alias('a1'),
+            ...                            expr.concat(tab.b, 'sunny').alias('b1'))
             >>> tab.add_or_replace_columns("a + 1 as a1, concat(b, 'sunny') as b1")
 
         :param fields: Column list string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.addOrReplaceColumns(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.addOrReplaceColumns(to_expression_jarray(fields)),
+                         self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.addOrReplaceColumns(fields[0]), self._t_env)
 
-    def rename_columns(self, fields):
+    def rename_columns(self, *fields: Union[str, Expression]):
         """
         Renames existing columns. Similar to a field alias statement. The field expressions
         should be alias expressions, and only the existing fields can be renamed.
@@ -657,32 +743,44 @@ class Table(object):
         Example:
         ::
 
+            >>> tab.rename_columns(tab.a.alias('a1'), tab.b.alias('b1'))
             >>> tab.rename_columns("a as a1, b as b1")
 
         :param fields: Column list string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.renameColumns(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.renameColumns(to_expression_jarray(fields)),
+                         self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.renameColumns(fields[0]), self._t_env)
 
-    def drop_columns(self, fields):
+    def drop_columns(self, *fields: Union[str, Expression]):
         """
         Drops existing columns. The field expressions should be field reference expressions.
 
         Example:
         ::
 
+            >>> tab.drop_columns(tab.a, tab.b)
             >>> tab.drop_columns("a, b")
 
         :param fields: Column list string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.dropColumns(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.dropColumns(to_expression_jarray(fields)),
+                         self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.dropColumns(fields[0]), self._t_env)
 
-    def insert_into(self, table_path):
+    def insert_into(self, table_path: str):
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
         registered under the specified name. For the path resolution algorithm see
@@ -695,7 +793,6 @@ class Table(object):
 
         :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                the :class:`~pyflink.table.Table` is written.
-        :type table_path: str
 
         .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
                   use :class:`TableTableEnvironment`#:func:`create_statement_set`
@@ -717,7 +814,7 @@ class Table(object):
 
             >>> pdf = pd.DataFrame(np.random.rand(1000, 2))
             >>> table = table_env.from_pandas(pdf, ["a", "b"])
-            >>> table.filter("a > 0.5").to_pandas()
+            >>> table.filter(table.a > 0.5).to_pandas()
 
         :return: the result pandas DataFrame.
 
@@ -766,7 +863,7 @@ class Table(object):
         """
         self._j_table.printSchema()
 
-    def execute_insert(self, table_path, overwrite=False):
+    def execute_insert(self, table_path: str, overwrite: bool = False):
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
         registered under the specified name, and then execute the insert operation.
@@ -779,10 +876,8 @@ class Table(object):
 
         :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
                the :class:`~pyflink.table.Table` is written.
-        :type table_path: str
         :param overwrite: The flag that indicates whether the insert should overwrite
                existing data or not.
-        :type overwrite: bool
         :return: The table result.
 
         .. versionadded:: 1.11.0
@@ -806,23 +901,18 @@ class Table(object):
         self._t_env._before_execute()
         return TableResult(self._j_table.execute())
 
-    def explain(self, *extra_details):
+    def explain(self, *extra_details: ExplainDetail) -> str:
         """
         Returns the AST of this table and the execution plan.
 
         :param extra_details: The extra explain details which the explain result should include,
                               e.g. estimated cost, changelog mode for streaming
-        :type extra_details: tuple[ExplainDetail] (variable-length arguments of ExplainDetail)
         :return: The statement for which the AST and execution plan will be returned.
-        :rtype: str
 
         .. versionadded:: 1.11.0
         """
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_table.explain(j_extra_details)
-
-    def __str__(self):
-        return self._j_table.toString()
 
 
 class GroupedTable(object):
@@ -834,7 +924,7 @@ class GroupedTable(object):
         self._j_table = java_table
         self._t_env = t_env
 
-    def select(self, fields):
+    def select(self, *fields: Union[str, Expression]):
         """
         Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
         The field expressions can contain complex expressions and aggregations.
@@ -842,15 +932,20 @@ class GroupedTable(object):
         Example:
         ::
 
-            >>> tab.group_by("key").select("key, value.avg + ' The average' as average")
+            >>> tab.group_by(tab.key).select(tab.key, tab.value.avg.alias('average'))
+            >>> tab.group_by("key").select("key, value.avg as average")
 
 
         :param fields: Expression string that contains group keys and aggregate function calls.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
 
 
 class GroupWindowedTable(object):
@@ -862,7 +957,7 @@ class GroupWindowedTable(object):
         self._j_table = java_group_windowed_table
         self._t_env = t_env
 
-    def group_by(self, fields):
+    def group_by(self, *fields: Union[str, Expression]):
         """
         Groups the elements by a mandatory window and one or more optional grouping attributes.
         The window is specified by referring to its alias.
@@ -877,14 +972,25 @@ class GroupWindowedTable(object):
         Example:
         ::
 
-            >>> tab.window(group_window.alias("w")).group_by("w, key").select("key, value.avg")
+            >>> from pyflink.table import expressions as expr
+            >>> tab.window(Tumble.over(expr.lit(10).minutes).on(tab.rowtime).alias('w')) \\
+            ...     .group_by(col('w')) \\
+            ...     .select(tab.a.sum.alias('a'),
+            ...             col('w').start.alias('b'),
+            ...             col('w').end.alias('c'),
+            ...             col('w').rowtime.alias('d'))
 
         :param fields: Group keys.
-        :type fields: str
         :return: A window grouped table.
         :rtype: pyflink.table.WindowGroupedTable
         """
-        return WindowGroupedTable(self._j_table.groupBy(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return WindowGroupedTable(
+                self._j_table.groupBy(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return WindowGroupedTable(self._j_table.groupBy(fields[0]), self._t_env)
 
 
 class WindowGroupedTable(object):
@@ -896,7 +1002,7 @@ class WindowGroupedTable(object):
         self._j_table = java_window_grouped_table
         self._t_env = t_env
 
-    def select(self, fields):
+    def select(self, *fields: Union[str, Expression]):
         """
         Performs a selection operation on a window grouped table. Similar to an SQL SELECT
         statement.
@@ -905,14 +1011,21 @@ class WindowGroupedTable(object):
         Example:
         ::
 
+            >>> window_grouped_table.select(col('key'),
+            ...                             col('window').start,
+            ...                             col('value').avg.alias('valavg'))
             >>> window_grouped_table.select("key, window.start, value.avg as valavg")
 
         :param fields: Expression string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
 
 
 class OverWindowedTable(object):
@@ -928,7 +1041,7 @@ class OverWindowedTable(object):
         self._j_table = java_over_windowed_table
         self._t_env = t_env
 
-    def select(self, fields):
+    def select(self, *fields: Union[str, Expression]):
         """
         Performs a selection operation on a over windowed table. Similar to an SQL SELECT
         statement.
@@ -937,11 +1050,18 @@ class OverWindowedTable(object):
         Example:
         ::
 
+            >>> over_windowed_table.select(col('c'),
+            ...                            col('b').count.over(col('ow')),
+            ...                            col('e').sum.over(col('ow')))
             >>> over_windowed_table.select("c, b.count over ow, e.sum over ow")
 
         :param fields: Expression string.
-        :type fields: str
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)

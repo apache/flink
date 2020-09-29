@@ -21,15 +21,15 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
-import org.apache.flink.streaming.api.datastream.SplitStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 /**
@@ -49,6 +49,9 @@ import java.util.Random;
 public class IterateExample {
 
 	private static final int BOUND = 100;
+
+	private static final OutputTag<Tuple5<Integer, Integer, Integer, Integer, Integer>> ITERATE_TAG =
+		new OutputTag<Tuple5<Integer, Integer, Integer, Integer, Integer>>("iterate") {};
 
 	// *************************************************************************
 	// PROGRAM
@@ -84,19 +87,16 @@ public class IterateExample {
 				.iterate(5000L);
 
 		// apply the step function to get the next Fibonacci number
-		// increment the counter and split the output with the output selector
-		SplitStream<Tuple5<Integer, Integer, Integer, Integer, Integer>> step = it.map(new Step())
-				.split(new MySelector());
+		// increment the counter and split the output
+		SingleOutputStreamOperator<Tuple5<Integer, Integer, Integer, Integer, Integer>> step = it.process(new Step());
 
 		// close the iteration by selecting the tuples that were directed to the
 		// 'iterate' channel in the output selector
-		it.closeWith(step.select("iterate"));
+		it.closeWith(step.getSideOutput(ITERATE_TAG));
 
-		// to produce the final output select the tuples directed to the
-		// 'output' channel then get the input pairs that have the greatest iteration counter
+		// to produce the final get the input pairs that have the greatest iteration counter
 		// on a 1 second sliding window
-		DataStream<Tuple2<Tuple2<Integer, Integer>, Integer>> numbers = step.select("output")
-				.map(new OutputMap());
+		DataStream<Tuple2<Tuple2<Integer, Integer>, Integer>> numbers = step.map(new OutputMap());
 
 		// emit results
 		if (params.has("output")) {
@@ -176,33 +176,27 @@ public class IterateExample {
 	/**
 	 * Iteration step function that calculates the next Fibonacci number.
 	 */
-	public static class Step implements
-			MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple5<Integer, Integer, Integer,
-					Integer, Integer>> {
+	public static class Step
+		extends ProcessFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple5<Integer, Integer, Integer, Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple5<Integer, Integer, Integer, Integer,
-				Integer> value) throws Exception {
-			return new Tuple5<>(value.f0, value.f1, value.f3, value.f2 + value.f3, ++value.f4);
-		}
-	}
+		public void processElement(
+			Tuple5<Integer, Integer, Integer, Integer, Integer> value,
+			Context ctx,
+			Collector<Tuple5<Integer, Integer, Integer, Integer, Integer>> out) throws Exception {
+			Tuple5<Integer, Integer, Integer, Integer, Integer> element = new Tuple5<>(
+				value.f0,
+				value.f1,
+				value.f3,
+				value.f2 + value.f3,
+				++value.f4);
 
-	/**
-	 * OutputSelector testing which tuple needs to be iterated again.
-	 */
-	public static class MySelector implements OutputSelector<Tuple5<Integer, Integer, Integer, Integer, Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Iterable<String> select(Tuple5<Integer, Integer, Integer, Integer, Integer> value) {
-			List<String> output = new ArrayList<>();
 			if (value.f2 < BOUND && value.f3 < BOUND) {
-				output.add("iterate");
+				ctx.output(ITERATE_TAG, element);
 			} else {
-				output.add("output");
+				out.collect(element);
 			}
-			return output;
 		}
 	}
 

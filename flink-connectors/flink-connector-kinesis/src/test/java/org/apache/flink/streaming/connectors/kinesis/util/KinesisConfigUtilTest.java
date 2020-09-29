@@ -27,14 +27,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.junit.Assert.assertEquals;
@@ -44,11 +48,10 @@ import static org.junit.Assert.fail;
  * Tests for KinesisConfigUtil.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(KinesisConfigUtil.class)
 public class KinesisConfigUtilTest {
 
 	@Rule
-	private ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedException.none();
 
 	// ----------------------------------------------------------------------
 	// getValidatedProducerConfiguration() tests
@@ -134,7 +137,7 @@ public class KinesisConfigUtilTest {
 	@Test
 	public void testMissingAwsRegionInProducerConfig() {
 		String expectedMessage = String.format("For FlinkKinesisProducer AWS region ('%s') must be set in the config.",
-				AWSConfigConstants.AWS_REGION);
+			AWSConfigConstants.AWS_REGION);
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(expectedMessage);
 
@@ -166,7 +169,7 @@ public class KinesisConfigUtilTest {
 	public void testCredentialProviderTypeSetToBasicButNoCredentialSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Please set values for AWS Access Key ID ('" + AWSConfigConstants.AWS_ACCESS_KEY_ID + "') " +
-				"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
+			"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
@@ -187,13 +190,139 @@ public class KinesisConfigUtilTest {
 	}
 
 	// ----------------------------------------------------------------------
+	// validateRecordPublisherType() tests
+	// ----------------------------------------------------------------------
+	@Test
+	public void testNoRecordPublisherTypeInConfig() {
+		Properties testConfig = TestUtils.getStandardProperties();
+		ConsumerConfigConstants.RecordPublisherType recordPublisherType = KinesisConfigUtil.validateRecordPublisherType(testConfig);
+		assertEquals(recordPublisherType, ConsumerConfigConstants.RecordPublisherType.POLLING);
+	}
+
+	@Test
+	public void testUnrecognizableRecordPublisherTypeInConfig() {
+		String errorMessage = Arrays.stream(ConsumerConfigConstants.RecordPublisherType.values())
+			.map(Enum::name).collect(Collectors.joining(", "));
+		String msg = "Invalid record publisher type in stream set in config. Valid values are: " + errorMessage;
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(msg);
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, "unrecognizableRecordPublisher");
+
+		KinesisConfigUtil.validateRecordPublisherType(testConfig);
+	}
+
+	// ----------------------------------------------------------------------
+	// validateEfoConfiguration() tests
+	// ----------------------------------------------------------------------
+
+	@Test
+	public void testNoEfoRegistrationTypeInConfig() {
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_NAME, "fakedconsumername");
+
+		KinesisConfigUtil.validateEfoConfiguration(testConfig, new ArrayList<>());
+	}
+
+	@Test
+	public void testUnrecognizableEfoRegistrationTypeInConfig() {
+		String errorMessage = Arrays.stream(ConsumerConfigConstants.EFORegistrationType.values())
+			.map(Enum::name).collect(Collectors.joining(", "));
+		String msg = "Invalid efo registration type in stream set in config. Valid values are: " + errorMessage;
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(msg);
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, "unrecogonizeEforegistrationtype");
+
+		KinesisConfigUtil.validateEfoConfiguration(testConfig, new ArrayList<>());
+	}
+
+	@Test
+	public void testNoneTypeEfoRegistrationTypeWithNoMatchedStreamInConfig() {
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
+
+		KinesisConfigUtil.validateEfoConfiguration(testConfig, new ArrayList<>());
+	}
+
+	@Test
+	public void testNoneTypeEfoRegistrationTypeWithEnoughMatchedStreamInConfig() {
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
+		List<String> streams = new ArrayList<>();
+		streams.add("stream1");
+		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
+	}
+
+	@Test
+	public void testNoneTypeEfoRegistrationTypeWithOverEnoughMatchedStreamInConfig() {
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream2", "fakedArn2");
+		List<String> streams = new ArrayList<>();
+		streams.add("stream1");
+		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
+	}
+
+	@Test
+	public void testNoneTypeEfoRegistrationTypeWithNotEnoughMatchedStreamInConfig() {
+		String msg = "Invalid efo consumer arn settings for not providing consumer arns: " + ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream2";
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(msg);
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, ConsumerConfigConstants.RecordPublisherType.EFO.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, ConsumerConfigConstants.EFORegistrationType.NONE.toString());
+		testConfig.setProperty(ConsumerConfigConstants.EFO_CONSUMER_ARN_PREFIX + ".stream1", "fakedArn1");
+		List<String> streams = Arrays.asList("stream1", "stream2");
+		KinesisConfigUtil.validateEfoConfiguration(testConfig, streams);
+	}
+
+	@Test
+	public void testValidateEfoMaxConcurrency() {
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "55");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testValidateEfoMaxConcurrencyNonNumeric() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for EFO HTTP client max concurrency. Must be positive.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "abc");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testValidateEfoMaxConcurrencyNegative() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for EFO HTTP client max concurrency. Must be positive.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(EFO_HTTP_CLIENT_MAX_CONCURRENCY, "-1");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	// ----------------------------------------------------------------------
 	// validateConsumerConfiguration() tests
 	// ----------------------------------------------------------------------
 
 	@Test
 	public void testNoAwsRegionOrEndpointInConsumerConfig() {
 		String expectedMessage = String.format("For FlinkKinesisConsumer AWS region ('%s') and/or AWS endpoint ('%s') must be set in the config.",
-				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT);
+			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_ENDPOINT);
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage(expectedMessage);
 
@@ -251,7 +380,7 @@ public class KinesisConfigUtilTest {
 	public void testStreamInitPositionTypeSetToAtTimestampButNoInitTimestampSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Please set value for initial timestamp ('"
-				+ ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
+			+ ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
 
 		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
@@ -261,7 +390,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableDateForInitialTimestampInConfig() {
+	public void testUnparsableDateforInitialTimestampInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
@@ -274,7 +403,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testIllegalValueForInitialTimestampInConfig() {
+	public void testIllegalValuEforInitialTimestampInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
@@ -335,7 +464,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableDateForUserDefinedDateFormatForInitialTimestampInConfig() {
+	public void testUnparsableDatEforUserDefinedDatEformatForInitialTimestampInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
@@ -349,7 +478,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testDateStringForUserDefinedDateFormatForValidateOptionDateProperty() {
+	public void testDateStringForUserDefinedDatEformatForValidateOptionDateProperty() {
 		String unixTimestamp = "2016-04-04";
 		String pattern = "yyyy-MM-dd";
 
@@ -385,7 +514,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableDoubleForListShardsBackoffExponentialConstantInConfig() {
+	public void testUnparsableDoublEforListShardsBackoffExponentialConstantInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for list shards operation backoff exponential constant");
 
@@ -440,7 +569,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableDoubleForGetRecordsBackoffExponentialConstantInConfig() {
+	public void testUnparsableDoublEforGetRecordsBackoffExponentialConstantInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation backoff exponential constant");
 
@@ -495,7 +624,7 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableDoubleForGetShardIteratorBackoffExponentialConstantInConfig() {
+	public void testUnparsableDoublEforGetShardIteratorBackoffExponentialConstantInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation backoff exponential constant");
 
@@ -563,4 +692,200 @@ public class KinesisConfigUtilTest {
 		KinesisConfigUtil.parseStreamTimestampStartingPosition(consumerProperties);
 	}
 
+	public void testUnparsableIntForRegisterStreamRetriesInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum retry attempts for register stream operation");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForRegisterStreamTimeoutInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum timeout for register stream consumer. Must be a valid non-negative integer value.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_TIMEOUT_SECONDS, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForRegisterStreamBackoffBaseMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for register stream operation base backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForRegisterStreamBackoffMaxMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for register stream operation max backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoublEforRegisterStreamBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for register stream operation backoff exponential constant");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForDeRegisterStreamRetriesInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum retry attempts for deregister stream operation");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForDeRegisterStreamTimeoutInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum timeout for deregister stream consumer. Must be a valid non-negative integer value.");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_TIMEOUT_SECONDS, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForDeRegisterStreamBackoffBaseMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for deregister stream operation base backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForDeRegisterStreamBackoffMaxMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for deregister stream operation max backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoublEforDeRegisterStreamBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for deregister stream operation backoff exponential constant");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForDescribeStreamConsumerRetriesInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum retry attempts for describe stream consumer operation");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForDescribeStreamConsumerBackoffBaseMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for describe stream consumer operation base backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForDescribeStreamConsumerBackoffMaxMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for describe stream consumer operation max backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoublEforDescribeStreamConsumerBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for describe stream consumer operation backoff exponential constant");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableIntForSubscribeToShardRetriesInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for maximum retry attempts for subscribe to shard operation");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_RETRIES, "unparsableInt");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForSubscribeToShardBackoffBaseMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for subscribe to shard operation base backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableLongForSubscribeToShardBackoffMaxMillisInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for subscribe to shard operation max backoff milliseconds");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX, "unparsableLong");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testUnparsableDoublEforSubscribeToShardBackoffExponentialConstantInConfig() {
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage("Invalid value given for subscribe to shard operation backoff exponential constant");
+
+		Properties testConfig = TestUtils.getStandardProperties();
+		testConfig.setProperty(ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+
+		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
 }
