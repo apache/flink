@@ -21,7 +21,6 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.table.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
@@ -281,7 +280,7 @@ public class TableSchema {
 	 */
 	public DataType toPersistedRowDataType() {
 		final Field[] fields = columns.stream()
-			.filter(c -> c.isPhysical() || (c instanceof MetadataColumn && !((MetadataColumn) c).isVirtual()))
+			.filter(TableColumn::isPersisted)
 			.map(column -> FIELD(column.getName(), column.getType()))
 			.toArray(Field[]::new);
 		return ROW(fields);
