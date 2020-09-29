@@ -112,7 +112,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 					jobConfiguration.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD))
 				.maxNumFileHandles(jobConfiguration.get(AlgorithmOptions.SPILLING_MAX_FAN))
 				.objectReuse(objectReuse)
-				.largeRecords(true)
+				.largeRecords(jobConfiguration.get(AlgorithmOptions.USE_LARGE_RECORDS_HANDLER))
 				.build();
 		} catch (MemoryAllocationException e) {
 			throw new RuntimeException(e);

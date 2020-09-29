@@ -102,6 +102,13 @@ public class StreamConfig implements Serializable {
 
 	private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
 
+	private static final ConfigOption<Boolean> SORTED_INPUTS =
+		ConfigOptions.key("sorted-inputs")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(
+				"A flag to enable/disable sorting inputs of keyed operators.");
+
 	// ------------------------------------------------------------------------
 	//  Default Values
 	// ------------------------------------------------------------------------
@@ -523,7 +530,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
+	public <IN, K extends Serializable> KeySelector<IN, K> getStatePartitioner(int input, ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
@@ -602,6 +609,14 @@ public class StreamConfig implements Serializable {
 		}
 
 		return builder.toString();
+	}
+
+	public void setShouldSortInputs(boolean sortInputs) {
+		config.set(SORTED_INPUTS, sortInputs);
+	}
+
+	public boolean shouldSortInputs() {
+		return config.get(SORTED_INPUTS);
 	}
 
 	/**
