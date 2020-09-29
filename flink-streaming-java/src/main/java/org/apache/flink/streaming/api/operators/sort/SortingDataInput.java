@@ -58,7 +58,7 @@ import java.util.concurrent.CompletableFuture;
  * serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
  *
  * <p>Watermarks, stream statuses, nor latency markers are not propagated downstream as they do not make
- * sense with buffered records. The input emits a MAX_WATERMARK after all records.
+ * sense with buffered records. The input emits the largest watermark seen after all records.
  *
  * @param <T> The type of the value in incoming {@link StreamRecord StreamRecords}.
  * @param <K> The type of the key.
