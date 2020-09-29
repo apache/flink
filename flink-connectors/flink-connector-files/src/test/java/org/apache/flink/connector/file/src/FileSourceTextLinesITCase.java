@@ -242,14 +242,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 
 	private static void writeFile(File testDir, int num) throws IOException {
 		final File file = new File(testDir, FILE_PATHS[num]);
-		final File parent = file.getParentFile();
-		assertTrue(parent.mkdirs() || parent.exists());
-
-		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-			for (String line : LINES_PER_FILE[num]) {
-				writer.println(line);
-			}
-		}
+		writeFileAtomically(file, LINES_PER_FILE[num]);
 	}
 
 	private static void writeAllFiles(File testDir) throws IOException {
@@ -259,15 +252,28 @@ public class FileSourceTextLinesITCase extends TestLogger {
 	}
 
 	private static void writeHiddenJunkFiles(File testDir) throws IOException {
+		final String[] junkContents = new String[] {
+			"This should not end up in the test result.",
+			"Foo bar bazzl junk"
+		};
+
 		for (String junkPath : HIDDEN_JUNK_PATHS) {
 			final File file = new File(testDir, junkPath);
-			final File parent = file.getParentFile();
-			assertTrue(parent.mkdirs() || parent.exists());
+			writeFileAtomically(file, junkContents);
+		}
+	}
 
-			try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
-				writer.println("This should not end up in the test result.");
-				writer.println("Foo bar bazzl junk");
+	private static void writeFileAtomically(File file, String[] lines) throws IOException {
+		final File parent = file.getParentFile();
+		final File stagingFile = new File(parent, ".tmp-" + file.getName());
+		assertTrue(parent.mkdirs() || parent.exists());
+
+		try (PrintWriter writer = new PrintWriter(new FileWriter(stagingFile))) {
+			for (String line : lines) {
+				writer.println(line);
 			}
 		}
+
+		assertTrue(stagingFile.renameTo(file));
 	}
 }
