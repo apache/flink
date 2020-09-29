@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
@@ -476,6 +477,7 @@ public class StreamingJobGraphGenerator {
 
 		config.setTypeSerializersIn(vertex.getTypeSerializersIn());
 		config.setTypeSerializerOut(vertex.getTypeSerializerOut());
+		config.getConfiguration().set(ExecutionOptions.SORTED_INPUTS, vertex.getSortedInputs());
 
 		// iterate edges, find sideOutput edges create and save serializers for each outputTag type
 		for (StreamEdge edge : chainableOutputs) {

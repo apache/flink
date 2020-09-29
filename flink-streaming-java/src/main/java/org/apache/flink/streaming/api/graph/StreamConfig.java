@@ -523,7 +523,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
+	public <IN, K extends Serializable> KeySelector<IN, K> getStatePartitioner(int input, ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
