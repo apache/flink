@@ -23,26 +23,14 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
-import org.apache.flink.streaming.runtime.io.StreamTaskInput;
-import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 import org.junit.Test;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -50,7 +38,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link SortingDataInput}.
  *
- * <p>These are rather simple unit tests. See also {@link SortingDataInputITCase} for more thorough tests.
+ * <p>These are rather simple unit tests. See also {@link LargeSortingDataInputITCase} for more thorough tests.
  */
 public class SortingDataInputTest {
 	@Test
@@ -190,79 +178,5 @@ public class SortingDataInputTest {
 				new StreamRecord<>(2, 3)
 			)
 		));
-	}
-
-	private static final class CollectionDataInput<E> implements StreamTaskInput<E> {
-
-		private final Iterator<StreamElement> elementsIterator;
-
-		private CollectionDataInput(Collection<StreamElement> elements) {
-			this.elementsIterator = elements.iterator();
-		}
-
-		@Override
-		public InputStatus emitNext(DataOutput<E> output) throws Exception {
-			if (elementsIterator.hasNext()) {
-				StreamElement streamElement = elementsIterator.next();
-				if (streamElement instanceof StreamRecord) {
-					output.emitRecord(streamElement.asRecord());
-				} else if (streamElement instanceof Watermark) {
-					output.emitWatermark(streamElement.asWatermark());
-				} else {
-					throw new IllegalStateException("Unsupported element type: " + streamElement);
-				}
-			}
-			return elementsIterator.hasNext() ? InputStatus.MORE_AVAILABLE : InputStatus.END_OF_INPUT;
-		}
-
-		@Override
-		public CompletableFuture<?> getAvailableFuture() {
-			return CompletableFuture.completedFuture(null);
-		}
-
-		@Override
-		public int getInputIndex() {
-			return 0;
-		}
-
-		@Override
-		public CompletableFuture<Void> prepareSnapshot(
-				ChannelStateWriter channelStateWriter,
-				long checkpointId) throws IOException {
-			return null;
-		}
-
-		@Override
-		public void close() throws IOException {
-
-		}
-	}
-
-	/**
-	 * A test utility implementation of {@link PushingAsyncDataInput.DataOutput} that collects all events.
-	 */
-	private static final class CollectingDataOutput<E> implements PushingAsyncDataInput.DataOutput<E> {
-
-		final List<Object> events = new ArrayList<>();
-
-		@Override
-		public void emitWatermark(Watermark watermark) throws Exception {
-			events.add(watermark);
-		}
-
-		@Override
-		public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-			events.add(streamStatus);
-		}
-
-		@Override
-		public void emitRecord(StreamRecord<E> streamRecord) throws Exception {
-			events.add(streamRecord);
-		}
-
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
-			events.add(latencyMarker);
-		}
 	}
 }
