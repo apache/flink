@@ -462,6 +462,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 					resourceID.toString(),
 					resourceID,
 					1234,
+					23456,
 					new HardwareDescription(1, 2L, 3L, 4L),
 					TaskExecutorMemoryConfiguration.create(flinkConfig),
 					ResourceProfile.ZERO,
