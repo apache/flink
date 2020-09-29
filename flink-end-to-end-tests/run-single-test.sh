@@ -57,6 +57,7 @@ echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
 
 if [[ "$1" = "skip" ]]; then
+    echo "skip_check_exceptions"
     run_test "${*:2}" "${*:2}" "skip_check_exceptions"
 else
     run_test "$*" "$*"
