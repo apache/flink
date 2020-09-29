@@ -21,7 +21,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
 from apache_beam.transforms import userstate
 
-from pyflink.common.state import ValueState
+from pyflink.common.state import ValueState, ListState
 
 
 class LRUCache(object):
@@ -69,6 +69,9 @@ class LRUCache(object):
     def __len__(self):
         return len(self._cache)
 
+    def __iter__(self):
+        return iter(self._cache.values())
+
 
 class SynchronousValueRuntimeState(ValueState):
     """
@@ -88,6 +91,31 @@ class SynchronousValueRuntimeState(ValueState):
         self._internal_state.add(value)
 
     def clear(self) -> None:
+        self._internal_state.clear()
+
+
+class SynchronousListRuntimeState(ListState):
+    """
+    The runtime ListState implementation backed by a :class:`SynchronousBagRuntimeState`.
+    """
+
+    def __init__(self, internal_state: SynchronousBagRuntimeState):
+        self._internal_state = internal_state
+
+    def add(self, v):
+        self._internal_state.add(v)
+
+    def get(self):
+        return self._internal_state.read()
+
+    def add_all(self, values):
+        self._internal_state._added_elements.extend(values)
+
+    def update(self, values):
+        self.clear()
+        self.add_all(values)
+
+    def clear(self):
         self._internal_state.clear()
 
 
@@ -116,6 +144,15 @@ class RemoteKeyedStateBackend(object):
         self._current_key = None
         self._encoded_current_key = None
 
+    def get_list_state(self, name, element_coder):
+        if name in self._all_states:
+            self.validate_state(name, element_coder)
+            return self._all_states[name]
+        internal_bag_state = self._get_internal_bag_state(name, element_coder)
+        list_state = SynchronousListRuntimeState(internal_bag_state)
+        self._all_states[name] = list_state
+        return list_state
+
     def get_value_state(self, name, value_coder):
         if name in self._all_states:
             self.validate_state(name, value_coder)
@@ -132,12 +169,12 @@ class RemoteKeyedStateBackend(object):
                 raise ValueError("State name corrupted: %s" % name)
 
     def _get_internal_bag_state(self, name, element_coder):
-        cached_state = self._all_internal_states.get((name, self._current_key))
+        cached_state = self._all_internal_states.get((name, self._encoded_current_key))
         if cached_state is not None:
             return cached_state
         state_spec = userstate.BagStateSpec(name, element_coder)
         internal_state = self._create_state(state_spec)
-        self._all_internal_states.put((name, self._current_key), internal_state)
+        self._all_internal_states.put((name, self._encoded_current_key), internal_state)
         return internal_state
 
     def _create_state(self, state_spec: userstate.StateSpec) -> userstate.AccumulatingRuntimeState:
@@ -165,9 +202,8 @@ class RemoteKeyedStateBackend(object):
         return self._current_key
 
     def commit(self):
-        self._all_internal_states.evict_all()
-        self._all_states = {}
-
-    def reset(self):
-        self._all_internal_states.evict_all()
-        self._all_states = {}
+        for internal_state in self._all_internal_states:
+            internal_state.commit()
+            # reset the status of the internal state to reuse the object cross bundle
+            internal_state._cleared = False
+            internal_state._added_elements = []

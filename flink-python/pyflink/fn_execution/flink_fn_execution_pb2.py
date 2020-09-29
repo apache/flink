@@ -36,7 +36,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='flink-fn-execution.proto',
   package='org.apache.flink.fn_execution.v1',
   syntax='proto3',
-  serialized_pb=_b('\n\x18\x66link-fn-execution.proto\x12 org.apache.flink.fn_execution.v1\"\x92\x02\n\x13UserDefinedFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12K\n\x06inputs\x18\x02 \x03(\x0b\x32;.org.apache.flink.fn_execution.v1.UserDefinedFunction.Input\x12\x14\n\x0cwindow_index\x18\x03 \x01(\x05\x1a\x86\x01\n\x05Input\x12\x44\n\x03udf\x18\x01 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunctionH\x00\x12\x15\n\x0binputOffset\x18\x02 \x01(\x05H\x00\x12\x17\n\rinputConstant\x18\x03 \x01(\x0cH\x00\x42\x07\n\x05input\"\xb2\x01\n\x14UserDefinedFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12=\n\x07windows\x18\x03 \x03(\x0b\x32,.org.apache.flink.fn_execution.v1.OverWindow\"\xdd\x02\n\nOverWindow\x12L\n\x0bwindow_type\x18\x01 \x01(\x0e\x32\x37.org.apache.flink.fn_execution.v1.OverWindow.WindowType\x12\x16\n\x0elower_boundary\x18\x02 \x01(\x03\x12\x16\n\x0eupper_boundary\x18\x03 \x01(\x03\"\xd0\x01\n\nWindowType\x12\x13\n\x0fRANGE_UNBOUNDED\x10\x00\x12\x1d\n\x19RANGE_UNBOUNDED_PRECEDING\x10\x01\x12\x1d\n\x19RANGE_UNBOUNDED_FOLLOWING\x10\x02\x12\x11\n\rRANGE_SLIDING\x10\x03\x12\x11\n\rROW_UNBOUNDED\x10\x04\x12\x1b\n\x17ROW_UNBOUNDED_PRECEDING\x10\x05\x12\x1b\n\x17ROW_UNBOUNDED_FOLLOWING\x10\x06\x12\x0f\n\x0bROW_SLIDING\x10\x07\"\xe4\x01\n\x1dUserDefinedDataStreamFunction\x12\x62\n\x0c\x66unctionType\x18\x01 \x01(\x0e\x32L.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.FunctionType\x12\x0f\n\x07payload\x18\x02 \x01(\x0c\"N\n\x0c\x46unctionType\x12\x07\n\x03MAP\x10\x00\x12\x0c\n\x08\x46LAT_MAP\x10\x01\x12\n\n\x06REDUCE\x10\x02\x12\n\n\x06\x43O_MAP\x10\x03\x12\x0f\n\x0b\x43O_FLAT_MAP\x10\x04\"\x87\x01\n\x1eUserDefinedDataStreamFunctions\x12M\n\x04udfs\x18\x01 \x03(\x0b\x32?.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\"\xcb\x02\n\x1dUserDefinedAggregateFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12\x10\n\x08grouping\x18\x03 \x03(\x05\x12\x1e\n\x16generate_update_before\x18\x04 \x01(\x08\x12\x44\n\x08key_type\x18\x05 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x1b\n\x13index_of_count_star\x18\x06 \x01(\x05\x12\x18\n\x10state_cache_size\x18\x07 \x01(\x05\x12\x1e\n\x16state_cleaning_enabled\x18\x08 \x01(\x08\"\xec\x0f\n\x06Schema\x12>\n\x06\x66ields\x18\x01 \x03(\x0b\x32..org.apache.flink.fn_execution.v1.Schema.Field\x1a\x97\x01\n\x07MapInfo\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x1d\n\x08TimeInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\"\n\rTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a,\n\x17LocalZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\'\n\x12ZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a/\n\x0b\x44\x65\x63imalInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x12\r\n\x05scale\x18\x02 \x01(\x05\x1a\x1c\n\nBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1f\n\rVarBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1a\n\x08\x43harInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1d\n\x0bVarCharInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\xb0\x08\n\tFieldType\x12\x44\n\ttype_name\x18\x01 \x01(\x0e\x32\x31.org.apache.flink.fn_execution.v1.Schema.TypeName\x12\x10\n\x08nullable\x18\x02 \x01(\x08\x12U\n\x17\x63ollection_element_type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeH\x00\x12\x44\n\x08map_info\x18\x04 \x01(\x0b\x32\x30.org.apache.flink.fn_execution.v1.Schema.MapInfoH\x00\x12>\n\nrow_schema\x18\x05 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.SchemaH\x00\x12L\n\x0c\x64\x65\x63imal_info\x18\x06 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.DecimalInfoH\x00\x12\x46\n\ttime_info\x18\x07 \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.TimeInfoH\x00\x12P\n\x0etimestamp_info\x18\x08 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.TimestampInfoH\x00\x12\x66\n\x1alocal_zoned_timestamp_info\x18\t \x01(\x0b\x32@.org.apache.flink.fn_execution.v1.Schema.LocalZonedTimestampInfoH\x00\x12[\n\x14zoned_timestamp_info\x18\n \x01(\x0b\x32;.org.apache.flink.fn_execution.v1.Schema.ZonedTimestampInfoH\x00\x12J\n\x0b\x62inary_info\x18\x0b \x01(\x0b\x32\x33.org.apache.flink.fn_execution.v1.Schema.BinaryInfoH\x00\x12Q\n\x0fvar_binary_info\x18\x0c \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.VarBinaryInfoH\x00\x12\x46\n\tchar_info\x18\r \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.CharInfoH\x00\x12M\n\rvar_char_info\x18\x0e \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.VarCharInfoH\x00\x42\x0b\n\ttype_info\x1al\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12@\n\x04type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\"\xa1\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\x0b\n\x07TINYINT\x10\x01\x12\x0c\n\x08SMALLINT\x10\x02\x12\x07\n\x03INT\x10\x03\x12\n\n\x06\x42IGINT\x10\x04\x12\x0b\n\x07\x44\x45\x43IMAL\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\n\n\x06\x44OUBLE\x10\x07\x12\x08\n\x04\x44\x41TE\x10\x08\x12\x08\n\x04TIME\x10\t\x12\r\n\tTIMESTAMP\x10\n\x12\x0b\n\x07\x42OOLEAN\x10\x0b\x12\n\n\x06\x42INARY\x10\x0c\x12\r\n\tVARBINARY\x10\r\x12\x08\n\x04\x43HAR\x10\x0e\x12\x0b\n\x07VARCHAR\x10\x0f\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x10\x12\x07\n\x03MAP\x10\x11\x12\x0c\n\x08MULTISET\x10\x12\x12\x19\n\x15LOCAL_ZONED_TIMESTAMP\x10\x13\x12\x13\n\x0fZONED_TIMESTAMP\x10\x14\"\x88\x06\n\x08TypeInfo\x12?\n\x05\x66ield\x18\x01 \x03(\x0b\x32\x30.org.apache.flink.fn_execution.v1.TypeInfo.Field\x1a\xc5\x02\n\tFieldType\x12\x46\n\ttype_name\x18\x01 \x01(\x0e\x32\x33.org.apache.flink.fn_execution.v1.TypeInfo.TypeName\x12W\n\x17\x63ollection_element_type\x18\x02 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.TypeInfo.FieldTypeH\x00\x12\x43\n\rrow_type_info\x18\x03 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfoH\x00\x12\x45\n\x0ftuple_type_info\x18\x04 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfoH\x00\x42\x0b\n\ttype_info\x1an\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12\x42\n\x04type\x18\x03 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.TypeInfo.FieldType\"\x82\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\n\n\x06STRING\x10\x01\x12\x08\n\x04\x42YTE\x10\x02\x12\x0b\n\x07\x42OOLEAN\x10\x03\x12\t\n\x05SHORT\x10\x04\x12\x07\n\x03INT\x10\x05\x12\x08\n\x04LONG\x10\x06\x12\t\n\x05\x46LOAT\x10\x07\x12\n\n\x06\x44OUBLE\x10\x08\x12\x08\n\x04\x43HAR\x10\t\x12\x0b\n\x07\x42IG_INT\x10\n\x12\x0b\n\x07\x42IG_DEC\x10\x0b\x12\x0c\n\x08SQL_DATE\x10\x0c\x12\x0c\n\x08SQL_TIME\x10\r\x12\x11\n\rSQL_TIMESTAMP\x10\x0e\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x0f\x12\x11\n\rPICKLED_BYTES\x10\x10\x12\t\n\x05TUPLE\x10\x11\x12\x13\n\x0fPRIMITIVE_ARRAY\x10\x12\x42-\n\x1forg.apache.flink.fnexecution.v1B\nFlinkFnApib\x06proto3')
+  serialized_pb=_b('\n\x18\x66link-fn-execution.proto\x12 org.apache.flink.fn_execution.v1\"\x86\x01\n\x05Input\x12\x44\n\x03udf\x18\x01 \x01(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunctionH\x00\x12\x15\n\x0binputOffset\x18\x02 \x01(\x05H\x00\x12\x17\n\rinputConstant\x18\x03 \x01(\x0cH\x00\x42\x07\n\x05input\"u\n\x13UserDefinedFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12\x37\n\x06inputs\x18\x02 \x03(\x0b\x32\'.org.apache.flink.fn_execution.v1.Input\x12\x14\n\x0cwindow_index\x18\x03 \x01(\x05\"\xb2\x01\n\x14UserDefinedFunctions\x12\x43\n\x04udfs\x18\x01 \x03(\x0b\x32\x35.org.apache.flink.fn_execution.v1.UserDefinedFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12=\n\x07windows\x18\x03 \x03(\x0b\x32,.org.apache.flink.fn_execution.v1.OverWindow\"\xdd\x02\n\nOverWindow\x12L\n\x0bwindow_type\x18\x01 \x01(\x0e\x32\x37.org.apache.flink.fn_execution.v1.OverWindow.WindowType\x12\x16\n\x0elower_boundary\x18\x02 \x01(\x03\x12\x16\n\x0eupper_boundary\x18\x03 \x01(\x03\"\xd0\x01\n\nWindowType\x12\x13\n\x0fRANGE_UNBOUNDED\x10\x00\x12\x1d\n\x19RANGE_UNBOUNDED_PRECEDING\x10\x01\x12\x1d\n\x19RANGE_UNBOUNDED_FOLLOWING\x10\x02\x12\x11\n\rRANGE_SLIDING\x10\x03\x12\x11\n\rROW_UNBOUNDED\x10\x04\x12\x1b\n\x17ROW_UNBOUNDED_PRECEDING\x10\x05\x12\x1b\n\x17ROW_UNBOUNDED_FOLLOWING\x10\x06\x12\x0f\n\x0bROW_SLIDING\x10\x07\"\xe4\x01\n\x1dUserDefinedDataStreamFunction\x12\x62\n\x0c\x66unctionType\x18\x01 \x01(\x0e\x32L.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction.FunctionType\x12\x0f\n\x07payload\x18\x02 \x01(\x0c\"N\n\x0c\x46unctionType\x12\x07\n\x03MAP\x10\x00\x12\x0c\n\x08\x46LAT_MAP\x10\x01\x12\n\n\x06REDUCE\x10\x02\x12\n\n\x06\x43O_MAP\x10\x03\x12\x0f\n\x0b\x43O_FLAT_MAP\x10\x04\"\x87\x01\n\x1eUserDefinedDataStreamFunctions\x12M\n\x04udfs\x18\x01 \x03(\x0b\x32?.org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\"\xc9\x05\n\x1cUserDefinedAggregateFunction\x12\x0f\n\x07payload\x18\x01 \x01(\x0c\x12\x37\n\x06inputs\x18\x02 \x03(\x0b\x32\'.org.apache.flink.fn_execution.v1.Input\x12Z\n\x05specs\x18\x03 \x03(\x0b\x32K.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec\x1a\x82\x04\n\x0c\x44\x61taViewSpec\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x66ield_index\x18\x02 \x01(\x05\x12i\n\tlist_view\x18\x03 \x01(\x0b\x32T.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.ListViewH\x00\x12g\n\x08map_view\x18\x04 \x01(\x0b\x32S.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapViewH\x00\x1aT\n\x08ListView\x12H\n\x0c\x65lement_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x97\x01\n\x07MapView\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeB\x0b\n\tdata_view\"\xd4\x02\n\x1dUserDefinedAggregateFunctions\x12L\n\x04udfs\x18\x01 \x03(\x0b\x32>.org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction\x12\x16\n\x0emetric_enabled\x18\x02 \x01(\x08\x12\x10\n\x08grouping\x18\x03 \x03(\x05\x12\x1e\n\x16generate_update_before\x18\x04 \x01(\x08\x12\x44\n\x08key_type\x18\x05 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x1b\n\x13index_of_count_star\x18\x06 \x01(\x05\x12\x18\n\x10state_cache_size\x18\x07 \x01(\x05\x12\x1e\n\x16state_cleaning_enabled\x18\x08 \x01(\x08\"\xec\x0f\n\x06Schema\x12>\n\x06\x66ields\x18\x01 \x03(\x0b\x32..org.apache.flink.fn_execution.v1.Schema.Field\x1a\x97\x01\n\x07MapInfo\x12\x44\n\x08key_type\x18\x01 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x12\x46\n\nvalue_type\x18\x02 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\x1a\x1d\n\x08TimeInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\"\n\rTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a,\n\x17LocalZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a\'\n\x12ZonedTimestampInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x1a/\n\x0b\x44\x65\x63imalInfo\x12\x11\n\tprecision\x18\x01 \x01(\x05\x12\r\n\x05scale\x18\x02 \x01(\x05\x1a\x1c\n\nBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1f\n\rVarBinaryInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1a\n\x08\x43harInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\x1d\n\x0bVarCharInfo\x12\x0e\n\x06length\x18\x01 \x01(\x05\x1a\xb0\x08\n\tFieldType\x12\x44\n\ttype_name\x18\x01 \x01(\x0e\x32\x31.org.apache.flink.fn_execution.v1.Schema.TypeName\x12\x10\n\x08nullable\x18\x02 \x01(\x08\x12U\n\x17\x63ollection_element_type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldTypeH\x00\x12\x44\n\x08map_info\x18\x04 \x01(\x0b\x32\x30.org.apache.flink.fn_execution.v1.Schema.MapInfoH\x00\x12>\n\nrow_schema\x18\x05 \x01(\x0b\x32(.org.apache.flink.fn_execution.v1.SchemaH\x00\x12L\n\x0c\x64\x65\x63imal_info\x18\x06 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.DecimalInfoH\x00\x12\x46\n\ttime_info\x18\x07 \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.TimeInfoH\x00\x12P\n\x0etimestamp_info\x18\x08 \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.TimestampInfoH\x00\x12\x66\n\x1alocal_zoned_timestamp_info\x18\t \x01(\x0b\x32@.org.apache.flink.fn_execution.v1.Schema.LocalZonedTimestampInfoH\x00\x12[\n\x14zoned_timestamp_info\x18\n \x01(\x0b\x32;.org.apache.flink.fn_execution.v1.Schema.ZonedTimestampInfoH\x00\x12J\n\x0b\x62inary_info\x18\x0b \x01(\x0b\x32\x33.org.apache.flink.fn_execution.v1.Schema.BinaryInfoH\x00\x12Q\n\x0fvar_binary_info\x18\x0c \x01(\x0b\x32\x36.org.apache.flink.fn_execution.v1.Schema.VarBinaryInfoH\x00\x12\x46\n\tchar_info\x18\r \x01(\x0b\x32\x31.org.apache.flink.fn_execution.v1.Schema.CharInfoH\x00\x12M\n\rvar_char_info\x18\x0e \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.Schema.VarCharInfoH\x00\x42\x0b\n\ttype_info\x1al\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12@\n\x04type\x18\x03 \x01(\x0b\x32\x32.org.apache.flink.fn_execution.v1.Schema.FieldType\"\xa1\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\x0b\n\x07TINYINT\x10\x01\x12\x0c\n\x08SMALLINT\x10\x02\x12\x07\n\x03INT\x10\x03\x12\n\n\x06\x42IGINT\x10\x04\x12\x0b\n\x07\x44\x45\x43IMAL\x10\x05\x12\t\n\x05\x46LOAT\x10\x06\x12\n\n\x06\x44OUBLE\x10\x07\x12\x08\n\x04\x44\x41TE\x10\x08\x12\x08\n\x04TIME\x10\t\x12\r\n\tTIMESTAMP\x10\n\x12\x0b\n\x07\x42OOLEAN\x10\x0b\x12\n\n\x06\x42INARY\x10\x0c\x12\r\n\tVARBINARY\x10\r\x12\x08\n\x04\x43HAR\x10\x0e\x12\x0b\n\x07VARCHAR\x10\x0f\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x10\x12\x07\n\x03MAP\x10\x11\x12\x0c\n\x08MULTISET\x10\x12\x12\x19\n\x15LOCAL_ZONED_TIMESTAMP\x10\x13\x12\x13\n\x0fZONED_TIMESTAMP\x10\x14\"\x88\x06\n\x08TypeInfo\x12?\n\x05\x66ield\x18\x01 \x03(\x0b\x32\x30.org.apache.flink.fn_execution.v1.TypeInfo.Field\x1a\xc5\x02\n\tFieldType\x12\x46\n\ttype_name\x18\x01 \x01(\x0e\x32\x33.org.apache.flink.fn_execution.v1.TypeInfo.TypeName\x12W\n\x17\x63ollection_element_type\x18\x02 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.TypeInfo.FieldTypeH\x00\x12\x43\n\rrow_type_info\x18\x03 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfoH\x00\x12\x45\n\x0ftuple_type_info\x18\x04 \x01(\x0b\x32*.org.apache.flink.fn_execution.v1.TypeInfoH\x00\x42\x0b\n\ttype_info\x1an\n\x05\x46ield\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12\x42\n\x04type\x18\x03 \x01(\x0b\x32\x34.org.apache.flink.fn_execution.v1.TypeInfo.FieldType\"\x82\x02\n\x08TypeName\x12\x07\n\x03ROW\x10\x00\x12\n\n\x06STRING\x10\x01\x12\x08\n\x04\x42YTE\x10\x02\x12\x0b\n\x07\x42OOLEAN\x10\x03\x12\t\n\x05SHORT\x10\x04\x12\x07\n\x03INT\x10\x05\x12\x08\n\x04LONG\x10\x06\x12\t\n\x05\x46LOAT\x10\x07\x12\n\n\x06\x44OUBLE\x10\x08\x12\x08\n\x04\x43HAR\x10\t\x12\x0b\n\x07\x42IG_INT\x10\n\x12\x0b\n\x07\x42IG_DEC\x10\x0b\x12\x0c\n\x08SQL_DATE\x10\x0c\x12\x0c\n\x08SQL_TIME\x10\r\x12\x11\n\rSQL_TIMESTAMP\x10\x0e\x12\x0f\n\x0b\x42\x41SIC_ARRAY\x10\x0f\x12\x11\n\rPICKLED_BYTES\x10\x10\x12\t\n\x05TUPLE\x10\x11\x12\x13\n\x0fPRIMITIVE_ARRAY\x10\x12\x42-\n\x1forg.apache.flink.fnexecution.v1B\nFlinkFnApib\x06proto3')
 )
 
 
@@ -82,8 +82,8 @@ _OVERWINDOW_WINDOWTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=662,
-  serialized_end=870,
+  serialized_start=641,
+  serialized_end=849,
 )
 _sym_db.RegisterEnumDescriptor(_OVERWINDOW_WINDOWTYPE)
 
@@ -116,8 +116,8 @@ _USERDEFINEDDATASTREAMFUNCTION_FUNCTIONTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=1023,
-  serialized_end=1101,
+  serialized_start=1002,
+  serialized_end=1080,
 )
 _sym_db.RegisterEnumDescriptor(_USERDEFINEDDATASTREAMFUNCTION_FUNCTIONTYPE)
 
@@ -214,8 +214,8 @@ _SCHEMA_TYPENAME = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=3315,
-  serialized_end=3604,
+  serialized_start=4019,
+  serialized_end=4308,
 )
 _sym_db.RegisterEnumDescriptor(_SCHEMA_TYPENAME)
 
@@ -304,35 +304,35 @@ _TYPEINFO_TYPENAME = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=4125,
-  serialized_end=4383,
+  serialized_start=4829,
+  serialized_end=5087,
 )
 _sym_db.RegisterEnumDescriptor(_TYPEINFO_TYPENAME)
 
 
-_USERDEFINEDFUNCTION_INPUT = _descriptor.Descriptor(
+_INPUT = _descriptor.Descriptor(
   name='Input',
-  full_name='org.apache.flink.fn_execution.v1.UserDefinedFunction.Input',
+  full_name='org.apache.flink.fn_execution.v1.Input',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='udf', full_name='org.apache.flink.fn_execution.v1.UserDefinedFunction.Input.udf', index=0,
+      name='udf', full_name='org.apache.flink.fn_execution.v1.Input.udf', index=0,
       number=1, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='inputOffset', full_name='org.apache.flink.fn_execution.v1.UserDefinedFunction.Input.inputOffset', index=1,
+      name='inputOffset', full_name='org.apache.flink.fn_execution.v1.Input.inputOffset', index=1,
       number=2, type=5, cpp_type=1, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='inputConstant', full_name='org.apache.flink.fn_execution.v1.UserDefinedFunction.Input.inputConstant', index=2,
+      name='inputConstant', full_name='org.apache.flink.fn_execution.v1.Input.inputConstant', index=2,
       number=3, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
@@ -350,12 +350,13 @@ _USERDEFINEDFUNCTION_INPUT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
     _descriptor.OneofDescriptor(
-      name='input', full_name='org.apache.flink.fn_execution.v1.UserDefinedFunction.Input.input',
+      name='input', full_name='org.apache.flink.fn_execution.v1.Input.input',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=203,
-  serialized_end=337,
+  serialized_start=63,
+  serialized_end=197,
 )
+
 
 _USERDEFINEDFUNCTION = _descriptor.Descriptor(
   name='UserDefinedFunction',
@@ -388,7 +389,7 @@ _USERDEFINEDFUNCTION = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[_USERDEFINEDFUNCTION_INPUT, ],
+  nested_types=[],
   enum_types=[
   ],
   options=None,
@@ -397,8 +398,8 @@ _USERDEFINEDFUNCTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=63,
-  serialized_end=337,
+  serialized_start=199,
+  serialized_end=316,
 )
 
 
@@ -442,8 +443,8 @@ _USERDEFINEDFUNCTIONS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=340,
-  serialized_end=518,
+  serialized_start=319,
+  serialized_end=497,
 )
 
 
@@ -488,8 +489,8 @@ _OVERWINDOW = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=521,
-  serialized_end=870,
+  serialized_start=500,
+  serialized_end=849,
 )
 
 
@@ -527,8 +528,8 @@ _USERDEFINEDDATASTREAMFUNCTION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=873,
-  serialized_end=1101,
+  serialized_start=852,
+  serialized_end=1080,
 )
 
 
@@ -565,8 +566,174 @@ _USERDEFINEDDATASTREAMFUNCTIONS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1104,
-  serialized_end=1239,
+  serialized_start=1083,
+  serialized_end=1218,
+)
+
+
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_LISTVIEW = _descriptor.Descriptor(
+  name='ListView',
+  full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.ListView',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='element_type', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.ListView.element_type', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1683,
+  serialized_end=1767,
+)
+
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW = _descriptor.Descriptor(
+  name='MapView',
+  full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapView',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key_type', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapView.key_type', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='value_type', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapView.value_type', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1770,
+  serialized_end=1921,
+)
+
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC = _descriptor.Descriptor(
+  name='DataViewSpec',
+  full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='field_index', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.field_index', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='list_view', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.list_view', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='map_view', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.map_view', index=3,
+      number=4, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_LISTVIEW, _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW, ],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+    _descriptor.OneofDescriptor(
+      name='data_view', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.data_view',
+      index=0, containing_type=None, fields=[]),
+  ],
+  serialized_start=1420,
+  serialized_end=1934,
+)
+
+_USERDEFINEDAGGREGATEFUNCTION = _descriptor.Descriptor(
+  name='UserDefinedAggregateFunction',
+  full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='payload', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.payload', index=0,
+      number=1, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='inputs', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.inputs', index=1,
+      number=2, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='specs', full_name='org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.specs', index=2,
+      number=3, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC, ],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1221,
+  serialized_end=1934,
 )
 
 
@@ -645,8 +812,8 @@ _USERDEFINEDAGGREGATEFUNCTIONS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1242,
-  serialized_end=1573,
+  serialized_start=1937,
+  serialized_end=2277,
 )
 
 
@@ -683,8 +850,8 @@ _SCHEMA_MAPINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1651,
-  serialized_end=1802,
+  serialized_start=2355,
+  serialized_end=2506,
 )
 
 _SCHEMA_TIMEINFO = _descriptor.Descriptor(
@@ -713,8 +880,8 @@ _SCHEMA_TIMEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1804,
-  serialized_end=1833,
+  serialized_start=2508,
+  serialized_end=2537,
 )
 
 _SCHEMA_TIMESTAMPINFO = _descriptor.Descriptor(
@@ -743,8 +910,8 @@ _SCHEMA_TIMESTAMPINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1835,
-  serialized_end=1869,
+  serialized_start=2539,
+  serialized_end=2573,
 )
 
 _SCHEMA_LOCALZONEDTIMESTAMPINFO = _descriptor.Descriptor(
@@ -773,8 +940,8 @@ _SCHEMA_LOCALZONEDTIMESTAMPINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1871,
-  serialized_end=1915,
+  serialized_start=2575,
+  serialized_end=2619,
 )
 
 _SCHEMA_ZONEDTIMESTAMPINFO = _descriptor.Descriptor(
@@ -803,8 +970,8 @@ _SCHEMA_ZONEDTIMESTAMPINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1917,
-  serialized_end=1956,
+  serialized_start=2621,
+  serialized_end=2660,
 )
 
 _SCHEMA_DECIMALINFO = _descriptor.Descriptor(
@@ -840,8 +1007,8 @@ _SCHEMA_DECIMALINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1958,
-  serialized_end=2005,
+  serialized_start=2662,
+  serialized_end=2709,
 )
 
 _SCHEMA_BINARYINFO = _descriptor.Descriptor(
@@ -870,8 +1037,8 @@ _SCHEMA_BINARYINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2007,
-  serialized_end=2035,
+  serialized_start=2711,
+  serialized_end=2739,
 )
 
 _SCHEMA_VARBINARYINFO = _descriptor.Descriptor(
@@ -900,8 +1067,8 @@ _SCHEMA_VARBINARYINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2037,
-  serialized_end=2068,
+  serialized_start=2741,
+  serialized_end=2772,
 )
 
 _SCHEMA_CHARINFO = _descriptor.Descriptor(
@@ -930,8 +1097,8 @@ _SCHEMA_CHARINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2070,
-  serialized_end=2096,
+  serialized_start=2774,
+  serialized_end=2800,
 )
 
 _SCHEMA_VARCHARINFO = _descriptor.Descriptor(
@@ -960,8 +1127,8 @@ _SCHEMA_VARCHARINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=2098,
-  serialized_end=2127,
+  serialized_start=2802,
+  serialized_end=2831,
 )
 
 _SCHEMA_FIELDTYPE = _descriptor.Descriptor(
@@ -1084,8 +1251,8 @@ _SCHEMA_FIELDTYPE = _descriptor.Descriptor(
       name='type_info', full_name='org.apache.flink.fn_execution.v1.Schema.FieldType.type_info',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=2130,
-  serialized_end=3202,
+  serialized_start=2834,
+  serialized_end=3906,
 )
 
 _SCHEMA_FIELD = _descriptor.Descriptor(
@@ -1128,8 +1295,8 @@ _SCHEMA_FIELD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3204,
-  serialized_end=3312,
+  serialized_start=3908,
+  serialized_end=4016,
 )
 
 _SCHEMA = _descriptor.Descriptor(
@@ -1159,8 +1326,8 @@ _SCHEMA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1576,
-  serialized_end=3604,
+  serialized_start=2280,
+  serialized_end=4308,
 )
 
 
@@ -1214,8 +1381,8 @@ _TYPEINFO_FIELDTYPE = _descriptor.Descriptor(
       name='type_info', full_name='org.apache.flink.fn_execution.v1.TypeInfo.FieldType.type_info',
       index=0, containing_type=None, fields=[]),
   ],
-  serialized_start=3685,
-  serialized_end=4010,
+  serialized_start=4389,
+  serialized_end=4714,
 )
 
 _TYPEINFO_FIELD = _descriptor.Descriptor(
@@ -1258,8 +1425,8 @@ _TYPEINFO_FIELD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=4012,
-  serialized_end=4122,
+  serialized_start=4716,
+  serialized_end=4826,
 )
 
 _TYPEINFO = _descriptor.Descriptor(
@@ -1289,22 +1456,21 @@ _TYPEINFO = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=3607,
-  serialized_end=4383,
+  serialized_start=4311,
+  serialized_end=5087,
 )
 
-_USERDEFINEDFUNCTION_INPUT.fields_by_name['udf'].message_type = _USERDEFINEDFUNCTION
-_USERDEFINEDFUNCTION_INPUT.containing_type = _USERDEFINEDFUNCTION
-_USERDEFINEDFUNCTION_INPUT.oneofs_by_name['input'].fields.append(
-  _USERDEFINEDFUNCTION_INPUT.fields_by_name['udf'])
-_USERDEFINEDFUNCTION_INPUT.fields_by_name['udf'].containing_oneof = _USERDEFINEDFUNCTION_INPUT.oneofs_by_name['input']
-_USERDEFINEDFUNCTION_INPUT.oneofs_by_name['input'].fields.append(
-  _USERDEFINEDFUNCTION_INPUT.fields_by_name['inputOffset'])
-_USERDEFINEDFUNCTION_INPUT.fields_by_name['inputOffset'].containing_oneof = _USERDEFINEDFUNCTION_INPUT.oneofs_by_name['input']
-_USERDEFINEDFUNCTION_INPUT.oneofs_by_name['input'].fields.append(
-  _USERDEFINEDFUNCTION_INPUT.fields_by_name['inputConstant'])
-_USERDEFINEDFUNCTION_INPUT.fields_by_name['inputConstant'].containing_oneof = _USERDEFINEDFUNCTION_INPUT.oneofs_by_name['input']
-_USERDEFINEDFUNCTION.fields_by_name['inputs'].message_type = _USERDEFINEDFUNCTION_INPUT
+_INPUT.fields_by_name['udf'].message_type = _USERDEFINEDFUNCTION
+_INPUT.oneofs_by_name['input'].fields.append(
+  _INPUT.fields_by_name['udf'])
+_INPUT.fields_by_name['udf'].containing_oneof = _INPUT.oneofs_by_name['input']
+_INPUT.oneofs_by_name['input'].fields.append(
+  _INPUT.fields_by_name['inputOffset'])
+_INPUT.fields_by_name['inputOffset'].containing_oneof = _INPUT.oneofs_by_name['input']
+_INPUT.oneofs_by_name['input'].fields.append(
+  _INPUT.fields_by_name['inputConstant'])
+_INPUT.fields_by_name['inputConstant'].containing_oneof = _INPUT.oneofs_by_name['input']
+_USERDEFINEDFUNCTION.fields_by_name['inputs'].message_type = _INPUT
 _USERDEFINEDFUNCTIONS.fields_by_name['udfs'].message_type = _USERDEFINEDFUNCTION
 _USERDEFINEDFUNCTIONS.fields_by_name['windows'].message_type = _OVERWINDOW
 _OVERWINDOW.fields_by_name['window_type'].enum_type = _OVERWINDOW_WINDOWTYPE
@@ -1312,7 +1478,23 @@ _OVERWINDOW_WINDOWTYPE.containing_type = _OVERWINDOW
 _USERDEFINEDDATASTREAMFUNCTION.fields_by_name['functionType'].enum_type = _USERDEFINEDDATASTREAMFUNCTION_FUNCTIONTYPE
 _USERDEFINEDDATASTREAMFUNCTION_FUNCTIONTYPE.containing_type = _USERDEFINEDDATASTREAMFUNCTION
 _USERDEFINEDDATASTREAMFUNCTIONS.fields_by_name['udfs'].message_type = _USERDEFINEDDATASTREAMFUNCTION
-_USERDEFINEDAGGREGATEFUNCTIONS.fields_by_name['udfs'].message_type = _USERDEFINEDFUNCTION
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_LISTVIEW.fields_by_name['element_type'].message_type = _SCHEMA_FIELDTYPE
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_LISTVIEW.containing_type = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW.fields_by_name['key_type'].message_type = _SCHEMA_FIELDTYPE
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW.fields_by_name['value_type'].message_type = _SCHEMA_FIELDTYPE
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW.containing_type = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.fields_by_name['list_view'].message_type = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_LISTVIEW
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.fields_by_name['map_view'].message_type = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.containing_type = _USERDEFINEDAGGREGATEFUNCTION
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.oneofs_by_name['data_view'].fields.append(
+  _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.fields_by_name['list_view'])
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.fields_by_name['list_view'].containing_oneof = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.oneofs_by_name['data_view']
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.oneofs_by_name['data_view'].fields.append(
+  _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.fields_by_name['map_view'])
+_USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.fields_by_name['map_view'].containing_oneof = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC.oneofs_by_name['data_view']
+_USERDEFINEDAGGREGATEFUNCTION.fields_by_name['inputs'].message_type = _INPUT
+_USERDEFINEDAGGREGATEFUNCTION.fields_by_name['specs'].message_type = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC
+_USERDEFINEDAGGREGATEFUNCTIONS.fields_by_name['udfs'].message_type = _USERDEFINEDAGGREGATEFUNCTION
 _USERDEFINEDAGGREGATEFUNCTIONS.fields_by_name['key_type'].message_type = _SCHEMA_FIELDTYPE
 _SCHEMA_MAPINFO.fields_by_name['key_type'].message_type = _SCHEMA_FIELDTYPE
 _SCHEMA_MAPINFO.fields_by_name['value_type'].message_type = _SCHEMA_FIELDTYPE
@@ -1398,30 +1580,31 @@ _TYPEINFO_FIELD.fields_by_name['type'].message_type = _TYPEINFO_FIELDTYPE
 _TYPEINFO_FIELD.containing_type = _TYPEINFO
 _TYPEINFO.fields_by_name['field'].message_type = _TYPEINFO_FIELD
 _TYPEINFO_TYPENAME.containing_type = _TYPEINFO
+DESCRIPTOR.message_types_by_name['Input'] = _INPUT
 DESCRIPTOR.message_types_by_name['UserDefinedFunction'] = _USERDEFINEDFUNCTION
 DESCRIPTOR.message_types_by_name['UserDefinedFunctions'] = _USERDEFINEDFUNCTIONS
 DESCRIPTOR.message_types_by_name['OverWindow'] = _OVERWINDOW
 DESCRIPTOR.message_types_by_name['UserDefinedDataStreamFunction'] = _USERDEFINEDDATASTREAMFUNCTION
 DESCRIPTOR.message_types_by_name['UserDefinedDataStreamFunctions'] = _USERDEFINEDDATASTREAMFUNCTIONS
+DESCRIPTOR.message_types_by_name['UserDefinedAggregateFunction'] = _USERDEFINEDAGGREGATEFUNCTION
 DESCRIPTOR.message_types_by_name['UserDefinedAggregateFunctions'] = _USERDEFINEDAGGREGATEFUNCTIONS
 DESCRIPTOR.message_types_by_name['Schema'] = _SCHEMA
 DESCRIPTOR.message_types_by_name['TypeInfo'] = _TYPEINFO
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
-UserDefinedFunction = _reflection.GeneratedProtocolMessageType('UserDefinedFunction', (_message.Message,), dict(
+Input = _reflection.GeneratedProtocolMessageType('Input', (_message.Message,), dict(
+  DESCRIPTOR = _INPUT,
+  __module__ = 'flink_fn_execution_pb2'
+  # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.Input)
+  ))
+_sym_db.RegisterMessage(Input)
 
-  Input = _reflection.GeneratedProtocolMessageType('Input', (_message.Message,), dict(
-    DESCRIPTOR = _USERDEFINEDFUNCTION_INPUT,
-    __module__ = 'flink_fn_execution_pb2'
-    # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedFunction.Input)
-    ))
-  ,
+UserDefinedFunction = _reflection.GeneratedProtocolMessageType('UserDefinedFunction', (_message.Message,), dict(
   DESCRIPTOR = _USERDEFINEDFUNCTION,
   __module__ = 'flink_fn_execution_pb2'
   # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedFunction)
   ))
 _sym_db.RegisterMessage(UserDefinedFunction)
-_sym_db.RegisterMessage(UserDefinedFunction.Input)
 
 UserDefinedFunctions = _reflection.GeneratedProtocolMessageType('UserDefinedFunctions', (_message.Message,), dict(
   DESCRIPTOR = _USERDEFINEDFUNCTIONS,
@@ -1450,6 +1633,37 @@ UserDefinedDataStreamFunctions = _reflection.GeneratedProtocolMessageType('UserD
   # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedDataStreamFunctions)
   ))
 _sym_db.RegisterMessage(UserDefinedDataStreamFunctions)
+
+UserDefinedAggregateFunction = _reflection.GeneratedProtocolMessageType('UserDefinedAggregateFunction', (_message.Message,), dict(
+
+  DataViewSpec = _reflection.GeneratedProtocolMessageType('DataViewSpec', (_message.Message,), dict(
+
+    ListView = _reflection.GeneratedProtocolMessageType('ListView', (_message.Message,), dict(
+      DESCRIPTOR = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_LISTVIEW,
+      __module__ = 'flink_fn_execution_pb2'
+      # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.ListView)
+      ))
+    ,
+
+    MapView = _reflection.GeneratedProtocolMessageType('MapView', (_message.Message,), dict(
+      DESCRIPTOR = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC_MAPVIEW,
+      __module__ = 'flink_fn_execution_pb2'
+      # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec.MapView)
+      ))
+    ,
+    DESCRIPTOR = _USERDEFINEDAGGREGATEFUNCTION_DATAVIEWSPEC,
+    __module__ = 'flink_fn_execution_pb2'
+    # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction.DataViewSpec)
+    ))
+  ,
+  DESCRIPTOR = _USERDEFINEDAGGREGATEFUNCTION,
+  __module__ = 'flink_fn_execution_pb2'
+  # @@protoc_insertion_point(class_scope:org.apache.flink.fn_execution.v1.UserDefinedAggregateFunction)
+  ))
+_sym_db.RegisterMessage(UserDefinedAggregateFunction)
+_sym_db.RegisterMessage(UserDefinedAggregateFunction.DataViewSpec)
+_sym_db.RegisterMessage(UserDefinedAggregateFunction.DataViewSpec.ListView)
+_sym_db.RegisterMessage(UserDefinedAggregateFunction.DataViewSpec.MapView)
 
 UserDefinedAggregateFunctions = _reflection.GeneratedProtocolMessageType('UserDefinedAggregateFunctions', (_message.Message,), dict(
   DESCRIPTOR = _USERDEFINEDAGGREGATEFUNCTIONS,

@@ -18,10 +18,16 @@
 
 package org.apache.flink.table.planner.plan.stream.table
 
+import org.apache.flink.api.java.tuple.Tuple1
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.dataview.ListView
+import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec}
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.DataType
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PythonAggregateTest extends TableTestBase {
@@ -59,5 +65,47 @@ class PythonAggregateTest extends TableTestBase {
       .select('b, func('a, 'c), 'a.count())
 
     util.verifyPlan(resultTable)
+  }
+
+  @Test
+  def testExtractDataViewSpecs(): Unit = {
+    val accType = DataTypes.ROW(
+      DataTypes.FIELD("f0", DataTypes.STRING()),
+      DataTypes.FIELD("f1", ListView.newListViewDataType(DataTypes.STRING())))
+
+    val specs = TestCommonPythonAggregate.extractDataViewSpecs(accType)
+
+    val expected = Array(
+      new ListViewSpec(
+        "agg0$f1",
+        1,
+        DataTypes.ARRAY(DataTypes.STRING()).bridgedTo(classOf[java.util.List[_]])))
+
+    assertEquals(expected(0).getClass, specs(0).getClass)
+    assertEquals(expected(0).getDataType, specs(0).getDataType)
+    assertEquals(expected(0).getStateId, specs(0).getStateId)
+    assertEquals(expected(0).getFieldIndex, specs(0).getFieldIndex)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testExtractSecondLevelDataViewSpecs(): Unit = {
+    val accType = DataTypes.ROW(
+      DataTypes.FIELD("f0", DataTypes.ROW(
+        DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))))
+    TestCommonPythonAggregate.extractDataViewSpecs(accType)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testExtractDataViewSpecsFromStructuredType(): Unit = {
+    val accType = DataTypes.STRUCTURED(
+      classOf[Tuple1[_]],
+      DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))
+    TestCommonPythonAggregate.extractDataViewSpecs(accType)
+  }
+}
+
+object TestCommonPythonAggregate extends CommonPythonAggregate {
+  def extractDataViewSpecs(accType: DataType): Array[DataViewSpec] = {
+    extractDataViewSpecs(0, accType)
   }
 }

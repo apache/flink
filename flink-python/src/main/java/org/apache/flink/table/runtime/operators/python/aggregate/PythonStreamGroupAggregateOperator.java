@@ -46,6 +46,7 @@ import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils;
@@ -104,6 +105,8 @@ public class PythonStreamGroupAggregateOperator
 	private final Map<String, String> jobOptions;
 
 	private final PythonFunctionInfo[] aggregateFunctions;
+
+	private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
 
 	/**
 	 * The array of the key indexes.
@@ -195,6 +198,7 @@ public class PythonStreamGroupAggregateOperator
 			RowType inputType,
 			RowType outputType,
 			PythonFunctionInfo[] aggregateFunctions,
+			DataViewUtils.DataViewSpec[][] dataViewSpecs,
 			int[] grouping,
 			int indexOfCountStar,
 			boolean generateUpdateBefore,
@@ -204,6 +208,7 @@ public class PythonStreamGroupAggregateOperator
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 		this.aggregateFunctions = aggregateFunctions;
+		this.dataViewSpecs = dataViewSpecs;
 		this.jobOptions = buildJobOptions(config);
 		this.grouping = grouping;
 		this.indexOfCountStar = indexOfCountStar;
@@ -378,8 +383,13 @@ public class PythonStreamGroupAggregateOperator
 	public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
 			FlinkFnApi.UserDefinedAggregateFunctions.newBuilder();
-		for (PythonFunctionInfo pythonFunctionInfo : aggregateFunctions) {
-			builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
+		for (int i = 0; i < aggregateFunctions.length; i++) {
+			DataViewUtils.DataViewSpec[] specs = null;
+			if (i < dataViewSpecs.length) {
+				specs = dataViewSpecs[i];
+			}
+			builder.addUdfs(
+				PythonOperatorUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
 		}
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));

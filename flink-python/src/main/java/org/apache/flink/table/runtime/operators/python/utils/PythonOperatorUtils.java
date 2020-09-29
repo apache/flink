@@ -20,8 +20,11 @@ package org.apache.flink.table.runtime.operators.python.utils;
 
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
 
 import com.google.protobuf.ByteString;
+
+import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
 /**
  * The collectors used to collect Row values.
@@ -33,8 +36,8 @@ public enum PythonOperatorUtils {
 		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		for (Object input : pythonFunctionInfo.getInputs()) {
-			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
-				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
+			FlinkFnApi.Input.Builder inputProto =
+				FlinkFnApi.Input.newBuilder();
 			if (input instanceof PythonFunctionInfo) {
 				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
 			} else if (input instanceof Integer) {
@@ -47,4 +50,43 @@ public enum PythonOperatorUtils {
 		return builder.build();
 	}
 
+	public static FlinkFnApi.UserDefinedAggregateFunction getUserDefinedAggregateFunctionProto(
+			PythonFunctionInfo pythonFunctionInfo,
+			DataViewUtils.DataViewSpec[] dataViewSpecs) {
+		FlinkFnApi.UserDefinedAggregateFunction.Builder builder = FlinkFnApi.UserDefinedAggregateFunction.newBuilder();
+		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
+		for (Object input : pythonFunctionInfo.getInputs()) {
+			FlinkFnApi.Input.Builder inputProto =
+				FlinkFnApi.Input.newBuilder();
+			if (input instanceof Integer) {
+				inputProto.setInputOffset((Integer) input);
+			} else {
+				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
+			}
+			builder.addInputs(inputProto);
+		}
+		if (dataViewSpecs != null) {
+			for (DataViewUtils.DataViewSpec spec : dataViewSpecs) {
+				FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.Builder specBuilder =
+					FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.newBuilder();
+				specBuilder.setName(spec.getStateId());
+				if (spec instanceof DataViewUtils.ListViewSpec) {
+					DataViewUtils.ListViewSpec listViewSpec = (DataViewUtils.ListViewSpec) spec;
+					specBuilder.setListView(
+						FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.ListView.newBuilder().setElementType(
+							toProtoType(listViewSpec.getElementDataType().getLogicalType())));
+				} else {
+					DataViewUtils.MapViewSpec mapViewSpec = (DataViewUtils.MapViewSpec) spec;
+					FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.MapView.Builder mapViewBuilder =
+						FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.MapView.newBuilder();
+					mapViewBuilder.setKeyType(toProtoType(mapViewSpec.getKeyDataType().getLogicalType()));
+					mapViewBuilder.setValueType(toProtoType(mapViewSpec.getValueDataType().getLogicalType()));
+					specBuilder.setMapView(mapViewBuilder.build());
+				}
+				specBuilder.setFieldIndex(spec.getFieldIndex());
+				builder.addSpecs(specBuilder.build());
+			}
+		}
+		return builder.build();
+	}
 }

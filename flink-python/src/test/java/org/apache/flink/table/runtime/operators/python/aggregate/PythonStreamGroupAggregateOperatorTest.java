@@ -35,6 +35,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -279,6 +280,7 @@ public class PythonStreamGroupAggregateOperatorTest {
 				inputType,
 				outputType,
 				aggregateFunctions,
+				new DataViewUtils.DataViewSpec[0][0],
 				grouping,
 				indexOfCountStar,
 				generateUpdateBefore,

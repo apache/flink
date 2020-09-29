@@ -183,7 +183,17 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
 def extract_user_defined_aggregate_function(user_defined_function_proto):
     user_defined_agg = cloudpickle.loads(user_defined_function_proto.payload)
     assert isinstance(user_defined_agg, AggregateFunction)
-    inputs = []
+    args_str = []
+    local_variable_dict = {}
     for arg in user_defined_function_proto.inputs:
-        inputs.append(arg.inputOffset)
-    return user_defined_agg, inputs
+        if arg.HasField("inputOffset"):
+            # the input argument is a column of the input row
+            args_str.append("value[%s]" % arg.inputOffset)
+        else:
+            # the input argument is a constant value
+            constant_value_name, parsed_constant_value = \
+                _parse_constant_value(arg.inputConstant)
+            args_str.append(constant_value_name)
+            local_variable_dict[constant_value_name] = parsed_constant_value
+
+    return user_defined_agg, eval("lambda value : [%s]" % ",".join(args_str), local_variable_dict)

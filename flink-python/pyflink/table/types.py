@@ -922,6 +922,26 @@ class ArrayType(DataType):
         return obj and [self.element_type.to_sql_type(v) for v in obj]
 
 
+class ListViewType(DataType):
+
+    def __init__(self, element_type):
+        assert isinstance(element_type, DataType), \
+            "element_type %s should be an instance of %s" % (element_type, DataType)
+        super(ListViewType, self).__init__(False)
+        self._element_type = element_type
+
+    def __repr__(self):
+        return "ListViewType(%s)" % repr(self._element_type)
+
+    def to_sql_type(self, obj):
+        raise Exception("ListViewType can only be used in accumulator type declaration of "
+                        "AggregateFunction.")
+
+    def from_sql_type(self, obj):
+        raise Exception("ListViewType can only be used in accumulator type declaration of "
+                        "AggregateFunction.")
+
+
 class MapType(DataType):
     """
     Map data type.
@@ -1202,7 +1222,7 @@ class RowType(DataType):
             if isinstance(obj, dict):
                 return tuple(f.to_sql_type(obj.get(n)) if c else obj.get(n)
                              for n, f, c in zip(self.names, self.fields, self._need_conversion))
-            elif isinstance(obj, (tuple, list)):
+            elif isinstance(obj, (tuple, list, Row)):
                 return tuple(f.to_sql_type(v) if c else v
                              for f, v, c in zip(self.fields, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
@@ -1214,9 +1234,9 @@ class RowType(DataType):
         else:
             if isinstance(obj, dict):
                 return tuple(obj.get(n) for n in self.names)
-            elif isinstance(obj, Row) and getattr(obj, "_from_dict", False):
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return tuple(obj[n] for n in self.names)
-            elif isinstance(obj, (list, tuple)):
+            elif isinstance(obj, (list, tuple, Row)):
                 return tuple(obj)
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
@@ -1443,7 +1463,7 @@ def _infer_schema(row, names=None):
     if isinstance(row, dict):  # dict
         items = sorted(row.items())
 
-    elif isinstance(row, (tuple, list)):
+    elif isinstance(row, (Row, tuple, list)):
         if hasattr(row, "_fields"):  # namedtuple and Row
             items = zip(row._fields, tuple(row))
         else:
@@ -1710,6 +1730,11 @@ def _to_java_type(data_type):
     elif isinstance(data_type, ArrayType):
         return Types.OBJECT_ARRAY(_to_java_type(data_type.element_type))
 
+    # ListViewType
+    elif isinstance(data_type, ListViewType):
+        return gateway.jvm.org.apache.flink.table.dataview.ListViewTypeInfo(_to_java_type(
+            data_type._element_type))
+
     # MapType
     elif isinstance(data_type, MapType):
         return Types.MAP(_to_java_type(data_type.key_type), _to_java_type(data_type.value_type))
@@ -1812,6 +1837,9 @@ def _from_java_type(j_data_type):
                 get_java_class(gateway.jvm.org.apache.flink.table.runtime.typeutils
                                .BigDecimalTypeInfo):
                 data_type = DataTypes.DECIMAL(type_info.precision(), type_info.scale())
+            elif type_info.getClass() == \
+                    get_java_class(gateway.jvm.org.apache.flink.table.dataview.ListViewTypeInfo):
+                data_type = DataTypes.LIST_VIEW(_from_java_type(type_info.getElementType()))
             else:
                 raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
                                 % type_info)
@@ -1957,6 +1985,9 @@ def _to_java_data_type(data_type: DataType):
                                               JDataTypes.SECOND(data_type.fractional_precision))
         else:
             j_data_type = JDataTypes.INTERVAL(JDataTypes.SECOND(data_type.fractional_precision))
+    elif isinstance(data_type, ListViewType):
+        return gateway.jvm.org.apache.flink.table.api.dataview.ListView.newListViewDataType(
+            _to_java_data_type(data_type._element_type))
     else:
         raise TypeError("Unsupported data type: %s" % data_type)
 
@@ -2615,6 +2646,17 @@ class DataTypes(object):
         :param nullable: boolean, whether the type can be null (None) or not.
         """
         return ArrayType(element_type, nullable)
+
+    @staticmethod
+    def LIST_VIEW(element_type: DataType):
+        """
+        Data type of a :class:`pyflink.table.data_view.ListView`.
+
+        It can only be used in accumulator type declaration of an Aggregate Function.
+
+        :param element_type: :class:`DataType` of each element in the list view.
+        """
+        return ListViewType(element_type)
 
     @staticmethod
     def MAP(key_type, value_type, nullable=True):
