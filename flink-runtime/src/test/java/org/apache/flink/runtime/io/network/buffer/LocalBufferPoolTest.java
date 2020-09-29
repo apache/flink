@@ -405,10 +405,13 @@ public class LocalBufferPoolTest extends TestLogger {
 		assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
 	}
 
+	/**
+	 * Moves around availability of a {@link LocalBufferPool} with varying capacity.
+	 */
 	@Test
 	public void testMaxBuffersPerChannelAndAvailability() throws InterruptedException {
 		localBufferPool.lazyDestroy();
-		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 1);
+		localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 2);
 		localBufferPool.setNumBuffers(10);
 
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
@@ -422,7 +425,7 @@ public class LocalBufferPoolTest extends TestLogger {
 		final BufferBuilder bufferBuilder02 = localBufferPool.requestBufferBuilderBlocking(0);
 		assertFalse(localBufferPool.getAvailableFuture().isDone());
 
-		final BufferBuilder bufferBuilder03 = localBufferPool.requestBufferBuilderBlocking(0);
+		assertNull(localBufferPool.requestBufferBuilder(0));
 		final BufferBuilder bufferBuilder21 = localBufferPool.requestBufferBuilderBlocking(2);
 		final BufferBuilder bufferBuilder22 = localBufferPool.requestBufferBuilderBlocking(2);
 		assertFalse(localBufferPool.getAvailableFuture().isDone());
@@ -433,10 +436,8 @@ public class LocalBufferPoolTest extends TestLogger {
 		bufferBuilder21.getRecycler().recycle(bufferBuilder21.getMemorySegment());
 		assertFalse(localBufferPool.getAvailableFuture().isDone());
 		bufferBuilder02.getRecycler().recycle(bufferBuilder02.getMemorySegment());
-		assertFalse(localBufferPool.getAvailableFuture().isDone());
-		bufferBuilder01.getRecycler().recycle(bufferBuilder01.getMemorySegment());
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
-		bufferBuilder03.getRecycler().recycle(bufferBuilder03.getMemorySegment());
+		bufferBuilder01.getRecycler().recycle(bufferBuilder01.getMemorySegment());
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
 		bufferBuilder22.getRecycler().recycle(bufferBuilder22.getMemorySegment());
 		assertTrue(localBufferPool.getAvailableFuture().isDone());
