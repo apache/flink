@@ -25,17 +25,17 @@ package org.apache.flink.fn_execution.v1;
 option java_package = "org.apache.flink.fnexecution.v1";
 option java_outer_classname = "FlinkFnApi";
 
+message Input {
+  oneof input {
+    UserDefinedFunction udf = 1;
+    int32 inputOffset = 2;
+    bytes inputConstant = 3;
+  }
+}
+
 // User-defined function definition. It supports chaining functions, that's, the execution
 // result of one user-defined function as the input of another user-defined function.
 message UserDefinedFunction {
-  message Input {
-    oneof input {
-      UserDefinedFunction udf = 1;
-      int32 inputOffset = 2;
-      bytes inputConstant = 3;
-    }
-  }
-
   // The serialized representation of the user-defined function
   bytes payload = 1;
 
@@ -92,9 +92,38 @@ message UserDefinedDataStreamFunctions {
   bool metric_enabled = 2;
 }
 
+message UserDefinedAggregateFunction {
+  message DataViewSpec {
+    message ListView {
+      Schema.FieldType element_type = 1;
+    }
+    message MapView {
+      Schema.FieldType key_type = 1;
+      Schema.FieldType value_type = 2;
+    }
+    string name = 1;
+    int32 field_index = 2;
+    oneof data_view {
+      ListView list_view = 3;
+      MapView map_view = 4;
+    }
+  }
+
+  // The serialized representation of the user-defined function
+  bytes payload = 1;
+
+  // The input arguments of the user-defined function, it could be one of the following:
+  // 1. A column from the input row
+  // 2. The result of another user-defined function
+  // 3. The constant value of the column
+  repeated Input inputs = 2;
+
+  repeated DataViewSpec specs = 3;
+}
+
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
 message UserDefinedAggregateFunctions {
-  repeated UserDefinedFunction udfs = 1;
+  repeated UserDefinedAggregateFunction udfs = 1;
   bool metric_enabled = 2;
   // The array of the key indexes.
   repeated int32 grouping = 3;
