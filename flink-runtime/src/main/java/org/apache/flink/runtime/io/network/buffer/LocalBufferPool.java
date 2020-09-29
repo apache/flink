@@ -295,6 +295,11 @@ class LocalBufferPool implements BufferPool {
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
 
+			// target channel over quota; do not return a segment
+			if (targetChannel != UNKNOWN_CHANNEL && subpartitionBuffersCount[targetChannel] >= maxBuffersPerChannel) {
+				return null;
+			}
+
 			if (availableMemorySegments.isEmpty()) {
 				segment = requestMemorySegmentFromGlobal();
 			}
@@ -307,7 +312,7 @@ class LocalBufferPool implements BufferPool {
 			}
 
 			if (segment != null && targetChannel != UNKNOWN_CHANNEL) {
-				if (subpartitionBuffersCount[targetChannel]++ == maxBuffersPerChannel) {
+				if (++subpartitionBuffersCount[targetChannel] == maxBuffersPerChannel) {
 					unavailableSubpartitionsCount++;
 					availabilityHelper.resetUnavailable();
 				}
@@ -353,7 +358,7 @@ class LocalBufferPool implements BufferPool {
 			synchronized (availableMemorySegments) {
 				final int oldUnavailableSubpartitionsCount = unavailableSubpartitionsCount;
 				if (channel != UNKNOWN_CHANNEL) {
-					if (--subpartitionBuffersCount[channel] == maxBuffersPerChannel) {
+					if (subpartitionBuffersCount[channel]-- == maxBuffersPerChannel) {
 						unavailableSubpartitionsCount--;
 					}
 				}
