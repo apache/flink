@@ -41,6 +41,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HADOOP_CONF_DIR;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -57,7 +58,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
 	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
-	public void test() {
+	public void testCreateHiveCatalog() {
 		final String catalogName = "mycatalog";
 
 		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
@@ -71,6 +72,31 @@ public class HiveCatalogFactoryTest extends TestLogger {
 			.createCatalog(catalogName, properties);
 
 		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+	}
+
+	@Test
+	public void testCreateHiveCatalogWithHadoopConfDir() throws IOException {
+		final String catalogName = "mycatalog";
+
+		final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
+		final File mapredSiteFile = new File(hadoopConfDir, "mapred-site.xml");
+		final String mapredKey = "mapred.site.config.key";
+		final String mapredVal = "mapred.site.config.val";
+		writeProperty(mapredSiteFile, mapredKey, mapredVal);
+
+		final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, CONF_DIR.getPath(), hadoopConfDir, null);
+
+		final HiveCatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
+		catalogDescriptor.hiveSitePath(CONF_DIR.getPath());
+
+		final Map<String, String> properties = new HashMap<>(catalogDescriptor.toProperties());
+		properties.put(CATALOG_HADOOP_CONF_DIR, hadoopConfDir);
+
+		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
+			.createCatalog(catalogName, properties);
+
+		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
+		assertEquals(mapredVal, ((HiveCatalog) actualCatalog).getHiveConf().get(mapredKey));
 	}
 
 	@Test
