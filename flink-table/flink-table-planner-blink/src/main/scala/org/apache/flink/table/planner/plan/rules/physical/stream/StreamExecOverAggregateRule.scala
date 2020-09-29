@@ -23,10 +23,13 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecOverAggregate
+import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 
-import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+
+import scala.collection.JavaConverters._
 
 /**
   * Rule that converts [[FlinkLogicalOverAggregate]] to [[StreamExecOverAggregate]].
@@ -39,6 +42,13 @@ class StreamExecOverAggregateRule
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
     "StreamExecOverAggregateRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val logicWindow: FlinkLogicalOverAggregate =
+      call.rel(0).asInstanceOf[FlinkLogicalOverAggregate]
+    val agg = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
+    !agg.exists(isPythonAggregate(_))
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val logicWindow: FlinkLogicalOverAggregate = rel.asInstanceOf[FlinkLogicalOverAggregate]

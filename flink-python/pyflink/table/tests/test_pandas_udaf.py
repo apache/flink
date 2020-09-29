@@ -504,6 +504,191 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         self.assert_equals(actual, ["1,2.5", "1,6.0", "2,2.0", "3,2.5"])
         os.remove(source_path)
 
+    def test_row_time_over_range_window_aggregate_function(self):
+        # create source file path
+        import tempfile
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '1,1,2013-01-01 03:10:00',
+            '3,2,2013-01-01 03:10:00',
+            '2,1,2013-01-01 03:10:00',
+            '1,5,2013-01-01 03:10:00',
+            '1,8,2013-01-01 04:20:00',
+            '2,3,2013-01-01 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_over_range_window_aggregate_function.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+        max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
+                                result_type=DataTypes.SMALLINT(),
+                                func_type='pandas')
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
+        source_table = """
+            create table source_table(
+                a TINYINT,
+                b SMALLINT,
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b', 'c'],
+            [
+                DataTypes.TINYINT(),
+                DataTypes.FLOAT(),
+                DataTypes.SMALLINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+        self.t_env.execute_sql("""
+            insert into Results
+            select a,
+             mean_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             RANGE BETWEEN INTERVAL '20' MINUTE PRECEDING AND CURRENT ROW),
+             max_add_min_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             RANGE BETWEEN INTERVAL '20' MINUTE PRECEDING AND CURRENT ROW)
+            from source_table
+        """).wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual,
+                           ["1,3.0,6", "1,3.0,6", "1,8.0,16", "2,1.0,2", "2,2.0,4", "3,2.0,4"])
+        os.remove(source_path)
+
+    def test_row_time_over_rows_window_aggregate_function(self):
+        # create source file path
+        import tempfile
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '1,1,2013-01-01 03:10:00',
+            '3,2,2013-01-01 03:10:00',
+            '2,1,2013-01-01 03:10:00',
+            '1,5,2013-01-01 03:10:00',
+            '1,8,2013-01-01 04:20:00',
+            '2,3,2013-01-01 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_over_rows_window_aggregate_function.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
+                                result_type=DataTypes.SMALLINT(),
+                                func_type='pandas')
+        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
+        source_table = """
+            create table source_table(
+                a TINYINT,
+                b SMALLINT,
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b', 'c'],
+            [
+                DataTypes.TINYINT(),
+                DataTypes.FLOAT(),
+                DataTypes.SMALLINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+        self.t_env.execute_sql("""
+            insert into Results
+            select a,
+             mean_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+             max_add_min_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+            from source_table
+        """).wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual,
+                           ["1,1.0,2", "1,3.0,6", "1,6.5,13", "2,1.0,2", "2,2.0,4", "3,2.0,4"])
+        os.remove(source_path)
+
+    def test_proc_time_over_rows_window_aggregate_function(self):
+        # create source file path
+        import tempfile
+        import os
+        tmp_dir = tempfile.gettempdir()
+        data = [
+            '1,1,2013-01-01 03:10:00',
+            '3,2,2013-01-01 03:10:00',
+            '2,1,2013-01-01 03:10:00',
+            '1,5,2013-01-01 03:10:00',
+            '1,8,2013-01-01 04:20:00',
+            '2,3,2013-01-01 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_over_rows_window_aggregate_function.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
+                                result_type=DataTypes.SMALLINT(),
+                                func_type='pandas')
+        self.env.set_parallelism(1)
+        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+        self.t_env.register_function("mean_udaf", mean_udaf)
+        self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
+        source_table = """
+            create table source_table(
+                a TINYINT,
+                b SMALLINT,
+                proctime as PROCTIME()
+            ) with(
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = '%s',
+                'format.ignore-first-line' = 'false',
+                'format.field-delimiter' = ','
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a', 'b', 'c'],
+            [
+                DataTypes.TINYINT(),
+                DataTypes.FLOAT(),
+                DataTypes.SMALLINT()])
+        self.t_env.register_table_sink("Results", table_sink)
+        self.t_env.execute_sql("""
+            insert into Results
+            select a,
+             mean_udaf(b)
+             over (PARTITION BY a ORDER BY proctime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+             max_add_min_udaf(b)
+             over (PARTITION BY a ORDER BY proctime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+            from source_table
+        """).wait()
+        actual = source_sink_utils.results()
+        self.assert_equals(actual,
+                           ["1,1.0,2", "1,3.0,6", "1,6.5,13", "2,1.0,2", "2,2.0,4", "3,2.0,4"])
+        os.remove(source_path)
+
 
 @udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
 def mean_udaf(v):
