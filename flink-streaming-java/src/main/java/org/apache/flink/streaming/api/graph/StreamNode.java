@@ -84,6 +84,7 @@ public class StreamNode {
 
 	private String transformationUID;
 	private String userHash;
+	private boolean sortedInputs = false;
 
 	@VisibleForTesting
 	public StreamNode(
@@ -333,6 +334,15 @@ public class StreamNode {
 
 	public void setUserHash(String userHash) {
 		this.userHash = userHash;
+	}
+
+	@VisibleForTesting
+	public void setSortedInputs(boolean sortedInputs) {
+		this.sortedInputs = sortedInputs;
+	}
+
+	boolean getSortedInputs() {
+		return sortedInputs;
 	}
 
 	public Optional<OperatorCoordinator.Provider> getCoordinatorProvider(
