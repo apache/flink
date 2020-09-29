@@ -40,7 +40,7 @@ function run_resume_externalized_checkpoints() {
   if (( $ORIGINAL_DOP != $NEW_DOP )); then
     # checkpoints currently do not support rescaling
     # https://issues.apache.org/jira/browse/FLINK-18404
-    set_config_key "execution.checkpointing.unaligned" "false"
+    set_config_key "checkpointing.randomization" "false"
   fi
 
   set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"

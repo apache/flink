@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
@@ -76,8 +78,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Flag to force checkpointing in iterative jobs. */
 	private boolean forceCheckpointing;
 
-	/** Flag to enable unaligned checkpoints. */
-	private boolean unalignedCheckpointsEnabled;
+	/** Flag to enable unaligned checkpoints. If not explicitly set, may be randomly filled. */
+	@Nullable
+	private Boolean unalignedCheckpointsEnabled;
 
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
@@ -101,7 +104,17 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * */
 	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
+	private final OptionValueSelector optionValueSelector;
+
 	// ------------------------------------------------------------------------
+
+	public CheckpointConfig(OptionValueSelector optionValueSelector) {
+		this.optionValueSelector = optionValueSelector;
+	}
+
+	public CheckpointConfig() {
+		this(OptionValueSelector.create(false));
+	}
 
 	/**
 	 * Checks whether checkpointing is enabled.
@@ -420,6 +433,10 @@ public class CheckpointConfig implements java.io.Serializable {
 	 */
 	@PublicEvolving
 	public boolean isUnalignedCheckpointsEnabled() {
+		if (unalignedCheckpointsEnabled == null) {
+			unalignedCheckpointsEnabled =
+				optionValueSelector.select(ExecutionCheckpointingOptions.ENABLE_UNALIGNED, false, true);
+		}
 		return unalignedCheckpointsEnabled;
 	}
 

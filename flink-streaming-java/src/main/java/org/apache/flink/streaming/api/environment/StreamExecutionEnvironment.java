@@ -145,11 +145,15 @@ public class StreamExecutionEnvironment {
 
 	// ------------------------------------------------------------------------
 
+	/** Selects values for uninitialized {@link org.apache.flink.configuration.ConfigOption}s. */
+	private final OptionValueSelector optionValueSelector = OptionValueSelector.create(
+		Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false")));
+
 	/** The execution configuration for this environment. */
 	private final ExecutionConfig config = new ExecutionConfig();
 
 	/** Settings that control the checkpointing behavior. */
-	private final CheckpointConfig checkpointCfg = new CheckpointConfig();
+	private final CheckpointConfig checkpointCfg = new CheckpointConfig(optionValueSelector);
 
 	protected final List<Transformation<?>> transformations = new ArrayList<>();
 
