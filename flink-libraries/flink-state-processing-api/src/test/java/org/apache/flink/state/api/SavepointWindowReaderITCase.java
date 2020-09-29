@@ -19,7 +19,11 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
@@ -33,6 +37,7 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
@@ -326,6 +331,37 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
 	}
 
+	@Test
+	public void testWindowTriggerStateReader() throws Exception {
+		String savepointPath = takeSavepoint(numbers, source -> {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+			env.setStateBackend(getStateBackend());
+			env.setParallelism(4);
+
+			env
+				.addSource(source)
+				.rebalance()
+				.keyBy(id -> id)
+				.countWindow(10)
+				.reduce(new ReduceSum())
+				.uid(uid)
+				.addSink(new DiscardingSink<>());
+
+			return env;
+		});
+
+		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+
+		List<Long> results = savepoint
+			.window(new GlobalWindow.Serializer())
+			.reduce(uid, new ReduceSum(), new TriggerReaderFunction(), Types.INT, Types.INT, Types.LONG)
+			.collect();
+
+		Assert.assertThat("Unexpected results from trigger state", results, Matchers.contains(1L, 1L, 1L));
+	}
+
 	private static class NoOpProcessWindowFunction extends ProcessWindowFunction<Integer, Integer, Integer, TimeWindow> {
 
 		@Override
@@ -357,6 +393,28 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend> extend
 
 		@Override
 		public void evictAfter(Iterable<TimestampedValue<Integer>> elements, int size, W window, EvictorContext evictorContext) {
+		}
+	}
+
+	private static class TriggerReaderFunction extends WindowReaderFunction<Integer, Long, Integer, GlobalWindow> {
+
+		private final ReducingStateDescriptor<Long> triggerCountDesc =
+			new ReducingStateDescriptor<>("count", new LongSum(), LongSerializer.INSTANCE);
+
+		@Override
+		public void readWindow(Integer integer, Context<GlobalWindow> context, Iterable<Integer> elements, Collector<Long> out) throws Exception {
+			ReducingState<Long> state = context.triggerState(triggerCountDesc);
+			out.collect(state.get());
+		}
+
+	}
+
+	private static class LongSum implements ReduceFunction<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Long reduce(Long value1, Long value2) throws Exception {
+			return value1 + value2;
 		}
 	}
 }
