@@ -140,7 +140,10 @@ public class StreamGraphGenerator {
 	// we have loops, i.e. feedback edges.
 	private Map<Transformation<?>, Collection<Integer>> alreadyTransformed;
 
-	public StreamGraphGenerator(List<Transformation<?>> transformations, ExecutionConfig executionConfig, CheckpointConfig checkpointConfig) {
+	public StreamGraphGenerator(
+			final List<Transformation<?>> transformations,
+			final ExecutionConfig executionConfig,
+			final CheckpointConfig checkpointConfig) {
 		this.transformations = checkNotNull(transformations);
 		this.executionConfig = checkNotNull(executionConfig);
 		this.checkpointConfig = checkNotNull(checkpointConfig);
