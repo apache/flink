@@ -61,6 +61,8 @@ public class TaskStateStatsTest {
 		assertArrayEquals(subtasks, taskStats.getSubtaskStats());
 
 		long stateSize = 0;
+		long processedData = 0;
+		long persistedData = 0;
 
 		// Hand in some subtasks
 		for (int i = 0; i < subtasks.length; i++) {
@@ -71,9 +73,13 @@ public class TaskStateStatsTest {
 				rand.nextInt(128),
 				rand.nextInt(128),
 				rand.nextInt(128),
+				rand.nextInt(128),
+				rand.nextInt(128),
 				rand.nextInt(128));
 
 			stateSize += subtasks[i].getStateSize();
+			processedData += subtasks[i].getProcessedData();
+			persistedData += subtasks[i].getPersistedData();
 
 			assertTrue(taskStats.reportSubtaskStats(subtasks[i]));
 			assertEquals(i + 1, taskStats.getNumberOfAcknowledgedSubtasks());
@@ -82,9 +88,11 @@ public class TaskStateStatsTest {
 			int duration = rand.nextInt(128);
 			assertEquals(duration, taskStats.getEndToEndDuration(subtasks[i].getAckTimestamp() - duration));
 			assertEquals(stateSize, taskStats.getStateSize());
+			assertEquals(processedData, taskStats.getProcessedDataStats());
+			assertEquals(persistedData, taskStats.getPersistedDataStats());
 		}
 
-		assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0)));
+		assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0, 0, 0)));
 
 		taskStats = serialize ? CommonTestUtils.createCopySerializable(taskStats) : taskStats;
 
@@ -99,5 +107,7 @@ public class TaskStateStatsTest {
 		assertEquals(subtasks.length, summary.getSyncCheckpointDurationStats().getCount());
 		assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
 		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
+		assertEquals(subtasks.length, summary.getProcessedDataStats().getCount());
+		assertEquals(subtasks.length, summary.getPersistedDataStats().getCount());
 	}
 }
