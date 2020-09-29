@@ -50,7 +50,8 @@ import static org.junit.Assert.fail;
  */
 public class SharedSlotTest extends TestLogger {
 	private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
-	private static final ExecutionSlotSharingGroup SG = createExecutionSlotSharingGroup(EV1);
+	private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
+	private static final ExecutionSlotSharingGroup SG = createExecutionSlotSharingGroup(EV1, EV2);
 	private static final SlotRequestId PHYSICAL_SLOT_REQUEST_ID = new SlotRequestId();
 	private static final ResourceProfile RP = ResourceProfile.newBuilder().setCpuCores(2.0).build();
 
@@ -283,6 +284,30 @@ public class SharedSlotTest extends TestLogger {
 		// slot is already released, it should not get released again
 		sharedSlot.release(new Throwable());
 		assertThat(released.get(), is(1));
+	}
+
+	@Test
+	public void testReturnLogicalSlotWhileReleasingDoesNotCauseConcurrentModificationException() {
+		CompletableFuture<PhysicalSlot> slotContextFuture = CompletableFuture
+			.completedFuture(new TestingPhysicalSlot(RP, new AllocationID()));
+		SharedSlot sharedSlot = SharedSlotBuilder
+			.newBuilder()
+			.withSlotContextFuture(slotContextFuture)
+			.build();
+		LogicalSlot logicalSlot1 = sharedSlot.allocateLogicalSlot(EV1).join();
+		LogicalSlot logicalSlot2 = sharedSlot.allocateLogicalSlot(EV2).join();
+		logicalSlot1.tryAssignPayload(new LogicalSlot.Payload() {
+			@Override
+			public void fail(Throwable cause) {
+				sharedSlot.returnLogicalSlot(logicalSlot2);
+			}
+
+			@Override
+			public CompletableFuture<?> getTerminalStateFuture() {
+				return CompletableFuture.completedFuture(null);
+			}
+		});
+		sharedSlot.release(new Throwable());
 	}
 
 	private static class SharedSlotBuilder {
