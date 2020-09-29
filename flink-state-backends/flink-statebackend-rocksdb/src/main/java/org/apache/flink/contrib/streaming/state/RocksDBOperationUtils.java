@@ -179,7 +179,11 @@ public class RocksDBOperationUtils {
 	 * @param writeBufferManagerCapacity the size of the write buffer manager (bytes)
 	 * @return true is sanity check passes, false otherwise
 	 */
-	public static boolean sanityCheckArenaBlockSize(long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity) throws IllegalStateException {
+	static boolean sanityCheckArenaBlockSize(
+		long writeBufferSize,
+		long arenaBlockSizeConfigured,
+		long writeBufferManagerCapacity) throws IllegalStateException {
+
 		long defaultArenaBlockSize = RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize);
 		long arenaBlockSize = arenaBlockSizeConfigured <= 0 ? defaultArenaBlockSize : arenaBlockSizeConfigured;
 		long mutableLimit = RocksDBMemoryControllerUtils.calculateRocksDBMutableLimit(writeBufferManagerCapacity);
