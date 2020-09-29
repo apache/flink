@@ -99,7 +99,6 @@ public enum ProgramOptionsUtils {
 	}
 
 	public static void configurePythonExecution(Configuration configuration, PackagedProgram packagedProgram) throws CliArgsException, NoSuchFieldException, IllegalAccessException {
-
 			final Options commandOptions = CliFrontendParser.getRunCommandOptions();
 			final CommandLine commandLine = CliFrontendParser.parse(commandOptions, packagedProgram.getArguments(),
 				true);

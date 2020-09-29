@@ -112,7 +112,6 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
 	@Override
 	public PackagedProgram getPackagedProgram() throws FlinkException {
 		try {
-
 			// It is Python job if program arguments contain "-py"/--python" or "-pym/--pyModule", set the fixed
 			// jobClassName and jarFile path.
 			if (PackagedProgramUtils.isPython(jobClassName) || PackagedProgramUtils.isPython(programArguments)){

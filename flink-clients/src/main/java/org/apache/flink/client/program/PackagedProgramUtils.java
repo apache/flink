@@ -193,7 +193,7 @@ public enum PackagedProgramUtils {
 			(entryPointClassName.equals(PYTHON_DRIVER_CLASS_NAME) || entryPointClassName.equals(PYTHON_GATEWAY_CLASS_NAME));
 	}
 
-	public static Boolean isPython(String[] programArguments){
+	public static boolean isPython(String[] programArguments){
 		return CollectionUtils.containsAny(Arrays.asList(programArguments), Arrays.asList("-py", "-pym", "--python",
 			"--pyModule"));
 	}
