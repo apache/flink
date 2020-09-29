@@ -551,6 +551,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 					resourceId,
 					taskExecutor.getTaskExecutorGateway().getAddress(),
 					taskExecutor.getDataPort(),
+					taskExecutor.getJmxPort(),
 					taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 					slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
 					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
@@ -576,6 +577,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				resourceId,
 				taskExecutor.getTaskExecutorGateway().getAddress(),
 				taskExecutor.getDataPort(),
+				taskExecutor.getJmxPort(),
 				taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 				slotManager.getNumberRegisteredSlotsOf(instanceId),
 				slotManager.getNumberFreeSlotsOf(instanceId),
@@ -789,6 +791,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				taskExecutorGateway,
 				newWorker,
 				taskExecutorRegistration.getDataPort(),
+				taskExecutorRegistration.getJmxPort(),
 				taskExecutorRegistration.getHardwareDescription(),
 				taskExecutorRegistration.getMemoryConfiguration());
 

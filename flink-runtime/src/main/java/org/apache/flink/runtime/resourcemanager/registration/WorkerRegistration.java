@@ -33,6 +33,8 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extend
 
 	private final int dataPort;
 
+	private final int jmxPort;
+
 	private final HardwareDescription hardwareDescription;
 
 	private final TaskExecutorMemoryConfiguration memoryConfiguration;
@@ -41,6 +43,7 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extend
 			TaskExecutorGateway taskExecutorGateway,
 			WorkerType worker,
 			int dataPort,
+			int jmxPort,
 			HardwareDescription hardwareDescription,
 			TaskExecutorMemoryConfiguration memoryConfiguration) {
 
@@ -48,6 +51,7 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extend
 
 		this.worker = Preconditions.checkNotNull(worker);
 		this.dataPort = dataPort;
+		this.jmxPort = jmxPort;
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
 		this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
 	}
@@ -58,6 +62,10 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extend
 
 	public int getDataPort() {
 		return dataPort;
+	}
+
+	public int getJmxPort() {
+		return jmxPort;
 	}
 
 	public HardwareDescription getHardwareDescription() {

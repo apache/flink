@@ -2669,6 +2669,9 @@
               "dataPort" : {
                 "type" : "integer"
               },
+              "jmxPort" : {
+                "type" : "integer"
+              },
               "timeSinceLastHeartbeat" : {
                 "type" : "integer"
               },
@@ -2821,6 +2824,9 @@
           "type" : "string"
         },
         "dataPort" : {
+          "type" : "integer"
+        },
+        "jmxPort" : {
           "type" : "integer"
         },
         "timeSinceLastHeartbeat" : {
