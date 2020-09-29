@@ -50,6 +50,10 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "alignment_buffered";
 
+	public static final String FIELD_NAME_PROCESSED_DATA = "processed_data";
+
+	public static final String FIELD_NAME_PERSISTED_DATA = "persisted_data";
+
 	public static final String FIELD_NAME_NUM_SUBTASKS = "num_subtasks";
 
 	public static final String FIELD_NAME_NUM_ACK_SUBTASKS = "num_acknowledged_subtasks";
@@ -72,6 +76,13 @@ public class TaskCheckpointStatistics implements ResponseBody {
 	@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
 	private final long alignmentBuffered;
 
+	@JsonProperty(FIELD_NAME_PROCESSED_DATA)
+	private final long processedData;
+
+	@JsonProperty(FIELD_NAME_PERSISTED_DATA)
+	private final long persistedData;
+
+
 	@JsonProperty(FIELD_NAME_NUM_SUBTASKS)
 	private final int numSubtasks;
 
@@ -86,6 +97,8 @@ public class TaskCheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
+			@JsonProperty(FIELD_NAME_PROCESSED_DATA) long processedData,
+			@JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks) {
 
@@ -94,7 +107,9 @@ public class TaskCheckpointStatistics implements ResponseBody {
 		this.latestAckTimestamp = latestAckTimestamp;
 		this.stateSize = stateSize;
 		this.duration = duration;
+		this.processedData = processedData;
 		this.alignmentBuffered = alignmentBuffered;
+		this.persistedData = persistedData;
 		this.numSubtasks = numSubtasks;
 		this.numAckSubtasks = numAckSubtasks;
 	}
@@ -141,6 +156,8 @@ public class TaskCheckpointStatistics implements ResponseBody {
 			stateSize == that.stateSize &&
 			duration == that.duration &&
 			alignmentBuffered == that.alignmentBuffered &&
+			processedData == that.processedData &&
+			persistedData == that.persistedData &&
 			numSubtasks == that.numSubtasks &&
 			numAckSubtasks == that.numAckSubtasks &&
 			checkpointStatus == that.checkpointStatus;
@@ -148,6 +165,16 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(checkpointId, checkpointStatus, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks);
+		return Objects.hash(
+			checkpointId,
+			checkpointStatus,
+			latestAckTimestamp,
+			stateSize,
+			duration,
+			alignmentBuffered,
+			processedData,
+			persistedData,
+			numSubtasks,
+			numAckSubtasks);
 	}
 }

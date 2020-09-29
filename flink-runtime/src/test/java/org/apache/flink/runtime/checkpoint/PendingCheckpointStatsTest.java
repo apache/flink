@@ -272,6 +272,8 @@ public class PendingCheckpointStatsTest {
 			Integer.MAX_VALUE + (long) index,
 			Integer.MAX_VALUE + (long) index,
 			Integer.MAX_VALUE + (long) index,
+			Integer.MAX_VALUE + (long) index,
+			Integer.MAX_VALUE + (long) index,
 			Integer.MAX_VALUE + (long) index);
 	}
 }

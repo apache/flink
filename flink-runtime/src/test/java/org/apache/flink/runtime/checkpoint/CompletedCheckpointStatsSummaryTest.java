@@ -39,10 +39,14 @@ public class CompletedCheckpointStatsSummaryTest {
 		long triggerTimestamp = 123123L;
 		long ackTimestamp = 123123 + 1212312399L;
 		long stateSize = Integer.MAX_VALUE + 17787L;
+		long processedData = Integer.MAX_VALUE + 123123L;
+		long persistedData = Integer.MAX_VALUE + 42L;
 
 		CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
 		assertEquals(0, summary.getStateSizeStats().getCount());
 		assertEquals(0, summary.getEndToEndDurationStats().getCount());
+		assertEquals(0, summary.getProcessedDataStats().getCount());
+		assertEquals(0, summary.getPersistedDataStats().getCount());
 
 		int numCheckpoints = 10;
 
@@ -51,12 +55,16 @@ public class CompletedCheckpointStatsSummaryTest {
 				i,
 				triggerTimestamp,
 				ackTimestamp + i,
-				stateSize + i);
+				stateSize + i,
+				processedData + i,
+				persistedData + i);
 
 			summary.updateSummary(completed);
 
 			assertEquals(i + 1, summary.getStateSizeStats().getCount());
 			assertEquals(i + 1, summary.getEndToEndDurationStats().getCount());
+			assertEquals(i + 1, summary.getProcessedDataStats().getCount());
+			assertEquals(i + 1, summary.getPersistedDataStats().getCount());
 		}
 
 		MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
@@ -66,13 +74,23 @@ public class CompletedCheckpointStatsSummaryTest {
 		MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
 		assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
 		assertEquals(ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
+
+		MinMaxAvgStats processedDataStats = summary.getProcessedDataStats();
+		assertEquals(processedData, processedDataStats.getMinimum());
+		assertEquals(processedData + numCheckpoints - 1, processedDataStats.getMaximum());
+
+		MinMaxAvgStats persistedDataStats = summary.getPersistedDataStats();
+		assertEquals(persistedData, persistedDataStats.getMinimum());
+		assertEquals(persistedData + numCheckpoints - 1, persistedDataStats.getMaximum());
 	}
 
 	private CompletedCheckpointStats createCompletedCheckpoint(
 		long checkpointId,
 		long triggerTimestamp,
 		long ackTimestamp,
-		long stateSize) {
+		long stateSize,
+		long processedData,
+		long persistedData) {
 
 		SubtaskStateStats latest = mock(SubtaskStateStats.class);
 		when(latest.getAckTimestamp()).thenReturn(ackTimestamp);
@@ -89,6 +107,8 @@ public class CompletedCheckpointStatsSummaryTest {
 			taskStats,
 			1,
 			stateSize,
+			processedData,
+			persistedData,
 			latest,
 			null);
 	}
