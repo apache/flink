@@ -526,8 +526,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry,
-			resourceContainer.getWriteBufferManagerCapacity())
+			cancelStreamRegistry)
 			.setEnableIncrementalCheckpointing(isIncrementalCheckpointsEnabled())
 			.setNumberOfTransferingThreads(getNumberOfTransferThreads())
 			.setNativeMetricOptions(resourceContainer.getMemoryWatcherOptions(defaultMetricOptions))

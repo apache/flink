@@ -105,8 +105,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
 	private final MetricGroup metricGroup;
 
-	private final Long writeBufferManagerCapacity;
-
 	/** True if incremental checkpointing is enabled. */
 	private boolean enableIncrementalCheckpointing;
 
@@ -134,8 +132,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		MetricGroup metricGroup,
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		StreamCompressionDecorator keyGroupCompressionDecorator,
-		CloseableRegistry cancelStreamRegistry,
-		Long writeBufferManagerCapacity) {
+		CloseableRegistry cancelStreamRegistry) {
 
 		super(
 			kvStateRegistry,
@@ -161,7 +158,6 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		this.enableIncrementalCheckpointing = false;
 		this.nativeMetricOptions = new RocksDBNativeMetricOptions();
 		this.numberOfTransferingThreads = RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue();
-		this.writeBufferManagerCapacity = writeBufferManagerCapacity;
 	}
 
 	@VisibleForTesting
@@ -184,8 +180,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 		StreamCompressionDecorator keyGroupCompressionDecorator,
 		RocksDB injectedTestDB,
 		ColumnFamilyHandle injectedDefaultColumnFamilyHandle,
-		CloseableRegistry cancelStreamRegistry,
-		Long writeBufferManagerCapacity) {
+		CloseableRegistry cancelStreamRegistry) {
 		this(
 			operatorIdentifier,
 			userCodeClassLoader,
@@ -203,8 +198,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			metricGroup,
 			stateHandles,
 			keyGroupCompressionDecorator,
-			cancelStreamRegistry,
-			writeBufferManagerCapacity);
+			cancelStreamRegistry);
 		this.injectedTestDB = injectedTestDB;
 		this.injectedDefaultColumnFamilyHandle = injectedDefaultColumnFamilyHandle;
 	}
@@ -362,8 +356,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 			priorityQueueFactory,
 			ttlCompactFiltersManager,
 			keyContext,
-			writeBatchSize,
-			writeBufferManagerCapacity);
+			writeBatchSize);
 	}
 
 	private AbstractRocksDBRestoreOperation<K> getRocksDBRestoreOperation(
@@ -389,7 +382,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				metricGroup,
 				restoreStateHandles,
 				ttlCompactFiltersManager,
-				optionsContainer.getWriteBufferManagerCapacity();
+				optionsContainer.getWriteBufferManagerCapacity());
 		}
 		KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
 		if (firstStateHandle instanceof IncrementalKeyedStateHandle) {
@@ -429,7 +422,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 				metricGroup,
 				restoreStateHandles,
 				ttlCompactFiltersManager,
-				writeBatchSize, writeBufferManagerCapacity);
+				writeBatchSize,
+				optionsContainer.getWriteBufferManagerCapacity());
 		}
 	}
 
@@ -497,7 +491,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 					writeBatchWrapper,
 					nativeMetricMonitor,
 					columnFamilyOptionsFactory,
-					writeBufferManagerCapacity);
+					optionsContainer.getWriteBufferManagerCapacity());
 				break;
 			default:
 				throw new IllegalArgumentException("Unknown priority queue state type: " + priorityQueueStateType);

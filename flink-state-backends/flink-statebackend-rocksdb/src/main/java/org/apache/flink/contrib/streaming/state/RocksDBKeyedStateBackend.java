@@ -208,8 +208,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 
-	private final Long writeBufferManagerCapacity;
-
 	public RocksDBKeyedStateBackend(
 		ClassLoader userCodeClassLoader,
 		File instanceBasePath,
@@ -234,8 +232,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		PriorityQueueSetFactory priorityQueueFactory,
 		RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
 		InternalKeyContext<K> keyContext,
-		@Nonnegative long writeBatchSize,
-		Long writeBufferManagerCapacity) {
+		@Nonnegative long writeBatchSize) {
 
 		super(
 			kvStateRegistry,
@@ -272,7 +269,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.nativeMetricMonitor = nativeMetricMonitor;
 		this.sharedRocksKeyBuilder = sharedRocksKeyBuilder;
 		this.priorityQueueFactory = priorityQueueFactory;
-		this.writeBufferManagerCapacity = writeBufferManagerCapacity;
 	}
 
 	@SuppressWarnings("unchecked")

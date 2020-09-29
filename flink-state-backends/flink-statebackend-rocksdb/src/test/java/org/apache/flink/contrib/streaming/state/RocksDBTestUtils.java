@@ -67,8 +67,7 @@ public final class RocksDBTestUtils {
 			new UnregisteredMetricsGroup(),
 			Collections.emptyList(),
 			UncompressedStreamCompressionDecorator.INSTANCE,
-			new CloseableRegistry(),
-			null);
+			new CloseableRegistry());
 	}
 
 	public static <K> RocksDBKeyedStateBackendBuilder<K> builderForTestDB(
@@ -99,8 +98,7 @@ public final class RocksDBTestUtils {
 				UncompressedStreamCompressionDecorator.INSTANCE,
 				db,
 				defaultCFHandle,
-				new CloseableRegistry(),
-				null);
+				new CloseableRegistry());
 	}
 
 	public static <K> RocksDBKeyedStateBackend<K> createKeyedStateBackend(
