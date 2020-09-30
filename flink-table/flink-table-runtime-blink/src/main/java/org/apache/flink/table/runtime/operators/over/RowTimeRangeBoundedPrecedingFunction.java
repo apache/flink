@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,6 +26,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -86,12 +90,25 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	private transient AggsHandleFunction function;
 
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+	protected static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+	protected static final String LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME = "lateRecordsDroppedRate";
+	private transient Counter numLateRecordsDropped;
+	private transient Meter lateRecordsDroppedRate;
+
+	@VisibleForTesting
+	public Counter getCounter() {
+		return numLateRecordsDropped;
+	}
+
 	public RowTimeRangeBoundedPrecedingFunction(
-			GeneratedAggsHandleFunction genAggsHandler,
-			LogicalType[] accTypes,
-			LogicalType[] inputFieldTypes,
-			long precedingOffset,
-			int rowTimeIdx) {
+		GeneratedAggsHandleFunction genAggsHandler,
+		LogicalType[] accTypes,
+		LogicalType[] inputFieldTypes,
+		long precedingOffset,
+		int rowTimeIdx) {
 		Preconditions.checkNotNull(precedingOffset);
 		this.genAggsHandler = genAggsHandler;
 		this.accTypes = accTypes;
@@ -130,13 +147,19 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 			Types.LONG
 		);
 		this.cleanupTsState = getRuntimeContext().getState(cleanupTsStateDescriptor);
+
+		// metrics
+		this.numLateRecordsDropped = getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
+		this.lateRecordsDroppedRate = getRuntimeContext().getMetricGroup().meter(
+			LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
+			new MeterView(numLateRecordsDropped));
 	}
 
 	@Override
 	public void processElement(
-			RowData input,
-			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
-			Collector<RowData> out) throws Exception {
+		RowData input,
+		KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+		Collector<RowData> out) throws Exception {
 		// triggering timestamp for trigger calculation
 		long triggeringTs = input.getLong(rowTimeIdx);
 
@@ -159,12 +182,14 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 				ctx.timerService().registerEventTimeTimer(triggeringTs);
 			}
 			registerCleanupTimer(ctx, triggeringTs);
+		} else {
+			lateRecordsDroppedRate.markEvent();
 		}
 	}
 
 	private void registerCleanupTimer(
-			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
-			long timestamp) throws Exception {
+		KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+		long timestamp) throws Exception {
 		// calculate safe timestamp to cleanup states
 		long minCleanupTimestamp = timestamp + precedingOffset + 1;
 		long maxCleanupTimestamp = timestamp + (long) (precedingOffset * 1.5) + 1;
@@ -180,9 +205,9 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	@Override
 	public void onTimer(
-			long timestamp,
-			KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
-			Collector<RowData> out) throws Exception {
+		long timestamp,
+		KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+		Collector<RowData> out) throws Exception {
 		Long cleanupTimestamp = cleanupTsState.value();
 		// if cleanupTsState has not been updated then it is safe to cleanup states
 		if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {

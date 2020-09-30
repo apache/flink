@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,6 +26,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -68,6 +72,19 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 
 	protected transient AggsHandleFunction function;
 
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+	protected static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+	protected static final String LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME = "lateRecordsDroppedRate";
+	private transient Counter numLateRecordsDropped;
+	private transient Meter lateRecordsDroppedRate;
+
+	@VisibleForTesting
+	public Counter getCounter() {
+		return numLateRecordsDropped;
+	}
+
 	public AbstractRowTimeUnboundedPrecedingOver(
 			long minRetentionTime,
 			long maxRetentionTime,
@@ -107,6 +124,12 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 		inputState = getRuntimeContext().getMapState(inputStateDesc);
 
 		initCleanupTimeState("RowTimeUnboundedOverCleanupTime");
+
+		// metrics
+		this.numLateRecordsDropped = getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
+		this.lateRecordsDroppedRate = getRuntimeContext().getMetricGroup().meter(
+			LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
+			new MeterView(numLateRecordsDropped));
 	}
 
 	/**
@@ -131,7 +154,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 		long timestamp = input.getLong(rowTimeIdx);
 		long curWatermark = ctx.timerService().currentWatermark();
 
-		// discard late record
 		if (timestamp > curWatermark) {
 			// ensure every key just registers one timer
 			// default watermark is Long.Min, avoid overflow we use zero when watermark < 0
@@ -145,6 +167,9 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K> extends KeyedProc
 			}
 			rowList.add(input);
 			inputState.put(timestamp, rowList);
+		} else {
+			// discard late record
+			lateRecordsDroppedRate.markEvent();
 		}
 	}
 

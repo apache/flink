@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,6 +26,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Meter;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -87,6 +91,19 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 
 	private transient AggsHandleFunction function;
 
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+	protected static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+	protected static final String LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME = "lateRecordsDroppedRate";
+	private transient Counter numLateRecordsDropped;
+	private transient Meter lateRecordsDroppedRate;
+
+	@VisibleForTesting
+	public Counter getCounter() {
+		return numLateRecordsDropped;
+	}
+
 	public RowTimeRowsBoundedPrecedingFunction(
 			long minRetentionTime,
 			long maxRetentionTime,
@@ -135,6 +152,12 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 		inputState = getRuntimeContext().getMapState(inputStateDesc);
 
 		initCleanupTimeState("RowTimeBoundedRowsOverCleanupTime");
+
+		// metrics
+		this.numLateRecordsDropped = getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
+		this.lateRecordsDroppedRate = getRuntimeContext().getMetricGroup().meter(
+			LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
+			new MeterView(numLateRecordsDropped));
 	}
 
 	@Override
@@ -166,6 +189,8 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 				// register event time timer
 				ctx.timerService().registerEventTimeTimer(triggeringTs);
 			}
+		} else {
+			lateRecordsDroppedRate.markEvent();
 		}
 	}
 
