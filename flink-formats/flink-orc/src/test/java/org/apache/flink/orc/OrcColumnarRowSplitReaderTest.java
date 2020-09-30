@@ -58,6 +58,7 @@ import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.internal
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link OrcColumnarRowSplitReader}.
@@ -386,6 +387,21 @@ public class OrcColumnarRowSplitReaderTest {
 		}
 		// check that all rows have been read
 		assertEquals(rowSize, cnt);
+	}
+
+	@Test
+	public void testReachEnd() throws Exception {
+		FileInputSplit[] splits = createSplits(testFileFlat, 1);
+		try (OrcColumnarRowSplitReader reader = createReader(
+				new int[]{0, 1},
+				testSchemaFlat,
+				new HashMap<>(),
+				splits[0])) {
+			while (!reader.reachedEnd()) {
+				reader.nextRecord(null);
+			}
+			assertTrue(reader.reachedEnd());
+		}
 	}
 
 	protected static Timestamp toTimestamp(int i) {
