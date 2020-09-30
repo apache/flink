@@ -183,7 +183,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 
 		Buffer decodedBuffer = actual.getBuffer();
 		if (testCompressedBuffer) {
-			assertTrue(actual.isCompressed);
+			assertTrue(actual.isCompressed());
 			decodedBuffer = decompress(decodedBuffer);
 		}
 

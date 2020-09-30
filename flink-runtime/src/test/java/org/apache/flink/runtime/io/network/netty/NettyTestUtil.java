@@ -196,10 +196,10 @@ public class NettyTestUtil {
 	}
 
 	static void verifyBufferResponseHeader(BufferResponse expected, BufferResponse actual) {
-		assertEquals(expected.backlog, actual.backlog);
-		assertEquals(expected.sequenceNumber, actual.sequenceNumber);
-		assertEquals(expected.bufferSize, actual.bufferSize);
-		assertEquals(expected.receiverId, actual.receiverId);
+		assertEquals(expected.getBacklog(), actual.getBacklog());
+		assertEquals(expected.getSequenceNumber(), actual.getSequenceNumber());
+		assertEquals(expected.getBufferSize(), actual.getBufferSize());
+		assertEquals(expected.getReceiverId(), actual.getReceiverId());
 	}
 
 	// ------------------------------------------------------------------------

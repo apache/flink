@@ -24,7 +24,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import javax.annotation.Nullable;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse.MESSAGE_HEADER_LENGTH;
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.ResponseInfo.MESSAGE_HEADER_LENGTH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -64,7 +64,7 @@ class BufferResponseDecoder extends NettyMessageDecoder {
 		}
 
 		if (bufferResponse != null) {
-			int remainingBufferSize = bufferResponse.bufferSize - decodedDataBufferSize;
+			int remainingBufferSize = bufferResponse.getBufferSize() - decodedDataBufferSize;
 			int actualBytesToDecode = Math.min(data.readableBytes(), remainingBufferSize);
 
 			// For the case of data buffer really exists in BufferResponse now.
@@ -80,7 +80,7 @@ class BufferResponseDecoder extends NettyMessageDecoder {
 				decodedDataBufferSize += actualBytesToDecode;
 			}
 
-			if (decodedDataBufferSize == bufferResponse.bufferSize) {
+			if (decodedDataBufferSize == bufferResponse.getBufferSize()) {
 				BufferResponse result = bufferResponse;
 				clearState();
 				return DecodingResult.fullMessage(result);

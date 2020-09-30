@@ -264,14 +264,11 @@ public interface NettyMessage {
 	// Server responses
 	// ------------------------------------------------------------------------
 
-	class BufferResponse implements NettyMessage {
-
+	class ResponseInfo {
 		static final byte ID = 0;
 
 		// receiver ID (16), sequence number (4), backlog (4), dataType (1), isCompressed (1), buffer size (4)
 		static final int MESSAGE_HEADER_LENGTH = 16 + 4 + 4 + 1 + 1 + 4;
-
-		final Buffer buffer;
 
 		final InputChannelID receiverId;
 
@@ -283,42 +280,84 @@ public interface NettyMessage {
 
 		final boolean isCompressed;
 
-		final int bufferSize;
+		final int dataSize;
 
-		private BufferResponse(
-				@Nullable Buffer buffer,
+		ResponseInfo(
+				InputChannelID receiverId,
+				int sequenceNumber,
+				int backlog,
 				Buffer.DataType dataType,
 				boolean isCompressed,
-				int sequenceNumber,
-				InputChannelID receiverId,
-				int backlog,
-				int bufferSize) {
-			this.buffer = buffer;
-			this.dataType = dataType;
-			this.isCompressed = isCompressed;
-			this.sequenceNumber = sequenceNumber;
+				int dataSize) {
 			this.receiverId = checkNotNull(receiverId);
+			this.sequenceNumber = sequenceNumber;
 			this.backlog = backlog;
-			this.bufferSize = bufferSize;
+			this.dataType = checkNotNull(dataType);
+			checkArgument(dataType.ordinal() <= Byte.MAX_VALUE, "Too many data types defined!");
+			this.isCompressed = isCompressed;
+			this.dataSize = dataSize;
 		}
 
-		BufferResponse(
-				Buffer buffer,
-				int sequenceNumber,
-				InputChannelID receiverId,
-				int backlog) {
+		ByteBuf write(ByteBufAllocator allocator) {
+			// only allocate header buffer - we will combine it with the data buffer below
+			ByteBuf buf = allocateBuffer(allocator, ID, MESSAGE_HEADER_LENGTH, dataSize, false);
+
+			receiverId.writeTo(buf);
+			buf.writeInt(sequenceNumber);
+			buf.writeInt(backlog);
+			buf.writeByte(dataType.ordinal());
+			buf.writeBoolean(isCompressed);
+			buf.writeInt(dataSize);
+
+			return buf;
+		}
+	}
+
+	class BufferResponse implements NettyMessage {
+
+		@Nullable
+		final Buffer buffer;
+
+		final ResponseInfo responseInfo;
+
+		BufferResponse(@Nullable Buffer buffer, ResponseInfo responseInfo) {
+			this.buffer = buffer;
+			this.responseInfo = checkNotNull(responseInfo);
+		}
+
+		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId, int backlog) {
 			this.buffer = checkNotNull(buffer);
-			checkArgument(buffer.getDataType().ordinal() <= Byte.MAX_VALUE, "Too many data types defined!");
-			this.dataType = buffer.getDataType();
-			this.isCompressed = buffer.isCompressed();
-			this.sequenceNumber = sequenceNumber;
-			this.receiverId = checkNotNull(receiverId);
-			this.backlog = backlog;
-			this.bufferSize = buffer.getSize();
+			this.responseInfo = new ResponseInfo(
+				checkNotNull(receiverId),
+				sequenceNumber,
+				backlog,
+				buffer.getDataType(),
+				buffer.isCompressed(),
+				buffer.readableBytes());
 		}
 
 		boolean isBuffer() {
-			return dataType.isBuffer();
+			return responseInfo.dataType.isBuffer();
+		}
+
+		boolean isCompressed() {
+			return responseInfo.isCompressed;
+		}
+
+		int getBufferSize() {
+			return responseInfo.dataSize;
+		}
+
+		int getBacklog() {
+			return responseInfo.backlog;
+		}
+
+		int getSequenceNumber() {
+			return responseInfo.sequenceNumber;
+		}
+
+		InputChannelID getReceiverId() {
+			return responseInfo.receiverId;
 		}
 
 		@Nullable
@@ -342,16 +381,7 @@ public interface NettyMessage {
 			try {
 				// in order to forward the buffer to netty, it needs an allocator set
 				buffer.setAllocator(allocator);
-
-				// only allocate header buffer - we will combine it with the data buffer below
-				headerBuf = allocateBuffer(allocator, ID, MESSAGE_HEADER_LENGTH, bufferSize, false);
-
-				receiverId.writeTo(headerBuf);
-				headerBuf.writeInt(sequenceNumber);
-				headerBuf.writeInt(backlog);
-				headerBuf.writeByte(dataType.ordinal());
-				headerBuf.writeBoolean(isCompressed);
-				headerBuf.writeInt(buffer.readableBytes());
+				headerBuf = responseInfo.write(allocator);
 
 				CompositeByteBuf composityBuf = allocator.compositeDirectBuffer();
 				composityBuf.addComponent(headerBuf);
@@ -404,12 +434,7 @@ public interface NettyMessage {
 
 			return new BufferResponse(
 				dataBuffer,
-				dataType,
-				isCompressed,
-				sequenceNumber,
-				receiverId,
-				backlog,
-				size);
+				new ResponseInfo(receiverId, sequenceNumber, backlog, dataType, isCompressed, size));
 		}
 	}
 

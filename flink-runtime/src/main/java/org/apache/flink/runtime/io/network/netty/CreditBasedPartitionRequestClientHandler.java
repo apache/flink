@@ -257,11 +257,11 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 		if (msgClazz == NettyMessage.BufferResponse.class) {
 			NettyMessage.BufferResponse bufferOrEvent = (NettyMessage.BufferResponse) msg;
 
-			RemoteInputChannel inputChannel = inputChannels.get(bufferOrEvent.receiverId);
+			RemoteInputChannel inputChannel = inputChannels.get(bufferOrEvent.getReceiverId());
 			if (inputChannel == null || inputChannel.isReleased()) {
 				bufferOrEvent.releaseBuffer();
 
-				cancelRequestFor(bufferOrEvent.receiverId);
+				cancelRequestFor(bufferOrEvent.getReceiverId());
 
 				return;
 			}
@@ -304,10 +304,10 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 	}
 
 	private void decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
-		if (bufferOrEvent.isBuffer() && bufferOrEvent.bufferSize == 0) {
-			inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+		if (bufferOrEvent.isBuffer() && bufferOrEvent.getBufferSize() == 0) {
+			inputChannel.onEmptyBuffer(bufferOrEvent.getSequenceNumber(), bufferOrEvent.getBacklog());
 		} else if (bufferOrEvent.getBuffer() != null) {
-			inputChannel.onBuffer(bufferOrEvent.getBuffer(), bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+			inputChannel.onBuffer(bufferOrEvent.getBuffer(), bufferOrEvent.getSequenceNumber(), bufferOrEvent.getBacklog());
 		} else {
 			throw new IllegalStateException("The read buffer is null in credit-based input channel.");
 		}

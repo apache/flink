@@ -214,7 +214,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 				inputChannel.getInputChannelId(),
 				2,
 				new NetworkBufferAllocator(handler));
-			assertTrue(bufferResponse.isCompressed);
+			assertTrue(bufferResponse.isCompressed());
 			handler.channelRead(null, bufferResponse);
 
 			Buffer receivedBuffer = inputChannel.getNextReceivedBuffer();

@@ -141,7 +141,7 @@ public class NettyMessageClientDecoderDelegate extends ChannelInboundHandlerAdap
 			checkState(magicNumber == MAGIC_NUMBER, "Network stream corrupted: received incorrect magic number.");
 
 			int msgId = fullFrameHeaderBuf.readByte();
-			if (msgId == NettyMessage.BufferResponse.ID) {
+			if (msgId == NettyMessage.ResponseInfo.ID) {
 				currentDecoder = bufferResponseDecoder;
 			} else {
 				currentDecoder = nonBufferResponseDecoder;

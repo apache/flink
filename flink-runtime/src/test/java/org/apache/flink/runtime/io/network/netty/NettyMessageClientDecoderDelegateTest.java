@@ -325,7 +325,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 				BufferResponse actual = (BufferResponse) decodedMessages.get(i);
 
 				verifyBufferResponseHeader(expected, actual);
-				if (expected.bufferSize == 0 || !expected.receiverId.equals(inputChannelId)) {
+				if (expected.getBufferSize() == 0 || !expected.getReceiverId().equals(inputChannelId)) {
 					assertNull(actual.getBuffer());
 				} else {
 					assertEquals(expected.getBuffer(), actual.getBuffer());
