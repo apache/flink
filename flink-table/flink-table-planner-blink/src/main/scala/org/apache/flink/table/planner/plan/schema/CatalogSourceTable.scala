@@ -23,17 +23,14 @@ import org.apache.flink.table.api.TableColumn.{ComputedColumn, MetadataColumn, P
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.connector.source.abilities._
-import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.factories.FactoryUtil
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
+import org.apache.flink.table.planner.sources.DynamicSourceUtils.prepareDynamicSource
 import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
 import org.apache.flink.table.utils.TableSchemaUtils.containsPhysicalColumnsOnly
-import org.apache.flink.types.RowKind
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
@@ -103,10 +100,6 @@ class CatalogSourceTable[T](
       .getWatermarkSpecs.asScala.headOption
     if (schemaTable.isStreamingMode && watermarkSpec.nonEmpty) {
       val rowtime = watermarkSpec.get.getRowtimeAttribute
-      if (rowtime.contains(".")) {
-        throw new TableException(
-          s"Nested field '$rowtime' as rowtime attribute is not supported right now.")
-      }
       val inputRowType = relBuilder.peek().getRowType
       val rowtimeIndex = inputRowType.getFieldNames.indexOf(rowtime)
       val watermarkRexNode = toRexFactory
@@ -148,7 +141,11 @@ class CatalogSourceTable[T](
       Thread.currentThread.getContextClassLoader,
       schemaTable.isTemporary)
 
-    validateTableSource(tableSource)
+    prepareDynamicSource(
+      schemaTable.getTableIdentifier,
+      catalogTable,
+      tableSource,
+      schemaTable.isStreamingMode)
 
     val tableSourceTable = new TableSourceTable(
       relOptSchema,
@@ -195,63 +192,6 @@ class CatalogSourceTable[T](
       catalogTable.copy(FlinkHints.mergeTableOptions(hintedOptions, catalogTable.getOptions))
     } else {
       catalogTable
-    }
-  }
-
-  private def validateTableSource(tableSource: DynamicTableSource): Unit = {
-    // throw exception if unsupported ability interface is implemented
-    val unsupportedAbilities = List(
-      classOf[SupportsComputedColumnPushDown],
-      classOf[SupportsWatermarkPushDown])
-    unsupportedAbilities.foreach { ability =>
-      if (ability.isAssignableFrom(tableSource.getClass)) {
-        throw new UnsupportedOperationException("Currently, a DynamicTableSource with " +
-          s"${ability.getSimpleName} ability is not supported.")
-      }
-    }
-
-    // scan validation
-    val tableName = schemaTable.getTableIdentifier.asSummaryString
-    tableSource match {
-      case ts: ScanTableSource =>
-        val changelogMode = ts.getChangelogMode
-        if (!schemaTable.isStreamingMode) {
-          // batch only supports bounded source
-          val provider = ts.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE)
-          if (!provider.isBounded) {
-            throw new ValidationException("Cannot query on an unbounded source in batch mode, " +
-              s"but '$tableName' is unbounded.")
-          }
-          // batch only supports INSERT only source
-          if (!changelogMode.containsOnly(RowKind.INSERT)) {
-            throw new UnsupportedOperationException(
-              "Currently, batch mode only supports INSERT only source, but " +
-              s"'$tableName' source produces not INSERT only messages")
-          }
-        } else {
-          // sanity check for produced ChangelogMode
-          val hasUpdateBefore = changelogMode.contains(RowKind.UPDATE_BEFORE)
-          val hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER)
-          (hasUpdateBefore, hasUpdateAfter) match {
-            case (true, true) =>
-              // UPDATE_BEFORE and UPDATE_AFTER, pass
-            case (false, true) =>
-              // only UPDATE_AFTER
-              throw new UnsupportedOperationException(
-                "Currently, ScanTableSource doesn't support producing ChangelogMode " +
-                  "which contains UPDATE_AFTER but no UPDATE_BEFORE. Please adapt the " +
-                  s"implementation of '${ts.asSummaryString()}' source.")
-            case (true, false) =>
-               // only UPDATE_BEFORE
-              throw new ValidationException(
-                s"'$tableName' source produces ChangelogMode which " +
-                  s"contains UPDATE_BEFORE but doesn't contain UPDATE_AFTER, this is invalid.")
-            case _ =>
-              // no updates, pass
-          }
-        }
-      case _ =>
-        // pass, lookup table source is validated in LookupJoin node
     }
   }
 }
