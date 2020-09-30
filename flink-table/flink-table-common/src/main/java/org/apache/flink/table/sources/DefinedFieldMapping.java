@@ -20,6 +20,7 @@ package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
@@ -38,7 +39,11 @@ import java.util.Map;
  * provided by implementing this interface.
  *
  * <p>If a mapping is provided, all fields must be explicitly mapped.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface DefinedFieldMapping {
 
