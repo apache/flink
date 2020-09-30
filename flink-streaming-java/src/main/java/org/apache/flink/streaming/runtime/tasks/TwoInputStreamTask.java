@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
 import java.util.Collections;
@@ -66,7 +66,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			Collections.emptyList());
 		checkState(checkpointedInputGates.length == 2);
 
-		inputProcessor = new StreamTwoInputProcessor<>(
+		inputProcessor = StreamTwoInputProcessorFactory.create(
 			checkpointedInputGates,
 			inputDeserializer1,
 			inputDeserializer2,
