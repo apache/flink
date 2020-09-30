@@ -72,6 +72,11 @@ public class HiveTestUtils {
 				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion, true);
 	}
 
+	public static HiveCatalog createHiveCatalog(String name, String hiveConfDir, String hadoopConfDir, String hiveVersion) {
+		return new HiveCatalog(name, null, hiveConfDir, hadoopConfDir,
+			StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
+	}
+
 	public static HiveCatalog createHiveCatalog(HiveConf hiveConf) {
 		return new HiveCatalog(CatalogTest.TEST_CATALOG_NAME, null, hiveConf, HiveShimLoader.getHiveVersion(), true);
 	}

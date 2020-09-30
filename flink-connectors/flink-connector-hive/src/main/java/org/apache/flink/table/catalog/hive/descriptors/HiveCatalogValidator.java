@@ -28,6 +28,7 @@ public class HiveCatalogValidator extends CatalogDescriptorValidator {
 	public static final String CATALOG_TYPE_VALUE_HIVE = "hive";
 	public static final String CATALOG_HIVE_CONF_DIR = "hive-conf-dir";
 	public static final String CATALOG_HIVE_VERSION = "hive-version";
+	public static final String CATALOG_HADOOP_CONF_DIR = "hadoop-conf-dir";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
@@ -35,5 +36,6 @@ public class HiveCatalogValidator extends CatalogDescriptorValidator {
 		properties.validateValue(CATALOG_TYPE, CATALOG_TYPE_VALUE_HIVE, false);
 		properties.validateString(CATALOG_HIVE_CONF_DIR, true, 1);
 		properties.validateString(CATALOG_HIVE_VERSION, true, 1);
+		properties.validateString(CATALOG_HADOOP_CONF_DIR, true, 1);
 	}
 }
