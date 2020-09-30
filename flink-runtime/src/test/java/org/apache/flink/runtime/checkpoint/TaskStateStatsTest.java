@@ -39,6 +39,15 @@ public class TaskStateStatsTest {
 	 */
 	@Test
 	public void testHandInSubtasks() throws Exception {
+		test(false);
+	}
+
+	@Test
+	public void testIsJavaSerializable() throws Exception {
+		test(true);
+	}
+
+	private void test(boolean serialize) throws Exception {
 		JobVertexID jobVertexId = new JobVertexID();
 		SubtaskStateStats[] subtasks = new SubtaskStateStats[7];
 
@@ -77,6 +86,10 @@ public class TaskStateStatsTest {
 
 		assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0)));
 
+		taskStats = serialize ? CommonTestUtils.createCopySerializable(taskStats) : taskStats;
+
+		assertEquals(stateSize, taskStats.getStateSize());
+
 		// Test that all subtasks are taken into the account for the summary.
 		// The correctness of the actual results is checked in the test of the
 		// MinMaxAvgStats.
@@ -87,41 +100,4 @@ public class TaskStateStatsTest {
 		assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
 		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
 	}
-
-	@Test
-	public void testIsJavaSerializable() throws Exception {
-		JobVertexID jobVertexId = new JobVertexID();
-		SubtaskStateStats[] subtasks = new SubtaskStateStats[7];
-
-		TaskStateStats taskStats = new TaskStateStats(jobVertexId, subtasks.length);
-
-		long stateSize = 0;
-
-		for (int i = 0; i < subtasks.length; i++) {
-			subtasks[i] = new SubtaskStateStats(
-				i,
-				rand.nextInt(128),
-				rand.nextInt(128),
-				rand.nextInt(128),
-				rand.nextInt(128),
-				rand.nextInt(128),
-				rand.nextInt(128));
-
-			stateSize += subtasks[i].getStateSize();
-
-			taskStats.reportSubtaskStats(subtasks[i]);
-		}
-
-		TaskStateStats copy = CommonTestUtils.createCopySerializable(taskStats);
-
-		assertEquals(stateSize, copy.getStateSize());
-
-		TaskStateStats.TaskStateStatsSummary summary = copy.getSummaryStats();
-		assertEquals(subtasks.length, summary.getStateSizeStats().getCount());
-		assertEquals(subtasks.length, summary.getAckTimestampStats().getCount());
-		assertEquals(subtasks.length, summary.getSyncCheckpointDurationStats().getCount());
-		assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
-		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
-	}
-
 }
