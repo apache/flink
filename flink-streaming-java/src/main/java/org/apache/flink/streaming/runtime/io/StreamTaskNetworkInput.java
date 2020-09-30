@@ -178,11 +178,11 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 		if (recordOrMark.isRecord()){
 			output.emitRecord(recordOrMark.asRecord());
 		} else if (recordOrMark.isWatermark()) {
-			statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), lastChannel);
+			statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), lastChannel, output);
 		} else if (recordOrMark.isLatencyMarker()) {
 			output.emitLatencyMarker(recordOrMark.asLatencyMarker());
 		} else if (recordOrMark.isStreamStatus()) {
-			statusWatermarkValve.inputStreamStatus(recordOrMark.asStreamStatus(), lastChannel);
+			statusWatermarkValve.inputStreamStatus(recordOrMark.asStreamStatus(), lastChannel, output);
 		} else {
 			throw new UnsupportedOperationException("Unknown type of StreamElement");
 		}
