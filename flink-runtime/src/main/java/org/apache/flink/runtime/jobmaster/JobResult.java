@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
@@ -37,6 +39,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -67,12 +70,16 @@ public class JobResult implements Serializable {
 	@Nullable
 	private final SerializedThrowable serializedThrowable;
 
+	private Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult;
+
 	private JobResult(
-			final JobID jobId,
-			final ApplicationStatus applicationStatus,
-			final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
-			final long netRuntime,
-			@Nullable final SerializedThrowable serializedThrowable) {
+		final JobID jobId,
+		final ApplicationStatus applicationStatus,
+		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
+		final long netRuntime,
+		@Nullable final SerializedThrowable serializedThrowable,
+		Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult) {
+		this.persistedIntermediateResult = persistedIntermediateResult;
 
 		checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
 
@@ -112,6 +119,10 @@ public class JobResult implements Serializable {
 	 */
 	public Optional<SerializedThrowable> getSerializedThrowable() {
 		return Optional.ofNullable(serializedThrowable);
+	}
+
+	public Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> getPersistedIntermediateResult() {
+		return persistedIntermediateResult;
 	}
 
 	/**
@@ -171,6 +182,8 @@ public class JobResult implements Serializable {
 
 		private SerializedThrowable serializedThrowable;
 
+		private Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult;
+
 		public Builder jobId(final JobID jobId) {
 			this.jobId = jobId;
 			return this;
@@ -196,13 +209,20 @@ public class JobResult implements Serializable {
 			return this;
 		}
 
+		public Builder persistedIntermediateResult(
+			Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult) {
+			this.persistedIntermediateResult = persistedIntermediateResult;
+			return this;
+		}
+
 		public JobResult build() {
 			return new JobResult(
 				jobId,
 				applicationStatus,
 				accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
 				netRuntime,
-				serializedThrowable);
+				serializedThrowable,
+				persistedIntermediateResult);
 		}
 	}
 
@@ -239,6 +259,8 @@ public class JobResult implements Serializable {
 
 			builder.serializedThrowable(errorInfo.getException());
 		}
+
+		builder.persistedIntermediateResult(accessExecutionGraph.getPersistedIntermediateResult());
 
 		return builder.build();
 	}
