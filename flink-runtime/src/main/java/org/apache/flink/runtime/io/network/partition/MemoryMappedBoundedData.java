@@ -232,14 +232,14 @@ final class MemoryMappedBoundedData implements BoundedData {
 
 		@Override
 		@Nullable
-		public Buffer nextBuffer() {
+		public BoundedPartitionData nextData() {
 			// should only be null once empty or disposed, in which case this method
 			// should not be called any more
 			assert currentData != null;
 
 			final Buffer next = BufferReaderWriterUtil.sliceNextBuffer(currentData);
 			if (next != null) {
-				return next;
+				return new BoundedPartitionBuffer(next);
 			}
 
 			if (!furtherData.hasNext()) {
@@ -247,7 +247,7 @@ final class MemoryMappedBoundedData implements BoundedData {
 			}
 
 			currentData = furtherData.next();
-			return nextBuffer();
+			return nextData();
 		}
 
 		@Override

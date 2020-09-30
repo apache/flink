@@ -26,6 +26,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.shaded.netty4.io.netty.channel.FileRegion;
+import org.apache.flink.shaded.netty4.io.netty.util.AbstractReferenceCounted;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -46,6 +48,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ProtocolException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,7 +71,10 @@ public interface NettyMessage {
 
 	int MAGIC_NUMBER = 0xBADC0FFE;
 
-	ByteBuf write(ByteBufAllocator allocator) throws Exception;
+	default void recycle() {
+	}
+
+	Object write(ByteBufAllocator allocator) throws Exception;
 
 	// ------------------------------------------------------------------------
 
@@ -168,7 +175,7 @@ public interface NettyMessage {
 		public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
 			if (msg instanceof NettyMessage) {
 
-				ByteBuf serialized = null;
+				Object serialized = null;
 
 				try {
 					serialized = ((NettyMessage) msg).write(ctx.alloc());
@@ -282,7 +289,7 @@ public interface NettyMessage {
 
 		final int dataSize;
 
-		ResponseInfo(
+		public ResponseInfo(
 				InputChannelID receiverId,
 				int sequenceNumber,
 				int backlog,
@@ -313,6 +320,117 @@ public interface NettyMessage {
 		}
 	}
 
+	class FileRegionResponse extends AbstractReferenceCounted implements FileRegion, NettyMessage {
+
+		private final FileChannel file;
+
+		private final long pos;
+
+		private final ResponseInfo responseInfo;
+
+		private ByteBuf headerBuf;
+
+		private long dataTransferred;
+
+		private int headerTransferred;
+
+		public FileRegionResponse(FileChannel file, ResponseInfo responseInfo) throws IOException {
+			this.file = checkNotNull(file);
+			this.pos = file.position();
+			this.responseInfo = checkNotNull(responseInfo);
+
+			if (pos + responseInfo.dataSize > file.size()) {
+				throw new IOException("Underlying file size " + file.size() +
+					" smaller than requested size " + responseInfo.dataSize + " from position " + pos);
+			}
+
+			// Since the below #transferTo method will not modify the underlining file position, we have to
+			// explicitly update it here in advance. Otherwise it would cause data corruption while reading
+			// header from file in next round before the current size fully transferred.
+			file.position(file.position() + responseInfo.dataSize);
+		}
+
+		@Override
+		public FileRegion write(ByteBufAllocator allocator) throws IOException {
+			try {
+				headerBuf = responseInfo.write(allocator);
+				return this;
+			}
+			catch (Throwable t) {
+				if (headerBuf != null) {
+					headerBuf.release();
+				}
+
+				ExceptionUtils.rethrowIOException(t);
+				return null;
+			}
+		}
+
+		@Override
+		public long position() {
+			return pos;
+		}
+
+		@Override
+		public long transfered() {
+			return headerTransferred + dataTransferred;
+		}
+
+		@Override
+		public long transferred() {
+			return transfered();
+		}
+
+		@Override
+		public long count() {
+			return headerBuf.capacity() + responseInfo.dataSize;
+		}
+
+		@Override
+		public long transferTo(WritableByteChannel target, long position) throws IOException {
+			assert headerBuf != null;
+
+			if (headerTransferred < headerBuf.capacity()) {
+				int headerWritten = target.write(headerBuf.nioBuffer(headerTransferred, headerBuf.capacity() - headerTransferred));
+				headerTransferred += headerWritten;
+				return headerWritten;
+			}
+			else {
+				assert dataTransferred < responseInfo.dataSize;
+				long dataWritten = file.transferTo(pos + dataTransferred, responseInfo.dataSize - dataTransferred, target);
+				dataTransferred += dataWritten;
+				return dataWritten;
+			}
+		}
+
+		@Override
+		public FileRegion touch() {
+			return this;
+		}
+
+		@Override
+		public FileRegion touch(Object hint) {
+			return this;
+		}
+
+		@Override
+		public FileRegion retain() {
+			super.retain();
+			return this;
+		}
+
+		@Override
+		public FileRegion retain(int increment) {
+			super.retain(increment);
+			return this;
+		}
+
+		@Override
+		public void deallocate() {
+			headerBuf.release();
+		}
+	}
+
 	class BufferResponse implements NettyMessage {
 
 		@Nullable
@@ -320,7 +438,7 @@ public interface NettyMessage {
 
 		final ResponseInfo responseInfo;
 
-		BufferResponse(@Nullable Buffer buffer, ResponseInfo responseInfo) {
+		public BufferResponse(@Nullable Buffer buffer, ResponseInfo responseInfo) {
 			this.buffer = buffer;
 			this.responseInfo = checkNotNull(responseInfo);
 		}

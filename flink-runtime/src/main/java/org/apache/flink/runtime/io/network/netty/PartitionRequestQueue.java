@@ -20,10 +20,10 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader.DataAndAvailability;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
-import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -42,8 +42,6 @@ import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
-
-import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 
 /**
  * A nonEmptyReader of partition queues, which listens for channel writability changed
@@ -202,7 +200,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		// input channel logic. You can think of this class acting as the input
 		// gate and the consumed views as the local input channels.
 
-		BufferAndAvailability next = null;
+		DataAndAvailability next = null;
 		try {
 			while (true) {
 				NetworkSequenceViewReader reader = pollAvailableReader();
@@ -213,7 +211,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 					return;
 				}
 
-				next = reader.getNextBuffer();
+				next = reader.getNextData();
 				if (next == null) {
 					if (!reader.isReleased()) {
 						continue;
@@ -234,22 +232,16 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 						registerAvailableReader(reader);
 					}
 
-					BufferResponse msg = new BufferResponse(
-						next.buffer(),
-						next.getSequenceNumber(),
-						reader.getReceiverId(),
-						next.buffersInBacklog());
-
 					// Write and flush and wait until this is done before
 					// trying to continue with the next buffer.
-					channel.writeAndFlush(msg).addListener(writeListener);
+					channel.writeAndFlush(next.getMessage()).addListener(writeListener);
 
 					return;
 				}
 			}
 		} catch (Throwable t) {
 			if (next != null) {
-				next.buffer().recycleBuffer();
+				next.recycle();
 			}
 
 			throw new IOException(t.getMessage(), t);

@@ -18,14 +18,17 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.netty.NettyMessage;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Simple wrapper for the partition readerQueue iterator, which increments a
@@ -39,7 +42,7 @@ public interface NetworkSequenceViewReader {
 		int subPartitionIndex) throws IOException;
 
 	@Nullable
-	BufferAndAvailability getNextBuffer() throws IOException;
+	DataAndAvailability getNextData() throws IOException;
 
 	/**
 	 * The credits from consumer are added in incremental way.
@@ -76,4 +79,27 @@ public interface NetworkSequenceViewReader {
 	Throwable getFailureCause();
 
 	InputChannelID getReceiverId();
+
+	final class DataAndAvailability {
+
+		private final NettyMessage msg;
+		private final Buffer.DataType nextDataType;
+
+		public DataAndAvailability(NettyMessage msg, Buffer.DataType nextDataType) {
+			this.msg = checkNotNull(msg);
+			this.nextDataType = checkNotNull(nextDataType);
+		}
+
+		public NettyMessage getMessage() {
+			return msg;
+		}
+
+		public void recycle() {
+			msg.recycle();
+		}
+
+		public boolean moreAvailable() {
+			return nextDataType != Buffer.DataType.NONE;
+		}
+	}
 }

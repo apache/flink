@@ -245,7 +245,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	}
 
 	@Nullable
-	BufferAndBacklog pollBuffer() {
+	PartitionData pollBuffer() {
 		synchronized (buffers) {
 			if (isBlockedByCheckpoint) {
 				return null;
@@ -297,7 +297,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 			// Do not report last remaining buffer on buffers as available to read (assuming it's unfinished).
 			// It will be reported for reading either on flush or when the number of buffers in the queue
 			// will be 2 or more.
-			return new BufferAndBacklog(
+			return new PartitionData.PartitionBuffer(
 				buffer,
 				getBuffersInBacklog(),
 				isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,

@@ -21,14 +21,14 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.partition.BoundedData.BoundedPartitionFileRegion;
+import org.apache.flink.runtime.io.network.partition.BoundedData.BoundedPartitionData;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -141,11 +141,7 @@ final class BufferReaderWriterUtil {
 	}
 
 	@Nullable
-	static Buffer readFromByteChannel(
-			FileChannel channel,
-			ByteBuffer headerBuffer,
-			MemorySegment memorySegment,
-			BufferRecycler bufferRecycler) throws IOException {
+	static BoundedPartitionData readFromByteChannel(FileChannel channel, ByteBuffer headerBuffer) throws IOException {
 
 		headerBuffer.clear();
 		if (!tryReadByteBuffer(channel, headerBuffer)) {
@@ -153,28 +149,12 @@ final class BufferReaderWriterUtil {
 		}
 		headerBuffer.flip();
 
-		final ByteBuffer targetBuf;
-		final boolean isEvent;
-		final boolean isCompressed;
-		final int size;
-
-		try {
-			isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
-			isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
-			size = headerBuffer.getInt();
-			targetBuf = memorySegment.wrap(0, size);
-		}
-		catch (BufferUnderflowException | IllegalArgumentException e) {
-			// buffer underflow if header buffer is undersized
-			// IllegalArgumentException if size is outside memory segment size
-			throwCorruptDataException();
-			return null; // silence compiler
-		}
-
-		readByteBufferFully(channel, targetBuf);
-
+		boolean isEvent = headerBuffer.getShort() == HEADER_VALUE_IS_EVENT;
 		Buffer.DataType dataType = isEvent ? Buffer.DataType.EVENT_BUFFER : Buffer.DataType.DATA_BUFFER;
-		return new NetworkBuffer(memorySegment, bufferRecycler, dataType, isCompressed, size);
+		boolean isCompressed = headerBuffer.getShort() == BUFFER_IS_COMPRESSED;
+		int dataSize = headerBuffer.getInt();
+
+		return new BoundedPartitionFileRegion(channel, dataSize, dataType, isCompressed);
 	}
 
 	static ByteBuffer allocatedHeaderBuffer() {
@@ -201,7 +181,7 @@ final class BufferReaderWriterUtil {
 		}
 	}
 
-	private static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
+	static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
 		// the post-checked loop here gets away with one less check in the normal case
 		do {
 			if (channel.read(b) == -1) {
@@ -225,10 +205,6 @@ final class BufferReaderWriterUtil {
 
 	private static void throwPrematureEndOfFile() throws IOException {
 		throw new IOException("The spill file is corrupt: premature end of file");
-	}
-
-	private static void throwCorruptDataException() throws IOException {
-		throw new IOException("The spill file is corrupt: buffer size and boundaries invalid");
 	}
 
 	// ------------------------------------------------------------------------

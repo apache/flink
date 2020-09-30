@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
+import org.apache.flink.runtime.io.network.partition.BoundedData.BoundedPartitionData;
 import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nullable;
@@ -37,20 +37,15 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** The result subpartition that we read. */
 	private final BoundedBlockingSubpartition parent;
 
-	/** The listener that is notified when there are available buffers for this subpartition view. */
-	private final BufferAvailabilityListener availabilityListener;
-
-	/** The next buffer (look ahead). Null once the data is depleted or reader is disposed. */
-	@Nullable
-	private Buffer nextBuffer;
-
 	/** The reader/decoder to the memory mapped region with the data we currently read from.
 	 * Null once the reader empty or disposed.*/
-	@Nullable
-	private BoundedData.Reader dataReader;
+	private final BoundedData.Reader dataReader;
 
 	/** The remaining number of data buffers (not events) in the result. */
 	private int dataBufferBacklog;
+
+	/** The remaining number of data buffers and events in the result. */
+	private int numBuffersAndEvents;
 
 	/** Flag whether this reader is released. Atomic, to avoid double release. */
 	private boolean isReleased;
@@ -64,25 +59,28 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 			BoundedBlockingSubpartition parent,
 			BoundedData data,
 			int numDataBuffers,
-			BufferAvailabilityListener availabilityListener) throws IOException {
+			int numBuffersAndEvents) throws IOException {
 
 		this.parent = checkNotNull(parent);
 
 		checkNotNull(data);
 		this.dataReader = data.createReader(this);
-		this.nextBuffer = dataReader.nextBuffer();
 
 		checkArgument(numDataBuffers >= 0);
 		this.dataBufferBacklog = numDataBuffers;
 
-		this.availabilityListener = checkNotNull(availabilityListener);
+		checkArgument(numBuffersAndEvents >= 0);
+		this.numBuffersAndEvents = numBuffersAndEvents;
 	}
 
 	@Nullable
 	@Override
-	public BufferAndBacklog getNextBuffer() throws IOException {
-		final Buffer current = nextBuffer; // copy reference to stack
+	public PartitionData getNextData() throws IOException {
+		if (isReleased) {
+			return null;
+		}
 
+		BoundedPartitionData current = dataReader.nextData();
 		if (current == null) {
 			// as per contract, we must return null when the reader is empty,
 			// but also in case the reader is disposed (rather than throwing an exception)
@@ -91,38 +89,17 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		if (current.isBuffer()) {
 			dataBufferBacklog--;
 		}
+		numBuffersAndEvents--;
 
-		assert dataReader != null;
-		nextBuffer = dataReader.nextBuffer();
+		// We can simplify assume all the data are non-events here to avoid trouble in pre-fetching the next header
+		DataType nextDataType = numBuffersAndEvents > 0 ? DataType.DATA_BUFFER : DataType.NONE;
 
-		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog, sequenceNumber++);
+		return current.build(nextDataType, dataBufferBacklog, sequenceNumber++);
 	}
 
-	/**
-	 * This method is actually only meaningful for the {@link BoundedBlockingSubpartitionType#FILE}.
-	 *
-	 * <p>For the other types the {@link #nextBuffer} can not be ever set to null, so it is no need
-	 * to notify available via this method. But the implementation is also compatible with other
-	 * types even though called by mistake.
-	 */
 	@Override
 	public void notifyDataAvailable() {
-		if (nextBuffer == null) {
-			assert dataReader != null;
-
-			try {
-				nextBuffer = dataReader.nextBuffer();
-			} catch (IOException ex) {
-				// this exception wrapper is only for avoiding throwing IOException explicitly
-				// in relevant interface methods
-				throw new IllegalStateException("No data available while reading", ex);
-			}
-
-			// next buffer is null indicates the end of partition
-			if (nextBuffer != null) {
-				availabilityListener.notifyDataAvailable();
-			}
-		}
+		throw new UnsupportedOperationException("Method should never be called.");
 	}
 
 	@Override
@@ -131,10 +108,6 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		isReleased = true;
 
 		IOUtils.closeQuietly(dataReader);
-
-		// nulling these fields means the read method and will fail fast
-		nextBuffer = null;
-		dataReader = null;
 
 		// Notify the parent that this one is released. This allows the parent to
 		// eventually release all resources (when all readers are done and the
@@ -154,11 +127,9 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 
 	@Override
 	public boolean isAvailable(int numCreditsAvailable) {
-		if (numCreditsAvailable > 0) {
-			return nextBuffer != null;
-		}
-
-		return nextBuffer != null && !nextBuffer.isBuffer();
+		// Since the blocking partition does not have checkpoint barrier, and it should only have
+		// end of partition event ATM, then we can simplify assume all the data are non-events.
+		return numCreditsAvailable > 0 && numBuffersAndEvents > 0;
 	}
 
 	@Override

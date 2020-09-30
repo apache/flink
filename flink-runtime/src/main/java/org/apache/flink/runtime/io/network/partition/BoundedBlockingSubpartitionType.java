@@ -34,7 +34,7 @@ public enum BoundedBlockingSubpartitionType {
 
 		@Override
 		public BoundedBlockingSubpartition create(int index, BoundedBlockingResultPartition parent, File tempFile, int readBufferSize) throws IOException {
-			return BoundedBlockingSubpartition.createWithFileChannel(index, parent, tempFile, readBufferSize);
+			return BoundedBlockingSubpartition.createWithFileChannel(index, parent, tempFile);
 		}
 	},
 

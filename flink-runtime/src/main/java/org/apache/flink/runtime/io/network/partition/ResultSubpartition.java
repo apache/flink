@@ -23,11 +23,7 @@ import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A single subpartition of a {@link ResultPartition} instance.
@@ -120,61 +116,5 @@ public abstract class ResultSubpartition {
 	 * any way.
 	 */
 	public abstract int unsynchronizedGetNumberOfQueuedBuffers();
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A combination of a {@link Buffer} and the backlog length indicating
-	 * how many non-event buffers are available in the subpartition.
-	 */
-	public static final class BufferAndBacklog {
-		private final Buffer buffer;
-		private final int buffersInBacklog;
-		private final Buffer.DataType nextDataType;
-		private final int sequenceNumber;
-
-		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, Buffer.DataType nextDataType, int sequenceNumber) {
-			this.buffer = checkNotNull(buffer);
-			this.buffersInBacklog = buffersInBacklog;
-			this.nextDataType = checkNotNull(nextDataType);
-			this.sequenceNumber = sequenceNumber;
-		}
-
-		public Buffer buffer() {
-			return buffer;
-		}
-
-		public boolean isDataAvailable() {
-			return nextDataType != Buffer.DataType.NONE;
-		}
-
-		public int buffersInBacklog() {
-			return buffersInBacklog;
-		}
-
-		public boolean isEventAvailable() {
-			return nextDataType.isEvent();
-		}
-
-		public Buffer.DataType getNextDataType() {
-			return nextDataType;
-		}
-
-		public int getSequenceNumber() {
-			return sequenceNumber;
-		}
-
-		public static BufferAndBacklog fromBufferAndLookahead(
-				Buffer current,
-				@Nullable Buffer lookahead,
-				int backlog,
-				int sequenceNumber) {
-			return new BufferAndBacklog(
-				current,
-				backlog,
-				lookahead != null ? lookahead.getDataType() : Buffer.DataType.NONE,
-				sequenceNumber);
-		}
-	}
 
 }

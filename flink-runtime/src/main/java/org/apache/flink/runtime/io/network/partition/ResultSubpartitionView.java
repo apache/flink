@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
-
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -31,18 +28,17 @@ import java.io.IOException;
 public interface ResultSubpartitionView {
 
 	/**
-	 * Returns the next {@link Buffer} instance of this queue iterator.
+	 * Returns the next {@link PartitionData} instance of this queue iterator.
 	 *
 	 * <p>If there is currently no instance available, it will return <code>null</code>.
 	 * This might happen for example when a pipelined queue producer is slower
 	 * than the consumer or a spilled queue needs to read in more data.
 	 *
 	 * <p><strong>Important</strong>: The consumer has to make sure that each
-	 * buffer instance will eventually be recycled with {@link Buffer#recycleBuffer()}
-	 * after it has been consumed.
+	 * instance will eventually be recycled after it has been consumed.
 	 */
 	@Nullable
-	BufferAndBacklog getNextBuffer() throws IOException;
+	PartitionData getNextData() throws IOException;
 
 	void notifyDataAvailable();
 
