@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -35,7 +36,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -86,7 +86,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			TwoInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge input1WatermarkGauge,
 			WatermarkGauge input2WatermarkGauge,
-			OperatorChain<?, ?> operatorChain,
+			BoundedMultiInput endOfInputAware,
 			Counter numRecordsIn) {
 
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
@@ -107,7 +107,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 				new StatusWatermarkValve(checkpointedInputGates[0].getNumberOfInputChannels()),
 				0),
 			output1,
-			operatorChain
+			endOfInputAware
 		);
 
 		StreamTaskNetworkOutput<IN2> output2 = new StreamTaskNetworkOutput<>(
@@ -125,7 +125,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 				new StatusWatermarkValve(checkpointedInputGates[1].getNumberOfInputChannels()),
 				1),
 			output2,
-			operatorChain
+			endOfInputAware
 		);
 	}
 
