@@ -54,7 +54,7 @@ import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionVa
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
  * watermark information for checkpoint.
  */
-public class PartitionTimeCommitTigger implements PartitionCommitTrigger {
+public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
 	private static final ListStateDescriptor<List<String>> PENDING_PARTITIONS_STATE_DESC =
 			new ListStateDescriptor<>(
@@ -75,7 +75,7 @@ public class PartitionTimeCommitTigger implements PartitionCommitTrigger {
 	private final long commitDelay;
 	private final List<String> partitionKeys;
 
-	public PartitionTimeCommitTigger(
+	public PartitionTimeCommitTrigger(
 			boolean isRestored,
 			OperatorStateStore stateStore,
 			Configuration conf,

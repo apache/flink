@@ -40,7 +40,7 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION
  * Partition commit trigger by creation time and processing time service,
  * if 'current processing time' > 'partition creation time' + 'delay', will commit the partition.
  */
-public class ProcTimeCommitTigger implements PartitionCommitTrigger {
+public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
 
 	private static final ListStateDescriptor<Map<String, Long>> PENDING_PARTITIONS_STATE_DESC =
 			new ListStateDescriptor<>(
@@ -52,7 +52,7 @@ public class ProcTimeCommitTigger implements PartitionCommitTrigger {
 	private final long commitDelay;
 	private final ProcessingTimeService procTimeService;
 
-	public ProcTimeCommitTigger(
+	public ProcTimeCommitTrigger(
 			boolean isRestored,
 			OperatorStateStore stateStore,
 			Configuration conf,
