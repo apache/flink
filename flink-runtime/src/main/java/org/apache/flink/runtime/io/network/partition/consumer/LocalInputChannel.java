@@ -236,7 +236,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		return Optional.of(new BufferAndAvailability(
 			buffer,
 			next.getNextDataType(),
-			next.buffersInBacklog(),
 			next.getSequenceNumber()));
 	}
 

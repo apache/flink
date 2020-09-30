@@ -312,17 +312,14 @@ public abstract class InputChannel {
 
 		private final Buffer buffer;
 		private final Buffer.DataType nextDataType;
-		private final int buffersInBacklog;
 		private final int sequenceNumber;
 
 		public BufferAndAvailability(
 				Buffer buffer,
 				Buffer.DataType nextDataType,
-				int buffersInBacklog,
 				int sequenceNumber) {
 			this.buffer = checkNotNull(buffer);
 			this.nextDataType = checkNotNull(nextDataType);
-			this.buffersInBacklog = buffersInBacklog;
 			this.sequenceNumber = sequenceNumber;
 		}
 
@@ -338,10 +335,6 @@ public abstract class InputChannel {
 			return nextDataType.hasPriority();
 		}
 
-		public int buffersInBacklog() {
-			return buffersInBacklog;
-		}
-
 		public boolean hasPriority() {
 			return buffer.getDataType().hasPriority();
 		}
@@ -355,7 +348,6 @@ public abstract class InputChannel {
 			return "BufferAndAvailability{" +
 				"buffer=" + buffer +
 				", nextDataType=" + nextDataType +
-				", buffersInBacklog=" + buffersInBacklog +
 				", sequenceNumber=" + sequenceNumber +
 				'}';
 		}

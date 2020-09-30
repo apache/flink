@@ -199,7 +199,7 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 
 		numBytesIn.inc(next.buffer.getSize());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next.buffer, nextDataType, 0, next.sequenceNumber));
+		return Optional.of(new BufferAndAvailability(next.buffer, nextDataType, next.sequenceNumber));
 	}
 
 	// ------------------------------------------------------------------------

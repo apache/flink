@@ -75,7 +75,7 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	public TestInputChannel read(Buffer buffer, @Nullable Buffer.DataType nextType) throws IOException, InterruptedException {
-		addBufferAndAvailability(new BufferAndAvailability(buffer, nextType, 0, sequenceNumber++));
+		addBufferAndAvailability(new BufferAndAvailability(buffer, nextType, sequenceNumber++));
 		if (notifyChannelNonEmpty) {
 			notifyChannelNonEmpty();
 		}
@@ -98,7 +98,6 @@ public class TestInputChannel extends InputChannel {
 					new BufferAndAvailability(
 						EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
 						Buffer.DataType.NONE,
-						0,
 						sequenceNumber++));
 			}
 		);

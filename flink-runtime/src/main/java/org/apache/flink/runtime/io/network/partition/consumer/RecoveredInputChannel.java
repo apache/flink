@@ -146,7 +146,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 			stateConsumedFuture.complete(null);
 			return null;
 		} else {
-			return new BufferAndAvailability(next, nextDataType, 0, sequenceNumber++);
+			return new BufferAndAvailability(next, nextDataType, sequenceNumber++);
 		}
 	}
 
