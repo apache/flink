@@ -20,6 +20,7 @@
 
 package org.apache.flink.connector.hbase2.util;
 
+import org.apache.commons.lang3.Range;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -33,7 +34,9 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.util.VersionUtil;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
@@ -50,6 +53,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class HBaseTestingClusterAutoStarter {
 	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutoStarter.class);
+
+	private static final Range<String> HADOOP_VERSION_RANGE = Range.between("2.8.0", "3.0.3", VersionUtil::compareVersions);
 
 	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
 	private static Admin admin = null;
@@ -119,6 +124,9 @@ public class HBaseTestingClusterAutoStarter {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
+		// HBase 2.2.3 HBaseTestingUtility works with only a certain range of hadoop versions
+		String hadoopVersion = System.getProperty("hadoop.version");
+		Assume.assumeTrue(HADOOP_VERSION_RANGE.contains(hadoopVersion));
 		TEST_UTIL.startMiniCluster(1);
 		initialize(TEST_UTIL.getConfiguration());
 	}
