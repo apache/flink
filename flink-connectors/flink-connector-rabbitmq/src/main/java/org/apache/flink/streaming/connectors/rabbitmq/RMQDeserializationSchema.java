@@ -34,6 +34,19 @@ import java.util.List;
  * @param <T> The output type of the {@link RMQSource}
  */
 public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+
+	/**
+	 * Initialization method for the schema. It is called before the actual working methods
+	 * {@link #deserialize} and thus suitable for one time setup work.
+	 *
+	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
+	 * registering user metrics.
+	 *
+	 * @param context Contextual information that can be used during initialization.
+	 */
+	public void open(DeserializationSchema.InitializationContext context) throws Exception;
+
+
 	/**
 	 * This method takes all the RabbitMQ delivery information supplied by the client extract the data and pass it to the
 	 * collector.
@@ -63,18 +76,6 @@ public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQue
 	 * @return TypeInformation
 	 */
 	public TypeInformation<T> getProducedType();
-
-	/**
-	 * Initialization method for the schema. It is called before the actual working methods
-	 * {@link #deserialize} and thus suitable for one time setup work.
-	 *
-	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
-	 * registering user metrics.
-	 *
-	 * @param context Contextual information that can be used during initialization.
-	 */
-	public void open(DeserializationSchema.InitializationContext context) throws Exception;
-
 
 	/**
 	 * Special collector for RMQ messages.
