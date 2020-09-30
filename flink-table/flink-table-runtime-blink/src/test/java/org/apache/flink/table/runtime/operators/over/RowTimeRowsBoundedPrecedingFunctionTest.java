@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -31,41 +30,13 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test for {@link RowTimeRangeBoundedPrecedingFunction}.
+ * Test for {@link RowTimeRowsBoundedPrecedingFunction}.
  */
-public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
-
-	@Test
-	public void testStateCleanup() throws Exception {
-		RowTimeRangeBoundedPrecedingFunction<RowData> function = new RowTimeRangeBoundedPrecedingFunction<>(
-			aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
-		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
-
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
-
-		testHarness.open();
-
-		AbstractKeyedStateBackend stateBackend = (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
-
-		assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
-
-		// put some records
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 100L));
-		testHarness.processElement(insertRecord("key", 1L, 500L));
-
-		testHarness.processWatermark(new Watermark(1000L));
-		// at this moment we expect the function to have some records in state
-
-		testHarness.processWatermark(new Watermark(4000L));
-		// at this moment the function should have cleaned up states
-
-		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
-	}
+public class RowTimeRowsBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
 	@Test
 	public void testLateRecordMetrics() throws Exception {
-		RowTimeRangeBoundedPrecedingFunction<RowData> function = new RowTimeRangeBoundedPrecedingFunction<>(
+		RowTimeRowsBoundedPrecedingFunction<RowData> function = new RowTimeRowsBoundedPrecedingFunction<>(1000, 2000,
 			aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
 		KeyedProcessOperator<RowData, RowData, RowData> operator = new KeyedProcessOperator<>(function);
 
