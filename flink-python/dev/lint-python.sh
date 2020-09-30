@@ -219,7 +219,11 @@ function install_miniconda() {
 
 # Install some kinds of py env.
 function install_py_env() {
-    py_env=("3.5" "3.6" "3.7" "3.8")
+    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+        py_env=("3.8")
+    else
+        py_env=("3.5" "3.6" "3.7" "3.8")
+    fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
@@ -529,6 +533,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
+    LATEST_PYTHON="py38"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -536,7 +541,12 @@ function tox_check() {
     chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
     chmod +x $FLINK_PYTHON_DIR/dev/*
 
-    $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+        # Only run test in latest python version triggered by a Git push
+        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+    else
+        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+    fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
     if [ $TOX_RESULT -eq '0' ]; then
