@@ -123,7 +123,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 						checkpointedInputGates[networkInput.getInputGateIndex()],
 						networkInput.getTypeSerializer(),
 						ioManager,
-						new StatusWatermarkValve(checkpointedInputGates[networkInput.getInputGateIndex()].getNumberOfInputChannels(), dataOutput),
+						new StatusWatermarkValve(checkpointedInputGates[networkInput.getInputGateIndex()].getNumberOfInputChannels()),
 						i));
 			}
 			else if (configuredInput instanceof SourceInputConfig) {
