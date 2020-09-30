@@ -19,6 +19,8 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 
 import java.util.Map;
 
@@ -55,7 +57,12 @@ import java.util.Map;
  * the static partition part is {@code dt='2019-06-20'} which will be told to the sink via
  * {@link #setStaticPartition(Map)}. And the {@code country} is the dynamic partition which will be
  * get from each record.
+ *
+ * @deprecated This interface will not be supported in the new sink design around {@link DynamicTableSink}
+ *             which only works with the Blink planner. Use {@link SupportsPartitioning} instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @Experimental
 public interface PartitionableTableSink {
 

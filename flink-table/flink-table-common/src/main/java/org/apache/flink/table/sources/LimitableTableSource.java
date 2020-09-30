@@ -19,6 +19,8 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 
 /**
  * Adds support for limiting push-down to a {@link TableSource}.
@@ -26,7 +28,12 @@ import org.apache.flink.annotation.Experimental;
  *
  * <p>After pushing down, source only needs to try its best to limit the number of output records,
  * but does not need to guarantee that the number must be less than or equal to the limit.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use {@link SupportsLimitPushDown} instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @Experimental
 public interface LimitableTableSource<T> {
 

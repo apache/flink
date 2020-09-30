@@ -20,6 +20,7 @@ package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 
@@ -28,7 +29,12 @@ import org.apache.flink.table.expressions.ResolvedFieldReference;
  * schema of a {@link TableSource} from one or more fields of the {@link TableSource}'s return type.
  *
  * @param <T> The result type of the provided expression.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use the concept of computed columns instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface FieldComputer<T> {
 

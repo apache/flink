@@ -19,6 +19,8 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 
 /**
  * Adds support for projection push-down to a {@link TableSource} with nested fields.
@@ -28,7 +30,12 @@ import org.apache.flink.annotation.PublicEvolving;
  * {@code StreamTableSource}.
  *
  * @param <T> The return type of the {@link TableSource}.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use {@link SupportsProjectionPushDown} instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface NestedFieldsProjectableTableSource<T> {
 

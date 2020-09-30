@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
  * Defines an external {@link TableSink} to emit a streaming {@link Table} with insert, update,
@@ -38,7 +39,12 @@ import org.apache.flink.table.api.Table;
  * <p>A message with false flag is a retract message.
  *
  * @param <T> Type of records that this {@link TableSink} expects and supports.
+ *
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface consumes
+ *             internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *             information.
  */
+@Deprecated
 @PublicEvolving
 public interface RetractStreamTableSink<T> extends StreamTableSink<Tuple2<Boolean, T>> {
 

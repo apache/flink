@@ -19,6 +19,8 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 
@@ -28,7 +30,12 @@ import org.apache.flink.table.functions.TableFunction;
  * When temporal join this MySQL table, the runtime behavior could be in a lookup fashion.
  *
  * @param <T> type of the result
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use {@link LookupTableSource} instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @Experimental
 public interface LookupableTableSource<T> extends TableSource<T> {
 
