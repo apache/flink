@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -73,6 +75,8 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
@@ -86,13 +90,11 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1745,5 +1747,65 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	ExecutionDeploymentListener getExecutionDeploymentListener() {
 		return executionDeploymentListener;
+	}
+
+	/**
+	 * Returns the mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+	 *
+	 * @return The mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+	 * 		   null, if the job has not yet finished
+	 */
+	public Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> getPersistedIntermediateResult() {
+		if (!JobStatus.FINISHED.equals(state)) {
+			return null;
+		}
+
+		final List<IntermediateDataSetID> persistedIntermediateDataSetIds = getPersistedIntermediateDataSetID();
+
+		Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResults =
+			new HashMap<>(persistedIntermediateDataSetIds.size());
+
+		for (IntermediateDataSetID intermediateDataSetID : persistedIntermediateDataSetIds) {
+			Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors =
+				getClusterPartitionDescriptors(intermediateDataSetID);
+			persistedIntermediateResults.put(intermediateDataSetID, clusterPartitionDescriptors);
+		}
+
+		return persistedIntermediateResults;
+	}
+
+	private Collection<ClusterPartitionDescriptor> getClusterPartitionDescriptors(
+		IntermediateDataSetID intermediateDataSetID) {
+		final IntermediateResult intermediateResult = intermediateResults.get(intermediateDataSetID);
+		final IntermediateResultPartition[] partitions = intermediateResult.getPartitions();
+
+		Collection<ClusterPartitionDescriptor> clusterPartitionDescriptors = new HashSet<>();
+		for (IntermediateResultPartition partition : partitions) {
+			final ClusterPartitionDescriptorImpl clusterPartitionDescriptor =
+				getClusterPartitionDescriptor(partition);
+
+			clusterPartitionDescriptors.add(clusterPartitionDescriptor);
+		}
+		return clusterPartitionDescriptors;
+	}
+
+	private ClusterPartitionDescriptorImpl getClusterPartitionDescriptor(IntermediateResultPartition partition) {
+		final Execution currentExecutionAttempt = partition.getProducer().getCurrentExecutionAttempt();
+		final Optional<ShuffleDescriptor> shuffleDescriptor =
+			currentExecutionAttempt.getResultPartitionDeploymentDescriptor(partition.getPartitionId())
+				.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor);
+		Preconditions.checkState(shuffleDescriptor.isPresent());
+		final PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
+		return new ClusterPartitionDescriptorImpl(shuffleDescriptor.get(),
+			partitionDescriptor.getNumberOfSubpartitions(),
+			partitionDescriptor.getPartitionType(),
+			partitionDescriptor.getResultId());
+	}
+
+	private List<IntermediateDataSetID> getPersistedIntermediateDataSetID() {
+		return this.intermediateResults.entrySet().stream()
+			.filter(entry -> entry.getValue().getResultType().isPersistent())
+			.map(Map.Entry::getKey)
+			.collect(Collectors.toList());
 	}
 }

@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.OptionalFailure;
@@ -30,6 +32,7 @@ import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
@@ -172,4 +175,12 @@ public interface AccessExecutionGraph {
 	 * @return The state backend name, or an empty Optional in the case of batch jobs
 	 */
 	Optional<String> getStateBackendName();
+
+	/**
+	 * Returns the mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+	 *
+	 * @return The mapping from intermediate result id to the ClusterPartitionDescriptor of its partitions
+	 * 		   null, if the job has not yet finished
+	 */
+	Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> getPersistedIntermediateResult();
 }
