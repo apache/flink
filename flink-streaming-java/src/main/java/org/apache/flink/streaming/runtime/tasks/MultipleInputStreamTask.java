@@ -35,7 +35,7 @@ import org.apache.flink.streaming.runtime.io.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
-import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -144,7 +144,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			checkpointBarrierHandler);
 
-		inputProcessor = new StreamMultipleInputProcessor(
+		inputProcessor = StreamMultipleInputProcessorFactory.create(
 			checkpointedInputGates,
 			inputs,
 			getEnvironment().getIOManager(),
@@ -167,7 +167,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		mainMailboxExecutor.execute(
 			() -> {
 				try {
-					/**
+					/*
 					 * Contrary to {@link SourceStreamTask}, we are not using here
 					 * {@link StreamTask#latestAsyncCheckpointStartDelayNanos} to measure the start delay
 					 * metric, but we will be using {@link CheckpointBarrierHandler#getCheckpointStartDelayNanos()}
