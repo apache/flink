@@ -1,5 +1,5 @@
 ---
-title: "Data Types"
+title: "数据类型"
 nav-parent_id: python_datastream_api
 nav-pos: 10
 ---
@@ -22,17 +22,17 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-In Apache Flink's Python DataStream API, a data type describes the type of a value in the DataStream ecosystem. 
-It can be used to declare input and output types of operations and informs the system how to serailize elements. 
+在 Apache Flink 的 Python DataStream API 中，一种数据类型描述 DataStream 生态系统中数据的类型。
+数据类型可用于声明算子输入和输出的类型，并告知系统如何对数据进行序列化。
 
 * This will be replaced by the TOC
 {:toc}
 
 
-## Pickle Serialization
+## Pickle 序列化
 
-If the type has not been declared, data would be serialized or deserialized using Pickle. 
-For example, the program below specifies no data types.
+如果类型没有被定义，数据将使用 Pickle 进行序列化和反序列化。 
+例如，以下程序没有指定数据类型。
 
 {% highlight python %}
 from pyflink.datastream import StreamExecutionEnvironment
@@ -52,15 +52,15 @@ if __name__ == '__main__':
     processing()
 {% endhighlight %}
 
-However, types need to be specified when:
+但是，在下列情况下需要指定类型:
 
-- Passing Python records to Java operations.
-- Improve serialization and deserialization performance.
+- 将 Python 数据发送给 Java。
+- 提高序列化和反序列化的性能。
 
-### Passing Python records to Java operations
+### 发送 Python 数据给 Java
 
-Since Java operators or functions can not identify Python data, types need to be provided to help to convert Python types to Java types for processing.
-For example, types need to be provided if you want to output data using the StreamingFileSink which is implemented in Java.
+由于 Java 算子或函数不能识别 Python 数据，因此需要提供数据类型来将 Python 类型转换为 Java 类型以进行处理。
+例如，如果你想要使用 Java 实现的 StreamingFileSink 输出数据，则需要提供数据类型。
 
 {% highlight python %}
 from pyflink.common.serialization import SimpleStringEncoder
@@ -87,17 +87,17 @@ if __name__ == '__main__':
 
 {% endhighlight %}
 
-### Improve serialization and deserialization performance
+### 提高序列化和反序列化的性能
 
-Even though data can be serialized and deserialized through Pickle, performance will be better if types are provided.
-Explicit types allow PyFlink to use efficient serializers when moving records through the pipeline.
+尽管可以通过 Pickle 序列化和反序列化数据，但是如果提供了确定的类型，性能会更好。
+当在 pipeline 中传递数据时，显式类型允许 PyFlink 使用更高效的序列化器。
 
-## Supported Data Types
+## 支持的数据类型
 
-You can use `pyflink.common.typeinfo.Types` to specify types in Python DataStream API. 
-The table below shows the type supported now and how to define them:
+你可以使用 `pyflink.common.typeinfo.Types` 在 Python DataStream API 中指定类型. 
+下面列出了现在支持的类型以及如何定义它们:
 
-| PyFlink Type | Usage |  Corresponding Python Type |
+| PyFlink 类型 | 使用 |  对应 Python 类型 |
 |:-----------------|:-----------------------|:-----------------------|
 | `BOOLEAN` | `Types.BOOLEAN()` | `bool` |
 | `SHORT` | `Types.SHORT()` | `int` |
