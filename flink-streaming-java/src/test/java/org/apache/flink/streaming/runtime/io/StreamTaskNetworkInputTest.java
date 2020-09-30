@@ -88,7 +88,7 @@ public class StreamTaskNetworkInputTest {
 		List<BufferOrEvent> buffers = Collections.singletonList(createDataBuffer());
 
 		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
-		StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers, output);
+		StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers);
 
 		assertHasNextElement(input, output);
 		assertHasNextElement(input, output);
@@ -108,7 +108,7 @@ public class StreamTaskNetworkInputTest {
 		buffers.add(createDataBuffer());
 
 		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
-		StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers, output);
+		StreamTaskNetworkInput input = createStreamTaskNetworkInput(buffers);
 
 		assertHasNextElement(input, output);
 		assertEquals(0, output.getNumberOfEmittedRecords());
@@ -140,7 +140,7 @@ public class StreamTaskNetworkInputTest {
 					inputGate.getInputGate()),
 				new SyncMailboxExecutor()),
 			inSerializer,
-			new StatusWatermarkValve(numInputChannels, output),
+			new StatusWatermarkValve(numInputChannels),
 			0,
 			deserializers);
 
@@ -184,7 +184,7 @@ public class StreamTaskNetworkInputTest {
 				new CheckpointBarrierTracker(1, new DummyCheckpointInvokable()),
 				new SyncMailboxExecutor()),
 			inSerializer,
-			new StatusWatermarkValve(1, output),
+			new StatusWatermarkValve(1),
 			0,
 			deserializers);
 
@@ -206,7 +206,7 @@ public class StreamTaskNetworkInputTest {
 		return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
 	}
 
-	private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers, DataOutput output) {
+	private StreamTaskNetworkInput createStreamTaskNetworkInput(List<BufferOrEvent> buffers) {
 		return new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
@@ -214,7 +214,7 @@ public class StreamTaskNetworkInputTest {
 				new SyncMailboxExecutor()),
 			LongSerializer.INSTANCE,
 			ioManager,
-			new StatusWatermarkValve(1, output),
+			new StatusWatermarkValve(1),
 			0);
 	}
 

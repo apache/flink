@@ -88,7 +88,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
 			Counter numRecordsIn = setupNumRecordsInCounter(mainOperator);
 			DataOutput<IN> output = createDataOutput(numRecordsIn);
-			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
+			StreamTaskInput<IN> input = createTaskInput(inputGate);
 			getEnvironment().getMetricGroup().getIOMetricGroup().reuseRecordsInputCounter(numRecordsIn);
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
@@ -121,9 +121,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			numRecordsIn);
 	}
 
-	private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate, DataOutput<IN> output) {
+	private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
 		int numberOfInputChannels = inputGate.getNumberOfInputChannels();
-		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels, output);
+		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels);
 
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		return new StreamTaskNetworkInput<>(
