@@ -158,6 +158,7 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
 			TASK_MANAGER_ID,
 			UUID.randomUUID().toString(),
 			0,
+			0,
 			0L,
 			0,
 			0,
