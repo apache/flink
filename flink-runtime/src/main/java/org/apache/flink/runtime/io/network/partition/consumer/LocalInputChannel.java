@@ -28,10 +28,10 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
+import org.apache.flink.runtime.io.network.partition.PartitionData;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import org.slf4j.Logger;
@@ -214,7 +214,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			subpartitionView = checkAndWaitForSubpartitionView();
 		}
 
-		BufferAndBacklog next = subpartitionView.getNextBuffer();
+		PartitionData next = subpartitionView.getNextData();
 
 		if (next == null) {
 			if (subpartitionView.isReleased()) {
@@ -224,7 +224,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 			}
 		}
 
-		Buffer buffer = next.buffer();
+		Buffer buffer = next.getBuffer(inputGate.getLocalSegment());
 
 		numBytesIn.inc(buffer.getSize());
 		numBuffersIn.inc();

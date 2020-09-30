@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.BoundedBlockingResultPartition;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -188,6 +190,10 @@ public class SingleInputGate extends IndexedInputGate {
 
 	private final MemorySegmentProvider memorySegmentProvider;
 
+	/** The memory for loading data by local channel from {@link BoundedBlockingResultPartition}. */
+	@Nullable
+	private MemorySegment localMemorySegment;
+
 	public SingleInputGate(
 		String owningTaskName,
 		int gateIndex,
@@ -237,6 +243,14 @@ public class SingleInputGate extends IndexedInputGate {
 	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		setupChannels();
+
+		//TODO we can further judge whether the type is file-based or mmap-based
+		if (consumedPartitionType.isBlocking()) {
+			Collection<MemorySegment> segments = memorySegmentProvider.requestMemorySegments(1);
+			for (MemorySegment segment : segments) {
+				localMemorySegment = segment;
+			}
+		}
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
@@ -331,6 +345,11 @@ public class SingleInputGate extends IndexedInputGate {
 	@Override
 	public int getGateIndex() {
 		return gateIndex;
+	}
+
+	@Nullable
+	MemorySegment getLocalSegment() {
+		return localMemorySegment;
 	}
 
 	/**

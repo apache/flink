@@ -17,12 +17,17 @@
  */
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,6 +49,8 @@ public abstract class PartitionData {
 
 	public abstract boolean isBuffer();
 
+	public abstract Buffer getBuffer(@Nullable MemorySegment segment) throws IOException;
+
 	/**
 	 * Builds the respective netty message {@link org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse}
 	 * or {@link org.apache.flink.runtime.io.network.netty.NettyMessage.FileRegionResponse} to be transported in network stack.
@@ -52,6 +59,10 @@ public abstract class PartitionData {
 
 	public DataType getNextDataType() {
 		return nextDataType;
+	}
+
+	public int getSequenceNumber() {
+		return sequenceNumber;
 	}
 
 	/**
@@ -82,6 +93,11 @@ public abstract class PartitionData {
 		@Override
 		public boolean isBuffer() {
 			return buffer.isBuffer();
+		}
+
+		@Override
+		public Buffer getBuffer(MemorySegment segment) {
+			return buffer;
 		}
 	}
 
@@ -127,6 +143,19 @@ public abstract class PartitionData {
 		@Override
 		public boolean isBuffer() {
 			return dataType == DataType.DATA_BUFFER;
+		}
+
+		@Override
+		public Buffer getBuffer(MemorySegment segment) throws IOException {
+			final ByteBuffer buffer = segment.wrap(0, dataSize);
+			BufferReaderWriterUtil.readByteBufferFully(fileChannel, buffer);
+
+			return new NetworkBuffer(
+				segment,
+				BufferRecycler.DummyBufferRecycler.INSTANCE,
+				dataType,
+				isCompressed,
+				dataSize);
 		}
 	}
 }
