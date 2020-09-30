@@ -56,18 +56,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This class must be public as long as we are using a Netty version prior to 4.0.45. Please check FLINK-7845 for
  * more information.
  */
-public abstract class NettyMessage {
+public interface NettyMessage {
 
 	// ------------------------------------------------------------------------
 	// Note: Every NettyMessage subtype needs to have a public 0-argument
 	// constructor in order to work with the generic deserializer.
 	// ------------------------------------------------------------------------
 
-	static final int FRAME_HEADER_LENGTH = 4 + 4 + 1; // frame length (4), magic number (4), msg ID (1)
+	int FRAME_HEADER_LENGTH = 4 + 4 + 1; // frame length (4), magic number (4), msg ID (1)
 
-	static final int MAGIC_NUMBER = 0xBADC0FFE;
+	int MAGIC_NUMBER = 0xBADC0FFE;
 
-	abstract ByteBuf write(ByteBufAllocator allocator) throws Exception;
+	ByteBuf write(ByteBufAllocator allocator) throws Exception;
 
 	// ------------------------------------------------------------------------
 
@@ -86,7 +86,7 @@ public abstract class NettyMessage {
 	 * @return a newly allocated direct buffer with header data written for {@link
 	 * NettyMessageEncoder}
 	 */
-	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id) {
+	static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id) {
 		return allocateBuffer(allocator, id, -1);
 	}
 
@@ -107,7 +107,7 @@ public abstract class NettyMessage {
 	 * @return a newly allocated direct buffer with header data written for {@link
 	 * NettyMessageEncoder}
 	 */
-	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id, int contentLength) {
+	static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id, int contentLength) {
 		return allocateBuffer(allocator, id, 0, contentLength, true);
 	}
 
@@ -133,7 +133,7 @@ public abstract class NettyMessage {
 	 * @return a newly allocated direct buffer with header data written for {@link
 	 * NettyMessageEncoder}
 	 */
-	private static ByteBuf allocateBuffer(
+	static ByteBuf allocateBuffer(
 			ByteBufAllocator allocator,
 			byte id,
 			int messageHeaderLength,
@@ -162,7 +162,7 @@ public abstract class NettyMessage {
 	// ------------------------------------------------------------------------
 
 	@ChannelHandler.Sharable
-	static class NettyMessageEncoder extends ChannelOutboundHandlerAdapter {
+	class NettyMessageEncoder extends ChannelOutboundHandlerAdapter {
 
 		@Override
 		public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
@@ -201,7 +201,7 @@ public abstract class NettyMessage {
 	 * +------------------+------------------+--------++----------------+
 	 * </pre>
 	 */
-	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
+	class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
 		/**
 		 * Creates a new message decoded with the required frame properties.
 		 */
@@ -264,7 +264,7 @@ public abstract class NettyMessage {
 	// Server responses
 	// ------------------------------------------------------------------------
 
-	static class BufferResponse extends NettyMessage {
+	class BufferResponse implements NettyMessage {
 
 		static final byte ID = 0;
 
@@ -337,7 +337,7 @@ public abstract class NettyMessage {
 		// --------------------------------------------------------------------
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+		public ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			ByteBuf headerBuf = null;
 			try {
 				// in order to forward the buffer to netty, it needs an allocator set
@@ -413,7 +413,7 @@ public abstract class NettyMessage {
 		}
 	}
 
-	static class ErrorResponse extends NettyMessage {
+	class ErrorResponse implements NettyMessage {
 
 		static final byte ID = 1;
 
@@ -437,7 +437,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+		public ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			final ByteBuf result = allocateBuffer(allocator, ID);
 
 			try (ObjectOutputStream oos = new ObjectOutputStream(new ByteBufOutputStream(result))) {
@@ -488,7 +488,7 @@ public abstract class NettyMessage {
 	// Client requests
 	// ------------------------------------------------------------------------
 
-	static class PartitionRequest extends NettyMessage {
+	class PartitionRequest implements NettyMessage {
 
 		private static final byte ID = 2;
 
@@ -508,7 +508,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+		public ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			ByteBuf result = null;
 
 			try {
@@ -549,7 +549,7 @@ public abstract class NettyMessage {
 		}
 	}
 
-	static class TaskEventRequest extends NettyMessage {
+	class TaskEventRequest implements NettyMessage {
 
 		private static final byte ID = 3;
 
@@ -566,7 +566,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+		public ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			ByteBuf result = null;
 
 			try {
@@ -622,7 +622,7 @@ public abstract class NettyMessage {
 	 * <p>There is a 1:1 mapping between the input channel and partition per physical channel.
 	 * Therefore, the {@link InputChannelID} instance is enough to identify which request to cancel.
 	 */
-	static class CancelPartitionRequest extends NettyMessage {
+	class CancelPartitionRequest implements NettyMessage {
 
 		private static final byte ID = 4;
 
@@ -633,7 +633,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws Exception {
+		public ByteBuf write(ByteBufAllocator allocator) throws Exception {
 			ByteBuf result = null;
 
 			try {
@@ -656,7 +656,7 @@ public abstract class NettyMessage {
 		}
 	}
 
-	static class CloseRequest extends NettyMessage {
+	class CloseRequest implements NettyMessage {
 
 		private static final byte ID = 5;
 
@@ -664,7 +664,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws Exception {
+		public ByteBuf write(ByteBufAllocator allocator) throws Exception {
 			return allocateBuffer(allocator, ID, 0);
 		}
 
@@ -676,7 +676,7 @@ public abstract class NettyMessage {
 	/**
 	 * Incremental credit announcement from the client to the server.
 	 */
-	static class AddCredit extends NettyMessage {
+	class AddCredit implements NettyMessage {
 
 		private static final byte ID = 6;
 
@@ -691,7 +691,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+		public ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			ByteBuf result = null;
 
 			try {
@@ -726,7 +726,7 @@ public abstract class NettyMessage {
 	/**
 	 * Message to notify the producer to unblock from checkpoint.
 	 */
-	static class ResumeConsumption extends NettyMessage {
+	class ResumeConsumption implements NettyMessage {
 
 		private static final byte ID = 7;
 
@@ -737,7 +737,7 @@ public abstract class NettyMessage {
 		}
 
 		@Override
-		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+		public ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			ByteBuf result = null;
 
 			try {
