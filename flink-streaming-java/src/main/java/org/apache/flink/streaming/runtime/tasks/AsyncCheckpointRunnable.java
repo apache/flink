@@ -199,7 +199,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 				// We only report the exception for the original cause of fail and cleanup.
 				// Otherwise this followup exception could race the original exception in failing the task.
 				try {
-					taskEnvironment.declineCheckpoint(checkpointMetaData.getCheckpointId(),
+					taskEnvironment.declineCheckpoint(
+							checkpointMetaData.getCheckpointId(),
 							new CheckpointException(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION, checkpointException));
 				} catch (Exception unhandled) {
 					AsynchronousException asyncException = new AsynchronousException(unhandled);
