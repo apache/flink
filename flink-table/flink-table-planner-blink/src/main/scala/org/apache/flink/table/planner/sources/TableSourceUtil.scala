@@ -46,7 +46,9 @@ import _root_.java.util.function.{Function => JFunction}
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
 
-/** Util class for [[TableSource]]. */
+/**
+ * Note: We aim to gradually port the logic in this class to [[DynamicSinkUtils]].
+ */
 object TableSourceUtil {
 
   /**
