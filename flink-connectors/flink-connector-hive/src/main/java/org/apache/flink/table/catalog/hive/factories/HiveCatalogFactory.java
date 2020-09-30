@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HADOOP_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_VERSION;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_TYPE_VALUE_HIVE;
@@ -66,6 +67,8 @@ public class HiveCatalogFactory implements CatalogFactory {
 
 		properties.add(CATALOG_HIVE_VERSION);
 
+		properties.add(CATALOG_HADOOP_CONF_DIR);
+
 		return properties;
 	}
 
@@ -79,9 +82,11 @@ public class HiveCatalogFactory implements CatalogFactory {
 
 		final Optional<String> hiveConfDir = descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
 
+		final Optional<String> hadoopConfDir = descriptorProperties.getOptionalString(CATALOG_HADOOP_CONF_DIR);
+
 		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(HiveShimLoader.getHiveVersion());
 
-		return new HiveCatalog(name, defaultDatabase, hiveConfDir.orElse(null), version);
+		return new HiveCatalog(name, defaultDatabase, hiveConfDir.orElse(null), hadoopConfDir.orElse(null), version);
 	}
 
 	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
