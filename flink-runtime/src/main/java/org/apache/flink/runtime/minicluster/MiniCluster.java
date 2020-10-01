@@ -117,7 +117,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * MiniCluster to execute Flink jobs locally.
  */
-public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
+public class MiniCluster implements AutoCloseableAsync {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniCluster.class);
 
@@ -656,7 +656,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	 * @throws JobExecutionException Thrown if anything went amiss during initial job launch,
 	 *         or if the job terminally failed.
 	 */
-	@Override
 	public JobExecutionResult executeJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 
