@@ -74,6 +74,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 	private final ForwardingDataOutput forwardingDataOutput;
 	private MutableObjectIterator<Tuple2<byte[], StreamRecord<T>>> sortedInput = null;
 	private boolean emittedLast;
+	private long watermarkSeen = Long.MIN_VALUE;
 
 	public SortingDataInput(
 			StreamTaskInput<T> chained,
@@ -165,7 +166,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 
 		@Override
 		public void emitWatermark(Watermark watermark) throws Exception {
-
+			watermarkSeen = Math.max(watermarkSeen, watermark.getTimestamp());
 		}
 
 		@Override
@@ -206,7 +207,9 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 			return InputStatus.MORE_AVAILABLE;
 		} else {
 			emittedLast = true;
-			output.emitWatermark(Watermark.MAX_WATERMARK);
+			if (watermarkSeen > Long.MIN_VALUE) {
+				output.emitWatermark(new Watermark(watermarkSeen));
+			}
 			return InputStatus.END_OF_INPUT;
 		}
 	}

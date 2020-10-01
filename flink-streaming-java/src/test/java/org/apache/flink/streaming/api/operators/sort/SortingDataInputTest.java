@@ -92,14 +92,13 @@ public class SortingDataInputTest {
 				new StreamRecord<>(1, 3),
 				new StreamRecord<>(2, 1),
 				new StreamRecord<>(2, 2),
-				new StreamRecord<>(2, 3),
-				Watermark.MAX_WATERMARK
+				new StreamRecord<>(2, 3)
 			)
 		));
 	}
 
 	@Test
-	public void watermarksAreNotPropagated() throws Exception {
+	public void watermarkPropagation() throws Exception {
 		CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
 		CollectionDataInput<Integer> input = new CollectionDataInput<>(
 			Arrays.asList(
@@ -113,7 +112,8 @@ public class SortingDataInputTest {
 				new Watermark(4),
 				new StreamRecord<>(1, 2),
 				new Watermark(5),
-				new StreamRecord<>(2, 2)
+				new StreamRecord<>(2, 2),
+				new Watermark(6)
 			)
 		);
 		MockEnvironment environment = MockEnvironment.builder().build();
@@ -143,7 +143,7 @@ public class SortingDataInputTest {
 				new StreamRecord<>(2, 1),
 				new StreamRecord<>(2, 2),
 				new StreamRecord<>(2, 3),
-				Watermark.MAX_WATERMARK
+				new Watermark(6)
 			)
 		));
 	}
@@ -187,8 +187,7 @@ public class SortingDataInputTest {
 				new StreamRecord<>(1, 3),
 				new StreamRecord<>(2, 1),
 				new StreamRecord<>(2, 2),
-				new StreamRecord<>(2, 3),
-				Watermark.MAX_WATERMARK
+				new StreamRecord<>(2, 3)
 			)
 		));
 	}
