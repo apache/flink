@@ -157,6 +157,16 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			0L,
 			0L,
 			10_000_000L);
+
+		long checkpoint2CreationTime = System.currentTimeMillis() - 5;
+		sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
+		Thread.sleep(5);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			2L,
+			0L,
+			0L,
+			5_000_000L);
 	}
 
 	private void assertMetrics(
