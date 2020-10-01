@@ -76,7 +76,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	private final CachingCheckpointStorageWorkerView checkpointStorage;
 	private final String taskName;
-	private final ExecutorService executorService;
+	private final ExecutorService asyncOperationsThreadPool;
 	private final Environment env;
 	private final AsyncExceptionHandler asyncExceptionHandler;
 	private final ChannelStateWriter channelStateWriter;
@@ -101,7 +101,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			String taskName,
 			StreamTaskActionExecutor actionExecutor,
 			CloseableRegistry closeableRegistry,
-			ExecutorService executorService,
+			ExecutorService asyncOperationsThreadPool,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
 			boolean unalignedCheckpointEnabled,
@@ -110,7 +110,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			taskName,
 			actionExecutor,
 			closeableRegistry,
-			executorService,
+			asyncOperationsThreadPool,
 			env,
 			asyncExceptionHandler,
 			unalignedCheckpointEnabled,
@@ -123,7 +123,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			String taskName,
 			StreamTaskActionExecutor actionExecutor,
 			CloseableRegistry closeableRegistry,
-			ExecutorService executorService,
+			ExecutorService asyncOperationsThreadPool,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
 			boolean unalignedCheckpointEnabled,
@@ -134,7 +134,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			taskName,
 			actionExecutor,
 			closeableRegistry,
-			executorService,
+			asyncOperationsThreadPool,
 			env,
 			asyncExceptionHandler,
 			prepareInputSnapshot,
@@ -148,7 +148,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			String taskName,
 			StreamTaskActionExecutor actionExecutor,
 			CloseableRegistry closeableRegistry,
-			ExecutorService executorService,
+			ExecutorService asyncOperationsThreadPool,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
 			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot,
@@ -158,7 +158,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.taskName = checkNotNull(taskName);
 		this.checkpoints = new HashMap<>();
 		this.lock = new Object();
-		this.executorService = checkNotNull(executorService);
+		this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
 		this.env = checkNotNull(env);
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
 		this.actionExecutor = checkNotNull(actionExecutor);
@@ -437,7 +437,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
 		// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
-		executorService.execute(new AsyncCheckpointRunnable(
+		asyncOperationsThreadPool.execute(new AsyncCheckpointRunnable(
 			snapshotFutures,
 			metadata,
 			metrics,
