@@ -68,22 +68,6 @@ public class SafetyNetCloseableRegistryTest
 	}
 
 	@Override
-	protected void shutdownRegistry(
-		AbstractCloseableRegistry<
-			WrappingProxyCloseable<? extends Closeable>,
-			SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> registry) throws IOException {
-		SafetyNetCloseableRegistry safetyNetCloseableRegistry = (SafetyNetCloseableRegistry) registry;
-		Thread reaperThread = safetyNetCloseableRegistry.closeInternally();
-		if (reaperThread != null) {
-			try {
-				reaperThread.join();
-			} catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-			}
-		}
-	}
-
-	@Override
 	protected AbstractCloseableRegistryTest.ProducerThread<
 		WrappingProxyCloseable<? extends Closeable>,
 		SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> createProducerThread(
