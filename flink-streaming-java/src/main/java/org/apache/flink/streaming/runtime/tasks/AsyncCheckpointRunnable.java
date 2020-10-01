@@ -65,14 +65,14 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 	private final Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress;
 	private final CheckpointMetaData checkpointMetaData;
 	private final CheckpointMetrics checkpointMetrics;
-	private final long asyncStartNanos;
+	private final long asyncConstructionNanos;
 	private final AtomicReference<AsyncCheckpointState> asyncCheckpointState = new AtomicReference<>(AsyncCheckpointState.RUNNING);
 
 	AsyncCheckpointRunnable(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData checkpointMetaData,
 			CheckpointMetrics checkpointMetrics,
-			long asyncStartNanos,
+			long asyncConstructionNanos,
 			String taskName,
 			Consumer<AsyncCheckpointRunnable> register,
 			Consumer<AsyncCheckpointRunnable> unregister,
@@ -82,7 +82,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 		this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
 		this.checkpointMetaData = checkNotNull(checkpointMetaData);
 		this.checkpointMetrics = checkNotNull(checkpointMetrics);
-		this.asyncStartNanos = asyncStartNanos;
+		this.asyncConstructionNanos = asyncConstructionNanos;
 		this.taskName = checkNotNull(taskName);
 		this.registerConsumer = register;
 		this.unregisterConsumer = unregister;
@@ -92,6 +92,11 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 	@Override
 	public void run() {
+		final long asyncStartNanos = System.nanoTime();
+		final long asyncStartDelayMillis = (asyncStartNanos - asyncConstructionNanos) / 1_000_000L;
+		LOG.debug("{} - started executing asynchronous part of checkpoint {}. Asynchronous start delay: {} ms",
+			taskName, checkpointMetaData.getCheckpointId(), asyncStartDelayMillis);
+
 		FileSystemSafetyNet.initializeSafetyNetForThread();
 		try {
 			registerConsumer.accept(this);
@@ -118,7 +123,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			}
 
 			final long asyncEndNanos = System.nanoTime();
-			final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000L;
+			final long asyncDurationMillis = (asyncEndNanos - asyncConstructionNanos) / 1_000_000L;
 
 			checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
