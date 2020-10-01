@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -93,8 +92,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			DataOutput<IN> output = createDataOutput(numRecordsIn);
 			StreamTaskInput<IN> input = createTaskInput(inputGate);
 
-			Boolean shouldSortInputs = configuration.getConfiguration().get(ExecutionOptions.SORTED_INPUTS);
-			if (shouldSortInputs) {
+			if (configuration.shouldSortInputs()) {
 				checkState(!configuration.isCheckpointingEnabled(), "Checkpointing is not allowed with sorted inputs.");
 				input = wrapWithSorted(input);
 			}

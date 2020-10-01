@@ -19,7 +19,6 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -56,14 +55,4 @@ public class ExecutionOptions {
 						"throughput")
 				)
 				.build());
-
-	@Documentation.ExcludeFromDocumentation("The option is considered internal and should rather not be used" +
-		" explicitly. It will be set automatically by the StreamGraphGenerator based on the RuntimeMode.")
-	public static final ConfigOption<Boolean> SORTED_INPUTS =
-		ConfigOptions.key("execution.sorted-inputs.enabled")
-			.booleanType()
-			.defaultValue(false)
-			.withDescription(
-				"A flag to enable/disable sorting inputs of keyed operators. This is an internal flag. " +
-					"Please use with care!");
 }
