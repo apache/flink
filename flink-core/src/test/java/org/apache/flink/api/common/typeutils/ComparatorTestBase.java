@@ -45,6 +45,10 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 	// Same as in the NormalizedKeySorter
 	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
 
+	protected boolean[] getTestedOrder() {
+		return new boolean[] {true, false};
+	}
+
 	protected abstract TypeComparator<T> createComparator(boolean ascending);
 
 	protected abstract TypeSerializer<T> createSerializer();
@@ -84,8 +88,10 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 	
 	@Test
 	public void testEquality() {
-		testEquals(true);
-		testEquals(false);
+		for (boolean ascending : getTestedOrder()) {
+			testEquals(true);
+			testEquals(false);
+		}
 	}
 
 	protected void testEquals(boolean ascending) {
@@ -145,10 +151,10 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 	// --------------------------------- inequality tests ----------------------------------------
 	@Test
 	public void testInequality() {
-		testGreatSmallAscDesc(true, true);
-		testGreatSmallAscDesc(false, true);
-		testGreatSmallAscDesc(true, false);
-		testGreatSmallAscDesc(false, false);
+		for (boolean ascending : getTestedOrder()) {
+			testGreatSmallAscDesc(ascending, true);
+			testGreatSmallAscDesc(ascending, false);
+		}
 	}
 
 	protected void testGreatSmallAscDesc(boolean ascending, boolean greater) {
@@ -196,10 +202,10 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 
 	@Test
 	public void testInequalityWithReference() {
-		testGreatSmallAscDescWithReference(true, true);
-		testGreatSmallAscDescWithReference(true, false);
-		testGreatSmallAscDescWithReference(false, true);
-		testGreatSmallAscDescWithReference(false, false);
+		for (boolean ascending : getTestedOrder()) {
+			testGreatSmallAscDescWithReference(ascending, true);
+			testGreatSmallAscDescWithReference(ascending, false);
+		}
 	}
 
 	protected void testGreatSmallAscDescWithReference(boolean ascending, boolean greater) {
@@ -309,7 +315,8 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 	@Test
 	public void testNormalizedKeysGreatSmallFullLength() {
 		// ascending/descending in comparator doesn't matter for normalized keys
-		TypeComparator<T> comparator = getComparator(true);
+		boolean ascending = getTestedOrder()[0];
+		TypeComparator<T> comparator = getComparator(ascending);
 		if (!comparator.supportsNormalizedKey()) {
 			return;
 		}
@@ -320,7 +327,8 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 	@Test
 	public void testNormalizedKeysGreatSmallAscDescHalfLength() {
 		// ascending/descending in comparator doesn't matter for normalized keys
-		TypeComparator<T> comparator = getComparator(true);
+		boolean ascending = getTestedOrder()[0];
+		TypeComparator<T> comparator = getComparator(ascending);
 		if (!comparator.supportsNormalizedKey()) {
 			return;
 		}
@@ -374,7 +382,8 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 			T[] data = getSortedData();
 			T reuse = getSortedData()[0];
 
-			TypeComparator<T> comp1 = getComparator(true);
+			boolean ascending = getTestedOrder()[0];
+			TypeComparator<T> comp1 = getComparator(ascending);
 			if(!comp1.supportsSerializationWithKeyNormalization()){
 				return;
 			}
@@ -404,7 +413,8 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testKeyExtraction() {
-		TypeComparator<T> comparator = getComparator(true);
+		boolean ascending = getTestedOrder()[0];
+		TypeComparator<T> comparator = getComparator(ascending);
 		T[] data = getSortedData();
 
 		for (T value : data) {
