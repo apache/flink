@@ -1,5 +1,5 @@
 ---
-title: "Connectors"
+title: "连接器"
 nav-parent_id: python_tableapi
 nav-pos: 130
 ---
@@ -23,16 +23,16 @@ under the License.
 -->
 
 
-This page describes how to use connectors in PyFlink and highlights the details to be aware of when using Flink connectors in Python programs.
+本篇描述了如何在 PyFlink 中使用连接器，并着重介绍了在 Python 程序中使用 Flink 连接器时需要注意的细节。
 
 * This will be replaced by the TOC
 {:toc}
 
-<span class="label label-info">Note</span> For general connector information and common configuration, please refer to the corresponding [Java/Scala documentation]({{ site.baseurl }}/zh/dev/table/connectors/index.html). 
+<span class="label label-info">Note</span> 想要了解常见的连接器信息和通用配置，请查阅相关的 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/connectors/index.html)。
 
-## Download connector and format jars
+## 下载连接器（connector）和格式（format）jar 包
 
-Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html).
+由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html)。
 
 {% highlight python %}
 
@@ -40,9 +40,9 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 
 {% endhighlight %}
 
-## How to use connectors
+## 如何使用连接器
 
-In PyFink's Table API, DDL is the recommended way to define sources and sinks, executed via the `execute_sql()` method on the `TableEnvironment`. This makes the table available for use by the application.
+在 PyFink Table API 中，DDL 是定义 source 和 sink 比较推荐的方式，这可以通过 `TableEnvironment` 中的 `execute_sql()` 方法来完成，然后就可以在作业中使用这张表了。
 
 {% highlight python %}
 
@@ -78,7 +78,7 @@ t_env.sql_query("SELECT a FROM source_table") \
     .insert_into("sink_table")
 {% endhighlight %}
 
-Below is a complete example of how to use a Kafka source/sink and the JSON format in PyFlink.
+下面是如何在 PyFlink 中使用 Kafka source/sink 和 JSON 格式的完整示例。
 
 {% highlight python %}
 
@@ -133,45 +133,45 @@ if __name__ == '__main__':
 {% endhighlight %}
 
 
-## Predefined Sources and Sinks
+## 内置的 Sources 和 Sinks
 
-Some data sources and sinks are built into Flink and are available out-of-the-box. These predefined data sources include reading from Pandas DataFrame, or ingesting data from collections. The predefined data sinks support writing to Pandas DataFrame.
+有些 source 和 sink 被内置在 Flink 中，可以直接使用。这些内置的 source 包括将 Pandas DataFrame 作为数据源，或者将一个元素集合作为数据源。内置的 sink 包括将数据转换为 Pandas DataFrame 等。
 
-### from/to Pandas
+### 和 Pandas 之间互转
 
-PyFlink Tables support conversion to and from Pandas DataFrame.
+PyFlink 表支持与 Pandas DataFrame 之间互相转换。
 
 {% highlight python %}
 
 import pandas as pd
 import numpy as np
 
-# Create a PyFlink Table
+# 创建一个 PyFlink 表
 pdf = pd.DataFrame(np.random.rand(1000, 2))
 table = t_env.from_pandas(pdf, ["a", "b"]).filter("a > 0.5")
 
-# Convert the PyFlink Table to a Pandas DataFrame
+# 将 PyFlink 表转换成 Pandas DataFrame
 pdf = table.to_pandas()
 {% endhighlight %}
 
 ### from_elements()
 
-`from_elements()` is used to create a table from a collection of elements. The element types must be acceptable atomic types or acceptable composite types.
+`from_elements()` 用于从一个元素集合中创建一张表。元素类型必须是可支持的原子类型或者复杂类型。
 
 {% highlight python %}
 
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 
-# use the second parameter to specify custom field names
+# 使用第二个参数指定自定义字段名
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
 
-# use the second parameter to specify a custom table schema
+# 使用第二个参数指定自定义表结构
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
                                        DataTypes.FIELD("b", DataTypes.STRING())]))
 {% endhighlight %}
 
-The above query returns a Table like:
+以上查询返回的表如下:
 
 {% highlight python %}
 +----+-------+
@@ -183,7 +183,7 @@ The above query returns a Table like:
 +----+-------+
 {% endhighlight %}
 
-## User-defined sources & sinks
+## 用户自定义的 source 和 sink
 
-In some cases, you may want to define custom sources and sinks. Currently, sources and sinks must be implemented in Java/Scala, but you can define a `TableFactory` to support their use via DDL. More details can be found in the [Java/Scala documentation]({{ site.baseurl }}/zh/dev/table/sourceSinks.html).
+在某些情况下，你可能想要自定义 source 或 sink。目前，source 和 sink 必须使用 Java/Scala 实现，你可以定义一个 `TableFactory` ，然后通过 DDL 在 PyFlink 作业中来使用它们。更多详情，可查阅 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/sourceSinks.html)。
 
