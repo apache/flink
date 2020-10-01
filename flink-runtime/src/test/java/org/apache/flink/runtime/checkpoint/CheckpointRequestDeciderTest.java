@@ -91,6 +91,7 @@ public class CheckpointRequestDeciderTest {
 		CheckpointRequestDecider decider = decider(maxQueuedRequests, maxConcurrentCheckpointAttempts, 1, new AtomicInteger(0), currentCleaning);
 
 		CheckpointTriggerRequest request = regularCheckpoint();
+		// checkpoint is on hold because too many cleaning checkpoints
 		assertFalse(decider.chooseRequestToExecute(request, isTriggering, 0).isPresent());
 
 		// a checkpoint has been cleaned
@@ -239,7 +240,7 @@ public class CheckpointRequestDeciderTest {
 	private static final Consumer<Long> NO_OP = unused -> {
 	};
 
-	private static CheckpointTriggerRequest regularCheckpoint() {
+	static CheckpointTriggerRequest regularCheckpoint() {
 		return checkpointRequest(true);
 	}
 
