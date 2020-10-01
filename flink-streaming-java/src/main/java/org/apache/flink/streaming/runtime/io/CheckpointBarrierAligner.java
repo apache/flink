@@ -121,6 +121,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			if (barrierId > currentCheckpointId) {
 				// new checkpoint
 				currentCheckpointId = barrierId;
+				markAlignmentStartAndEnd(receivedBarrier.getTimestamp());
 				notifyCheckpoint(receivedBarrier);
 			}
 			return;
