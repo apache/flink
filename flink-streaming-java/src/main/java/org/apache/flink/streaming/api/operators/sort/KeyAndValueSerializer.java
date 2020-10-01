@@ -44,6 +44,8 @@ import java.util.Objects;
 final class KeyAndValueSerializer<IN> extends TypeSerializer<Tuple2<byte[], StreamRecord<IN>>> {
 	private static final int TIMESTAMP_LENGTH = 8;
 	private final TypeSerializer<IN> valueSerializer;
+
+	// This represents either a variable length (-1) or a fixed one (>= 0).
 	private final int serializedKeyLength;
 
 	KeyAndValueSerializer(TypeSerializer<IN> valueSerializer, int serializedKeyLength) {

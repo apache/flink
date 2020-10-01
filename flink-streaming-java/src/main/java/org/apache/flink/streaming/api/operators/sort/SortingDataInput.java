@@ -35,7 +35,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.PushSorter;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -66,7 +65,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 
-	private final StreamTaskInput<T> chained;
+	private final StreamTaskInput<T> wrappedInput;
 	private final PushSorter<Tuple2<byte[], StreamRecord<T>>> sorter;
 	private final KeySelector<T, K> keySelector;
 	private final TypeSerializer<K> keySerializer;
@@ -77,7 +76,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 	private long watermarkSeen = Long.MIN_VALUE;
 
 	public SortingDataInput(
-			StreamTaskInput<T> chained,
+			StreamTaskInput<T> wrappedInput,
 			TypeSerializer<T> typeSerializer,
 			TypeSerializer<K> keySerializer,
 			KeySelector<T, K> keySelector,
@@ -101,7 +100,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 				comparator = new VariableLengthByteKeyComparator<>();
 			}
 			KeyAndValueSerializer<T> keyAndValueSerializer = new KeyAndValueSerializer<>(typeSerializer, keyLength);
-			this.chained = chained;
+			this.wrappedInput = wrappedInput;
 			this.sorter = ExternalSorter.newBuilder(
 					memoryManager,
 					containingTask,
@@ -122,13 +121,13 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 
 	@Override
 	public int getInputIndex() {
-		return chained.getInputIndex();
+		return wrappedInput.getInputIndex();
 	}
 
 	@Override
 	public CompletableFuture<Void> prepareSnapshot(
 			ChannelStateWriter channelStateWriter,
-			long checkpointId) throws IOException {
+			long checkpointId) {
 		throw new UnsupportedOperationException("Checkpoints are not supported for sorting inputs");
 	}
 
@@ -136,7 +135,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 	public void close() throws IOException {
 		IOException ex = null;
 		try {
-			chained.close();
+			wrappedInput.close();
 		} catch (IOException e) {
 			ex = ExceptionUtils.firstOrSuppressed(e, ex);
 		}
@@ -165,17 +164,17 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 		}
 
 		@Override
-		public void emitWatermark(Watermark watermark) throws Exception {
+		public void emitWatermark(Watermark watermark) {
 			watermarkSeen = Math.max(watermarkSeen, watermark.getTimestamp());
 		}
 
 		@Override
-		public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+		public void emitStreamStatus(StreamStatus streamStatus) {
 
 		}
 
 		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
 
 		}
 	}
@@ -186,7 +185,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 			return emitNextSortedRecord(output);
 		}
 
-		InputStatus inputStatus = chained.emitNext(forwardingDataOutput);
+		InputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
 		if (inputStatus == InputStatus.END_OF_INPUT) {
 			endSorting();
 			return emitNextSortedRecord(output);
@@ -224,7 +223,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 		if (sortedInput != null) {
 			return AvailabilityProvider.AVAILABLE;
 		} else {
-			return chained.getAvailableFuture();
+			return wrappedInput.getAvailableFuture();
 		}
 	}
 }

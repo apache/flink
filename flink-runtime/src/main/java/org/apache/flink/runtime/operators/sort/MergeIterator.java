@@ -174,8 +174,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 		
 		@Override
 		public int compare(HeadStream<E> o1, HeadStream<E> o2) {
-			int compareResult = o2.comparator.compareToReference(o1.comparator);
-			return compareResult;
+			return o2.comparator.compareToReference(o1.comparator);
 		}
 	}
 }
