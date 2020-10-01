@@ -30,13 +30,16 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.SplittableIterator;
 
@@ -47,6 +50,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -58,7 +62,7 @@ import static org.junit.Assert.assertThat;
 /**
  * An end to end test for sorted inputs for a keyed operator with bounded inputs.
  */
-public class SortingBoundedInputITCase {
+public class SortingBoundedInputITCase extends AbstractTestBase {
 	@Test
 	public void testOneInputOperator() throws Exception {
 		long numberOfRecords = 1_000_000;
@@ -81,7 +85,7 @@ public class SortingBoundedInputITCase {
 		CollectResultIterator<Long> collectedCounts = applyCollect(env, counts);
 		StreamGraph streamGraph = env.getStreamGraph();
 		streamGraph.getStreamNode(counts.getId()).setSortedInputs(true);
-		HashMap<ManagedMemoryUseCase, Integer> operatorMemory = new HashMap<>();
+		Map<ManagedMemoryUseCase, Integer> operatorMemory = new HashMap<>();
 		operatorMemory.put(ManagedMemoryUseCase.BATCH_OP, 1);
 		streamGraph.getStreamNode(counts.getId()).setManagedMemoryUseCaseWeights(
 			operatorMemory,
@@ -95,7 +99,53 @@ public class SortingBoundedInputITCase {
 			.mapToLong(l -> l)
 			.sum();
 
-		assertThat(numberOfRecords, equalTo(sum));
+		assertThat(sum, equalTo(numberOfRecords));
+	}
+
+	@Test
+	public void testTwoInputOperator() throws Exception {
+		long numberOfRecords = 500_000;
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Tuple2<Integer, byte[]>> elements1 = env.fromParallelCollection(
+			new InputGenerator(numberOfRecords),
+			new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)
+		);
+
+		DataStreamSource<Tuple2<Integer, byte[]>> elements2 = env.fromParallelCollection(
+			new InputGenerator(numberOfRecords),
+			new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)
+		);
+		SingleOutputStreamOperator<Long> counts = elements1.connect(elements2)
+			.keyBy(
+				element -> element.f0,
+				element -> element.f0
+			)
+			.transform(
+				"Asserting operator",
+				BasicTypeInfo.LONG_TYPE_INFO,
+				new AssertingTwoInputOperator()
+			);
+
+		// TODO we should replace this block with DataStreamUtils#collect once
+		// we have the automatic runtime mode determination in place.
+		CollectResultIterator<Long> collectedCounts = applyCollect(env, counts);
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.getStreamNode(counts.getId()).setSortedInputs(true);
+		Map<ManagedMemoryUseCase, Integer> operatorMemory = new HashMap<>();
+		operatorMemory.put(ManagedMemoryUseCase.BATCH_OP, 1);
+		streamGraph.getStreamNode(counts.getId()).setManagedMemoryUseCaseWeights(
+			operatorMemory,
+			Collections.emptySet()
+		);
+		JobClient jobClient = env.executeAsync(streamGraph);
+		collectedCounts.setJobClient(jobClient);
+
+		long sum = CollectionUtil.iteratorToList(collectedCounts)
+			.stream()
+			.mapToLong(l -> l)
+			.sum();
+
+		assertThat(sum, equalTo(numberOfRecords * 2));
 	}
 
 	private CollectResultIterator<Long> applyCollect(StreamExecutionEnvironment env, SingleOutputStreamOperator<Long> counts) {
@@ -135,8 +185,53 @@ public class SortingBoundedInputITCase {
 		}
 
 		@Override
-		public void endInput() throws Exception {
+		public void endInput() {
 			output.collect(new StreamRecord<>(seenRecords));
+		}
+	}
+
+	private static class AssertingTwoInputOperator extends AbstractStreamOperator<Long>
+		implements TwoInputStreamOperator<Tuple2<Integer, byte[]>, Tuple2<Integer, byte[]>, Long>, BoundedMultiInput {
+		private final Set<Integer> seenKeys = new HashSet<>();
+		private long seenRecords = 0;
+		private Integer currentKey = null;
+		private boolean input1Finished = false;
+		private boolean input2Finished = false;
+
+		@Override
+		public void processElement1(StreamRecord<Tuple2<Integer, byte[]>> element) {
+			processElement(element);
+		}
+
+		@Override
+		public void processElement2(StreamRecord<Tuple2<Integer, byte[]>> element) {
+			processElement(element);
+		}
+
+		private void processElement(StreamRecord<Tuple2<Integer, byte[]>> element) {
+			this.seenRecords++;
+			Integer incomingKey = element.getValue().f0;
+			if (!Objects.equals(incomingKey, currentKey)) {
+				if (!seenKeys.add(incomingKey)) {
+					Assert.fail("Received an out of order key: " + incomingKey);
+				}
+				this.currentKey = incomingKey;
+			}
+		}
+
+		@Override
+		public void endInput(int inputId) {
+			if (inputId == 1) {
+				input1Finished = true;
+			}
+
+			if (inputId == 2) {
+				input2Finished = true;
+			}
+
+			if (input1Finished && input2Finished) {
+				output.collect(new StreamRecord<>(seenRecords));
+			}
 		}
 	}
 
