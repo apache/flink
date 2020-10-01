@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.streaming.api.operators.InputSelectable;
@@ -47,9 +46,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 	@Override
 	protected void createInputProcessor(
 		List<IndexedInputGate> inputGates1,
-		List<IndexedInputGate> inputGates2,
-		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) {
+		List<IndexedInputGate> inputGates2) {
 
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
 			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null);
@@ -67,10 +64,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		checkState(checkpointedInputGates.length == 2);
 
 		inputProcessor = StreamTwoInputProcessorFactory.create(
+			this,
 			checkpointedInputGates,
-			inputDeserializer1,
-			inputDeserializer2,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMemoryManager(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getStreamStatusMaintainer(),
 			mainOperator,
@@ -78,6 +75,11 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			input1WatermarkGauge,
 			input2WatermarkGauge,
 			operatorChain,
+			getConfiguration(),
+			getTaskConfiguration(),
+			getJobConfiguration(),
+			getExecutionConfig(),
+			getUserCodeClassLoader(),
 			setupNumRecordsInCounter(mainOperator));
 	}
 }
