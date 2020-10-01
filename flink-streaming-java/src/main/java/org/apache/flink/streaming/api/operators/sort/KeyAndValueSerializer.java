@@ -42,6 +42,7 @@ import java.util.Objects;
  * </pre>
  */
 final class KeyAndValueSerializer<IN> extends TypeSerializer<Tuple2<byte[], StreamRecord<IN>>> {
+	private static final int TIMESTAMP_LENGTH = 8;
 	private final TypeSerializer<IN> valueSerializer;
 	private final int serializedKeyLength;
 
@@ -90,7 +91,10 @@ final class KeyAndValueSerializer<IN> extends TypeSerializer<Tuple2<byte[], Stre
 
 	@Override
 	public int getLength() {
-		return -1;
+		if (valueSerializer.getLength() < 0 || serializedKeyLength < 0) {
+			return -1;
+		}
+		return valueSerializer.getLength() + serializedKeyLength + TIMESTAMP_LENGTH;
 	}
 
 	@Override
@@ -176,6 +180,7 @@ final class KeyAndValueSerializer<IN> extends TypeSerializer<Tuple2<byte[], Stre
 
 	@Override
 	public TypeSerializerSnapshot<Tuple2<byte[], StreamRecord<IN>>> snapshotConfiguration() {
-		return null;
+		throw new UnsupportedOperationException(
+			"The KeyAndValueSerializer should not be used for persisting into State!");
 	}
 }

@@ -18,31 +18,21 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
-import org.apache.flink.api.common.typeutils.ComparatorTestBase;
-import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import org.junit.Test;
 
 /**
- * Tests for {@link FixedLengthByteKeyComparator}.
+ * Tests for {@link KeyAndValueSerializer}, which verify fixed length keys.
  */
-public class FixedLengthByteKeyComparatorTest extends ComparatorTestBase<Tuple2<byte[], StreamRecord<Integer>>> {
-	@Override
-	protected boolean[] getTestedOrder() {
-		return new boolean[]{true};
-	}
+public class FixedLengthKeyAndValueSerializerTest extends SerializerTestBase<Tuple2<byte[], StreamRecord<Integer>>> {
 
-	@Override
-	protected TypeComparator<Tuple2<byte[], StreamRecord<Integer>>> createComparator(boolean ascending) {
-		return new FixedLengthByteKeyComparator<>(
-			new IntSerializer().getLength()
-		);
-	}
+	private static final int INTEGER_SIZE = 4;
+	private static final int TIMESTAMP_SIZE = 8;
 
 	@Override
 	protected TypeSerializer<Tuple2<byte[], StreamRecord<Integer>>> createSerializer() {
@@ -54,16 +44,30 @@ public class FixedLengthByteKeyComparatorTest extends ComparatorTestBase<Tuple2<
 	}
 
 	@Override
-	protected void deepEquals(
-			String message,
-			Tuple2<byte[], StreamRecord<Integer>> should,
-			Tuple2<byte[], StreamRecord<Integer>> is) {
-		assertThat(message, should.f0, equalTo(is.f0));
-		assertThat(message, should.f1, equalTo(is.f1));
+	protected int getLength() {
+		return INTEGER_SIZE + TIMESTAMP_SIZE + INTEGER_SIZE;
 	}
 
 	@Override
-	protected Tuple2<byte[], StreamRecord<Integer>>[] getSortedTestData() {
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	protected Class<Tuple2<byte[], StreamRecord<Integer>>> getTypeClass() {
+		return (Class<Tuple2<byte[], StreamRecord<Integer>>>) (Class) Tuple2.class;
+	}
+
+	@Override
+	protected Tuple2<byte[], StreamRecord<Integer>>[] getTestData() {
 		return SerializerComparatorTestData.getOrderedIntTestData();
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void testConfigSnapshotInstantiation() {
+		super.testConfigSnapshotInstantiation();
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void testSnapshotConfigurationAndReconfigure() throws Exception {
+		super.testSnapshotConfigurationAndReconfigure();
 	}
 }

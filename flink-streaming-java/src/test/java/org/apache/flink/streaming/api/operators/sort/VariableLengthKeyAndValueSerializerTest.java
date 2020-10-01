@@ -18,29 +18,18 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
-import org.apache.flink.api.common.typeutils.ComparatorTestBase;
-import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import org.junit.Test;
 
 /**
- * Tests for {@link VariableLengthByteKeyComparator}.
+ * Tests for {@link KeyAndValueSerializer}, which verify variable length keys.
  */
-public class VariableLengthByteKeyComparatorTest extends ComparatorTestBase<Tuple2<byte[], StreamRecord<String>>> {
-	@Override
-	protected boolean[] getTestedOrder() {
-		return new boolean[]{true};
-	}
-
-	@Override
-	protected TypeComparator<Tuple2<byte[], StreamRecord<String>>> createComparator(boolean ascending) {
-		return new VariableLengthByteKeyComparator<>();
-	}
+public class VariableLengthKeyAndValueSerializerTest extends SerializerTestBase<Tuple2<byte[], StreamRecord<String>>> {
 
 	@Override
 	protected TypeSerializer<Tuple2<byte[], StreamRecord<String>>> createSerializer() {
@@ -52,16 +41,30 @@ public class VariableLengthByteKeyComparatorTest extends ComparatorTestBase<Tupl
 	}
 
 	@Override
-	protected void deepEquals(
-			String message,
-			Tuple2<byte[], StreamRecord<String>> should,
-			Tuple2<byte[], StreamRecord<String>> is) {
-		assertThat(message, should.f0, equalTo(is.f0));
-		assertThat(message, should.f1, equalTo(is.f1));
+	protected int getLength() {
+		return -1;
 	}
 
 	@Override
-	protected Tuple2<byte[], StreamRecord<String>>[] getSortedTestData() {
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	protected Class<Tuple2<byte[], StreamRecord<String>>> getTypeClass() {
+		return (Class<Tuple2<byte[], StreamRecord<String>>>) (Class) Tuple2.class;
+	}
+
+	@Override
+	protected Tuple2<byte[], StreamRecord<String>>[] getTestData() {
 		return SerializerComparatorTestData.getOrderedStringTestData();
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void testConfigSnapshotInstantiation() {
+		super.testConfigSnapshotInstantiation();
+	}
+
+	@Override
+	@Test(expected = UnsupportedOperationException.class)
+	public void testSnapshotConfigurationAndReconfigure() throws Exception {
+		super.testSnapshotConfigurationAndReconfigure();
 	}
 }
