@@ -22,6 +22,8 @@ import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
+import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -84,7 +86,7 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 	public void start() {
 		// request a split only if we did not get one during restore
 		if (iterator == null) {
-			context.sendSourceEventToCoordinator(new SplitRequestEvent());
+			context.sendSourceEventToCoordinator(new RequestSplitEvent());
 		}
 	}
 
@@ -133,7 +135,7 @@ public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends I
 
 	@Override
 	public void handleSourceEvents(SourceEvent sourceEvent) {
-		if (sourceEvent instanceof NoSplitAvailableEvent) {
+		if (sourceEvent instanceof NoMoreSplitsEvent) {
 			// non-null queue signals splits were assigned, in this case no splits
 			remainingSplits = new ArrayDeque<>();
 		} else {

@@ -16,16 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.connector.source.lib.util;
+package org.apache.flink.api.connector.source.event;
 
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SplitEnumerator;
 
 /**
- * A {@link SourceEvent} representing the request for a split, typically sent from the
- * {@link SourceReader} to the {@link SplitEnumerator}.
+ * A source event sent from the SplitEnumerator to the SourceReader to indicate that no more
+ * splits will be assigned to the source reader anymore. So once the SplitReader finishes
+ * reading the currently assigned splits, they can exit.
  */
-public final class SplitRequestEvent implements SourceEvent {
+public class NoMoreSplitsEvent implements SourceEvent {
+
 	private static final long serialVersionUID = 1L;
+
+	@Override
+	public String toString() {
+		return "[NoMoreSplitEvent]";
+	}
 }
