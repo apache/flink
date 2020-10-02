@@ -147,7 +147,9 @@ public class SharedStateRegistry implements AutoCloseable {
             entry = registeredStates.get(registrationKey);
 
             Preconditions.checkState(
-                    entry != null, "Cannot unregister a state that is not registered.");
+                    entry != null,
+                    "Cannot unregister a state that is not registered: %s",
+                    registrationKey);
 
             entry.decreaseReferenceCount();
 
