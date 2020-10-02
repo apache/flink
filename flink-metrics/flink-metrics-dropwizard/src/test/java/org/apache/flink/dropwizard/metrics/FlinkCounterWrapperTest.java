@@ -19,39 +19,29 @@
 package org.apache.flink.dropwizard.metrics;
 
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.util.TestCounter;
+
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * A wrapper that allows a Flink counter to be used as a DropWizard counter.
+ * Tests for the FlinkCounterWrapper.
  */
-public class FlinkCounterWrapper extends com.codahale.metrics.Counter {
-	private final Counter counter;
+public class FlinkCounterWrapperTest {
 
-	public FlinkCounterWrapper(Counter counter) {
-		this.counter = counter;
-	}
+	@Test
+	public void testWrapperIncDec() {
+		Counter counter = new TestCounter();
+		counter.inc();
 
-	@Override
-	public long getCount() {
-		return this.counter.getCount();
-	}
-
-	@Override
-	public void inc() {
-		this.counter.inc();
-	}
-
-	@Override
-	public void inc(long n) {
-		this.counter.inc(n);
-	}
-
-	@Override
-	public void dec() {
-		this.counter.dec();
-	}
-
-	@Override
-	public void dec(long n) {
-		this.counter.dec(n);
+		FlinkCounterWrapper wrapper = new FlinkCounterWrapper(counter);
+		assertEquals(1L, wrapper.getCount());
+		wrapper.dec();
+		assertEquals(0L, wrapper.getCount());
+		wrapper.inc(2);
+		assertEquals(2L, wrapper.getCount());
+		wrapper.dec(2);
+		assertEquals(0L, wrapper.getCount());
 	}
 }
