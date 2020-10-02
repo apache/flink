@@ -127,7 +127,10 @@ public abstract class AbstractKeyedStateBackend<K>
                 numberOfKeyGroups >= 1, "NumberOfKeyGroups must be a positive number");
         Preconditions.checkArgument(
                 numberOfKeyGroups >= keyGroupRange.getNumberOfKeyGroups(),
-                "The total number of key groups must be at least the number in the key group range assigned to this backend");
+                "The total number of key groups must be at least the number in the key group range assigned to this backend. "
+                        + "The total number of key groups: %s, the number in key groups in range: %s",
+                numberOfKeyGroups,
+                keyGroupRange.getNumberOfKeyGroups());
 
         this.kvStateRegistry = kvStateRegistry;
         this.keySerializer = keySerializer;
