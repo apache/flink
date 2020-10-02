@@ -741,7 +741,12 @@ class DataStream[T](stream: JavaStream[T]) {
    * it possible to perform this operation in parallel).
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[windowAll()]] with either [[TumblingEventTimeWindows]] or
+   *             [[TumblingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindowAll(size: Time): AllWindowedStream[T, TimeWindow] = {
     new AllWindowedStream(javaStream.timeWindowAll(size))
   }
@@ -759,7 +764,12 @@ class DataStream[T](stream: JavaStream[T]) {
    * it possible to perform this operation in parallel).
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[windowAll()]] with either [[SlidingEventTimeWindows]] or
+   *             [[SlidingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindowAll(size: Time, slide: Time): AllWindowedStream[T, TimeWindow] = {
     new AllWindowedStream(javaStream.timeWindowAll(size, slide))
 

@@ -775,7 +775,12 @@ public class DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(TumblingProcessingTimeWindows.of(size));
@@ -796,7 +801,12 @@ public class DataStream<T> {
 	 * the same operator instance.
 	 *
 	 * @param size The size of the window.
+	 *
+	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 *        SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
+	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
+	@Deprecated
 	public AllWindowedStream<T, TimeWindow> timeWindowAll(Time size, Time slide) {
 		if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
 			return windowAll(SlidingProcessingTimeWindows.of(size, slide));
