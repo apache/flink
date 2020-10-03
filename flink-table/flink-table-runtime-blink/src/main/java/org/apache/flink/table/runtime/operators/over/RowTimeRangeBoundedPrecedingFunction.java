@@ -157,9 +157,9 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	@Override
 	public void processElement(
-		RowData input,
-		KeyedProcessFunction<K, RowData, RowData>.Context ctx,
-		Collector<RowData> out) throws Exception {
+			RowData input,
+			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+			Collector<RowData> out) throws Exception {
 		// triggering timestamp for trigger calculation
 		long triggeringTs = input.getLong(rowTimeIdx);
 
@@ -188,8 +188,8 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 	}
 
 	private void registerCleanupTimer(
-		KeyedProcessFunction<K, RowData, RowData>.Context ctx,
-		long timestamp) throws Exception {
+			KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+			long timestamp) throws Exception {
 		// calculate safe timestamp to cleanup states
 		long minCleanupTimestamp = timestamp + precedingOffset + 1;
 		long maxCleanupTimestamp = timestamp + (long) (precedingOffset * 1.5) + 1;
@@ -205,9 +205,9 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	@Override
 	public void onTimer(
-		long timestamp,
-		KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
-		Collector<RowData> out) throws Exception {
+			long timestamp,
+			KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+			Collector<RowData> out) throws Exception {
 		Long cleanupTimestamp = cleanupTsState.value();
 		// if cleanupTsState has not been updated then it is safe to cleanup states
 		if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
