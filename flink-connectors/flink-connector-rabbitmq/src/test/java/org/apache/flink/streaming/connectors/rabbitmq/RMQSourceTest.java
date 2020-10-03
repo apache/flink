@@ -337,7 +337,7 @@ public class RMQSourceTest {
 		RMQDeserializationSchema.RMQCollector collector = Mockito.mock(RMQDeserializationSchema.RMQCollector.class);
 		source.processMessage(source.mockedDelivery, collector);
 		Mockito.verify(collector, Mockito.times(1)).collect("test");
-		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("1", messageId);
+		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("0", messageId);
 
 		source = new RMQTestSource(new CustomDeserializationSchema());
 		source.open(config);
@@ -347,7 +347,8 @@ public class RMQSourceTest {
 		collector = Mockito.mock(RMQDeserializationSchema.RMQCollector.class);
 		source.processMessage(source.mockedDelivery, collector);
 		Mockito.verify(collector, Mockito.times(1)).collect(Mockito.eq(expectedOutput));
-		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("1-MESSAGE_ID", messageId);
+		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("1", messageId - 1);
+		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("2-MESSAGE_ID", messageId);
 	}
 
 	@Test

@@ -171,9 +171,6 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		return new RMQDeserializationSchema<T>() {
 			@Override
 			public void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException {
-				final long deliveryTag = envelope.getDeliveryTag();
-				final String correlationId = properties.getCorrelationId();
-				collector.setMessageIdentifiers(correlationId, deliveryTag);
 				collector.collect(schema.deserialize(body));
 			}
 
@@ -323,6 +320,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		AMQP.BasicProperties properties = delivery.getProperties();
 		byte[] body = delivery.getBody();
 		Envelope envelope = delivery.getEnvelope();
+		collector.setMessageIdentifiers(properties.getCorrelationId(), envelope.getDeliveryTag());
 		deliveryDeserializer.deserialize(envelope, properties, body, collector);
 	}
 
@@ -351,7 +349,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	private class RMQCollectorImpl implements RMQDeserializationSchema.RMQCollector<OUT> {
 		private final SourceContext<OUT> ctx;
 		private boolean endOfStreamSignalled = false;
-		private Boolean messageValidated;
+		private String correlationId;
+		private long deliveryTag;
 
 		private RMQCollectorImpl(SourceContext<OUT> ctx) {
 			this.ctx = ctx;
@@ -359,10 +358,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 
 		@Override
 		public void collect(OUT record) {
-			Preconditions.checkNotNull(messageValidated, "setMessageIdentifiers must be called at least once before" +
-				"calling this method !");
-
-			if (!messageValidated) {
+			if (!checkMessageValidity()) {
 				return;
 			}
 
@@ -374,10 +370,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		}
 
 		public void collect(List<OUT> records) {
-			Preconditions.checkNotNull(messageValidated, "setMessageIdentifiers must be called at least once before" +
-				"calling this method !");
-
-			if (!messageValidated) {
+			if (!checkMessageValidity()) {
 				return;
 			}
 
@@ -391,18 +384,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		}
 
 		public void setMessageIdentifiers(String correlationId, long deliveryTag){
-			messageValidated = true;
-			if (!autoAck) {
-				if (usesCorrelationId) {
-					Preconditions.checkNotNull(correlationId, "RabbitMQ source was instantiated " +
-						"with usesCorrelationId set to true yet we couldn't extract the correlation id from it !");
-					if (!addId(correlationId)) {
-						// we have already processed this message
-						messageValidated = false;
-					}
-				}
-				sessionIds.add(deliveryTag);
-			}
+			this.correlationId = correlationId;
+			this.deliveryTag = deliveryTag;
 		}
 
 		boolean isEndOfStream(OUT record) {
@@ -414,12 +397,29 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		}
 
 		public void reset() {
-			messageValidated = null;
+			correlationId = null;
+			deliveryTag = 0;
 		}
 
 		@Override
 		public void close() {
 
+		}
+
+		private boolean checkMessageValidity(){
+			boolean messageValidity = true;
+			if (!autoAck) {
+				if (usesCorrelationId) {
+					Preconditions.checkNotNull(correlationId, "RabbitMQ source was instantiated " +
+						"with usesCorrelationId set to true yet we couldn't extract the correlation id from it !");
+					if (!addId(correlationId)) {
+						// we have already processed this message
+						messageValidity = false;
+					}
+				}
+				sessionIds.add(deliveryTag);
+			}
+			return messageValidity;
 		}
 	}
 

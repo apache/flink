@@ -50,12 +50,15 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	/**
 	 * This method takes all the RabbitMQ delivery information supplied by the client extract the data and pass it to the
 	 * collector.
-	 * NOTICE: The implementation of this method MUST call {@link RMQCollector#setMessageIdentifiers(String, long)} with
-	 * the correlation ID of the message if checkpointing and UseCorrelationID (in the RMQSource constructor) were enabled
+	 *
+	 * <p><b>NOTICE:</b> The implementation of this method can call {@link RMQCollector#setMessageIdentifiers} with
+	 * a custom correlation ID and delivery tag if checkpointing and UseCorrelationID (in the RMQSource constructor) were
+	 * enabled
 	 * the {@link RMQSource}.
-	 * @param envelope
-	 * @param properties
-	 * @param body
+	 * @param envelope an AMQP {@link Envelope}.
+	 * @param properties the {@link AMQP.BasicProperties} of the message.
+	 * @param body the message itself as a byte array.
+	 * @param collector the {@link RMQCollector} that will collect the data.
 	 * @throws IOException
 	 */
 	public abstract void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException;
