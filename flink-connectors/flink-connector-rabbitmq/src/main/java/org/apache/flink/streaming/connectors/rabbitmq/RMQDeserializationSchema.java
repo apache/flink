@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.util.Collector;
 
@@ -33,7 +32,7 @@ import java.util.List;
  * Interface for the set of methods required to parse an RMQ delivery.
  * @param <T> The output type of the {@link RMQSource}
  */
-public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+public abstract class RMQDeserializationSchema<T> implements  Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Initialization method for the schema. It is called before the actual working methods
@@ -44,8 +43,9 @@ public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQue
 	 *
 	 * @param context Contextual information that can be used during initialization.
 	 */
-	public void open(DeserializationSchema.InitializationContext context) throws Exception;
+	public void open(DeserializationSchema.InitializationContext context) throws Exception {
 
+	}
 
 	/**
 	 * This method takes all the RabbitMQ delivery information supplied by the client extract the data and pass it to the
@@ -58,7 +58,7 @@ public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQue
 	 * @param body
 	 * @throws IOException
 	 */
-	public  void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException;
+	public abstract void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
@@ -67,15 +67,7 @@ public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQue
 	 * @param nextElement The element to test for the end-of-stream signal.
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
-	boolean isEndOfStream(T nextElement);
-
-	/**
-	 * The {@link TypeInformation} for the deserialized T.
-	 * As an example the proper implementation of this method if T is a String is:
-	 * {@code return TypeExtractor.getForClass(String.class)}
-	 * @return TypeInformation
-	 */
-	public TypeInformation<T> getProducedType();
+	abstract boolean isEndOfStream(T nextElement);
 
 	/**
 	 * Special collector for RMQ messages.
