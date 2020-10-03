@@ -38,22 +38,23 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 * Initialization method for the schema. It is called before the actual working methods
 	 * {@link #deserialize} and thus suitable for one time setup work.
 	 *
-	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
+	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features
+	 * such as e.g.
 	 * registering user metrics.
 	 *
 	 * @param context Contextual information that can be used during initialization.
 	 */
-	public void open(DeserializationSchema.InitializationContext context) throws Exception {
+	void open(DeserializationSchema.InitializationContext context) throws Exception {
 
 	}
 
 	/**
-	 * This method takes all the RabbitMQ delivery information supplied by the client extract the data and pass it to the
-	 * collector.
+	 * This method takes all the RabbitMQ delivery information supplied by the client extract the data and pass it to
+	 * the collector.
 	 *
 	 * <p><b>NOTICE:</b> The implementation of this method can call {@link RMQCollector#setMessageIdentifiers} with
-	 * a custom correlation ID and delivery tag if checkpointing and UseCorrelationID (in the RMQSource constructor) were
-	 * enabled
+	 * a custom correlation ID and delivery tag if checkpointing and UseCorrelationID (in the RMQSource constructor)
+	 * were enabled
 	 * the {@link RMQSource}.
 	 * @param envelope an AMQP {@link Envelope}.
 	 * @param properties the {@link AMQP.BasicProperties} of the message.
@@ -61,7 +62,10 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 * @param collector the {@link RMQCollector} that will collect the data.
 	 * @throws IOException
 	 */
-	public abstract void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException;
+	abstract void deserialize(Envelope envelope,
+								AMQP.BasicProperties properties,
+								byte[] body,
+								RMQCollector<T> collector) throws IOException;
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
@@ -74,13 +78,13 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 
 	/**
 	 * Special collector for RMQ messages.
-	 * Captures the correlation ID and delivery tag also does the filtering logic for weather a message has been
-	 * processed or not.
-	 * @param <T>
+	 *
+	 * <p>It extends the {@link Collector} to give the ability to collect more than 1 message and the ability to set
+	 * the message correlationId and deliveryTag.
 	 */
 	public interface RMQCollector<T> extends Collector<T> {
-		public void collect(List<T> records);
+		void collect(List<T> records);
 
-		public void setMessageIdentifiers(String correlationId, long deliveryTag);
+		void setMessageIdentifiers(String correlationId, long deliveryTag);
 	}
 }
