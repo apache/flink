@@ -64,6 +64,9 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 	/** The buffer number of recovered buffers. Starts at MIN_VALUE to have no collisions with actual buffer numbers. */
 	private int sequenceNumber = Integer.MIN_VALUE;
 
+	protected final int networkBuffersPerChannel;
+	private boolean exclusiveBuffersAssigned;
+
 	RecoveredInputChannel(
 			SingleInputGate inputGate,
 			int channelIndex,
@@ -71,10 +74,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 			int initialBackoff,
 			int maxBackoff,
 			Counter numBytesIn,
-			Counter numBuffersIn) {
+			Counter numBuffersIn,
+			int networkBuffersPerChannel) {
 		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn);
 
 		bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
 	}
 
 	@Override
@@ -235,5 +240,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		synchronized (receivedBuffers) {
 			return receivedBuffers.size();
 		}
+	}
+
+	void assignExclusiveSegments() throws IOException {
+		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
+
+		bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
+		exclusiveBuffersAssigned = true;
 	}
 }

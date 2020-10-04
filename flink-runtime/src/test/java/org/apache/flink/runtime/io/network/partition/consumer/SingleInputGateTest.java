@@ -151,11 +151,11 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testReadRecoveredState() throws Exception {
-		final int totalStates = 5;
-		final int[] states = {1, 2, 3, 4};
+		final int totalStates = 7;
+		final int[] states = {1, 2, 3, 4, 5, 6};
 		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
 
-		final int totalBuffers = 3; // the total buffers are less than the requirement from total states
+		final int totalBuffers = 5; // the total buffers are less than the requirement from total states
 		final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder()
 			.setBufferSize(states.length * Integer.BYTES)
 			.setNumNetworkBuffers(totalBuffers)
@@ -193,11 +193,11 @@ public class SingleInputGateTest extends InputGateTestBase {
 	 */
 	@Test
 	public void testConcurrentReadStateAndProcessAndClose() throws Exception {
-		final int totalStates = 5;
-		final int[] states = {1, 2, 3, 4};
+		final int totalStates = 7;
+		final int[] states = {1, 2, 3, 4, 5, 6};
 		final ChannelStateReader stateReader = new ResultPartitionTest.FiniteChannelStateReader(totalStates, states);
 
-		final int totalBuffers = 3;
+		final int totalBuffers = 5;
 		final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder()
 			.setBufferSize(states.length * Integer.BYTES)
 			.setNumNetworkBuffers(totalBuffers)

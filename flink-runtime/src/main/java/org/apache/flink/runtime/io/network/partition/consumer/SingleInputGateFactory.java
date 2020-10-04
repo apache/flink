@@ -219,6 +219,7 @@ public class SingleInputGateFactory {
 				taskEventPublisher,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
+				networkBuffersPerChannel,
 				metrics);
 		} else {
 			// Different instances => remote
