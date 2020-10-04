@@ -214,7 +214,6 @@ public class UnalignedCheckpointITCase extends TestLogger {
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(EXPECTED_FAILURES, Time.milliseconds(100)));
 		env.getCheckpointConfig().enableUnalignedCheckpoints(true);
-		env.getCheckpointConfig().setCheckpointTimeout(TimeUnit.SECONDS.toMillis(30));
 		return env;
 	}
 
