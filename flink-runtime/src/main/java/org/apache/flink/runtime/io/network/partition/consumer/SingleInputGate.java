@@ -254,8 +254,8 @@ public class SingleInputGate extends IndexedInputGate {
 				return FutureUtils.completedVoidFuture();
 			}
 			for (InputChannel inputChannel : inputChannels.values()) {
-				if (inputChannel instanceof RemoteRecoveredInputChannel) {
-					((RemoteRecoveredInputChannel) inputChannel).assignExclusiveSegments();
+				if (inputChannel instanceof RecoveredInputChannel) {
+					((RecoveredInputChannel) inputChannel).assignExclusiveSegments();
 				}
 			}
 		}

@@ -160,6 +160,7 @@ public class InputChannelBuilder {
 			taskEventPublisher,
 			initialBackoff,
 			maxBackoff,
+			networkBuffersPerChannel,
 			metrics);
 	}
 
