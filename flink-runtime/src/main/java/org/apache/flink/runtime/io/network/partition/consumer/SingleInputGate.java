@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -247,7 +248,18 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException {
+		synchronized (requestLock) {
+			if (closeFuture.isDone()) {
+				return FutureUtils.completedVoidFuture();
+			}
+			for (InputChannel inputChannel : inputChannels.values()) {
+				if (inputChannel instanceof RemoteRecoveredInputChannel) {
+					((RemoteRecoveredInputChannel) inputChannel).assignExclusiveSegments();
+				}
+			}
+		}
+
 		List<CompletableFuture<?>> futures = getStateConsumedFuture();
 
 		executor.submit(() -> {
@@ -429,9 +441,6 @@ public class SingleInputGate extends IndexedInputGate {
 				// we might change to generate different type channels based on config future.
 				if (inputChannel instanceof RemoteInputChannel) {
 					((RemoteInputChannel) inputChannel).assignExclusiveSegments();
-				}
-				else if (inputChannel instanceof RemoteRecoveredInputChannel) {
-					((RemoteRecoveredInputChannel) inputChannel).assignExclusiveSegments();
 				}
 			}
 		}

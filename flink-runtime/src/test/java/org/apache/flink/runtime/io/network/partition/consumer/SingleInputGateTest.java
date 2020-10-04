@@ -125,9 +125,21 @@ public class SingleInputGateTest extends InputGateTestBase {
 			assertEquals(1, inputGate.getBufferPool().getNumberOfRequiredMemorySegments());
 			for (InputChannel inputChannel : inputGate.getInputChannels().values()) {
 				if (inputChannel instanceof RemoteRecoveredInputChannel) {
-					assertEquals(2, ((RemoteRecoveredInputChannel) inputChannel).bufferManager.getNumberOfAvailableBuffers());
+					assertEquals(0,
+						((RemoteRecoveredInputChannel) inputChannel).bufferManager.getNumberOfAvailableBuffers());
 				} else if (inputChannel instanceof LocalRecoveredInputChannel) {
-					assertEquals(0, ((LocalRecoveredInputChannel) inputChannel).bufferManager.getNumberOfAvailableBuffers());
+					assertEquals(0,
+						((LocalRecoveredInputChannel) inputChannel).bufferManager.getNumberOfAvailableBuffers());
+				}
+			}
+
+			inputGate.convertRecoveredInputChannels();
+			assertNotNull(inputGate.getBufferPool());
+			assertEquals(1, inputGate.getBufferPool().getNumberOfRequiredMemorySegments());
+			for (InputChannel inputChannel : inputGate.getInputChannels().values()) {
+				if (inputChannel instanceof RemoteInputChannel) {
+					assertEquals(2,
+						((RemoteInputChannel) inputChannel).getNumberOfAvailableBuffers());
 				}
 			}
 		}
