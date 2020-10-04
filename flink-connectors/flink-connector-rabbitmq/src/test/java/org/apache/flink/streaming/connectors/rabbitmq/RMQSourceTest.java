@@ -334,7 +334,9 @@ public class RMQSourceTest {
 	public void testProcessMessage() throws Exception {
 		RMQTestSource source = new RMQTestSource();
 		source.open(config);
-		RMQDeserializationSchema.RMQCollector collector = Mockito.mock(RMQDeserializationSchema.RMQCollector.class);
+
+		RMQDeserializationSchema.RMQCollector<String> collector = Mockito.mock(RMQDeserializationSchema.RMQCollector.class);
+
 		source.processMessage(source.mockedDelivery, collector);
 		Mockito.verify(collector, Mockito.times(1)).collect("test");
 		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("0", messageId);
@@ -344,6 +346,7 @@ public class RMQSourceTest {
 		List<String> expectedOutput = new ArrayList<>(1);
 		expectedOutput.add("I Love Turtles");
 		expectedOutput.add("Brush your teeth");
+
 		collector = Mockito.mock(RMQDeserializationSchema.RMQCollector.class);
 		source.processMessage(source.mockedDelivery, collector);
 		Mockito.verify(collector, Mockito.times(1)).collect(Mockito.eq(expectedOutput));
@@ -494,8 +497,8 @@ public class RMQSourceTest {
 		}
 
 		@Override
-		public void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException {
-			List<String> messages = new ArrayList();
+		public void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector<String> collector){
+			List<String> messages = new ArrayList<>();
 			messages.add("I Love Turtles");
 			messages.add("Brush your teeth");
 			collector.setMessageIdentifiers(properties.getMessageId(), envelope.getDeliveryTag());
@@ -570,7 +573,7 @@ public class RMQSourceTest {
 			super(deserializationSchema);
 		}
 
-		public RMQTestSource(RMQDeserializationSchema deliveryParser) {
+		public RMQTestSource(RMQDeserializationSchema<String> deliveryParser) {
 			super(deliveryParser);
 		}
 

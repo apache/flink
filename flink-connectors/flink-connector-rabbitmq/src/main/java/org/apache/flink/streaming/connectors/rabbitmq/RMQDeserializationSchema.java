@@ -60,7 +60,7 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 * @param properties the {@link AMQP.BasicProperties} of the message.
 	 * @param body the message itself as a byte array.
 	 * @param collector the {@link RMQCollector} that will collect the data.
-	 * @throws IOException
+	 * @throws IOException When the body of the message can't be parsed
 	 */
 	abstract void deserialize(Envelope envelope,
 								AMQP.BasicProperties properties,

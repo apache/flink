@@ -124,7 +124,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.usesCorrelationId = usesCorrelationId;
-		this.deliveryDeserializer = wrapDeserializationSchema(deserializationSchema);
+		this.deliveryDeserializer = new RMQDeserializationSchemaWrapper<>(deserializationSchema);
 	}
 
 	/**
@@ -165,30 +165,6 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		this.queueName = queueName;
 		this.usesCorrelationId = usesCorrelationId;
 		this.deliveryDeserializer = deliveryDeserializer;
-	}
-
-	static <T> RMQDeserializationSchema<T> wrapDeserializationSchema(DeserializationSchema<T> schema) {
-		return new RMQDeserializationSchema<T>() {
-			@Override
-			public void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector collector) throws IOException {
-				collector.collect(schema.deserialize(body));
-			}
-
-			@Override
-			public TypeInformation<T> getProducedType() {
-				return schema.getProducedType();
-			}
-
-			@Override
-			public void open(DeserializationSchema.InitializationContext context) throws Exception {
-				schema.open(context);
-			}
-
-			@Override
-			public boolean isEndOfStream(T nextElement) {
-				return schema.isEndOfStream(nextElement);
-			}
-		};
 	}
 
 	/**
@@ -302,21 +278,8 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		}
 	}
 
-	/**
-	 * Parse and collects the body of the an AMQP message.
-	 *
-	 * <p>If any of the constructors with the {@link DeserializationSchema} class was used to construct the source
-	 * it uses the {@link DeserializationSchema#deserialize(byte[])} to parse the body of the AMQP message.
-	 *
-	 * <p>If any of the constructors with the {@link RMQDeserializationSchema } class was used to construct the source it uses the
-	 * {@link RMQDeserializationSchema#deserialize(Envelope, AMQP.BasicProperties, byte[], RMQDeserializationSchema.RMQCollector collector)}
-	 * method of that provided instance.
-	 *
-	 * @param delivery the AMQP {@link Delivery}
-	 * @param collector a {@link RMQCollectorImpl} to collect the data
-	 * @throws IOException
-	 */
-	protected void processMessage(Delivery delivery, RMQDeserializationSchema.RMQCollector collector) throws IOException {
+	protected void processMessage(Delivery delivery, RMQDeserializationSchema.RMQCollector<OUT> collector)
+		throws IOException {
 		AMQP.BasicProperties properties = delivery.getProperties();
 		byte[] body = delivery.getBody();
 		Envelope envelope = delivery.getEnvelope();
@@ -339,6 +302,28 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 				}
 			}
 		}
+	}
+
+	@Override
+	public void cancel() {
+		running = false;
+	}
+
+	@Override
+	protected void acknowledgeSessionIDs(List<Long> sessionIds) {
+		try {
+			for (long id : sessionIds) {
+				channel.basicAck(id, false);
+			}
+			channel.txCommit();
+		} catch (IOException e) {
+			throw new RuntimeException("Messages could not be acknowledged during checkpoint creation.", e);
+		}
+	}
+
+	@Override
+	public TypeInformation<OUT> getProducedType() {
+		return deliveryDeserializer.getProducedType();
 	}
 
 	/**
@@ -423,25 +408,37 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 		}
 	}
 
-	@Override
-	public void cancel() {
-		running = false;
-	}
+	/**
+	 * A default {@link RMQDeserializationSchema} implementation that uses the provided {@link DeserializationSchema} to
+	 * parse the message body.
+	 */
+	private static class RMQDeserializationSchemaWrapper<OUT> extends RMQDeserializationSchema<OUT>{
+		DeserializationSchema<OUT> schema;
 
-	@Override
-	protected void acknowledgeSessionIDs(List<Long> sessionIds) {
-		try {
-			for (long id : sessionIds) {
-				channel.basicAck(id, false);
-			}
-			channel.txCommit();
-		} catch (IOException e) {
-			throw new RuntimeException("Messages could not be acknowledged during checkpoint creation.", e);
+		private RMQDeserializationSchemaWrapper(DeserializationSchema<OUT> deserializationSchema) {
+			schema = deserializationSchema;
+		}
+
+		@Override
+		public void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector<OUT> collector)
+			throws IOException {
+			collector.collect(schema.deserialize(body));
+		}
+
+		@Override
+		public TypeInformation<OUT> getProducedType() {
+			return schema.getProducedType();
+		}
+
+		@Override
+		public void open(DeserializationSchema.InitializationContext context) throws Exception {
+			schema.open(context);
+		}
+
+		@Override
+		public boolean isEndOfStream(OUT nextElement) {
+			return schema.isEndOfStream(nextElement);
 		}
 	}
-
-	@Override
-	public TypeInformation<OUT> getProducedType() {
-		return deliveryDeserializer.getProducedType();
-	}
 }
+
