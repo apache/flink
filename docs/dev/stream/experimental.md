@@ -60,7 +60,7 @@ Code example:
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 DataStreamSource<Integer> source = ...
 DataStreamUtils.reinterpretAsKeyedStream(source, (in) -> in, TypeInformation.of(Integer.class))
-    .timeWindow(Time.seconds(1))
+    .window(TumblingEventTimeWindows.of(Time.seconds(1)))
     .reduce((a, b) -> a + b)
     .addSink(new DiscardingSink<>());
 env.execute();
@@ -72,7 +72,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setParallelism(1)
 val source = ...
 new DataStreamUtils(source).reinterpretAsKeyedStream((in) => in)
-  .timeWindow(Time.seconds(1))
+  .window(TumblingEventTimeWindows.of(Time.seconds(1)))
   .reduce((a, b) => a + b)
   .addSink(new DiscardingSink[Int])
 env.execute()

@@ -352,9 +352,9 @@ Flink 的窗口 API 某些方面有一些奇怪的行为，可能和我们预期
 {% highlight java %}
 stream
     .keyBy(t -> t.key)
-    .timeWindow(<time specification>)
+    .window(<window assigner>)
     .reduce(<reduce function>)
-    .timeWindowAll(<same time specification>)
+    .windowAll(<same window assigner>)
     .reduce(<same reduce function>)
 {% endhighlight %}
 

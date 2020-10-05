@@ -411,9 +411,9 @@ For example, it works to do this:
 {% highlight java %}
 stream
     .keyBy(t -> t.key)
-    .timeWindow(<time specification>)
+    .window(<window assigner>)
     .reduce(<reduce function>)
-    .timeWindowAll(<same time specification>)
+    .windowAll(<same window assigner>)
     .reduce(<same reduce function>)
 {% endhighlight %}
 
