@@ -98,34 +98,23 @@ class JobScopedResourceTracker {
 		Set<ResourceProfile> fulfilledRequirements = resourceToRequirementMapping.getRequirementsFulfilledBy(resourceProfile).keySet();
 
 		if (!fulfilledRequirements.isEmpty()) {
-			// determine for which of the requirements, that the resource could be used for, the resource count should be reduced for
-			ResourceProfile assignedRequirement = null;
-
-			for (ResourceProfile requirementProfile : fulfilledRequirements) {
-				assignedRequirement = requirementProfile;
-
-				// try finding a requirement that has too many resources; if non are exceeding the requirements we deduct
-				// the resource from any requirement having such a resource
-				if (resourceRequirements.getResourceCount(requirementProfile) < resourceToRequirementMapping.getNumFulfillingResources(requirementProfile)) {
-					break;
-				}
-			}
-
-			if (assignedRequirement == null) {
-				// safeguard against programming errors
-				throw new IllegalStateException(String.format("Job %s lost a (non-excess) resource %s but no requirement was assigned to it.", jobId, resourceProfile));
-			}
+			// deduct the resource from any requirement
+			// from a correctness standpoint the choice is arbitrary
+			// from a resource utilization standpoint it could make sense to search for the requirement with the largest
+			// distance to the resource profile (i.e., the smallest requirement), but it may not matter since we are
+			// likely to get back a similarly-sized resource later on
+			ResourceProfile assignedRequirement = fulfilledRequirements.iterator().next();
 
 			resourceToRequirementMapping.decrementCount(assignedRequirement, resourceProfile, 1);
 
 			tryAssigningExcessSlots();
 		} else {
-			LOG.warn("Job {} lost a resource {} but no such resource was tracked.", jobId, resourceProfile);
+			throw new IllegalStateException(String.format("Job %s lost a resource %s but no such resource was tracked.", jobId, resourceProfile));
 		}
 	}
 
-	public Collection<ResourceRequirement> getRequiredResources() {
-		final Collection<ResourceRequirement> requiredResources = new ArrayList<>();
+	public Collection<ResourceRequirement> getMissingResources() {
+		final Collection<ResourceRequirement> missingResources = new ArrayList<>();
 		for (Map.Entry<ResourceProfile, Integer> requirement : resourceRequirements.getResourceProfilesWithCount().entrySet()) {
 			ResourceProfile requirementProfile = requirement.getKey();
 
@@ -133,11 +122,11 @@ class JobScopedResourceTracker {
 			int numAcquiredResources = resourceToRequirementMapping.getNumFulfillingResources(requirementProfile);
 
 			if (numAcquiredResources < numRequiredResources) {
-				requiredResources.add(ResourceRequirement.create(requirementProfile, numRequiredResources - numAcquiredResources));
+				missingResources.add(ResourceRequirement.create(requirementProfile, numRequiredResources - numAcquiredResources));
 			}
 
 		}
-		return requiredResources;
+		return missingResources;
 	}
 
 	public Collection<ResourceRequirement> getAcquiredResources() {

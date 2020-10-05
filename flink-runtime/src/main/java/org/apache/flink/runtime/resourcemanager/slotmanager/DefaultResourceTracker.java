@@ -99,15 +99,15 @@ public class DefaultResourceTracker implements ResourceTracker {
 	}
 
 	@Override
-	public Map<JobID, Collection<ResourceRequirement>> getRequiredResources() {
-		Map<JobID, Collection<ResourceRequirement>> requiredResources = new LinkedHashMap<>();
-		for (Map.Entry<JobID, JobScopedResourceTracker> jobIDJobScopedRequirementsTrackerEntry : trackers.entrySet()) {
-			Collection<ResourceRequirement> exceedingOrRequiredResources = jobIDJobScopedRequirementsTrackerEntry.getValue().getRequiredResources();
-			if (!exceedingOrRequiredResources.isEmpty()) {
-				requiredResources.put(jobIDJobScopedRequirementsTrackerEntry.getKey(), exceedingOrRequiredResources);
+	public Map<JobID, Collection<ResourceRequirement>> getMissingResources() {
+		Map<JobID, Collection<ResourceRequirement>> allMissingResources = new LinkedHashMap<>();
+		for (Map.Entry<JobID, JobScopedResourceTracker> tracker : trackers.entrySet()) {
+			Collection<ResourceRequirement> missingResources = tracker.getValue().getMissingResources();
+			if (!missingResources.isEmpty()) {
+				allMissingResources.put(tracker.getKey(), missingResources);
 			}
 		}
-		return requiredResources;
+		return allMissingResources;
 	}
 
 	@Override

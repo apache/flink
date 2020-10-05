@@ -56,11 +56,11 @@ public interface ResourceTracker {
 
 	/**
 	 * Returns a collection of {@link ResourceRequirements} that describe which resources the corresponding job is
-	 * in need/excess of.
+	 * missing.
 	 *
-	 * @return required/exceeding resources for each jobs
+	 * @return missing resources for each jobs
 	 */
-	Map<JobID, Collection<ResourceRequirement>> getRequiredResources();
+	Map<JobID, Collection<ResourceRequirement>> getMissingResources();
 
 	/**
 	 * Returns a collection of {@link ResourceRequirement}s that describe which resources have been assigned to a job.

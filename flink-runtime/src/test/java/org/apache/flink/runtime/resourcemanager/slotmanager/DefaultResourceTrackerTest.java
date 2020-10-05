@@ -41,6 +41,9 @@ import static org.junit.Assert.assertThat;
  */
 public class DefaultResourceTrackerTest extends TestLogger {
 
+	private static final JobID JOB_ID_1 = JobID.generate();
+	private static final JobID JOB_ID_2 = JobID.generate();
+
 	@Test
 	public void testInitialBehavior() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
@@ -53,92 +56,84 @@ public class DefaultResourceTrackerTest extends TestLogger {
 	@Test
 	public void testGetRequiredResources() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
-		JobID jobId1 = JobID.generate();
-		JobID jobId2 = JobID.generate();
 
 		ResourceRequirement requirement1 = ResourceRequirement.create(ResourceProfile.ANY, 1);
 		ResourceRequirement requirement2 = ResourceRequirement.create(ResourceProfile.ANY, 2);
 
-		tracker.notifyResourceRequirements(jobId1, Collections.singletonList(requirement1));
-		tracker.notifyResourceRequirements(jobId2, Collections.singletonList(requirement2));
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.singletonList(requirement1));
+		tracker.notifyResourceRequirements(JOB_ID_2, Collections.singletonList(requirement2));
 
-		Map<JobID, Collection<ResourceRequirement>> requiredResources = tracker.getRequiredResources();
-		assertThat(requiredResources, IsMapContaining.hasEntry(is(jobId1), contains(requirement1)));
-		assertThat(requiredResources, IsMapContaining.hasEntry(is(jobId2), contains(requirement2)));
+		Map<JobID, Collection<ResourceRequirement>> requiredResources = tracker.getMissingResources();
+		assertThat(requiredResources, IsMapContaining.hasEntry(is(JOB_ID_1), contains(requirement1)));
+		assertThat(requiredResources, IsMapContaining.hasEntry(is(JOB_ID_2), contains(requirement2)));
 	}
 
 	@Test
 	public void testGetAcquiredResources() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
-		JobID jobId1 = JobID.generate();
-		JobID jobId2 = JobID.generate();
 
 		ResourceRequirement requirement1 = ResourceRequirement.create(ResourceProfile.ANY, 1);
 		ResourceRequirement requirement2 = ResourceRequirement.create(ResourceProfile.ANY, 2);
 
-		tracker.notifyAcquiredResource(jobId1, requirement1.getResourceProfile());
+		tracker.notifyAcquiredResource(JOB_ID_1, requirement1.getResourceProfile());
 		for (int x = 0; x < requirement2.getNumberOfRequiredSlots(); x++) {
-			tracker.notifyAcquiredResource(jobId2, requirement2.getResourceProfile());
+			tracker.notifyAcquiredResource(JOB_ID_2, requirement2.getResourceProfile());
 		}
 
-		assertThat(tracker.getAcquiredResources(jobId1), contains(requirement1));
-		assertThat(tracker.getAcquiredResources(jobId2), contains(requirement2));
+		assertThat(tracker.getAcquiredResources(JOB_ID_1), contains(requirement1));
+		assertThat(tracker.getAcquiredResources(JOB_ID_2), contains(requirement2));
 
-		tracker.notifyLostResource(jobId1, requirement1.getResourceProfile());
-		assertThat(tracker.getAcquiredResources(jobId1), empty());
+		tracker.notifyLostResource(JOB_ID_1, requirement1.getResourceProfile());
+		assertThat(tracker.getAcquiredResources(JOB_ID_1), empty());
 	}
 
 	@Test
 	public void testTrackerRemovedOnRequirementReset() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
-		JobID jobId1 = JobID.generate();
 
-		tracker.notifyResourceRequirements(jobId1, Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
 		assertThat(tracker.isEmpty(), is(false));
 
-		tracker.notifyResourceRequirements(jobId1, Collections.emptyList());
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
 		assertThat(tracker.isEmpty(), is(true));
 	}
 
 	@Test
 	public void testTrackerRemovedOnResourceLoss() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
-		JobID jobId1 = JobID.generate();
 
-		tracker.notifyAcquiredResource(jobId1, ResourceProfile.ANY);
+		tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
 		assertThat(tracker.isEmpty(), is(false));
 
-		tracker.notifyLostResource(jobId1, ResourceProfile.ANY);
+		tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
 		assertThat(tracker.isEmpty(), is(true));
 	}
 
 	@Test
 	public void testTrackerRetainedOnResourceLossIfRequirementExists() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
-		JobID jobId1 = JobID.generate();
 
-		tracker.notifyAcquiredResource(jobId1, ResourceProfile.ANY);
-		tracker.notifyResourceRequirements(jobId1, Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
+		tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
 
-		tracker.notifyLostResource(jobId1, ResourceProfile.ANY);
+		tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
 		assertThat(tracker.isEmpty(), is(false));
 
-		tracker.notifyResourceRequirements(jobId1, Collections.emptyList());
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
 		assertThat(tracker.isEmpty(), is(true));
 	}
 
 	@Test
 	public void testTrackerRetainedOnRequirementResetIfResourceExists() {
 		DefaultResourceTracker tracker = new DefaultResourceTracker();
-		JobID jobId1 = JobID.generate();
 
-		tracker.notifyAcquiredResource(jobId1, ResourceProfile.ANY);
-		tracker.notifyResourceRequirements(jobId1, Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
+		tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
 
-		tracker.notifyResourceRequirements(jobId1, Collections.emptyList());
+		tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
 		assertThat(tracker.isEmpty(), is(false));
 
-		tracker.notifyLostResource(jobId1, ResourceProfile.ANY);
+		tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
 		assertThat(tracker.isEmpty(), is(true));
 	}
 }

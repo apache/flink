@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -47,24 +48,37 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 
 		assertThat(tracker.isEmpty(), is(true));
 		assertThat(tracker.getAcquiredResources(), empty());
-		assertThat(tracker.getRequiredResources(), empty());
-
-		// should not throw an exception
-		tracker.notifyLostResource(ResourceProfile.UNKNOWN);
+		assertThat(tracker.getMissingResources(), empty());
 	}
 
 	@Test
-	public void testIsEmpty() {
+	public void testLossOfUntrackedResourceThrowsException() {
+		JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
+
+		try {
+			tracker.notifyLostResource(ResourceProfile.UNKNOWN);
+			Assert.fail("If no resource were acquired, then a loss of resource should fail with an exception.");
+		} catch (IllegalStateException expected) {
+		}
+	}
+
+	@Test
+	public void testIsEmptyForRequirementNotifications() {
+		JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
+
+		tracker.notifyAcquiredResource(ResourceProfile.ANY);
+		assertThat(tracker.isEmpty(), is(false));
+		tracker.notifyLostResource(ResourceProfile.ANY);
+		assertThat(tracker.isEmpty(), is(true));
+	}
+
+	@Test
+	public void testIsEmptyForResourceNotifications() {
 		JobScopedResourceTracker tracker = new JobScopedResourceTracker(JobID.generate());
 
 		tracker.notifyResourceRequirements(Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
 		assertThat(tracker.isEmpty(), is(false));
 		tracker.notifyResourceRequirements(Collections.emptyList());
-		assertThat(tracker.isEmpty(), is(true));
-
-		tracker.notifyAcquiredResource(ResourceProfile.ANY);
-		assertThat(tracker.isEmpty(), is(false));
-		tracker.notifyLostResource(ResourceProfile.ANY);
 		assertThat(tracker.isEmpty(), is(true));
 	}
 
@@ -88,13 +102,13 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 
 			assertThat(tracker.isEmpty(), is(false));
 			assertThat(tracker.getAcquiredResources(), empty());
-			assertThat(tracker.getRequiredResources(), containsInAnyOrder(resourceRequirement));
+			assertThat(tracker.getMissingResources(), containsInAnyOrder(resourceRequirement));
 		}
 
 		tracker.notifyResourceRequirements(Collections.emptyList());
 
 		assertThat(tracker.getAcquiredResources(), empty());
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 	}
 
 	@Test
@@ -126,13 +140,13 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 			tracker.notifyResourceRequirements(Arrays.asList(resourceRequirement));
 
 			assertThat(tracker.getAcquiredResources(), containsInAnyOrder(ResourceRequirement.create(PROFILE_1, numAcquiredSlotsP1), ResourceRequirement.create(PROFILE_2, numAcquiredSlotsP2)));
-			assertThat(tracker.getRequiredResources(), contains(ResourceRequirement.create(PROFILE_1, resourceRequirement[0].getNumberOfRequiredSlots() - numAcquiredSlotsP1)));
+			assertThat(tracker.getMissingResources(), contains(ResourceRequirement.create(PROFILE_1, resourceRequirement[0].getNumberOfRequiredSlots() - numAcquiredSlotsP1)));
 		}
 
 		tracker.notifyResourceRequirements(Collections.emptyList());
 
 		assertThat(tracker.getAcquiredResources(), containsInAnyOrder(ResourceRequirement.create(PROFILE_1, numAcquiredSlotsP1), ResourceRequirement.create(PROFILE_2, numAcquiredSlotsP2)));
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 	}
 
 	@Test
@@ -155,7 +169,7 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 		tracker.notifyAcquiredResource(PROFILE_1);
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(PROFILE_1, 1)));
-		assertThat(tracker.getRequiredResources(), contains(ResourceRequirement.create(PROFILE_2, 1)));
+		assertThat(tracker.getMissingResources(), contains(ResourceRequirement.create(PROFILE_2, 1)));
 	}
 
 	@Test
@@ -166,25 +180,25 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 
 		assertThat(tracker.isEmpty(), is(false));
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 1)));
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 
 		tracker.notifyAcquiredResource(ResourceProfile.ANY);
 
 		assertThat(tracker.isEmpty(), is(false));
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 2)));
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 
 		tracker.notifyLostResource(ResourceProfile.ANY);
 
 		assertThat(tracker.isEmpty(), is(false));
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 1)));
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 
 		tracker.notifyLostResource(ResourceProfile.ANY);
 
 		assertThat(tracker.isEmpty(), is(true));
 		assertThat(tracker.getAcquiredResources(), empty());
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 	}
 
 	@Test
@@ -203,12 +217,12 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 		}
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(PROFILE_1, 2)));
-		assertThat(tracker.getRequiredResources(), contains(ResourceRequirement.create(PROFILE_2, 1)));
+		assertThat(tracker.getMissingResources(), contains(ResourceRequirement.create(PROFILE_2, 1)));
 
 		tracker.notifyLostResource(PROFILE_1);
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(PROFILE_1, 1)));
-		assertThat(tracker.getRequiredResources(), containsInAnyOrder(ResourceRequirement.create(PROFILE_1, 1), ResourceRequirement.create(PROFILE_2, 1)));
+		assertThat(tracker.getMissingResources(), containsInAnyOrder(ResourceRequirement.create(PROFILE_1, 1), ResourceRequirement.create(PROFILE_2, 1)));
 	}
 
 	@Test
@@ -222,12 +236,12 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 		tracker.notifyResourceRequirements(Collections.emptyList());
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 1)));
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 
 		tracker.notifyResourceRequirements(Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 1)));
-		assertThat(tracker.getRequiredResources(), empty());
+		assertThat(tracker.getMissingResources(), empty());
 	}
 
 	@Test
@@ -239,6 +253,7 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 		tracker.notifyResourceRequirements(Collections.singleton(ResourceRequirement.create(ResourceProfile.UNKNOWN, 1)));
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 1)));
+		assertThat(tracker.getMissingResources(), empty());
 	}
 
 	@Test
@@ -253,5 +268,6 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 		tracker.notifyLostResource(ResourceProfile.ANY);
 
 		assertThat(tracker.getAcquiredResources(), contains(ResourceRequirement.create(ResourceProfile.ANY, 1)));
+		assertThat(tracker.getMissingResources(), empty());
 	}
 }
