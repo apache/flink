@@ -99,11 +99,13 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
 		FileSystemSafetyNet.initializeSafetyNetForThread();
 		try {
+
 			registerConsumer.accept(this);
 
 			TaskStateSnapshot jobManagerTaskOperatorSubtaskStates = new TaskStateSnapshot(operatorSnapshotsInProgress.size());
 			TaskStateSnapshot localTaskOperatorSubtaskStates = new TaskStateSnapshot(operatorSnapshotsInProgress.size());
 
+			long bytesPersistedDuringAlignment = 0;
 			for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry : operatorSnapshotsInProgress.entrySet()) {
 
 				OperatorID operatorID = entry.getKey();
@@ -120,11 +122,15 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 				localTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
 					operatorID,
 					finalizedSnapshots.getTaskLocalState());
+
+				bytesPersistedDuringAlignment += finalizedSnapshots.getJobManagerOwnedState().getResultSubpartitionState().getStateSize();
+				bytesPersistedDuringAlignment += finalizedSnapshots.getJobManagerOwnedState().getInputChannelState().getStateSize();
 			}
 
 			final long asyncEndNanos = System.nanoTime();
 			final long asyncDurationMillis = (asyncEndNanos - asyncConstructionNanos) / 1_000_000L;
 
+			checkpointMetrics.setBytesPersistedDuringAlignment(bytesPersistedDuringAlignment);
 			checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
 			if (asyncCheckpointState.compareAndSet(AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
