@@ -34,11 +34,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @NotThreadSafe
 public class CheckpointMetricsBuilder {
+	private long bytesPersistedDuringAlignment = -1L;
 	private CompletableFuture<Long> alignmentDurationNanos = new CompletableFuture<>();
 	private long syncDurationMillis = -1L;
 	private long asyncDurationMillis = -1L;
 	private long checkpointStartDelayNanos = -1L;
 
+	public CheckpointMetricsBuilder setBytesPersistedDuringAlignment(long bytesPersistedDuringAlignment) {
+		this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
+		return this;
+	}
 
 	public long getAlignmentDurationNanosOrDefault() {
 		return FutureUtils.getOrDefault(alignmentDurationNanos, -1L);
@@ -88,6 +93,7 @@ public class CheckpointMetricsBuilder {
 
 	public CheckpointMetrics build() {
 		return new CheckpointMetrics(
+			bytesPersistedDuringAlignment,
 			checkStateAndGet(alignmentDurationNanos),
 			syncDurationMillis,
 			asyncDurationMillis,
