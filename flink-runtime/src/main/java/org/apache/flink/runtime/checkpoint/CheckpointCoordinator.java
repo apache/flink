@@ -402,7 +402,9 @@ public class CheckpointCoordinator {
 				// clear queued requests and in-flight checkpoints
 				abortPendingAndQueuedCheckpoints(reason);
 
-				completedCheckpointStore.shutdown(jobStatus);
+				completedCheckpointStore.shutdown(jobStatus, checkpointsCleaner, () -> {
+					// don't schedule anything on shutdown
+				});
 				checkpointIdCounter.shutdown(jobStatus);
 			}
 		}
@@ -676,9 +678,7 @@ public class CheckpointCoordinator {
 			props,
 			checkpointStorageLocation,
 			executor,
-			onCompletionPromise,
-			checkpointsCleaner,
-			this::scheduleTriggerRequest);
+			onCompletionPromise);
 
 		if (statsTracker != null) {
 			PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
@@ -1071,7 +1071,7 @@ public class CheckpointCoordinator {
 
 		try {
 			try {
-				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint(checkpointsCleaner::cleanCheckpoint);
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint(checkpointsCleaner, this::scheduleTriggerRequest);
 				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
 			}
 			catch (Exception e1) {
@@ -1091,7 +1091,7 @@ public class CheckpointCoordinator {
 			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
 
 			try {
-				completedCheckpointStore.addCheckpoint(completedCheckpoint);
+				completedCheckpointStore.addCheckpoint(completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
 			} catch (Exception exception) {
 				// we failed to store the completed checkpoint. Let's clean up
 				executor.execute(new Runnable() {
@@ -1409,9 +1409,9 @@ public class CheckpointCoordinator {
 
 		// Load the savepoint as a checkpoint into the system
 		CompletedCheckpoint savepoint = Checkpoints.loadAndValidateCheckpoint(
-				job, tasks, checkpointLocation, userClassLoader, allowNonRestored, checkpointsCleaner::cleanCheckpoint, this::scheduleTriggerRequest);
+				job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
 
-		completedCheckpointStore.addCheckpoint(savepoint);
+		completedCheckpointStore.addCheckpoint(savepoint, checkpointsCleaner, this::scheduleTriggerRequest);
 
 		// Reset the checkpoint ID counter
 		long nextCheckpointId = savepoint.getCheckpointID() + 1;
@@ -1675,7 +1675,10 @@ public class CheckpointCoordinator {
 			try {
 				// release resource here
 				pendingCheckpoint.abort(
-					exception.getCheckpointFailureReason(), exception.getCause());
+					exception.getCheckpointFailureReason(),
+					exception.getCause(),
+					checkpointsCleaner,
+					this::scheduleTriggerRequest);
 
 				if (pendingCheckpoint.getProps().isSavepoint() &&
 					pendingCheckpoint.getProps().isSynchronous()) {

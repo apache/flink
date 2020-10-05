@@ -73,11 +73,13 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		try {
 			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 = CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
 
-			checkpointStore.addCheckpoint(checkpoint1);
+			checkpointStore.addCheckpoint(checkpoint1, new CheckpointsCleaner(), () -> {
+			});
 			assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
 			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint2 = CompletedCheckpointStoreTest.createCheckpoint(1, sharedStateRegistry);
-			checkpointStore.addCheckpoint(checkpoint2);
+			checkpointStore.addCheckpoint(checkpoint2, new CheckpointsCleaner(), () -> {
+			});
 			final List<CompletedCheckpoint> allCheckpoints = checkpointStore.getAllCheckpoints();
 			assertThat(allCheckpoints, Matchers.contains(checkpoint2));
 			assertThat(allCheckpoints, Matchers.not(Matchers.contains(checkpoint1)));
@@ -105,10 +107,12 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		try {
 			final CompletedCheckpointStoreTest.TestCompletedCheckpoint checkpoint1 = CompletedCheckpointStoreTest.createCheckpoint(0, sharedStateRegistry);
 
-			checkpointStore.addCheckpoint(checkpoint1);
+			checkpointStore.addCheckpoint(checkpoint1, new CheckpointsCleaner(), () -> {
+			});
 			assertThat(checkpointStore.getAllCheckpoints(), Matchers.contains(checkpoint1));
 
-			checkpointStore.shutdown(JobStatus.FINISHED);
+			checkpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {
+			});
 
 			// verify that the checkpoint is discarded
 			CompletedCheckpointStoreTest.verifyCheckpointDiscarded(checkpoint1);

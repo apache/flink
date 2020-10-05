@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
@@ -427,8 +428,8 @@ public class RegionFailoverITCase extends TestLogger {
 		}
 
 		@Override
-		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-			super.addCheckpoint(checkpoint);
+		public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
+			super.addCheckpoint(checkpoint, checkpointsCleaner, postCleanup);
 			// we record the information when adding completed checkpoint instead of 'notifyCheckpointComplete' invoked
 			// on task side to avoid race condition. See FLINK-13601.
 			lastCompletedCheckpointId.set(checkpoint.getCheckpointID());

@@ -58,7 +58,6 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
-import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -1998,9 +1997,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		store.addCheckpoint(new CompletedCheckpoint(new JobID(), 0, 0, 0,
 			Collections.<OperatorID, OperatorState>emptyMap(), Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback()));
+			new TestCompletedCheckpointStorageLocation()
+		), new CheckpointsCleaner(), () -> {
+		});
 
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
 		checkpointCoordinator.setCheckpointStatsTracker(tracker);
@@ -2116,7 +2115,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		}
 
 		// shutdown the store
-		store.shutdown(JobStatus.SUSPENDED);
+		store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {
+		});
 
 		// restore the store
 		Set<ExecutionJobVertex> tasks = new HashSet<>();

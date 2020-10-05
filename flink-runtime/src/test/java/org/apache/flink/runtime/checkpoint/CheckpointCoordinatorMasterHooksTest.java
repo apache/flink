@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
-import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -270,9 +269,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation(),
-				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+				new TestCompletedCheckpointStorageLocation()
+		);
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
 		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
@@ -281,7 +279,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statelessHook);
 		cc.addMasterHook(statefulHook2);
 
-		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 		cc.restoreLatestCheckpointedStateToAll(
 				Collections.emptySet(),
 				false);
@@ -323,9 +322,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation(),
-				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+				new TestCompletedCheckpointStorageLocation()
+		);
 
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
@@ -334,7 +332,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statefulHook);
 		cc.addMasterHook(statelessHook);
 
-		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 
 		// since we have unmatched state, this should fail
 		try {

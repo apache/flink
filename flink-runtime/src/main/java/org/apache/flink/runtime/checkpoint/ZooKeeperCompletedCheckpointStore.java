@@ -207,7 +207,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 * @param checkpoint Completed checkpoint to add.
 	 */
 	@Override
-	public void addCheckpoint(final CompletedCheckpoint checkpoint) throws Exception {
+	public void addCheckpoint(final CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 		checkNotNull(checkpoint, "Checkpoint");
 
 		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
@@ -220,18 +220,26 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (completedCheckpoints.size() > maxNumberOfCheckpointsToRetain) {
 			final CompletedCheckpoint completedCheckpoint = completedCheckpoints.removeFirst();
-			tryRemoveCompletedCheckpoint(completedCheckpoint, CompletedCheckpoint::discardOnSubsume);
+			tryRemoveCompletedCheckpoint(completedCheckpoint, CompletedCheckpoint::discardOnSubsume, checkpointsCleaner, postCleanup);
 		}
 
 		LOG.debug("Added {} to {}.", checkpoint, path);
 	}
 
-	private void tryRemoveCompletedCheckpoint(CompletedCheckpoint completedCheckpoint, ThrowingConsumer<CompletedCheckpoint, Exception> discardCallback) {
+	private void tryRemoveCompletedCheckpoint(
+			CompletedCheckpoint completedCheckpoint,
+			ThrowingConsumer<CompletedCheckpoint, Exception> discardCallback,
+			CheckpointsCleaner checkpointsCleaner,
+			Runnable postCleanup) {
 		try {
 			if (tryRemove(completedCheckpoint.getCheckpointID())) {
-				// async exec on the ioExecutor (FixedThreadPool of configurable size or default 4*CPU cores)
-				// of CompletedCheckpoint.discardOnSubsume()
-				completedCheckpoint.asyncDiscardCheckpointAndCountCheckpoint(discardCallback, executor);
+				checkpointsCleaner.cleanCheckpoint(() -> {
+					try {
+						discardCallback.accept(completedCheckpoint);
+					} catch (Exception e) {
+						LOG.warn("Could not discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), e);
+					}
+				}, postCleanup, executor);
 			}
 		} catch (Exception e) {
 			LOG.warn("Failed to subsume the old checkpoint", e);
@@ -254,14 +262,16 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {
+	public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 		if (jobStatus.isGloballyTerminalState()) {
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : completedCheckpoints) {
 				tryRemoveCompletedCheckpoint(
 					checkpoint,
-					completedCheckpoint -> completedCheckpoint.discardOnShutdown(jobStatus));
+					completedCheckpoint -> completedCheckpoint.discardOnShutdown(jobStatus),
+					checkpointsCleaner,
+					postCleanup);
 			}
 
 			completedCheckpoints.clear();

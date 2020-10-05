@@ -18,19 +18,15 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import java.io.Serializable;
-import java.util.function.Consumer;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
-import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -64,18 +60,16 @@ public class CompletedCheckpointTest {
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
 			new JobID(), 1, 0, 1,
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
 		checkpoints1.add(checkpoint1);
@@ -98,18 +92,16 @@ public class CompletedCheckpointTest {
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
 			new JobID(), 1, 0, 1,
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
 		checkpoints1.add(checkpoint1);
@@ -136,18 +128,16 @@ public class CompletedCheckpointTest {
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
 			jobID, 1, 0, 1,
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
 		checkpoints1.add(checkpoint1);
@@ -171,18 +161,16 @@ public class CompletedCheckpointTest {
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		CompletedCheckpoint checkpoint2 = new CompletedCheckpoint(
 			jobID2, 0, 0, 1,
 			new HashMap<>(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		List<CompletedCheckpoint> checkpoints1= new ArrayList<>();
 		checkpoints1.add(checkpoint1);
@@ -204,9 +192,8 @@ public class CompletedCheckpointTest {
 				operatorStates,
 				Collections.emptyList(),
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-				new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+				new TestCompletedCheckpointStorageLocation()
+		);
 
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
@@ -233,9 +220,8 @@ public class CompletedCheckpointTest {
 				operatorStates,
 				Collections.emptyList(),
 				props,
-				location,
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+				location
+		);
 
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
@@ -275,9 +261,8 @@ public class CompletedCheckpointTest {
 					new HashMap<>(operatorStates),
 					Collections.emptyList(),
 					retainProps,
-					retainedLocation,
-				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+					retainedLocation
+			);
 
 			checkpoint.discardOnShutdown(status);
 
@@ -298,9 +283,8 @@ public class CompletedCheckpointTest {
 					new HashMap<>(operatorStates),
 					Collections.emptyList(),
 					discardProps,
-					discardLocation,
-				new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-				new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+					discardLocation
+			);
 
 			checkpoint.discardOnShutdown(status);
 
@@ -323,9 +307,8 @@ public class CompletedCheckpointTest {
 			Collections.emptyMap(),
 			Collections.emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);
