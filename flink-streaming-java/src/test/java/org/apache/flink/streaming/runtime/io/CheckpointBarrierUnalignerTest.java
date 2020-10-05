@@ -261,6 +261,9 @@ public class CheckpointBarrierUnalignerTest {
 		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
 		assertThat(handler.getLastAlignmentDurationNanos().get() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
 		assertThat(handler.getLastAlignmentDurationNanos().get(), Matchers.lessThanOrEqualTo(alignmentDuration));
+
+		assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
+		assertThat(handler.getLastBytesProcessedDuringAlignment().get(), Matchers.equalTo(6L * bufferSize));
 	}
 
 	@Test

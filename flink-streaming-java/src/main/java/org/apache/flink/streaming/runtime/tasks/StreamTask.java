@@ -840,7 +840,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			boolean advanceToEndOfEventTime) throws Exception {
 		try {
 			// No alignment if we inject a checkpoint
-			CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder().setAlignmentDurationNanos(0L);
+			CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder()
+				.setAlignmentDurationNanos(0L)
+				.setBytesProcessedDuringAlignment(0L);
 
 			subtaskCheckpointCoordinator.initCheckpoint(checkpointMetaData.getCheckpointId(), checkpointOptions);
 

@@ -44,6 +44,7 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 	protected long triggeredCheckpointCounter = 0;
 	protected long abortedCheckpointCounter = 0;
 	protected CompletableFuture<Long> lastAlignmentDurationNanos;
+	protected CompletableFuture<Long> lastBytesProcessedDuringAlignment;
 	protected List<Long> triggeredCheckpoints = new ArrayList<>();
 
 	public ValidatingCheckpointHandler() {
@@ -83,6 +84,10 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 		return lastAlignmentDurationNanos;
 	}
 
+	public CompletableFuture<Long> getLastBytesProcessedDuringAlignment() {
+		return lastBytesProcessedDuringAlignment;
+	}
+
 	@Override
 	public void invoke() {
 		throw new UnsupportedOperationException();
@@ -105,9 +110,11 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 			nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
 		assertTrue(checkpointMetaData.getTimestamp() > 0);
 
-		lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
 		nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
 		triggeredCheckpointCounter++;
+
+		lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
+		lastBytesProcessedDuringAlignment = checkpointMetrics.getBytesProcessedDuringAlignment();
 
 		triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
 	}
