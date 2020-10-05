@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -156,7 +156,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		coordinator.checkpointState(
 				new CheckpointMetaData(0, 0),
 				new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-				new CheckpointMetrics(),
+				new CheckpointMetricsBuilder(),
 				operatorChain,
 				() -> false);
 
@@ -175,7 +175,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		coordinator.checkpointState(
 			new CheckpointMetaData(0, 0),
 			new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
-			new CheckpointMetrics(),
+			new CheckpointMetricsBuilder(),
 			new OperatorChain<>(new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
 			() -> false);
 	}
@@ -220,7 +220,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		subtaskCheckpointCoordinator.checkpointState(
 			new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			new CheckpointMetrics(),
+			new CheckpointMetricsBuilder(),
 			operatorChain,
 			() -> true);
 		assertFalse(checkpointOperator.isCheckpointed());
@@ -266,7 +266,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		subtaskCheckpointCoordinator.checkpointState(
 			new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			new CheckpointMetrics(),
+			new CheckpointMetricsBuilder(),
 			operatorChain,
 			() -> true);
 
@@ -316,7 +316,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		subtaskCheckpointCoordinator.checkpointState(
 			new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			new CheckpointMetrics(),
+			new CheckpointMetricsBuilder(),
 			operatorChain,
 			() -> true);
 		rawKeyedStateHandleFuture.awaitRun();
@@ -342,7 +342,7 @@ public class SubtaskCheckpointCoordinatorTest {
 		subtaskCheckpointCoordinator.checkpointState(
 			new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
-			new CheckpointMetrics(),
+			new CheckpointMetricsBuilder(),
 			operatorChain,
 			() -> true);
 		subtaskCheckpointCoordinator.notifyCheckpointAborted(checkpointId, operatorChain, () -> true);

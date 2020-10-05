@@ -29,6 +29,7 @@ import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -479,7 +480,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 					11L,
 					System.currentTimeMillis()),
 				CheckpointOptions.forCheckpointWithDefaultLocation(),
-				new CheckpointMetrics());
+				new CheckpointMetricsBuilder());
 
 			while (isRunning()) {
 				Thread.sleep(1L);

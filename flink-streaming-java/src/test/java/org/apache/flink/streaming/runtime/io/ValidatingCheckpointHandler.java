@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -34,6 +34,7 @@ import static org.junit.Assert.assertTrue;
  * The invokable handler used for triggering checkpoint and validation.
  */
 public class ValidatingCheckpointHandler extends AbstractInvokable {
+
 	protected CheckpointFailureReason failureReason;
 	protected long lastCanceledCheckpointId = -1L;
 	protected long nextExpectedCheckpointId;
@@ -90,7 +91,7 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 	public void triggerCheckpointOnBarrier(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,
-			CheckpointMetrics checkpointMetrics) {
+			CheckpointMetricsBuilder checkpointMetrics) {
 		assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L ||
 			nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
 		assertTrue(checkpointMetaData.getTimestamp() > 0);
