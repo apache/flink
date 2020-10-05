@@ -616,7 +616,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 *
-	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
 	 *        TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
 	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */
@@ -639,7 +639,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @param size The size of the window.
 	 *
-	 * @deprecated Please use {@link #windowAll(WindowAssigner)} with either {@link
+	 * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
 	 *        SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
 	 * 		see the deprecation notice on {@link TimeCharacteristic}
 	 */

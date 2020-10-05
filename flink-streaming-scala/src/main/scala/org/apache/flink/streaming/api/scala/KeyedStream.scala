@@ -232,7 +232,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * @param size The size of the window.
    *
-   * @deprecated Please use [[windowAll()]] with either [[TumblingEventTimeWindows]] or
+   * @deprecated Please use [[window()]] with either [[TumblingEventTimeWindows]] or
    *             [[TumblingProcessingTimeWindows]]. For more information, see the deprecation
    *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
@@ -251,7 +251,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
    *
    * @param size The size of the window.
    *
-   * @deprecated Please use [[windowAll()]] with either [[SlidingEventTimeWindows]] or
+   * @deprecated Please use [[window()]] with either [[SlidingEventTimeWindows]] or
    *             [[SlidingProcessingTimeWindows]]. For more information, see the deprecation
    *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
