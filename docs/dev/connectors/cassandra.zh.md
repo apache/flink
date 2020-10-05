@@ -161,7 +161,7 @@ DataStream<Tuple2<String, Long>> result = text
             }
         })
         .keyBy(value -> value.f0)
-        .timeWindow(Time.seconds(5))
+        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
         .sum(1);
 
 CassandraSink.addSink(result)
@@ -186,7 +186,7 @@ val result: DataStream[(String, Long)] = text
   .map((_, 1L))
   // group by the tuple field "0" and sum up tuple field "1"
   .keyBy(_._1)
-  .timeWindow(Time.seconds(5))
+  .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
   .sum(1)
 
 CassandraSink.addSink(result)
@@ -232,7 +232,7 @@ DataStream<WordCount> result = text
             }
         })
         .keyBy(WordCount::getWord)
-        .timeWindow(Time.seconds(5))
+        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
 
         .reduce(new ReduceFunction<WordCount>() {
             @Override

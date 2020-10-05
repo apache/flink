@@ -46,7 +46,7 @@ DataStream<String> text = [...]
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5);
 
 wordCounts.print();
@@ -62,7 +62,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1).setParallelism(5)
 wordCounts.print()
 
@@ -99,7 +99,7 @@ val text = [...]
 val wordCounts = text
     .flatMap{ _.split(" ") map { (_, 1) } }
     .keyBy(_._1)
-    .timeWindow(Time.seconds(5))
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
     .sum(1)
 wordCounts.print()
 

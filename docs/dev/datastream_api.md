@@ -275,7 +275,7 @@ public class WindowWordCount {
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
                 .keyBy(value -> value.f0)
-                .timeWindow(Time.seconds(5))
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
                 .sum(1);
 
         dataStream.print();
@@ -312,7 +312,7 @@ object WindowWordCount {
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
       .keyBy(_._1)
-      .timeWindow(Time.seconds(5))
+      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .sum(1)
 
     counts.print()
