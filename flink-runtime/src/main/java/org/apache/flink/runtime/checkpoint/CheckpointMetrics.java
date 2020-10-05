@@ -31,66 +31,47 @@ public class CheckpointMetrics implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took. */
-	private long alignmentDurationNanos;
+	private final long alignmentDurationNanos;
 
 	/** The duration (in milliseconds) of the synchronous part of the operator checkpoint. */
-	private long syncDurationMillis;
+	private final long syncDurationMillis;
 
 	/** The duration (in milliseconds) of the asynchronous part of the operator checkpoint.  */
-	private long asyncDurationMillis;
-	private long checkpointStartDelayNanos;
+	private final long asyncDurationMillis;
+	private final long checkpointStartDelayNanos;
 
 	public CheckpointMetrics() {
 		this(-1L, -1L, -1L, -1L);
 	}
 
 	public CheckpointMetrics(
-			long bytesBufferedInAlignment,
 			long alignmentDurationNanos,
 			long syncDurationMillis,
-			long asyncDurationMillis) {
+			long asyncDurationMillis,
+			long checkpointStartDelayNanos) {
 
 		// these may be "-1", in case the values are unknown or not set
 		checkArgument(syncDurationMillis >= -1);
 		checkArgument(asyncDurationMillis >= -1);
-		checkArgument(bytesBufferedInAlignment >= -1);
 		checkArgument(alignmentDurationNanos >= -1);
+		checkArgument(checkpointStartDelayNanos >= -1);
 
 		this.alignmentDurationNanos = alignmentDurationNanos;
 		this.syncDurationMillis = syncDurationMillis;
 		this.asyncDurationMillis = asyncDurationMillis;
+		this.checkpointStartDelayNanos = checkpointStartDelayNanos;
 	}
 
 	public long getAlignmentDurationNanos() {
 		return alignmentDurationNanos;
 	}
 
-	public CheckpointMetrics setAlignmentDurationNanos(long alignmentDurationNanos) {
-		this.alignmentDurationNanos = alignmentDurationNanos;
-		return this;
-	}
-
 	public long getSyncDurationMillis() {
 		return syncDurationMillis;
 	}
 
-	public CheckpointMetrics setSyncDurationMillis(long syncDurationMillis) {
-		this.syncDurationMillis = syncDurationMillis;
-		return this;
-	}
-
 	public long getAsyncDurationMillis() {
 		return asyncDurationMillis;
-	}
-
-	public CheckpointMetrics setAsyncDurationMillis(long asyncDurationMillis) {
-		this.asyncDurationMillis = asyncDurationMillis;
-		return this;
-	}
-
-	public CheckpointMetrics setCheckpointStartDelayNanos(long checkpointStartDelayNanos) {
-		this.checkpointStartDelayNanos = checkpointStartDelayNanos;
-		return this;
 	}
 
 	public long getCheckpointStartDelayNanos() {

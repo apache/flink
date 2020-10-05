@@ -21,14 +21,13 @@ import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This runnable executes the asynchronous parts of all involved backend snapshots for the subtask.
@@ -64,14 +64,14 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 	private final AsyncExceptionHandler asyncExceptionHandler;
 	private final Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress;
 	private final CheckpointMetaData checkpointMetaData;
-	private final CheckpointMetrics checkpointMetrics;
+	private final CheckpointMetricsBuilder checkpointMetrics;
 	private final long asyncConstructionNanos;
 	private final AtomicReference<AsyncCheckpointState> asyncCheckpointState = new AtomicReference<>(AsyncCheckpointState.RUNNING);
 
 	AsyncCheckpointRunnable(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData checkpointMetaData,
-			CheckpointMetrics checkpointMetrics,
+			CheckpointMetricsBuilder checkpointMetrics,
 			long asyncConstructionNanos,
 			String taskName,
 			Consumer<AsyncCheckpointRunnable> register,
@@ -159,7 +159,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 		boolean hasAckState = acknowledgedTaskStateSnapshot.hasState();
 		boolean hasLocalState = localTaskStateSnapshot.hasState();
 
-		Preconditions.checkState(hasAckState || !hasLocalState,
+		checkState(hasAckState || !hasLocalState,
 			"Found cached state but no corresponding primary state is reported to the job " +
 				"manager. This indicates a problem.");
 
@@ -168,7 +168,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 		// stateless without the need to assign them uids to match their (always empty) states.
 		taskEnvironment.getTaskStateManager().reportTaskStateSnapshots(
 			checkpointMetaData,
-			checkpointMetrics,
+			checkpointMetrics.build(),
 			hasAckState ? acknowledgedTaskStateSnapshot : null,
 			hasLocalState ? localTaskStateSnapshot : null);
 
@@ -271,5 +271,4 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 			taskName,
 			checkpointMetaData.getCheckpointId());
 	}
-
 }

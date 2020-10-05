@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -90,7 +90,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		CheckpointMetaData checkpointMetaData =
 			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
-		CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+		CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder()
 			.setAlignmentDurationNanos(alignmentDurationNanos)
 			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 

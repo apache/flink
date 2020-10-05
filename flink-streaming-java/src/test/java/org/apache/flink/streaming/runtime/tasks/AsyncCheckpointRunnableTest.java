@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.DoneFuture;
@@ -60,7 +60,7 @@ public class AsyncCheckpointRunnableTest {
 		final AsyncCheckpointRunnable runnable = new AsyncCheckpointRunnable(
 				snapshotsInProgress,
 				new CheckpointMetaData(1, 1L),
-				new CheckpointMetrics(),
+				new CheckpointMetricsBuilder(),
 				1L,
 				"Task Name",
 				r -> {},
