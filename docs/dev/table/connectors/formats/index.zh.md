@@ -39,17 +39,20 @@ Flink 支持以下格式：
         <tr>
           <td><a href="{% link dev/table/connectors/formats/csv.zh.md %}">CSV</a></td>
           <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
          <td><a href="{% link dev/table/connectors/formats/json.zh.md %}">JSON</a></td>
          <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+          <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
           <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a>,
           <a href="{% link dev/table/connectors/elasticsearch.zh.md %}">Elasticsearch</a></td>
        </tr>
         <tr>
           <td><a href="{% link dev/table/connectors/formats/avro.zh.md %}">Apache Avro</a></td>
           <td><a href="{% link dev/table/connectors/kafka.zh.md %}">Apache Kafka</a>,
+           <a href="{% link dev/table/connectors/kinesis.zh.md %}">Amazon Kinesis Data Streams</a>,
            <a href="{% link dev/table/connectors/filesystem.zh.md %}">Filesystem</a></td>
         </tr>
         <tr>
