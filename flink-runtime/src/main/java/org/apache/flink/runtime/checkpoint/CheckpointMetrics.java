@@ -30,6 +30,8 @@ public class CheckpointMetrics implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	private final long bytesProcessedDuringAlignment;
+
 	private final long bytesPersistedDuringAlignment;
 
 	/** The duration (in nanoseconds) that the stream alignment for the checkpoint took. */
@@ -43,10 +45,11 @@ public class CheckpointMetrics implements Serializable {
 	private final long checkpointStartDelayNanos;
 
 	public CheckpointMetrics() {
-		this(-1L, -1L, -1L, -1L, -1L);
+		this(-1L, -1L, -1L, -1L, -1L, -1L);
 	}
 
 	public CheckpointMetrics(
+			long bytesProcessedDuringAlignment,
 			long bytesPersistedDuringAlignment,
 			long alignmentDurationNanos,
 			long syncDurationMillis,
@@ -54,17 +57,23 @@ public class CheckpointMetrics implements Serializable {
 			long checkpointStartDelayNanos) {
 
 		// these may be "-1", in case the values are unknown or not set
+		checkArgument(bytesProcessedDuringAlignment >= -1);
 		checkArgument(bytesPersistedDuringAlignment >= -1);
 		checkArgument(syncDurationMillis >= -1);
 		checkArgument(asyncDurationMillis >= -1);
 		checkArgument(alignmentDurationNanos >= -1);
 		checkArgument(checkpointStartDelayNanos >= -1);
 
+		this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
 		this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
 		this.alignmentDurationNanos = alignmentDurationNanos;
 		this.syncDurationMillis = syncDurationMillis;
 		this.asyncDurationMillis = asyncDurationMillis;
 		this.checkpointStartDelayNanos = checkpointStartDelayNanos;
+	}
+
+	public long getBytesProcessedDuringAlignment() {
+		return bytesProcessedDuringAlignment;
 	}
 
 	public long getBytesPersistedDuringAlignment() {
@@ -98,7 +107,8 @@ public class CheckpointMetrics implements Serializable {
 
 		CheckpointMetrics that = (CheckpointMetrics) o;
 
-		return bytesPersistedDuringAlignment == that.bytesPersistedDuringAlignment &&
+		return bytesProcessedDuringAlignment == that.bytesProcessedDuringAlignment &&
+			bytesPersistedDuringAlignment == that.bytesPersistedDuringAlignment &&
 			alignmentDurationNanos == that.alignmentDurationNanos &&
 			syncDurationMillis == that.syncDurationMillis &&
 			asyncDurationMillis == that.asyncDurationMillis &&
@@ -109,6 +119,7 @@ public class CheckpointMetrics implements Serializable {
 	@Override
 	public int hashCode() {
 		return Objects.hash(
+			bytesProcessedDuringAlignment,
 			bytesPersistedDuringAlignment,
 			alignmentDurationNanos,
 			syncDurationMillis,
@@ -119,7 +130,8 @@ public class CheckpointMetrics implements Serializable {
 	@Override
 	public String toString() {
 		return "CheckpointMetrics{" +
-			"bytesPersistedDuringAlignment=" + bytesPersistedDuringAlignment +
+			"bytesProcessedDuringAlignment=" + bytesProcessedDuringAlignment +
+			", bytesPersistedDuringAlignment=" + bytesPersistedDuringAlignment +
 			", alignmentDurationNanos=" + alignmentDurationNanos +
 			", syncDurationMillis=" + syncDurationMillis +
 			", asyncDurationMillis=" + asyncDurationMillis +

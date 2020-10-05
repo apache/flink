@@ -123,6 +123,7 @@ public class LocalStateForwardingTest extends TestLogger {
 			testStreamTask);
 
 		checkpointMetrics.setAlignmentDurationNanos(0L);
+		checkpointMetrics.setBytesProcessedDuringAlignment(0L);
 		checkpointRunnable.run();
 
 		TaskStateSnapshot lastJobManagerTaskStateSnapshot = taskStateManager.getLastJobManagerTaskStateSnapshot();

@@ -34,11 +34,26 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @NotThreadSafe
 public class CheckpointMetricsBuilder {
+	private CompletableFuture<Long> bytesProcessedDuringAlignment = new CompletableFuture<>();
 	private long bytesPersistedDuringAlignment = -1L;
 	private CompletableFuture<Long> alignmentDurationNanos = new CompletableFuture<>();
 	private long syncDurationMillis = -1L;
 	private long asyncDurationMillis = -1L;
 	private long checkpointStartDelayNanos = -1L;
+
+	public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(long bytesProcessedDuringAlignment) {
+		checkState(this.bytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment), "bytesProcessedDuringAlignment has already been completed by someone else");
+		return this;
+	}
+
+	public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(CompletableFuture<Long> bytesProcessedDuringAlignment) {
+		this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
+		return this;
+	}
+
+	public CompletableFuture<Long> getBytesProcessedDuringAlignment() {
+		return bytesProcessedDuringAlignment;
+	}
 
 	public CheckpointMetricsBuilder setBytesPersistedDuringAlignment(long bytesPersistedDuringAlignment) {
 		this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
@@ -93,6 +108,7 @@ public class CheckpointMetricsBuilder {
 
 	public CheckpointMetrics build() {
 		return new CheckpointMetrics(
+			checkStateAndGet(bytesProcessedDuringAlignment),
 			bytesPersistedDuringAlignment,
 			checkStateAndGet(alignmentDurationNanos),
 			syncDurationMillis,
