@@ -50,6 +50,7 @@ import static org.apache.flink.runtime.io.network.api.serialization.EventSeriali
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -92,34 +93,81 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		TestInvokable target = new TestInvokable();
 		CheckpointedInputGate gate = buildGate(target, numChannels);
 
+		long startNanos = System.nanoTime();
 		long checkpoint1CreationTime = System.currentTimeMillis() - 10;
 		sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 0);
-		Thread.sleep(10);
+		Thread.sleep(6);
 		sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 1);
-		assertMetrics(gate.getCheckpointBarrierHandler(), 1L, 0L, 10_000_000L);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			1L,
+			6_000_000L,
+			System.nanoTime() - startNanos,
+			10_000_000L);
 
+		startNanos = System.nanoTime();
 		long checkpoint2CreationTime = System.currentTimeMillis() - 5;
 		sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
-		assertMetrics(gate.getCheckpointBarrierHandler(), 2L, 0L, 5_000_000L);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			2L,
+			0L,
+			System.nanoTime() - startNanos,
+			5_000_000L);
 		Thread.sleep(5);
 		sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 1);
-		assertMetrics(gate.getCheckpointBarrierHandler(), 2L, 5_000_000L, 5_000_000L);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			2L,
+			5_000_000L,
+			System.nanoTime() - startNanos,
+			5_000_000L);
 
+		startNanos = System.nanoTime();
 		long checkpoint3CreationTime = System.currentTimeMillis() - 7;
 		sendBarrier(3, checkpoint3CreationTime, CHECKPOINT, gate, 0);
-		assertMetrics(gate.getCheckpointBarrierHandler(), 3L, 0L, 7_000_000L);
-		Thread.sleep(7);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			3L,
+			0L,
+			System.nanoTime() - startNanos,
+			7_000_000L);
+		Thread.sleep(10);
 		sendBarrier(3, checkpoint2CreationTime, CHECKPOINT, gate, 1);
-		assertMetrics(gate.getCheckpointBarrierHandler(), 3L, 0L, 7_000_000L);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			3L,
+			10_000_000L,
+			System.nanoTime() - startNanos,
+			7_000_000L);
+	}
+
+	@Test
+	public void testMetricsSingleChannel() throws Exception {
+		int numChannels = 1;
+		TestInvokable target = new TestInvokable();
+		CheckpointedInputGate gate = buildGate(target, numChannels);
+
+		long checkpoint1CreationTime = System.currentTimeMillis() - 10;
+		sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 0);
+		Thread.sleep(6);
+		assertMetrics(
+			gate.getCheckpointBarrierHandler(),
+			1L,
+			0L,
+			0L,
+			10_000_000L);
 	}
 
 	private void assertMetrics(
 			CheckpointBarrierHandler checkpointBarrierHandler,
 			long latestCheckpointId,
-			long alignmentDurationNanos,
+			long alignmentDurationNanosMin,
+			long alignmentDurationNanosMax,
 			long startDelayNanos) {
 		assertThat(checkpointBarrierHandler.getLatestCheckpointId(), equalTo(latestCheckpointId));
-		assertThat(checkpointBarrierHandler.getAlignmentDurationNanos(), greaterThanOrEqualTo(alignmentDurationNanos));
+		assertThat(checkpointBarrierHandler.getAlignmentDurationNanos(), greaterThanOrEqualTo(alignmentDurationNanosMin));
+		assertThat(checkpointBarrierHandler.getAlignmentDurationNanos(), lessThanOrEqualTo(alignmentDurationNanosMax));
 		assertThat(checkpointBarrierHandler.getCheckpointStartDelayNanos(), greaterThanOrEqualTo(startDelayNanos));
 	}
 

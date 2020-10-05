@@ -419,7 +419,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			LOG.debug(
 				"{} - did NOT finish synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
 				taskName, metadata.getCheckpointId(),
-				metrics.getAlignmentDurationNanos() / 1_000_000,
+				metrics.getAlignmentDurationNanosOrDefault() / 1_000_000,
 				metrics.getSyncDurationMillis());
 		}
 	}
@@ -511,7 +511,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			"{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
 			taskName,
 			checkpointId,
-			checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
+			checkpointMetrics.getAlignmentDurationNanosOrDefault() / 1_000_000,
 			checkpointMetrics.getSyncDurationMillis());
 
 		checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);

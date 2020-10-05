@@ -82,7 +82,8 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
 		// fast path for single channel trackers
 		if (totalNumberOfInputChannels == 1) {
-			notifyCheckpoint(receivedBarrier, 0);
+			markAlignmentStartAndEnd(receivedBarrier.getTimestamp());
+			notifyCheckpoint(receivedBarrier);
 			return;
 		}
 
@@ -119,8 +120,8 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Received all barriers for checkpoint {}", barrierId);
 					}
-
-					notifyCheckpoint(receivedBarrier, 0);
+					markAlignmentEnd();
+					notifyCheckpoint(receivedBarrier);
 				}
 			}
 		}
@@ -130,7 +131,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 			// if it is not newer than the latest checkpoint ID, then there cannot be a
 			// successful checkpoint for that ID anyways
 			if (barrierId > latestPendingCheckpointID) {
-				markCheckpointStart(receivedBarrier.getTimestamp());
+				markAlignmentStart(receivedBarrier.getTimestamp());
 				latestPendingCheckpointID = barrierId;
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
 
