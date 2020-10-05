@@ -211,12 +211,12 @@ public class CompletedCheckpoint implements Serializable {
 	// ------------------------------------------------------------------------
 
 	public void discardOnFailedStoring() throws Exception {
-		doDiscard();
+		discard();
 	}
 
 	public boolean discardOnSubsume() throws Exception {
-		if (props.discardOnSubsumed()) {
-			doDiscard();
+		if (shouldBeDiscardedOnSubsume()) {
+			discard();
 			return true;
 		}
 
@@ -225,12 +225,9 @@ public class CompletedCheckpoint implements Serializable {
 
 	public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
 
-		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
-				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
-				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
-				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
+		if (shouldBeDiscardedOnShutdown(jobStatus)) {
 
-			doDiscard();
+			discard();
 			return true;
 		} else {
 			LOG.info("Checkpoint with ID {} at '{}' not discarded.", checkpointID, externalPointer);
@@ -238,7 +235,7 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	private void doDiscard() throws Exception {
+	public void discard() throws Exception {
 		LOG.trace("Executing discard procedure for {}.", this);
 
 		try {
@@ -279,6 +276,17 @@ public class CompletedCheckpoint implements Serializable {
 				discardCallback.notifyDiscardedCheckpoint();
 			}
 		}
+	}
+
+	public boolean shouldBeDiscardedOnSubsume() {
+		return props.discardOnSubsumed();
+	}
+
+	public boolean shouldBeDiscardedOnShutdown(JobStatus jobStatus) {
+		return jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
+			jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
+			jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
+			jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended();
 	}
 
 	// ------------------------------------------------------------------------
