@@ -232,15 +232,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			Runnable postCleanup) {
 		try {
 			if (tryRemove(completedCheckpoint.getCheckpointID())) {
-				checkpointsCleaner.cleanCheckpoint(() -> {
-					if (shouldDiscard) {
-						try {
-							completedCheckpoint.discard();
-						} catch (Exception e) {
-							LOG.warn("Could not discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), e);
-						}
-					}
-				}, postCleanup, executor);
+				checkpointsCleaner.cleanCheckpoint(completedCheckpoint, shouldDiscard, postCleanup, executor);
 			}
 		} catch (Exception e) {
 			LOG.warn("Failed to subsume the old checkpoint", e);

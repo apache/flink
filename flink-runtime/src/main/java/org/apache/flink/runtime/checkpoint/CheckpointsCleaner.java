@@ -42,11 +42,17 @@ public class CheckpointsCleaner implements Serializable {
 		return numberOfCheckpointsToClean.get();
 	}
 
-	public void cleanCheckpoint(Runnable cleanAction, Runnable postCleanAction, Executor executor) {
+	public void cleanCheckpoint(Checkpoint checkpoint, boolean shouldDiscard, Runnable postCleanAction, Executor executor) {
 		numberOfCheckpointsToClean.incrementAndGet();
 		executor.execute(() -> {
 			try {
-				cleanAction.run();
+				if (shouldDiscard) {
+					try {
+						checkpoint.discard();
+					} catch (Exception e) {
+						LOG.warn("Could not discard completed checkpoint {}.", checkpoint.getCheckpointID(), e);
+					}
+				}
 			} finally {
 				numberOfCheckpointsToClean.decrementAndGet();
 				postCleanAction.run();
