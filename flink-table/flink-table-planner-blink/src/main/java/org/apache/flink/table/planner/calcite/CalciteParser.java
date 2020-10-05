@@ -58,6 +58,22 @@ public class CalciteParser {
 	}
 
 	/**
+	 * Parses a SQL expression into a {@link SqlNode}. The {@link SqlNode} is not yet validated.
+	 *
+	 * @param sqlExpression a SQL expression string to parse
+	 * @return a parsed SQL node
+	 * @throws SqlParserException if an exception is thrown when parsing the statement
+	 */
+	public SqlNode parseExpression(String sqlExpression) {
+		try {
+			final SqlParser parser = SqlParser.create(sqlExpression, config);
+			return parser.parseExpression();
+		} catch (SqlParseException e) {
+			throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+		}
+	}
+
+	/**
 	 * Parses a SQL string as an identifier into a {@link SqlIdentifier}.
 	 *
 	 * @param identifier a sql string to parse as an identifier
