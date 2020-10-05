@@ -26,7 +26,7 @@ KAFKA_VERSION="$1"
 CONFLUENT_VERSION="$2"
 CONFLUENT_MAJOR_VERSION="$3"
 
-KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-$KAFKA_VERSION
+KAFKA_DIR=$TEST_DATA_DIR/kafka_2.12-$KAFKA_VERSION
 CONFLUENT_DIR=$TEST_DATA_DIR/confluent-$CONFLUENT_VERSION
 SCHEMA_REGISTRY_PORT=8082
 SCHEMA_REGISTRY_URL=http://localhost:${SCHEMA_REGISTRY_PORT}
@@ -35,7 +35,7 @@ MAX_RETRY_SECONDS=120
 function setup_kafka_dist {
   # download Kafka
   mkdir -p $TEST_DATA_DIR
-  KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.11-$KAFKA_VERSION.tgz"
+  KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.12-$KAFKA_VERSION.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
   curl ${KAFKA_URL} --retry 10 --retry-max-time 120 --output ${TEST_DATA_DIR}/kafka.tgz
 
@@ -61,7 +61,7 @@ function setup_confluent_dist {
 
 function wait_for_zookeeper_running {
   start_time=$(date +%s)
-  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep "Node does not exist") ]] ; do
+  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep -e "Node does not exist" -e "NoNode for") ]] ; do
     current_time=$(date +%s)
     time_diff=$((current_time - start_time))
 
