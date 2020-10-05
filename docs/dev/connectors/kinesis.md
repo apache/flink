@@ -1,5 +1,5 @@
 ---
-title: "Amazon AWS Kinesis Streams Connector"
+title: "Amazon Kinesis Data Streams Connector"
 nav-title: Kinesis
 nav-parent_id: connectors
 nav-pos: 3
@@ -173,9 +173,9 @@ Also note that Flink can only restart the topology if enough processing slots ar
 Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
 Flink on YARN supports automatic restart of lost YARN containers.
 
-### Using Enhanced Fan Out
+### Using Enhanced Fan-Out
 
-[Enhanced Fan Out (EFO)](https://aws.amazon.com/blogs/aws/kds-enhanced-fanout/) increases the maximum 
+[Enhanced Fan-Out (EFO)](https://aws.amazon.com/blogs/aws/kds-enhanced-fanout/) increases the maximum 
 number of concurrent consumers per Kinesis stream.
 Without EFO, all concurrent consumers share a single read quota per shard. 
 Using EFO, each consumer gets a distinct dedicated read quota per shard, allowing read throughput to scale with the number of consumers. 
@@ -241,7 +241,7 @@ The stream consumer will be registered using the name provided by the `EFO_CONSU
     For jobs with very large parallelism this can result in an increased start-up time.
     The describe operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
     this means application startup time will increase by roughly `parallelism/20 seconds`.
-  - `EAGER`: Stream consumers are registered in the `FlinkKinesisConstructor`.
+  - `EAGER`: Stream consumers are registered in the `FlinkKinesisConsumer` constructor.
     If the stream consumer already exists, it will be reused. 
     This will result in registration occurring when the job is constructed, 
     either on the Flink Job Manager or client environment submitting the job.
@@ -446,7 +446,7 @@ For `POLLING` data consumption, a single thread will be created to consume each 
 shard it is responsible of consuming is closed as a result of stream resharding. In other words, there will always be
 one thread per open shard.
 
-#### Enhanced Fan Out Record Publisher
+#### Enhanced Fan-Out Record Publisher
 
 For `EFO` data consumption the threading model is the same as `POLLING`, with additional thread pools to handle 
 asynchronous communication with Kinesis. AWS SDK v2.x `KinesisAsyncClient` uses additional threads for 
@@ -492,7 +492,7 @@ adjusts the maximum number of records each consuming thread tries to fetch from 
 the latter modifies the sleep interval between each fetch (default is 200). The retry behaviour of the
 consumer when calling this API can also be modified by using the other keys prefixed by `ConsumerConfigConstants.SHARD_GETRECORDS_*`.
 
-#### Enhanced Fan Out Record Publisher
+#### Enhanced Fan-Out Record Publisher
 
 - *[SubscribeToShard](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_SubscribeToShard.html)*: this is called
 by per shard consuming threads to obtain shard subscriptions. A shard subscription is typically active for 5 minutes, 

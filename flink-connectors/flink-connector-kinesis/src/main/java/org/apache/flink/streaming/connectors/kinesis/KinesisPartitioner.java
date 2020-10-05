@@ -33,14 +33,18 @@ public abstract class KinesisPartitioner<T> implements Serializable {
 
 	/**
 	 * Return a partition id based on the input.
+	 *
 	 * @param element Element to partition
+	 *
 	 * @return A string representing the partition id
 	 */
 	public abstract String getPartitionId(T element);
 
 	/**
 	 * Optional method for setting an explicit hash key.
+	 *
 	 * @param element Element to get the hash key for
+	 *
 	 * @return the hash key for the element
 	 */
 	public String getExplicitHashKey(T element) {
