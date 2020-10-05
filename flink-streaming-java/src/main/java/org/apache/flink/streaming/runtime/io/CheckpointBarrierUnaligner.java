@@ -95,7 +95,11 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 				cancelSubsumedCheckpoint(barrierId);
 			}
 
-			markCheckpointStart(barrier.getTimestamp());
+			if (getNumOpenChannels() == 1) {
+				markAlignmentStartAndEnd(barrier.getTimestamp());
+			} else {
+				markAlignmentStart(barrier.getTimestamp());
+			}
 			currentCheckpointId = barrierId;
 			numBarriersReceived = 0;
 			allBarriersReceivedFuture = new CompletableFuture<>();
@@ -104,12 +108,15 @@ public class CheckpointBarrierUnaligner extends CheckpointBarrierHandler {
 			for (final CheckpointableInput input : inputs) {
 				input.checkpointStarted(barrier);
 			}
-			notifyCheckpoint(barrier, 0);
+			notifyCheckpoint(barrier);
 		}
 		if (currentCheckpointId == barrierId) {
 			LOG.debug("{}: Received barrier from channel {} @ {}.", taskName, channelInfo, barrierId);
 
 			if (++numBarriersReceived == numOpenChannels) {
+				if (getNumOpenChannels() > 1) {
+					markAlignmentEnd();
+				}
 				allBarriersReceivedFuture.complete(null);
 				resetPendingCheckpoint(barrierId);
 			}

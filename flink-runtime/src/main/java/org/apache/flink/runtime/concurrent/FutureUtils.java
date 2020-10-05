@@ -57,6 +57,7 @@ import java.util.function.Supplier;
 
 import scala.concurrent.Future;
 
+import static org.apache.flink.util.Preconditions.checkCompletedNormally;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -1036,6 +1037,24 @@ public class FutureUtils {
 	}
 
 	/**
+	 * @return true if future has completed normally, false otherwise.
+	 */
+	public static boolean isCompletedNormally(CompletableFuture<?> future) {
+		return future.isDone() && !future.isCompletedExceptionally();
+	}
+
+	/**
+	 * Perform check state that future has completed normally and return the result.
+	 *
+	 * @return the result of completable future.
+	 * @throws IllegalStateException Thrown, if future has not completed or it has completed exceptionally.
+	 */
+	public static <T> T checkStateAndGet(CompletableFuture<T> future) {
+		checkCompletedNormally(future);
+		return getWithoutException(future);
+	}
+
+	/**
 	 * Gets the result of a completable future without any exception thrown.
 	 *
 	 * @param future the completable future specified.
@@ -1045,13 +1064,21 @@ public class FutureUtils {
 	 */
 	@Nullable
 	public static <T> T getWithoutException(CompletableFuture<T> future) {
-		if (future.isDone() && !future.isCompletedExceptionally()) {
+		if (isCompletedNormally(future)) {
 			try {
 				return future.get();
 			} catch (InterruptedException | ExecutionException ignored) {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * @return the result of completable future, or the defaultValue if it has not yet completed.
+	 */
+	public static <T> T getOrDefault(CompletableFuture<T> future, T defaultValue) {
+		T value = getWithoutException(future);
+		return value == null ? defaultValue : value;
 	}
 
 	/**

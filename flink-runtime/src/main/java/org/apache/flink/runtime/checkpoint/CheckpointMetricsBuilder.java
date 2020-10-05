@@ -18,7 +18,14 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
+
 import javax.annotation.concurrent.NotThreadSafe;
+
+import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.runtime.concurrent.FutureUtils.checkStateAndGet;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A builder for {@link CheckpointMetrics}.
@@ -27,17 +34,28 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class CheckpointMetricsBuilder {
-	private long alignmentDurationNanos = -1L;
+	private CompletableFuture<Long> alignmentDurationNanos = new CompletableFuture<>();
 	private long syncDurationMillis = -1L;
 	private long asyncDurationMillis = -1L;
 	private long checkpointStartDelayNanos = -1L;
 
+
+	public long getAlignmentDurationNanosOrDefault() {
+		return FutureUtils.getOrDefault(alignmentDurationNanos, -1L);
+	}
+
 	public CheckpointMetricsBuilder setAlignmentDurationNanos(long alignmentDurationNanos) {
+		checkState(this.alignmentDurationNanos.complete(alignmentDurationNanos), "alignmentDurationNanos has already been completed by someone else");
+		return this;
+	}
+
+	public CheckpointMetricsBuilder setAlignmentDurationNanos(CompletableFuture<Long> alignmentDurationNanos) {
+		checkState(!this.alignmentDurationNanos.isDone(), "alignmentDurationNanos has already been completed by someone else");
 		this.alignmentDurationNanos = alignmentDurationNanos;
 		return this;
 	}
 
-	public long getAlignmentDurationNanos() {
+	public CompletableFuture<Long> getAlignmentDurationNanos() {
 		return alignmentDurationNanos;
 	}
 
@@ -70,7 +88,7 @@ public class CheckpointMetricsBuilder {
 
 	public CheckpointMetrics build() {
 		return new CheckpointMetrics(
-			alignmentDurationNanos,
+			checkStateAndGet(alignmentDurationNanos),
 			syncDurationMillis,
 			asyncDurationMillis,
 			checkpointStartDelayNanos);

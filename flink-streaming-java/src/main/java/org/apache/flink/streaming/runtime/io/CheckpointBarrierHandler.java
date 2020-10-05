@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -39,11 +40,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * barriers.
  */
 public abstract class CheckpointBarrierHandler implements Closeable {
+	private static final long OUTSIDE_OF_ALIGNMENT = Long.MIN_VALUE;
 
 	/** The listener to be notified on complete checkpoints. */
 	private final AbstractInvokable toNotifyOnCheckpoint;
 
+	/** The time (in nanoseconds) that the latest alignment took. */
+	private CompletableFuture<Long> latestAlignmentDurationNanos = new CompletableFuture<>();
+
+	/**
+	 * The time (in nanoseconds) between creation of the checkpoint's first checkpoint barrier
+	 * and receiving it by this task.
+	 */
 	private long latestCheckpointStartDelayNanos;
+
+	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
+	private long startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
 
 	public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
 		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
@@ -75,7 +87,11 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	public abstract long getLatestCheckpointId();
 
 	public long getAlignmentDurationNanos() {
-		return 0;
+		if (isDuringAlignment()) {
+			return System.nanoTime() - startOfAlignmentTimestamp;
+		} else {
+			return FutureUtils.getOrDefault(latestAlignmentDurationNanos, 0L);
+		}
 	}
 
 	public long getCheckpointStartDelayNanos() {
@@ -86,12 +102,12 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		return CompletableFuture.completedFuture(null);
 	}
 
-	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier, long alignmentDurationNanos) throws IOException {
+	protected void notifyCheckpoint(CheckpointBarrier checkpointBarrier) throws IOException {
 		CheckpointMetaData checkpointMetaData =
 			new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
 		CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder()
-			.setAlignmentDurationNanos(alignmentDurationNanos)
+			.setAlignmentDurationNanos(latestAlignmentDurationNanos)
 			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 
 		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
@@ -106,17 +122,45 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	}
 
 	protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
+		resetAlignment();
 		toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
 	}
 
-	protected void markCheckpointStart(long checkpointCreationTimestamp) {
+	protected void markAlignmentStartAndEnd(long checkpointCreationTimestamp) {
+		markAlignmentStart(checkpointCreationTimestamp);
+		markAlignmentEnd(0);
+	}
+
+	protected void markAlignmentStart(long checkpointCreationTimestamp) {
 		latestCheckpointStartDelayNanos = 1_000_000 * Math.max(
 			0,
 			System.currentTimeMillis() - checkpointCreationTimestamp);
+
+		resetAlignment();
+		startOfAlignmentTimestamp = System.nanoTime();
+	}
+
+	protected void markAlignmentEnd() {
+		markAlignmentEnd(System.nanoTime() - startOfAlignmentTimestamp);
+	}
+
+	private void markAlignmentEnd(long alignmentDuration) {
+		latestAlignmentDurationNanos.complete(alignmentDuration);
+
+		startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
+	}
+
+	private void resetAlignment() {
+		markAlignmentEnd(0);
+		latestAlignmentDurationNanos = new CompletableFuture<>();
 	}
 
 	protected abstract boolean isCheckpointPending();
 
 	protected void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
+	}
+
+	public boolean isDuringAlignment() {
+		return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
 	}
 }

@@ -67,12 +67,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	/** The number of already closed channels. */
 	private int numClosedChannels;
 
-	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
-	private long startOfAlignmentTimestamp;
-
-	/** The time (in nanoseconds) that the latest alignment took. */
-	private long latestAlignmentDurationNanos;
-
 	private final CheckpointableInput[] inputs;
 
 	CheckpointBarrierAligner(
@@ -110,11 +104,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 		// the next barrier that comes must assume it is the first
 		numBarriersReceived = 0;
-
-		if (startOfAlignmentTimestamp > 0) {
-			latestAlignmentDurationNanos = System.nanoTime() - startOfAlignmentTimestamp;
-			startOfAlignmentTimestamp = 0;
-		}
 	}
 
 	@Override
@@ -132,7 +121,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			if (barrierId > currentCheckpointId) {
 				// new checkpoint
 				currentCheckpointId = barrierId;
-				notifyCheckpoint(receivedBarrier, latestAlignmentDurationNanos);
+				notifyCheckpoint(receivedBarrier);
 			}
 			return;
 		}
@@ -193,7 +182,8 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			}
 
 			releaseBlocksAndResetBarriers();
-			notifyCheckpoint(receivedBarrier, latestAlignmentDurationNanos);
+			markAlignmentEnd();
+			notifyCheckpoint(receivedBarrier);
 		}
 	}
 
@@ -201,11 +191,9 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			long checkpointId,
 			InputChannelInfo channelInfo,
 			long checkpointTimestamp) throws IOException {
-		markCheckpointStart(checkpointTimestamp);
+		markAlignmentStart(checkpointTimestamp);
 		currentCheckpointId = checkpointId;
 		onBarrier(channelInfo);
-
-		startOfAlignmentTimestamp = System.nanoTime();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{}: Starting stream alignment for checkpoint {}.", taskName, checkpointId);
@@ -273,9 +261,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 				// the next checkpoint starts as canceled
 				currentCheckpointId = barrierId;
-				startOfAlignmentTimestamp = 0L;
-				latestAlignmentDurationNanos = 0L;
-
 				notifyAbortOnCancellationBarrier(barrierId);
 			}
 
@@ -288,9 +273,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			// by setting the currentCheckpointId to this checkpoint while keeping the numBarriers
 			// at zero means that no checkpoint barrier can start a new alignment
 			currentCheckpointId = barrierId;
-
-			startOfAlignmentTimestamp = 0L;
-			latestAlignmentDurationNanos = 0L;
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("{}: Checkpoint {} canceled, skipping alignment.", taskName, barrierId);
@@ -320,15 +302,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	@Override
 	public long getLatestCheckpointId() {
 		return currentCheckpointId;
-	}
-
-	@Override
-	public long getAlignmentDurationNanos() {
-		if (startOfAlignmentTimestamp <= 0) {
-			return latestAlignmentDurationNanos;
-		} else {
-			return System.nanoTime() - startOfAlignmentTimestamp;
-		}
 	}
 
 	@Override
