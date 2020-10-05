@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -119,12 +120,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			getEnvironment().getMemoryManager(),
 			getEnvironment().getIOManager(),
 			getExecutionConfig().isObjectReuseEnabled(),
-			1.0,
-			// TODO we should get it from config somehow
-//			configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
-//				ManagedMemoryUseCase.BATCH_OP,
-//				getTaskConfiguration()
-//			),
+			configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
+				ManagedMemoryUseCase.BATCH_OP,
+				getTaskConfiguration()
+			),
 			getJobConfiguration(),
 			this
 		);

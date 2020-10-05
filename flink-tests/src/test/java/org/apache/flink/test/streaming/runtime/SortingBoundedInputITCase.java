@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,6 +43,8 @@ import org.apache.flink.util.SplittableIterator;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Objects;
@@ -78,6 +81,12 @@ public class SortingBoundedInputITCase {
 		CollectResultIterator<Long> collectedCounts = applyCollect(env, counts);
 		StreamGraph streamGraph = env.getStreamGraph();
 		streamGraph.getStreamNode(counts.getId()).setSortedInputs(true);
+		HashMap<ManagedMemoryUseCase, Integer> operatorMemory = new HashMap<>();
+		operatorMemory.put(ManagedMemoryUseCase.BATCH_OP, 1);
+		streamGraph.getStreamNode(counts.getId()).setManagedMemoryUseCaseWeights(
+			operatorMemory,
+			Collections.emptySet()
+		);
 		JobClient jobClient = env.executeAsync(streamGraph);
 		collectedCounts.setJobClient(jobClient);
 
