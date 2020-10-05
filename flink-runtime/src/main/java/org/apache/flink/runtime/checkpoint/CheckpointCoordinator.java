@@ -575,7 +575,7 @@ public class CheckpointCoordinator {
 									onTriggerFailure(checkpoint, throwable);
 								}
 							} else {
-								if (checkpoint.isDiscarded()) {
+								if (checkpoint.isDisposed()) {
 									onTriggerFailure(
 										checkpoint,
 										new CheckpointException(
@@ -731,7 +731,7 @@ public class CheckpointCoordinator {
 								if (masterStateCompletableFuture.isDone()) {
 									return;
 								}
-								if (checkpoint.isDiscarded()) {
+								if (checkpoint.isDisposed()) {
 									throw new IllegalStateException(
 										"Checkpoint " + checkpointID + " has been discarded");
 								}
@@ -829,7 +829,7 @@ public class CheckpointCoordinator {
 		try {
 			coordinatorsToCheckpoint.forEach(OperatorCoordinatorCheckpointContext::abortCurrentTriggering);
 
-			if (checkpoint != null && !checkpoint.isDiscarded()) {
+			if (checkpoint != null && !checkpoint.isDisposed()) {
 				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn(
 					"Failed to trigger checkpoint {} for job {}. ({} consecutive failed attempts so far)",
@@ -922,7 +922,7 @@ public class CheckpointCoordinator {
 
 			if (checkpoint != null) {
 				Preconditions.checkState(
-					!checkpoint.isDiscarded(),
+					!checkpoint.isDisposed(),
 					"Received message for discarded but non-removed checkpoint " + checkpointId);
 				LOG.info("Decline checkpoint {} by task {} of job {} at {}.",
 					checkpointId,
@@ -989,7 +989,7 @@ public class CheckpointCoordinator {
 
 			final PendingCheckpoint checkpoint = pendingCheckpoints.get(checkpointId);
 
-			if (checkpoint != null && !checkpoint.isDiscarded()) {
+			if (checkpoint != null && !checkpoint.isDisposed()) {
 
 				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics())) {
 					case SUCCESS:
@@ -1075,7 +1075,7 @@ public class CheckpointCoordinator {
 			}
 			catch (Exception e1) {
 				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.
-				if (!pendingCheckpoint.isDiscarded()) {
+				if (!pendingCheckpoint.isDisposed()) {
 					abortPendingCheckpoint(
 						pendingCheckpoint,
 						new CheckpointException(
@@ -1087,7 +1087,7 @@ public class CheckpointCoordinator {
 			}
 
 			// the pending checkpoint must be discarded after the finalization
-			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
+			Preconditions.checkState(pendingCheckpoint.isDisposed() && completedCheckpoint != null);
 
 			try {
 				completedCheckpointStore.addCheckpoint(completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
@@ -1670,7 +1670,7 @@ public class CheckpointCoordinator {
 
 		assert(Thread.holdsLock(lock));
 
-		if (!pendingCheckpoint.isDiscarded()) {
+		if (!pendingCheckpoint.isDisposed()) {
 			try {
 				// release resource here
 				pendingCheckpoint.abort(
@@ -1793,7 +1793,7 @@ public class CheckpointCoordinator {
 			synchronized (lock) {
 				// only do the work if the checkpoint is not discarded anyways
 				// note that checkpoint completion discards the pending checkpoint object
-				if (!pendingCheckpoint.isDiscarded()) {
+				if (!pendingCheckpoint.isDisposed()) {
 					LOG.info("Checkpoint {} of job {} expired before completing.",
 						pendingCheckpoint.getCheckpointId(), job);
 
