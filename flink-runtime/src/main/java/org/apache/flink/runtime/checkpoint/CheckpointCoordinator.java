@@ -677,7 +677,6 @@ public class CheckpointCoordinator {
 			masterHooks.keySet(),
 			props,
 			checkpointStorageLocation,
-			executor,
 			onCompletionPromise);
 
 		if (statsTracker != null) {
@@ -1071,7 +1070,7 @@ public class CheckpointCoordinator {
 
 		try {
 			try {
-				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint(checkpointsCleaner, this::scheduleTriggerRequest);
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint(checkpointsCleaner, this::scheduleTriggerRequest, executor);
 				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
 			}
 			catch (Exception e1) {
@@ -1678,7 +1677,8 @@ public class CheckpointCoordinator {
 					exception.getCheckpointFailureReason(),
 					exception.getCause(),
 					checkpointsCleaner,
-					this::scheduleTriggerRequest);
+					this::scheduleTriggerRequest,
+					executor);
 
 				if (pendingCheckpoint.getProps().isSavepoint() &&
 					pendingCheckpoint.getProps().isSynchronous()) {
