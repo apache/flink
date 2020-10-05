@@ -31,7 +31,6 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,9 +109,6 @@ public class PendingCheckpoint {
 	/** The promise to fulfill once the checkpoint has been completed. */
 	private final CompletableFuture<CompletedCheckpoint> onCompletionPromise;
 
-	/** The executor for potentially blocking I/O operations, like state disposal. */
-	private final Executor executor;
-
 	private int numAcknowledgedTasks;
 
 	private boolean discarded;
@@ -136,7 +132,6 @@ public class PendingCheckpoint {
 			Collection<String> masterStateIdentifiers,
 			CheckpointProperties props,
 			CheckpointStorageLocation targetLocation,
-			Executor executor,
 			CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
 
 		checkArgument(verticesToConfirm.size() > 0,
@@ -148,7 +143,6 @@ public class PendingCheckpoint {
 		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
 		this.props = checkNotNull(props);
 		this.targetLocation = checkNotNull(targetLocation);
-		this.executor = Preconditions.checkNotNull(executor);
 
 		this.operatorStates = new HashMap<>();
 		this.masterStates = new ArrayList<>(masterStateIdentifiers.size());
@@ -291,7 +285,7 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
-	public CompletedCheckpoint finalizeCheckpoint(CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws IOException {
+	public CompletedCheckpoint finalizeCheckpoint(CheckpointsCleaner checkpointsCleaner, Runnable postCleanup, Executor executor) throws IOException {
 
 		synchronized (lock) {
 			checkState(!isDiscarded(), "checkpoint is discarded");
@@ -331,7 +325,7 @@ public class PendingCheckpoint {
 				}
 
 				// mark this pending checkpoint as disposed, but do NOT drop the state
-				dispose(false, checkpointsCleaner, postCleanup);
+				dispose(false, checkpointsCleaner, postCleanup, executor);
 
 				return completed;
 			}
@@ -490,14 +484,14 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts a checkpoint with reason and cause.
 	 */
-	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
+	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup, Executor executor) {
 		try {
 			failureCause = new CheckpointException(reason, cause);
 			onCompletionPromise.completeExceptionally(failureCause);
 			reportFailedCheckpoint(failureCause);
 			assertAbortSubsumedForced(reason);
 		} finally {
-			dispose(true, checkpointsCleaner, postCleanup);
+			dispose(true, checkpointsCleaner, postCleanup, executor);
 		}
 	}
 
@@ -508,7 +502,7 @@ public class PendingCheckpoint {
 		}
 	}
 
-	private void dispose(boolean releaseState, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
+	private void dispose(boolean releaseState, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup, Executor executor) {
 
 		synchronized (lock) {
 			try {
