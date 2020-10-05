@@ -27,7 +27,6 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +40,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -110,11 +108,6 @@ public class CompletedCheckpoint implements Serializable {
 	@Nullable
 	private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
 
-	private final CheckpointsCleaningRunner cleanupCallback;
-
-	private final SerializableRunnable cleanupFinishedCallback;
-
-
 	// ------------------------------------------------------------------------
 
 	public CompletedCheckpoint(
@@ -125,9 +118,7 @@ public class CompletedCheckpoint implements Serializable {
 			Map<OperatorID, OperatorState> operatorStates,
 			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props,
-			CompletedCheckpointStorageLocation storageLocation,
-			CheckpointsCleaningRunner cleanupCallback,
-			SerializableRunnable cleanupFinishedCallback) {
+			CompletedCheckpointStorageLocation storageLocation) {
 
 		checkArgument(checkpointID >= 0);
 		checkArgument(timestamp >= 0);
@@ -149,8 +140,6 @@ public class CompletedCheckpoint implements Serializable {
 		this.storageLocation = checkNotNull(storageLocation);
 		this.metadataHandle = storageLocation.getMetadataHandle();
 		this.externalPointer = storageLocation.getExternalPointer();
-		this.cleanupCallback = cleanupCallback;
-		this.cleanupFinishedCallback = cleanupFinishedCallback;
 	}
 
 	// ------------------------------------------------------------------------
@@ -220,21 +209,6 @@ public class CompletedCheckpoint implements Serializable {
 	// ------------------------------------------------------------------------
 	//  Discard and Dispose
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Asynchronously call a discard on the ioExecutor
-	 * (FixedThreadPool of configurable size of default 4*CPU cores)
-	 * and count the number of checkpoints that are waiting to clean.
-	 */
-	void asyncDiscardCheckpointAndCountCheckpoint(ThrowingConsumer<CompletedCheckpoint, Exception> discardCallback, Executor executor){
-		cleanupCallback.accept(() -> {
-			try {
-				discardCallback.accept(this);
-			} catch (Exception e) {
-				LOG.warn("Could not discard completed checkpoint {}.", checkpointID, e);
-			}
-		}, cleanupFinishedCallback, executor);
-	}
 
 	public void discardOnFailedStoring() throws Exception {
 		doDiscard();
