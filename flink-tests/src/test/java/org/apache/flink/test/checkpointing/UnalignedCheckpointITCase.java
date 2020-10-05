@@ -45,6 +45,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -204,6 +205,9 @@ public class UnalignedCheckpointITCase extends TestLogger {
 
 		conf.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
 		conf.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temp.newFolder().toURI().toString());
+
+		conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, 1);
+		conf.set(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, slotsPerTaskManager);
 
 		final LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(parallelism, conf);
 		env.enableCheckpointing(100);
