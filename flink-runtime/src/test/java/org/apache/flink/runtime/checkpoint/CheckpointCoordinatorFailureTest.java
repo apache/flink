@@ -141,7 +141,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		}
 
 		@Override
-		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
+		public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 			throw new Exception("The failing completed checkpoint store failed again... :-(");
 		}
 
@@ -151,7 +151,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		}
 
 		@Override
-		public void shutdown(JobStatus jobStatus) throws Exception {
+		public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 

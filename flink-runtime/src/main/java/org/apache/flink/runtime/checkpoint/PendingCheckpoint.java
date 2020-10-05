@@ -125,9 +125,6 @@ public class PendingCheckpoint {
 
 	private CheckpointException failureCause;
 
-	private final SerializableRunnable cleanupFinishedCallback;
-	private final CheckpointsCleaner checkpointsCleaner;
-
 	// --------------------------------------------------------------------------------------------
 
 	public PendingCheckpoint(
@@ -140,10 +137,7 @@ public class PendingCheckpoint {
 			CheckpointProperties props,
 			CheckpointStorageLocation targetLocation,
 			Executor executor,
-			CompletableFuture<CompletedCheckpoint> onCompletionPromise,
-			CheckpointsCleaner checkpointsCleaner,
-			SerializableRunnable cleanupFinishedCallback
-		) {
+			CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
@@ -164,8 +158,6 @@ public class PendingCheckpoint {
 				? Collections.emptySet() : new HashSet<>(operatorCoordinatorsToConfirm);
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 		this.onCompletionPromise = checkNotNull(onCompletionPromise);
-		this.cleanupFinishedCallback = cleanupFinishedCallback;
-		this.checkpointsCleaner = checkpointsCleaner;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -299,7 +291,7 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
-	public CompletedCheckpoint finalizeCheckpoint(CheckpointsCleaningRunner cleanCallback) throws IOException {
+	public CompletedCheckpoint finalizeCheckpoint(CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws IOException {
 
 		synchronized (lock) {
 			checkState(!isDiscarded(), "checkpoint is discarded");
@@ -324,9 +316,7 @@ public class PendingCheckpoint {
 						operatorStates,
 						masterStates,
 						props,
-						finalizedLocation,
-						cleanCallback,
-						cleanupFinishedCallback);
+						finalizedLocation);
 
 				onCompletionPromise.complete(completed);
 
@@ -341,7 +331,7 @@ public class PendingCheckpoint {
 				}
 
 				// mark this pending checkpoint as disposed, but do NOT drop the state
-				dispose(false);
+				dispose(false, checkpointsCleaner, postCleanup);
 
 				return completed;
 			}
@@ -500,22 +490,15 @@ public class PendingCheckpoint {
 	/**
 	 * Aborts a checkpoint with reason and cause.
 	 */
-	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause) {
+	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
 		try {
 			failureCause = new CheckpointException(reason, cause);
 			onCompletionPromise.completeExceptionally(failureCause);
 			reportFailedCheckpoint(failureCause);
 			assertAbortSubsumedForced(reason);
 		} finally {
-			dispose(true);
+			dispose(true, checkpointsCleaner, postCleanup);
 		}
-	}
-
-	/**
-	 * Aborts a checkpoint with reason and cause.
-	 */
-	public void abort(CheckpointFailureReason reason) {
-		abort(reason, null);
 	}
 
 	private void assertAbortSubsumedForced(CheckpointFailureReason reason) {
@@ -525,7 +508,7 @@ public class PendingCheckpoint {
 		}
 	}
 
-	private void dispose(boolean releaseState) {
+	private void dispose(boolean releaseState, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) {
 
 		synchronized (lock) {
 			try {
@@ -545,7 +528,7 @@ public class PendingCheckpoint {
 							operatorStates.clear();
 						}
 					};
-					checkpointsCleaner.cleanCheckpoint(cleanAction, cleanupFinishedCallback, executor);
+					checkpointsCleaner.cleanCheckpoint(cleanAction, postCleanup, executor);
 				}
 			} finally {
 				discarded = true;

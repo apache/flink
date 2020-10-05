@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -34,7 +33,6 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.util.CheckpointsUtils;
 import org.apache.flink.util.SerializableObject;
 
 import org.hamcrest.BaseMatcher;
@@ -240,11 +238,11 @@ public class CheckpointStateRestoreTest {
 			new HashMap<>(checkpointTaskStates),
 			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
-		coord.getCheckpointStore().addCheckpoint(checkpoint);
+		coord.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 
 		assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
 		assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, true));
@@ -269,11 +267,11 @@ public class CheckpointStateRestoreTest {
 			new HashMap<>(checkpointTaskStates),
 			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new TestCompletedCheckpointStorageLocation(),
-			new CheckpointsUtils.NoOpCleanCheckpointCallback(),
-			new CheckpointsUtils.NoOpCheckpointCleaningFinishedCallback());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
-		coord.getCheckpointStore().addCheckpoint(checkpoint);
+		coord.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 
 		// (i) Allow non restored state (should succeed)
 		final boolean restored = coord.restoreLatestCheckpointedStateToAll(tasks, true);
