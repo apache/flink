@@ -23,11 +23,18 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
@@ -45,7 +52,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.runtime.io.CheckpointBarrierUnalignerTest.addSequence;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -73,6 +82,30 @@ public class CheckpointBarrierAlignerTest {
 	@Before
 	public void setUp() {
 		testStartTimeNanos = System.nanoTime();
+	}
+
+	private CheckpointedInputGate createCheckpointedInputGate(
+			int numberOfChannels,
+			AbstractInvokable toNotify) throws IOException {
+		final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder().build();
+		SingleInputGate gate = new SingleInputGateBuilder()
+			.setNumberOfChannels(numberOfChannels)
+			.setupBufferPoolFactory(environment)
+			.build();
+		gate.setInputChannels(
+			IntStream.range(0, numberOfChannels)
+				.mapToObj(channelIndex ->
+					InputChannelBuilder.newBuilder()
+						.setChannelIndex(channelIndex)
+						.setupFromNettyShuffleEnvironment(environment)
+						.setConnectionManager(new TestingConnectionManager())
+						.buildRemoteChannel(gate))
+				.toArray(RemoteInputChannel[]::new));
+
+		gate.setup();
+		gate.requestPartitions();
+
+		return createCheckpointedInputGate(gate, toNotify);
 	}
 
 	protected CheckpointedInputGate createCheckpointedInputGate(
@@ -355,6 +388,58 @@ public class CheckpointBarrierAlignerTest {
 
 		assertEquals(1, handler.getTriggeredCheckpointCounter());
 		assertEquals(3, handler.getAbortedCheckpointCounter());
+	}
+
+	@Test
+	public void testMetrics() throws Exception {
+		List<BufferOrEvent> output = new ArrayList<>();
+		ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
+		int numberOfChannels = 3;
+		inputGate = createCheckpointedInputGate(numberOfChannels, handler);
+		int[] sequenceNumbers = new int[numberOfChannels];
+
+		int bufferSize = 100;
+		long checkpointId = 1;
+		long sleepTime = 10;
+
+		long checkpointBarrierCreation = System.currentTimeMillis();
+
+		Thread.sleep(sleepTime);
+
+		long alignmentStartNanos = System.nanoTime();
+
+		addSequence(
+			inputGate,
+			output,
+			sequenceNumbers,
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createBarrier(checkpointId, 1, checkpointBarrierCreation),
+			createBuffer(0, bufferSize), createBuffer(2, bufferSize),
+			createBarrier(checkpointId, 0),
+			createBuffer(2, bufferSize));
+
+		Thread.sleep(sleepTime);
+
+		addSequence(inputGate,
+			output,
+			sequenceNumbers,
+			createBarrier(checkpointId, 2),
+			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
+			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2));
+
+		long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
+		long alignmentDuration = System.nanoTime() - alignmentStartNanos;
+
+		assertEquals(checkpointId, inputGate.getCheckpointBarrierHandler().getLatestCheckpointId());
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
+		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.lessThanOrEqualTo(startDelay));
+
+		assertTrue(handler.lastAlignmentDurationNanos.isDone());
+		assertThat(handler.lastAlignmentDurationNanos.get() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
+		assertThat(handler.lastAlignmentDurationNanos.get(), Matchers.lessThanOrEqualTo(alignmentDuration));
+
+		assertTrue(handler.lastBytesProcessedDuringAlignment.isDone());
+		assertThat(handler.lastBytesProcessedDuringAlignment.get(), Matchers.equalTo(3L * bufferSize));
 	}
 
 	@Test
@@ -847,8 +932,12 @@ public class CheckpointBarrierAlignerTest {
 	// ------------------------------------------------------------------------
 
 	private static BufferOrEvent createBarrier(long checkpointId, int channel) {
+		return createBarrier(checkpointId, channel, System.currentTimeMillis());
+	}
+
+	private static BufferOrEvent createBarrier(long checkpointId, int channel, long creationTimestamp) {
 		return new BufferOrEvent(
-			new CheckpointBarrier(checkpointId, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()),
+			new CheckpointBarrier(checkpointId, creationTimestamp, CheckpointOptions.forCheckpointWithDefaultLocation()),
 			new InputChannelInfo(0, channel));
 	}
 
@@ -861,7 +950,7 @@ public class CheckpointBarrierAlignerTest {
 		return createBuffer(channel, size);
 	}
 
-	private static BufferOrEvent createBuffer(int channel, int size) {
+	static BufferOrEvent createBuffer(int channel, int size) {
 		return new BufferOrEvent(TestBufferFactory.createBuffer(size), new InputChannelInfo(0, channel));
 	}
 

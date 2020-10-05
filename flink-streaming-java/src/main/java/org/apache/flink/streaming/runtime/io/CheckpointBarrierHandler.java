@@ -57,6 +57,13 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
 	private long startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
 
+	/**
+	 * Cumulative counter of bytes processed during alignment. Once we complete alignment, we will
+	 * put this value into the {@link #latestBytesProcessedDuringAlignment}.
+	 */
+	private long bytesProcessedDuringAlignment;
+	private CompletableFuture<Long> latestBytesProcessedDuringAlignment = new CompletableFuture<>();
+
 	public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint) {
 		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
 	}
@@ -108,6 +115,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
 		CheckpointMetricsBuilder checkpointMetrics = new CheckpointMetricsBuilder()
 			.setAlignmentDurationNanos(latestAlignmentDurationNanos)
+			.setBytesProcessedDuringAlignment(latestBytesProcessedDuringAlignment)
 			.setCheckpointStartDelayNanos(latestCheckpointStartDelayNanos);
 
 		toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
@@ -144,15 +152,18 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		markAlignmentEnd(System.nanoTime() - startOfAlignmentTimestamp);
 	}
 
-	private void markAlignmentEnd(long alignmentDuration) {
+	protected void markAlignmentEnd(long alignmentDuration) {
 		latestAlignmentDurationNanos.complete(alignmentDuration);
+		latestBytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment);
 
 		startOfAlignmentTimestamp = OUTSIDE_OF_ALIGNMENT;
+		bytesProcessedDuringAlignment = 0;
 	}
 
 	private void resetAlignment() {
 		markAlignmentEnd(0);
 		latestAlignmentDurationNanos = new CompletableFuture<>();
+		latestBytesProcessedDuringAlignment = new CompletableFuture<>();
 	}
 
 	protected abstract boolean isCheckpointPending();
@@ -160,7 +171,13 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	protected void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
 	}
 
-	public boolean isDuringAlignment() {
+	public void addProcessedBytes(int bytes) {
+		if (isDuringAlignment()) {
+			bytesProcessedDuringAlignment += bytes;
+		}
+	}
+
+	private boolean isDuringAlignment() {
 		return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
 	}
 }

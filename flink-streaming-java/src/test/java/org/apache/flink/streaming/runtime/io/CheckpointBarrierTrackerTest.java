@@ -40,7 +40,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Test;
 
@@ -54,6 +53,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.runtime.io.CheckpointBarrierUnalignerTest.addSequence;
 import static org.hamcrest.Matchers.both;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -411,6 +411,9 @@ public class CheckpointBarrierTrackerTest {
 
 		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
 		assertThat(handler.getLastAlignmentDurationNanos().get() / 1_000_000, is(both(greaterThanOrEqualTo(sleepTime)).and(lessThanOrEqualTo(alignmentDuration))));
+
+		assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
+		assertThat(handler.getLastBytesProcessedDuringAlignment().get(), equalTo(3L * bufferSize));
 	}
 
 	@Test
@@ -444,7 +447,10 @@ public class CheckpointBarrierTrackerTest {
 		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, lessThanOrEqualTo(startDelay));
 
 		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
-		assertThat(handler.getLastAlignmentDurationNanos().get(), Matchers.equalTo(0L));
+		assertThat(handler.getLastAlignmentDurationNanos().get(), equalTo(0L));
+
+		assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
+		assertThat(handler.getLastBytesProcessedDuringAlignment().get(), equalTo(0L));
 	}
 
 	// ------------------------------------------------------------------------
