@@ -235,6 +235,8 @@ public class CheckpointBarrierUnalignerTest {
 
 		Thread.sleep(sleepTime);
 
+		long alignmentStartNanos = System.nanoTime();
+
 		addSequence(inputGate,
 			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
 			createBarrier(checkpointId, 1, checkpointBarrierCreation),
@@ -243,7 +245,6 @@ public class CheckpointBarrierUnalignerTest {
 			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize));
 
 		long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
-
 		Thread.sleep(sleepTime);
 
 		addSequence(inputGate,
@@ -251,9 +252,15 @@ public class CheckpointBarrierUnalignerTest {
 			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
 			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2));
 
+		long alignmentDuration = System.nanoTime() - alignmentStartNanos;
+
 		assertEquals(checkpointId, inputGate.getCheckpointBarrierHandler().getLatestCheckpointId());
 		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
 		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.lessThanOrEqualTo(startDelay));
+
+		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
+		assertThat(handler.getLastAlignmentDurationNanos().get() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
+		assertThat(handler.getLastAlignmentDurationNanos().get(), Matchers.lessThanOrEqualTo(alignmentDuration));
 	}
 
 	@Test
@@ -655,6 +662,16 @@ public class CheckpointBarrierUnalignerTest {
 
 	private BufferOrEvent[] addSequence(CheckpointedInputGate inputGate, BufferOrEvent... sequence) throws Exception {
 		output = new ArrayList<>();
+		addSequence(inputGate, output, sequenceNumbers, sequence);
+		sizeCounter = 1;
+		return sequence;
+	}
+
+	static BufferOrEvent[] addSequence(
+			CheckpointedInputGate inputGate,
+			List<BufferOrEvent> output,
+			int[] sequenceNumbers,
+			BufferOrEvent... sequence) throws Exception {
 		for (BufferOrEvent bufferOrEvent : sequence) {
 			if (bufferOrEvent.isEvent()) {
 				bufferOrEvent = new BufferOrEvent(
@@ -671,7 +688,6 @@ public class CheckpointBarrierUnalignerTest {
 			while (inputGate.pollNext().map(output::add).isPresent()) {
 			}
 		}
-		sizeCounter = 1;
 		return sequence;
 	}
 
