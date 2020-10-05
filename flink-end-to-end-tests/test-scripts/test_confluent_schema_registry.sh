@@ -20,7 +20,7 @@
 set -Eeuo pipefail
 
 source "$(dirname "$0")"/common.sh
-source "$(dirname "$0")"/kafka-common.sh 0.10.2.0 3.2.0 3.2
+source "$(dirname "$0")"/kafka-common.sh 2.6.0 5.0.0 5.0
 
 function verify_output {
   local expected=$(printf $1)
