@@ -684,7 +684,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(t -> t.f0)
-  .timeWindow(Time.minutes(5))
+  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
   .process(new MyProcessWindowFunction());
 
 /* ... */
@@ -711,7 +711,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(_._1)
-  .timeWindow(Time.minutes(5))
+  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
   .process(new MyProcessWindowFunction())
 
 /* ... */
@@ -758,7 +758,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -791,7 +791,7 @@ val input: DataStream[SensorReading] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
@@ -821,7 +821,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -874,7 +874,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<duration>)
+  .window(<window assigner>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
 
 // Function definitions
