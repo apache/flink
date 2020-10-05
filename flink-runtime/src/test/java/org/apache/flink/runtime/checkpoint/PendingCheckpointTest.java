@@ -351,7 +351,7 @@ public class PendingCheckpointTest {
 
 		PendingCheckpoint aborted = createPendingCheckpoint(props);
 		aborted.abort(CheckpointFailureReason.CHECKPOINT_DECLINED, null, new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
-		assertTrue(aborted.isDiscarded());
+		assertTrue(aborted.isDisposed());
 		assertFalse(aborted.setCancellerHandle(mock(ScheduledFuture.class)));
 
 		PendingCheckpoint pending = createPendingCheckpoint(props);
