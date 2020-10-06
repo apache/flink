@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -29,11 +28,9 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
-import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -863,19 +860,11 @@ public class CheckpointBarrierAlignerTest {
 
 	private static BufferOrEvent createBuffer(int channel) {
 		final int size = sizeCounter++;
-		byte[] bytes = new byte[size];
-		RND.nextBytes(bytes);
+		return createBuffer(channel, size);
+	}
 
-		MemorySegment memory = MemorySegmentFactory.allocateUnpooledSegment(PAGE_SIZE);
-		memory.put(0, bytes);
-
-		Buffer buf = new NetworkBuffer(memory, FreeingBufferRecycler.INSTANCE);
-		buf.setSize(size);
-
-		// retain an additional time so it does not get disposed after being read by the input gate
-		buf.retainBuffer();
-
-		return new BufferOrEvent(buf, new InputChannelInfo(0, channel));
+	private static BufferOrEvent createBuffer(int channel, int size) {
+		return new BufferOrEvent(TestBufferFactory.createBuffer(size), new InputChannelInfo(0, channel));
 	}
 
 	private static BufferOrEvent createEndOfPartition(int channel) {
