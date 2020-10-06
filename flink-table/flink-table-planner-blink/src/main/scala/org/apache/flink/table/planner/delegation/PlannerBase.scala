@@ -31,19 +31,19 @@ import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
-import org.apache.flink.table.planner.calcite.{CalciteParser, FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalLegacySink, LogicalSink}
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
-import org.apache.flink.table.planner.sinks.DynamicSinkUtils.{prepareDynamicSink, validateSchemaAndApplyImplicitCast}
+import org.apache.flink.table.planner.sinks.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
-import org.apache.flink.table.planner.sinks.{DataStreamTableSink, SelectTableSinkBase, SelectTableSinkSchemaConverter}
+import org.apache.flink.table.planner.sinks.{DataStreamTableSink, DynamicSinkUtils, SelectTableSinkBase, SelectTableSinkSchemaConverter}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
@@ -239,20 +239,7 @@ abstract class PlannerBase(
               catalogSink.getStaticPartitions.toMap)
 
           case (table, sink: DynamicTableSink) =>
-            // validate TableSink
-            prepareDynamicSink(catalogSink, identifier, sink, table)
-            // validate query schema and sink schema, and apply cast if possible
-            val query = validateSchemaAndApplyImplicitCast(
-              input,
-              table.getSchema,
-              catalogSink.getTableIdentifier,
-              getTypeFactory)
-            LogicalSink.create(
-              query,
-              identifier,
-              table,
-              sink,
-              catalogSink.getStaticPartitions.toMap)
+            DynamicSinkUtils.toRel(getRelBuilder, input, catalogSink, sink, table)
         } match {
           case Some(sinkRel) => sinkRel
           case None =>

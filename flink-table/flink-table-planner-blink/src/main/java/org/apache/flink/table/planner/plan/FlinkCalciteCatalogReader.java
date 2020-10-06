@@ -204,7 +204,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
 				schemaTable,
 				catalogTable);
 		} else {
-			return new CatalogSourceTable<>(
+			return new CatalogSourceTable(
 				relOptSchema,
 				names,
 				rowType,

@@ -26,7 +26,7 @@ import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -105,12 +105,11 @@ public class TableSchemaUtils {
 
 	/**
 	 * Returns the field indices of primary key in the physical columns of
-	 * this schema (not include computed columns).
+	 * this schema (not include computed columns or metadata columns).
 	 */
 	public static int[] getPrimaryKeyIndices(TableSchema schema) {
 		if (schema.getPrimaryKey().isPresent()) {
-			RowType physicalRowType = (RowType) schema.toPhysicalRowDataType().getLogicalType();
-			List<String> fieldNames = physicalRowType.getFieldNames();
+			List<String> fieldNames = DataTypeUtils.flattenToNames(schema.toPhysicalRowDataType());
 			return schema.getPrimaryKey().get().getColumns().stream()
 				.mapToInt(fieldNames::indexOf)
 				.toArray();

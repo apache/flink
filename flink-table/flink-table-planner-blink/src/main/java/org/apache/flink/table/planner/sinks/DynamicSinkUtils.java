@@ -31,7 +31,11 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
+import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -40,9 +44,12 @@ import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
@@ -50,7 +57,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
@@ -64,47 +73,47 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 public final class DynamicSinkUtils {
 
 	/**
-	 * Prepares the given {@link DynamicTableSink}. It check whether the sink is compatible with the
-	 * INSERT INTO clause and applies initial parameters.
+	 * Similar to {@link CatalogSourceTable#toRel(RelOptTable.ToRelContext)}, converts a given
+	 * {@link DynamicTableSink} to a {@link RelNode}. It adds helper projections if necessary.
 	 */
-	public static void prepareDynamicSink(
+	public static RelNode toRel(
+			FlinkRelBuilder relBuilder,
+			RelNode input,
 			CatalogSinkModifyOperation sinkOperation,
-			ObjectIdentifier sinkIdentifier,
 			DynamicTableSink sink,
 			CatalogTable table) {
+		final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(relBuilder);
+		final TableSchema schema = table.getSchema();
 
-		validatePartitioning(sinkOperation, sinkIdentifier, sink, table.getPartitionKeys());
+		// 1. prepare table sink
+		prepareDynamicSink(sinkOperation, sink, table);
 
-		validateAndApplyOverwrite(sinkOperation, sinkIdentifier, sink);
+		// 2. validate the query schema to the sink's table schema and apply cast if possible
+		final RelNode query = validateSchemaAndApplyImplicitCast(
+			input,
+			schema,
+			sinkOperation.getTableIdentifier(),
+			typeFactory);
+		relBuilder.push(query);
 
-		validateAndApplyMetadata(sinkIdentifier, sink, table.getSchema());
+		// 3. convert the sink's table schema to the consumed data type of the sink
+		final List<Integer> metadataColumns = extractPersistedMetadataColumns(schema);
+		if (!metadataColumns.isEmpty()) {
+			pushMetadataProjection(relBuilder, typeFactory, schema, sink);
+		}
+
+		final RelNode finalQuery = relBuilder.build();
+
+		return LogicalSink.create(
+			finalQuery,
+			sinkOperation.getTableIdentifier(),
+			table,
+			sink,
+			sinkOperation.getStaticPartitions());
 	}
 
 	/**
-	 * Returns a list of required metadata keys. Ordered by the iteration order of
-	 * {@link SupportsWritingMetadata#listWritableMetadata()}.
-	 *
-	 * <p>This method assumes that sink and schema have been validated via
-	 * {@link #prepareDynamicSink(CatalogSinkModifyOperation, ObjectIdentifier, DynamicTableSink, CatalogTable)}.
-	 */
-	public static List<String> createRequiredMetadataKeys(TableSchema schema, DynamicTableSink sink) {
-		final List<MetadataColumn> metadataColumns = extractPersistedMetadataColumns(schema);
-
-		final Set<String> requiredMetadataKeys = metadataColumns
-			.stream()
-			.map(c -> c.getMetadataAlias().orElse(c.getName()))
-			.collect(Collectors.toSet());
-
-		final Map<String, DataType> metadataMap = extractMetadataMap(sink);
-
-		return metadataMap.keySet()
-			.stream()
-			.filter(requiredMetadataKeys::contains)
-			.collect(Collectors.toList());
-	}
-
-	/**
-	 * Checks if the given query can be written into the given sink schema.
+	 * Checks if the given query can be written into the given sink's table schema.
 	 *
 	 * <p>It checks whether field types are compatible (types should be equal including precisions).
 	 * If types are not compatible, but can be implicitly cast, a cast projection will be applied.
@@ -156,6 +165,122 @@ public final class DynamicSinkUtils {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a projection that reorders physical and metadata columns according to the consumed data
+	 * type of the sink. It casts metadata columns into the expected data type.
+	 *
+	 * @see SupportsWritingMetadata
+	 */
+	private static void pushMetadataProjection(
+			FlinkRelBuilder relBuilder,
+			FlinkTypeFactory typeFactory,
+			TableSchema schema,
+			DynamicTableSink sink) {
+		final RexBuilder rexBuilder = relBuilder.getRexBuilder();
+		final List<TableColumn> tableColumns = schema.getTableColumns();
+
+		final List<Integer> physicalColumns = extractPhysicalColumns(schema);
+
+		final Map<String, Integer> keyToMetadataColumn = extractPersistedMetadataColumns(schema)
+			.stream()
+			.collect(
+				Collectors.toMap(
+					pos -> {
+						final MetadataColumn metadataColumn = (MetadataColumn) tableColumns.get(pos);
+						return metadataColumn.getMetadataAlias().orElse(metadataColumn.getName());
+					},
+					Function.identity()
+				)
+			);
+
+		final List<Integer> metadataColumns = createRequiredMetadataKeys(schema, sink)
+			.stream()
+			.map(keyToMetadataColumn::get)
+			.collect(Collectors.toList());
+
+		final List<String> fieldNames = Stream
+			.concat(
+				physicalColumns.stream()
+					.map(tableColumns::get)
+					.map(TableColumn::getName),
+				metadataColumns.stream()
+					.map(tableColumns::get)
+					.map(MetadataColumn.class::cast)
+					.map(c -> c.getMetadataAlias().orElse(c.getName()))
+			)
+			.collect(Collectors.toList());
+
+		final Map<String, DataType> metadataMap = extractMetadataMap(sink);
+
+		final List<RexNode> fieldNodes = Stream
+			.concat(
+				physicalColumns
+					.stream()
+					.map(pos -> {
+						final int posAdjusted = adjustByVirtualColumns(tableColumns, pos);
+						return relBuilder.field(posAdjusted);
+					}),
+				metadataColumns
+					.stream()
+					.map(pos -> {
+						final MetadataColumn metadataColumn = (MetadataColumn) tableColumns.get(pos);
+						final String metadataKey = metadataColumn.getMetadataAlias().orElse(metadataColumn.getName());
+
+						final LogicalType expectedType = metadataMap.get(metadataKey).getLogicalType();
+						final RelDataType expectedRelDataType = typeFactory.createFieldTypeFromLogicalType(expectedType);
+
+						final int posAdjusted = adjustByVirtualColumns(tableColumns, pos);
+						return rexBuilder.makeAbstractCast(expectedRelDataType, relBuilder.field(posAdjusted));
+					})
+			)
+			.collect(Collectors.toList());
+
+		relBuilder.projectNamed(fieldNodes, fieldNames, true);
+	}
+
+	/**
+	 * Prepares the given {@link DynamicTableSink}. It check whether the sink is compatible with the
+	 * INSERT INTO clause and applies initial parameters.
+	 */
+	private static void prepareDynamicSink(
+			CatalogSinkModifyOperation sinkOperation,
+			DynamicTableSink sink,
+			CatalogTable table) {
+		final ObjectIdentifier sinkIdentifier = sinkOperation.getTableIdentifier();
+
+		validatePartitioning(sinkOperation, sinkIdentifier, sink, table.getPartitionKeys());
+
+		validateAndApplyOverwrite(sinkOperation, sinkIdentifier, sink);
+
+		validateAndApplyMetadata(sinkIdentifier, sink, table.getSchema());
+	}
+
+	/**
+	 * Returns a list of required metadata keys. Ordered by the iteration order of
+	 * {@link SupportsWritingMetadata#listWritableMetadata()}.
+	 *
+	 * <p>This method assumes that sink and schema have been validated via
+	 * {@link #prepareDynamicSink(CatalogSinkModifyOperation, DynamicTableSink, CatalogTable)}.
+	 */
+	private static List<String> createRequiredMetadataKeys(TableSchema schema, DynamicTableSink sink) {
+		final List<TableColumn> tableColumns = schema.getTableColumns();
+		final List<Integer> metadataColumns = extractPersistedMetadataColumns(schema);
+
+		final Set<String> requiredMetadataKeys = metadataColumns
+			.stream()
+			.map(tableColumns::get)
+			.map(MetadataColumn.class::cast)
+			.map(c -> c.getMetadataAlias().orElse(c.getName()))
+			.collect(Collectors.toSet());
+
+		final Map<String, DataType> metadataMap = extractMetadataMap(sink);
+
+		return metadataMap.keySet()
+			.stream()
+			.filter(requiredMetadataKeys::contains)
+			.collect(Collectors.toList());
+	}
 
 	private static ValidationException createSchemaMismatchException(
 			String cause,
@@ -256,14 +381,27 @@ public final class DynamicSinkUtils {
 		overwriteSink.applyOverwrite(sinkOperation.isOverwrite());
 	}
 
-	private static List<MetadataColumn> extractPersistedMetadataColumns(TableSchema schema) {
-		return schema
-			.getTableColumns()
-			.stream()
-			.filter(TableColumn::isPersisted)
-			.filter(MetadataColumn.class::isInstance)
-			.map(MetadataColumn.class::cast)
+	private static List<Integer> extractPhysicalColumns(TableSchema schema) {
+		final List<TableColumn> tableColumns = schema.getTableColumns();
+		return IntStream.range(0, schema.getFieldCount())
+			.filter(pos -> tableColumns.get(pos).isPhysical())
+			.boxed()
 			.collect(Collectors.toList());
+	}
+
+	private static List<Integer> extractPersistedMetadataColumns(TableSchema schema) {
+		final List<TableColumn> tableColumns = schema.getTableColumns();
+		return IntStream.range(0, schema.getFieldCount())
+			.filter(pos -> {
+				final TableColumn tableColumn = tableColumns.get(pos);
+				return tableColumn instanceof MetadataColumn && tableColumn.isPersisted();
+			})
+			.boxed()
+			.collect(Collectors.toList());
+	}
+
+	private static int adjustByVirtualColumns(List<TableColumn> tableColumns, int pos) {
+		return pos - (int) IntStream.range(0, pos).filter(i -> !tableColumns.get(i).isPersisted()).count();
 	}
 
 	private static Map<String, DataType> extractMetadataMap(DynamicTableSink sink) {
@@ -277,7 +415,8 @@ public final class DynamicSinkUtils {
 			ObjectIdentifier sinkIdentifier,
 			DynamicTableSink sink,
 			TableSchema schema) {
-		final List<MetadataColumn> metadataColumns = extractPersistedMetadataColumns(schema);
+		final List<TableColumn> tableColumns = schema.getTableColumns();
+		final List<Integer> metadataColumns = extractPersistedMetadataColumns(schema);
 
 		if (metadataColumns.isEmpty()) {
 			return;
@@ -299,9 +438,10 @@ public final class DynamicSinkUtils {
 		final SupportsWritingMetadata metadataSink = (SupportsWritingMetadata) sink;
 
 		final Map<String, DataType> metadataMap = ((SupportsWritingMetadata) sink).listWritableMetadata();
-		metadataColumns.forEach(c -> {
-			final String metadataKey = c.getMetadataAlias().orElse(c.getName());
-			final LogicalType metadataType = c.getType().getLogicalType();
+		metadataColumns.forEach(pos -> {
+			final MetadataColumn metadataColumn = (MetadataColumn) tableColumns.get(pos);
+			final String metadataKey = metadataColumn.getMetadataAlias().orElse(metadataColumn.getName());
+			final LogicalType metadataType = metadataColumn.getType().getLogicalType();
 			final DataType expectedMetadataDataType = metadataMap.get(metadataKey);
 			// check that metadata key is valid
 			if (expectedMetadataDataType == null) {
@@ -310,7 +450,7 @@ public final class DynamicSinkUtils {
 						"Invalid metadata key '%s' in column '%s' of table '%s'. " +
 							"The %s class '%s' supports the following metadata keys for writing:\n%s",
 						metadataKey,
-						c.getName(),
+						metadataColumn.getName(),
 						sinkIdentifier.asSummaryString(),
 						DynamicTableSink.class.getSimpleName(),
 						sink.getClass().getName(),
@@ -320,13 +460,13 @@ public final class DynamicSinkUtils {
 			}
 			// check that types are compatible
 			if (!supportsExplicitCast(metadataType, expectedMetadataDataType.getLogicalType())) {
-				if (metadataKey.equals(c.getName())) {
+				if (metadataKey.equals(metadataColumn.getName())) {
 					throw new ValidationException(
 						String.format(
 							"Invalid data type for metadata column '%s' of table '%s'. " +
 								"The column cannot be declared as '%s' because the type must be " +
 								"castable to metadata type '%s'.",
-							c.getName(),
+							metadataColumn.getName(),
 							sinkIdentifier.asSummaryString(),
 							metadataType,
 							expectedMetadataDataType.getLogicalType()
@@ -338,7 +478,7 @@ public final class DynamicSinkUtils {
 							"Invalid data type for metadata column '%s' with metadata key '%s' of table '%s'. " +
 								"The column cannot be declared as '%s' because the type must be " +
 								"castable to metadata type '%s'.",
-							c.getName(),
+							metadataColumn.getName(),
 							metadataKey,
 							sinkIdentifier.asSummaryString(),
 							metadataType,
