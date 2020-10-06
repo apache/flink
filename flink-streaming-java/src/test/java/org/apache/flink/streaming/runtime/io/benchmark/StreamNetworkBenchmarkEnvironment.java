@@ -30,7 +30,6 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -42,9 +41,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFac
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
@@ -188,15 +185,9 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			.setupBufferPoolFactoryFromNettyShuffleEnvironment(senderEnv)
 			.build();
 
-		ResultPartitionWriter consumableNotifyingPartitionWriter = new ConsumableNotifyingResultPartitionWriterDecorator(
-			new NoOpTaskActions(),
-			jobId,
-			resultPartitionWriter,
-			new NoOpResultPartitionConsumableNotifier());
+		resultPartitionWriter.setup();
 
-		consumableNotifyingPartitionWriter.setup();
-
-		return consumableNotifyingPartitionWriter;
+		return resultPartitionWriter;
 	}
 
 	private void generatePartitionIds() throws Exception {
