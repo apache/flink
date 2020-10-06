@@ -89,6 +89,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		this.subpartitionBufferBuilders = new BufferBuilder[subpartitions.length];
 	}
 
+	@Override
 	public int getNumberOfQueuedBuffers() {
 		int totalBuffers = 0;
 
@@ -99,6 +100,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		return totalBuffers;
 	}
 
+	@Override
 	public int getNumberOfQueuedBuffers(int targetSubpartition) {
 		checkArgument(targetSubpartition >= 0 && targetSubpartition < numSubpartitions);
 		return subpartitions[targetSubpartition].unsynchronizedGetNumberOfQueuedBuffers();
@@ -124,6 +126,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		}
 	}
 
+	@Override
 	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
 		do {
 			final BufferBuilder bufferBuilder = getSubpartitionBufferBuilder(targetSubpartition);
