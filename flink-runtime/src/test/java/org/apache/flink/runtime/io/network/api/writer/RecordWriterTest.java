@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -40,7 +39,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
-import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.PipelinedResultPartition;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartition;
 import org.apache.flink.runtime.io.network.partition.PipelinedSubpartitionView;
@@ -54,8 +52,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-import org.apache.flink.runtime.taskmanager.ConsumableNotifyingResultPartitionWriterDecorator;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
@@ -305,12 +301,8 @@ public class RecordWriterTest {
 			.setBufferPoolFactory(() -> localPool)
 			.build();
 		resultPartition.setup();
-		final ResultPartitionWriter partitionWrapper = new ConsumableNotifyingResultPartitionWriterDecorator(
-			new NoOpTaskActions(),
-			new JobID(),
-			resultPartition,
-			new NoOpResultPartitionConsumableNotifier());
-		final RecordWriter recordWriter = createRecordWriter(partitionWrapper);
+
+		final RecordWriter<?> recordWriter = createRecordWriter(resultPartition);
 
 		try {
 			// record writer is available because of initial available global pool
