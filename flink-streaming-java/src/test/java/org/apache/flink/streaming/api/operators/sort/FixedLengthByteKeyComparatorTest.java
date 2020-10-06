@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,8 +34,8 @@ import static org.junit.Assert.assertThat;
  */
 public class FixedLengthByteKeyComparatorTest extends ComparatorTestBase<Tuple2<byte[], StreamRecord<Integer>>> {
 	@Override
-	protected boolean[] getTestedOrder() {
-		return new boolean[]{true};
+	protected Order[] getTestedOrder() {
+		return new Order[]{Order.ASCENDING};
 	}
 
 	@Override
