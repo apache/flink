@@ -373,6 +373,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 		}
 	}
 
+	@GuardedBy("buffers")
 	private boolean isDataAvailableUnsafe() {
 		assert Thread.holdsLock(buffers);
 
@@ -495,6 +496,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 		}
 	}
 
+	@GuardedBy("buffers")
 	private boolean shouldNotifyDataAvailable() {
 		// Notify only when we added first finished buffer.
 		return readView != null && !flushRequested && !isBlockedByCheckpoint && getNumberOfFinishedBuffers() == 1;
