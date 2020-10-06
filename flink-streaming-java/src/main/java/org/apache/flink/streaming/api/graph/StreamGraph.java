@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -275,6 +276,9 @@ public class StreamGraph implements Pipeline {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
+		if (operatorFactory instanceof OutputFormatOperatorFactory) {
+			setOutputFormat(vertexID, ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
+		}
 		sinks.add(vertexID);
 	}
 
