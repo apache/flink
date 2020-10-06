@@ -26,12 +26,12 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -43,6 +43,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -58,6 +59,11 @@ import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.Retra
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.TestValuesLookupFunction;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -73,6 +79,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -81,6 +88,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import scala.collection.Seq;
 
@@ -250,6 +258,22 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.asList()
 		.noDefaultValue();
 
+	private static final ConfigOption<Map<String, String>> READABLE_METADATA = ConfigOptions
+		.key("readable-metadata")
+		.mapType()
+		.defaultValue(Collections.emptyMap())
+		.withDescription(
+			"Optional map of 'metadata_key:data_type,...'. The order will be alphabetically. " +
+			"The metadata is part of the data when enabled.");
+
+	private static final ConfigOption<Map<String, String>> WRITABLE_METADATA = ConfigOptions
+		.key("writable-metadata")
+		.mapType()
+		.defaultValue(Collections.emptyMap())
+		.withDescription(
+			"Optional map of 'metadata_key:data_type'. The order will be alphabetically. " +
+			"The metadata is part of the data when enabled.");
+
 	/**
 	 * Parse partition list from Options with the format as "key1:val1,key2:val2;key1:val3,key2:val4".
 	 */
@@ -267,7 +291,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
 		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+
 		helper.validate();
+
 		ChangelogMode changelogMode = parseChangelogMode(helper.getOptions().get(CHANGELOG_MODE));
 		String runtimeSource = helper.getOptions().get(RUNTIME_SOURCE);
 		boolean isBounded = helper.getOptions().get(BOUNDED);
@@ -281,14 +307,18 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		Set<String> filterableFieldsSet = new HashSet<>();
 		filterableFields.ifPresent(filterableFieldsSet::addAll);
 
+		final Map<String, DataType> readableMetadata = convertToMetadataMap(
+			helper.getOptions().get(READABLE_METADATA),
+			context.getClassLoader());
+
 		if (sourceClass.equals("DEFAULT")) {
 			Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
 			List<Map<String, String>> partitions = parsePartitionList(helper.getOptions().get(PARTITION_LIST));
-			TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+			DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
 			// pushing project into scan will prune schema and we have to get the mapping between partition and row
 			Map<Map<String, String>, Collection<Row>> partition2Rows;
 			if (!partitions.isEmpty()) {
-				partition2Rows = mapPartitionToRow(physicalSchema, data, partitions);
+				partition2Rows = mapPartitionToRow(producedDataType, data, partitions);
 			} else {
 				// put all data into one partition
 				partitions = Collections.emptyList();
@@ -298,7 +328,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 			if (disableLookup) {
 				return new TestValuesScanTableSource(
-					physicalSchema,
+					producedDataType,
 					changelogMode,
 					isBounded,
 					runtimeSource,
@@ -308,10 +338,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					Collections.emptyList(),
 					filterableFieldsSet,
 					Long.MAX_VALUE,
-					partitions);
+					partitions,
+					readableMetadata,
+					null);
 			} else {
 				return new TestValuesScanLookupTableSource(
-					physicalSchema,
+					producedDataType,
 					changelogMode,
 					isBounded,
 					runtimeSource,
@@ -323,7 +355,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 					Collections.emptyList(),
 					filterableFieldsSet,
 					Long.MAX_VALUE,
-					partitions);
+					partitions,
+					readableMetadata,
+					null);
 			}
 		} else {
 			try {
@@ -340,19 +374,30 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	@Override
 	public DynamicTableSink createDynamicTableSink(Context context) {
 		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-		helper.validate();
-		String sinkClass = helper.getOptions().get(TABLE_SINK_CLASS);
 
+		helper.validate();
+
+		String sinkClass = helper.getOptions().get(TABLE_SINK_CLASS);
 		boolean isInsertOnly = helper.getOptions().get(SINK_INSERT_ONLY);
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
-		TableSchema schema = context.getCatalogTable().getSchema();
+		final Map<String, DataType> writableMetadata = convertToMetadataMap(
+			helper.getOptions().get(WRITABLE_METADATA),
+			context.getClassLoader());
+
+		final DataType consumedType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+
+		final int[] primaryKeyIndices = TableSchemaUtils.getPrimaryKeyIndices(context.getCatalogTable().getSchema());
+
 		if (sinkClass.equals("DEFAULT")) {
 			return new TestValuesTableSink(
-				schema,
+				consumedType,
+				primaryKeyIndices,
 				context.getObjectIdentifier().getObjectName(),
 				isInsertOnly,
-				runtimeSink, expectedNum);
+				runtimeSink,
+				expectedNum,
+				writableMetadata);
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -388,7 +433,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			SINK_EXPECTED_MESSAGES_NUM,
 			NESTED_PROJECTION_SUPPORTED,
 			FILTERABLE_FIELDS,
-			PARTITION_LIST));
+			PARTITION_LIST,
+			READABLE_METADATA,
+			WRITABLE_METADATA));
 	}
 
 	private static List<Map<String, String>> parsePartitionList(List<String> stringPartitions) {
@@ -404,19 +451,19 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	}
 
 	private static Map<Map<String, String>, Collection<Row>> mapPartitionToRow(
-			TableSchema schema,
+			DataType producedDataType,
 			Collection<Row> rows,
 			List<Map<String, String>> partitions) {
 		Map<Map<String, String>, Collection<Row>> map = new HashMap<>();
 		for (Map<String, String> partition: partitions) {
 			map.put(partition, new ArrayList<>());
 		}
-		String[] fieldnames = schema.getFieldNames();
+		List<String> fieldNames = DataTypeUtils.flattenToNames(producedDataType);
 		for (Row row: rows) {
 			for (Map<String, String> partition: partitions) {
 				boolean match = true;
 				for (Map.Entry<String, String> entry: partition.entrySet()) {
-					int index = Arrays.asList(fieldnames).indexOf(entry.getKey());
+					int index = fieldNames.indexOf(entry.getKey());
 					if (index < 0) {
 						throw new IllegalArgumentException(
 							String.format("Illegal partition list: partition key %s is not found in schema.", entry.getKey()));
@@ -466,6 +513,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		return builder.build();
 	}
 
+	private static Map<String, DataType> convertToMetadataMap(
+			Map<String, String> metadataOption,
+			ClassLoader classLoader) {
+		return metadataOption.keySet()
+			.stream()
+			.sorted()
+			.collect(
+				Collectors.toMap(
+					Function.identity(),
+					key -> {
+						final String typeString = metadataOption.get(key);
+						final LogicalType type = LogicalTypeParser.parse(typeString, classLoader);
+						return TypeConversions.fromLogicalToDataType(type);
+					},
+					(u, v) -> {
+						throw new IllegalStateException();
+					},
+					LinkedHashMap::new
+				)
+			);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Table sources
 	// --------------------------------------------------------------------------------------------
@@ -473,48 +542,56 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link ScanTableSource} for testing.
 	 */
-	private static class TestValuesScanTableSource implements ScanTableSource,
-		SupportsProjectionPushDown,
-		SupportsFilterPushDown,
-		SupportsLimitPushDown,
-		SupportsPartitionPushDown {
+	private static class TestValuesScanTableSource implements
+			ScanTableSource,
+			SupportsProjectionPushDown,
+			SupportsFilterPushDown,
+			SupportsLimitPushDown,
+			SupportsPartitionPushDown,
+			SupportsReadingMetadata {
 
-		private TableSchema physicalSchema;
+		private DataType producedDataType;
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
 		protected Map<Map<String, String>, Collection<Row>> data;
 
 		private final boolean nestedProjectionSupported;
-		private @Nullable int[] projectedFields;
+		private @Nullable int[] projectedPhysicalFields;
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
 		private long limit;
 		protected List<Map<String, String>> allPartitions;
+		private final Map<String, DataType> readableMetadata;
+		private @Nullable int[] projectedMetadataFields;
 
 		private TestValuesScanTableSource(
-				TableSchema physicalSchema,
+				DataType producedDataType,
 				ChangelogMode changelogMode,
 				boolean bounded,
 				String runtimeSource,
 				Map<Map<String, String>, Collection<Row>> data,
 				boolean nestedProjectionSupported,
-				int[] projectedFields,
+				@Nullable int[] projectedPhysicalFields,
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
 				long limit,
-				List<Map<String, String>> allPartitions) {
-			this.physicalSchema = physicalSchema;
+				List<Map<String, String>> allPartitions,
+				Map<String, DataType> readableMetadata,
+				@Nullable int[] projectedMetadataFields) {
+			this.producedDataType = producedDataType;
 			this.changelogMode = changelogMode;
 			this.bounded = bounded;
 			this.runtimeSource = runtimeSource;
 			this.data = data;
 			this.nestedProjectionSupported = nestedProjectionSupported;
-			this.projectedFields = projectedFields;
+			this.projectedPhysicalFields = projectedPhysicalFields;
 			this.filterPredicates = filterPredicates;
 			this.filterableFields = filterableFields;
 			this.limit = limit;
 			this.allPartitions = allPartitions;
+			this.readableMetadata = readableMetadata;
+			this.projectedMetadataFields = projectedMetadataFields;
 		}
 
 		@Override
@@ -526,11 +603,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
 			TypeSerializer<RowData> serializer = (TypeSerializer<RowData>) runtimeProviderContext
-				.createTypeInformation(physicalSchema.toRowDataType())
+				.createTypeInformation(producedDataType)
 				.createSerializer(new ExecutionConfig());
-			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(physicalSchema.toRowDataType());
+			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(producedDataType);
 			converter.open(RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));
-			Collection<RowData> values = convertToRowData(data, projectedFields, converter);
+			Collection<RowData> values = convertToRowData(converter);
 
 			if (runtimeSource.equals("SourceFunction")) {
 				try {
@@ -554,8 +631,8 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public void applyProjection(int[][] projectedFields) {
-			this.physicalSchema = TableSchemaUtils.projectSchema(physicalSchema, projectedFields);
-			this.projectedFields = Arrays.stream(projectedFields).mapToInt(f -> f[0]).toArray();
+			this.producedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
+			this.projectedPhysicalFields = Arrays.stream(projectedFields).mapToInt(f -> f[0]).toArray();
 		}
 
 		@Override
@@ -574,8 +651,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 
 		private Function<String, Comparable<?>> getValueGetter(Row row) {
+			final List<String> fieldNames = DataTypeUtils.flattenToNames(producedDataType);
 			return fieldName -> {
-				int idx = Arrays.asList(physicalSchema.getFieldNames()).indexOf(fieldName);
+				int idx = fieldNames.indexOf(fieldName);
 				return (Comparable<?>) row.getField(idx);
 			};
 		}
@@ -583,17 +661,19 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public DynamicTableSource copy() {
 			return new TestValuesScanTableSource(
-				physicalSchema,
+				producedDataType,
 				changelogMode,
 				bounded,
 				runtimeSource,
 				data,
 				nestedProjectionSupported,
-				projectedFields,
+				projectedPhysicalFields,
 				filterPredicates,
 				filterableFields,
 				limit,
-				allPartitions);
+				allPartitions,
+				readableMetadata,
+				projectedMetadataFields);
 		}
 
 		@Override
@@ -601,42 +681,47 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return "TestValues";
 		}
 
-		private Collection<RowData> convertToRowData(
-				Map<Map<String, String>, Collection<Row>> data,
-				int[] projectedFields,
-				DataStructureConverter converter) {
+		private Collection<RowData> convertToRowData(DataStructureConverter converter) {
 			List<RowData> result = new ArrayList<>();
 			List<Map<String, String>> keys = allPartitions.isEmpty() ?
 				Collections.singletonList(Collections.emptyMap()) :
 				allPartitions;
 			for (Map<String, String> partition: keys) {
-				for (Row value : data.get(partition)) {
+				for (Row row : data.get(partition)) {
 					if (result.size() >= limit) {
 						return result;
 					}
 					boolean isRetained = FilterUtils.isRetainedAfterApplyingFilterPredicates(
 						filterPredicates,
-						getValueGetter(value));
+						getValueGetter(row));
 					if (isRetained) {
-						Row projectedRow;
-						if (projectedFields == null) {
-							projectedRow = value;
-						} else {
-							Object[] newValues = new Object[projectedFields.length];
-							for (int i = 0; i < projectedFields.length; ++i) {
-								newValues[i] = value.getField(projectedFields[i]);
-							}
-							projectedRow = Row.of(newValues);
-						}
-						RowData rowData = (RowData) converter.toInternal(projectedRow);
+						final Row projectedRow = projectRow(row);
+						final RowData rowData = (RowData) converter.toInternal(projectedRow);
 						if (rowData != null) {
-							rowData.setRowKind(value.getKind());
+							rowData.setRowKind(row.getKind());
 							result.add(rowData);
 						}
 					}
 				}
 			}
 			return result;
+		}
+
+		private Row projectRow(Row row) {
+			if (projectedPhysicalFields == null) {
+				return row;
+			}
+
+			final IntStream projectedPhysicalStream = IntStream.of(projectedPhysicalFields);
+			final IntStream projectedMetadataStream = (projectedMetadataFields != null) ?
+				IntStream.of(projectedMetadataFields).map(i -> i + projectedPhysicalFields.length) :
+				IntStream.empty();
+			final int[] projectedFields = IntStream
+				.concat(
+					projectedPhysicalStream,
+					projectedMetadataStream)
+				.toArray();
+			return Row.project(row, projectedFields);
 		}
 
 		@Override
@@ -655,7 +740,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				if (!remainingPartitions.isEmpty()) {
 					// map data into partitions
 					this.allPartitions = remainingPartitions;
-					this.data = mapPartitionToRow(physicalSchema, data.get(Collections.EMPTY_MAP), remainingPartitions);
+					this.data = mapPartitionToRow(producedDataType, data.get(Collections.EMPTY_MAP), remainingPartitions);
 				} else {
 					// we will read data from Collections.emptyList() if allPartitions is empty.
 					// therefore, we should clear all data manually.
@@ -673,6 +758,20 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		public void applyLimit(long limit) {
 			this.limit = limit;
 		}
+
+		@Override
+		public Map<String, DataType> listReadableMetadata() {
+			return readableMetadata;
+		}
+
+		@Override
+		public void applyReadableMetadata(List<String> remainingMetadataKeys, DataType newProducedDataType) {
+			producedDataType = newProducedDataType;
+			final List<String> allMetadataKeys = new ArrayList<>(listReadableMetadata().keySet());
+			projectedMetadataFields = remainingMetadataKeys.stream()
+				.mapToInt(allMetadataKeys::indexOf)
+				.toArray();
+		}
 	}
 
 	/**
@@ -689,7 +788,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		private final boolean isAsync;
 
 		private TestValuesScanLookupTableSource(
-				TableSchema physicalSchema,
+				DataType producedDataType,
 				ChangelogMode changelogMode,
 				boolean bounded,
 				String runtimeSource,
@@ -701,9 +800,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				List<ResolvedExpression> filterPredicates,
 				Set<String> filterableFields,
 				long limit,
-				List<Map<String, String>> allPartitions) {
+				List<Map<String, String>> allPartitions,
+				Map<String, DataType> readableMetadata,
+				@Nullable int[] projectedMetadataFields) {
 			super(
-				physicalSchema,
+				producedDataType,
 				changelogMode,
 				bounded,
 				runtimeSource,
@@ -713,7 +814,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				filterPredicates,
 				filterableFields,
 				limit,
-				allPartitions);
+				allPartitions,
+				readableMetadata,
+				projectedMetadataFields);
 			this.lookupFunctionClass = lookupFunctionClass;
 			this.isAsync = isAsync;
 		}
@@ -796,25 +899,33 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	/**
 	 * Values {@link DynamicTableSink} for testing.
 	 */
-	private static class TestValuesTableSink implements DynamicTableSink {
+	private static class TestValuesTableSink implements
+			DynamicTableSink,
+			SupportsWritingMetadata {
 
-		private final TableSchema schema;
+		private DataType consumedDataType;
+		private int[] primaryKeyIndices;
 		private final String tableName;
 		private final boolean isInsertOnly;
 		private final String runtimeSink;
 		private final int expectedNum;
+		private final Map<String, DataType> writableMetadata;
 
 		private TestValuesTableSink(
-				TableSchema schema,
+				DataType consumedDataType,
+				int[] primaryKeyIndices,
 				String tableName,
 				boolean isInsertOnly,
 				String runtimeSink,
-				int expectedNum) {
-			this.schema = schema;
+				int expectedNum,
+				Map<String, DataType> writableMetadata) {
+			this.consumedDataType = consumedDataType;
+			this.primaryKeyIndices = primaryKeyIndices;
 			this.tableName = tableName;
 			this.isInsertOnly = isInsertOnly;
 			this.runtimeSink = runtimeSink;
 			this.expectedNum = expectedNum;
+			this.writableMetadata = writableMetadata;
 		}
 
 		@Override
@@ -823,7 +934,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				return ChangelogMode.insertOnly();
 			} else {
 				ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-				if (schema.getPrimaryKey().isPresent()) {
+				if (primaryKeyIndices.length > 0) {
 					// can update on key, ignore UPDATE_BEFORE
 					for (RowKind kind : requestedMode.getContainedKinds()) {
 						if (kind != RowKind.UPDATE_BEFORE) {
@@ -840,7 +951,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-			DataStructureConverter converter = context.createDataStructureConverter(schema.toPhysicalRowDataType());
+			DataStructureConverter converter = context.createDataStructureConverter(consumedDataType);
 			if (isInsertOnly) {
 				checkArgument(expectedNum == -1,
 					"Appending Sink doesn't support '" + SINK_EXPECTED_MESSAGES_NUM.key() + "' yet.");
@@ -861,12 +972,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				// we don't support OutputFormat for updating query in the TestValues connector
 				assert runtimeSink.equals("SinkFunction");
 				SinkFunction<RowData> sinkFunction;
-				if (schema.getPrimaryKey().isPresent()) {
-					int[] keyIndices = TableSchemaUtils.getPrimaryKeyIndices(schema);
+				if (primaryKeyIndices.length > 0) {
 					sinkFunction = new KeyedUpsertingSinkFunction(
 						tableName,
 						converter,
-						keyIndices,
+						primaryKeyIndices,
 						expectedNum);
 				} else {
 					checkArgument(expectedNum == -1,
@@ -882,15 +992,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public DynamicTableSink copy() {
 			return new TestValuesTableSink(
-				schema,
+				consumedDataType,
+				primaryKeyIndices,
 				tableName,
 				isInsertOnly,
-				runtimeSink, expectedNum);
+				runtimeSink,
+				expectedNum,
+				writableMetadata);
 		}
 
 		@Override
 		public String asSummaryString() {
 			return "TestValues";
+		}
+
+		@Override
+		public Map<String, DataType> listWritableMetadata() {
+			return writableMetadata;
+		}
+
+		@Override
+		public void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType) {
+			this.consumedDataType = consumedDataType;
 		}
 	}
 

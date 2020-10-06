@@ -19,12 +19,18 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeRewriter;
+import org.apache.flink.table.planner.sources.DynamicSourceUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -34,8 +40,11 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * Planner rule that pushes a {@link LogicalProject} into a {@link LogicalTableScan}
@@ -72,32 +81,78 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
 	@Override
 	public void onMatch(RelOptRuleCall call) {
-		LogicalProject project = call.rel(0);
-		LogicalTableScan scan = call.rel(1);
+		final LogicalProject project = call.rel(0);
+		final LogicalTableScan scan = call.rel(1);
 
-		int[] usedFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
+		final List<String> fieldNames = scan.getRowType().getFieldNames();
+		final int fieldCount = fieldNames.size();
+
+		final int[] usedFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
 		// if no fields can be projected, we keep the original plan.
-		if (scan.getRowType().getFieldCount() == usedFields.length) {
+		if (usedFields.length == fieldCount) {
 			return;
 		}
 
-		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-		DynamicTableSource newTableSource = oldTableSourceTable.tableSource().copy();
+		final List<String> projectedFieldNames = IntStream.of(usedFields)
+			.mapToObj(fieldNames::get)
+			.collect(Collectors.toList());
 
-		int[][] projectedFields = new int[usedFields.length][];
-		List<String> fieldNames = new ArrayList<>();
-		for (int i = 0; i < usedFields.length; ++i) {
-			int usedField = usedFields[i];
-			projectedFields[i] = new int[] { usedField };
-			fieldNames.add(scan.getRowType().getFieldNames().get(usedField));
+		TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
+
+		final TableSchema oldSchema = oldTableSourceTable.catalogTable().getSchema();
+		final DynamicTableSource oldSource = oldTableSourceTable.tableSource();
+		final List<String> metadataKeys = DynamicSourceUtils.createRequiredMetadataKeys(oldSchema, oldSource);
+		final int physicalFieldCount = fieldCount - metadataKeys.size();
+		final DynamicTableSource newSource = oldSource.copy();
+
+		// remove metadata columns from the projection push down and store it in a separate list
+		// the projection push down itself happens purely on physical columns
+		final int[] usedPhysicalFields;
+		final List<String> usedMetadataKeys;
+		if (newSource instanceof SupportsReadingMetadata) {
+			usedPhysicalFields = IntStream.of(usedFields)
+				// select only physical columns
+				.filter(i -> i < physicalFieldCount)
+				.toArray();
+			final List<String> usedMetadataKeysUnordered = IntStream.of(usedFields)
+				// select only metadata columns
+				.filter(i -> i >= physicalFieldCount)
+				// map the indices to keys
+				.mapToObj(i -> metadataKeys.get(fieldCount - i - 1))
+				.collect(Collectors.toList());
+			// order the keys according to the source's declaration
+			usedMetadataKeys = metadataKeys
+				.stream()
+				.filter(usedMetadataKeysUnordered::contains)
+				.collect(Collectors.toList());
+		} else {
+			usedPhysicalFields = usedFields;
+			usedMetadataKeys = Collections.emptyList();
 		}
-		((SupportsProjectionPushDown) newTableSource).applyProjection(projectedFields);
+
+		final int[][] projectedPhysicalFields = IntStream.of(usedPhysicalFields)
+			.mapToObj(i -> new int[]{ i })
+			.toArray(int[][]::new);
+
+		// push down physical projection
+		((SupportsProjectionPushDown) newSource).applyProjection(projectedPhysicalFields);
+
+		// push down metadata projection
+		applyUpdatedMetadata(
+			oldSource,
+			oldSchema,
+			newSource,
+			metadataKeys,
+			usedMetadataKeys,
+			physicalFieldCount,
+			projectedPhysicalFields);
+
 		FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) oldTableSourceTable.getRelOptSchema().getTypeFactory();
 		RelDataType newRowType = flinkTypeFactory.projectStructType(oldTableSourceTable.getRowType(), usedFields);
 
 		// project push down does not change the statistic, we can reuse origin statistic
 		TableSourceTable newTableSourceTable = oldTableSourceTable.copy(
-				newTableSource, newRowType, new String[] { ("project=[" + String.join(", ", fieldNames) + "]") });
+				newSource, newRowType, new String[] { ("project=[" + String.join(", ", projectedFieldNames) + "]") });
 
 		LogicalTableScan newScan = new LogicalTableScan(
 				scan.getCluster(), scan.getTraitSet(), scan.getHints(), newTableSourceTable);
@@ -114,6 +169,38 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 			call.transformTo(newScan);
 		} else {
 			call.transformTo(newProject);
+		}
+	}
+
+	private void applyUpdatedMetadata(
+			DynamicTableSource oldSource,
+			TableSchema oldSchema,
+			DynamicTableSource newSource,
+			List<String> metadataKeys,
+			List<String> usedMetadataKeys,
+			int physicalFieldCount,
+			int[][] projectedPhysicalFields) {
+		if (newSource instanceof SupportsReadingMetadata) {
+			final DataType producedDataType = TypeConversions.fromLogicalToDataType(
+				DynamicSourceUtils.createProducedType(oldSchema, oldSource));
+
+			final int[][] projectedMetadataFields = usedMetadataKeys
+				.stream()
+				.map(metadataKeys::indexOf)
+				.map(i -> new int[]{ physicalFieldCount + i })
+				.toArray(int[][]::new);
+
+			final int[][] projectedFields = Stream
+				.concat(
+					Stream.of(projectedPhysicalFields),
+					Stream.of(projectedMetadataFields)
+				)
+				.toArray(int[][]::new);
+
+			// create a new, final data type that includes all projections
+			final DataType newProducedDataType = DataTypeUtils.projectRow(producedDataType, projectedFields);
+
+			((SupportsReadingMetadata) newSource).applyReadableMetadata(usedMetadataKeys, newProducedDataType);
 		}
 	}
 }

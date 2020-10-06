@@ -222,7 +222,7 @@ class FlinkPlannerImpl(
   /**
     * Creates a new instance of [[RelOptTable.ToRelContext]] for [[RelOptTable]].
     */
-  private def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
+  def createToRelContext(): RelOptTable.ToRelContext = new ToRelContextImpl
 
   /**
     * Implements [[RelOptTable.ToRelContext]] interface for [[RelOptTable]] and

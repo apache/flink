@@ -65,6 +65,23 @@ class TableSourceITCase extends StreamingTestBase {
          |  'bounded' = 'false'
          |)
          |""".stripMargin)
+
+    val metadataTableDataId = TestValuesTableFactory.registerData(TestData.smallData5)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `a` INT,
+         |  `other_metadata` INT METADATA FROM 'metadata_3',
+         |  `b` BIGINT,
+         |  `metadata_1` INT METADATA,
+         |  `metadata_2` STRING METADATA
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$metadataTableDataId',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |)
+         |""".stripMargin)
   }
 
   @Test
@@ -263,5 +280,35 @@ class TableSourceITCase extends StreamingTestBase {
       "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
     )
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testSimpleMetadataAccess(): Unit = {
+    val result = tEnv.sqlQuery("SELECT `a`, `b`, `metadata_2` FROM MetadataTable")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,1,Hallo",
+      "2,2,Hallo Welt",
+      "2,3,Hallo Welt wie")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testComplexMetadataAccess(): Unit = {
+    val result = tEnv.sqlQuery("SELECT `a`, `other_metadata`, `b`, `metadata_2` FROM MetadataTable")
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,1,0,Hallo",
+      "2,2,1,Hallo Welt",
+      "2,3,2,Hallo Welt wie")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

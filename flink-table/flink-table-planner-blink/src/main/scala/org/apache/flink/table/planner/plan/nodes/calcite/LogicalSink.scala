@@ -56,7 +56,7 @@ object LogicalSink {
       tableIdentifier: ObjectIdentifier,
       catalogTable: CatalogTable,
       tableSink: DynamicTableSink,
-      staticPartitions: Map[String, String] = Map()): LogicalSink = {
+      staticPartitions: util.Map[String, String]): LogicalSink = {
     val traits = input.getCluster.traitSetOf(Convention.NONE)
     new LogicalSink(
       input.getCluster,
@@ -65,7 +65,7 @@ object LogicalSink {
       tableIdentifier,
       catalogTable,
       tableSink,
-      staticPartitions)
+      staticPartitions.toMap)
   }
 }
 
