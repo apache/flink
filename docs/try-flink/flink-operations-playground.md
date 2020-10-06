@@ -367,26 +367,13 @@ docker-compose run --no-deps client flink stop <job-id>
 **Expected Output**
 {% highlight bash %}
 Suspending job "<job-id>" with a savepoint.
-Suspended job "<job-id>" with a savepoint.
+Savepoint completed. Path: file:<savepoint-path>
 {% endhighlight %}
 
 The Savepoint has been stored to the `state.savepoint.dir` configured in the *flink-conf.yaml*, 
 which is mounted under */tmp/flink-savepoints-directory/* on your local machine. You will need the 
-path to this Savepoint in the next step. In case of the REST API this path was already part of the 
-response, you will need to have a look at the filesystem directly.
+path to this Savepoint in the next step. 
 
-**Command**
-{% highlight bash %}
-ls -lia /tmp/flink-savepoints-directory
-{% endhighlight %}
-
-**Expected Output**
-{% highlight bash %}
-total 0
-  17 drwxr-xr-x   3 root root   60 17 jul 17:05 .
-   2 drwxrwxrwt 135 root root 3420 17 jul 17:09 ..
-1002 drwxr-xr-x   2 root root  140 17 jul 17:05 savepoint-<short-job-id>-<uuid>
-{% endhighlight %}
 </div>
  <div data-lang="REST API" markdown="1">
  
@@ -438,7 +425,6 @@ docker-compose run --no-deps client flink run -s <savepoint-path> \
 {% endhighlight %}
 **Expected Output**
 {% highlight bash %}
-Starting execution of program
 Job has been submitted with JobID <job-id>
 {% endhighlight %}
 </div>
