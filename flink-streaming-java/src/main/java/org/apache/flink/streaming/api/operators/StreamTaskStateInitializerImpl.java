@@ -62,6 +62,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
+
 /**
  * This class is the main implementation of a {@link StreamTaskStateInitializer}. This class obtains the state to create
  * {@link StreamOperatorStateContext} objects for stream operators from the {@link TaskStateManager} of the task that
@@ -550,9 +552,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			if (keyedStateHandle instanceof KeyGroupsStateHandle) {
 				keyGroupsStateHandles.add((KeyGroupsStateHandle) keyedStateHandle);
 			} else if (keyedStateHandle != null) {
-				throw new IllegalStateException("Unexpected state handle type, " +
-					"expected: " + KeyGroupsStateHandle.class +
-					", but found: " + keyedStateHandle.getClass() + ".");
+				throw unexpectedStateHandleException(KeyGroupsStateHandle.class, keyedStateHandle.getClass());
 			}
 		}
 
