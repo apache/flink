@@ -48,6 +48,7 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
+import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,6 +129,18 @@ public class StreamGraphGenerator {
 
 	private RuntimeExecutionMode runtimeExecutionMode = RuntimeExecutionMode.STREAMING;
 
+	private boolean shouldExecuteInBatchMode;
+
+	@SuppressWarnings("rawtypes")
+	private static final Map<Class<? extends Transformation>, TransformationTranslator<?, ? extends Transformation>> translatorMap;
+
+	static {
+		@SuppressWarnings("rawtypes")
+		Map<Class<? extends Transformation>, TransformationTranslator<?, ? extends Transformation>> tmp = new HashMap<>();
+		tmp.put(OneInputTransformation.class, new OneInputTransformationTranslator<>());
+		translatorMap = Collections.unmodifiableMap(tmp);
+	}
+
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
 	public static int getNewIterationNodeId() {
@@ -191,6 +204,7 @@ public class StreamGraphGenerator {
 
 	public StreamGraph generate() {
 		streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+		shouldExecuteInBatchMode = shouldExecuteInBatchMode(runtimeExecutionMode);
 		configureStreamGraph(streamGraph);
 
 		alreadyTransformed = new HashMap<>();
@@ -217,7 +231,7 @@ public class StreamGraphGenerator {
 		graph.setTimeCharacteristic(timeCharacteristic);
 		graph.setJobName(jobName);
 
-		if (shouldExecuteInBatchMode(runtimeExecutionMode)) {
+		if (shouldExecuteInBatchMode) {
 			graph.setAllVerticesInSameSlotSharingGroupByDefault(false);
 			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
@@ -277,10 +291,29 @@ public class StreamGraphGenerator {
 		// call at least once to trigger exceptions about MissingTypeInfo
 		transform.getOutputType();
 
+		@SuppressWarnings("unchecked")
+		final TransformationTranslator<?, Transformation<?>> translator =
+				(TransformationTranslator<?, Transformation<?>>) translatorMap.get(transform.getClass());
+
 		Collection<Integer> transformedIds;
-		if (transform instanceof OneInputTransformation<?, ?>) {
-			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
-		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
+		if (translator != null) {
+			transformedIds = translate(translator, transform);
+		} else {
+			transformedIds = legacyTransform(transform);
+		}
+
+		// need this check because the iterate transformation adds itself before
+		// transforming the feedback edges
+		if (!alreadyTransformed.containsKey(transform)) {
+			alreadyTransformed.put(transform, transformedIds);
+		}
+
+		return transformedIds;
+	}
+
+	private Collection<Integer> legacyTransform(Transformation<?> transform) {
+		Collection<Integer> transformedIds;
+		if (transform instanceof TwoInputTransformation<?, ?, ?>) {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
 		} else if (transform instanceof AbstractMultipleInputTransformation<?>) {
 			transformedIds = transformMultipleInputTransform((AbstractMultipleInputTransformation<?>) transform);
@@ -302,12 +335,6 @@ public class StreamGraphGenerator {
 			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
 		} else {
 			throw new IllegalStateException("Unknown transformation: " + transform);
-		}
-
-		// need this check because the iterate transformation adds itself before
-		// transforming the feedback edges
-		if (!alreadyTransformed.containsKey(transform)) {
-			alreadyTransformed.put(transform, transformedIds);
 		}
 
 		if (transform.getBufferTimeout() >= 0) {
@@ -645,48 +672,31 @@ public class StreamGraphGenerator {
 		return Collections.emptyList();
 	}
 
-	/**
-	 * Transforms a {@code OneInputTransformation}.
-	 *
-	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
-	 * wired the inputs to this new node.
-	 */
-	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
+	private Collection<Integer> translate(
+			final TransformationTranslator<?, Transformation<?>> translator,
+			final Transformation<?> transform) {
+		checkNotNull(translator);
+		checkNotNull(transform);
 
-		List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
-		checkState(allInputIds.size() == 1);
-		Collection<Integer> inputIds = allInputIds.get(0);
+		final List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
 
-		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
+		final String slotSharingGroup = determineSlotSharingGroup(
+				transform.getSlotSharingGroup(),
+				allInputIds.stream()
+						.flatMap(Collection::stream)
+						.collect(Collectors.toList()));
 
-		streamGraph.addOperator(transform.getId(),
-				slotSharingGroup,
-				transform.getCoLocationGroupKey(),
-				transform.getOperatorFactory(),
-				transform.getInputType(),
-				transform.getOutputType(),
-				transform.getName());
+		final TransformationTranslator.Context context = new ContextImpl(
+				this, streamGraph, slotSharingGroup);
 
-		if (transform.getStateKeySelector() != null) {
-			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
-		}
-
-		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-			transform.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(transform.getId(), parallelism);
-		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
-
-		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId, transform.getId(), 0);
-		}
-
-		return Collections.singleton(transform.getId());
+		return shouldExecuteInBatchMode
+				? translator.translateForBatch(transform, context)
+				: translator.translateForStreaming(transform, context);
 	}
 
 	/**
@@ -798,6 +808,8 @@ public class StreamGraphGenerator {
 	 * Returns a list of lists containing the ids of the nodes in the transformation graph
 	 * that correspond to the provided transformations. Each transformation may have multiple nodes.
 	 *
+	 * <p>Parent transformations will be translated if they are not already translated.
+	 *
 	 * @param parentTransformations the transformations whose node ids to return.
 	 * @return the nodeIds per transformation or an empty list if the {@code parentTransformations} are empty.
 	 */
@@ -839,6 +851,47 @@ public class StreamGraphGenerator {
 				}
 			}
 			return inputGroup == null ? DEFAULT_SLOT_SHARING_GROUP : inputGroup;
+		}
+	}
+
+	private static class ContextImpl implements TransformationTranslator.Context {
+
+		private final StreamGraphGenerator streamGraphGenerator;
+
+		private final StreamGraph streamGraph;
+
+		private final String slotSharingGroup;
+
+		public ContextImpl(
+				final StreamGraphGenerator streamGraphGenerator,
+				final StreamGraph streamGraph,
+				final String slotSharingGroup) {
+			this.streamGraphGenerator = checkNotNull(streamGraphGenerator);
+			this.streamGraph = checkNotNull(streamGraph);
+			this.slotSharingGroup = checkNotNull(slotSharingGroup);
+		}
+
+		@Override
+		public StreamGraph getStreamGraph() {
+			return streamGraph;
+		}
+
+		@Override
+		public Collection<Integer> getStreamNodeIds(final Transformation<?> transformation) {
+			checkNotNull(transformation);
+			final Collection<Integer> ids = streamGraphGenerator.alreadyTransformed.get(transformation);
+			checkState(ids != null, "Parent transformation \"" + transformation + "\" has not been transformed.");
+			return ids;
+		}
+
+		@Override
+		public String getSlotSharingGroup() {
+			return slotSharingGroup;
+		}
+
+		@Override
+		public long getDefaultBufferTimeout() {
+			return streamGraphGenerator.defaultBufferTimeout;
 		}
 	}
 }
