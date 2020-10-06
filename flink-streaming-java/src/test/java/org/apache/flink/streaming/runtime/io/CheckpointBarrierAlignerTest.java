@@ -21,8 +21,6 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -33,7 +31,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
 import org.hamcrest.BaseMatcher;
@@ -46,7 +43,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -901,86 +897,6 @@ public class CheckpointBarrierAlignerTest {
 	// ------------------------------------------------------------------------
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
-
-	/**
-	 * The invokable handler used for triggering checkpoint and validation.
-	 */
-	private static class ValidatingCheckpointHandler extends AbstractInvokable {
-
-		private CheckpointFailureReason failureReason;
-		private long lastCanceledCheckpointId = -1L;
-		private long nextExpectedCheckpointId = -1L;
-		private long triggeredCheckpointCounter = 0;
-		private long abortedCheckpointCounter = 0;
-
-		public ValidatingCheckpointHandler() {
-			super(new DummyEnvironment("test", 1, 0));
-		}
-
-		public void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
-			this.nextExpectedCheckpointId = nextExpectedCheckpointId;
-		}
-
-		public CheckpointFailureReason getCheckpointFailureReason() {
-			return failureReason;
-		}
-
-		public long getLastCanceledCheckpointId() {
-			return lastCanceledCheckpointId;
-		}
-
-		public long getTriggeredCheckpointCounter() {
-			return triggeredCheckpointCounter;
-		}
-
-		public long getAbortedCheckpointCounter() {
-			return abortedCheckpointCounter;
-		}
-
-		public long getNextExpectedCheckpointId() {
-			return nextExpectedCheckpointId;
-		}
-
-		@Override
-		public void invoke() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Future<Boolean> triggerCheckpointAsync(
-				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions,
-				boolean advanceToEndOfEventTime) {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		@Override
-		public void triggerCheckpointOnBarrier(
-				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) {
-			assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L ||
-				nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
-
-			assertTrue(checkpointMetaData.getTimestamp() > 0);
-			assertTrue(checkpointMetrics.getAlignmentDurationNanos() >= 0);
-
-			nextExpectedCheckpointId++;
-			triggeredCheckpointCounter++;
-		}
-
-		@Override
-		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-			lastCanceledCheckpointId = checkpointId;
-			failureReason = ((CheckpointException) cause).getCheckpointFailureReason();
-			abortedCheckpointCounter++;
-		}
-
-		@Override
-		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-			throw new UnsupportedOperationException("should never be called");
-		}
-	}
 
 	/**
 	 * A validation matcher for checkpoint exception against failure reason.
