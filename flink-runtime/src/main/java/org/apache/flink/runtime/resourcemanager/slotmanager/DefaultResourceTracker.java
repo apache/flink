@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -39,7 +39,7 @@ public class DefaultResourceTracker implements ResourceTracker {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultResourceTracker.class);
 
-	private final Map<JobID, JobScopedResourceTracker> trackers = new LinkedHashMap<>();
+	private final Map<JobID, JobScopedResourceTracker> trackers = new HashMap<>();
 
 	@Override
 	public void notifyResourceRequirements(JobID jobId, Collection<ResourceRequirement> resourceRequirements) {
@@ -100,7 +100,7 @@ public class DefaultResourceTracker implements ResourceTracker {
 
 	@Override
 	public Map<JobID, Collection<ResourceRequirement>> getMissingResources() {
-		Map<JobID, Collection<ResourceRequirement>> allMissingResources = new LinkedHashMap<>();
+		Map<JobID, Collection<ResourceRequirement>> allMissingResources = new HashMap<>();
 		for (Map.Entry<JobID, JobScopedResourceTracker> tracker : trackers.entrySet()) {
 			Collection<ResourceRequirement> missingResources = tracker.getValue().getMissingResources();
 			if (!missingResources.isEmpty()) {

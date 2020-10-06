@@ -50,6 +50,12 @@ public class DefaultResourceTrackerTest extends TestLogger {
 
 		assertThat(tracker.isEmpty(), is(true));
 		tracker.notifyLostResource(JobID.generate(), ResourceProfile.ANY);
+	}
+
+	@Test
+	public void testClearDoesNotThrowException() {
+		DefaultResourceTracker tracker = new DefaultResourceTracker();
+
 		tracker.clear();
 	}
 
