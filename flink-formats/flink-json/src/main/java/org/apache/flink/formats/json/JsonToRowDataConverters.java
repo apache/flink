@@ -29,9 +29,11 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -151,7 +153,7 @@ public class JsonToRowDataConverters implements Serializable {
 				return createArrayConverter((ArrayType) type);
 			case MAP:
 			case MULTISET:
-				return createMapConverter((MapType) type);
+				return createMapConverter(type);
 			case ROW:
 				return createRowConverter((RowType) type);
 			case RAW:
@@ -298,15 +300,25 @@ public class JsonToRowDataConverters implements Serializable {
 		};
 	}
 
-	private JsonToRowDataConverter createMapConverter(MapType mapType) {
-		LogicalType keyType = mapType.getKeyType();
+	private JsonToRowDataConverter createMapConverter(LogicalType type) {
+		LogicalType keyType;
+		LogicalType valueType;
+		if (type instanceof MapType) {
+			MapType mapType = (MapType) type;
+			keyType = mapType.getKeyType();
+			valueType = mapType.getValueType();
+		} else {
+			MultisetType multisetType = (MultisetType) type;
+			keyType = multisetType.getElementType();
+			valueType = new IntType();
+		}
 		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
 			throw new UnsupportedOperationException(
 				"JSON format doesn't support non-string as key type of map. " +
-					"The map type is: " + mapType.asSummaryString());
+					"The map type is: " + type.asSummaryString());
 		}
 		final JsonToRowDataConverter keyConverter = createConverter(keyType);
-		final JsonToRowDataConverter valueConverter = createConverter(mapType.getValueType());
+		final JsonToRowDataConverter valueConverter = createConverter(valueType);
 
 		return jsonNode -> {
 			Iterator<Map.Entry<String, JsonNode>> fields = jsonNode.fields();

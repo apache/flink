@@ -26,9 +26,11 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
@@ -123,7 +125,7 @@ public class RowDataToJsonConverters implements Serializable {
 				return createArrayConverter((ArrayType) type);
 			case MAP:
 			case MULTISET:
-				return createMapConverter((MapType) type);
+				return createMapConverter(type);
 			case ROW:
 				return createRowConverter((RowType) type);
 			case RAW:
@@ -218,14 +220,23 @@ public class RowDataToJsonConverters implements Serializable {
 		};
 	}
 
-	private RowDataToJsonConverter createMapConverter(MapType type) {
-		LogicalType keyType = type.getKeyType();
+	private RowDataToJsonConverter createMapConverter(LogicalType type) {
+		LogicalType keyType;
+		LogicalType valueType;
+		if (type instanceof MapType) {
+			MapType mapType = (MapType) type;
+			keyType = mapType.getKeyType();
+			valueType = mapType.getValueType();
+		} else {
+			MultisetType multisetType = (MultisetType) type;
+			keyType = multisetType.getElementType();
+			valueType = new IntType();
+		}
 		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
 			throw new UnsupportedOperationException(
 				"JSON format doesn't support non-string as key type of map. " +
 					"The map type is: " + type.asSummaryString());
 		}
-		final LogicalType valueType = type.getValueType();
 		final RowDataToJsonConverter valueConverter = createConverter(valueType);
 		return (mapper, reuse, object) -> {
 			ObjectNode node;
