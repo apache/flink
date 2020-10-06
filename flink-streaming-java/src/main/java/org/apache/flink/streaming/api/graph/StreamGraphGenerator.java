@@ -52,6 +52,8 @@ import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -651,9 +653,9 @@ public class StreamGraphGenerator {
 	 */
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
-		List<Transformation<?>> inputs = transform.getInputs();
-		checkState(inputs.size() == 1);
-		Collection<Integer> inputIds = transform(inputs.get(0));
+		List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
+		checkState(allInputIds.size() == 1);
+		Collection<Integer> inputIds = allInputIds.get(0);
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
@@ -695,19 +697,18 @@ public class StreamGraphGenerator {
 	 */
 	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(TwoInputTransformation<IN1, IN2, OUT> transform) {
 
-		Collection<Integer> inputIds1 = transform(transform.getInput1());
-		Collection<Integer> inputIds2 = transform(transform.getInput2());
+		List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
 
-		List<Integer> allInputIds = new ArrayList<>();
-		allInputIds.addAll(inputIds1);
-		allInputIds.addAll(inputIds2);
-
-		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), allInputIds);
+		String slotSharingGroup = determineSlotSharingGroup(
+				transform.getSlotSharingGroup(),
+				allInputIds.stream()
+						.flatMap(Collection::stream)
+						.collect(Collectors.toList()));
 
 		streamGraph.addCoOperator(
 				transform.getId(),
@@ -729,14 +730,14 @@ public class StreamGraphGenerator {
 		streamGraph.setParallelism(transform.getId(), parallelism);
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
-		for (Integer inputId: inputIds1) {
+		for (Integer inputId: alreadyTransformed.get(transform.getInput1())) {
 			streamGraph.addEdge(inputId,
 					transform.getId(),
 					1
 			);
 		}
 
-		for (Integer inputId: inputIds2) {
+		for (Integer inputId: alreadyTransformed.get(transform.getInput2())) {
 			streamGraph.addEdge(inputId,
 					transform.getId(),
 					2
@@ -750,11 +751,7 @@ public class StreamGraphGenerator {
 		checkArgument(!transform.getInputs().isEmpty(), "Empty inputs for MultipleInputTransformation. Did you forget to add inputs?");
 		MultipleInputSelectionHandler.checkSupportedInputCount(transform.getInputs().size());
 
-		List<Collection<Integer>> allInputIds = new ArrayList<>();
-
-		for (Transformation<?> input : transform.getInputs()) {
-			allInputIds.add(transform(input));
-		}
+		List<Collection<Integer>> allInputIds = getParentInputIds(transform.getInputs());
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {
@@ -790,14 +787,31 @@ public class StreamGraphGenerator {
 		for (int i = 0; i < allInputIds.size(); i++) {
 			Collection<Integer> inputIds = allInputIds.get(i);
 			for (Integer inputId: inputIds) {
-				streamGraph.addEdge(inputId,
-					transform.getId(),
-					i + 1
-				);
+				streamGraph.addEdge(inputId, transform.getId(), i + 1);
 			}
 		}
 
 		return Collections.singleton(transform.getId());
+	}
+
+	/**
+	 * Returns a list of lists containing the ids of the nodes in the transformation graph
+	 * that correspond to the provided transformations. Each transformation may have multiple nodes.
+	 *
+	 * @param parentTransformations the transformations whose node ids to return.
+	 * @return the nodeIds per transformation or an empty list if the {@code parentTransformations} are empty.
+	 */
+	private List<Collection<Integer>> getParentInputIds(
+			@Nullable final Collection<Transformation<?>> parentTransformations) {
+		final List<Collection<Integer>> allInputIds = new ArrayList<>();
+		if (parentTransformations == null) {
+			return allInputIds;
+		}
+
+		for (Transformation<?> transformation : parentTransformations) {
+			allInputIds.add(transform(transformation));
+		}
+		return allInputIds;
 	}
 
 	/**
