@@ -156,6 +156,7 @@ under the License.
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
 		<japicmp.referenceVersion>1.12.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<spotless.version>2.4.2</spotless.version>
 	</properties>
 
 	<dependencies>
@@ -1040,6 +1041,13 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
+							<groupId>com.diffplug.spotless</groupId>
+							<artifactId>spotless-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
 							<groupId>org.scalastyle</groupId>
 							<artifactId>scalastyle-maven-plugin</artifactId>
 							<configuration>
@@ -1526,6 +1534,10 @@ under the License.
 				<artifactId>maven-checkstyle-plugin</artifactId>
 			</plugin>
 			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 			</plugin>
@@ -1814,6 +1826,47 @@ under the License.
 						<failOnViolation>true</failOnViolation>
 					</configuration>
 				</plugin>
+
+				<!-- Due to the Flink build setup, "mvn spotless:apply" and "mvn spotless:check"
+				don't work. You have to use the fully qualified name, i.e.
+				"mvn com.diffplug.spotless:spotless-maven-plugin:apply" -->
+				<plugin>
+					<groupId>com.diffplug.spotless</groupId>
+					<artifactId>spotless-maven-plugin</artifactId>
+					<version>${spotless.version}</version>
+					<configuration>
+						<java>
+							<googleJavaFormat>
+								<version>1.7</version>
+								<style>AOSP</style>
+							</googleJavaFormat>
+
+							<!-- \# refers to the static imports -->
+							<importOrder>
+								<order>org.apache.flink,org.apache.flink.shaded,,javax,java,scala,\#</order>
+							</importOrder>
+
+							<removeUnusedImports />
+
+							<excludes>
+								<exclude>**/generated/*.java</exclude>
+								<exclude>**/InnerPayLoadAvro.java</exclude>
+								<exclude>**/ComplexPayloadAvro.java</exclude>
+								<exclude>**/example/avro/*.java</exclude>
+							</excludes>
+						</java>
+					</configuration>
+					<executions>
+						<execution>
+							<id>spotless-check</id>
+							<phase>validate</phase>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+
 
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
