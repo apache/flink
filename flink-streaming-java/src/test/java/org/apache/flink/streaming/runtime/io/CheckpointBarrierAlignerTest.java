@@ -37,6 +37,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -60,7 +61,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the behavior of the {@link CheckpointBarrierAligner}.
  */
-public abstract class CheckpointBarrierAlignerTestBase {
+public class CheckpointBarrierAlignerTest {
 
 	protected static final int PAGE_SIZE = 512;
 
@@ -91,7 +92,12 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		return createCheckpointedInputGate(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	abstract CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) throws IOException;
+	protected CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) {
+		return new CheckpointedInputGate(
+			gate,
+			new CheckpointBarrierAligner("Testing", toNotify, gate),
+			new SyncMailboxExecutor());
+	}
 
 	@After
 	public void ensureEmpty() throws Exception {
