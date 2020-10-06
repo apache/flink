@@ -110,6 +110,8 @@ public final class DynamicSourceUtils {
 	 * Returns the {@link DataType} that a source should produce as the input into the runtime.
 	 *
 	 * <p>The format looks as follows: {@code PHYSICAL COLUMNS + METADATA COLUMNS}
+	 *
+	 * <p>Physical columns use the table schema's name. Metadata column use the metadata key as name.
 	 */
 	public static RowType createProducedType(TableSchema schema, DynamicTableSource source) {
 		final Map<String, DataType> metadataMap = extractMetadataMap(source);

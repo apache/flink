@@ -26,14 +26,13 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.{TestSink
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.util.ExceptionUtils
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.Test
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.sql.Timestamp
-import java.time.{LocalDateTime, OffsetDateTime, ZoneId, ZoneOffset}
-import java.util.TimeZone
+import java.time.{LocalDateTime, ZoneOffset}
 
 import scala.collection.JavaConversions._
 
@@ -704,6 +703,51 @@ class TableSinkITCase extends StreamingTestBase {
 
     val expected2 = List(4999, 9999, 19999)
     assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+  }
+
+  @Test
+  def testMetadataSourceAndSink(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(nullData4)
+    // tests metadata at different locations and casting in both sources and sinks
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MetadataSource (
+         |  category STRING,
+         |  shopId INT,
+         |  num BIGINT METADATA FROM 'metadata_1'
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'readable-metadata' = 'metadata_1:INT'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MetadataSink (
+         |  category STRING METADATA FROM 'metadata_1',
+         |  shopId INT,
+         |  metadata_3 BIGINT METADATA VIRTUAL,
+         |  num STRING METADATA FROM 'metadata_2'
+         |) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:INT, metadata_3:BIGINT',
+         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:INT'
+         |)
+         |""".stripMargin)
+
+    tEnv
+      .executeSql(
+        s"""
+           |INSERT INTO MetadataSink
+           |SELECT category, shopId, CAST(num AS STRING)
+           |FROM MetadataSource
+           |""".stripMargin)
+      .await()
+
+    val result = TestValuesTableFactory.getResults("MetadataSink")
+    val expected =
+      List("1,book,12", "2,book,null", "3,fruit,44", "4,book,11", "4,fruit,null", "5,fruit,null")
+    assertEquals(expected.sorted, result.sorted)
   }
 
   // ------------------------------------------------------------------------------------------

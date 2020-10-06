@@ -112,41 +112,20 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[>(a, 1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDDLWithWatermarkComputedColumn">
+  <TestCase name="testDDLWithMetadataColumn">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM t1]]>
+      <![CDATA[SELECT * FROM MetadataTable]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
-+- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 1:INTERVAL SECOND)])
-   +- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-WatermarkAssigner(rowtime=[d], watermark=[-(d, 1:INTERVAL SECOND)])
-+- Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-   +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testFilterOnChangelogSource">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM src WHERE a > 1]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(ts=[$0], a=[$1], b=[$2])
-+- LogicalFilter(condition=[>($1, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
-+- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
+Calc(select=[a, CAST(metadata_3) AS other_metadata, b, c, metadata_1])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[a, b, c, metadata_1, metadata_3])
 ]]>
     </Resource>
   </TestCase>
@@ -182,6 +161,61 @@ Union(all=[true], union=[b, ts, a], changelogMode=[I,UB,UA,D])
    +- GroupAggregate(groupBy=[a], select=[a, MAX(ts) AS t, MAX(b) AS b], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[a]], changelogMode=[I])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src]], fields=[ts, a, b], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithMetadataColumnProjectionPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT `b`, `other_metadata` FROM MetadataTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(b=[$1], other_metadata=[CAST($4):INTEGER])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[b, CAST(metadata_3) AS other_metadata])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, project=[b, metadata_3]]], fields=[b, metadata_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithWatermarkComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 1:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+WatermarkAssigner(rowtime=[d], watermark=[-(d, 1:INTERVAL SECOND)])
++- Calc(select=[a, b, +(a, 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
+   +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOnChangelogSource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
++- TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>
