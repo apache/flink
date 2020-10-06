@@ -352,7 +352,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 		// wait until termination JobManagerRunner closeAsync has been called.
 		// this is necessary to avoid race conditions with completion of the 1st job and the submission of the 2nd job (DuplicateJobSubmissionException).
-		testingJobManagerRunner.getCloseAsyncCalledFuture().get();
+		testingJobManagerRunner.getCloseAsyncCalledLatch().await();
 
 		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
 
