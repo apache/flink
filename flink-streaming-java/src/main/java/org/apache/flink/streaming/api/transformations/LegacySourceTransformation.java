@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -94,6 +95,11 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T> imp
 	@Override
 	public Collection<Transformation<?>> getTransitivePredecessors() {
 		return Collections.singleton(this);
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return Collections.emptyList();
 	}
 
 	@Override

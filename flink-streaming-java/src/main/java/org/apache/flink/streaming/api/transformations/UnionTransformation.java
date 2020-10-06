@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -58,11 +59,9 @@ public class UnionTransformation<T> extends Transformation<T> {
 		this.inputs = Lists.newArrayList(inputs);
 	}
 
-	/**
-	 * Returns the list of input {@code Transformations}.
-	 */
-	public List<Transformation<T>> getInputs() {
-		return inputs;
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return new ArrayList<>(inputs);
 	}
 
 	@Override

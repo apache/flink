@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link PhysicalTransformation} for {@link Source}.
@@ -68,6 +69,11 @@ public class SourceTransformation<OUT> extends PhysicalTransformation<OUT> imple
 	@Override
 	public Collection<Transformation<?>> getTransitivePredecessors() {
 		return Collections.singleton(this);
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return Collections.emptyList();
 	}
 
 	@Override

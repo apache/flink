@@ -114,8 +114,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       @scala.annotation.tailrec
       def findTwoInputTransform(t: Transformation[_]): TwoInputTransformation[_, _, _] = {
         t match {
-          case sink: SinkTransformation[_] => findTwoInputTransform(sink.getInput)
-          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInput)
+          case sink: SinkTransformation[_] => findTwoInputTransform(sink.getInputs.get(0))
+          case one: OneInputTransformation[_, _] => findTwoInputTransform(one.getInputs.get(0))
           case two: TwoInputTransformation[_, _, _] => two
         }
       }

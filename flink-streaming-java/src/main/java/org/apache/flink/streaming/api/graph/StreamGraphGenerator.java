@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A generator that generates a {@link StreamGraph} from a graph of
@@ -348,10 +349,10 @@ public class StreamGraphGenerator {
 	 * that downstream operations can connect to all upstream nodes.
 	 */
 	private <T> Collection<Integer> transformUnion(UnionTransformation<T> union) {
-		List<Transformation<T>> inputs = union.getInputs();
+		List<Transformation<?>> inputs = union.getInputs();
 		List<Integer> resultIds = new ArrayList<>();
 
-		for (Transformation<T> input: inputs) {
+		for (Transformation<?> input: inputs) {
 			resultIds.addAll(transform(input));
 		}
 
@@ -365,7 +366,10 @@ public class StreamGraphGenerator {
 	 * property. @see StreamGraphGenerator
 	 */
 	private <T> Collection<Integer> transformPartition(PartitionTransformation<T> partition) {
-		Transformation<T> input = partition.getInput();
+		List<Transformation<?>> inputs = partition.getInputs();
+		checkState(inputs.size() == 1);
+		Transformation<?> input = inputs.get(0);
+
 		List<Integer> resultIds = new ArrayList<>();
 
 		Collection<Integer> transformedIds = transform(input);
@@ -388,7 +392,10 @@ public class StreamGraphGenerator {
 	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
 	 */
 	private <T> Collection<Integer> transformSideOutput(SideOutputTransformation<T> sideOutput) {
-		Transformation<?> input = sideOutput.getInput();
+		List<Transformation<?>> inputs = sideOutput.getInputs();
+		checkState(inputs.size() == 1);
+		Transformation<?> input = inputs.get(0);
+
 		Collection<Integer> resultIds = transform(input);
 
 		// the recursive transform might have already transformed this
@@ -422,7 +429,10 @@ public class StreamGraphGenerator {
 			throw new IllegalStateException("Iteration " + iterate + " does not have any feedback edges.");
 		}
 
-		Transformation<T> input = iterate.getInput();
+		List<Transformation<?>> inputs = iterate.getInputs();
+		checkState(inputs.size() == 1);
+		Transformation<?> input = inputs.get(0);
+
 		List<Integer> resultIds = new ArrayList<>();
 
 		// first transform the input stream(s) and store the result IDs
@@ -597,8 +607,11 @@ public class StreamGraphGenerator {
 	 * Transforms a {@code SinkTransformation}.
 	 */
 	private <T> Collection<Integer> transformSink(SinkTransformation<T> sink) {
+		List<Transformation<?>> inputs = sink.getInputs();
+		checkState(inputs.size() == 1);
+		Transformation<?> input = inputs.get(0);
 
-		Collection<Integer> inputIds = transform(sink.getInput());
+		Collection<Integer> inputIds = transform(input);
 
 		String slotSharingGroup = determineSlotSharingGroup(sink.getSlotSharingGroup(), inputIds);
 
@@ -606,7 +619,7 @@ public class StreamGraphGenerator {
 				slotSharingGroup,
 				sink.getCoLocationGroupKey(),
 				sink.getOperatorFactory(),
-				sink.getInput().getOutputType(),
+				input.getOutputType(),
 				null,
 				"Sink: " + sink.getName());
 
@@ -638,7 +651,9 @@ public class StreamGraphGenerator {
 	 */
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
-		Collection<Integer> inputIds = transform(transform.getInput());
+		List<Transformation<?>> inputs = transform.getInputs();
+		checkState(inputs.size() == 1);
+		Collection<Integer> inputIds = transform(inputs.get(0));
 
 		// the recursive call might have already transformed this
 		if (alreadyTransformed.containsKey(transform)) {

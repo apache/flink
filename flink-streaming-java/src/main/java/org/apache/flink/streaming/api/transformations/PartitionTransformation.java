@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -76,13 +77,6 @@ public class PartitionTransformation<T> extends Transformation<T> {
 	}
 
 	/**
-	 * Returns the input {@code Transformation} of this {@code SinkTransformation}.
-	 */
-	public Transformation<T> getInput() {
-		return input;
-	}
-
-	/**
 	 * Returns the {@code StreamPartitioner} that must be used for partitioning the elements
 	 * of the input {@code Transformation}.
 	 */
@@ -103,5 +97,10 @@ public class PartitionTransformation<T> extends Transformation<T> {
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
+	}
+
+	@Override
+	public List<Transformation<?>> getInputs() {
+		return Collections.singletonList(input);
 	}
 }

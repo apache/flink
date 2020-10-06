@@ -27,6 +27,7 @@ import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
@@ -75,7 +76,7 @@ public class TransformationTest extends TestLogger {
 	/**
 	 * A test implementation of {@link Transformation}.
 	 */
-	private class TestTransformation<T> extends Transformation<T> {
+	private static class TestTransformation<T> extends Transformation<T> {
 
 		public TestTransformation(String name, TypeInformation<T> outputType, int parallelism) {
 			super(name, outputType, parallelism);
@@ -83,7 +84,12 @@ public class TransformationTest extends TestLogger {
 
 		@Override
 		public Collection<Transformation<?>> getTransitivePredecessors() {
-			return Collections.EMPTY_LIST;
+			return Collections.emptyList();
+		}
+
+		@Override
+		public List<Transformation<?>> getInputs() {
+			return Collections.emptyList();
 		}
 	}
 }
