@@ -54,7 +54,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -720,53 +719,16 @@ public class CheckpointBarrierUnalignerTest {
 	/**
 	 * The invokable handler used for triggering checkpoint and validation.
 	 */
-	private class ValidatingCheckpointHandler extends AbstractInvokable {
-
-		private long nextExpectedCheckpointId;
-
-		private long lastCanceledCheckpointId;
+	static class ValidatingCheckpointHandler extends org.apache.flink.streaming.runtime.io.ValidatingCheckpointHandler {
 
 		public ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
-			super(new DummyEnvironment("test", 1, 0));
-			this.nextExpectedCheckpointId = nextExpectedCheckpointId;
+			super(nextExpectedCheckpointId);
 		}
 
-		public void invoke() {
-			throw new UnsupportedOperationException();
-		}
-
-		public Future<Boolean> triggerCheckpointAsync(
-				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions,
-				boolean advanceToEndOfEventTime) {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		public void triggerCheckpointOnBarrier(
-				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) throws IOException {
-			if (nextExpectedCheckpointId != -1L) {
-				assertEquals("wrong checkpoint id", nextExpectedCheckpointId, checkpointMetaData.getCheckpointId());
-			}
-
-			assertTrue(checkpointMetaData.getTimestamp() > 0);
-			assertTrue(checkpointMetrics.getAlignmentDurationNanos() >= 0);
-
-			nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
-		}
-
+		@Override
 		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-			lastCanceledCheckpointId = checkpointId;
+			super.abortCheckpointOnBarrier(checkpointId, cause);
 			nextExpectedCheckpointId = -1;
-		}
-
-		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		public long getLastCanceledCheckpointId() {
-			return lastCanceledCheckpointId;
 		}
 	}
 
