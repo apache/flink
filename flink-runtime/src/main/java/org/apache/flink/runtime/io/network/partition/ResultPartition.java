@@ -156,6 +156,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 		return owningTaskName;
 	}
 
+	@Override
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
@@ -217,6 +218,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 		release(null);
 	}
 
+	@Override
 	public void release(Throwable cause) {
 		if (isReleased.compareAndSet(false, true)) {
 			LOG.debug("{}: Releasing {}.", owningTaskName, this);
@@ -268,6 +270,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 	 * <p>A partition is released when each subpartition is either consumed and communication is closed by consumer
 	 * or failed. A partition is also released if task is cancelled.
 	 */
+	@Override
 	public boolean isReleased() {
 		return isReleased.get();
 	}
