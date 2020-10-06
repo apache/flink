@@ -144,6 +144,32 @@ public final class IOUtils {
 	}
 
 	/**
+	 * Similar to {@link #readFully(InputStream, byte[], int, int)}. Returns the total number of
+	 * bytes read into the buffer.
+	 *
+	 * @param in
+	 *        The InputStream to read from
+	 * @param buf
+	 *        The buffer to fill
+	 * @return
+	 *        The total number of bytes read into the buffer
+	 * @throws IOException
+	 *         If the first byte cannot be read for any reason other than end of file,
+	 *         or if the input stream has been closed, or if some other I/O error occurs.
+	 */
+	public static int tryReadFully(final InputStream in, final byte[] buf) throws IOException {
+		int totalRead = 0;
+		while (totalRead != buf.length) {
+			int read = in.read(buf, totalRead, buf.length - totalRead);
+			if (read == -1) {
+				break;
+			}
+			totalRead += read;
+		}
+		return totalRead;
+	}
+
+	/**
 	 * Similar to readFully(). Skips bytes in a loop.
 	 *
 	 * @param in
