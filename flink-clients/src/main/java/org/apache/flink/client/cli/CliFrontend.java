@@ -935,7 +935,7 @@ public class CliFrontend {
 	 * @param args command line arguments of the client.
 	 * @return The return code of the program
 	 */
-	public int parseParameters(String[] args) {
+	public int parseAndRun(String[] args) {
 
 		// check for action
 		if (args.length < 1) {
@@ -1030,7 +1030,7 @@ public class CliFrontend {
 
 			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
-					.runSecured(() -> cli.parseParameters(args));
+					.runSecured(() -> cli.parseAndRun(args));
 			System.exit(retCode);
 		}
 		catch (Throwable t) {

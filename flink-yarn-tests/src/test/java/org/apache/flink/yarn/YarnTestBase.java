@@ -954,7 +954,7 @@ public abstract class YarnTestBase extends TestLogger {
 							CliFrontend cli = new CliFrontend(
 								configuration,
 								CliFrontend.loadCustomCommandLines(configuration, configurationDirectory));
-							returnValue = cli.parseParameters(args);
+							returnValue = cli.parseAndRun(args);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
 								+ Arrays.toString(args), e);
