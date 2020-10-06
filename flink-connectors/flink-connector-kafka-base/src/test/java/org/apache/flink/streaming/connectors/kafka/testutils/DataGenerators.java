@@ -38,6 +38,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 
@@ -209,6 +211,11 @@ public class DataGenerators {
 			@Override
 			public Collection<Transformation<?>> getTransitivePredecessors() {
 				return null;
+			}
+
+			@Override
+			public List<Transformation<?>> getInputs() {
+				return Collections.emptyList();
 			}
 		}
 

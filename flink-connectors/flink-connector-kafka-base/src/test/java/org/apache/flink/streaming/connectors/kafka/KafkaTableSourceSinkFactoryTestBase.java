@@ -433,6 +433,11 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return null;
 		}
+
+		@Override
+		public List<Transformation<?>> getInputs() {
+			return Collections.emptyList();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

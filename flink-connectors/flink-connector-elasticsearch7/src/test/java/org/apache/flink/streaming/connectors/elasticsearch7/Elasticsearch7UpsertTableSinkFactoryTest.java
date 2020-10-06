@@ -215,5 +215,10 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return null;
 		}
+
+		@Override
+		public List<Transformation<?>> getInputs() {
+			return Collections.emptyList();
+		}
 	}
 }

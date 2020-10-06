@@ -51,6 +51,7 @@ public abstract class AbstractMultipleInputTransformation<OUT> extends PhysicalT
 		this.operatorFactory = operatorFactory;
 	}
 
+	@Override
 	public List<Transformation<?>> getInputs() {
 		return inputs;
 	}
