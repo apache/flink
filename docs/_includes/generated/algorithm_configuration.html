@@ -15,6 +15,12 @@
             <td>Flag to activate/deactivate bloom filters in the hybrid hash join implementation. In cases where the hash join needs to spill to disk (datasets larger than the reserved fraction of memory), these bloom filters can greatly reduce the number of spilled records, at the cost some CPU cycles.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.runtime.large-record-handler</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to use the LargeRecordHandler when spilling. If a record will not fit into the sorting buffer. The record will be spilled on disk and the sorting will continue with only the key. The record itself will be read afterwards when merging.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.runtime.max-fan</h5></td>
             <td style="word-wrap: break-word;">128</td>
             <td>Integer</td>
