@@ -79,6 +79,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
+import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -161,6 +162,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 	/**
 	 * Recovery from a single remote incremental state without rescaling.
 	 */
+	@SuppressWarnings("unchecked")
 	private void restoreWithoutRescaling(KeyedStateHandle keyedStateHandle) throws Exception {
 		if (keyedStateHandle instanceof IncrementalRemoteKeyedStateHandle) {
 			IncrementalRemoteKeyedStateHandle incrementalRemoteKeyedStateHandle =
@@ -173,9 +175,9 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 			restorePreviousIncrementalFilesStatus(incrementalLocalKeyedStateHandle);
 			restoreFromLocalState(incrementalLocalKeyedStateHandle);
 		} else {
-			throw new BackendBuildingException("Unexpected state handle type, " +
-				"expected " + IncrementalRemoteKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
-				", but found " + keyedStateHandle.getClass());
+			throw unexpectedStateHandleException(
+					new Class[]{IncrementalRemoteKeyedStateHandle.class, IncrementalLocalKeyedStateHandle.class},
+					keyedStateHandle.getClass());
 		}
 	}
 
@@ -288,9 +290,7 @@ public class RocksDBIncrementalRestoreOperation<K> extends AbstractRocksDBRestor
 		for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
 
 			if (!(rawStateHandle instanceof IncrementalRemoteKeyedStateHandle)) {
-				throw new IllegalStateException("Unexpected state handle type, " +
-					"expected " + IncrementalRemoteKeyedStateHandle.class +
-					", but found " + rawStateHandle.getClass());
+				throw unexpectedStateHandleException(IncrementalRemoteKeyedStateHandle.class, rawStateHandle.getClass());
 			}
 
 			Path temporaryRestoreInstancePath = instanceBasePath.getAbsoluteFile().toPath().resolve(UUID.randomUUID().toString());
