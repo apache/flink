@@ -33,8 +33,6 @@ import org.apache.flink.streaming.api.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
-import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
@@ -611,11 +609,6 @@ public class StreamGraphGenerator {
 				sink.getInput().getOutputType(),
 				null,
 				"Sink: " + sink.getName());
-
-		StreamOperatorFactory operatorFactory = sink.getOperatorFactory();
-		if (operatorFactory instanceof OutputFormatOperatorFactory) {
-			streamGraph.setOutputFormat(sink.getId(), ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
-		}
 
 		int parallelism = sink.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
 			sink.getParallelism() : executionConfig.getParallelism();
