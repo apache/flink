@@ -120,7 +120,7 @@ public class TaskExecutorManagerTest extends TestLogger {
 	 * <p>See FLINK-7793
 	 */
 	@Test
-	public void testTaskManagerTimeoutDoesNotRemoveSlots1() throws Exception {
+	public void testTaskManagerTimeoutDoesNotRemoveSlots() throws Exception {
 		final Time taskManagerTimeout = Time.milliseconds(10L);
 
 		final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
