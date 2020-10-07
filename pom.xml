@@ -103,7 +103,7 @@ under the License.
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j2-test.properties</log4j.configuration>
-		<flink.shaded.version>11.0</flink.shaded.version>
+		<flink.shaded.version>12.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<target.java.version>1.8</target.java.version>
@@ -296,13 +296,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.1.39.Final-${flink.shaded.version}</version>
+				<version>4.1.49.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
-				<version>2.0.25.Final-${flink.shaded.version}</version>
+				<version>2.0.30.Final-${flink.shaded.version}</version>
 				<scope>test</scope>
 			</dependency>
 
