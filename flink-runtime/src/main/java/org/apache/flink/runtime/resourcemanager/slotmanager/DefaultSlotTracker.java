@@ -42,7 +42,7 @@ import java.util.function.Consumer;
 /**
  * Default SlotTracker implementation.
  */
-class DefaultSlotTracker implements SlotTracker {
+public class DefaultSlotTracker implements SlotTracker {
 	private static final Logger LOG = LoggerFactory.getLogger(DefaultSlotTracker.class);
 
 	/**
@@ -192,6 +192,12 @@ class DefaultSlotTracker implements SlotTracker {
 	@VisibleForTesting
 	boolean areMapsEmpty() {
 		return slots.isEmpty() && freeSlots.isEmpty();
+	}
+
+	@VisibleForTesting
+	@Nullable
+	DeclarativeTaskManagerSlot getSlot(SlotID slotId) {
+		return slots.get(slotId);
 	}
 
 	/**
