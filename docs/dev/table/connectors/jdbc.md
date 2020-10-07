@@ -183,7 +183,14 @@ Connector Options
       <td style="word-wrap: break-word;">0</td>
       <td>Integer</td>
       <td>The number of rows that should be fetched from the database when reading per round trip. If the value specified is zero, then the hint is ignored.</td>
-    </tr>     
+    </tr>
+    <tr>
+      <td><h5>scan.auto-commit</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Boolean</td>
+      <td>Sets the auto commit flag on the JDBC driver.</td>
+    </tr>
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>optional</td>

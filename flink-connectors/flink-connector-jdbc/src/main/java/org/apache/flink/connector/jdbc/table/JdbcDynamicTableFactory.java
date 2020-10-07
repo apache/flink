@@ -109,6 +109,11 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		.withDescription("gives the reader a hint as to the number of rows that should be fetched, from" +
 			" the database when reading per round trip. If the value specified is zero, then the hint is ignored. The" +
 			" default value is zero.");
+	private static final ConfigOption<Boolean> SCAN_AUTO_COMMIT = ConfigOptions
+		.key("scan.auto-commit")
+		.booleanType()
+		.noDefaultValue()
+		.withDescription("sets whether the driver is in auto-commit mode.");
 
 	// look up config options
 	private static final ConfigOption<Long> LOOKUP_CACHE_MAX_ROWS = ConfigOptions
@@ -203,6 +208,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 			builder.setNumPartitions(readableConfig.get(SCAN_PARTITION_NUM));
 		}
 		readableConfig.getOptional(SCAN_FETCH_SIZE).ifPresent(builder::setFetchSize);
+		readableConfig.getOptional(SCAN_AUTO_COMMIT).ifPresent(builder::setAutoCommit);
 		return builder.build();
 	}
 
@@ -258,6 +264,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 		optionalOptions.add(SCAN_PARTITION_UPPER_BOUND);
 		optionalOptions.add(SCAN_PARTITION_NUM);
 		optionalOptions.add(SCAN_FETCH_SIZE);
+		optionalOptions.add(SCAN_AUTO_COMMIT);
 		optionalOptions.add(LOOKUP_CACHE_MAX_ROWS);
 		optionalOptions.add(LOOKUP_CACHE_TTL);
 		optionalOptions.add(LOOKUP_MAX_RETRIES);
