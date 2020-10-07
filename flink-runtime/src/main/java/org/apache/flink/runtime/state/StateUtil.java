@@ -42,7 +42,7 @@ public class StateUtil {
 	}
 
 	/**
-	 * Returns the size of a state object
+	 * Returns the size of a state object.
 	 *
 	 * @param handle The handle to the retrieved state
 	 */
