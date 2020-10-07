@@ -65,13 +65,14 @@ public final class MiniClusterJobClient implements JobClient, CoordinationReques
 		this.jobID = jobID;
 		this.miniCluster = miniCluster;
 		this.classLoader = classLoader;
-		this.jobResultFuture = miniCluster.requestJobResult(jobID);
 
 		if (finalizationBehaviour == JobFinalizationBehavior.SHUTDOWN_CLUSTER) {
 			// Make sure to shutdown the cluster when the job completes.
-			jobResultFuture.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
+			jobResultFuture = miniCluster
+				.requestJobResult(jobID)
+				.whenComplete((result, throwable) -> shutDownCluster(miniCluster));
 		} else if (finalizationBehaviour == JobFinalizationBehavior.NOTHING) {
-			// fine
+			jobResultFuture = miniCluster.requestJobResult(jobID);
 		} else {
 			throw new IllegalArgumentException(
 					"Unexpected shutdown behavior: " + finalizationBehaviour);
