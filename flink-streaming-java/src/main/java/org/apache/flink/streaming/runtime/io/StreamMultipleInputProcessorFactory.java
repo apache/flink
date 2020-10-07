@@ -19,14 +19,24 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
+import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -39,6 +49,7 @@ import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -51,18 +62,23 @@ public class StreamMultipleInputProcessorFactory {
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static StreamMultipleInputProcessor create(
+			AbstractInvokable ownerTask,
 			CheckpointedInputGate[] checkpointedInputGates,
 			StreamConfig.InputConfig[] configuredInputs,
 			IOManager ioManager,
+			MemoryManager memoryManager,
 			TaskIOMetricGroup ioMetricGroup,
 			Counter mainOperatorRecordsIn,
 			StreamStatusMaintainer streamStatusMaintainer,
 			MultipleInputStreamOperator<?> mainOperator,
-			MultipleInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge[] inputWatermarkGauges,
+			StreamConfig streamConfig,
+			Configuration taskManagerConfig,
+			Configuration jobConfig,
+			ExecutionConfig executionConfig,
+			ClassLoader userClassloader,
 			OperatorChain<?, ?> operatorChain) {
 		checkNotNull(operatorChain);
-		checkNotNull(inputSelectionHandler);
 
 		List<Input> operatorInputs = mainOperator.getInputs();
 		int inputsCount = operatorInputs.size();
@@ -77,10 +93,62 @@ public class StreamMultipleInputProcessorFactory {
 			"Number of configured inputs in StreamConfig [%s] doesn't match the main operator's number of inputs [%s]",
 			configuredInputs.length,
 			inputsCount);
+		StreamTaskInput[] inputs = new StreamTaskInput[inputsCount];
 		for (int i = 0; i < inputsCount; i++) {
 			StreamConfig.InputConfig configuredInput = configuredInputs[i];
 			if (configuredInput instanceof StreamConfig.NetworkInputConfig) {
 				StreamConfig.NetworkInputConfig networkInput = (StreamConfig.NetworkInputConfig) configuredInput;
+				inputs[i] = new StreamTaskNetworkInput<>(
+					checkpointedInputGates[networkInput.getInputGateIndex()],
+					networkInput.getTypeSerializer(),
+					ioManager,
+					new StatusWatermarkValve(checkpointedInputGates[networkInput.getInputGateIndex()].getNumberOfInputChannels()),
+					i);
+			}
+			else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
+				StreamConfig.SourceInputConfig sourceInput = (StreamConfig.SourceInputConfig) configuredInput;
+				inputs[i] = operatorChain.getSourceTaskInput(sourceInput);
+			}
+			else {
+				throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
+			}
+		}
+
+		InputSelectable inputSelectable =
+			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null;
+		if (streamConfig.shouldSortInputs()) {
+
+			if (inputSelectable != null) {
+				throw new IllegalStateException("The InputSelectable interface is not supported with sorting inputs");
+			}
+
+			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
+				ownerTask,
+				inputs,
+				IntStream.range(0, inputsCount)
+					.mapToObj(idx -> streamConfig.getStatePartitioner(idx, userClassloader))
+					.toArray(KeySelector[]::new),
+				IntStream.range(0, inputsCount)
+					.mapToObj(idx -> streamConfig.getTypeSerializerIn(idx, userClassloader))
+					.toArray(TypeSerializer[]::new),
+				streamConfig.getStateKeySerializer(userClassloader),
+				memoryManager,
+				ioManager,
+				executionConfig.isObjectReuseEnabled(),
+				streamConfig.getManagedMemoryFractionOperatorUseCaseOfSlot(
+					ManagedMemoryUseCase.BATCH_OP,
+					taskManagerConfig
+				),
+				jobConfig
+			);
+
+			inputs = selectableSortingInputs.getSortingInputs();
+			inputSelectable = selectableSortingInputs.getInputSelectable();
+		}
+
+		for (int i = 0; i < inputsCount; i++) {
+			StreamConfig.InputConfig configuredInput = configuredInputs[i];
+			if (configuredInput instanceof StreamConfig.NetworkInputConfig) {
 				StreamTaskNetworkOutput dataOutput = new StreamTaskNetworkOutput<>(
 					operatorInputs.get(i),
 					streamStatusMaintainer,
@@ -91,22 +159,16 @@ public class StreamMultipleInputProcessorFactory {
 					networkRecordsIn);
 
 				inputProcessors[i] = new StreamOneInputProcessor(
-					new StreamTaskNetworkInput<>(
-						checkpointedInputGates[networkInput.getInputGateIndex()],
-						networkInput.getTypeSerializer(),
-						ioManager,
-						new StatusWatermarkValve(checkpointedInputGates[networkInput.getInputGateIndex()].getNumberOfInputChannels()),
-						i),
+					inputs[i],
 					dataOutput,
 					operatorChain);
 			}
 			else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
 				StreamConfig.SourceInputConfig sourceInput = (StreamConfig.SourceInputConfig) configuredInput;
 				Output<StreamRecord<?>> chainedSourceOutput = operatorChain.getChainedSourceOutput(sourceInput);
-				StreamTaskSourceInput<?> sourceTaskInput = operatorChain.getSourceTaskInput(sourceInput);
 
 				inputProcessors[i] = new StreamOneInputProcessor(
-					sourceTaskInput,
+					inputs[i],
 					new StreamTaskSourceOutput(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauges[i],
 						streamStatusTracker,
 						i),
@@ -118,7 +180,7 @@ public class StreamMultipleInputProcessorFactory {
 		}
 
 		return new StreamMultipleInputProcessor(
-			inputSelectionHandler,
+			new MultipleInputSelectionHandler(inputSelectable, inputsCount),
 			inputProcessors
 		);
 	}
