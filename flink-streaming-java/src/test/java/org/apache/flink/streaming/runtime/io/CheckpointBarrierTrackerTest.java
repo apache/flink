@@ -60,7 +60,7 @@ public class CheckpointBarrierTrackerTest {
 	@Test
 	public void testSingleChannelNoBarriers() throws Exception {
 		BufferOrEvent[] sequence = { createBuffer(0), createBuffer(0), createBuffer(0) };
-		inputGate = createBarrierTracker(1, sequence);
+		inputGate = createCheckpointedInputGate(1, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -73,7 +73,7 @@ public class CheckpointBarrierTrackerTest {
 				createBuffer(1), createBuffer(0), createBuffer(3),
 				createBuffer(1), createBuffer(1), createBuffer(2)
 		};
-		inputGate = createBarrierTracker(4, sequence);
+		inputGate = createCheckpointedInputGate(4, sequence);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -93,7 +93,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 3, 4, 5, 6);
-		inputGate = createBarrierTracker(1, sequence, validator);
+		inputGate = createCheckpointedInputGate(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -113,7 +113,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 3, 4, 6, 7, 10);
-		inputGate = createBarrierTracker(1, sequence, validator);
+		inputGate = createCheckpointedInputGate(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -142,7 +142,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 3, 4);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -175,7 +175,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, 4);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -247,7 +247,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(2, 3, 4, 5, 7, 8, 9, 10);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -270,7 +270,7 @@ public class CheckpointBarrierTrackerTest {
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, 2, -4, 5, -6);
-		inputGate = createBarrierTracker(1, sequence, validator);
+		inputGate = createCheckpointedInputGate(1, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -316,7 +316,7 @@ public class CheckpointBarrierTrackerTest {
 		// negative values mean an expected cancellation call!
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(1, -2, 3, -4, 5, -6);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -340,7 +340,7 @@ public class CheckpointBarrierTrackerTest {
 		};
 		CheckpointSequenceValidator validator =
 			new CheckpointSequenceValidator(-1, -2);
-		inputGate = createBarrierTracker(3, sequence, validator);
+		inputGate = createCheckpointedInputGate(3, sequence, validator);
 
 		for (BufferOrEvent boe : sequence) {
 			assertEquals(boe, inputGate.pollNext().get());
@@ -350,11 +350,11 @@ public class CheckpointBarrierTrackerTest {
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------
-	private static CheckpointedInputGate createBarrierTracker(int numberOfChannels, BufferOrEvent[] sequence) {
-		return createBarrierTracker(numberOfChannels, sequence, new DummyCheckpointInvokable());
+	private static CheckpointedInputGate createCheckpointedInputGate(int numberOfChannels, BufferOrEvent[] sequence) {
+		return createCheckpointedInputGate(numberOfChannels, sequence, new DummyCheckpointInvokable());
 	}
 
-	private static CheckpointedInputGate createBarrierTracker(
+	private static CheckpointedInputGate createCheckpointedInputGate(
 			int numberOfChannels,
 			BufferOrEvent[] sequence,
 			@Nullable AbstractInvokable toNotifyOnCheckpoint) {
