@@ -35,6 +35,7 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -365,6 +366,12 @@ public class SlotManagerImpl implements SlotManager {
 	// ---------------------------------------------------------------------------------------------
 	// Public API
 	// ---------------------------------------------------------------------------------------------
+
+	@Override
+	public void processResourceRequirements(ResourceRequirements resourceRequirements) {
+		// no-op; don't throw an UnsupportedOperationException here because there are code paths where the resource
+		// manager calls this method regardless of whether declarative resource management is used or not
+	}
 
 	/**
 	 * Requests a slot with the respective resource profile.

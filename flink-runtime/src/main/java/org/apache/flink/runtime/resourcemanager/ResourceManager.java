@@ -65,6 +65,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -1189,6 +1190,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			if (jobManagerRegistration != null) {
 				jobManagerRegistration.getJobManagerGateway().notifyAllocationFailure(allocationId, cause);
 			}
+		}
+
+		@Override
+		public void notifyNotEnoughResourcesAvailable(JobID jobId, Collection<ResourceRequirement> acquiredResources) {
+			validateRunsInMainThread();
 		}
 	}
 
