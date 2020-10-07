@@ -37,6 +37,8 @@ import java.io.IOException;
  */
 public class OrcRowInputFormat extends OrcInputFormat<Row> implements ResultTypeQueryable<Row> {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(OrcRowInputFormat.class);
 
 	// the number of rows read in a batch
