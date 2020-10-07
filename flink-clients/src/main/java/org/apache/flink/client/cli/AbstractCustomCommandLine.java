@@ -22,9 +22,7 @@ import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
@@ -42,16 +40,6 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 	protected final Option zookeeperNamespaceOption = new Option("z", "zookeeperNamespace", true,
 		"Namespace to create the Zookeeper sub-paths for high availability mode");
 
-	protected final Configuration configuration;
-
-	protected AbstractCustomCommandLine(Configuration configuration) {
-		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
-	}
-
-	public Configuration getConfiguration() {
-		return configuration;
-	}
-
 	@Override
 	public void addRunOptions(Options baseOptions) {
 		// nothing to add here
@@ -63,8 +51,8 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
-		final Configuration resultingConfiguration = new Configuration(configuration);
+	public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
+		final Configuration resultingConfiguration = new Configuration();
 		resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
 		if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {

@@ -184,7 +184,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.stop(parameters);
 	}
 
@@ -195,7 +195,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.stop(parameters);
 	}
 

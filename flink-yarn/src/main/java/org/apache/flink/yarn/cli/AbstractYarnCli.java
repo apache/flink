@@ -39,8 +39,10 @@ abstract class AbstractYarnCli extends AbstractCustomCommandLine {
 	protected Option addressOption =
 		new Option("m", "jobmanager", true, "Set to " + ID + " to use YARN execution mode.");
 
+	protected final Configuration configuration;
+
 	protected AbstractYarnCli(Configuration configuration) {
-		super(configuration);
+		this.configuration = configuration;
 	}
 
 	@Override

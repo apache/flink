@@ -31,7 +31,7 @@ public abstract class CliFrontendTestBase extends TestLogger {
 		return GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir());
 	}
 
-	static AbstractCustomCommandLine getCli(Configuration configuration) {
-		return new DefaultCLI(configuration);
+	static AbstractCustomCommandLine getCli() {
+		return new DefaultCLI();
 	}
 }

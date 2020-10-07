@@ -51,7 +51,7 @@ public class DummyCustomCommandLine implements CustomCommandLine {
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) {
+	public Configuration toConfiguration(CommandLine commandLine) {
 		final Configuration configuration = new Configuration();
 		configuration.setString(DeploymentOptions.TARGET, DummyClusterClientFactory.ID);
 		return configuration;

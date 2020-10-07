@@ -44,7 +44,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.cancel(parameters);
 	}
 
@@ -54,7 +54,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.cancel(parameters);
 	}
 
@@ -67,7 +67,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 			Configuration configuration = getConfiguration();
 			CliFrontend testFrontend = new CliFrontend(
 				configuration,
-				Collections.singletonList(getCli(configuration)));
+				Collections.singletonList(getCli()));
 			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\" : 4"));
 		}
@@ -84,7 +84,7 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
 			Configuration configuration = getConfiguration();
 			CliFrontend testFrontend = new CliFrontend(
 				configuration,
-				Collections.singletonList(getCli(configuration)));
+				Collections.singletonList(getCli()));
 			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\" : 17"));
 		}
