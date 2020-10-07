@@ -19,10 +19,13 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.Test;
+
+import java.time.Duration;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -48,5 +51,21 @@ public class DefaultCLITest {
 
 		assertThat(configuration.get(RestOptions.ADDRESS), is(hostname));
 		assertThat(configuration.get(RestOptions.PORT), is(port));
+	}
+
+	@Test
+	public void testDynamicPropertyMaterialization() throws Exception {
+		final String[] args = {
+				"-D" + PipelineOptions.AUTO_WATERMARK_INTERVAL.key() + "=42",
+				"-D" + PipelineOptions.AUTO_GENERATE_UIDS.key() + "=true"
+		};
+
+		final AbstractCustomCommandLine defaultCLI = new DefaultCLI();
+		final CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+
+		Configuration configuration = defaultCLI.toConfiguration(commandLine);
+
+		assertThat(configuration.get(PipelineOptions.AUTO_WATERMARK_INTERVAL), is(Duration.ofMillis(42L)));
+		assertThat(configuration.get(PipelineOptions.AUTO_GENERATE_UIDS), is(true));
 	}
 }

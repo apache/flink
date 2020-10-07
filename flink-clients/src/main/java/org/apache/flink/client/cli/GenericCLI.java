@@ -30,7 +30,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -57,19 +56,6 @@ public class GenericCLI implements CustomCommandLine {
 					"to the \"" + DeploymentOptions.TARGET.key() + "\" config option. The " +
 					"currently available targets are: " + getExecutorFactoryNames() +
 					", \"yarn-application\" and \"kubernetes-application\".");
-
-	/**
-	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.memory.network.min=536346624</tt>.
-	 */
-	private final Option dynamicProperties = Option.builder("D")
-			.argName("property=value")
-			.numberOfArgs(2)
-			.valueSeparator('=')
-			.desc("Generic configuration options for execution/deployment and for the configured " +
-					"executor. The available options can be found at " +
-					"https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
-			.build();
 
 	private final Configuration configuration;
 
@@ -101,7 +87,7 @@ public class GenericCLI implements CustomCommandLine {
 	public void addGeneralOptions(Options baseOptions) {
 		baseOptions.addOption(executorOption);
 		baseOptions.addOption(targetOption);
-		baseOptions.addOption(dynamicProperties);
+		baseOptions.addOption(DynamicPropertiesUtil.DYNAMIC_PROPERTIES);
 	}
 
 	@Override
@@ -118,23 +104,10 @@ public class GenericCLI implements CustomCommandLine {
 			resultConfiguration.setString(DeploymentOptions.TARGET, targetName);
 		}
 
-		encodeDynamicProperties(commandLine, resultConfiguration);
+		DynamicPropertiesUtil.encodeDynamicProperties(commandLine, resultConfiguration);
 		resultConfiguration.set(DeploymentOptionsInternal.CONF_DIR, configurationDir);
 
 		return resultConfiguration;
-	}
-
-	private void encodeDynamicProperties(final CommandLine commandLine, final Configuration effectiveConfiguration) {
-		final Properties properties = commandLine.getOptionProperties(dynamicProperties.getOpt());
-		properties.stringPropertyNames()
-				.forEach(key -> {
-					final String value = properties.getProperty(key);
-					if (value != null) {
-						effectiveConfiguration.setString(key, value);
-					} else {
-						effectiveConfiguration.setString(key, "true");
-					}
-				});
 	}
 
 	private static String getExecutorFactoryNames() {
