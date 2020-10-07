@@ -73,11 +73,6 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
 
-		if (configuration.shouldSortInputs()) {
-			throw new UnsupportedOperationException(
-				"Sorting inputs is not supported for a multiple input stream task yet.");
-		}
-
 		InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
 		WatermarkGauge[] watermarkGauges = new WatermarkGauge[inputs.length];
@@ -145,15 +140,22 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			checkpointBarrierHandler);
 
 		inputProcessor = StreamMultipleInputProcessorFactory.create(
+			this,
 			checkpointedInputGates,
 			inputs,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMemoryManager(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			setupNumRecordsInCounter(mainOperator),
 			getStreamStatusMaintainer(),
 			mainOperator,
 			selectionHandler,
 			inputWatermarkGauges,
+			getConfiguration(),
+			getTaskConfiguration(),
+			getJobConfiguration(),
+			getExecutionConfig(),
+			getUserCodeClassLoader(),
 			operatorChain);
 	}
 
