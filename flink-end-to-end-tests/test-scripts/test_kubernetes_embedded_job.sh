@@ -31,18 +31,22 @@ function internal_cleanup {
     kubectl delete service flink-job-cluster
     kubectl delete deployment flink-task-manager
 }
+echo "Kubernetes version(s) to test: $KUBERNETES_VERSIONS"
+for kubernetes_version in $KUBERNETES_VERSIONS; do
+  echo "Test against Kubernetes ${kubernetes_version} ..."
 
-start_kubernetes
+  start_kubernetes ${kubernetes_version}
 
-mkdir -p $OUTPUT_VOLUME
+  mkdir -p $OUTPUT_VOLUME
 
-build_image ${FLINK_IMAGE_NAME}
+  build_image ${FLINK_IMAGE_NAME}
 
-export USER_LIB=${FLINK_DIR}/examples/batch
-kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml
-envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/job-cluster-job.yaml.template | kubectl create -f -
-envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/task-manager-deployment.yaml.template | kubectl create -f -
-kubectl wait --for=condition=complete job/flink-job-cluster --timeout=1h
-kubectl cp `kubectl get pods | awk '/task-manager/ {print $1}'`:/cache/${OUTPUT_FILE} ${OUTPUT_VOLUME}/${OUTPUT_FILE}
+  export USER_LIB=${FLINK_DIR}/examples/batch
+  kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml
+  envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB} ${FLINK_JOB_PARALLELISM} ${FLINK_JOB_ARGUMENTS} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/job-cluster-job.yaml.template | kubectl create -f -
+  envsubst '${FLINK_IMAGE_NAME} ${FLINK_JOB_PARALLELISM} ${USER_LIB}' < ${CONTAINER_SCRIPTS}/task-manager-deployment.yaml.template | kubectl create -f -
+  kubectl wait --for=condition=complete job/flink-job-cluster --timeout=1h
+  kubectl cp `kubectl get pods | awk '/task-manager/ {print $1}'`:/cache/${OUTPUT_FILE} ${OUTPUT_VOLUME}/${OUTPUT_FILE}
 
-check_result_hash "WordCount" ${OUTPUT_VOLUME}/${OUTPUT_FILE} "${RESULT_HASH}"
+  check_result_hash "WordCount" ${OUTPUT_VOLUME}/${OUTPUT_FILE} "${RESULT_HASH}" && echo "${kubernetes_version} test passed" || exit 1
+done

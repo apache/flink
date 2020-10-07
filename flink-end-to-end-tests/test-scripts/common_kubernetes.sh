@@ -29,6 +29,14 @@ MINIKUBE_PATH="/usr/local/bin/minikube-$MINIKUBE_VERSION"
 
 NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
+# for linux os, test against the most recent 3 minor versions according to https://kubernetes.io/docs/setup/release/version-skew-policy/
+# for non-linux os, test against user installed version, or suggest latest stable version
+if [[ "${OS_TYPE}" != "linux" ]]; then
+    check_kubernetes_status && KUBERNETES_VERSIONS=$(installed_version) || KUBERNETES_VERSIONS='v1.19.2'
+else
+     KUBERNETES_VERSIONS='v1.17.12 v1.18.9 v1.19.2'
+fi
+
 # If running tests on non-linux os, the kubectl and minikube should be installed manually
 function setup_kubernetes_for_linux {
     if [[ `uname -i` == 'aarch64' ]]; then
@@ -44,7 +52,7 @@ function setup_kubernetes_for_linux {
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube.
-    if ! [ -x "$(command -v minikube)" ] || ! [[ $(minikube version) =~ "$MINIKUBE_VERSION" ]]; then
+    if ! [ -x "$(command -v $MINIKUBE_PATH)" ] || ! [[ $($MINIKUBE_PATH version) =~ "$MINIKUBE_VERSION" ]]; then
         echo "Installing minikube to $MINIKUBE_PATH ..."
         curl -Lo minikube https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
             chmod +x minikube && sudo mv minikube $MINIKUBE_PATH
@@ -56,41 +64,68 @@ function check_kubernetes_status {
     return $?
 }
 
-function start_kubernetes_if_not_running {
-    if ! check_kubernetes_status; then
-        echo "Starting minikube ..."
-        # We need sudo permission to set vm-driver to none in linux os.
-        # tl;dr: Configure minikube for a low disk space environment
-        #
-        # The VMs provided by azure have ~100GB of disk space, out of which
-        # 85% are allocated, only 15GB are free. That's enough space
-        # for our purposes. However, the kubernetes nodes running during
-        # the k8s tests believe that 85% are not enough free disk space,
-        # so they start garbage collecting their host. During GCing, they
-        # are deleting all docker images currently not in use.
-        # However, the k8s test is first building a flink image, then launching
-        # stuff on k8s. Sometimes, k8s deletes the new Flink images,
-        # thus it can not find them anymore, letting the test fail /
-        # timeout. That's why we have set the GC threshold to 98% and 99%
-        # here.
-        # Similarly, the kubelets are marking themself as "low disk space",
-        # causing Flink to avoid this node (again, failing the test)
-        sudo CHANGE_MINIKUBE_NONE_USER=true $MINIKUBE_PATH start --vm-driver=none \
-            --extra-config=kubelet.image-gc-high-threshold=99 \
-            --extra-config=kubelet.image-gc-low-threshold=98 \
-            --extra-config=kubelet.minimum-container-ttl-duration=120m \
-            --extra-config=kubelet.eviction-hard="memory.available<5Mi,nodefs.available<1Mi,imagefs.available<1Mi" \
-            --extra-config=kubelet.eviction-soft="memory.available<5Mi,nodefs.available<2Mi,imagefs.available<2Mi" \
-            --extra-config=kubelet.eviction-soft-grace-period="memory.available=2h,nodefs.available=2h,imagefs.available=2h"
-        # Fix the kubectl context, as it's often stale.
-        $MINIKUBE_PATH update-context
-    fi
+function installed_version() {
+    $MINIKUBE_PATH kubectl -- version --short | grep "Server Version:" | cut -d" " -f3
+}
 
-    check_kubernetes_status
+function check_kubernetes_version() {
+    local expected_version=$1
+    if [[ $expected_version != $(installed_version) ]]; then
+        echo "****** Kubernetes version mismatch! Expect $expected_version but $(installed_version) is detected. ******"
+        return 1
+    fi
+}
+
+function start_kubernetes_if_not_running {
+    local kubernetes_version=$1
+
+    # occasionally minikube fails into a state that .minikube dir is owned by root
+    sudo chown $USER -R ~/.minikube/ ~/.kube/
+
+    # k8s v1.18 requires conntrack
+    sudo apt-get install -y conntrack
+
+    check_kubernetes_status && check_kubernetes_version ${kubernetes_version} && return 0
+
+    delete_kubernetes
+
+    echo "Starting minikube ..."
+    # We need sudo permission to set vm-driver to none in linux os.
+    # tl;dr: Configure minikube for a low disk space environment
+    #
+    # The VMs provided by azure have ~100GB of disk space, out of which
+    # 85% are allocated, only 15GB are free. That's enough space
+    # for our purposes. However, the kubernetes nodes running during
+    # the k8s tests believe that 85% are not enough free disk space,
+    # so they start garbage collecting their host. During GCing, they
+    # are deleting all docker images currently not in use.
+    # However, the k8s test is first building a flink image, then launching
+    # stuff on k8s. Sometimes, k8s deletes the new Flink images,
+    # thus it can not find them anymore, letting the test fail /
+    # timeout. That's why we have set the GC threshold to 98% and 99%
+    # here.
+    # Similarly, the kubelets are marking themself as "low disk space",
+    # causing Flink to avoid this node (again, failing the test)
+    sudo CHANGE_MINIKUBE_NONE_USER=true MINIKUBE_HOME=$HOME KUBECONFIG=$HOME/.kube/config $MINIKUBE_PATH start \
+        --vm-driver=none \
+        --kubernetes-version=${kubernetes_version} \
+        --wait=true \
+#        --image-repository=registry.cn-hangzhou.aliyuncs.com/google_containers \
+        --extra-config=kubelet.image-gc-high-threshold=99 \
+        --extra-config=kubelet.image-gc-low-threshold=98 \
+        --extra-config=kubelet.minimum-container-ttl-duration=120m \
+        --extra-config=kubelet.eviction-hard="memory.available<5Mi,nodefs.available<1Mi,imagefs.available<1Mi" \
+        --extra-config=kubelet.eviction-soft="memory.available<5Mi,nodefs.available<2Mi,imagefs.available<2Mi" \
+        --extra-config=kubelet.eviction-soft-grace-period="memory.available=2h,nodefs.available=2h,imagefs.available=2h"
+    # Fix the kubectl context, as it's often stale.
+    $MINIKUBE_PATH update-context
+
+    check_kubernetes_status && check_kubernetes_version ${kubernetes_version}
     return $?
 }
 
 function start_kubernetes {
+    local kubernetes_version=$1
     if [[ "${OS_TYPE}" != "linux" ]]; then
         if ! check_kubernetes_status; then
             echo "$NON_LINUX_ENV_NOTE"
@@ -98,7 +133,7 @@ function start_kubernetes {
         fi
     else
         setup_kubernetes_for_linux
-        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} start_kubernetes_if_not_running; then
+        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "start_kubernetes_if_not_running ${kubernetes_version}"; then
             echo "Could not start minikube. Aborting..."
             exit 1
         fi
@@ -111,9 +146,23 @@ function stop_kubernetes {
         echo "$NON_LINUX_ENV_NOTE"
     else
         echo "Stopping minikube ..."
-        stop_command="sudo $MINIKUBE_PATH stop"
+        stop_command="$MINIKUBE_PATH stop"
         if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${stop_command}"; then
             echo "Could not stop minikube. Aborting..."
+            exit 1
+        fi
+    fi
+}
+
+# minikube does not support non-destructive switch between k8s versions, we have to delete when necessary
+function delete_kubernetes() {
+    if [[ "${OS_TYPE}" != "linux" ]]; then
+        echo "$NON_LINUX_ENV_NOTE"
+    else
+        echo "Deleting minikube ..."
+        delete_command="$MINIKUBE_PATH delete"
+        if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${delete_command}"; then
+            echo "Could not delete minikube. Run ${delete_command} manually ..."
             exit 1
         fi
     fi
@@ -171,7 +220,7 @@ function cleanup {
     fi
     internal_cleanup
     kubectl wait --for=delete pod --all=true
-    stop_kubernetes
+    delete_kubernetes
 }
 
 on_exit cleanup

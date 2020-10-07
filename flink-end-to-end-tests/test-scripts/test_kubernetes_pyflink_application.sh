@@ -31,10 +31,6 @@ function internal_cleanup {
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
 }
 
-start_kubernetes
-
-build_image ${PURE_FLINK_IMAGE_NAME}
-
 FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
 
 CONDA_HOME="${FLINK_PYTHON_DIR}/dev/.conda"
@@ -71,27 +67,37 @@ echo "RUN ln -s /usr/bin/python3 /usr/bin/python" >> Dockerfile
 echo "COPY ${PYFLINK_PACKAGE_FILE} ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN pip3 install ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
 echo "RUN rm ${PYFLINK_PACKAGE_FILE}" >> Dockerfile
-docker build --no-cache --network="host" -t ${PYFLINK_IMAGE_NAME} .
 
-kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
+echo "Kubernetes version(s) to test: $KUBERNETES_VERSIONS"
+for kubernetes_version in $KUBERNETES_VERSIONS; do
+  echo "Test against Kubernetes ${kubernetes_version} ..."
 
-mkdir -p "$LOCAL_LOGS_PATH"
+  start_kubernetes ${kubernetes_version}
 
-# Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
-"$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
-    -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    -Dkubernetes.container.image=${PYFLINK_IMAGE_NAME} \
-    -Djobmanager.memory.process.size=1088m \
-    -Dkubernetes.jobmanager.cpu=0.5 \
-    -Dkubernetes.taskmanager.cpu=0.5 \
-    -Dkubernetes.rest-service.exposed.type=NodePort \
-    -pym word_count -pyfs /opt/flink/examples/python/table/batch
+  build_image ${PURE_FLINK_IMAGE_NAME}
 
-kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
-jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
-wait_rest_endpoint_up_k8s $jm_pod_name
+  docker build --no-cache --network="host" -t ${PYFLINK_IMAGE_NAME} .
 
-# The Flink cluster will be destroyed immediately once the job finished or failed. So we check jobmanager logs
-# instead of checking the result
-kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
-grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
+  kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
+
+  mkdir -p "$LOCAL_LOGS_PATH"
+
+  # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
+  "$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
+      -Dkubernetes.cluster-id=${CLUSTER_ID} \
+      -Dkubernetes.container.image=${PYFLINK_IMAGE_NAME} \
+      -Djobmanager.memory.process.size=1088m \
+      -Dkubernetes.jobmanager.cpu=0.5 \
+      -Dkubernetes.taskmanager.cpu=0.5 \
+      -Dkubernetes.rest-service.exposed.type=NodePort \
+      -pym word_count -pyfs /opt/flink/examples/python/table/batch
+
+  kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
+  jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
+  wait_rest_endpoint_up_k8s $jm_pod_name
+
+  # The Flink cluster will be destroyed immediately once the job finished or failed. So we check jobmanager logs
+  # instead of checking the result
+  kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
+  grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log && echo "${kubernetes_version} test passed" || exit 1
+done

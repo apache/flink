@@ -50,45 +50,50 @@ function internal_cleanup {
     kubectl delete clusterrolebinding ${CLUSTER_ROLE_BINDING}
 }
 
-start_kubernetes
+echo "Kubernetes version(s) to test: $KUBERNETES_VERSIONS"
+for kubernetes_version in $KUBERNETES_VERSIONS; do
+  echo "Test against Kubernetes ${kubernetes_version} ..."
 
-build_image ${FLINK_IMAGE_NAME}
+  start_kubernetes ${kubernetes_version}
 
-kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
+  build_image ${FLINK_IMAGE_NAME}
 
-mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
+  kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
-# Enable dummy fs for Flink client
-[[ $INPUT_TYPE = 'dummy-fs' ]] && dummy_fs_setup
+  mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 
-# Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
-"$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
-    -Djobmanager.memory.process.size=1088m \
-    -Dkubernetes.jobmanager.cpu=0.5 \
-    -Dkubernetes.taskmanager.cpu=0.5 \
-    -Dkubernetes.rest-service.exposed.type=NodePort \
-    $ENABLE_DUMMPY_FS_ARGS
+  # Enable dummy fs for Flink client
+  [[ $INPUT_TYPE = 'dummy-fs' ]] && dummy_fs_setup
 
-kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
-jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
-wait_rest_endpoint_up_k8s $jm_pod_name
+  # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
+  "$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
+      -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
+      -Djobmanager.memory.process.size=1088m \
+      -Dkubernetes.jobmanager.cpu=0.5 \
+      -Dkubernetes.taskmanager.cpu=0.5 \
+      -Dkubernetes.rest-service.exposed.type=NodePort \
+      $ENABLE_DUMMPY_FS_ARGS
 
-"$FLINK_DIR"/bin/flink run -e kubernetes-session \
-    -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    ${FLINK_DIR}/examples/batch/WordCount.jar ${INPUT_ARGS} ${OUTPUT_ARGS}
+  kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
+  jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
+  wait_rest_endpoint_up_k8s $jm_pod_name
 
-if ! check_logs_output $jm_pod_name 'Starting KubernetesSessionClusterEntrypoint'; then
-  echo "JobManager logs are not accessible via kubectl logs."
-  exit 1
-fi
+  "$FLINK_DIR"/bin/flink run -e kubernetes-session \
+      -Dkubernetes.cluster-id=${CLUSTER_ID} \
+      ${FLINK_DIR}/examples/batch/WordCount.jar ${INPUT_ARGS} ${OUTPUT_ARGS}
 
-tm_pod_name=$(kubectl get pods | awk '/taskmanager/ {print $1}')
-if ! check_logs_output $tm_pod_name 'Starting Kubernetes TaskExecutor runner'; then
-  echo "TaskManager logs are not accessible via kubectl logs."
-  exit 1
-fi
+  if ! check_logs_output $jm_pod_name 'Starting KubernetesSessionClusterEntrypoint'; then
+    echo "JobManager logs are not accessible via kubectl logs."
+    exit 1
+  fi
 
-kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
+  tm_pod_name=$(kubectl get pods | awk '/taskmanager/ {print $1}')
+  if ! check_logs_output $tm_pod_name 'Starting Kubernetes TaskExecutor runner'; then
+    echo "TaskManager logs are not accessible via kubectl logs."
+    exit 1
+  fi
 
-check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
+  kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
+
+  check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}" && echo "${kubernetes_version} test passed" || exit 1
+done
