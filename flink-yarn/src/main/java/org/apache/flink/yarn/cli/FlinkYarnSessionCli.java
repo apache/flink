@@ -305,9 +305,9 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
 		// we ignore the addressOption because it can only contain "yarn-cluster"
-		final Configuration effectiveConfiguration = new Configuration(configuration);
+		final Configuration effectiveConfiguration = new Configuration();
 
 		applyDescriptorOptionToConfig(commandLine, effectiveConfiguration);
 
@@ -468,12 +468,15 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 			printUsage();
 			return 0;
 		}
+		final Configuration effectiveConfiguration = new Configuration(configuration);
+		final Configuration commandLineConfiguration = toConfiguration(cmd);
+		effectiveConfiguration.addAll(commandLineConfiguration);
+		LOG.debug("Effective configuration: {}", effectiveConfiguration);
 
-		final Configuration configuration = applyCommandLineOptionsToConfiguration(cmd);
-		final ClusterClientFactory<ApplicationId> yarnClusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(configuration);
-		configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.SESSION.getName());
+		final ClusterClientFactory<ApplicationId> yarnClusterClientFactory = clusterClientServiceLoader.getClusterClientFactory(effectiveConfiguration);
+		effectiveConfiguration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.SESSION.getName());
 
-		final YarnClusterDescriptor yarnClusterDescriptor = (YarnClusterDescriptor) yarnClusterClientFactory.createClusterDescriptor(configuration);
+		final YarnClusterDescriptor yarnClusterDescriptor = (YarnClusterDescriptor) yarnClusterClientFactory.createClusterDescriptor(effectiveConfiguration);
 
 		try {
 			// Query cluster for metrics
@@ -490,7 +493,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
 					clusterClientProvider = yarnClusterDescriptor.retrieve(yarnApplicationId);
 				} else {
-					final ClusterSpecification clusterSpecification = yarnClusterClientFactory.getClusterSpecification(configuration);
+					final ClusterSpecification clusterSpecification = yarnClusterClientFactory.getClusterSpecification(effectiveConfiguration);
 
 					clusterClientProvider = yarnClusterDescriptor.deploySessionCluster(clusterSpecification);
 					ClusterClient<ApplicationId> clusterClient = clusterClientProvider.getClusterClient();
@@ -521,7 +524,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 					}
 				}
 
-				if (!configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+				if (!effectiveConfiguration.getBoolean(DeploymentOptions.ATTACHED)) {
 					YarnClusterDescriptor.logDetachedClusterInformation(yarnApplicationId, LOG);
 				} else {
 					ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();

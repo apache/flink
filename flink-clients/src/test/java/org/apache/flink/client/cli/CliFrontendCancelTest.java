@@ -77,7 +77,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.cancel(parameters);
 	}
 
@@ -87,7 +87,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.cancel(parameters);
 	}
 
@@ -140,7 +140,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.cancel(parameters);
 	}
 
@@ -151,7 +151,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.cancel(parameters);
 	}
 }

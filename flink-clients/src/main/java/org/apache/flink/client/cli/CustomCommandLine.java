@@ -56,12 +56,10 @@ public interface CustomCommandLine {
 	void addGeneralOptions(Options baseOptions);
 
 	/**
-	 * Override configuration settings by specified command line options.
-	 *
-	 * @param commandLine containing the overriding values
-	 * @return the effective configuration with the overridden configuration settings
+	 * Materializes the command line arguments in the given {@link CommandLine} to a {@link
+	 * Configuration} and returns it.
 	 */
-	Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException;
+	Configuration toConfiguration(CommandLine commandLine) throws FlinkException;
 
 	default CommandLine parseCommandLineOptions(String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final Options options = new Options();

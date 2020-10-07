@@ -419,7 +419,7 @@ public class RestClusterClientTest extends TestLogger {
 		configuration.setString(RestOptions.ADDRESS, configuredHostname);
 		configuration.setInteger(RestOptions.PORT, configuredPort);
 
-		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+		final DefaultCLI defaultCLI = new DefaultCLI();
 
 		final String manualHostname = "123.123.123.123";
 		final int manualPort = 4321;
@@ -428,7 +428,7 @@ public class RestClusterClientTest extends TestLogger {
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
 		final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
-		final Configuration executorConfig = defaultCLI.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = defaultCLI.toConfiguration(commandLine);
 
 		final ClusterClientFactory<StandaloneClusterId> clusterFactory = serviceLoader.getClusterClientFactory(executorConfig);
 		checkState(clusterFactory != null);

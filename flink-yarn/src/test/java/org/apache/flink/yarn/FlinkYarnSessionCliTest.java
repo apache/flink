@@ -104,7 +104,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 				"-D", CoreOptions.FLINK_JVM_OPTIONS.key() + "=-DappName=foobar",
 				"-D", SecurityOptions.SSL_INTERNAL_KEY_PASSWORD.key() + "=changeit"});
 
-		Configuration executorConfig = cli.applyCommandLineOptionsToConfiguration(cmd);
+		Configuration executorConfig = cli.toConfiguration(cmd);
 		assertEquals("5 min", executorConfig.get(AkkaOptions.ASK_TIMEOUT));
 		assertEquals("-DappName=foobar", executorConfig.get(CoreOptions.FLINK_JVM_OPTIONS));
 		assertEquals("changeit", executorConfig.get(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD));
@@ -112,16 +112,17 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	@Test
 	public void testCorrectSettingOfMaxSlots() throws Exception {
-		String[] params =
-			new String[] {"-ys", "3"};
+		String[] params = new String[] {"-ys", "3"};
 
-		FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCliWithJmAndTmTotalMemory(2048);
+		final Configuration configuration = createConfigurationWithJmAndTmTotalMemory(2048);
+		final FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCli(configuration);
 
 		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		final Configuration executorConfig = yarnCLI.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+		configuration.addAll(yarnCLI.toConfiguration(commandLine));
+
+		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(configuration);
+		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(configuration);
 
 		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
 		assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
@@ -133,7 +134,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCli();
 
 		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
-		final Configuration executorConfig = yarnCLI.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = yarnCLI.toConfiguration(commandLine);
 
 		assertThat(executorConfig.get(DeploymentOptions.ATTACHED), is(false));
 	}
@@ -148,7 +149,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		Configuration executorConfig = yarnCLI.applyCommandLineOptionsToConfiguration(commandLine);
+		Configuration executorConfig = yarnCLI.toConfiguration(commandLine);
 		ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		YarnClusterDescriptor descriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
@@ -165,7 +166,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		Configuration executorConfig = yarnCLI.applyCommandLineOptionsToConfiguration(commandLine);
+		Configuration executorConfig = yarnCLI.toConfiguration(commandLine);
 		ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		YarnClusterDescriptor descriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
@@ -222,7 +223,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {}, true);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ApplicationId clusterId = clientFactory.getClusterId(executorConfig);
 
@@ -250,7 +251,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()}, true);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ApplicationId clusterId = clientFactory.getClusterId(executorConfig);
 
@@ -263,7 +264,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()}, true);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final YarnClusterDescriptor clusterDescriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
@@ -280,7 +281,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final String overrideZkNamespace = "my_cluster";
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace}, true);
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 
 		final YarnClusterDescriptor clusterDescriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
@@ -300,7 +301,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID_2.toString() }, true);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ApplicationId clusterId = clientFactory.getClusterId(executorConfig);
 
@@ -327,7 +328,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -355,9 +356,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
-		ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+		configuration.addAll(flinkYarnSessionCli.toConfiguration(commandLine));
+
+		ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(configuration);
+		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(configuration);
 
 		assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
 		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
@@ -374,7 +376,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -391,7 +393,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -408,7 +410,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli();
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
 
@@ -429,9 +431,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+		configuration.addAll(flinkYarnSessionCli.toConfiguration(commandLine));
+
+		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(configuration);
+		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(configuration);
 
 		assertThat(clusterSpecification.getMasterMemoryMB(), is(2048));
 		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(4096));
@@ -443,13 +446,15 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	@Test
 	public void testJobManagerMemoryPropertyWithConfigDefaultValue() throws Exception {
 		int procMemory = 2048;
-		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCliWithJmAndTmTotalMemory(procMemory);
+		final Configuration configuration = createConfigurationWithJmAndTmTotalMemory(procMemory);
+		final FlinkYarnSessionCli flinkYarnSessionCli = createFlinkYarnSessionCli(configuration);
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
-		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+		configuration.addAll(flinkYarnSessionCli.toConfiguration(commandLine));
+
+		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(configuration);
+		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(configuration);
 
 		assertThat(clusterSpecification.getMasterMemoryMB(), is(procMemory));
 		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(procMemory));
@@ -462,7 +467,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		YarnClusterDescriptor flinkYarnDescriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
@@ -478,7 +483,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		final Configuration executorConfig = flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration executorConfig = flinkYarnSessionCli.toConfiguration(commandLine);
 		final ClusterClientFactory<ApplicationId> clientFactory = getClusterClientFactory(executorConfig);
 		YarnClusterDescriptor flinkYarnDescriptor = (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
@@ -494,7 +499,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
 		try {
-			flinkYarnSessionCli.applyCommandLineOptionsToConfiguration(commandLine);
+			flinkYarnSessionCli.toConfiguration(commandLine);
 			fail("Expected error for missing file");
 		} catch (ConfigurationException ce) {
 			assertEquals("Ship file missing.file does not exist", ce.getMessage());
@@ -526,10 +531,14 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	}
 
 	private FlinkYarnSessionCli createFlinkYarnSessionCliWithJmAndTmTotalMemory(int totalMemomory) throws FlinkException {
+		return createFlinkYarnSessionCli(createConfigurationWithJmAndTmTotalMemory(totalMemomory));
+	}
+
+	private Configuration createConfigurationWithJmAndTmTotalMemory(int totalMemomory) throws FlinkException {
 		Configuration configuration = new Configuration();
 		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
 		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemomory));
-		return createFlinkYarnSessionCli(configuration);
+		return configuration;
 	}
 
 	private FlinkYarnSessionCli createFlinkYarnSessionCli(Configuration configuration) throws FlinkException {

@@ -1493,7 +1493,7 @@ public class LocalExecutorITCase extends TestLogger {
 				EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 				Collections.emptyList(),
 				clusterClient.getFlinkConfiguration(),
-				new DefaultCLI(clusterClient.getFlinkConfiguration()),
+				new DefaultCLI(),
 				new DefaultClusterClientServiceLoader());
 	}
 
@@ -1503,7 +1503,7 @@ public class LocalExecutorITCase extends TestLogger {
 				EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 				Collections.singletonList(udfDependency),
 				clusterClient.getFlinkConfiguration(),
-				new DefaultCLI(clusterClient.getFlinkConfiguration()),
+				new DefaultCLI(),
 				new DefaultClusterClientServiceLoader());
 	}
 
@@ -1514,7 +1514,7 @@ public class LocalExecutorITCase extends TestLogger {
 				EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
 				Collections.emptyList(),
 				clusterClient.getFlinkConfiguration(),
-				new DefaultCLI(clusterClient.getFlinkConfiguration()),
+				new DefaultCLI(),
 				new DefaultClusterClientServiceLoader());
 	}
 

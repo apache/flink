@@ -29,8 +29,6 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -45,8 +43,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class GenericCLI implements CustomCommandLine {
-
-	private static final Logger LOG = LoggerFactory.getLogger(GenericCLI.class);
 
 	private static final String ID = "Generic CLI";
 
@@ -75,18 +71,18 @@ public class GenericCLI implements CustomCommandLine {
 					"https://ci.apache.org/projects/flink/flink-docs-stable/ops/config.html")
 			.build();
 
-	private final Configuration baseConfiguration;
+	private final Configuration configuration;
 
 	private final String configurationDir;
 
 	public GenericCLI(final Configuration configuration, final String configDir) {
-		this.baseConfiguration = new UnmodifiableConfiguration(checkNotNull(configuration));
+		this.configuration = new UnmodifiableConfiguration(checkNotNull(configuration));
 		this.configurationDir =  checkNotNull(configDir);
 	}
 
 	@Override
 	public boolean isActive(CommandLine commandLine) {
-		return baseConfiguration.getOptional(DeploymentOptions.TARGET).isPresent()
+		return configuration.getOptional(DeploymentOptions.TARGET).isPresent()
 				|| commandLine.hasOption(executorOption.getOpt())
 				|| commandLine.hasOption(targetOption.getOpt());
 	}
@@ -109,27 +105,23 @@ public class GenericCLI implements CustomCommandLine {
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(final CommandLine commandLine) {
-		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+	public Configuration toConfiguration(final CommandLine commandLine) {
+		final Configuration resultConfiguration = new Configuration();
 
 		final String executorName = commandLine.getOptionValue(executorOption.getOpt());
 		if (executorName != null) {
-			effectiveConfiguration.setString(DeploymentOptions.TARGET, executorName);
+			resultConfiguration.setString(DeploymentOptions.TARGET, executorName);
 		}
 
 		final String targetName = commandLine.getOptionValue(targetOption.getOpt());
 		if (targetName != null) {
-			effectiveConfiguration.setString(DeploymentOptions.TARGET, targetName);
+			resultConfiguration.setString(DeploymentOptions.TARGET, targetName);
 		}
 
-		encodeDynamicProperties(commandLine, effectiveConfiguration);
-		effectiveConfiguration.set(DeploymentOptionsInternal.CONF_DIR, configurationDir);
+		encodeDynamicProperties(commandLine, resultConfiguration);
+		resultConfiguration.set(DeploymentOptionsInternal.CONF_DIR, configurationDir);
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Effective Configuration: {}", effectiveConfiguration);
-		}
-
-		return effectiveConfiguration;
+		return resultConfiguration;
 	}
 
 	private void encodeDynamicProperties(final CommandLine commandLine, final Configuration effectiveConfiguration) {

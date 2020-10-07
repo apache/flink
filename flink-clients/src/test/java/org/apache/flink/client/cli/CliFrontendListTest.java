@@ -94,7 +94,7 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(getCli(configuration)));
+			Collections.singletonList(getCli()));
 		testFrontend.list(parameters);
 	}
 
