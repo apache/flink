@@ -69,7 +69,7 @@ public class GenericCLITest {
 				tmp.getRoot().getAbsolutePath());
 		final CommandLine emptyCommandLine = CliFrontendParser.parse(testOptions, new String[0], true);
 
-		final Configuration configuration = cliUnderTest.applyCommandLineOptionsToConfiguration(emptyCommandLine);
+		final Configuration configuration = cliUnderTest.toConfiguration(emptyCommandLine);
 		assertEquals(expectedExecutorName, configuration.get(DeploymentOptions.TARGET));
 	}
 
@@ -101,7 +101,7 @@ public class GenericCLITest {
 				tmp.getRoot().getAbsolutePath());
 		final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
 
-		final Configuration configuration = cliUnderTest.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration configuration = cliUnderTest.toConfiguration(commandLine);
 
 		assertEquals("test-executor", configuration.getString(DeploymentOptions.TARGET));
 		assertEquals(5, configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM));
@@ -131,7 +131,7 @@ public class GenericCLITest {
 		final String[] args = {executorOption, expectedExecutorName, "-D" + configOption.key() + "=" + expectedValue};
 		final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
 
-		final Configuration configuration = cliUnderTest.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration configuration = cliUnderTest.toConfiguration(commandLine);
 		assertEquals(expectedExecutorName, configuration.get(DeploymentOptions.TARGET));
 		assertEquals(expectedValue, configuration.getInteger(configOption));
 	}

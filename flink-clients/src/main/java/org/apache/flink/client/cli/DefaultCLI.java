@@ -44,10 +44,6 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 
 	public static final String ID = "default";
 
-	public DefaultCLI(Configuration configuration) {
-		super(configuration);
-	}
-
 	@Override
 	public boolean isActive(CommandLine commandLine) {
 		// always active because we can try to read a JobManager address from the config
@@ -55,9 +51,9 @@ public class DefaultCLI extends AbstractCustomCommandLine {
 	}
 
 	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
+	public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
 
-		final Configuration resultingConfiguration = super.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration resultingConfiguration = super.toConfiguration(commandLine);
 		if (commandLine.hasOption(addressOption.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
 			InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);

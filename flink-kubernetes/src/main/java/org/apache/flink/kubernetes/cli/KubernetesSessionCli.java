@@ -81,7 +81,8 @@ public class KubernetesSessionCli {
 
 	public Configuration getEffectiveConfiguration(String[] args) throws CliArgsException {
 		final CommandLine commandLine = cli.parseCommandLineOptions(args, true);
-		final Configuration effectiveConfiguration = cli.applyCommandLineOptionsToConfiguration(commandLine);
+		final Configuration effectiveConfiguration = new Configuration(baseConfiguration);
+		effectiveConfiguration.addAll(cli.toConfiguration(commandLine));
 		effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
 		return effectiveConfiguration;
 	}
