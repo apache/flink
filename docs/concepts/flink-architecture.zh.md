@@ -169,7 +169,7 @@ A _Flink Application_ is any user program that spawns one or multiple Flink
 jobs from its ``main()`` method. The execution of these jobs can happen in a
 local JVM (``LocalEnvironment``) or on a remote setup of clusters with multiple
 machines (``RemoteEnvironment``). For each program, the
-[``ExecutionEnvironment``]({{ site.baseurl }}/api/java/) provides methods to
+[``ExecutionEnvironment``]({{ site.javadocs_baseurl }}/api/java/) provides methods to
 control the job execution (e.g. setting the parallelism) and to interact with
 the outside world (see [Anatomy of a Flink Program]({%
 link dev/datastream_api.zh.md %}#anatomy-of-a-flink-program)).
