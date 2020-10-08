@@ -1548,6 +1548,7 @@ under the License.
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
+						<project.basedir>${project.basedir}</project.basedir>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
