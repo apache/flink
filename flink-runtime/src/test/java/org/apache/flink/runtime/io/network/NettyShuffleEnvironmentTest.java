@@ -203,10 +203,10 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 		assertEquals(floatingBuffers, ig3.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(floatingBuffers, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
-		verify(ig1, times(1)).assignExclusiveSegments();
-		verify(ig2, times(1)).assignExclusiveSegments();
-		verify(ig3, times(1)).assignExclusiveSegments();
-		verify(ig4, times(1)).assignExclusiveSegments();
+		verify(ig1, times(1)).setupChannels();
+		verify(ig2, times(1)).setupChannels();
+		verify(ig3, times(1)).setupChannels();
+		verify(ig4, times(1)).setupChannels();
 
 		for (ResultPartition rp : resultPartitions) {
 			rp.release();

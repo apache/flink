@@ -161,7 +161,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 
 			final CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
@@ -202,7 +202,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		try {
 			BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 
 			CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
@@ -322,7 +322,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			inputGate.setInputChannels(inputChannels);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 
 			inputChannels[0].requestSubpartition(0);
 			inputChannels[1].requestSubpartition(0);
@@ -431,7 +431,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 
 			inputChannel.requestSubpartition(0);
 
@@ -500,7 +500,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
 		try {
 			inputGate.setInputChannels(inputChannel);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 			inputGate.requestPartitions();
 			handler.addInputChannel(inputChannel);
 
@@ -540,7 +540,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 		RemoteInputChannel inputChannel = new InputChannelBuilder()
 			.buildRemoteChannel(inputGate);
 		inputGate.setInputChannels(inputChannel);
-		inputGate.assignExclusiveSegments();
+		inputGate.setupChannels();
 
 		CreditBasedPartitionRequestClientHandler handler = new CreditBasedPartitionRequestClientHandler();
 		EmbeddedChannel embeddedChannel = new EmbeddedChannel(handler);

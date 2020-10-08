@@ -76,7 +76,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 		if (channelStateWriter != null) {
 			remoteInputChannel.setChannelStateWriter(channelStateWriter);
 		}
-		remoteInputChannel.assignExclusiveSegments();
+		remoteInputChannel.setup();
 		return remoteInputChannel;
 	}
 

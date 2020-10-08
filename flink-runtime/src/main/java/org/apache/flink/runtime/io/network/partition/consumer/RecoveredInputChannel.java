@@ -242,6 +242,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		}
 	}
 
+	// not in setup to avoid assigning buffers unnecessarily if there is no state
 	void assignExclusiveSegments() throws IOException {
 		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
 

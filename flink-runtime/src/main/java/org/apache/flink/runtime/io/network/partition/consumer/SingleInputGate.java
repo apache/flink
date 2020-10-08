@@ -240,8 +240,7 @@ public class SingleInputGate extends IndexedInputGate {
 	@Override
 	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
-		// assign exclusive buffers to input channels directly and use the rest for floating buffers
-		assignExclusiveSegments();
+		setupChannels();
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
@@ -434,14 +433,10 @@ public class SingleInputGate extends IndexedInputGate {
 	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
 	 */
 	@VisibleForTesting
-	public void assignExclusiveSegments() throws IOException {
+	public void setupChannels() throws IOException {
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
-				// Note that although the initial channel would not be RemoteInputChannel at the moment,
-				// we might change to generate different type channels based on config future.
-				if (inputChannel instanceof RemoteInputChannel) {
-					((RemoteInputChannel) inputChannel).assignExclusiveSegments();
-				}
+				inputChannel.setup();
 			}
 		}
 	}
@@ -486,7 +481,7 @@ public class SingleInputGate extends IndexedInputGate {
 				} else {
 					RemoteInputChannel remoteInputChannel =
 						unknownChannel.toRemoteInputChannel(shuffleDescriptor.getConnectionId());
-					remoteInputChannel.assignExclusiveSegments();
+					remoteInputChannel.setup();
 					newChannel = remoteInputChannel;
 				}
 				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
