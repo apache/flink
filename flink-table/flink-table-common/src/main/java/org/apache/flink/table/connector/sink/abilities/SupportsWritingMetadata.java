@@ -57,7 +57,7 @@ import java.util.Map;
  * their corresponding data types that the sink exposes to the planner. The planner will use this
  * information for validation and insertion of explicit casts if necessary.
  *
- * <p>The planner will select required metadata columns and will call {@link #applyWritableMetadata(List)}
+ * <p>The planner will select required metadata columns and will call {@link #applyWritableMetadata(List, DataType)}
  * with a list of metadata keys. An implementation must ensure that metadata columns are accepted at
  * the end of the physical row in the order of the provided list after the apply method has been called.
  *
@@ -86,7 +86,7 @@ public interface SupportsWritingMetadata {
 	 * (see {@link LogicalTypeCasts#supportsExplicitCast(LogicalType, LogicalType)}) if necessary.
 	 *
 	 * <p>The iteration order of the returned map determines the order of metadata keys in the list
-	 * passed in {@link #applyWritableMetadata(List)}. Therefore, it might be beneficial to return a
+	 * passed in {@link #applyWritableMetadata(List, DataType)}. Therefore, it might be beneficial to return a
 	 * {@link LinkedHashMap} if a strict metadata column order is required.
 	 *
 	 * <p>If a sink forwards metadata to one or more formats, we recommend the following column
@@ -112,8 +112,9 @@ public interface SupportsWritingMetadata {
 	 *
 	 * @param metadataKeys a subset of the keys returned by {@link #listWritableMetadata()}, ordered
 	 *                     by the iteration order of returned map
+	 * @param consumedDataType the final input type of the sink
 	 *
 	 * @see EncodingFormat#applyWritableMetadata(List)
 	 */
-	void applyWritableMetadata(List<String> metadataKeys);
+	void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType);
 }
