@@ -19,19 +19,17 @@
 package org.apache.flink.table.factories.datagen;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.datagen.types.DataGeneratorMapper;
+import org.apache.flink.table.factories.datagen.types.DecimalDataRandomGenerator;
 import org.apache.flink.table.factories.datagen.types.RowDataGenerator;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -51,9 +49,6 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -176,8 +171,8 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 		ConfigOption<Double> max = maxKey.doubleType().defaultValue(Double.MAX_VALUE);
 		return DataGeneratorContainer.of(
 			new DecimalDataRandomGenerator(
-				RandomGenerator.doubleGenerator(config.get(min), config.get(max)),
-				decimalType.getPrecision(), decimalType.getScale()));
+				decimalType.getPrecision(), decimalType.getScale(),
+				config.get(min), config.get(max)));
 	}
 
 	@Override
@@ -304,34 +299,5 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 				return StringData.fromString(random.nextHexString(length));
 			}
 		};
-	}
-
-	private static class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
-		private final RandomGenerator<Double> generator;
-		private final int precision;
-		private final int scale;
-
-		public DecimalDataRandomGenerator(RandomGenerator<Double> generator, int precision, int scale) {
-			this.generator = generator;
-			this.precision = precision;
-			this.scale = scale;
-		}
-
-		@Override
-		public void open(String name, FunctionInitializationContext context, RuntimeContext runtimeContext) throws Exception {
-			generator.open(name, context, runtimeContext);
-		}
-
-		@Override
-		public boolean hasNext() {
-			return true;
-		}
-
-		@Override
-		public DecimalData next() {
-			BigDecimal decimal = new BigDecimal(generator.next(), new MathContext(precision));
-			decimal = decimal.setScale(scale, RoundingMode.DOWN);
-			return DecimalData.fromBigDecimal(decimal, precision, scale);
-		}
 	}
 }
