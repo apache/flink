@@ -98,6 +98,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
  * and executed by the TaskManagers. Each task runs one or more {@link StreamOperator}s which form
@@ -374,7 +376,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 		CompletableFuture<?> jointFuture = getInputOutputJointFuture(status);
 		MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();
-		jointFuture.thenRun(suspendedDefaultAction::resume);
+		assertNoException(jointFuture.thenRun(suspendedDefaultAction::resume));
 	}
 
 	/**

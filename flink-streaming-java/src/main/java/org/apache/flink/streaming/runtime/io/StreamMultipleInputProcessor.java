@@ -28,6 +28,8 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+
 /**
  * Input processor for {@link MultipleInputStreamOperator}.
  */
@@ -57,7 +59,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
 		for (int i = 0; i < inputProcessors.length; i++) {
 			if (!inputSelectionHandler.isInputFinished(i) && inputSelectionHandler.isInputSelected(i)) {
-				inputProcessors[i].getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null));
+				assertNoException(inputProcessors[i].getAvailableFuture().thenRun(() -> anyInputAvailable.complete(null)));
 			}
 		}
 		return anyInputAvailable;

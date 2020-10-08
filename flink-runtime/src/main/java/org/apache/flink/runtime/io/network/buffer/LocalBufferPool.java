@@ -33,6 +33,7 @@ import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -386,7 +387,7 @@ class LocalBufferPool implements BufferPool {
 		}
 		requestingWhenAvailable = true;
 
-		networkBufferPool.getAvailableFuture().thenRun(this::onGlobalPoolAvailable);
+		assertNoException(networkBufferPool.getAvailableFuture().thenRun(this::onGlobalPoolAvailable));
 	}
 
 	private void onGlobalPoolAvailable() {

@@ -29,12 +29,17 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -43,6 +48,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent>, Closeable {
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointedInputGate.class);
+
 	private final CheckpointBarrierHandler barrierHandler;
 
 	/** The gate that the buffer draws its input from. */
@@ -97,8 +104,13 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
 	private void waitForPriorityEvents(InputGate inputGate, MailboxExecutor mailboxExecutor) {
 		final CompletableFuture<?> priorityEventAvailableFuture = inputGate.getPriorityEventAvailableFuture();
-		priorityEventAvailableFuture.thenRun(() ->
-			mailboxExecutor.execute(this::processPriorityEvents, "process priority event @ gate %s", inputGate));
+		assertNoException(priorityEventAvailableFuture.thenRun(() -> {
+			try {
+				mailboxExecutor.execute(this::processPriorityEvents, "process priority event @ gate %s", inputGate);
+			} catch (RejectedExecutionException ex) {
+				LOG.debug("Ignored RejectedExecutionException in CheckpointedInputGate.waitForPriorityEvents");
+			}
+		}));
 	}
 
 	@Override
