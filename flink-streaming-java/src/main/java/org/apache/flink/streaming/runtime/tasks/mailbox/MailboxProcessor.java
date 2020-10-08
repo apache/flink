@@ -25,6 +25,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
@@ -384,7 +385,12 @@ public class MailboxProcessor implements Closeable {
 			if (mailbox.isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendControlMail(this::resumeInternal, "resume default action");
+				try {
+					sendControlMail(this::resumeInternal, "resume default action");
+				}
+				catch (MailboxClosedException ex) {
+					// Ignored
+				}
 			}
 		}
 
