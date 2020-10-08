@@ -57,7 +57,7 @@ import java.util.concurrent.CompletableFuture;
  * For the comparison it uses either {@link FixedLengthByteKeyComparator} if the length of the
  * serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
  *
- * <p>Watermarks, stream statuses, nor latency markers are not propagated downstream as they do not make
+ * <p>Watermarks, stream statuses, nor latency markers are propagated downstream as they do not make
  * sense with buffered records. The input emits the largest watermark seen after all records.
  *
  * @param <T> The type of the value in incoming {@link StreamRecord StreamRecords}.
@@ -128,7 +128,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
 	public CompletableFuture<Void> prepareSnapshot(
 			ChannelStateWriter channelStateWriter,
 			long checkpointId) {
-		throw new UnsupportedOperationException("Checkpoints are not supported for sorting inputs");
+		throw new UnsupportedOperationException("Checkpoints are not supported with sorted inputs" +
+			" in the BATCH runtime.");
 	}
 
 	@Override
