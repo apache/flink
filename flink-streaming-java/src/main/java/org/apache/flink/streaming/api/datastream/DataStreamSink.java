@@ -23,7 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -33,18 +33,18 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 @Public
 public class DataStreamSink<T> {
 
-	private final SinkTransformation<T> transformation;
+	private final LegacySinkTransformation<T> transformation;
 
 	@SuppressWarnings("unchecked")
 	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
-		this.transformation = new SinkTransformation<T>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
+		this.transformation = new LegacySinkTransformation<T>(inputStream.getTransformation(), "Unnamed", operator, inputStream.getExecutionEnvironment().getParallelism());
 	}
 
 	/**
 	 * Returns the transformation that contains the actual sink operator of this sink.
 	 */
 	@Internal
-	public SinkTransformation<T> getTransformation() {
+	public LegacySinkTransformation<T> getTransformation() {
 		return transformation;
 	}
 

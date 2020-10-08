@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.util.Preconditions;
@@ -364,7 +364,7 @@ public class FlinkKafkaShuffle {
 		inputStream.getTransformation().getOutputType();
 
 		StreamKafkaShuffleSink<T> shuffleSinkOperator = new StreamKafkaShuffleSink<>(kafkaShuffleProducer);
-		SinkTransformation<T> transformation = new SinkTransformation<>(
+		LegacySinkTransformation<T> transformation = new LegacySinkTransformation<>(
 			inputStream.getTransformation(),
 			"kafka_shuffle",
 			shuffleSinkOperator,
