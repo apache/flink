@@ -51,7 +51,7 @@ cd dev
 
 rm -rf .conda/pkgs
 
-deactivate
+conda deactivate
 
 PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
 echo ${PYFLINK_PACKAGE_FILE}
