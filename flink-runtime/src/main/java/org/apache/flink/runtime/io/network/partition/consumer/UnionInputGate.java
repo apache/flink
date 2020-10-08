@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -120,10 +121,10 @@ public class UnionInputGate extends InputGate {
 				if (available.isDone()) {
 					inputGatesWithData.add(inputGate);
 				} else {
-					available.thenRun(() -> queueInputGate(inputGate, false));
+					assertNoException(available.thenRun(() -> queueInputGate(inputGate, false)));
 				}
 
-				inputGate.getPriorityEventAvailableFuture().thenRun(() -> handlePriorityEventAvailable(inputGate));
+				assertNoException(inputGate.getPriorityEventAvailableFuture().thenRun(() -> handlePriorityEventAvailable(inputGate)));
 			}
 
 			if (!inputGatesWithData.isEmpty()) {
@@ -198,7 +199,7 @@ public class UnionInputGate extends InputGate {
 
 				Optional<BufferOrEvent> nextOpt = inputGate.pollNext();
 				if (!nextOpt.isPresent()) {
-					inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false));
+					assertNoException(inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false)));
 					continue;
 				}
 
@@ -216,11 +217,11 @@ public class UnionInputGate extends InputGate {
 			// enqueue the inputGate at the end to avoid starvation
 			inputGatesWithData.add(inputGate, bufferOrEvent.morePriorityEvents(), false);
 		} else if (!inputGate.isFinished()) {
-			inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false));
+			assertNoException(inputGate.getAvailableFuture().thenRun(() -> queueInputGate(inputGate, false)));
 		}
 
 		if (bufferOrEvent.hasPriority() && !bufferOrEvent.morePriorityEvents()) {
-			inputGate.getPriorityEventAvailableFuture().thenRun(() -> handlePriorityEventAvailable(inputGate));
+			assertNoException(inputGate.getPriorityEventAvailableFuture().thenRun(() -> handlePriorityEventAvailable(inputGate)));
 		}
 		final boolean morePriorityEvents = inputGatesWithData.getNumPriorityElements() > 0;
 		if (bufferOrEvent.hasPriority() && !morePriorityEvents) {
