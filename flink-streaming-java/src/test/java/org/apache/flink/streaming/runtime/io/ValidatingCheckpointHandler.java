@@ -26,6 +26,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -41,7 +43,8 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 	protected long nextExpectedCheckpointId;
 	protected long triggeredCheckpointCounter = 0;
 	protected long abortedCheckpointCounter = 0;
-	private CompletableFuture<Long> lastAlignmentDurationNanos;
+	protected CompletableFuture<Long> lastAlignmentDurationNanos;
+	protected List<Long> triggeredCheckpoints = new ArrayList<>();
 
 	public ValidatingCheckpointHandler() {
 		this(-1);
@@ -105,6 +108,8 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 		lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
 		nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
 		triggeredCheckpointCounter++;
+
+		triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
 	}
 
 	@Override

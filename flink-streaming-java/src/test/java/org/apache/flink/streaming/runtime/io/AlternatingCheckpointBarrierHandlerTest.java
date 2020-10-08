@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
@@ -31,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
@@ -74,7 +71,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	public void testAlternation() throws Exception {
 		int numBarriers = 123;
 		int numChannels = 123;
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointedInputGate gate = buildGate(target, numChannels);
 		List<Long> barriers = new ArrayList<>();
 		for (long barrier = 0; barrier < numBarriers; barrier++) {
@@ -90,7 +87,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	@Test
 	public void testMetricsAlternation() throws Exception {
 		int numChannels = 2;
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointedInputGate gate = buildGate(target, numChannels);
 
 		long startNanos = System.nanoTime();
@@ -145,7 +142,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	@Test
 	public void testMetricsSingleChannel() throws Exception {
 		int numChannels = 1;
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointedInputGate gate = buildGate(target, numChannels);
 
 		long checkpoint1CreationTime = System.currentTimeMillis() - 10;
@@ -185,7 +182,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	public void testPreviousHandlerReset() throws Exception {
 		SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
 		inputGate.setInputChannels(new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointBarrierAligner alignedHandler = new CheckpointBarrierAligner("test", target, inputGate);
 		CheckpointBarrierUnaligner unalignedHandler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", target, inputGate);
 		AlternatingCheckpointBarrierHandler barrierHandler = new AlternatingCheckpointBarrierHandler(alignedHandler, unalignedHandler, target);
@@ -193,7 +190,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		for (int i = 0; i < 4; i++) {
 			int channel = i % 2;
 			CheckpointType type = channel == 0 ? CHECKPOINT : SAVEPOINT;
-			barrierHandler.processBarrier(new CheckpointBarrier(i, 0, new CheckpointOptions(type, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, channel));
+			target.setNextExpectedCheckpointId(-1);
+			barrierHandler.processBarrier(new CheckpointBarrier(i, System.currentTimeMillis(), new CheckpointOptions(type, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, channel));
 			assertEquals(type.isSavepoint(), alignedHandler.isCheckpointPending());
 			assertNotEquals(alignedHandler.isCheckpointPending(), unalignedHandler.isCheckpointPending());
 
@@ -207,13 +205,13 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	public void testHasInflightDataBeforeProcessBarrier() throws Exception {
 		SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
 		inputGate.setInputChannels(new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointBarrierAligner alignedHandler = new CheckpointBarrierAligner("test", target, inputGate);
 		CheckpointBarrierUnaligner unalignedHandler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", target, inputGate);
 		AlternatingCheckpointBarrierHandler barrierHandler = new AlternatingCheckpointBarrierHandler(alignedHandler, unalignedHandler, target);
 
 		final long id = 1;
-		unalignedHandler.processBarrier(new CheckpointBarrier(id, 0, new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 0));
+		unalignedHandler.processBarrier(new CheckpointBarrier(id, System.currentTimeMillis(), new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 0));
 
 		assertFalse(barrierHandler.getAllBarriersReceivedFuture(id).isDone());
 	}
@@ -222,7 +220,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 	public void testOutOfOrderBarrier() throws Exception {
 		SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
 		inputGate.setInputChannels(new TestInputChannel(inputGate, 0), new TestInputChannel(inputGate, 1));
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointBarrierAligner alignedHandler = new CheckpointBarrierAligner("test", target, inputGate);
 		CheckpointBarrierUnaligner unalignedHandler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", target, inputGate);
 		AlternatingCheckpointBarrierHandler barrierHandler = new AlternatingCheckpointBarrierHandler(alignedHandler, unalignedHandler, target);
@@ -231,8 +229,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		long outOfOrderSavepointId = 5;
 		long initialAlignedCheckpointId = alignedHandler.getLatestCheckpointId();
 
-		barrierHandler.processBarrier(new CheckpointBarrier(checkpointId, 0, new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 0));
-		barrierHandler.processBarrier(new CheckpointBarrier(outOfOrderSavepointId, 0, new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 1));
+		barrierHandler.processBarrier(new CheckpointBarrier(checkpointId, System.currentTimeMillis(), new CheckpointOptions(CHECKPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 0));
+		barrierHandler.processBarrier(new CheckpointBarrier(outOfOrderSavepointId, System.currentTimeMillis(), new CheckpointOptions(SAVEPOINT, CheckpointStorageLocationReference.getDefault())), new InputChannelInfo(0, 1));
 
 		assertEquals(checkpointId, barrierHandler.getLatestCheckpointId());
 		assertEquals(initialAlignedCheckpointId, alignedHandler.getLatestCheckpointId());
@@ -246,7 +244,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			.setNumberOfChannels(totalChannels)
 			.setChannelFactory(InputChannelBuilder::buildLocalChannel)
 			.build();
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		CheckpointBarrierAligner alignedHandler = new CheckpointBarrierAligner("test", target, inputGate);
 		CheckpointBarrierUnaligner unalignedHandler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", target, inputGate);
 		AlternatingCheckpointBarrierHandler barrierHandler = new AlternatingCheckpointBarrierHandler(alignedHandler, unalignedHandler, target);
@@ -259,7 +257,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 	private void testBarrierHandling(CheckpointType checkpointType) throws Exception {
 		final long barrierId = 123L;
-		TestInvokable target = new TestInvokable();
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
 		SingleInputGate gate = new SingleInputGateBuilder().setNumberOfChannels(2).build();
 		TestInputChannel fast = new TestInputChannel(gate, 0, false, true);
 		TestInputChannel slow = new TestInputChannel(gate, 1, false, true);
@@ -321,28 +319,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			true);
 	}
 
-	private static class TestInvokable extends AbstractInvokable {
-		private List<Long> triggeredCheckpoints = new ArrayList<>();
-
-		TestInvokable() {
-			super(new DummyEnvironment());
-		}
-
-		@Override
-		public void invoke() {
-		}
-
-		@Override
-		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetricsBuilder checkpointMetrics) {
-			triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
-		}
-
-		@Override
-		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-		}
-	}
-
-	private static CheckpointedInputGate buildGate(TestInvokable target, int numChannels) {
+	private static CheckpointedInputGate buildGate(AbstractInvokable target, int numChannels) {
 		SingleInputGate gate = new SingleInputGateBuilder().setNumberOfChannels(numChannels).build();
 		TestInputChannel[] channels = new TestInputChannel[numChannels];
 		for (int i = 0; i < numChannels; i++) {
