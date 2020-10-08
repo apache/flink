@@ -247,19 +247,14 @@ public class SingleInputGate extends IndexedInputGate {
 	}
 
 	@Override
-	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) throws IOException {
+	public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
 		synchronized (requestLock) {
 			if (closeFuture.isDone()) {
 				return FutureUtils.completedVoidFuture();
 			}
-			for (InputChannel inputChannel : inputChannels.values()) {
-				if (inputChannel instanceof RecoveredInputChannel) {
-					((RecoveredInputChannel) inputChannel).assignExclusiveSegments();
-				}
-			}
 		}
 
-		List<CompletableFuture<?>> futures = getStateConsumedFuture();
+		CompletableFuture<?> stateConsumedFuture = getStateConsumedFuture();
 
 		executor.submit(() -> {
 			Collection<InputChannel> channels;
@@ -269,10 +264,11 @@ public class SingleInputGate extends IndexedInputGate {
 			internalReadRecoveredState(reader, channels);
 		});
 
-		return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+		return stateConsumedFuture;
 	}
 
-	private List<CompletableFuture<?>> getStateConsumedFuture() {
+	@Override
+	public CompletableFuture<Void> getStateConsumedFuture() {
 		synchronized (requestLock) {
 			List<CompletableFuture<?>> futures = new ArrayList<>(inputChannels.size());
 			for (InputChannel inputChannel : inputChannels.values()) {
@@ -280,7 +276,7 @@ public class SingleInputGate extends IndexedInputGate {
 					futures.add(((RecoveredInputChannel) inputChannel).getStateConsumedFuture());
 				}
 			}
-			return futures;
+			return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 		}
 	}
 
@@ -348,6 +344,15 @@ public class SingleInputGate extends IndexedInputGate {
 			} catch (Throwable t) {
 				inputChannel.setError(t);
 				return;
+			}
+		}
+	}
+
+	@Override
+	public void finishReadRecoveredState() throws IOException {
+		for (final InputChannel channel : channels) {
+			if (channel instanceof RecoveredInputChannel) {
+				((RecoveredInputChannel) channel).finishReadRecoveredState();
 			}
 		}
 	}

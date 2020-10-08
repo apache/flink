@@ -119,7 +119,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		return result;
 	}
 
-	private void onRecoveredStateBuffer(Buffer buffer) {
+	public void onRecoveredStateBuffer(Buffer buffer) {
 		boolean recycleBuffer = true;
 		try {
 			final boolean wasEmpty;
@@ -145,7 +145,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		}
 	}
 
-	private void finishReadRecoveredState() throws IOException {
+	public void finishReadRecoveredState() throws IOException {
 		onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE, false));
 		bufferManager.releaseFloatingBuffers();
 		LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
@@ -242,11 +242,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		}
 	}
 
-	// not in setup to avoid assigning buffers unnecessarily if there is no state
-	void assignExclusiveSegments() throws IOException {
-		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
-
-		bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
-		exclusiveBuffersAssigned = true;
+	public Buffer requestBufferBlocking() throws InterruptedException, IOException {
+		// not in setup to avoid assigning buffers unnecessarily if there is no state
+		if (!exclusiveBuffersAssigned) {
+			bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
+			exclusiveBuffersAssigned = true;
+		}
+		return bufferManager.requestBufferBlocking();
 	}
 }

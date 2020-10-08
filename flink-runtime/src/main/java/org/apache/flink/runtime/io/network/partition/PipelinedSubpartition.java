@@ -139,7 +139,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer) throws IOException {
+	public boolean add(BufferConsumer bufferConsumer) {
 		return add(bufferConsumer, false);
 	}
 
@@ -527,5 +527,15 @@ public class PipelinedSubpartition extends ResultSubpartition
 
 		// We assume that only last buffer is not finished.
 		return Math.max(0, numBuffers - 1);
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
+		return parent.getBufferPool().requestBufferBuilderBlocking();
+	}
+
+	@Override
+	public void addBufferConsumer(BufferConsumer bufferConsumer) {
+		add(bufferConsumer);
 	}
 }

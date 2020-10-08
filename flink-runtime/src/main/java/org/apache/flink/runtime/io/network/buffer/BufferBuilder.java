@@ -140,6 +140,10 @@ public class BufferBuilder {
 		return recycler;
 	}
 
+	public void recycle() {
+		recycler.recycle(memorySegment);
+	}
+
 	@VisibleForTesting
 	public MemorySegment getMemorySegment() {
 		return memorySegment;
