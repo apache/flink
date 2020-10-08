@@ -74,7 +74,7 @@ public class NettyPartitionRequestClientTest {
 			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 
 			// first subpartition request
 			inputChannel.requestSubpartition(0);
@@ -128,7 +128,7 @@ public class NettyPartitionRequestClientTest {
 			inputGate.setInputChannels(inputChannel);
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 			inputChannel.requestSubpartition(0);
 
 			// The input channel should only send one partition request
@@ -161,7 +161,7 @@ public class NettyPartitionRequestClientTest {
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
 			inputGate.setBufferPool(bufferPool);
-			inputGate.assignExclusiveSegments();
+			inputGate.setupChannels();
 			inputChannel.requestSubpartition(0);
 
 			inputChannel.resumeConsumption();

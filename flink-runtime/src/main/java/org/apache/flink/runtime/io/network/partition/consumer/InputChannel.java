@@ -445,4 +445,6 @@ public abstract class InputChannel {
 		}
 	}
 
+	void setup() throws IOException {
+	}
 }
