@@ -76,6 +76,11 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 	}
 
 	@Override
+	public Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public SlotReport createSlotReport(ResourceID resourceId) {
 		return createSlotReportSupplier.get();
 	}
@@ -132,11 +137,6 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 
 	@Override
 	public Iterator<TaskSlot<T>> getAllocatedSlots(JobID jobId) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public Iterator<AllocationID> getActiveSlots(JobID jobId) {
 		throw new UnsupportedOperationException();
 	}
 
