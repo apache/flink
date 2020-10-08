@@ -322,8 +322,7 @@ public class UnionInputGate extends InputGate {
 
 				if (priority && inputGatesWithData.getNumPriorityElements() == 1) {
 					notification.notifyPriority();
-				}
-				if (inputGatesWithData.size() == 1) {
+				} else if (!priority && inputGatesWithData.size() == 1) {
 					notification.notifyDataAvailable();
 				}
 			}

@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Input reader for {@link TwoInputStreamTask}.
@@ -167,7 +168,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		int readingInputIndex;
 		if (isPrepared) {
 			readingInputIndex = selectNextReadingInputIndex();
-			assert readingInputIndex != InputSelection.NONE_AVAILABLE;
+			checkState(readingInputIndex != InputSelection.NONE_AVAILABLE);
 		} else {
 			// the preparations here are not placed in the constructor because all work in it
 			// must be executed after all operators are opened.
