@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -129,13 +130,13 @@ public class MailboxExecutorImplTest {
 		try {
 			mailboxExecutor.tryYield();
 			Assert.fail("yielding should not work after shutdown().");
-		} catch (IllegalStateException expected) {
+		} catch (MailboxClosedException expected) {
 		}
 
 		try {
 			mailboxExecutor.yield();
 			Assert.fail("yielding should not work after shutdown().");
-		} catch (IllegalStateException expected) {
+		} catch (MailboxClosedException expected) {
 		}
 	}
 

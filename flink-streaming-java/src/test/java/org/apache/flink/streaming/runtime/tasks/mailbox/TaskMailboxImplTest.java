@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -131,8 +132,6 @@ public class TaskMailboxImplTest {
 	@Test
 	public void testCloseUnblocks() throws InterruptedException {
 		testAllPuttingUnblocksInternal(TaskMailbox::close);
-		setUp();
-		testUnblocksInternal(() -> taskMailbox.take(DEFAULT_PRIORITY), TaskMailbox::close);
 	}
 
 	/**
@@ -162,13 +161,13 @@ public class TaskMailboxImplTest {
 		try {
 			taskMailbox.take(DEFAULT_PRIORITY);
 			Assert.fail();
-		} catch (IllegalStateException ignore) {
+		} catch (MailboxClosedException ignore) {
 		}
 
 		try {
 			taskMailbox.tryTake(DEFAULT_PRIORITY);
 			Assert.fail();
-		} catch (IllegalStateException ignore) {
+		} catch (MailboxClosedException ignore) {
 		}
 	}
 
@@ -176,12 +175,12 @@ public class TaskMailboxImplTest {
 		try {
 			taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
 			Assert.fail();
-		} catch (IllegalStateException ignore) {
+		} catch (MailboxClosedException ignore) {
 		}
 		try {
 			taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP"));
 			Assert.fail();
-		} catch (IllegalStateException ignore) {
+		} catch (MailboxClosedException ignore) {
 		}
 	}
 
@@ -225,7 +224,7 @@ public class TaskMailboxImplTest {
 		}
 
 		for (Exception exception : exceptions) {
-			assertEquals(IllegalStateException.class, exception.getClass());
+			assertEquals(MailboxClosedException.class, exception.getClass());
 		}
 
 	}
