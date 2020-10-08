@@ -314,6 +314,12 @@ public class UnionInputGate extends InputGate {
 					return;
 				}
 
+				if (priority && !inputGate.getPriorityEventAvailableFuture().isDone()) {
+					// Since notification is not atomic in respect to gate enqueuing, priority event may already be polled by
+					// task thread when netty enqueues the gate, so just ignore the notification.
+					return;
+				}
+
 				inputGatesWithData.add(inputGate, priority, alreadyEnqueued);
 
 				if (priority && inputGatesWithData.getNumPriorityElements() == 1) {
