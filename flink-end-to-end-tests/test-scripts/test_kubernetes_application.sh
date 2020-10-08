@@ -34,7 +34,7 @@ for kubernetes_version in $KUBERNETES_VERSIONS; do
   echo "Test against Kubernetes ${kubernetes_version} ..."
   start_kubernetes ${kubernetes_version}
 
-  build_image ${FLINK_IMAGE_NAME}
+  test -z $image_built && build_image ${FLINK_IMAGE_NAME} && image_built='yes'
 
   kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --serviceaccount=default:default --namespace=default
 
