@@ -77,6 +77,11 @@ public abstract class ResultSubpartition {
 		parent.onConsumedSubpartition(getSubPartitionIndex());
 	}
 
+	@VisibleForTesting
+	public final boolean add(BufferConsumer bufferConsumer) throws IOException {
+		return add(bufferConsumer, 0);
+	}
+
 	/**
 	 * Adds the given buffer.
 	 *
@@ -89,11 +94,14 @@ public abstract class ResultSubpartition {
 	 *
 	 * @param bufferConsumer
 	 * 		the buffer to add (transferring ownership to this writer)
+	 * @param partialRecordLength
+	 * 		the length of bytes to skip in order to start with a complete record, from position index 0
+	 * 		of the underlying {@cite MemorySegment}.
 	 * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
 	 * @throws IOException
 	 * 		thrown in case of errors while adding the buffer
 	 */
-	public abstract boolean add(BufferConsumer bufferConsumer) throws IOException;
+	public abstract boolean add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException;
 
 	public abstract void flush();
 
