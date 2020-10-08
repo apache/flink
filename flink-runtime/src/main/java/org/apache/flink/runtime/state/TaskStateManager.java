@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import javax.annotation.Nonnull;
@@ -72,4 +73,6 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
 	LocalRecoveryConfig createLocalRecoveryConfig();
 
 	ChannelStateReader getChannelStateReader();
+
+	SequentialChannelStateReader getSequentialChannelStateReader();
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -166,6 +167,11 @@ public class TestTaskStateManager implements TaskStateManager {
 	@Override
 	public ChannelStateReader getChannelStateReader() {
 		return ChannelStateReader.NO_OP;
+	}
+
+	@Override
+	public SequentialChannelStateReader getSequentialChannelStateReader() {
+		return SequentialChannelStateReader.NO_OP;
 	}
 
 	public void setLocalRecoveryConfig(LocalRecoveryConfig recoveryDirectoryProvider) {
