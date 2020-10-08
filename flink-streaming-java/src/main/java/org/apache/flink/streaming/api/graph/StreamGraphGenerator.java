@@ -37,12 +37,12 @@ import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTrans
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -321,8 +321,8 @@ public class StreamGraphGenerator {
 			transformedIds = transformSource((SourceTransformation<?>) transform);
 		} else if (transform instanceof LegacySourceTransformation<?>) {
 			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
-		} else if (transform instanceof SinkTransformation<?>) {
-			transformedIds = transformSink((SinkTransformation<?>) transform);
+		} else if (transform instanceof LegacySinkTransformation<?>) {
+			transformedIds = transformLegacySink((LegacySinkTransformation<?>) transform);
 		} else if (transform instanceof UnionTransformation<?>) {
 			transformedIds = transformUnion((UnionTransformation<?>) transform);
 		} else if (transform instanceof FeedbackTransformation<?>) {
@@ -633,9 +633,9 @@ public class StreamGraphGenerator {
 	}
 
 	/**
-	 * Transforms a {@code SinkTransformation}.
+	 * Transforms a {@code LegacySinkTransformation}.
 	 */
-	private <T> Collection<Integer> transformSink(SinkTransformation<T> sink) {
+	private <T> Collection<Integer> transformLegacySink(LegacySinkTransformation<T> sink) {
 		List<Transformation<?>> inputs = sink.getInputs();
 		checkState(inputs.size() == 1);
 		Transformation<?> input = inputs.get(0);

@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 
 /**
  * A {@link DataStreamSink} which is used to collect results of a data stream.
@@ -30,11 +30,11 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 @Internal
 public class CollectStreamSink<T> extends DataStreamSink<T> {
 
-	private final SinkTransformation<T> transformation;
+	private final LegacySinkTransformation<T> transformation;
 
 	public CollectStreamSink(DataStream<T> inputStream, CollectSinkOperatorFactory<T> factory) {
 		super(inputStream, (CollectSinkOperator<T>) factory.getOperator());
-		this.transformation = new SinkTransformation<>(
+		this.transformation = new LegacySinkTransformation<>(
 			inputStream.getTransformation(),
 			"Collect Stream Sink",
 			factory,
@@ -42,7 +42,7 @@ public class CollectStreamSink<T> extends DataStreamSink<T> {
 	}
 
 	@Override
-	public SinkTransformation<T> getTransformation() {
+	public LegacySinkTransformation<T> getTransformation() {
 		return transformation;
 	}
 

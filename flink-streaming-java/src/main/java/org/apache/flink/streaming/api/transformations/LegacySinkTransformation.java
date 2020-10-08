@@ -35,12 +35,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * This Transformation represents a Sink.
+ * This Transformation represents a stream Sink.
  *
- * @param <T> The type of the elements in the input {@code SinkTransformation}
+ * @param <T> The type of the elements in the input {@code LegacySinkTransformation}
  */
 @Internal
-public class SinkTransformation<T> extends PhysicalTransformation<Object> {
+public class LegacySinkTransformation<T> extends PhysicalTransformation<Object> {
 
 	private final Transformation<T> input;
 
@@ -52,14 +52,14 @@ public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 	private TypeInformation<?> stateKeyType;
 
 	/**
-	 * Creates a new {@code SinkTransformation} from the given input {@code Transformation}.
+	 * Creates a new {@code LegacySinkTransformation} from the given input {@code Transformation}.
 	 *
 	 * @param input The input {@code Transformation}
 	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
 	 * @param operator The sink operator
-	 * @param parallelism The parallelism of this {@code SinkTransformation}
+	 * @param parallelism The parallelism of this {@code LegacySinkTransformation}
 	 */
-	public SinkTransformation(
+	public LegacySinkTransformation(
 			Transformation<T> input,
 			String name,
 			StreamSink<T> operator,
@@ -67,7 +67,7 @@ public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 		this(input, name, SimpleOperatorFactory.of(operator), parallelism);
 	}
 
-	public SinkTransformation(
+	public LegacySinkTransformation(
 			Transformation<T> input,
 			String name,
 			StreamOperatorFactory<Object> operatorFactory,
@@ -83,7 +83,7 @@ public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 	}
 
 	/**
-	 * Returns the {@link StreamOperatorFactory} of this {@code SinkTransformation}.
+	 * Returns the {@link StreamOperatorFactory} of this {@code LegacySinkTransformation}.
 	 */
 	public StreamOperatorFactory<Object> getOperatorFactory() {
 		return operatorFactory;
