@@ -81,6 +81,11 @@ public class ThreadSafeTaskSlotTable<T extends TaskSlotPayload> implements TaskS
 	}
 
 	@Override
+	public Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId) {
+		return callAsync(() -> taskSlotTable.getActiveTaskAllocationIdsPerJob(jobId));
+	}
+
+	@Override
 	public SlotReport createSlotReport(ResourceID resourceId) {
 		return callAsync(() -> taskSlotTable.createSlotReport(resourceId));
 	}
@@ -143,11 +148,6 @@ public class ThreadSafeTaskSlotTable<T extends TaskSlotPayload> implements TaskS
 	@Override
 	public Iterator<TaskSlot<T>> getAllocatedSlots(JobID jobId) {
 		return callAsync(() -> taskSlotTable.getAllocatedSlots(jobId));
-	}
-
-	@Override
-	public Iterator<AllocationID> getActiveSlots(JobID jobId) {
-		return callAsync(() -> taskSlotTable.getActiveSlots(jobId));
 	}
 
 	@Nullable
