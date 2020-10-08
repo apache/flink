@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobCancellationException;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -52,7 +53,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
@@ -141,25 +141,29 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 					final ApplicationStatus applicationStatus;
 					if (t != null) {
 
-						final Optional<JobCancellationException> cancellationException =
-								ExceptionUtils.findThrowable(t, JobCancellationException.class);
-
-						if (cancellationException.isPresent()) {
+						if (ExceptionUtils.findThrowable(t, JobCancellationException.class).isPresent()) {
 							// this means the Flink Job was cancelled
 							applicationStatus = ApplicationStatus.CANCELED;
-						} else if (t instanceof CancellationException) {
-							// this means that the future was cancelled
-							applicationStatus = ApplicationStatus.UNKNOWN;
-						} else {
-							applicationStatus = ApplicationStatus.FAILED;
+							LOG.warn("Application {}: ", applicationStatus, t);
+
+							return dispatcher.shutDownCluster(applicationStatus);
 						}
 
-						LOG.warn("Application {}: ", applicationStatus, t);
+						if (ExceptionUtils.findThrowable(t, JobExecutionException.class).isPresent()) {
+							applicationStatus = ApplicationStatus.FAILED;
+							LOG.warn("Application {}: ", applicationStatus, t);
+
+							return dispatcher.shutDownCluster(applicationStatus);
+						}
+
+						return dispatcher.shutDownClusterExceptionally(t);
+
 					} else {
 						applicationStatus = ApplicationStatus.SUCCEEDED;
 						LOG.info("Application completed SUCCESSFULLY");
+
+						return dispatcher.shutDownCluster(applicationStatus);
 					}
-					return dispatcher.shutDownCluster(applicationStatus);
 				})
 				.thenCompose(Function.identity());
 	}

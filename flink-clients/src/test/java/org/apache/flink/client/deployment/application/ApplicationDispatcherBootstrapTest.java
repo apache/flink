@@ -53,6 +53,7 @@ import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
@@ -326,8 +327,8 @@ public class ApplicationDispatcherBootstrapTest {
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
-				.setClusterShutdownFunction((status) -> {
-					externalShutdownFuture.complete(status);
+				.setClusterShutdownWithExceptionFunction((throwable) -> {
+					externalShutdownFuture.completeExceptionally(throwable);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
@@ -341,8 +342,7 @@ public class ApplicationDispatcherBootstrapTest {
 		// wait until the bootstrap "thinks" it's done
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-		// verify that the dispatcher is actually being shut down
-		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.UNKNOWN));
+		assertException(externalShutdownFuture, CancellationException.class);
 	}
 
 	@Test
@@ -353,10 +353,10 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> {
-					throw new FlinkRuntimeException("Nope!");
+					throw new FlinkRuntimeException("Submission Failed!");
 				})
-				.setClusterShutdownFunction((status) -> {
-					externalShutdownFuture.complete(status);
+				.setClusterShutdownWithExceptionFunction((throwable) -> {
+					externalShutdownFuture.completeExceptionally(throwable);
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
@@ -368,8 +368,7 @@ public class ApplicationDispatcherBootstrapTest {
 		// wait until the bootstrap "thinks" it's done
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-		// verify that the dispatcher is actually being shut down
-		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.FAILED));
+		assertException(externalShutdownFuture, FlinkRuntimeException.class);
 	}
 
 	@Test
