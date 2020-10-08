@@ -59,6 +59,10 @@ public class MockIndexedInputGate extends IndexedInputGate {
 	}
 
 	@Override
+	public void finishReadRecoveredState() {
+	}
+
+	@Override
 	public void requestPartitions() {
 	}
 

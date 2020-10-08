@@ -91,6 +91,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	}
 
 	@Override
+	public CompletableFuture<Void> getStateConsumedFuture() {
+		return inputGate.getStateConsumedFuture();
+	}
+
+	@Override
 	public void requestPartitions() throws IOException {
 		inputGate.requestPartitions();
 	}
@@ -123,6 +128,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
 	@Override
 	public CompletableFuture<?> getPriorityEventAvailableFuture() {
 		return inputGate.getPriorityEventAvailableFuture();
+	}
+
+	@Override
+	public void finishReadRecoveredState() throws IOException {
+		inputGate.finishReadRecoveredState();
 	}
 
 	private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {

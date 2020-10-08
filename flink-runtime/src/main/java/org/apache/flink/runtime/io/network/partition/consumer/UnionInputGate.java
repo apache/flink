@@ -285,6 +285,13 @@ public class UnionInputGate extends InputGate {
 	}
 
 	@Override
+	public CompletableFuture<Void> getStateConsumedFuture() {
+		return CompletableFuture.allOf(
+			inputGatesByGateIndex.values().stream().map(InputGate::getStateConsumedFuture).collect(Collectors.toList()).toArray(new CompletableFuture[]{})
+		);
+	}
+
+	@Override
 	public void requestPartitions() throws IOException {
 		for (InputGate inputGate : inputGatesByGateIndex.values()) {
 			inputGate.requestPartitions();
@@ -346,5 +353,12 @@ public class UnionInputGate extends InputGate {
 		}
 
 		return Optional.of(inputGate);
+	}
+
+	@Override
+	public void finishReadRecoveredState() throws IOException {
+		for (InputGate inputGate : inputGatesByGateIndex.values()) {
+			inputGate.finishReadRecoveredState();
+		}
 	}
 }
