@@ -19,6 +19,8 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.Internal;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
 import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
@@ -203,7 +205,7 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
 	}
 
 	public Iterator<T> iterator() {
-		return deque.iterator();
+		return Iterators.unmodifiableIterator(deque.iterator());
 	}
 
 	/**

@@ -19,7 +19,10 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.junit.Test;
 
+import java.util.Iterator;
+
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests PrioritizedDeque.
@@ -52,5 +55,18 @@ public class PrioritizedDequeTest {
 		deque.prioritize(3);
 
 		assertArrayEquals(new Integer[] { 3, 0, 1, 2 }, deque.asUnmodifiableCollection().toArray(new Integer[0]));
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testIteratorRemove() {
+		final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
+
+		deque.add(0);
+		deque.addPriorityElement(1);
+
+		final Iterator<Integer> iterator = deque.iterator();
+		assertEquals((Integer) 1, iterator.next());
+
+		iterator.remove();
 	}
 }
