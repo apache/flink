@@ -213,34 +213,34 @@ public class TaskDeploymentDescriptorFactory {
 		}
 		else {
 			// throw respective exceptions
-			handleConsumedPartitionShuffleDescriptorErrors(
+			throw handleConsumedPartitionShuffleDescriptorErrors(
 				consumedPartitionId,
 				resultPartitionType,
 				isConsumable,
 				producerState);
-			return null; // should never happen
 		}
 	}
 
-	private static void handleConsumedPartitionShuffleDescriptorErrors(
+	private static RuntimeException handleConsumedPartitionShuffleDescriptorErrors(
 			ResultPartitionID consumedPartitionId,
 			ResultPartitionType resultPartitionType,
 			boolean isConsumable,
 			ExecutionState producerState) {
+		String msg;
 		if (isProducerFailedOrCanceled(producerState)) {
-			String msg = "Trying to consume an input partition whose producer has been canceled or failed. " +
+			msg = "Trying to consume an input partition whose producer has been canceled or failed. " +
 				"The producer is in state " + producerState + ".";
-			throw new IllegalStateException(msg);
 		}
 		else {
-			String msg = String.format("Trying to consume an input partition whose producer " +
+			msg = String.format(
+				"Trying to consume an input partition whose producer " +
 					"is not ready (result type: %s, partition consumable: %s, producer state: %s, partition id: %s).",
 				resultPartitionType,
 				isConsumable,
 				producerState,
 				consumedPartitionId);
-			throw new IllegalStateException(msg);
 		}
+		return new IllegalStateException(msg);
 	}
 
 	private static boolean isProducerAvailable(ExecutionState producerState) {
