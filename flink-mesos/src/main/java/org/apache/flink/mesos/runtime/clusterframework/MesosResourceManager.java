@@ -839,7 +839,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 		@Override
 		public void disconnected(SchedulerDriver driver) {
-			runAsyncWithoutFencing(new Runnable() {
+			runAsync(new Runnable() {
 				@Override
 				public void run() {
 					MesosResourceManager.this.disconnected(new Disconnected());
