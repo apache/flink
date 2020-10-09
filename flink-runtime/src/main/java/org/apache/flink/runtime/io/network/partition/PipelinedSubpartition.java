@@ -70,7 +70,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	// ------------------------------------------------------------------------
 
 	/** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
-	private final PrioritizedDeque<BufferConsumer> buffers = new PrioritizedDeque<>();
+	private final PrioritizedDeque<BufferConsumerWithPartialRecordLength> buffers = new PrioritizedDeque<>();
 
 	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
@@ -126,7 +126,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 
 				// check whether there are some states data filled in this time
 				if (bufferConsumer.isDataAvailable()) {
-					add(bufferConsumer, false);
+					add(bufferConsumer, Integer.MIN_VALUE, false);
 					recycleBuffer = false;
 					bufferBuilder.finish();
 				}
@@ -140,16 +140,16 @@ public class PipelinedSubpartition extends ResultSubpartition
 
 	@Override
 	public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
-		return add(bufferConsumer, false);
+		return add(bufferConsumer, partialRecordLength, false);
 	}
 
 	@Override
 	public void finish() throws IOException {
-		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), true);
+		add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false), 0, true);
 		LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
 	}
 
-	private boolean add(BufferConsumer bufferConsumer, boolean finish) {
+	private boolean add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
 		checkNotNull(bufferConsumer);
 
 		final boolean notifyDataAvailable;
@@ -161,7 +161,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 			}
 
 			// Add the bufferConsumer and update the stats
-			if (addBuffer(bufferConsumer)) {
+			if (addBuffer(bufferConsumer, partialRecordLength)) {
 				prioritySequenceNumber = sequenceNumber;
 			}
 			updateStatistics(bufferConsumer);
@@ -181,17 +181,17 @@ public class PipelinedSubpartition extends ResultSubpartition
 		return true;
 	}
 
-	private boolean addBuffer(BufferConsumer bufferConsumer) {
+	private boolean addBuffer(BufferConsumer bufferConsumer, int partialRecordLength) {
 		assert Thread.holdsLock(buffers);
 		if (bufferConsumer.getDataType().hasPriority()) {
-			return processPriorityBuffer(bufferConsumer);
+			return processPriorityBuffer(bufferConsumer, partialRecordLength);
 		}
-		buffers.add(bufferConsumer);
+		buffers.add(new BufferConsumerWithPartialRecordLength(bufferConsumer, partialRecordLength));
 		return false;
 	}
 
-	private boolean processPriorityBuffer(BufferConsumer bufferConsumer) {
-		buffers.addPriorityElement(bufferConsumer);
+	private boolean processPriorityBuffer(BufferConsumer bufferConsumer, int partialRecordLength) {
+		buffers.addPriorityElement(new BufferConsumerWithPartialRecordLength(bufferConsumer, partialRecordLength));
 		final int numPriorityElements = buffers.getNumPriorityElements();
 
 		CheckpointBarrier barrier = parseCheckpointBarrier(bufferConsumer);
@@ -199,11 +199,11 @@ public class PipelinedSubpartition extends ResultSubpartition
 			checkState(
 				barrier.getCheckpointOptions().isUnalignedCheckpoint(),
 				"Only unaligned checkpoints should be priority events");
-			final Iterator<BufferConsumer> iterator = buffers.iterator();
+			final Iterator<BufferConsumerWithPartialRecordLength> iterator = buffers.iterator();
 			Iterators.advance(iterator, numPriorityElements);
 			List<Buffer> inflightBuffers = new ArrayList<>();
 			while (iterator.hasNext()) {
-				BufferConsumer buffer = iterator.next();
+				BufferConsumer buffer = iterator.next().getBufferConsumer();
 
 				if (buffer.isBuffer()) {
 					try (BufferConsumer bc = buffer.copy()) {
@@ -250,8 +250,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 			}
 
 			// Release all available buffers
-			for (BufferConsumer buffer : buffers) {
-				buffer.close();
+			for (BufferConsumerWithPartialRecordLength buffer : buffers) {
+				buffer.getBufferConsumer().close();
 			}
 			buffers.clear();
 
@@ -283,7 +283,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 			}
 
 			while (!buffers.isEmpty()) {
-				BufferConsumer bufferConsumer = buffers.peek();
+				BufferConsumer bufferConsumer = buffers.peek().getBufferConsumer();
 
 				buffer = bufferConsumer.build();
 
@@ -296,7 +296,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 				}
 
 				if (bufferConsumer.isFinished()) {
-					buffers.poll().close();
+					buffers.poll().getBufferConsumer().close();
 					decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
 				}
 
@@ -383,7 +383,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	private Buffer.DataType getNextBufferTypeUnsafe() {
 		assert Thread.holdsLock(buffers);
 
-		final BufferConsumer first = buffers.peek();
+		final BufferConsumer first = buffers.peek().getBufferConsumer();
 		return first != null ? first.getDataType() : Buffer.DataType.NONE;
 	}
 
@@ -429,7 +429,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 			}
 			// if there is more then 1 buffer, we already notified the reader
 			// (at the latest when adding the second buffer)
-			notifyDataAvailable = !isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().isDataAvailable();
+			notifyDataAvailable =
+				!isBlockedByCheckpoint && buffers.size() == 1 && buffers.peek().getBufferConsumer().isDataAvailable();
 			flushRequested = buffers.size() > 1 || notifyDataAvailable;
 		}
 		if (notifyDataAvailable) {
@@ -521,11 +522,47 @@ public class PipelinedSubpartition extends ResultSubpartition
 		// worst-case: a single finished buffer sits around until the next flush() call
 		// (but we do not offer stronger guarantees anyway)
 		final int numBuffers = buffers.size();
-		if (numBuffers == 1 && buffers.peekLast().isFinished()) {
+		if (numBuffers == 1 && buffers.peekLast().getBufferConsumer().isFinished()) {
 			return 1;
 		}
 
 		// We assume that only last buffer is not finished.
 		return Math.max(0, numBuffers - 1);
+	}
+
+	/**
+	 * `partialRecordLength` is the length of bytes to skip in order to start with a complete record,
+	 * from position index 0 of the underlying MemorySegment. `partialRecordLength` is used in approximate
+	 * local recovery to find the start position of a complete record on a BufferConsumer, so called
+	 * `partial record clean-up`.
+	 *
+	 *  <p>Partial records happen if a record can not fit into one buffer, then the remaining part of the same record
+	 *  is put into the next buffer. Hence partial records only exist at the beginning of a buffer.
+	 *  Partial record clean-up is needed in the mode of approximate local recovery.
+	 *  If a record is spanning over multiple buffers, and the first (several) buffers have got lost due to the failure
+	 *  of the receiver task, the remaining data belonging to the same record in transition should be cleaned up.
+	 */
+	static class BufferConsumerWithPartialRecordLength {
+		private final BufferConsumer bufferConsumer;
+		private final int partialRecordLength;
+
+		BufferConsumerWithPartialRecordLength(BufferConsumer bufferConsumer, int partialRecordLength) {
+			this.bufferConsumer = bufferConsumer;
+			this.partialRecordLength = partialRecordLength;
+		}
+
+		BufferConsumer getBufferConsumer() {
+			return bufferConsumer;
+		}
+
+		int getPartialRecordLength() {
+			return partialRecordLength;
+		}
+	}
+
+	@VisibleForTesting
+	/** for testing only */
+	BufferConsumerWithPartialRecordLength getNextBuffer() {
+		return buffers.poll();
 	}
 }
