@@ -232,6 +232,12 @@ under the License.
 				<version>0.5.1</version>
 				<extensions>true</extensions>
 				<configuration>
+					<!-- Currently Flink azure test pipeline would first pre-compile and then upload the compiled
+					 directory, then it download the directory and run the corresponding tests. However, the protoc
+					 executable under the target directory would lost the execution permission bit after downloading.
+					 To solve this issue we would skip generating the target files if they already exist after
+					 downloading. -->
+					<checkStaleness>true</checkStaleness>
 					<protoTestSourceRoot>${project.basedir}/src/test/resources/protobuf</protoTestSourceRoot>
 					<!-- Generates classes into a separate directory since the generator always removes existing files. -->
 					<outputDirectory>${project.build.directory}/generated-test-sources/protobuf/java</outputDirectory>
