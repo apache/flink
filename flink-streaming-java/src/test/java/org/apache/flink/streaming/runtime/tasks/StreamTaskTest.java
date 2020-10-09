@@ -975,6 +975,7 @@ public class StreamTaskTest extends TestLogger {
 		// keeps the mailbox from suspending
 		harness.setAutoProcess(false);
 		harness.processElement(new StreamRecord<>(1));
+		harness.streamTask.runMailboxStep();
 
 		harness.streamTask.notifyCheckpointCompleteAsync(1);
 		harness.streamTask.runMailboxStep();
@@ -1010,7 +1011,7 @@ public class StreamTaskTest extends TestLogger {
 
 		try {
 			consumer.accept(harness.streamTask);
-			harness.streamTask.runMailboxStep();
+			harness.streamTask.runMailboxLoop();
 			fail();
 		} catch (ExpectedTestException expected) {
 			// expected exception
