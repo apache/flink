@@ -183,6 +183,8 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 					.setupOutputForSingletonOperatorChain(new TestInputStarvationMultipleInputOperatorFactory())
 					.build()) {
 
+			testHarness.processAll(); // request partitions
+
 			Queue<StreamRecord> expectedOutput = new ArrayDeque<>();
 
 			testHarness.setAutoProcess(false);
