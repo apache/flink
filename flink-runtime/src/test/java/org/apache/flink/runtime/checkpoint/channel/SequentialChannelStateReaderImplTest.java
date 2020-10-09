@@ -90,7 +90,6 @@ public class SequentialChannelStateReaderImplTest {
 	private final int stateBytesPerPart;
 	private final int bufferSize;
 	private final int stateParLevel;
-	private final boolean expectToHaveState;
 	private final int buffersPerChannel;
 
 	public SequentialChannelStateReaderImplTest(String desc, int stateParLevel, int statePartsPerChannel, int stateBytesPerPart, int parLevel, int bufferSize) {
@@ -101,7 +100,6 @@ public class SequentialChannelStateReaderImplTest {
 		this.stateBytesPerPart = stateBytesPerPart;
 		this.bufferSize = bufferSize;
 		this.stateParLevel = stateParLevel;
-		this.expectToHaveState = stateParLevel * statePartsPerChannel * stateBytesPerPart > 0;
 		// will read without waiting for consumption
 		this.buffersPerChannel = Math.max(1, statePartsPerChannel * (bufferSize >= stateBytesPerPart ? 1 : stateBytesPerPart / bufferSize));
 	}
@@ -112,7 +110,6 @@ public class SequentialChannelStateReaderImplTest {
 		Map<ResultSubpartitionInfo, List<byte[]>> resultPartitionsData = generateState(ResultSubpartitionInfo::new);
 
 		SequentialChannelStateReader reader = new SequentialChannelStateReaderImpl(buildSnapshot(writePermuted(inputChannelsData, resultPartitionsData)));
-		assertEquals(expectToHaveState, reader.hasChannelStates());
 
 		withResultPartitions(resultPartitions -> {
 			reader.readOutputData(resultPartitions);

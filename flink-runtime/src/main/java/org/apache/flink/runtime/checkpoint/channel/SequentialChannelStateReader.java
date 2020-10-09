@@ -28,11 +28,6 @@ import java.io.IOException;
 @Internal
 public interface SequentialChannelStateReader extends AutoCloseable {
 
-	/**
-	 * Return whether there are any channel states to be read.
-	 */
-	boolean hasChannelStates();
-
 	void readInputData(InputGate[] inputGates) throws IOException, InterruptedException;
 
 	void readOutputData(ResultPartitionWriter[] writers) throws IOException, InterruptedException;
@@ -41,11 +36,6 @@ public interface SequentialChannelStateReader extends AutoCloseable {
 	void close() throws Exception;
 
 	SequentialChannelStateReader NO_OP = new SequentialChannelStateReader() {
-
-		@Override
-		public boolean hasChannelStates() {
-			return false;
-		}
 
 		@Override
 		public void readInputData(InputGate[] inputGates) {

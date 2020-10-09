@@ -58,13 +58,6 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
 	}
 
 	@Override
-	public boolean hasChannelStates() {
-		return taskStateSnapshot.getSubtaskStateMappings().stream().anyMatch(subtaskStateEntry ->
-			subtaskStateEntry.getValue().getInputChannelState().stream().anyMatch(h -> !h.getOffsets().isEmpty()) ||
-				subtaskStateEntry.getValue().getResultSubpartitionState().stream().anyMatch(h -> !h.getOffsets().isEmpty()));
-	}
-
-	@Override
 	public void readInputData(InputGate[] inputGates) throws IOException, InterruptedException {
 		try (InputChannelRecoveredStateHandler stateHandler = new InputChannelRecoveredStateHandler(inputGates)) {
 			read(stateHandler, groupByDelegate(streamSubtaskStates(), OperatorSubtaskState::getInputChannelState));
