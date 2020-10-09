@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.OperatorIDPair;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -303,7 +301,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 	 * Check that channel and operator states are assigned to the same tasks on recovery.
 	 */
 	@Test
-	public void testChannelStateAssignmentStability() throws JobException, JobExecutionException {
+	public void testChannelStateAssignmentStability() {
 		int numOperators = 10; // note: each operator is places into a separate vertex
 		int numSubTasks = 100;
 
@@ -323,7 +321,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 	}
 
 	@Test
-	public void assigningStatesShouldWorkWithUserDefinedOperatorIdsAsWell() throws Exception {
+	public void assigningStatesShouldWorkWithUserDefinedOperatorIdsAsWell() {
 		int numSubTasks = 1;
 		OperatorID operatorId = new OperatorID();
 		OperatorID userDefinedOperatorId = new OperatorID();
@@ -379,29 +377,33 @@ public class StateAssignmentOperationTest extends TestLogger {
 		return operators.stream()
 			.collect(Collectors.toMap(Function.identity(), operatorID -> {
 				try {
-					return buildExecutionJobVertex(operatorID, parallelism);
+					return buildExecutionJobVertex(operatorID, operatorID, parallelism);
 				} catch (Exception e) {
 					throw new RuntimeException(e);
 				}
 			}));
 	}
 
-	private ExecutionJobVertex buildExecutionJobVertex(OperatorID operatorID, int parallelism) throws Exception {
-		return buildExecutionJobVertex(operatorID, operatorID, parallelism);
-	}
-
 	private ExecutionJobVertex buildExecutionJobVertex(
 			OperatorID operatorID,
 			OperatorID userDefinedOperatorId,
-			int parallelism) throws Exception {
+			int parallelism) {
+		try {
+			JobVertex jobVertex = createJobVertex(operatorID, userDefinedOperatorId, parallelism);
+			return ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
+		} catch (Exception e) {
+			throw new AssertionError("Cannot create ExecutionJobVertex", e);
+		}
+	}
 
+	private JobVertex createJobVertex(OperatorID operatorID, OperatorID userDefinedOperatorId, int parallelism) {
 		JobVertex jobVertex = new JobVertex(
 			operatorID.toHexString(),
 			new JobVertexID(),
 			singletonList(OperatorIDPair.of(operatorID, userDefinedOperatorId)));
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 		jobVertex.setParallelism(parallelism);
-		return ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
+		return jobVertex;
 	}
 
 	private OperatorSubtaskState getAssignedState(ExecutionJobVertex executionJobVertex, OperatorID operatorId, int subtaskIdx) {

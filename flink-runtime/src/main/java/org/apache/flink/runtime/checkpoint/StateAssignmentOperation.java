@@ -64,6 +64,8 @@ public class StateAssignmentOperation {
 	private final long restoreCheckpointId;
 	private final boolean allowNonRestoredState;
 
+	private final Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments;
+
 	public StateAssignmentOperation(
 			long restoreCheckpointId,
 			Set<ExecutionJobVertex> tasks,
@@ -74,6 +76,7 @@ public class StateAssignmentOperation {
 		this.tasks = Preconditions.checkNotNull(tasks);
 		this.operatorStates = Preconditions.checkNotNull(operatorStates);
 		this.allowNonRestoredState = allowNonRestoredState;
+		vertexAssignments = new HashMap<>(tasks.size());
 	}
 
 	public void assignStates() {
@@ -81,12 +84,10 @@ public class StateAssignmentOperation {
 
 		checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
 
+		// find the states of all operators belonging to this task and compute additional information in first pass
 		for (ExecutionJobVertex executionJobVertex : this.tasks) {
-
-			// find the states of all operators belonging to this task
 			List<OperatorIDPair> operatorIDPairs = executionJobVertex.getOperatorIDs();
 			Map<OperatorID, OperatorState> operatorStates = new HashMap<>(operatorIDPairs.size());
-			boolean statelessSubTasks = true;
 			for (OperatorIDPair operatorIDPair : operatorIDPairs) {
 				OperatorID operatorID = operatorIDPair.getUserDefinedOperatorID().orElse(operatorIDPair.getGeneratedOperatorID());
 
@@ -96,14 +97,25 @@ public class StateAssignmentOperation {
 						operatorID,
 						executionJobVertex.getParallelism(),
 						executionJobVertex.getMaxParallelism());
-				} else if (operatorState.getNumberCollectedStates() > 0) {
-					statelessSubTasks = false;
 				}
 				operatorStates.put(operatorIDPair.getGeneratedOperatorID(), operatorState);
 			}
-			if (!statelessSubTasks) { // skip tasks where no operator has any state
-				final TaskStateAssignment stateAssignment = new TaskStateAssignment(executionJobVertex,	operatorStates);
+
+			final TaskStateAssignment stateAssignment = new TaskStateAssignment(executionJobVertex,	operatorStates);
+			vertexAssignments.put(executionJobVertex, stateAssignment);
+		}
+
+		// repartition state
+		for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
+			if (stateAssignment.hasState) {
 				assignAttemptState(stateAssignment);
+			}
+		}
+
+		// actually assign the state
+		for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
+			if (stateAssignment.hasState) {
+				assignTaskStateToExecutionJobVertices(stateAssignment);
 			}
 		}
 	}
@@ -163,8 +175,6 @@ public class StateAssignmentOperation {
 			taskStateAssignment.resultSubpartitionStates);
 
 		reDistributeKeyedStates(keyGroupPartitions,	taskStateAssignment);
-
-		assignTaskStateToExecutionJobVertices(taskStateAssignment);
 	}
 
 	private void assignTaskStateToExecutionJobVertices(TaskStateAssignment assignment) {
@@ -192,7 +202,9 @@ public class StateAssignmentOperation {
 			boolean statelessTask = true;
 
 			for (OperatorIDPair operatorID : operatorIDs) {
-				OperatorInstanceID instanceID = OperatorInstanceID.of(subTaskIndex, operatorID.getGeneratedOperatorID());
+				OperatorInstanceID instanceID = OperatorInstanceID.of(
+					subTaskIndex,
+					operatorID.getGeneratedOperatorID());
 
 				OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
 
@@ -270,8 +282,7 @@ public class StateAssignmentOperation {
 			Map<OperatorInstanceID, List<T>> result) {
 
 		// The nested list wraps as the level of operator -> subtask -> state object collection
-		Map<OperatorID, List<List<T>>> oldStates = splitManagedAndRawOperatorStates(oldOperatorStates,
-			extractHandle);
+		Map<OperatorID, List<List<T>>> oldStates = splitManagedAndRawOperatorStates(oldOperatorStates, extractHandle);
 
 		oldOperatorStates.forEach((operatorID, oldOperatorState) ->
 			result.putAll(applyRepartitioner(
@@ -535,7 +546,7 @@ public class StateAssignmentOperation {
 			chainOpParallelStates,
 			oldParallelism,
 			newParallelism);
-		}
+	}
 
 	static <T extends AbstractChannelStateHandle<?>> OperatorStateRepartitioner<T> channelStateNonRescalingRepartitioner(String logStateName) {
 		return (previousParallelSubtaskStates, oldParallelism, newParallelism) -> {
