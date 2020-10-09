@@ -18,11 +18,13 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /**
  * Use cases of managed memory.
  */
+@Internal
 public enum ManagedMemoryUseCase {
 	BATCH_OP(Scope.OPERATOR),
 	ROCKSDB(Scope.SLOT),
