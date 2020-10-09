@@ -34,6 +34,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway.CheckpointConsumer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -367,6 +368,7 @@ public class CheckpointCoordinatorTestingUtils {
 			operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
 		}
 		when(executionJobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
+		when(executionJobVertex.getProducedDataSets()).thenReturn(new IntermediateResult[0]);
 
 		return executionJobVertex;
 	}
@@ -576,6 +578,7 @@ public class CheckpointCoordinatorTestingUtils {
 		when(vertex.getJobVertexId()).thenReturn(id);
 		when(vertex.getTaskVertices()).thenReturn(vertices);
 		when(vertex.getOperatorIDs()).thenReturn(Collections.singletonList(OperatorIDPair.generatedIDOnly(OperatorID.fromJobVertexID(id))));
+		when(vertex.getProducedDataSets()).thenReturn(new IntermediateResult[0]);
 
 		for (ExecutionVertex v : vertices) {
 			when(v.getJobVertex()).thenReturn(vertex);
