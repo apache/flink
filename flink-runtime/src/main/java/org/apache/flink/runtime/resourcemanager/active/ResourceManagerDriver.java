@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * A {@link ResourceManagerDriver} is responsible for requesting and releasing resources from/to a particular external
@@ -39,8 +40,12 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
 	 *
 	 * @param resourceEventHandler Handler that handles resource events.
 	 * @param mainThreadExecutor Rpc main thread executor.
+	 * @param ioExecutor IO executor.
 	 */
-	void initialize(ResourceEventHandler<WorkerType> resourceEventHandler, ScheduledExecutor mainThreadExecutor) throws Exception;
+	void initialize(
+		ResourceEventHandler<WorkerType> resourceEventHandler,
+		ScheduledExecutor mainThreadExecutor,
+		Executor ioExecutor) throws Exception;
 
 	/**
 	 * Terminate the deployment specific components.
