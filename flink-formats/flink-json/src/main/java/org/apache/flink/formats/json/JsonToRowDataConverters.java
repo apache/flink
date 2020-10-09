@@ -152,8 +152,13 @@ public class JsonToRowDataConverters implements Serializable {
 			case ARRAY:
 				return createArrayConverter((ArrayType) type);
 			case MAP:
+				MapType mapType = (MapType) type;
+				return createMapConverter(
+					mapType.asSummaryString(), mapType.getKeyType(), mapType.getValueType());
 			case MULTISET:
-				return createMapConverter(type);
+				MultisetType multisetType = (MultisetType) type;
+				return createMapConverter(
+					multisetType.asSummaryString(), multisetType.getElementType(), new IntType());
 			case ROW:
 				return createRowConverter((RowType) type);
 			case RAW:
@@ -300,22 +305,12 @@ public class JsonToRowDataConverters implements Serializable {
 		};
 	}
 
-	private JsonToRowDataConverter createMapConverter(LogicalType type) {
-		LogicalType keyType;
-		LogicalType valueType;
-		if (type instanceof MapType) {
-			MapType mapType = (MapType) type;
-			keyType = mapType.getKeyType();
-			valueType = mapType.getValueType();
-		} else {
-			MultisetType multisetType = (MultisetType) type;
-			keyType = multisetType.getElementType();
-			valueType = new IntType();
-		}
+	private JsonToRowDataConverter createMapConverter(
+		String typeSummary, LogicalType keyType, LogicalType valueType) {
 		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
 			throw new UnsupportedOperationException(
 				"JSON format doesn't support non-string as key type of map. " +
-					"The map type is: " + type.asSummaryString());
+					"The map type is: " + typeSummary);
 		}
 		final JsonToRowDataConverter keyConverter = createConverter(keyType);
 		final JsonToRowDataConverter valueConverter = createConverter(valueType);
