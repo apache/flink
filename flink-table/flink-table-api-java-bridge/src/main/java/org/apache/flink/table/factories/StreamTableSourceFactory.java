@@ -20,6 +20,7 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 
@@ -30,7 +31,12 @@ import java.util.Map;
  * string-based properties. See also {@link TableSourceFactory} for more information.
  *
  * @param <T> type of records that the factory produces
+ *
+ * @deprecated This interface has been replaced by {@link DynamicTableSourceFactory}. The new interface
+ *             creates instances of {@link DynamicTableSource} and only works with the Blink planner.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface StreamTableSourceFactory<T> extends TableSourceFactory<T> {
 
