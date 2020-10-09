@@ -26,6 +26,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executor;
+
 /**
  * Abstract common base class for implementations of {@link ResourceManagerDriver}.
  */
@@ -39,6 +41,7 @@ public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceI
 
 	private ResourceEventHandler<WorkerType> resourceEventHandler = null;
 	private ScheduledExecutor mainThreadExecutor = null;
+	private Executor ioExecutor = null;
 
 	public AbstractResourceManagerDriver(
 			final Configuration flinkConfig,
@@ -59,12 +62,20 @@ public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceI
 		return mainThreadExecutor;
 	}
 
+	protected final Executor getIoExecutor() {
+		Preconditions.checkState(ioExecutor != null,
+				"Cannot get the io executor. Resource manager driver is not initialized.");
+		return ioExecutor;
+	}
+
 	@Override
 	public final void initialize(
 			ResourceEventHandler<WorkerType> resourceEventHandler,
-			ScheduledExecutor mainThreadExecutor) throws Exception {
+			ScheduledExecutor mainThreadExecutor,
+			Executor ioExecutor) throws Exception {
 		this.resourceEventHandler = Preconditions.checkNotNull(resourceEventHandler);
 		this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
+		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
 		initializeInternal();
 	}

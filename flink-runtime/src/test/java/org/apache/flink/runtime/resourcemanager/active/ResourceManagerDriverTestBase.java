@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.is;
@@ -158,7 +159,8 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 
 			driver.initialize(
 					resourceEventHandlerBuilder.build(),
-					mainThreadExecutor);
+					mainThreadExecutor,
+					ForkJoinPool.commonPool());
 
 			testMethod.run();
 		}

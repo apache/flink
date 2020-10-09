@@ -120,7 +120,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		try {
 			resourceManagerDriver.initialize(
 					this,
-					new GatewayMainThreadExecutor());
+					new GatewayMainThreadExecutor(),
+					ioExecutor);
 		} catch (Exception e) {
 			throw new ResourceManagerException("Cannot initialize resource provider.", e);
 		}

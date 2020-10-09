@@ -24,10 +24,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -37,19 +39,19 @@ import java.util.function.Supplier;
  */
 public class TestingResourceManagerDriver implements ResourceManagerDriver<ResourceID> {
 
-	private final BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer;
+	private final TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction;
 	private final Supplier<CompletableFuture<Void>> terminateSupplier;
 	private final BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer;
 	private final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction;
 	private final Consumer<ResourceID> releaseResourceConsumer;
 
 	private TestingResourceManagerDriver(
-			final BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer,
+			final TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction,
 			final Supplier<CompletableFuture<Void>> terminateSupplier,
 			final BiConsumerWithException<ApplicationStatus, String, Exception> deregisterApplicationConsumer,
 			final Function<TaskExecutorProcessSpec, CompletableFuture<ResourceID>> requestResourceFunction,
 			final Consumer<ResourceID> releaseResourceConsumer) {
-		this.initializeConsumer = Preconditions.checkNotNull(initializeConsumer);
+		this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
 		this.terminateSupplier = Preconditions.checkNotNull(terminateSupplier);
 		this.deregisterApplicationConsumer = Preconditions.checkNotNull(deregisterApplicationConsumer);
 		this.requestResourceFunction = Preconditions.checkNotNull(requestResourceFunction);
@@ -57,8 +59,11 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 	}
 
 	@Override
-	public void initialize(ResourceEventHandler<ResourceID> resourceEventHandler, ScheduledExecutor mainThreadExecutor) throws Exception {
-		initializeConsumer.accept(resourceEventHandler, mainThreadExecutor);
+	public void initialize(
+			ResourceEventHandler<ResourceID> resourceEventHandler,
+			ScheduledExecutor mainThreadExecutor,
+			Executor ioExecutor) throws Exception {
+		initializeFunction.apply(resourceEventHandler, mainThreadExecutor, ioExecutor);
 	}
 
 	@Override
@@ -82,8 +87,8 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 	}
 
 	public static class Builder {
-		private BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer =
-				(ignore1, ignore2) -> {};
+		private TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction =
+				(ignore1, ignore2, ignore3) -> null;
 
 		private Supplier<CompletableFuture<Void>> terminateSupplier =
 				() -> CompletableFuture.completedFuture(null);
@@ -97,8 +102,8 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 		private Consumer<ResourceID> releaseResourceConsumer =
 				(ignore) -> {};
 
-		public Builder setInitializeConsumer(BiConsumerWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Exception> initializeConsumer) {
-			this.initializeConsumer = Preconditions.checkNotNull(initializeConsumer);
+		public Builder setInitializeFunction(TriFunctionWithException<ResourceEventHandler<ResourceID>, ScheduledExecutor, Executor, Void, Exception> initializeFunction) {
+			this.initializeFunction = Preconditions.checkNotNull(initializeFunction);
 			return this;
 		}
 
@@ -124,7 +129,7 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
 
 		public TestingResourceManagerDriver build() {
 			return new TestingResourceManagerDriver(
-					initializeConsumer,
+				initializeFunction,
 					terminateSupplier,
 					deregisterApplicationConsumer,
 					requestResourceFunction,
