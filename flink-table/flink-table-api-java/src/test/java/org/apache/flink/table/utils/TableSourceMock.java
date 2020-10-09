@@ -33,7 +33,7 @@ public class TableSourceMock implements TableSource<Row> {
 	private final TableSchema tableSchema;
 
 	public TableSourceMock(TableSchema tableSchema) {
-		this.tableSchema = TableSchemaUtils.checkPhysicalColumns(tableSchema);
+		this.tableSchema = TableSchemaUtils.checkOnlyPhysicalColumns(tableSchema);
 		this.producedDataType = tableSchema.toRowDataType();
 	}
 

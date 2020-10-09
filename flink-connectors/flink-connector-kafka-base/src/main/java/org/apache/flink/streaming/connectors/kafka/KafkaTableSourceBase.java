@@ -124,7 +124,7 @@ public abstract class KafkaTableSourceBase implements
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
-		this.schema = TableSchemaUtils.checkPhysicalColumns(schema);
+		this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
 		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
 		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
 		this.fieldMapping = fieldMapping;

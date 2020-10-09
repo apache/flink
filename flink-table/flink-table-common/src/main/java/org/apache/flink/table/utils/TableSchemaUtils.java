@@ -94,7 +94,7 @@ public class TableSchemaUtils {
 	/**
 	 * Throws an exception if the given {@link TableSchema} contains any non-physical columns.
 	 */
-	public static TableSchema checkPhysicalColumns(TableSchema schema) {
+	public static TableSchema checkOnlyPhysicalColumns(TableSchema schema) {
 		Preconditions.checkNotNull(schema);
 		if (!containsPhysicalColumnsOnly(schema)) {
 			throw new ValidationException(

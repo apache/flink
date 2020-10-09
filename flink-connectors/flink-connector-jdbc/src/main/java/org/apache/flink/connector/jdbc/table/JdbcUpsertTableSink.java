@@ -65,7 +65,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
 			int flushMaxSize,
 			long flushIntervalMills,
 			int maxRetryTime) {
-		this.schema = TableSchemaUtils.checkPhysicalColumns(schema);
+		this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
 		this.options = options;
 		this.flushMaxSize = flushMaxSize;
 		this.flushIntervalMills = flushIntervalMills;
