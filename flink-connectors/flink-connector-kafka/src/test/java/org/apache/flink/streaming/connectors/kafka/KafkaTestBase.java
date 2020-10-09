@@ -31,6 +31,10 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -45,6 +49,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import scala.concurrent.duration.FiniteDuration;
 
@@ -66,22 +71,22 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public abstract class KafkaTestBase extends TestLogger {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(KafkaTestBase.class);
+	public static final Logger LOG = LoggerFactory.getLogger(KafkaTestBase.class);
 
-	protected static final int NUMBER_OF_KAFKA_SERVERS = 3;
+	public static final int NUMBER_OF_KAFKA_SERVERS = 3;
 
-	protected static String brokerConnectionStrings;
+	public static String brokerConnectionStrings;
 
-	protected static Properties standardProps;
+	public static Properties standardProps;
 
-	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
+	public static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
-	protected static KafkaTestEnvironment kafkaServer;
+	public static KafkaTestEnvironment kafkaServer;
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-	protected static Properties secureProps = new Properties();
+	public static Properties secureProps = new Properties();
 
 	// ------------------------------------------------------------------------
 	//  Setup and teardown of the mini clusters
@@ -116,25 +121,25 @@ public abstract class KafkaTestBase extends TestLogger {
 		LOG.info("-------------------------------------------------------------------------");
 	}
 
-	protected static Configuration getFlinkConfiguration() {
+	public static Configuration getFlinkConfiguration() {
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
 		flinkConfig.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "my_reporter." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
 		return flinkConfig;
 	}
 
-	protected static void startClusters() throws Exception {
+	public static void startClusters() throws Exception {
 		startClusters(KafkaTestEnvironment.createConfig().setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS));
 	}
 
-	protected static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws Exception {
+	public static void startClusters(boolean secureMode, boolean hideKafkaBehindProxy) throws Exception {
 		startClusters(KafkaTestEnvironment.createConfig()
 			.setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
 			.setSecureMode(secureMode)
 			.setHideKafkaBehindProxy(hideKafkaBehindProxy));
 	}
 
-	protected static void startClusters(KafkaTestEnvironment.Config environmentConfig) throws Exception {
+	public static void startClusters(KafkaTestEnvironment.Config environmentConfig) throws Exception {
 		kafkaServer = constructKafkaTestEnvionment();
 
 		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
@@ -154,12 +159,12 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 	}
 
-	protected static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+	public static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
 		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
 		return (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
 	}
 
-	protected static void shutdownClusters() throws Exception {
+	public static void shutdownClusters() throws Exception {
 		if (secureProps != null) {
 			secureProps.clear();
 		}
@@ -173,7 +178,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	//  Execution utilities
 	// ------------------------------------------------------------------------
 
-	protected static void tryExecutePropagateExceptions(StreamExecutionEnvironment see, String name) throws Exception {
+	public static void tryExecutePropagateExceptions(StreamExecutionEnvironment see, String name) throws Exception {
 		try {
 			see.execute(name);
 		}
@@ -193,19 +198,48 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 	}
 
-	protected static void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
+	public static void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
 		kafkaServer.createTestTopic(topic, numberOfPartitions, replicationFactor);
 	}
 
-	protected static void deleteTestTopic(String topic) {
+	public static void deleteTestTopic(String topic) {
 		kafkaServer.deleteTestTopic(topic);
+	}
+
+	public static <K, V> void produceToKafka(
+			Collection<ProducerRecord<K, V>> records,
+			Class<? extends org.apache.kafka.common.serialization.Serializer<K>> keySerializerClass,
+			Class<? extends org.apache.kafka.common.serialization.Serializer<V>> valueSerializerClass)
+			throws Throwable {
+		Properties props = new Properties();
+		props.putAll(standardProps);
+		props.putAll(kafkaServer.getIdempotentProducerConfig());
+		props.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializerClass.getName());
+		props.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializerClass.getName());
+
+		AtomicReference<Throwable> sendingError = new AtomicReference<>();
+		Callback callback = (metadata, exception) -> {
+			if (exception != null) {
+				if (!sendingError.compareAndSet(null, exception)) {
+					sendingError.get().addSuppressed(exception);
+				}
+			}
+		};
+		try (KafkaProducer<K, V> producer = new KafkaProducer<>(props)) {
+			for (ProducerRecord<K, V> record : records) {
+				producer.send(record, callback);
+			}
+		}
+		if (sendingError.get() != null) {
+			throw sendingError.get();
+		}
 	}
 
 	/**
 	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
 	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
 	 */
-	protected void assertAtLeastOnceForTopic(
+	public void assertAtLeastOnceForTopic(
 			Properties properties,
 			String topic,
 			int partition,
@@ -240,7 +274,7 @@ public abstract class KafkaTestBase extends TestLogger {
 		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
 	}
 
-	protected void assertExactlyOnceForTopic(
+	public void assertExactlyOnceForTopic(
 		Properties properties,
 		String topic,
 		int partition,
@@ -252,7 +286,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
 	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
 	 */
-	protected void assertExactlyOnceForTopic(
+	public void assertExactlyOnceForTopic(
 			Properties properties,
 			String topic,
 			int partition,
