@@ -24,17 +24,16 @@
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-connectors</artifactId>
+		<artifactId>flink-test-utils-parent</artifactId>
 		<version>1.12-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-base</artifactId>
-	<name>Flink : Connectors : Base</name>
+	<!-- This module is the test module separated from flink-connector-base to avoid introducing
+	 Scala version bindings to the flink-connector-base. -->
+	<artifactId>flink-connector-test-utils</artifactId>
+	<name>Flink : Connectors : Base-Test</name>
 
-	<packaging>jar</packaging>
-
-	<!-- Allow users to pass custom connector versions -->
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -42,27 +41,18 @@
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
+			<artifactId>flink-test-utils-junit</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-test-utils</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 </project>
