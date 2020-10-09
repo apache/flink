@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -179,7 +178,7 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformatio
 	}
 
 	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
+	public List<Transformation<?>> getTransitivePredecessors() {
 		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
 		result.addAll(input1.getTransitivePredecessors());

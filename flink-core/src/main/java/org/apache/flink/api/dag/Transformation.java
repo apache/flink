@@ -29,7 +29,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -512,7 +511,7 @@ public abstract class Transformation<T> {
 	 *
 	 * @return The list of transitive predecessors.
 	 */
-	public abstract Collection<Transformation<?>> getTransitivePredecessors();
+	public abstract List<Transformation<?>> getTransitivePredecessors();
 
 	/**
 	 * Returns the {@link Transformation transformations} that are the

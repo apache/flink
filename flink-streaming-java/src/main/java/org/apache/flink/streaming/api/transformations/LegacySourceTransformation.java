@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -93,8 +92,8 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T> imp
 	}
 
 	@Override
-	public Collection<Transformation<?>> getTransitivePredecessors() {
-		return Collections.singleton(this);
+	public List<Transformation<?>> getTransitivePredecessors() {
+		return Collections.singletonList(this);
 	}
 
 	@Override

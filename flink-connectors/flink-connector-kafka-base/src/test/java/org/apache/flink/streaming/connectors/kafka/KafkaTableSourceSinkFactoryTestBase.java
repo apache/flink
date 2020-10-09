@@ -58,7 +58,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -430,7 +429,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		}
 
 		@Override
-		public Collection<Transformation<?>> getTransitivePredecessors() {
+		public List<Transformation<?>> getTransitivePredecessors() {
 			return null;
 		}
 

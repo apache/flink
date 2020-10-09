@@ -37,7 +37,6 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -209,7 +208,7 @@ public class DataGenerators {
 			}
 
 			@Override
-			public Collection<Transformation<?>> getTransitivePredecessors() {
+			public List<Transformation<?>> getTransitivePredecessors() {
 				return null;
 			}
 

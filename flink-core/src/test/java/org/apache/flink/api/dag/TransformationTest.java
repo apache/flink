@@ -25,7 +25,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -83,7 +82,7 @@ public class TransformationTest extends TestLogger {
 		}
 
 		@Override
-		public Collection<Transformation<?>> getTransitivePredecessors() {
+		public List<Transformation<?>> getTransitivePredecessors() {
 			return Collections.emptyList();
 		}
 
