@@ -80,6 +80,9 @@ public interface NetworkSequenceViewReader {
 
 	InputChannelID getReceiverId();
 
+	/**
+	 * The wrapper of netty message with data type for indicating availability.
+	 */
 	final class DataAndAvailability {
 
 		private final NettyMessage msg;

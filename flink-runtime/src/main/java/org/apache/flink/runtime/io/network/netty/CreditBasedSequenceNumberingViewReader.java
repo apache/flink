@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionData;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -123,6 +124,28 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 		return subpartitionView.isAvailable(numCreditsAvailable);
 	}
 
+	/**
+	 * Returns the {@link org.apache.flink.runtime.io.network.buffer.Buffer.DataType} of the next buffer in line.
+	 *
+	 * <p>Returns the next data type only if the next buffer is an event or the reader has both available
+	 * credits and buffers.
+	 *
+	 * @implSpec BEWARE: this must be in sync with {@link #isAvailable()}, such that
+	 * {@code getNextDataType(bufferAndBacklog) != NONE <=> isAvailable()}!
+	 *
+	 * @param partitionData
+	 * 		current buffer and backlog including information about the next buffer
+	 * @return the next data type if the next buffer can be pulled immediately or {@link Buffer.DataType#NONE}
+	 */
+	private Buffer.DataType getNextDataType(PartitionData partitionData) {
+		final Buffer.DataType nextDataType = partitionData.getNextDataType();
+		if (numCreditsAvailable > 0 || nextDataType.isEvent()) {
+			return nextDataType;
+		}
+		return Buffer.DataType.NONE;
+	}
+
+
 	@Override
 	public InputChannelID getReceiverId() {
 		return receiverId;
@@ -147,7 +170,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 				throw new IllegalStateException("no credit available");
 			}
 
-			return new DataAndAvailability(next.buildMessage(receiverId), next.getNextDataType());
+			return new DataAndAvailability(next.buildMessage(receiverId), getNextDataType(next));
 		} else {
 			return null;
 		}

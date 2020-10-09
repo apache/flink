@@ -245,7 +245,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	}
 
 	@Nullable
-	PartitionData pollBuffer() {
+	PartitionData.PartitionBuffer pollBuffer() {
 		synchronized (buffers) {
 			if (isBlockedByCheckpoint) {
 				return null;

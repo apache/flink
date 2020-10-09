@@ -28,9 +28,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionData;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -129,8 +129,8 @@ public class SequentialChannelStateReaderImplTest {
 			for (int i = 0; i < resultPartition.getNumberOfSubpartitions(); i++) {
 				ResultSubpartitionInfo info = resultPartition.getAllPartitions()[i].getSubpartitionInfo();
 				ResultSubpartitionView view = resultPartition.createSubpartitionView(info.getSubPartitionIdx(), new NoOpBufferAvailablityListener());
-				for (BufferAndBacklog buffer = view.getNextBuffer(); buffer != null; buffer = view.getNextBuffer()) {
-					actual.computeIfAbsent(info, unused -> new ArrayList<>()).add(buffer.buffer());
+				for (PartitionData data = view.getNextData(); data != null; data = view.getNextData()) {
+					actual.computeIfAbsent(info, unused -> new ArrayList<>()).add(data.buffer());
 				}
 			}
 		}

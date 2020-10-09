@@ -150,7 +150,7 @@ public class BroadcastRecordWriterTest extends RecordWriterTest {
 	}
 
 	public void closeConsumer(ResultSubpartitionView view, int expectedSize) throws IOException {
-		Buffer buffer = view.getNextBuffer().buffer();
+		Buffer buffer = getBuffer(view.getNextData());
 		assertEquals(expectedSize, buffer.getSize());
 		buffer.recycleBuffer();
 	}

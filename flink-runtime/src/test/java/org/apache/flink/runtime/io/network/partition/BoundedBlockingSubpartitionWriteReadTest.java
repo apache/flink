@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import org.junit.AfterClass;
@@ -46,7 +45,7 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotSame;
 
 /**
  * Tests that read the BoundedBlockingSubpartition with multiple threads in parallel.
@@ -169,17 +168,18 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 			int numBuffers,
 			boolean compressionEnabled,
 			BufferDecompressor decompressor) throws Exception {
-		BufferAndBacklog next;
+		PartitionData data;
 		long expectedNextLong = 0L;
 		int nextExpectedBacklog = numBuffers - 1;
 
-		while ((next = reader.getNextBuffer()) != null && next.buffer().isBuffer()) {
-			assertTrue(next.isDataAvailable());
-			assertEquals(nextExpectedBacklog, next.buffersInBacklog());
+		while ((data = reader.getNextData()) != null && data.isBuffer()) {
+			assertNotSame(data.getNextDataType(), Buffer.DataType.NONE);
+			assertEquals(nextExpectedBacklog, data.buffersInBacklog());
 
-			ByteBuffer buffer = next.buffer().getNioBufferReadable();
-			if (compressionEnabled && next.buffer().isCompressed()) {
-				Buffer uncompressedBuffer = decompressor.decompressToIntermediateBuffer(next.buffer());
+			Buffer next = data.getBuffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE));
+			ByteBuffer buffer = next.getNioBufferReadable();
+			if (compressionEnabled && next.isCompressed()) {
+				Buffer uncompressedBuffer = decompressor.decompressToIntermediateBuffer(next);
 				buffer = uncompressedBuffer.getNioBufferReadable();
 				uncompressedBuffer.recycleBuffer();
 			}
@@ -187,7 +187,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
 				assertEquals(expectedNextLong++, buffer.getLong());
 			}
 
-			next.buffer().recycleBuffer();
+			next.recycleBuffer();
 			nextExpectedBacklog--;
 		}
 

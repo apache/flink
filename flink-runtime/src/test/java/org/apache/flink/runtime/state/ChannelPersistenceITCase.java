@@ -34,10 +34,10 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionData;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -46,6 +46,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
+import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
@@ -94,7 +95,8 @@ public class ChannelPersistenceITCase {
 			BufferWritingResultPartition resultPartition = buildResultPartition(networkBufferPool, partitionIndex, numChannels);
 			reader.readOutputData(new BufferWritingResultPartition[]{resultPartition});
 			ResultSubpartitionView view = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
-			assertArrayEquals(resultSubpartitionInfoData, collectBytes(() -> Optional.ofNullable(view.getNextBuffer()).map(BufferAndBacklog::buffer)));
+			assertArrayEquals(resultSubpartitionInfoData, collectBytes(() -> Optional.ofNullable(view.getNextData()).map(
+				(FunctionUtils.uncheckedFunction(PartitionData::buffer)))));
 		} finally {
 			networkBufferPool.destroy();
 		}

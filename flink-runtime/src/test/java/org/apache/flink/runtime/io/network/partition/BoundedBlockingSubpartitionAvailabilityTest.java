@@ -18,22 +18,20 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createView;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the availability handling of the BoundedBlockingSubpartitions with not constant
@@ -59,46 +57,6 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 
 		// cleanup
 		subpartitionView.releaseAllResources();
-		subpartition.release();
-	}
-
-	@Test
-	public void testUnavailableWhenBuffersExhausted() throws Exception {
-		// setup
-		final ResultSubpartition subpartition = createPartitionWithData(100_000);
-		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
-		final ResultSubpartitionView reader = createView(subpartition, listener);
-
-		// test
-		final List<BufferAndBacklog> data = drainAvailableData(reader);
-
-		// assert
-		assertFalse(reader.isAvailable(Integer.MAX_VALUE));
-		assertFalse(data.get(data.size() - 1).isDataAvailable());
-
-		// cleanup
-		reader.releaseAllResources();
-		subpartition.release();
-	}
-
-	@Test
-	public void testAvailabilityNotificationWhenBuffersReturn() throws Exception {
-		// setup
-		final ResultSubpartition subpartition = createPartitionWithData(100_000);
-		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
-		final ResultSubpartitionView reader = createView(subpartition, listener);
-
-		// test
-		final List<ResultSubpartition.BufferAndBacklog> data = drainAvailableData(reader);
-		data.get(0).buffer().recycleBuffer();
-		data.get(1).buffer().recycleBuffer();
-
-		// assert
-		assertTrue(reader.isAvailable(Integer.MAX_VALUE));
-		assertEquals(1, listener.numNotifications);
-
-		// cleanup
-		reader.releaseAllResources();
 		subpartition.release();
 	}
 
@@ -143,21 +101,11 @@ public class BoundedBlockingSubpartitionAvailabilityTest {
 		}
 	}
 
-	private static List<BufferAndBacklog> drainAvailableData(ResultSubpartitionView reader) throws Exception {
-		final ArrayList<BufferAndBacklog> list = new ArrayList<>();
-
-		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer()) != null) {
-			list.add(bab);
-		}
-
-		return list;
-	}
-
 	private static void drainAllData(ResultSubpartitionView reader) throws Exception {
-		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer()) != null) {
-			bab.buffer().recycleBuffer();
+		PartitionData data;
+		while ((data = reader.getNextData()) != null) {
+			Buffer buffer = data.getBuffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE));
+			buffer.recycleBuffer();
 		}
 	}
 }

@@ -85,7 +85,7 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	public void testRegisterTaskWithLimitedBuffers() throws Exception {
 		// outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
 		// incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
-		final int bufferCount = 18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+		final int bufferCount = 1 + 18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
 
 		testRegisterTaskWithLimitedBuffers(bufferCount);
 	}

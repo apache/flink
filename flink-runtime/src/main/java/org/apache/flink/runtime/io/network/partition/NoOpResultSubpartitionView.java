@@ -20,13 +20,15 @@ package org.apache.flink.runtime.io.network.partition;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+
 /**
  * A dummy implementation of the {@link ResultSubpartitionView}.
  */
 public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 
 	@Nullable
-	public ResultSubpartition.BufferAndBacklog getNextBuffer() {
+	public PartitionData getNextData() throws IOException {
 		return null;
 	}
 

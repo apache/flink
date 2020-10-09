@@ -239,7 +239,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 	private ByteBuf[] encodeMessages(List<NettyMessage> messages) throws Exception {
 		ByteBuf[] encodedMessages = new ByteBuf[messages.size()];
 		for (int i = 0; i < messages.size(); ++i) {
-			encodedMessages[i] = messages.get(i).write(ALLOCATOR);
+			encodedMessages[i] = (ByteBuf) messages.get(i).write(ALLOCATOR);
 		}
 
 		return encodedMessages;

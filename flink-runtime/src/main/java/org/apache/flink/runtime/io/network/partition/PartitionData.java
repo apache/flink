@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
@@ -26,6 +28,7 @@ import org.apache.flink.runtime.io.network.netty.NettyMessage;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -49,6 +52,11 @@ public abstract class PartitionData {
 
 	public abstract boolean isBuffer();
 
+	@VisibleForTesting
+	public Buffer buffer() throws IOException {
+		return getBuffer(null);
+	}
+
 	public abstract Buffer getBuffer(@Nullable MemorySegment segment) throws IOException;
 
 	/**
@@ -65,14 +73,27 @@ public abstract class PartitionData {
 		return sequenceNumber;
 	}
 
+	@VisibleForTesting
+	public int buffersInBacklog() {
+		return backlog;
+	}
+
+	@VisibleForTesting
+	public boolean isDataAvailable() {
+		return nextDataType != DataType.NONE;
+	}
+
+	public void recycle() {
+	}
+
 	/**
 	 * The pipelined partition or mmap-based bounded partition provide the buffer-level data to be consumed.
 	 */
-	static final class PartitionBuffer extends PartitionData {
+	public static final class PartitionBuffer extends PartitionData {
 
 		private final Buffer buffer;
 
-		PartitionBuffer(Buffer buffer, int backlog, DataType nextDataType, int sequenceNumber) {
+		public PartitionBuffer(Buffer buffer, int backlog, DataType nextDataType, int sequenceNumber) {
 			super(backlog, nextDataType, sequenceNumber);
 			this.buffer = checkNotNull(buffer);
 		}
@@ -98,6 +119,16 @@ public abstract class PartitionData {
 		@Override
 		public Buffer getBuffer(MemorySegment segment) {
 			return buffer;
+		}
+
+		@VisibleForTesting
+		public Buffer buffer() {
+			return buffer;
+		}
+
+		@Override
+		public void recycle() {
+			buffer.recycleBuffer();
 		}
 	}
 

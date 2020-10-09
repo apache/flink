@@ -45,7 +45,7 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
 
 	@Nullable
 	@Override
-	public PartitionData getNextData() {
+	public PartitionData.PartitionBuffer getNextData() {
 		return parent.pollBuffer();
 	}
 

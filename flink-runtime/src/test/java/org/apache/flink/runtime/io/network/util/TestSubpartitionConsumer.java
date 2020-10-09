@@ -22,7 +22,7 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.PartitionData;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.util.Random;
@@ -91,25 +91,25 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 					}
 				}
 
-				final BufferAndBacklog bufferAndBacklog = subpartitionView.getNextBuffer();
+				final PartitionData partitionData = subpartitionView.getNextData();
 
 				if (isSlowConsumer) {
 					Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));
 				}
 
-				if (bufferAndBacklog != null) {
-					if (bufferAndBacklog.isDataAvailable()) {
+				if (partitionData != null) {
+					if (partitionData.isDataAvailable()) {
 						dataAvailableNotification.set(true);
 					}
-					if (bufferAndBacklog.buffer().isBuffer()) {
-						callback.onBuffer(bufferAndBacklog.buffer());
+					if (partitionData.buffer().isBuffer()) {
+						callback.onBuffer(partitionData.buffer());
 					} else {
-						final AbstractEvent event = EventSerializer.fromBuffer(bufferAndBacklog.buffer(),
+						final AbstractEvent event = EventSerializer.fromBuffer(partitionData.buffer(),
 							getClass().getClassLoader());
 
 						callback.onEvent(event);
 
-						bufferAndBacklog.buffer().recycleBuffer();
+						partitionData.buffer().recycleBuffer();
 
 						if (event.getClass() == EndOfPartitionEvent.class) {
 							subpartitionView.releaseAllResources();

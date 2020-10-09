@@ -46,6 +46,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
+import static org.apache.flink.runtime.io.network.api.writer.RecordWriterTest.getBuffer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -456,7 +457,7 @@ public class ResultPartitionTest {
 
 		resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
 		ResultSubpartitionView readView = resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
-		Buffer buffer = readView.getNextBuffer().buffer();
+		Buffer buffer = getBuffer(readView.getNextData());
 		assertNotNull(buffer);
 
 		// idle time is zero when there is buffer available.
@@ -484,7 +485,7 @@ public class ResultPartitionTest {
 		requestThread.join();
 
 		Assert.assertThat(resultPartition.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
-		assertNotNull(readView.getNextBuffer().buffer());
+		assertNotNull(getBuffer(readView.getNextData()));
 	}
 
 	@Test
@@ -513,17 +514,17 @@ public class ResultPartitionTest {
 
 		ResultSubpartitionView readView1 = partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
 		for (int i = 0; i < 4; ++i) {
-			assertEquals(record, readView1.getNextBuffer().buffer().getNioBufferReadable());
+			assertEquals(record, getBuffer(readView1.getNextData()).getNioBufferReadable());
 		}
-		assertFalse(readView1.getNextBuffer().buffer().isBuffer());
-		assertNull(readView1.getNextBuffer());
+		assertFalse(getBuffer(readView1.getNextData()).isBuffer());
+		assertNull(readView1.getNextData());
 
 		ResultSubpartitionView readView2 = partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
 		for (int i = 0; i < 2; ++i) {
-			assertEquals(record, readView2.getNextBuffer().buffer().getNioBufferReadable());
+			assertEquals(record, getBuffer(readView2.getNextData()).getNioBufferReadable());
 		}
-		assertFalse(readView2.getNextBuffer().buffer().isBuffer());
-		assertNull(readView2.getNextBuffer());
+		assertFalse(getBuffer(readView2.getNextData()).isBuffer());
+		assertNull(readView2.getNextData());
 	}
 
 	private static class TestResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {

@@ -22,7 +22,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -37,6 +36,7 @@ import java.nio.file.StandardOpenOption;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
@@ -119,10 +119,12 @@ public class BufferReaderWriterUtilTest {
 		BufferReaderWriterUtil.writeToByteChannel(fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
 		fc.position(0);
 
-		Buffer result = BufferReaderWriterUtil.readFromByteChannel(
-				fc, BufferReaderWriterUtil.allocatedHeaderBuffer(), readBuffer, FreeingBufferRecycler.INSTANCE);
+		BoundedData.BoundedPartitionData result = BufferReaderWriterUtil.readFromByteChannel(
+			fc, BufferReaderWriterUtil.allocatedHeaderBuffer());
+		assertNotNull(result);
+		PartitionData data = result.build(Buffer.DataType.DATA_BUFFER, 1, 0);
 
-		validateTestBuffer(result);
+		validateTestBuffer(data.getBuffer(readBuffer));
 	}
 
 	@Test
@@ -136,8 +138,11 @@ public class BufferReaderWriterUtilTest {
 		fc.position(0);
 
 		try {
-			BufferReaderWriterUtil.readFromByteChannel(
-					fc, BufferReaderWriterUtil.allocatedHeaderBuffer(), readBuffer, FreeingBufferRecycler.INSTANCE);
+			BoundedData.BoundedPartitionData data = BufferReaderWriterUtil.readFromByteChannel(
+				fc, BufferReaderWriterUtil.allocatedHeaderBuffer());
+			assertNotNull(data);
+			data.build(Buffer.DataType.DATA_BUFFER, 1, 0).getBuffer(readBuffer);
+
 			fail();
 		}
 		catch (IOException e) {
@@ -149,15 +154,13 @@ public class BufferReaderWriterUtilTest {
 	public void readPrematureEndOfFile2() throws Exception {
 		final FileChannel fc = tmpFileChannel();
 		final Buffer buffer = createTestBuffer();
-		final MemorySegment readBuffer = MemorySegmentFactory.allocateUnpooledOffHeapMemory(buffer.getSize(), null);
 
 		BufferReaderWriterUtil.writeToByteChannel(fc, buffer, BufferReaderWriterUtil.allocatedWriteBufferArray());
 		fc.truncate(2); // less than a header size
 		fc.position(0);
 
 		try {
-			BufferReaderWriterUtil.readFromByteChannel(
-					fc, BufferReaderWriterUtil.allocatedHeaderBuffer(), readBuffer, FreeingBufferRecycler.INSTANCE);
+			BufferReaderWriterUtil.readFromByteChannel(fc, BufferReaderWriterUtil.allocatedHeaderBuffer());
 			fail();
 		}
 		catch (IOException e) {

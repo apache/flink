@@ -23,8 +23,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.runtime.io.network.partition.BoundedData.BoundedPartitionFileRegion;
 import org.apache.flink.runtime.io.network.partition.BoundedData.BoundedPartitionData;
+import org.apache.flink.runtime.io.network.partition.BoundedData.BoundedPartitionFileRegion;
 
 import javax.annotation.Nullable;
 

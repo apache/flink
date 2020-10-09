@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -124,9 +125,9 @@ public abstract class BoundedDataTestBase {
 			final BoundedData.Reader reader = bd.createReader();
 
 			// check that multiple calls now return empty buffers
-			assertNull(reader.nextBuffer());
-			assertNull(reader.nextBuffer());
-			assertNull(reader.nextBuffer());
+			assertNull(reader.nextData());
+			assertNull(reader.nextData());
+			assertNull(reader.nextData());
 		}
 	}
 
@@ -196,11 +197,13 @@ public abstract class BoundedDataTestBase {
 	}
 
 	private static void readInts(BoundedData.Reader reader, int numBuffersExpected, int numInts) throws IOException {
-		Buffer b;
+		BoundedData.BoundedPartitionData data;
 		int nextValue = 0;
 		int numBuffers = 0;
 
-		while ((b = reader.nextBuffer()) != null) {
+		while ((data = reader.nextData()) != null) {
+			final PartitionData pd = data.build(Buffer.DataType.DATA_BUFFER, numBuffersExpected, 0);
+			final Buffer b = pd.getBuffer(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE));
 			final int numIntsInBuffer = b.getSize() / 4;
 			if (compressionEnabled && b.isCompressed()) {
 				Buffer decompressedBuffer = DECOMPRESSOR.decompressToIntermediateBuffer(b);
