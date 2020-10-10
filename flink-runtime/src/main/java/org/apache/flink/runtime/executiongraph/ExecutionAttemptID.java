@@ -30,6 +30,9 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 public class ExecutionAttemptID implements java.io.Serializable {
 
     private static final long serialVersionUID = -1169683445778281344L;
+    // Represent the number of bytes occupied when writes ExecutionAttemptID to the ByteBuf.
+    // It is the sum of two long types(lowerPart and upperPart of the executionAttemptId).
+    private static final int BYTEBUF_LEN = 16;
 
     private final AbstractID executionAttemptId;
 
@@ -53,6 +56,10 @@ public class ExecutionAttemptID implements java.io.Serializable {
 
     public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
         return new ExecutionAttemptID(new AbstractID(buf.readLong(), buf.readLong()));
+    }
+
+    public static int getByteBufLength() {
+        return BYTEBUF_LEN;
     }
 
     @Override

@@ -28,6 +28,11 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 public class IntermediateResultPartitionID implements ResultID {
 
     private static final long serialVersionUID = 1L;
+    // Represent the number of bytes occupied when writes IntermediateResultPartitionID to the
+    // ByteBuf.
+    // It is the sum of two long types(lowerPart and upperPart of the intermediateDataSetID) and one
+    // int type(partitionNum).
+    private static final int BYTEBUF_LEN = 20;
 
     private final IntermediateDataSetID intermediateDataSetID;
     private final int partitionNum;
@@ -58,6 +63,10 @@ public class IntermediateResultPartitionID implements ResultID {
         final IntermediateDataSetID intermediateDataSetID = IntermediateDataSetID.fromByteBuf(buf);
         final int partitionNum = buf.readInt();
         return new IntermediateResultPartitionID(intermediateDataSetID, partitionNum);
+    }
+
+    public static int getByteBufLength() {
+        return BYTEBUF_LEN;
     }
 
     @Override

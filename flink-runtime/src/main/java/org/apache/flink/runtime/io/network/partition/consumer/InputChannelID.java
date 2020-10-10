@@ -26,6 +26,9 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 public class InputChannelID extends AbstractID {
 
     private static final long serialVersionUID = 1L;
+    // Represent the number of bytes occupied when writes InputChannelID to the ByteBuf.
+    // It is the sum of two long types(lowerPart and upperPart).
+    private static final int BYTEBUF_LEN = 16;
 
     public InputChannelID() {
         super();
@@ -48,5 +51,9 @@ public class InputChannelID extends AbstractID {
         long lower = buf.readLong();
         long upper = buf.readLong();
         return new InputChannelID(lower, upper);
+    }
+
+    public static int getByteBufLength() {
+        return BYTEBUF_LEN;
     }
 }
