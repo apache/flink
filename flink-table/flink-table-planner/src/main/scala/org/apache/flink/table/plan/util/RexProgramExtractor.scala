@@ -30,7 +30,7 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
+import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -83,7 +83,13 @@ object RexProgramExtractor {
         val expanded = rexProgram.expandLocalRef(condition)
         // converts the expanded expression to conjunctive normal form,
         // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
-        val cnf = RexUtil.toCnf(rexBuilder, expanded)
+        // CALCITE-4173: expand the Sarg, then converts to expressions.
+        val rewrite = if (expanded.getKind == SqlKind.SEARCH) {
+          RexUtil.expandSearch(rexBuilder, null, expanded)
+        } else {
+          expanded
+        }
+        val cnf = RexUtil.toCnf(rexBuilder, rewrite)
         // converts the cnf condition to a list of AND conditions
         val conjunctions = RelOptUtil.conjunctions(cnf)
 

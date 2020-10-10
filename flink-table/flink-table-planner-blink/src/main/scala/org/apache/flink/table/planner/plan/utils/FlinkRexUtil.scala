@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.planner.JSet
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -344,6 +345,43 @@ object FlinkRexUtil {
     })
 
   /**
+   * Returns whether a given tree contains any {@link RexInputRef} nodes
+   * with given indices.
+   *
+   * @param node a RexNode tree
+   */
+  def containsInputRef(node: RexNode, refs: JSet[Integer]): Boolean = try {
+    val visitor = new RexVisitorImpl[Void](true) {
+      override def visitInputRef(inputRef: RexInputRef): Void = {
+        if (refs.contains(inputRef.getIndex)) {
+          throw new Util.FoundOne(inputRef)
+        }
+        null
+      }
+    }
+    node.accept(visitor)
+    false
+  } catch {
+    case e: Util.FoundOne =>
+      Util.swallow(e, null)
+      true
+  }
+
+  /** Expands the SEARCH into normal disjunctions recursively. */
+  def expandSearch(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+    val shuttle = new RexShuttle() {
+      override def visitCall(call: RexCall): RexNode = {
+        if (call.getKind == SqlKind.SEARCH) {
+          RexUtil.expandSearch(rexBuilder, null, call)
+        } else {
+          super.visitCall(call)
+        }
+      }
+    }
+    rex.accept(shuttle)
+  }
+
+  /**
     * Adjust the expression's field indices according to fieldsOldToNewIndexMapping.
     *
     * @param expr The expression to be adjusted.
@@ -353,7 +391,7 @@ object FlinkRexUtil {
     */
   private[flink] def adjustInputRef(
       expr: RexNode,
-      fieldsOldToNewIndexMapping: Map[Int, Int]): RexNode = expr.accept(
+      fieldsOldToNewIndexMapping: Map[Int, Int]) = expr.accept(
     new RexShuttle() {
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
         require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))

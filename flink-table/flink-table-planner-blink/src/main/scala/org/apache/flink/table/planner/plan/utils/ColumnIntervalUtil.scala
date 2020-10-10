@@ -198,9 +198,14 @@ object ColumnIntervalUtil {
     */
   def getColumnIntervalWithFilter(
       originInterval: Option[ValueInterval],
-      predicate: RexNode,
+      oriPred: RexNode,
       inputRef: Int,
       rexBuilder: RexBuilder): ValueInterval = {
+    val predicate = if (oriPred.getKind == SqlKind.SEARCH) {
+      RexUtil.expandSearch(rexBuilder, null, oriPred)
+    } else {
+      oriPred
+    }
     val isRelated = (r: RexNode) => r.accept(new ColumnRelatedVisitor(inputRef))
     val (relatedSubRexNode, _) = FlinkRelOptUtil.partition(predicate, rexBuilder, isRelated)
     val beginInterval = originInterval match {

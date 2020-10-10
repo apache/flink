@@ -33,13 +33,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[=(c, a1)], select=[a, b, c], build=[rig
   <TestCase name="testInWithProject">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(b2=[AS(IN($1, 1972-02-22 07:12:00.333:TIMESTAMP(3)), _UTF-16LE'b2')])
+LogicalProject(b2=[AS(=($1, 1972-02-22 07:12:00.333), _UTF-16LE'b2')])
 +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[IN(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
+Calc(select=[=(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

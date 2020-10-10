@@ -65,7 +65,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[b,
          +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[b, cnt], changelogMode=[NONE])
-+- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], changelogMode=[I,UB,UA])
++- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -165,7 +165,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b,
    +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
-+- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], changelogMode=[I,UB,UA])
++- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -266,9 +266,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a1,
       :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I], reuse_id=[1])
       +- Exchange(distribution=[hash[a1]], changelogMode=[I])
          +- Calc(select=[a1, b, c AS c2], changelogMode=[I])
-            +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
-               :- Exchange(distribution=[hash[a]], changelogMode=[I])
-               :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
+            +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
+               :- Exchange(distribution=[hash[a1]], changelogMode=[I])
+               :  +- Calc(select=[a AS a1, b], where=[<=(a, 10)], changelogMode=[I])
                :     +- Reused(reference_id=[1])
                +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                   +- Calc(select=[a AS a2, c], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])

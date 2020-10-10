@@ -75,7 +75,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[b, cnt])
    +- Reused(reference_id=[3])
 
 LegacySink(name=[`default_catalog`.`default_database`.`sink3`], fields=[b, cnt])
-+- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))])
++- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])])
    +- Reused(reference_id=[3])
 ]]>
     </Resource>
