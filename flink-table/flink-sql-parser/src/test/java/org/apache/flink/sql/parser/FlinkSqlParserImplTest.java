@@ -60,7 +60,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	/**
 	 * Here we override the super method to avoid test error from `describe schema` supported in original calcite.
 	 */
-	@Override
 	public void testDescribeSchema() {
 	}
 
@@ -188,7 +187,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	/**
 	 * Here we override the super method to avoid test error from `describe statement` supported in original calcite.
 	 */
-	@Override
 	public void testDescribeStatement() {
 	}
 
@@ -994,7 +992,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	// Override the test because our ROW field type default is nullable,
 	// which is different with Calcite.
-	@Override
 	public void testCastAsRowType() {
 		final String expr = "cast(a as row(f0 int, f1 varchar))";
 		final String expected = "CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))";

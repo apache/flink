@@ -35,15 +35,12 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 	}
 
 	// overrides test methods that we don't support
-	@Override
 	public void testDescribeStatement() {
 	}
 
-	@Override
 	public void testTableHintsInInsert() {
 	}
 
-	@Override
 	public void testDescribeSchema() {
 	}
 
