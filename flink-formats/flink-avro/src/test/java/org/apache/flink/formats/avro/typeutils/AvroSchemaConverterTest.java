@@ -27,6 +27,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
+import org.apache.avro.Schema;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -85,6 +86,59 @@ public class AvroSchemaConverterTest {
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
 		AvroSchemaConverter.convertToSchema(rowType);
+	}
+
+	@Test
+	public void testRowTypeAvroSchemaConversion() {
+		RowType rowType = (RowType) TableSchema.builder()
+			.field("row1", DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
+			.field("row2", DataTypes.ROW(DataTypes.FIELD("b", DataTypes.STRING())))
+			.field("row3", DataTypes.ROW(
+				DataTypes.FIELD("row3", DataTypes.ROW(DataTypes.FIELD("c", DataTypes.STRING())))))
+			.build().toRowDataType().getLogicalType();
+		Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		assertEquals("{\n" +
+			"  \"type\" : \"record\",\n" +
+			"  \"name\" : \"record\",\n" +
+			"  \"fields\" : [ {\n" +
+			"    \"name\" : \"record_row1\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row1\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"record_row1_a\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"record_row2\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row2\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"record_row2_b\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  }, {\n" +
+			"    \"name\" : \"record_row3\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"record_row3\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"record_row3_row3\",\n" +
+			"        \"type\" : {\n" +
+			"          \"type\" : \"record\",\n" +
+			"          \"name\" : \"record_row3_row3\",\n" +
+			"          \"fields\" : [ {\n" +
+			"            \"name\" : \"record_row3_row3_c\",\n" +
+			"            \"type\" : [ \"string\", \"null\" ]\n" +
+			"          } ]\n" +
+			"        }\n" +
+			"      } ]\n" +
+			"    }\n" +
+			"  } ]\n" +
+			"}", schema.toString(true));
 	}
 
 	private void validateUserSchema(TypeInformation<?> actual) {
