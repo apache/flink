@@ -112,6 +112,32 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 	}
 
 	@Test
+	public void testRunAsyncCausesFatalError() throws Exception {
+		new Context() {{
+			final String exceptionMessage = "runAsyncCausesFatalError";
+			addContainerRequestFutures.add(new CompletableFuture<>());
+
+			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((ignored1, ignored2) ->
+					addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(null));
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored -> {
+				throw new RuntimeException(exceptionMessage);
+			});
+
+			final CompletableFuture<Throwable> throwableCompletableFuture = new CompletableFuture<>();
+			resourceEventHandlerBuilder.setOnErrorConsumer(throwableCompletableFuture::complete);
+
+			runTest(() -> {
+				runInMainThread(() -> getDriver().requestResource(testingTaskExecutorProcessSpec));
+				resourceManagerClientCallbackHandler.onContainersAllocated(ImmutableList.of(testingContainer));
+
+				Throwable t = throwableCompletableFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+				assertThat(ExceptionUtils.findThrowable(t, RuntimeException.class).isPresent(), is(true));
+				assertThat(ExceptionUtils.findThrowable(t, RuntimeException.class).get().getMessage(), is(exceptionMessage));
+			});
+		}};
+	}
+
+	@Test
 	public void testShutdownRequestCausesFatalError() throws Exception {
 		new Context() {{
 			final CompletableFuture<Throwable> throwableCompletableFuture = new CompletableFuture<>();
