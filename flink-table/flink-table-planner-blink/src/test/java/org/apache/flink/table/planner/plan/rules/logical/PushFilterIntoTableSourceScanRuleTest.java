@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
+import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 
 /**
@@ -44,7 +44,7 @@ public class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoLegacyT
 				.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION())
 				.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
 				.add(RuleSets.ofList(PushFilterIntoTableSourceScanRule.INSTANCE,
-					FilterProjectTransposeRule.INSTANCE))
+						CoreRules.FILTER_PROJECT_TRANSPOSE))
 				.build()
 		);
 		// name: STRING, id: LONG, amount: INT, price: DOUBLE

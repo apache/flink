@@ -23,9 +23,8 @@ import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, 
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
@@ -54,7 +53,7 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(PushPartitionIntoLegacyTableSourceScanRule.INSTANCE,
-          FilterProjectTransposeRule.INSTANCE))
+          CoreRules.FILTER_PROJECT_TRANSPOSE))
         .build()
     )
 

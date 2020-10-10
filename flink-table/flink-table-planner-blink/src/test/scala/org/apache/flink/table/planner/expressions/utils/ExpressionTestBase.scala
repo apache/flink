@@ -209,7 +209,7 @@ abstract class ExpressionTestBase {
 
   private def addTestExpr(relNode: RelNode, expected: String, summaryString: String): Unit = {
     val builder = new HepProgramBuilder()
-    builder.addRuleInstance(ProjectToCalcRule.INSTANCE)
+    builder.addRuleInstance(CoreRules.PROJECT_TO_CALC)
     val hep = new HepPlanner(builder.build())
     hep.setRoot(relNode)
     val optimized = hep.findBestExp()

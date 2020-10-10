@@ -34,10 +34,10 @@ class FlinkVolcanoProgramTest {
     val TEST = new Convention.Impl("TEST", classOf[RelNode])
     FlinkVolcanoProgramBuilder.newBuilder
       .add(RuleSets.ofList(
-        ReduceExpressionsRule.FILTER_INSTANCE,
-        ReduceExpressionsRule.PROJECT_INSTANCE,
-        ReduceExpressionsRule.CALC_INSTANCE,
-        ReduceExpressionsRule.JOIN_INSTANCE
+        CoreRules.FILTER_REDUCE_EXPRESSIONS,
+        CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+        CoreRules.CALC_REDUCE_EXPRESSIONS,
+        CoreRules.JOIN_REDUCE_EXPRESSIONS
       ))
       .setRequiredOutputTraits(Array(TEST))
       .build()

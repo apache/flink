@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, 
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.FilterJoinRule
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
@@ -46,8 +46,8 @@ class JoinDependentConditionDerivationRuleTest extends TableTestBase {
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(
-          FilterJoinRule.FILTER_ON_JOIN,
-          FilterJoinRule.JOIN,
+          CoreRules.FILTER_INTO_JOIN,
+          CoreRules.JOIN_CONDITION_PUSH,
           JoinDependentConditionDerivationRule.INSTANCE))
         .build()
     )
