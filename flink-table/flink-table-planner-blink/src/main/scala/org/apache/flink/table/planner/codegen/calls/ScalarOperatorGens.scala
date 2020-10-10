@@ -869,7 +869,8 @@ object ScalarOperatorGens {
           operand.resultType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.PROCTIME ||
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
-        operand.copy(resultType = new TimestampType(3)) // just replace the DataType
+        // just replace the DataType
+        operand.copy(resultType = new TimestampType(operand.resultType.isNullable, 3))
 
     case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
       val fromType = operand.resultType.asInstanceOf[TimestampType]
