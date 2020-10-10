@@ -58,7 +58,7 @@
   </thead>
   <tbody>
     <tr *ngFor="let subtask of listOfSubTaskBackpressure;trackBy:trackBackPressureBy;">
-      <td>{{ subtask['subtask'] + 1 }}</td>
+      <td>{{ subtask['subtask'] }}</td>
       <td>{{ subtask['ratio'] }}</td>
       <td>
         <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
