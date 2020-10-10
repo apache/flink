@@ -526,7 +526,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		@Override
 		public void onContainersCompleted(List<ContainerStatus> statuses) {
-			getMainThreadExecutor().execute(() -> {
+			runAsyncWithFatalHandler(() -> {
 					log.debug("YARN ResourceManager reported the following containers completed: {}.", statuses);
 					for (final ContainerStatus containerStatus : statuses) {
 
@@ -539,7 +539,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		@Override
 		public void onContainersAllocated(List<Container> containers) {
-			getMainThreadExecutor().execute(() -> {
+			runAsyncWithFatalHandler(() -> {
 				log.info("Received {} containers.", containers.size());
 
 				for (Map.Entry<Resource, List<Container>> entry : groupContainerByResource(containers).entrySet()) {
@@ -550,6 +550,16 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 				// regular heartbeat interval
 				if (getNumRequestedNotAllocatedWorkers() <= 0) {
 					resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
+				}
+			});
+		}
+
+		private void runAsyncWithFatalHandler(Runnable runnable) {
+			getMainThreadExecutor().execute(() -> {
+				try {
+					runnable.run();
+				} catch (Throwable t) {
+					onError(t);
 				}
 			});
 		}
@@ -592,7 +602,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		@Override
 		public void onStartContainerError(ContainerId containerId, Throwable throwable) {
-			getMainThreadExecutor().execute(() -> {
+			runAsyncWithFatalHandler(() -> {
 				resourceManagerClient.releaseAssignedContainer(containerId);
 				getResourceEventHandler().onWorkerTerminated(new ResourceID(containerId.toString()), throwable.getMessage());
 			});

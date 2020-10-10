@@ -64,6 +64,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -109,6 +110,32 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 	@Override
 	protected Context createContext() {
 		return new Context();
+	}
+
+	@Test
+	public void testRunAsyncCausesFatalError() throws Exception {
+		new Context() {{
+			final String exceptionMessage = "runAsyncCausesFatalError";
+			addContainerRequestFutures.add(CompletableFuture.completedFuture(null));
+
+			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored -> {
+				throw new RuntimeException(exceptionMessage);
+			});
+
+			final CompletableFuture<Throwable> throwableCompletableFuture = new CompletableFuture<>();
+			resourceEventHandlerBuilder.setOnErrorConsumer(throwableCompletableFuture::complete);
+
+			runTest(() -> {
+				runInMainThread(() -> getDriver().requestResource(testingTaskExecutorProcessSpec));
+				resourceManagerClientCallbackHandler.onContainersAllocated(ImmutableList.of(testingContainer));
+
+				Throwable t = throwableCompletableFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+				final Optional<RuntimeException> optionalCause = ExceptionUtils.findThrowable(t, RuntimeException.class);
+
+				assertTrue(optionalCause.isPresent());
+				assertThat(optionalCause.get().getMessage(), is(exceptionMessage));
+			});
+		}};
 	}
 
 	@Test
