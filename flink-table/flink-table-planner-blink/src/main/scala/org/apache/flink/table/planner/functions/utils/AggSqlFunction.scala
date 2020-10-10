@@ -19,16 +19,16 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, ImperativeAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, ImperativeAggregateFunction, TableAggregateFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
-import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandMetadata, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
@@ -37,6 +37,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
 
 import java.util
+import java.util.Collections
 
 /**
   * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
@@ -62,18 +63,17 @@ class AggSqlFunction(
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
+    SqlKind.OTHER_FUNCTION,
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
     createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
-    createOperandTypeChecker(displayName, aggregateFunction, externalAccType),
+    createOperandMetadata(displayName, aggregateFunction, externalAccType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
     requiresOver,
-    Optionality.FORBIDDEN,
-    typeFactory
-  ) {
+    Optionality.FORBIDDEN) {
 
   /**
     * This is temporary solution for hive udf and should be removed once FLIP-65 is finished,
@@ -165,18 +165,28 @@ object AggSqlFunction {
     }
   }
 
-  private[flink] def createOperandTypeChecker(
+  private[flink] def createOperandMetadata(
       name: String,
       aggregateFunction: ImperativeAggregateFunction[_, _],
       externalAccType: DataType)
-    : SqlOperandTypeChecker = {
+    : SqlOperandMetadata = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
     /**
       * Operand type checker based on [[AggregateFunction]] given information.
       */
-    new SqlOperandTypeChecker {
+    new SqlOperandMetadata {
+      override def paramNames(): util.List[String] = {
+        // Does not support named parameters.
+        Collections.emptyList()
+      }
+
+      override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] = {
+        // This should be never invoked.
+        null
+      }
+
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
         s"$opName[${signaturesToString(aggregateFunction, "accumulate")}]"
       }

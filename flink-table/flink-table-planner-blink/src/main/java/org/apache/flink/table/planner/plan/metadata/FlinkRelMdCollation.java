@@ -65,6 +65,7 @@ import org.apache.calcite.util.Util;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -226,7 +227,10 @@ public class FlinkRelMdCollation implements MetadataHandler<BuiltInMetadata.Coll
 	 * {@link org.apache.calcite.rel.core.TableScan}'s collation.
 	 */
 	public static List<RelCollation> table(RelOptTable table) {
-		return table.getCollationList();
+		// Behavior change since CALCITE-4215: the default collations is null.
+		// In Flink, the default is an empty list.
+		List<RelCollation> collations = table.getCollationList();
+		return collations == null ? Collections.emptyList() : collations;
 	}
 
 	/**

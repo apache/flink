@@ -30,7 +30,7 @@ class FlinkTypeFactoryTest {
 
   @Test
   def testInternalToRelType(): Unit = {
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val typeFactory = FlinkTypeFactory.INSTANCE
 
     def test(t: LogicalType): Unit = {
       Assert.assertEquals(

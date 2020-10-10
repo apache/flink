@@ -43,7 +43,7 @@ class FlinkRexUtilTest {
     val i_size = rexBuilder.makeInputRef(varcharType, 4)
 
     // this predicate contains 95 RexCalls. however,
-    // if this predicate is converted to CNF, the result contains 557715 RexCalls.
+    // if this predicate is converted to CNF, the result contains 2103039 RexCalls.
     val predicate = rexBuilder.makeCall(OR,
       rexBuilder.makeCall(AND,
         rexBuilder.makeCall(EQUALS, i_manufact, rexBuilder.makeLiteral("able")),
@@ -181,10 +181,10 @@ class FlinkRexUtilTest {
     val newPredicate1 = FlinkRexUtil.toCnf(rexBuilder, -1, predicate)
     assertEquals(predicate.toString, newPredicate1.toString)
 
-    val newPredicate2 = FlinkRexUtil.toCnf(rexBuilder, 557714, predicate)
+    val newPredicate2 = FlinkRexUtil.toCnf(rexBuilder, 200, predicate)
     assertEquals(predicate.toString, newPredicate2.toString)
 
-    val newPredicate3 = FlinkRexUtil.toCnf(rexBuilder, 557715, predicate)
+    val newPredicate3 = FlinkRexUtil.toCnf(rexBuilder, 2103039, predicate)
     assertEquals(RexUtil.toCnf(rexBuilder, predicate).toString, newPredicate3.toString)
 
     val newPredicate4 = FlinkRexUtil.toCnf(rexBuilder, Int.MaxValue, predicate)

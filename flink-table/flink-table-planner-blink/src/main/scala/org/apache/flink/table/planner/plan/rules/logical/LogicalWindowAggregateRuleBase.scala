@@ -41,6 +41,8 @@ import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
 
+import java.util.Collections
+
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -64,7 +66,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
 
     // check if we have grouping sets
     val groupSets = agg.getGroupType != Group.SIMPLE
-    !groupSets && !agg.indicator && windowExpressions.nonEmpty
+    !groupSets && windowExpressions.nonEmpty
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -82,7 +84,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
 
     val newProject = builder
       .push(project.getInput)
-      .project(project.getChildExps.updated(windowExprIdx, inAggGroupExpression))
+      .project(project.getProjects.updated(windowExprIdx, inAggGroupExpression))
       .build()
 
     // translate window against newProject.
@@ -174,7 +176,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       relBuilder: RelBuilder): LogicalProject = {
     val projectInput = trimHep(project.getInput)
     var hasWindowOnProctimeCall: Boolean = false
-    val newProjectExprs = project.getChildExps.map {
+    val newProjectExprs = project.getProjects.map {
       case call: RexCall if isWindowCall(call) && isProctimeCall(call.getOperands.head) =>
         hasWindowOnProctimeCall = true
         // Update the window call to reference a RexInputRef instead of a PROCTIME() call.
@@ -204,7 +206,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       // we have to use project factory, because RelBuilder will simplify redundant projects
       RelFactories
         .DEFAULT_PROJECT_FACTORY
-        .createProject(newInput, newProjectExprs, project.getRowType.getFieldNames)
+        .createProject(newInput, Collections.emptyList(),
+          newProjectExprs, project.getRowType.getFieldNames)
         .asInstanceOf[LogicalProject]
     } else {
       project
@@ -220,9 +223,9 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
 
   /** Decides whether the [[RexCall]] is a window call. */
   def isWindowCall(call: RexCall): Boolean = call.getOperator match {
-    case FlinkSqlOperatorTable.SESSION |
-         FlinkSqlOperatorTable.HOP |
-         FlinkSqlOperatorTable.TUMBLE => true
+    case FlinkSqlOperatorTable.SESSION_OLD |
+         FlinkSqlOperatorTable.HOP_OLD |
+         FlinkSqlOperatorTable.TUMBLE_OLD => true
     case _ => false
   }
 
@@ -294,19 +297,19 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       g._1 match {
         case call: RexCall =>
           call.getOperator match {
-            case FlinkSqlOperatorTable.TUMBLE =>
+            case FlinkSqlOperatorTable.TUMBLE_OLD =>
               if (call.getOperands.size() == 2) {
                 true
               } else {
                 throw new TableException("TUMBLE window with alignment is not supported yet.")
               }
-            case FlinkSqlOperatorTable.HOP =>
+            case FlinkSqlOperatorTable.HOP_OLD =>
               if (call.getOperands.size() == 3) {
                 true
               } else {
                 throw new TableException("HOP window with alignment is not supported yet.")
               }
-            case FlinkSqlOperatorTable.SESSION =>
+            case FlinkSqlOperatorTable.SESSION_OLD =>
               if (call.getOperands.size() == 2) {
                 true
               } else {
@@ -339,14 +342,14 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     val resultType = Some(fromDataTypeToLogicalType(timeField.getOutputDataType))
     val windowRef = PlannerWindowReference("w$", resultType)
     windowExpr.getOperator match {
-      case FlinkSqlOperatorTable.TUMBLE =>
+      case FlinkSqlOperatorTable.TUMBLE_OLD =>
         val interval = getOperandAsLong(windowExpr, 1)
         TumblingGroupWindow(
           windowRef,
           timeField,
           intervalOfMillis(interval))
 
-      case FlinkSqlOperatorTable.HOP =>
+      case FlinkSqlOperatorTable.HOP_OLD =>
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         SlidingGroupWindow(
           windowRef,
@@ -354,7 +357,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
           intervalOfMillis(size),
           intervalOfMillis(slide))
 
-      case FlinkSqlOperatorTable.SESSION =>
+      case FlinkSqlOperatorTable.SESSION_OLD =>
         val gap = getOperandAsLong(windowExpr, 1)
         SessionGroupWindow(
           windowRef,

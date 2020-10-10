@@ -65,15 +65,8 @@ class TableSourceTable(
     statistic) {
 
   override def getQualifiedName: util.List[String] = {
-    val names = super.getQualifiedName
     val builder = ImmutableList.builder[String]()
-    builder.addAll(names)
-    if (dynamicOptions.size() != 0) {
-      // Add the dynamic options as part of the table digest,
-      // this is a temporary solution, we expect to avoid this
-      // before Calcite 1.23.0.
-      builder.add(s"dynamic options: $dynamicOptions")
-    }
+        .addAll(super.getQualifiedName)
     extraDigests.foreach(builder.add)
     builder.build()
   }

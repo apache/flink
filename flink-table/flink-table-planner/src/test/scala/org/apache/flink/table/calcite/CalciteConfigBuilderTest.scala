@@ -56,10 +56,10 @@ class CalciteConfigBuilderTest {
   def testRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
-      .replaceLogicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .replacePhysicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .replaceLogicalRewriteRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
+      .addNormRuleSet(RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS))
+      .replaceLogicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+      .replacePhysicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+      .replaceLogicalRewriteRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
       .replaceDecoRuleSet(RuleSets.ofList(DataStreamRetractionRules.DEFAULT_RETRACTION_INSTANCE))
       .build()
 
@@ -83,206 +83,206 @@ class CalciteConfigBuilderTest {
   def testReplaceNormalizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
+      .replaceNormRuleSet(RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS))
       .build()
 
     assertEquals(true, cc.replacesNormRuleSet)
     assertTrue(cc.normRuleSet.isDefined)
     val cSet = cc.normRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(ReduceExpressionsRule.FILTER_INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
   }
 
   @Test
   def testReplaceNormalizationAddRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
-      .addNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE))
+      .replaceNormRuleSet(RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS))
+      .addNormRuleSet(RuleSets.ofList(CoreRules.PROJECT_REDUCE_EXPRESSIONS))
       .build()
 
     assertEquals(true, cc.replacesNormRuleSet)
     assertTrue(cc.normRuleSet.isDefined)
     val cSet = cc.normRuleSet.get.iterator().asScala.toSet
     assertEquals(2, cSet.size)
-    assertTrue(cSet.contains(ReduceExpressionsRule.FILTER_INSTANCE))
-    assertTrue(cSet.contains(ReduceExpressionsRule.PROJECT_INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
+    assertTrue(cSet.contains(CoreRules.PROJECT_REDUCE_EXPRESSIONS))
   }
 
   @Test
   def testAddNormalizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
+      .addNormRuleSet(RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS))
       .build()
 
     assertEquals(false, cc.replacesNormRuleSet)
     assertTrue(cc.normRuleSet.isDefined)
     val cSet = cc.normRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(ReduceExpressionsRule.FILTER_INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_REDUCE_EXPRESSIONS))
   }
 
   @Test
   def testAddAddNormalizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
-      .addNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE,
-        ReduceExpressionsRule.CALC_INSTANCE))
+      .addNormRuleSet(RuleSets.ofList(CoreRules.FILTER_REDUCE_EXPRESSIONS))
+      .addNormRuleSet(RuleSets.ofList(CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+        CoreRules.CALC_REDUCE_EXPRESSIONS))
       .build()
 
     assertEquals(false, cc.replacesNormRuleSet)
     assertTrue(cc.normRuleSet.isDefined)
     val cList = cc.normRuleSet.get.iterator().asScala.toList
     assertEquals(3, cList.size)
-    assertEquals(cList.head, ReduceExpressionsRule.FILTER_INSTANCE)
-    assertEquals(cList(1), ReduceExpressionsRule.PROJECT_INSTANCE)
-    assertEquals(cList(2), ReduceExpressionsRule.CALC_INSTANCE)
+    assertEquals(cList.head, CoreRules.FILTER_REDUCE_EXPRESSIONS)
+    assertEquals(cList(1), CoreRules.PROJECT_REDUCE_EXPRESSIONS)
+    assertEquals(cList(2), CoreRules.CALC_REDUCE_EXPRESSIONS)
   }
 
   @Test
   def testReplaceLogicalOptimizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-        .replaceLogicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
+        .replaceLogicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
         .build()
 
     assertEquals(true, cc.replacesLogicalOptRuleSet)
     assertTrue(cc.logicalOptRuleSet.isDefined)
     val cSet = cc.logicalOptRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
   }
 
   @Test
   def testReplaceLogicalOptimizationAddRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-        .replaceLogicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-        .addLogicalOptRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+        .replaceLogicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+        .addLogicalOptRuleSet(RuleSets.ofList(CoreRules.CALC_MERGE, CoreRules.CALC_SPLIT))
         .build()
 
     assertEquals(true, cc.replacesLogicalOptRuleSet)
     assertTrue(cc.logicalOptRuleSet.isDefined)
     val cSet = cc.logicalOptRuleSet.get.iterator().asScala.toSet
     assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_SPLIT))
   }
 
   @Test
   def testAddLogicalOptimizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-        .addLogicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-        .addLogicalOptRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+        .addLogicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+        .addLogicalOptRuleSet(RuleSets.ofList(CoreRules.CALC_MERGE, CoreRules.CALC_SPLIT))
         .build()
 
     assertEquals(false, cc.replacesLogicalOptRuleSet)
     assertTrue(cc.logicalOptRuleSet.isDefined)
     val cSet = cc.logicalOptRuleSet.get.iterator().asScala.toSet
     assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_SPLIT))
   }
 
   @Test
   def testReplaceLogicalRewriteRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceLogicalRewriteRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
+      .replaceLogicalRewriteRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
       .build()
 
     assertEquals(true, cc.replacesLogicalRewriteRuleSet)
     assertTrue(cc.logicalRewriteRuleSet.isDefined)
     val cSet = cc.logicalRewriteRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
   }
 
   @Test
   def testReplaceLogicalRewriteAddRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceLogicalRewriteRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .addLogicalRewriteRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+      .replaceLogicalRewriteRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+      .addLogicalRewriteRuleSet(RuleSets.ofList(CoreRules.CALC_MERGE, CoreRules.CALC_SPLIT))
       .build()
 
     assertEquals(true, cc.replacesLogicalRewriteRuleSet)
     assertTrue(cc.logicalRewriteRuleSet.isDefined)
     val cSet = cc.logicalRewriteRuleSet.get.iterator().asScala.toSet
     assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_SPLIT))
   }
 
   @Test
   def testAddLogicalRewriteRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addLogicalRewriteRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .addLogicalRewriteRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+      .addLogicalRewriteRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+      .addLogicalRewriteRuleSet(RuleSets.ofList(CoreRules.CALC_MERGE, CoreRules.CALC_SPLIT))
       .build()
 
     assertEquals(false, cc.replacesLogicalRewriteRuleSet)
     assertTrue(cc.logicalRewriteRuleSet.isDefined)
     val cSet = cc.logicalRewriteRuleSet.get.iterator().asScala.toSet
     assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_SPLIT))
   }
 
   @Test
   def testReplacePhysicalOptimizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-        .replacePhysicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
+        .replacePhysicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
         .build()
 
     assertEquals(true, cc.replacesPhysicalOptRuleSet)
     assertTrue(cc.physicalOptRuleSet.isDefined)
     val cSet = cc.physicalOptRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
   }
 
   @Test
   def testReplacePhysicalOptimizationAddRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-        .replacePhysicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-        .addPhysicalOptRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+        .replacePhysicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+        .addPhysicalOptRuleSet(RuleSets.ofList(CoreRules.CALC_MERGE, CoreRules.CALC_SPLIT))
         .build()
 
     assertEquals(true, cc.replacesPhysicalOptRuleSet)
     assertTrue(cc.physicalOptRuleSet.isDefined)
     val cSet = cc.physicalOptRuleSet.get.iterator().asScala.toSet
     assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_SPLIT))
   }
 
   @Test
   def testAddPhysicalOptimizationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-        .addPhysicalOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-        .addPhysicalOptRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+        .addPhysicalOptRuleSet(RuleSets.ofList(CoreRules.FILTER_MERGE))
+        .addPhysicalOptRuleSet(RuleSets.ofList(CoreRules.CALC_MERGE, CoreRules.CALC_SPLIT))
         .build()
 
     assertEquals(false, cc.replacesPhysicalOptRuleSet)
     assertTrue(cc.physicalOptRuleSet.isDefined)
     val cSet = cc.physicalOptRuleSet.get.iterator().asScala.toSet
     assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cSet.contains(CoreRules.FILTER_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_MERGE))
+    assertTrue(cSet.contains(CoreRules.CALC_SPLIT))
   }
 
   @Test
@@ -457,11 +457,9 @@ class CalciteConfigBuilderTest {
 
   @Test
   def testReplaceSqlToRelConverterConfig(): Unit = {
-    val config = SqlToRelConverter.configBuilder()
+    val config = SqlToRelConverter.config()
       .withTrimUnusedFields(false)
-      .withConvertTableAccess(false)
       .withInSubQueryThreshold(Integer.MAX_VALUE)
-      .build()
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .replaceSqlToRelConverterConfig(config)
@@ -474,11 +472,9 @@ class CalciteConfigBuilderTest {
   @Test
   def testUnWrap(): Unit = {
 
-    val config = SqlToRelConverter.configBuilder()
+    val config = SqlToRelConverter.config()
       .withTrimUnusedFields(false)
-      .withConvertTableAccess(false)
       .withInSubQueryThreshold(Integer.MAX_VALUE)
-      .build()
 
     val pc: PlannerConfig = new CalciteConfigBuilder()
       .replaceSqlToRelConverterConfig(config)

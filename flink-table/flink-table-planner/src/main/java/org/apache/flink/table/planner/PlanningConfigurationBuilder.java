@@ -52,15 +52,15 @@ import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
+import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
+import org.apache.calcite.tools.RelBuilder;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -116,14 +116,11 @@ public class PlanningConfigurationBuilder {
 			planner,
 			new RexBuilder(typeFactory));
 		RelOptSchema relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
-		Context chain = Contexts.chain(
-			context,
-			// We need to overwrite the default scan factory, which does not
-			// expand views. The expandingScanFactory uses the FlinkPlanner to translate a view
-			// into a rel tree, before applying any subsequent rules.
-			Contexts.of(RelFactories.expandingScanFactory(
+		Context chain = Contexts.of(
+				context,
+				// Sets up the ViewExpander explicitly for FlinkRelBuilder.
 				createFlinkPlanner(currentCatalog, currentDatabase),
-				RelFactories.DEFAULT_TABLE_SCAN_FACTORY))
+				RelBuilder.Config.DEFAULT.withBloat(-1) // never merge project
 		);
 
 		return new FlinkRelBuilder(chain, cluster, relOptSchema, expressionBridge);
@@ -249,12 +246,10 @@ public class PlanningConfigurationBuilder {
 			CalciteConfig calciteConfig,
 			ExpressionBridge<PlannerExpression> expressionBridge) {
 		return JavaScalaConversionUtil.toJava(calciteConfig.sqlToRelConverterConfig()).orElseGet(
-			() -> SqlToRelConverter.configBuilder()
+			() -> SqlToRelConverter.config()
 				.withTrimUnusedFields(false)
-				.withConvertTableAccess(true)
 				.withInSubQueryThreshold(Integer.MAX_VALUE)
 				.withRelBuilderFactory(new FlinkRelBuilderFactory(expressionBridge))
-				.build()
 		);
 	}
 
@@ -262,7 +257,7 @@ public class PlanningConfigurationBuilder {
 	 * Returns the operator table for this environment including a custom Calcite configuration.
 	 */
 	private SqlOperatorTable getSqlOperatorTable(CalciteConfig calciteConfig, FunctionCatalog functionCatalog) {
-		SqlOperatorTable baseOperatorTable = ChainedSqlOperatorTable.of(
+		SqlOperatorTable baseOperatorTable = SqlOperatorTables.chain(
 			new BasicOperatorTable(),
 			new FunctionCatalogOperatorTable(functionCatalog, typeFactory)
 		);
@@ -271,7 +266,7 @@ public class PlanningConfigurationBuilder {
 				if (calciteConfig.replacesSqlOperatorTable()) {
 					return operatorTable;
 				} else {
-					return ChainedSqlOperatorTable.of(baseOperatorTable, operatorTable);
+					return SqlOperatorTables.chain(baseOperatorTable, operatorTable);
 				}
 			}
 		).orElse(baseOperatorTable);

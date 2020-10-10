@@ -61,7 +61,7 @@ import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
+import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
@@ -242,12 +242,11 @@ public class PlannerContext {
 				() -> {
 					SqlConformance conformance = getSqlConformance();
 					return SqlParser
-							.configBuilder()
-							.setParserFactory(FlinkSqlParserFactories.create(conformance))
-							.setConformance(conformance)
-							.setLex(Lex.JAVA)
-							.setIdentifierMaxLength(256)
-							.build();
+							.config()
+							.withParserFactory(FlinkSqlParserFactories.create(conformance))
+							.withConformance(conformance)
+							.withLex(Lex.JAVA)
+							.withIdentifierMaxLength(256);
 				}
 		);
 	}
@@ -271,13 +270,12 @@ public class PlannerContext {
 	 */
 	private SqlToRelConverter.Config getSqlToRelConverterConfig(CalciteConfig calciteConfig) {
 		return JavaScalaConversionUtil.<SqlToRelConverter.Config>toJava(calciteConfig.getSqlToRelConverterConfig()).orElseGet(
-				() -> SqlToRelConverter.configBuilder()
+				() -> SqlToRelConverter.config()
 						.withTrimUnusedFields(false)
 						.withHintStrategyTable(FlinkHintStrategies.createHintStrategyTable())
 						.withInSubQueryThreshold(Integer.MAX_VALUE)
 						.withExpand(false)
 						.withRelBuilderFactory(FlinkRelFactories.FLINK_REL_BUILDER())
-						.build()
 		);
 	}
 
@@ -289,7 +287,7 @@ public class PlannerContext {
 					if (calciteConfig.replacesSqlOperatorTable()) {
 						return operatorTable;
 					} else {
-						return ChainedSqlOperatorTable.of(getBuiltinSqlOperatorTable(), operatorTable);
+						return SqlOperatorTables.chain(getBuiltinSqlOperatorTable(), operatorTable);
 					}
 				}
 		).orElseGet(this::getBuiltinSqlOperatorTable);
@@ -299,7 +297,7 @@ public class PlannerContext {
 	 * Returns builtin the operator table and external the operator for this environment.
 	 */
 	private SqlOperatorTable getBuiltinSqlOperatorTable() {
-		return ChainedSqlOperatorTable.of(
+		return SqlOperatorTables.chain(
 				new FunctionCatalogOperatorTable(
 						context.getFunctionCatalog(),
 						context.getCatalogManager().getDataTypeFactory(),

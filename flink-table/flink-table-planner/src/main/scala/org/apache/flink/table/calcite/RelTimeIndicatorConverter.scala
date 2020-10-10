@@ -35,6 +35,8 @@ import org.apache.flink.table.plan.logical.rel._
 import org.apache.flink.table.plan.nodes.LogicalSink
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 
+import org.apache.calcite.rel.hint.RelHint
+
 import java.util.{Collections => JCollections}
 
 import scala.collection.JavaConversions._
@@ -147,7 +149,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     case uncollect: Uncollect =>
       // visit children and update inputs
       val input = uncollect.getInput.accept(this)
-      Uncollect.create(uncollect.getTraitSet, input, uncollect.withOrdinality)
+      Uncollect.create(uncollect.getTraitSet, input,
+        uncollect.withOrdinality, JCollections.emptyList())
 
     case scan: LogicalTableFunctionScan =>
       scan
@@ -189,7 +192,9 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
       // add final conversion if necessary
       if (needsConversion) {
-        newInput = LogicalProject.create(newInput, projects, newInput.getRowType.getFieldNames)
+        newInput = LogicalProject.create(
+          newInput, JCollections.emptyList[RelHint](),
+          projects, newInput.getRowType.getFieldNames)
       }
       new LogicalSink(
         sink.getCluster,
@@ -228,7 +233,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
     val projects = project.getProjects.map(_.accept(materializer))
     val fieldNames = project.getRowType.getFieldNames
-    LogicalProject.create(input, projects, fieldNames)
+    LogicalProject.create(input, project.getHints, projects, fieldNames)
   }
 
   override def visit(join: LogicalJoin): RelNode = {
@@ -239,6 +244,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     LogicalJoin.create(
       left,
       right,
+      join.getHints,
       join.getCondition.accept(materializer),
       join.getVariablesSet,
       join.getJoinType)
@@ -340,6 +346,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
 
           LogicalProject.create(
             lp.getInput,
+            lp.getHints,
             projects,
             input.getRowType.getFieldNames)
 
@@ -409,6 +416,10 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val input = modify.getInput.accept(this)
     modify.copy(modify.getTraitSet, JCollections.singletonList(input))
   }
+
+  override def visit(calc: LogicalCalc): RelNode = {
+    calc // Do nothing for Calc now.
+  }
 }
 
 object RelTimeIndicatorConverter {
@@ -440,6 +451,7 @@ object RelTimeIndicatorConverter {
     if (needsConversion) {
       LogicalProject.create(
       convertedRoot,
+      JCollections.emptyList[RelHint](),
       projects,
       convertedRoot.getRowType.getFieldNames)
     } else {
@@ -609,6 +621,7 @@ class RexTimeIndicatorMaterializerUtils(rexBuilder: RexBuilder) {
 
     LogicalProject.create(
       input,
+      JCollections.emptyList[RelHint](),
       projects,
       input.getRowType.getFieldNames)
   }

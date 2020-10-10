@@ -202,6 +202,7 @@ public class FlinkSemiAntiJoinJoinTransposeRule extends RelOptRule {
 		Join newSemiAntiJoin = LogicalJoin.create(
 				newSemiAntiJoinLeft,
 				semiAntiJoin.getRight(),
+				join.getHints(),
 				newSemiAntiJoinFilter,
 				semiAntiJoin.getVariablesSet(),
 				semiAntiJoin.getJoinType());

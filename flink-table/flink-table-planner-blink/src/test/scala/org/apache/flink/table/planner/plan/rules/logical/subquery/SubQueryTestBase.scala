@@ -33,12 +33,10 @@ class SubQueryTestBase extends TableTestBase {
   var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
   val builder = CalciteConfig.createBuilder(calciteConfig)
   builder.replaceSqlToRelConverterConfig(
-    SqlToRelConverter.configBuilder()
+    SqlToRelConverter.config()
       .withTrimUnusedFields(false)
-      .withConvertTableAccess(false)
       .withExpand(false)
-      .withInSubQueryThreshold(3)
-      .build())
+      .withInSubQueryThreshold(3))
 
   util.tableEnv.getConfig.setPlannerConfig(builder.build())
 }

@@ -30,15 +30,9 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.util.BitString;
 import org.apache.calcite.util.DateString;
-import org.apache.calcite.util.ImmutableNullableList;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.TimeString;
@@ -51,9 +45,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import scala.Tuple3;
@@ -103,16 +95,17 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	}
 
 	@Override
-	public RelDataType getRowType(RelDataTypeFactory typeFactory, List<SqlNode> operandList) {
+	public RelDataType getRowType(RelDataTypeFactory typeFactory, List<Object> arguments) {
 		Preconditions.checkNotNull(operandTypeChecker.previousArgTypes);
 		FlinkTypeFactory factory = (FlinkTypeFactory) typeFactory;
-		Object[] arguments = convertArguments(
+		Object[] argumentsArray = convertArguments(
 				Arrays.stream(operandTypeChecker.previousArgTypes)
 						.map(factory::createFieldTypeFromLogicalType)
 						.collect(Collectors.toList()),
-				operandList);
+				arguments);
 		DataType resultType = fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(
-				invokeGetResultType(hiveUdtf, arguments, operandTypeChecker.previousArgTypes, (FlinkTypeFactory) typeFactory)));
+				invokeGetResultType(hiveUdtf, argumentsArray,
+					operandTypeChecker.previousArgTypes, (FlinkTypeFactory) typeFactory)));
 		Tuple3<String[], int[], LogicalType[]> fieldInfo = UserDefinedFunctionUtils.getFieldInfo(resultType);
 		return buildRelDataType(typeFactory, fromDataTypeToLogicalType(resultType), fieldInfo._1(), fieldInfo._2());
 	}
@@ -123,18 +116,11 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	 */
 	private static Object[] convertArguments(
 			List<RelDataType> operandTypes,
-			List<SqlNode> operandList) {
-		List<Object> arguments = new ArrayList<>(operandList.size());
+			List<Object> arguments0) {
+		List<Object> arguments = new ArrayList<>(arguments0.size());
 		// Construct a list of arguments, if they are all constants.
-		for (Pair<RelDataType, SqlNode> pair
-				: Pair.zip(operandTypes, operandList)) {
-			try {
-				final Object o = getValue(pair.right);
-				final Object o2 = coerce(o, pair.left);
-				arguments.add(o2);
-			} catch (NonLiteralException e) {
-				arguments.add(null);
-			}
+		for (Pair<RelDataType, Object> pair : Pair.zip(operandTypes, arguments0)) {
+			arguments.add(coerce(pair.right, pair.left));
 		}
 		return arguments.toArray();
 	}
@@ -175,42 +161,6 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 		}
 	}
 
-	private static Object getValue(SqlNode right) throws NonLiteralException {
-		switch (right.getKind()) {
-			case ARRAY_VALUE_CONSTRUCTOR:
-				final List<Object> list = new ArrayList<>();
-				for (SqlNode o : ((SqlCall) right).getOperandList()) {
-					list.add(getValue(o));
-				}
-				return ImmutableNullableList.copyOf(list).toArray();
-			case MAP_VALUE_CONSTRUCTOR:
-				final Map<Object, Object> map = new HashMap<>();
-				final List<SqlNode> operands = ((SqlCall) right).getOperandList();
-				for (int i = 0; i < operands.size(); i += 2) {
-					final SqlNode key = operands.get(i);
-					final SqlNode value = operands.get(i + 1);
-					map.put(getValue(key), getValue(value));
-				}
-				return map;
-			default:
-				if (SqlUtil.isNullLiteral(right, true)) {
-					return null;
-				}
-				if (SqlUtil.isLiteral(right)) {
-					return ((SqlLiteral) right).getValue();
-				}
-				if (right.getKind() == SqlKind.DEFAULT) {
-					return null; // currently NULL is the only default value
-				}
-				throw new NonLiteralException();
-		}
-	}
-
-	/** Thrown when a non-literal occurs in an argument to a user-defined
-	 * table macro. */
-	private static class NonLiteralException extends Exception {
-	}
-
 	public static HiveOperandTypeChecker operandTypeChecker(
 			String name, TableFunction udtf) {
 		return new HiveOperandTypeChecker(
@@ -223,7 +173,7 @@ public class HiveTableSqlFunction extends TableSqlFunction {
 	 * @deprecated TODO hack code, should modify calcite getRowType to pass operand types
 	 */
 	@Deprecated
-	public static class HiveOperandTypeChecker extends OperandTypeChecker {
+	public static class HiveOperandTypeChecker extends OperandMetadata {
 
 		private LogicalType[] previousArgTypes;
 
