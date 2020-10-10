@@ -55,8 +55,7 @@ Calc(select=[a1, a2])
 LogicalProject(a1=[$1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right])
    :- LogicalAggregate(group=[{}], cnt=[COUNT()])
-   :  +- LogicalProject($f0=[0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
 ]]>
     </Resource>
@@ -68,8 +67,7 @@ Calc(select=[a1])
    :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
    :     +- Exchange(distribution=[single])
    :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-   :           +- Calc(select=[0 AS $f0])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
 ]]>
     </Resource>
@@ -83,8 +81,7 @@ Calc(select=[a1])
 LogicalProject(a1=[$1])
 +- LogicalJoin(condition=[<($0, $2)], joinType=[right])
    :- LogicalAggregate(group=[{}], cnt=[COUNT()])
-   :  +- LogicalProject($f0=[0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
 ]]>
     </Resource>
@@ -96,8 +93,7 @@ Calc(select=[a1])
    :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
    :     +- Exchange(distribution=[single])
    :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-   :           +- Calc(select=[0 AS $f0])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2])
 ]]>
     </Resource>
@@ -112,8 +108,7 @@ LogicalProject(a2=[$1])
 +- LogicalJoin(condition=[>($0, $2)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
    +- LogicalAggregate(group=[{}], cnt=[COUNT()])
-      +- LogicalProject($f0=[0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -125,8 +120,7 @@ Calc(select=[a2])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-               +- Calc(select=[0 AS $f0])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -169,8 +163,7 @@ LogicalProject(a2=[$1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]])
    +- LogicalAggregate(group=[{}], cnt=[COUNT()])
-      +- LogicalProject($f0=[0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
@@ -182,8 +175,7 @@ Calc(select=[a2])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-               +- Calc(select=[0 AS $f0])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2)]]], fields=[b1, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -243,11 +235,11 @@ Calc(select=[a2, EXPR$1])
    :     +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
    :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
-      +- SortAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
+      +- HashAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
          +- Calc(select=[*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0])
-            +- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
+            +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
                +- Exchange(distribution=[single])
-                  +- LocalSortAggregate(select=[Partial_SUM(a1) AS sum$0])
+                  +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0])
                      +- Calc(select=[a1])
                         +- Reused(reference_id=[1])
 ]]>

@@ -28,9 +28,8 @@ SELECT a FROM MyTable1 WHERE b = (
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[=($1, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalFilter(condition=[OR(AND(=($0, $cor0.a), <($0, 2)), AND(=($0, $cor0.a), =($cor0.b, 5)))])
-      LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
+  LogicalFilter(condition=[OR(AND(=($0, $cor0.a), <($0, 2)), AND(=($0, $cor0.a), =($cor0.b, 5)))])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
 }))], variablesSet=[[$cor0]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
