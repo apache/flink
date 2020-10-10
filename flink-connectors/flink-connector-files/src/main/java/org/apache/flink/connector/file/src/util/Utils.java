@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.src.util;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
@@ -26,6 +27,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.function.Consumer;
 
 /**
  * Miscellaneous utilities for the file source.
@@ -63,6 +65,28 @@ public final class Utils {
 			code.run();
 			return null;
 		});
+	}
+
+	/**
+	 * Performs the given action for each remaining element in {@link BulkFormat.Reader} until all
+	 * elements have been processed or the action throws an exception.
+	 */
+	public static <T> void forEachRemaining(
+			final BulkFormat.Reader<T> reader,
+			final Consumer<? super T> action) throws IOException {
+		BulkFormat.RecordIterator<T> batch;
+		RecordAndPosition<T> record;
+
+		try {
+			while ((batch = reader.readBatch()) != null) {
+				while ((record = batch.next()) != null) {
+					action.accept(record.getRecord());
+				}
+				batch.releaseBatch();
+			}
+		} finally {
+			reader.close();
+		}
 	}
 
 	// ------------------------------------------------------------------------
