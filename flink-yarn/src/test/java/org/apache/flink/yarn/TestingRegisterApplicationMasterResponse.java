@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.impl.pb.RegisterApplicationMasterResponsePBImpl;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.Resource;
 
 import java.util.Collections;
 import java.util.EnumSet;
@@ -31,6 +32,7 @@ import java.util.function.Supplier;
  * A Yarn {@link RegisterApplicationMasterResponse} implementation for testing.
  */
 public class TestingRegisterApplicationMasterResponse extends RegisterApplicationMasterResponsePBImpl {
+	private static final Resource MAX_CAPABILITY = Resource.newInstance(1024 * 10000, 10000);
 	private final Supplier<List<Container>> getContainersFromPreviousAttemptsSupplier;
 
 	TestingRegisterApplicationMasterResponse(Supplier<List<Container>> getContainersFromPreviousAttemptsSupplier) {
@@ -52,5 +54,10 @@ public class TestingRegisterApplicationMasterResponse extends RegisterApplicatio
 	@SuppressWarnings("unchecked")
 	public EnumSet getSchedulerResourceTypes() {
 		return EnumSet.copyOf(Collections.<Enum>emptySet());
+	}
+
+	@Override
+	public Resource getMaximumResourceCapability() {
+		return MAX_CAPABILITY;
 	}
 }

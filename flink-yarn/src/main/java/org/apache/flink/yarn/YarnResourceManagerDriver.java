@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.resourcemanager.active.AbstractResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.webmonitor.history.HistoryServerUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -63,7 +63,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -71,7 +70,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -79,8 +77,6 @@ import java.util.stream.Collectors;
  * Implementation of {@link ResourceManagerDriver} for Yarn deployment.
  */
 public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<YarnWorkerNode> {
-
-	private static final Priority RM_REQUEST_PRIORITY = Priority.newInstance(1);
 
 	/** Environment variable name of the hostname given by YARN.
 	 * In task executor we use the hostnames given by YARN consistently throughout akka */
@@ -102,8 +98,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 	/** Request resource futures, keyed by container's TaskExecutorProcessSpec. */
 	private final Map<TaskExecutorProcessSpec, Queue<CompletableFuture<YarnWorkerNode>>> requestResourceFutures;
 
-	private final TaskExecutorProcessSpecContainerResourceAdapter taskExecutorProcessSpecContainerResourceAdapter;
-
 	private final RegisterApplicationMasterResponseReflector registerApplicationMasterResponseReflector;
 
 	private final YarnResourceManagerClientFactory yarnResourceManagerClientFactory;
@@ -116,7 +110,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 	/** Client to communicate with the Node manager and launch TaskExecutor processes. */
 	private NMClientAsync nodeManagerClient;
 
-	private TaskExecutorProcessSpecContainerResourceAdapter.MatchingStrategy matchingStrategy;
+	private TaskExecutorProcessSpecContainerResourcePriorityAdapter taskExecutorProcessSpecContainerResourcePriorityAdapter;
 
 	public YarnResourceManagerDriver(
 		Configuration flinkConfig,
@@ -144,12 +138,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
 		containerRequestHeartbeatIntervalMillis = flinkConfig.getInteger(YarnConfigOptions.CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS);
 
-		this.taskExecutorProcessSpecContainerResourceAdapter = Utils.createTaskExecutorProcessSpecContainerResourceAdapter(flinkConfig, yarnConfig);
 		this.registerApplicationMasterResponseReflector = new RegisterApplicationMasterResponseReflector(log);
-
-		this.matchingStrategy = flinkConfig.getBoolean(YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES) ?
-			TaskExecutorProcessSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
-			TaskExecutorProcessSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
 
 		this.yarnResourceManagerClientFactory = yarnResourceManagerClientFactory;
 		this.yarnNodeManagerClientFactory = yarnNodeManagerClientFactory;
@@ -171,7 +160,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 			final RegisterApplicationMasterResponse registerApplicationMasterResponse = registerApplicationMaster();
 			getContainersFromPreviousAttempts(registerApplicationMasterResponse);
-			updateMatchingStrategy(registerApplicationMasterResponse);
+			taskExecutorProcessSpecContainerResourcePriorityAdapter =
+				new TaskExecutorProcessSpecContainerResourcePriorityAdapter(
+					registerApplicationMasterResponse.getMaximumResourceCapability(),
+					ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 		} catch (Exception e) {
 			throw new ResourceManagerException("Could not start resource manager client.", e);
 		}
@@ -228,21 +220,30 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 	@Override
 	public CompletableFuture<YarnWorkerNode> requestResource(TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		final Optional<Resource> containerResourceOptional = getContainerResource(taskExecutorProcessSpec);
+		checkInitialized();
+
 		final CompletableFuture<YarnWorkerNode> requestResourceFuture = new CompletableFuture<>();
 
-		if (containerResourceOptional.isPresent()) {
-			resourceManagerClient.addContainerRequest(getContainerRequest(containerResourceOptional.get()));
+		final Optional<TaskExecutorProcessSpecContainerResourcePriorityAdapter.PriorityAndResource> priorityAndResourceOpt =
+			taskExecutorProcessSpecContainerResourcePriorityAdapter.getPriorityAndResource(taskExecutorProcessSpec);
+
+		if (!priorityAndResourceOpt.isPresent()) {
+			requestResourceFuture.completeExceptionally(
+				new ResourceManagerException(
+					String.format("Could not compute the container Resource from the given TaskExecutorProcessSpec %s. " +
+							"This usually indicates the requested resource is larger than Yarn's max container resource limit.",
+						taskExecutorProcessSpec)));
+		} else {
+			final Priority priority = priorityAndResourceOpt.get().getPriority();
+			final Resource resource = priorityAndResourceOpt.get().getResource();
+			resourceManagerClient.addContainerRequest(getContainerRequest(resource, priority));
 
 			// make sure we transmit the request fast and receive fast news of granted allocations
 			resourceManagerClient.setHeartbeatInterval(containerRequestHeartbeatIntervalMillis);
 
 			requestResourceFutures.computeIfAbsent(taskExecutorProcessSpec, ignore -> new LinkedList<>()).add(requestResourceFuture);
 
-			log.info("Requesting new TaskExecutor container with resource {}.", taskExecutorProcessSpec);
-		} else {
-			requestResourceFuture.completeExceptionally(
-				new ResourceManagerException(String.format("Could not compute the container Resource from the given TaskExecutorProcessSpec %s.", taskExecutorProcessSpec)));
+			log.info("Requesting new TaskExecutor container with resource {}, priority {}.", taskExecutorProcessSpec, priority);
 		}
 
 		return requestResourceFuture;
@@ -260,36 +261,39 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 	//  Internal
 	// ------------------------------------------------------------------------
 
-	private void onContainersOfResourceAllocated(Resource resource, List<Container> containers) {
-		final List<TaskExecutorProcessSpec> pendingTaskExecutorProcessSpecs =
-			taskExecutorProcessSpecContainerResourceAdapter.getTaskExecutorProcessSpec(resource, matchingStrategy).stream()
-				.flatMap(spec -> Collections.nCopies(getNumRequestedNotAllocatedWorkersFor(spec), spec).stream())
-				.collect(Collectors.toList());
+	private void onContainersOfPriorityAllocated(Priority priority, List<Container> containers) {
+		final Optional<TaskExecutorProcessSpecContainerResourcePriorityAdapter.TaskExecutorProcessSpecAndResource> taskExecutorProcessSpecAndResourceOpt =
+			taskExecutorProcessSpecContainerResourcePriorityAdapter.getTaskExecutorProcessSpecAndResource(priority);
 
-		int numPending = pendingTaskExecutorProcessSpecs.size();
-		log.info("Received {} containers with resource {}, {} pending container requests.",
+		Preconditions.checkState(taskExecutorProcessSpecAndResourceOpt.isPresent(),
+			"Receive %s containers with unrecognized priority %s. This should not happen.",
+			containers.size(), priority.getPriority());
+
+		final TaskExecutorProcessSpec taskExecutorProcessSpec = taskExecutorProcessSpecAndResourceOpt.get().getTaskExecutorProcessSpec();
+		final Resource resource = taskExecutorProcessSpecAndResourceOpt.get().getResource();
+
+		final Queue<CompletableFuture<YarnWorkerNode>> pendingRequestResourceFutures =
+			requestResourceFutures.getOrDefault(taskExecutorProcessSpec, new LinkedList<>());
+
+		log.info("Received {} containers with priority {}, {} pending container requests.",
 			containers.size(),
-			resource,
-			numPending);
+			priority,
+			pendingRequestResourceFutures.size());
 
 		final Iterator<Container> containerIterator = containers.iterator();
-		final Iterator<TaskExecutorProcessSpec> pendingTaskExecutorProcessSpecIterator = pendingTaskExecutorProcessSpecs.iterator();
-		final Iterator<AMRMClient.ContainerRequest> pendingRequestsIterator =
-			getPendingRequestsAndCheckConsistency(resource, pendingTaskExecutorProcessSpecs.size()).iterator();
+		final Iterator<AMRMClient.ContainerRequest> pendingContainerRequestIterator =
+			getPendingRequestsAndCheckConsistency(priority, resource, pendingRequestResourceFutures.size()).iterator();
 
 		int numAccepted = 0;
-		while (containerIterator.hasNext() && pendingTaskExecutorProcessSpecIterator.hasNext()) {
-			final TaskExecutorProcessSpec taskExecutorProcessSpec = pendingTaskExecutorProcessSpecIterator.next();
+		while (containerIterator.hasNext() && pendingContainerRequestIterator.hasNext()) {
 			final Container container = containerIterator.next();
-			final AMRMClient.ContainerRequest pendingRequest = pendingRequestsIterator.next();
+			final AMRMClient.ContainerRequest pendingRequest = pendingContainerRequestIterator.next();
 			final ResourceID resourceId = getContainerResourceId(container);
-			final CompletableFuture<YarnWorkerNode> requestResourceFuture =
-				Preconditions.checkNotNull(
-					Preconditions.checkNotNull(
-						requestResourceFutures.get(taskExecutorProcessSpec),
-						"The requestResourceFuture for TasExecutorProcessSpec %s should not be null.", taskExecutorProcessSpec).poll(),
-					"The requestResourceFuture queue for TasExecutorProcessSpec %s should not be empty.", taskExecutorProcessSpec);
-			if (requestResourceFutures.get(taskExecutorProcessSpec).isEmpty()) {
+
+			final CompletableFuture<YarnWorkerNode> requestResourceFuture = pendingRequestResourceFutures.poll();
+			Preconditions.checkState(requestResourceFuture != null);
+
+			if (pendingRequestResourceFutures.isEmpty()) {
 				requestResourceFutures.remove(taskExecutorProcessSpec);
 			}
 
@@ -298,7 +302,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 			numAccepted++;
 		}
-		numPending -= numAccepted;
 
 		int numExcess = 0;
 		while (containerIterator.hasNext()) {
@@ -307,7 +310,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		}
 
 		log.info("Accepted {} requested containers, returned {} excess containers, {} pending container requests of resource {}.",
-			numAccepted, numExcess, numPending, resource);
+			numAccepted, numExcess, pendingRequestResourceFutures.size(), resource);
 	}
 
 	private int getNumRequestedNotAllocatedWorkers() {
@@ -349,32 +352,21 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 			}, getMainThreadExecutor()));
 	}
 
-	private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(Resource resource, int expectedNum) {
-		final Collection<Resource> equivalentResources = taskExecutorProcessSpecContainerResourceAdapter.getEquivalentContainerResource(resource, matchingStrategy);
-		final List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequests =
-			equivalentResources.stream()
-				.flatMap(equivalentResource -> resourceManagerClient.getMatchingRequests(
-					RM_REQUEST_PRIORITY,
-					ResourceRequest.ANY,
-					equivalentResource).stream())
+	private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(
+			Priority priority, Resource resource, int expectedNum) {
+		final List<AMRMClient.ContainerRequest> matchingRequests =
+			resourceManagerClient.getMatchingRequests(priority, ResourceRequest.ANY, resource)
+				.stream()
+				.flatMap(Collection::stream)
 				.collect(Collectors.toList());
 
-		final Collection<AMRMClient.ContainerRequest> matchingContainerRequests;
-
-		if (matchingRequests.isEmpty()) {
-			matchingContainerRequests = Collections.emptyList();
-		} else {
-			final Collection<AMRMClient.ContainerRequest> collection = matchingRequests.get(0);
-			matchingContainerRequests = new ArrayList<>(collection);
-		}
-
 		Preconditions.checkState(
-			matchingContainerRequests.size() == expectedNum,
-			"The RMClient's and YarnResourceManagers internal state about the number of pending container requests for resource %s has diverged. " +
+			matchingRequests.size() == expectedNum,
+			"The RMClient's and YarnResourceManagers internal state about the number of pending container requests for priority %s has diverged. " +
 				"Number client's pending container requests %s != Number RM's pending container requests %s.",
-			resource, matchingContainerRequests.size(), expectedNum);
+			priority.getPriority(), matchingRequests.size(), expectedNum);
 
-		return matchingContainerRequests;
+		return matchingRequests;
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(
@@ -419,7 +411,14 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 	@VisibleForTesting
 	Optional<Resource> getContainerResource(TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		return taskExecutorProcessSpecContainerResourceAdapter.tryComputeContainerResource(taskExecutorProcessSpec);
+		Optional<TaskExecutorProcessSpecContainerResourcePriorityAdapter.PriorityAndResource> opt =
+			taskExecutorProcessSpecContainerResourcePriorityAdapter.getPriorityAndResource(taskExecutorProcessSpec);
+
+		if (!opt.isPresent()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(opt.get().getResource());
 	}
 
 	private RegisterApplicationMasterResponse registerApplicationMaster() throws Exception {
@@ -459,23 +458,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
 	}
 
-	private void updateMatchingStrategy(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
-		final Optional<Set<String>> schedulerResourceTypesOptional =
-			registerApplicationMasterResponseReflector.getSchedulerResourceTypeNames(registerApplicationMasterResponse);
-
-		if (schedulerResourceTypesOptional.isPresent()) {
-			Set<String> types = schedulerResourceTypesOptional.get();
-			log.info("Register application master response contains scheduler resource types: {}.", types);
-			matchingStrategy = types.contains("CPU") ?
-				TaskExecutorProcessSpecContainerResourceAdapter.MatchingStrategy.MATCH_VCORE :
-				TaskExecutorProcessSpecContainerResourceAdapter.MatchingStrategy.IGNORE_VCORE;
-		} else {
-			log.info("Register application master response does not contain scheduler resource types, use '{}'.",
-				YarnConfigOptionsInternal.MATCH_CONTAINER_VCORES.key());
-		}
-		log.info("Container matching strategy: {}.", matchingStrategy);
-	}
-
 	// ------------------------------------------------------------------------
 	//  Utility methods
 	// ------------------------------------------------------------------------
@@ -505,12 +487,12 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 	@Nonnull
 	@VisibleForTesting
-	static AMRMClient.ContainerRequest getContainerRequest(Resource containerResource) {
+	static AMRMClient.ContainerRequest getContainerRequest(Resource containerResource, Priority priority) {
 		return new AMRMClient.ContainerRequest(
 			containerResource,
 			null,
 			null,
-			RM_REQUEST_PRIORITY);
+			priority);
 	}
 
 	@VisibleForTesting
@@ -518,8 +500,13 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		return new ResourceID(container.getId().toString(), container.getNodeId().toString());
 	}
 
-	private Map<Resource, List<Container>> groupContainerByResource(List<Container> containers) {
-		return containers.stream().collect(Collectors.groupingBy(Container::getResource));
+	private Map<Priority, List<Container>> groupContainerByPriority(List<Container> containers) {
+		return containers.stream().collect(Collectors.groupingBy(Container::getPriority));
+	}
+
+	private void checkInitialized() {
+		Preconditions.checkState(taskExecutorProcessSpecContainerResourcePriorityAdapter != null,
+			"Driver not initialized.");
 	}
 
 	// ------------------------------------------------------------------------
@@ -531,6 +518,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		@Override
 		public void onContainersCompleted(List<ContainerStatus> statuses) {
 			runAsyncWithFatalHandler(() -> {
+					checkInitialized();
 					log.debug("YARN ResourceManager reported the following containers completed: {}.", statuses);
 					for (final ContainerStatus containerStatus : statuses) {
 
@@ -544,10 +532,11 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		@Override
 		public void onContainersAllocated(List<Container> containers) {
 			runAsyncWithFatalHandler(() -> {
+				checkInitialized();
 				log.info("Received {} containers.", containers.size());
 
-				for (Map.Entry<Resource, List<Container>> entry : groupContainerByResource(containers).entrySet()) {
-					onContainersOfResourceAllocated(entry.getKey(), entry.getValue());
+				for (Map.Entry<Priority, List<Container>> entry : groupContainerByPriority(containers).entrySet()) {
+					onContainersOfPriorityAllocated(entry.getKey(), entry.getValue());
 				}
 
 				// if we are waiting for no further containers, we can go to the

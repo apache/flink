@@ -48,6 +48,7 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -79,7 +80,6 @@ import static org.apache.flink.yarn.YarnConfigKeys.FLINK_DIST_JAR;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.apache.flink.yarn.YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -91,7 +91,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase<YarnWorkerNode> {
 	private static final Resource testingResource = Resource.newInstance(YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB, YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES);
-	private static final Container testingContainer = createTestingContainerWithResource(testingResource, 0);
+	private static final Priority testingPriority = Priority.newInstance(1);
+	private static final Container testingContainer = createTestingContainerWithResource(testingResource, testingPriority, 1);
 	private static final TaskExecutorProcessSpec testingTaskExecutorProcessSpec =
 		new TaskExecutorProcessSpec(
 			new CPUResource(1),
@@ -231,83 +232,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 	}
 
 	@Test
-	public void testStartTaskExecutorProcessVariousSpec_SameContainerResource() throws Exception{
-		final TaskExecutorProcessSpec taskExecutorProcessSpec1 =
-			new TaskExecutorProcessSpec(
-				new CPUResource(1),
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ofMebiBytes(100),
-				MemorySize.ZERO,
-				MemorySize.ofMebiBytes(100),
-				MemorySize.ofMebiBytes(100),
-				MemorySize.ZERO,
-				MemorySize.ZERO
-			);
-		final TaskExecutorProcessSpec taskExecutorProcessSpec2 =
-			new TaskExecutorProcessSpec(
-				new CPUResource(1),
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ofMebiBytes(99),
-				MemorySize.ZERO,
-				MemorySize.ofMebiBytes(100),
-				MemorySize.ofMebiBytes(100),
-				MemorySize.ZERO,
-				MemorySize.ZERO
-			);
-
-		new Context() {{
-			final String startCommand1 = TaskManagerOptions.TASK_HEAP_MEMORY.key() + "=" + (100L << 20);
-			final String startCommand2 = TaskManagerOptions.TASK_HEAP_MEMORY.key() + "=" + (99L << 20);
-			final CompletableFuture<Void> startContainerAsyncCommandFuture1 = new CompletableFuture<>();
-			final CompletableFuture<Void> startContainerAsyncCommandFuture2 = new CompletableFuture<>();
-			prepareForTestStartTaskExecutorProcessVariousSpec(
-				startCommand1,
-				startCommand2,
-				startContainerAsyncCommandFuture1,
-				startContainerAsyncCommandFuture2,
-				taskExecutorProcessSpec1);
-
-			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(ignored ->
-				Collections.singletonList(ImmutableList.of(
-					YarnResourceManagerDriver.getContainerRequest(((YarnResourceManagerDriver) getDriver()).getContainerResource(taskExecutorProcessSpec1).get()),
-					YarnResourceManagerDriver.getContainerRequest(((YarnResourceManagerDriver) getDriver()).getContainerResource(taskExecutorProcessSpec2).get()))));
-
-			runTest(() -> {
-				final Resource containerResource = ((YarnResourceManagerDriver) getDriver()).getContainerResource(taskExecutorProcessSpec1).get();
-				// Make sure two worker resource spec will be normalized to the same container resource
-				assertEquals(containerResource, ((YarnResourceManagerDriver) getDriver()).getContainerResource(taskExecutorProcessSpec2).get());
-
-				runInMainThread(() -> getDriver().requestResource(taskExecutorProcessSpec1));
-				runInMainThread(() -> getDriver().requestResource(taskExecutorProcessSpec2));
-
-				// Verify both containers requested
-				verifyFutureCompleted(addContainerRequestFutures.get(0));
-				verifyFutureCompleted(addContainerRequestFutures.get(1));
-
-				// Mock that both containers are allocated
-				Container container1 = createTestingContainerWithResource(containerResource);
-				Container container2 = createTestingContainerWithResource(containerResource);
-				resourceManagerClientCallbackHandler.onContainersAllocated(ImmutableList.of(container1, container2));
-
-				// Verify workers with both spec are started.
-				verifyFutureCompleted(startContainerAsyncCommandFuture1);
-				verifyFutureCompleted(startContainerAsyncCommandFuture2);
-
-				// Mock that one container is completed, while the worker is still pending
-				ContainerStatus testingContainerStatus = createTestingContainerCompletedStatus(container1.getId());
-				resourceManagerClientCallbackHandler.onContainersCompleted(Collections.singletonList(testingContainerStatus));
-
-				// Verify that only one more container is requested.
-				verifyFutureCompleted(addContainerRequestFutures.get(2));
-				assertFalse(addContainerRequestFutures.get(3).isDone());
-			});
-		}};
-	}
-
-	@Test
-	public void testStartWorkerVariousSpec_DifferentContainerResource() throws Exception{
+	public void testStartWorkerVariousSpec() throws Exception{
 		final TaskExecutorProcessSpec taskExecutorProcessSpec1 =
 			new TaskExecutorProcessSpec(
 				new CPUResource(1),
@@ -346,14 +271,16 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 				taskExecutorProcessSpec1);
 
 			testingYarnAMRMClientAsyncBuilder.setGetMatchingRequestsFunction(tuple -> {
-				if (tuple.f2.getVirtualCores() == 1) {
-					return Collections.singletonList(
-						Collections.singletonList(YarnResourceManagerDriver.getContainerRequest(((YarnResourceManagerDriver) getDriver()).getContainerResource(taskExecutorProcessSpec1).get())));
-				} else if (tuple.f2.getVirtualCores() == 2) {
-					return Collections.singletonList(
-						Collections.singletonList(YarnResourceManagerDriver.getContainerRequest(((YarnResourceManagerDriver) getDriver()).getContainerResource(taskExecutorProcessSpec2).get())));
+				final Priority priority = tuple.f0;
+				final List<AMRMClient.ContainerRequest> matchingRequests = new ArrayList<>();
+				for (CompletableFuture<AMRMClient.ContainerRequest> addContainerRequestFuture : addContainerRequestFutures) {
+					final AMRMClient.ContainerRequest request = addContainerRequestFuture.getNow(null);
+					if (request != null && priority.equals(request.getPriority())) {
+						assertThat(tuple.f2, is(request.getCapability()));
+						matchingRequests.add(request);
+					}
 				}
-				return null;
+				return Collections.singletonList(matchingRequests);
 			});
 
 			runTest(() -> {
@@ -383,7 +310,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 
 				// Verify that only container 1 is requested again
 				verifyFutureCompleted(addContainerRequestFutures.get(2));
-				assertThat(addContainerRequestFutures.get(2).get(), is(containerResource1));
+				assertThat(addContainerRequestFutures.get(2).get().getCapability(), is(containerResource1));
 				assertFalse(addContainerRequestFutures.get(3).isDone());
 			});
 		}};
@@ -393,21 +320,21 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 		return containerLaunchContext.getCommands().stream().anyMatch(str -> str.contains(command));
 	}
 
-	private static Container createTestingContainerWithResource(Resource resource, int containerIdx) {
+	private static Container createTestingContainerWithResource(Resource resource, Priority priority, int containerIdx) {
 		final ContainerId containerId = ContainerId.newInstance(
 			ApplicationAttemptId.newInstance(
 				ApplicationId.newInstance(System.currentTimeMillis(), 1),
 				1),
 			containerIdx);
 		final NodeId nodeId = NodeId.newInstance("container", 1234);
-		return new TestingContainer(containerId, nodeId, resource, Priority.UNDEFINED);
+		return new TestingContainer(containerId, nodeId, resource, priority);
 	}
 
 	private class Context extends ResourceManagerDriverTestBase<YarnWorkerNode>.Context {
 		private final CompletableFuture<Void> stopAndCleanupClusterFuture =  new CompletableFuture<>();
 		private final CompletableFuture<Resource> createTaskManagerContainerFuture = new CompletableFuture<>();
 		private final CompletableFuture<Void> stopContainerAsyncFuture = new CompletableFuture<>();
-		final List<CompletableFuture<Resource>> addContainerRequestFutures = new ArrayList<>();
+		final List<CompletableFuture<AMRMClient.ContainerRequest>> addContainerRequestFutures = new ArrayList<>();
 		final AtomicInteger addContainerRequestFuturesNumCompleted = new AtomicInteger(0);
 		final CompletableFuture<Void> removeContainerRequestFuture = new CompletableFuture<>();
 		final CompletableFuture<Void> releaseAssignedContainerFuture = new CompletableFuture<>();
@@ -436,7 +363,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 					.onContainersAllocated(Collections.singletonList(testingContainer));
 			})
 			.setGetMatchingRequestsFunction(ignored ->
-				Collections.singletonList(Collections.singletonList(YarnResourceManagerDriver.getContainerRequest(testingResource))))
+				Collections.singletonList(Collections.singletonList(YarnResourceManagerDriver.getContainerRequest(testingResource, Priority.UNDEFINED))))
 			.setRemoveContainerRequestConsumer((request, handler) -> removeContainerRequestFuture.complete(null))
 			.setReleaseAssignedContainerConsumer((ignored1, ignored2) -> releaseAssignedContainerFuture.complete(null))
 			.setUnregisterApplicationMasterConsumer((ignore1, ignore2, ignore3) -> stopAndCleanupClusterFuture.complete(null))
@@ -533,11 +460,12 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 		@Override
 		protected void validateRequestedResources(Collection<TaskExecutorProcessSpec> taskExecutorProcessSpecs) throws Exception {
 			assertThat(taskExecutorProcessSpecs.size(), is(1));
+			final TaskExecutorProcessSpec taskExecutorProcessSpec = taskExecutorProcessSpecs.iterator().next();
 
 			final Resource resource = createTaskManagerContainerFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
-			assertThat(resource.getMemory(), is(YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB));
-			assertThat(resource.getVirtualCores(), is(YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES));
+			assertThat(resource.getMemory(), is(taskExecutorProcessSpec.getTotalProcessMemorySize().getMebiBytes()));
+			assertThat(resource.getVirtualCores(), is(taskExecutorProcessSpec.getCpuCores().getValue().intValue()));
 			verifyFutureCompleted(removeContainerRequestFuture);
 		}
 
@@ -553,7 +481,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 		}
 
 		Container createTestingContainerWithResource(Resource resource) {
-			return YarnResourceManagerDriverTest.createTestingContainerWithResource(resource, containerIdx++);
+			return YarnResourceManagerDriverTest.createTestingContainerWithResource(resource, testingPriority, containerIdx++);
 		}
 
 		<T> void verifyFutureCompleted(CompletableFuture<T> future) throws Exception {
@@ -572,7 +500,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
 			addContainerRequestFutures.add(new CompletableFuture<>());
 
 			testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer((request, ignored) ->
-				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(request.getCapability()));
+				addContainerRequestFutures.get(addContainerRequestFuturesNumCompleted.getAndIncrement()).complete(request));
 			testingYarnNMClientAsyncBuilder.setStartContainerAsyncConsumer((ignored1, context, ignored3) -> {
 				if (containsStartCommand(context, startCommand1)) {
 					startContainerAsyncCommandFuture1.complete(null);
