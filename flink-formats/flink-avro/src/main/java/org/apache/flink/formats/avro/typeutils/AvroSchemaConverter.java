@@ -297,7 +297,7 @@ public class AvroSchemaConverter {
 	 * @return Avro's {@link Schema} matching this logical type.
 	 */
 	public static Schema convertToSchema(LogicalType logicalType) {
-		return convertToSchema(logicalType, "row_0");
+		return convertToSchema(logicalType, "row_" + System.currentTimeMillis());
 	}
 
 	public static Schema convertToSchema(LogicalType logicalType, String rowName) {
@@ -362,7 +362,7 @@ public class AvroSchemaConverter {
 					.record(rowName)
 					.fields();
 				for (int i = 0; i < rowType.getFieldCount(); i++) {
-					String fieldName = fieldNames.get(i);
+					String fieldName = rowName + "_" + fieldNames.get(i);
 					builder = builder
 						.name(fieldName)
 						.type(convertToSchema(rowType.getTypeAt(i), fieldName))
