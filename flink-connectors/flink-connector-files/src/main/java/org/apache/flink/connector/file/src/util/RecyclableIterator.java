@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
  * @param <E> The type of the records returned by the iterator.
  */
 @Internal
-abstract class RecyclableIterator<E> implements BulkFormat.RecordIterator<E> {
+public abstract class RecyclableIterator<E> implements BulkFormat.RecordIterator<E> {
 
 	@Nullable
 	private final Runnable recycler;
