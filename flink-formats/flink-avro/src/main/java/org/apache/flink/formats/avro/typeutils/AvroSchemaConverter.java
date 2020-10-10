@@ -297,7 +297,7 @@ public class AvroSchemaConverter {
 	 * @return Avro's {@link Schema} matching this logical type.
 	 */
 	public static Schema convertToSchema(LogicalType logicalType) {
-		return convertToSchema(logicalType, "row_" + System.currentTimeMillis());
+		return convertToSchema(logicalType, "record");
 	}
 
 	public static Schema convertToSchema(LogicalType logicalType, String rowName) {

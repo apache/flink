@@ -103,43 +103,42 @@ public class AvroSchemaConverterTest {
 			.field("row3", DataTypes.ROW(
 				DataTypes.FIELD("row3", DataTypes.ROW(DataTypes.FIELD("c", DataTypes.STRING())))))
 			.build().toRowDataType().getLogicalType();
-		String defaultRowName = "row_" + System.currentTimeMillis();
-		Schema schema = AvroSchemaConverter.convertToSchema(rowType, defaultRowName);
+		Schema schema = AvroSchemaConverter.convertToSchema(rowType);
 		assertEquals("{\n" +
 			"  \"type\" : \"record\",\n" +
-			"  \"name\" : \"" + defaultRowName + "\",\n" +
+			"  \"name\" : \"record\",\n" +
 			"  \"fields\" : [ {\n" +
-			"    \"name\" : \"" + defaultRowName + "_row1\",\n" +
+			"    \"name\" : \"record_row1\",\n" +
 			"    \"type\" : {\n" +
 			"      \"type\" : \"record\",\n" +
-			"      \"name\" : \"" + defaultRowName + "_row1\",\n" +
+			"      \"name\" : \"record_row1\",\n" +
 			"      \"fields\" : [ {\n" +
-			"        \"name\" : \"" + defaultRowName + "_row1_a\",\n" +
+			"        \"name\" : \"record_row1_a\",\n" +
 			"        \"type\" : [ \"string\", \"null\" ]\n" +
 			"      } ]\n" +
 			"    }\n" +
 			"  }, {\n" +
-			"    \"name\" : \"" + defaultRowName + "_row2\",\n" +
+			"    \"name\" : \"record_row2\",\n" +
 			"    \"type\" : {\n" +
 			"      \"type\" : \"record\",\n" +
-			"      \"name\" : \"" + defaultRowName + "_row2\",\n" +
+			"      \"name\" : \"record_row2\",\n" +
 			"      \"fields\" : [ {\n" +
-			"        \"name\" : \"" + defaultRowName + "_row2_b\",\n" +
+			"        \"name\" : \"record_row2_b\",\n" +
 			"        \"type\" : [ \"string\", \"null\" ]\n" +
 			"      } ]\n" +
 			"    }\n" +
 			"  }, {\n" +
-			"    \"name\" : \"" + defaultRowName + "_row3\",\n" +
+			"    \"name\" : \"record_row3\",\n" +
 			"    \"type\" : {\n" +
 			"      \"type\" : \"record\",\n" +
-			"      \"name\" : \"" + defaultRowName + "_row3\",\n" +
+			"      \"name\" : \"record_row3\",\n" +
 			"      \"fields\" : [ {\n" +
-			"        \"name\" : \"" + defaultRowName + "_row3_row3\",\n" +
+			"        \"name\" : \"record_row3_row3\",\n" +
 			"        \"type\" : {\n" +
 			"          \"type\" : \"record\",\n" +
-			"          \"name\" : \"" + defaultRowName + "_row3_row3\",\n" +
+			"          \"name\" : \"record_row3_row3\",\n" +
 			"          \"fields\" : [ {\n" +
-			"            \"name\" : \"" + defaultRowName + "_row3_row3_c\",\n" +
+			"            \"name\" : \"record_row3_row3_c\",\n" +
 			"            \"type\" : [ \"string\", \"null\" ]\n" +
 			"          } ]\n" +
 			"        }\n" +
