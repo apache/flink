@@ -26,7 +26,7 @@ public class ByteHashSet {
 
 	protected boolean[] used;
 
-	public ByteHashSet() {
+	public ByteHashSet(final int expected) {
 		used = new boolean[Byte.MAX_VALUE - Byte.MIN_VALUE + 1];
 	}
 

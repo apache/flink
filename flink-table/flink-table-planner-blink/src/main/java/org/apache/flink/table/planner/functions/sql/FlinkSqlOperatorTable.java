@@ -960,6 +960,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlOperator REINTERPRET = SqlStdOperatorTable.REINTERPRET;
 	public static final SqlOperator EXTRACT = SqlStdOperatorTable.EXTRACT;
 	public static final SqlOperator IN = SqlStdOperatorTable.IN;
+	public static final SqlOperator SEARCH = SqlStdOperatorTable.SEARCH;
 	public static final SqlOperator NOT_IN = SqlStdOperatorTable.NOT_IN;
 
 	// FUNCTIONS

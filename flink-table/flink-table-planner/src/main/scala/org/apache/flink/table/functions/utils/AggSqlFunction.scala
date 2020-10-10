@@ -232,7 +232,8 @@ object AggSqlFunction {
 
       override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] = {
         // This should be never invoked.
-        null
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes "
+            + "of AggSqlFunction should never be invoked")
       }
     }
   }

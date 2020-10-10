@@ -37,7 +37,6 @@ import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
 
 import java.lang.reflect.Method
 import java.util
-import java.util.Collections
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -159,7 +158,6 @@ object TableSqlFunction {
       opName: SqlIdentifier): util.List[Object] = {
     val arguments = new util.ArrayList[Object](callBinding.getOperandCount)
     0 until callBinding.getOperandCount foreach { i =>
-      val operandType = callBinding.getOperandType(i)
       val value: Object = if (callBinding.isOperandLiteral(i, true)) {
         callBinding.getOperandLiteralValue(i, classOf[Object])
       } else {
@@ -227,7 +225,11 @@ class OperandMetadata(
 
   override def getConsistency: Consistency = Consistency.NONE
 
-  override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] = null
+  override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] =
+    throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes "
+        + "should never be invoked")
 
-  override def paramNames(): util.List[String] = Collections.emptyList()
+  override def paramNames(): util.List[String] =
+    throw new UnsupportedOperationException("SqlOperandMetadata.paramNames "
+        + "should never be invoked")
 }

@@ -108,8 +108,17 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     }
   }
 
+  def isNonPointsSearchCall(call: RexCall): Boolean = {
+    require(call.getKind == SqlKind.SEARCH)
+    !call.getOperands.get(1)
+        .asInstanceOf[RexLiteral]
+        .getValueAs(classOf[Sarg[_]])
+        .isPoints
+  }
+
   override def visitCall(oriCall: RexCall): Option[Double] = {
-    val call = FlinkRexUtil.expandSearch(rexBuilder, oriCall).asInstanceOf[RexCall]
+    val call = FlinkRexUtil.expandSearch(rexBuilder, oriCall, isNonPointsSearchCall)
+        .asInstanceOf[RexCall]
     call.getOperator match {
       case AND =>
         val predicates = splitAndPredicate(call)

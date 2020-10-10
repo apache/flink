@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.JSet
+import org.apache.flink.table.planner.{JList, JSet}
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
@@ -30,7 +30,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.util.{ControlFlowException, Util}
+import org.apache.calcite.util.{ControlFlowException, Sarg, Util}
 
 import java.lang.Iterable
 import java.util
@@ -344,34 +344,21 @@ object FlinkRexUtil {
       }
     })
 
-  /**
-   * Returns whether a given tree contains any {@link RexInputRef} nodes
-   * with given indices.
-   *
-   * @param node a RexNode tree
-   */
-  def containsInputRef(node: RexNode, refs: JSet[Integer]): Boolean = try {
-    val visitor = new RexVisitorImpl[Void](true) {
-      override def visitInputRef(inputRef: RexInputRef): Void = {
-        if (refs.contains(inputRef.getIndex)) {
-          throw new Util.FoundOne(inputRef)
-        }
-        null
-      }
-    }
-    node.accept(visitor)
-    false
-  } catch {
-    case e: Util.FoundOne =>
-      Util.swallow(e, null)
-      true
+  /** Expands the SEARCH into normal disjunctions recursively. */
+  def expandSearch(
+      rexBuilder: RexBuilder,
+      rex: RexNode): RexNode = {
+    expandSearch(rexBuilder, rex, _ => true)
   }
 
   /** Expands the SEARCH into normal disjunctions recursively. */
-  def expandSearch(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+  def expandSearch(
+      rexBuilder: RexBuilder,
+      rex: RexNode,
+      tester: RexCall => Boolean): RexNode = {
     val shuttle = new RexShuttle() {
       override def visitCall(call: RexCall): RexNode = {
-        if (call.getKind == SqlKind.SEARCH) {
+        if (call.getKind == SqlKind.SEARCH && tester(call)) {
           RexUtil.expandSearch(rexBuilder, null, call)
         } else {
           super.visitCall(call)
@@ -379,6 +366,17 @@ object FlinkRexUtil {
       }
     }
     rex.accept(shuttle)
+  }
+
+  /** Expands the Sarg operands to literals. */
+  def expandSearchOperands(rexBuilder: RexBuilder, call: RexCall): JList[RexNode] = {
+    require(call.getKind == SqlKind.SEARCH)
+    val sargLiteral = call.getOperands.get(1).asInstanceOf[RexLiteral]
+    val sarg = sargLiteral.getValueAs(classOf[Sarg[_]])
+    require(sarg.isPoints)
+    val sargOperands = sarg.rangeSet.asRanges().map(range =>
+      rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
+    List(call.getOperands.head) ++ sargOperands
   }
 
   /**
@@ -391,7 +389,7 @@ object FlinkRexUtil {
     */
   private[flink] def adjustInputRef(
       expr: RexNode,
-      fieldsOldToNewIndexMapping: Map[Int, Int]) = expr.accept(
+      fieldsOldToNewIndexMapping: Map[Int, Int]): RexNode = expr.accept(
     new RexShuttle() {
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
         require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))

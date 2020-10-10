@@ -116,7 +116,6 @@ object FlinkStreamRuleSets {
         // make sure window aggregate can be correctly rewritten by StreamLogicalWindowAggregateRule
         CoreRules.PROJECT_MERGE,
         StreamLogicalWindowAggregateRule.INSTANCE,
-//        WindowJoinRewriteRule.INSTANCE,
         // slices a project into sections which contain window agg functions
         // and sections which do not.
         CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,

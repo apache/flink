@@ -184,8 +184,8 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-FlinkLogicalCalc(select=[a, b, w0$o0 AS $2], where=[SEARCH(w0$o0, Sarg[(-2..2]])])
-+- FlinkLogicalOverAggregate(window#0=[window(partition {1, 2} order by [0 ASC-nulls-first] aggs [RANK()])])
+FlinkLogicalCalc(select=[a, b, $2])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b,c], orderBy=[a ASC], select=[a, b, c, $2])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

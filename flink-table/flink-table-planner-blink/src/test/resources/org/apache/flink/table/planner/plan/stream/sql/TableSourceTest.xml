@@ -68,14 +68,15 @@ Calc(select=[rtime])
     <Resource name="planBefore">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalTableScan(table=[[default_catalog, default_database, T]])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[id, name])
+   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[]]], fields=[])
 ]]>
     </Resource>
   </TestCase>

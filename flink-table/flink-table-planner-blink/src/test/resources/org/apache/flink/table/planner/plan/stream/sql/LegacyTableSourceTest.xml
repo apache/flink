@@ -365,14 +365,15 @@ Calc(select=[name, rtime, val])
     <Resource name="planBefore">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name)]]])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: id, name)]]], fields=[id, name])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestSource(physical fields: )]]], fields=[])
 ]]>
     </Resource>
   </TestCase>

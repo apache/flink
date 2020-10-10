@@ -157,8 +157,7 @@ class CatalogSourceTable[T](
       statistic,
       tableSource,
       schemaTable.isStreamingMode,
-      catalogTable,
-      hintedOptions)
+      catalogTable)
     LogicalTableScan.create(cluster, tableSourceTable, hints)
   }
 

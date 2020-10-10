@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.connector.source.DynamicTableSource
-import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
 import com.google.common.collect.ImmutableList
@@ -41,7 +40,6 @@ import java.util
  * @param tableSource The [[DynamicTableSource]] for which is converted to a Calcite Table
  * @param isStreamingMode A flag that tells if the current table is in stream mode
  * @param catalogTable Catalog table where this table source table comes from
- * @param dynamicOptions The dynamic hinted options
  * @param extraDigests The extra digests which will be added into `getQualifiedName`
  *                     as a part of table digest
  */
@@ -53,7 +51,6 @@ class TableSourceTable(
     val tableSource: DynamicTableSource,
     val isStreamingMode: Boolean,
     val catalogTable: CatalogTable,
-    val dynamicOptions: JMap[String, String],
     val extraDigests: Array[String] = Array.empty)
   extends FlinkPreparingTableBase(
     relOptSchema,
@@ -90,7 +87,6 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      dynamicOptions,
       extraDigests ++ newExtraDigests)
   }
 
@@ -113,7 +109,6 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      dynamicOptions,
       extraDigests ++ newExtraDigests)
   }
 }

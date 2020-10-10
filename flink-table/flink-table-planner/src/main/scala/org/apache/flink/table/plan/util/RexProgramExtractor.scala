@@ -96,7 +96,7 @@ object RexProgramExtractor {
         val convertedExpressions = new mutable.ArrayBuffer[Expression]
         val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
         val inputNames = rexProgram.getInputRowType.getFieldNames.asScala.toArray
-        val converter = new RexNodeToExpressionConverter(inputNames, catalog)
+        val converter = new RexNodeToExpressionConverter(rexBuilder, inputNames, catalog)
 
         conjunctions.asScala.foreach(rex => {
           rex.accept(converter) match {
@@ -154,6 +154,7 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
   * @param functionCatalog The function catalog
   */
 class RexNodeToExpressionConverter(
+    rexBuilder: RexBuilder,
     inputNames: Array[String],
     functionCatalog: FunctionCatalog)
     extends RexVisitor[Option[Expression]] {
@@ -238,7 +239,24 @@ class RexNodeToExpressionConverter(
     Some(Literal(literalValue, literalType))
   }
 
-  override def visitCall(call: RexCall): Option[Expression] = {
+  /** Expands the SEARCH into normal disjunctions recursively. */
+  private def expandSearch(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+    val shuttle = new RexShuttle() {
+      override def visitCall(call: RexCall): RexNode = {
+        if (call.getKind == SqlKind.SEARCH) {
+          RexUtil.expandSearch(rexBuilder, null, call)
+        } else {
+          super.visitCall(call)
+        }
+      }
+    }
+    rex.accept(shuttle)
+  }
+
+  override def visitCall(oriRexCall: RexCall): Option[Expression] = {
+    val call = expandSearch(
+      rexBuilder,
+      oriRexCall).asInstanceOf[RexCall]
     val operands = call.getOperands.map(
       operand => operand.accept(this).orNull
     )

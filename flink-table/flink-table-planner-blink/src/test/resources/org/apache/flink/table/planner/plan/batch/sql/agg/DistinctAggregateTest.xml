@@ -43,6 +43,34 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testDistinctAggWithDuplicateFilterField">
+    <Resource name="sql">
+      <![CDATA[SELECT a, COUNT(c) FILTER (WHERE b > 1),
+COUNT(DISTINCT d) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY a]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $2], EXPR$2=[COUNT(DISTINCT $3) FILTER $2])
++- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, 1))], d=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_MIN(EXPR$1) FILTER $g_3 AS min$0, Partial_COUNT(d) FILTER $g_0 AS count$1])
+         +- Calc(select=[a, d, EXPR$1, AND(=(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 0), $f2) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 3) AS $g_3])
+            +- HashAggregate(isMerge=[true], groupBy=[a, $f2, d, $e], select=[a, $f2, d, $e, Final_COUNT(count$0) AS EXPR$1])
+               +- Exchange(distribution=[hash[a, $f2, d, $e]])
+                  +- LocalHashAggregate(groupBy=[a, $f2, d, $e], select=[a, $f2, d, $e, Partial_COUNT(c) FILTER $f2_0 AS count$0])
+                     +- Expand(projects=[a, c, $f2, d, $e, $f2_0], projects=[{a, c, $f2, d, 0 AS $e, $f2 AS $f2_0}, {a, c, null AS $f2, null AS d, 3 AS $e, $f2 AS $f2_0}])
+                        +- Calc(select=[a, c, IS TRUE(>(b, 1)) AS $f2, d])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiDifferentDistinctAggWithNonDistinctAggOnDifferentColumnAndGroupBy">
     <Resource name="sql">
       <![CDATA[SELECT SUM(DISTINCT a), COUNT(DISTINCT c) FROM MyTable GROUP BY b]]>
@@ -60,8 +88,8 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 Calc(select=[EXPR$0, EXPR$1])
 +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
-      +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) FILTER $g_1 AS sum$0, Partial_COUNT(c) FILTER $g_2 AS count$1])
-         +- Calc(select=[b, a, c, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 2:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 2:BIGINT), 2) AS $g_2])
+      +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) FILTER $g_1 AS sum$0, Partial_COUNT(c) FILTER $g_4 AS count$1])
+         +- Calc(select=[a, b, c, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 4:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, 4:BIGINT), 4) AS $g_4])
             +- HashAggregate(isMerge=[true], groupBy=[a, b, c, $e], select=[a, b, c, $e])
                +- Exchange(distribution=[hash[a, b, c, $e]])
                   +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e])
@@ -83,9 +111,9 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(a) FILTER $g_1 AS count$0, Partial_SUM(b) FILTER $g_2 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_3 AS min$2, Partial_MIN(EXPR$3) FILTER $g_3 AS min$3])
+   +- LocalHashAggregate(select=[Partial_COUNT(a) FILTER $g_1 AS count$0, Partial_SUM(b) FILTER $g_2 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_3 AS min$2, Partial_MIN(EXPR$3) FILTER $g_3 AS min$3])
       +- Calc(select=[a, b, EXPR$2, EXPR$3, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT), 2) AS $g_2, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 2:BIGINT), 2:BIGINT, 3:BIGINT), 3) AS $g_3])
          +- HashAggregate(isMerge=[true], groupBy=[a, b, $e], select=[a, b, $e, Final_MAX(max$0) AS EXPR$2, Final_MIN(min$1) AS EXPR$3])
             +- Exchange(distribution=[hash[a, b, $e]])
@@ -113,8 +141,8 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_MIN(min$3) AS EXPR$3])
    +- Exchange(distribution=[hash[c]])
-      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(a) FILTER $g_1 AS count$0, Partial_SUM(b) FILTER $g_2 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_3 AS min$2, Partial_MIN(EXPR$3) FILTER $g_3 AS min$3])
-         +- Calc(select=[c, a, b, EXPR$2, EXPR$3, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 1:BIGINT, =($e, 4:BIGINT), 2:BIGINT, 3:BIGINT), 3) AS $g_3])
+      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(a) FILTER $g_2 AS count$0, Partial_SUM(b) FILTER $g_4 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_6 AS min$2, Partial_MIN(EXPR$3) FILTER $g_6 AS min$3])
+         +- Calc(select=[a, b, c, EXPR$2, EXPR$3, =(CASE(=($e, 2:BIGINT), 2:BIGINT, =($e, 4:BIGINT), 4:BIGINT, 6:BIGINT), 2) AS $g_2, =(CASE(=($e, 2:BIGINT), 2:BIGINT, =($e, 4:BIGINT), 4:BIGINT, 6:BIGINT), 4) AS $g_4, =(CASE(=($e, 2:BIGINT), 2:BIGINT, =($e, 4:BIGINT), 4:BIGINT, 6:BIGINT), 6) AS $g_6])
             +- HashAggregate(isMerge=[true], groupBy=[a, b, c, $e], select=[a, b, c, $e, Final_MAX(max$0) AS EXPR$2, Final_MIN(min$1) AS EXPR$3])
                +- Exchange(distribution=[hash[a, b, c, $e]])
                   +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e, Partial_MAX(a_0) AS max$0, Partial_MIN(a_0) AS min$1])
@@ -137,10 +165,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(a) FILTER $g_7 AS count$0, Partial_SUM(b) FILTER $g_11 AS sum$1, Partial_COUNT(c) FILTER $g_12 AS count$2])
-      +- Calc(select=[a, b, c, =(CASE(=($e, 7:BIGINT), 7:BIGINT, =($e, 11:BIGINT), 11:BIGINT, 12:BIGINT), 7) AS $g_7, =(CASE(=($e, 7:BIGINT), 7:BIGINT, =($e, 11:BIGINT), 11:BIGINT, 12:BIGINT), 11) AS $g_11, AND(=(CASE(=($e, 7:BIGINT), 7:BIGINT, =($e, 11:BIGINT), 11:BIGINT, 12:BIGINT), 12), IS TRUE(CAST($f3))) AS $g_12])
+   +- LocalHashAggregate(select=[Partial_COUNT(a) FILTER $g_7 AS count$0, Partial_SUM(b) FILTER $g_11 AS sum$1, Partial_COUNT(c) FILTER $g_12 AS count$2])
+      +- Calc(select=[a, b, c, =(CASE(=($e, 7:BIGINT), 7:BIGINT, =($e, 11:BIGINT), 11:BIGINT, 12:BIGINT), 7) AS $g_7, =(CASE(=($e, 7:BIGINT), 7:BIGINT, =($e, 11:BIGINT), 11:BIGINT, 12:BIGINT), 11) AS $g_11, AND(=(CASE(=($e, 7:BIGINT), 7:BIGINT, =($e, 11:BIGINT), 11:BIGINT, 12:BIGINT), 12), $f3) AS $g_12])
          +- HashAggregate(isMerge=[true], groupBy=[a, b, c, $f3, $e], select=[a, b, c, $f3, $e])
             +- Exchange(distribution=[hash[a, b, c, $f3, $e]])
                +- LocalHashAggregate(groupBy=[a, b, c, $f3, $e], select=[a, b, c, $f3, $e])
@@ -193,10 +221,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(a) FILTER $g_1 AS count$0, Partial_SUM(a) FILTER $g_0 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_3 AS min$2])
-      +- Calc(select=[a, EXPR$2, AND(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT), 0), IS TRUE(CAST($f1))) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT), 3) AS $g_3])
+   +- LocalHashAggregate(select=[Partial_COUNT(a) FILTER $g_1 AS count$0, Partial_SUM(a) FILTER $g_0 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_3 AS min$2])
+      +- Calc(select=[a, EXPR$2, AND(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT), 0), $f1) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT), 1) AS $g_1, =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 1:BIGINT), 1:BIGINT, 3:BIGINT), 3) AS $g_3])
          +- HashAggregate(isMerge=[true], groupBy=[a, $f1, $e], select=[a, $f1, $e, Final_MAX(max$0) AS EXPR$2])
             +- Exchange(distribution=[hash[a, $f1, $e]])
                +- LocalHashAggregate(groupBy=[a, $f1, $e], select=[a, $f1, $e, Partial_MAX(a_0) AS max$0])
@@ -251,7 +279,7 @@ Calc(select=[EXPR$0, EXPR$1, CASE(IS NOT NULL(EXPR$2), EXPR$2, 0) AS EXPR$2])
 +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_COUNT(a) FILTER $g_1 AS count$0, Partial_SUM(b) FILTER $g_6 AS sum$1, Partial_MIN(EXPR$2) FILTER $g_7 AS min$2])
-         +- Calc(select=[a, b, EXPR$2, AND(=(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 6:BIGINT), 6:BIGINT, 7:BIGINT), 1), IS TRUE(CAST($f1))) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 6:BIGINT), 6:BIGINT, 7:BIGINT), 6) AS $g_6, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 6:BIGINT), 6:BIGINT, 7:BIGINT), 7) AS $g_7])
+         +- Calc(select=[a, b, EXPR$2, AND(=(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 6:BIGINT), 6:BIGINT, 7:BIGINT), 1), $f1) AS $g_1, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 6:BIGINT), 6:BIGINT, 7:BIGINT), 6) AS $g_6, =(CASE(=($e, 1:BIGINT), 1:BIGINT, =($e, 6:BIGINT), 6:BIGINT, 7:BIGINT), 7) AS $g_7])
             +- HashAggregate(isMerge=[true], groupBy=[a, $f1, b, $e], select=[a, $f1, b, $e, Final_COUNT(count$0) AS EXPR$2])
                +- Exchange(distribution=[hash[a, $f1, b, $e]])
                   +- LocalHashAggregate(groupBy=[a, $f1, b, $e], select=[a, $f1, b, $e, Partial_COUNT(c) AS count$0])
@@ -415,9 +443,9 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(a) AS count$0])
+   +- LocalHashAggregate(select=[Partial_COUNT(a) AS count$0])
       +- HashAggregate(isMerge=[true], groupBy=[a], select=[a])
          +- Exchange(distribution=[hash[a]])
             +- LocalHashAggregate(groupBy=[a], select=[a])
@@ -439,10 +467,10 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0) FILTER $1], EXPR$1=[SUM(
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(a) FILTER $g_0 AS count$0, Partial_MIN(EXPR$1) FILTER $g_3 AS min$1])
-      +- Calc(select=[a, EXPR$1, AND(=(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 0), IS TRUE(CAST($f1))) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 3) AS $g_3])
+   +- LocalHashAggregate(select=[Partial_COUNT(a) FILTER $g_0 AS count$0, Partial_MIN(EXPR$1) FILTER $g_3 AS min$1])
+      +- Calc(select=[a, EXPR$1, AND(=(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 0), $f1) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 3) AS $g_3])
          +- HashAggregate(isMerge=[true], groupBy=[a, $f1, $e], select=[a, $f1, $e, Final_SUM(sum$0) AS EXPR$1])
             +- Exchange(distribution=[hash[a, $f1, $e]])
                +- LocalHashAggregate(groupBy=[a, $f1, $e], select=[a, $f1, $e, Partial_SUM(b) AS sum$0])
@@ -666,33 +694,5 @@ Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2, EXPR$3])
                         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
-  </TestCase>
-  <TestCase name="testDistinctAggWithDuplicateFilterField">
-    <Resource name="sql">
-	  <![CDATA[SELECT a, COUNT(c) FILTER (WHERE b > 1),
-COUNT(DISTINCT d) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY a]]>
-	</Resource>
-	<Resource name="planBefore">
-	  <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $2], EXPR$2=[COUNT(DISTINCT $3) FILTER $2])
-+- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, 1))], d=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
-]]>
-	</Resource>
-	<Resource name="planAfter">
-	  <![CDATA[
-Calc(select=[a, CAST(EXPR$1) AS EXPR$1, EXPR$2])
-+- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MIN(min$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_MIN(EXPR$1) FILTER $g_3 AS min$0, Partial_COUNT(d) FILTER $g_0 AS count$1])
-         +- Calc(select=[a, d, EXPR$1, AND(=(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 0), IS TRUE(CAST($f2))) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 3:BIGINT), 3) AS $g_3])
-            +- HashAggregate(isMerge=[true], groupBy=[a, $f2, d, $e], select=[a, $f2, d, $e, Final_COUNT(count$0) AS EXPR$1])
-               +- Exchange(distribution=[hash[a, $f2, d, $e]])
-                  +- LocalHashAggregate(groupBy=[a, $f2, d, $e], select=[a, $f2, d, $e, Partial_COUNT(c) FILTER $f2_0 AS count$0])
-                     +- Expand(projects=[a, c, $f2, d, $e, $f2_0], projects=[{a, c, $f2, d, 0 AS $e, $f2 AS $f2_0}, {a, c, null AS $f2, null AS d, 3 AS $e, $f2 AS $f2_0}])
-                        +- Calc(select=[a, c, IS TRUE(>(b, 1)) AS $f2, d])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
-]]>
-	</Resource>
   </TestCase>
 </Root>

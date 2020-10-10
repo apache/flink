@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
@@ -31,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.AbstractTable;
 
@@ -50,6 +52,11 @@ import java.util.stream.Collectors;
 public class QueryOperationCatalogViewTable extends AbstractTable implements TranslatableTable {
 	private final QueryOperationCatalogView catalogView;
 	private final RelProtoDataType rowType;
+
+	@Override
+	public Statistic getStatistic() {
+		return FlinkStatistic.UNKNOWN();
+	}
 
 	public static QueryOperationCatalogViewTable createCalciteTable(
 			QueryOperationCatalogView catalogView,

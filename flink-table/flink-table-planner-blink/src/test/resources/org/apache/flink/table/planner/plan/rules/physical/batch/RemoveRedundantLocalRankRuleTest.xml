@@ -67,8 +67,8 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a], where=[SEARCH(w0$o0, Sarg[[2..5]])])
-+- OverAggregate(partitionBy=[a], orderBy=[$f1 ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, $f1, w0$o0])
+Calc(select=[a])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1, w0$o0])
    +- Sort(orderBy=[a ASC, $f1 ASC])
       +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
          +- Exchange(distribution=[hash[a]])

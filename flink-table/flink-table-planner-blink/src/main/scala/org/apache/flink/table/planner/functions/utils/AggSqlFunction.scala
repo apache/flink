@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, ImperativeAggregateFunction, TableAggregateFunction}
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandMetadata, createOperandTypeInference, createReturnTypeInference}
@@ -36,7 +37,6 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
 
-import java.util
 import java.util.Collections
 
 /**
@@ -87,7 +87,7 @@ class AggSqlFunction(
 
   override def toString: String = displayName
 
-  override def getParamTypes: util.List[RelDataType] = null
+  override def getParamTypes: JList[RelDataType] = null
 }
 
 object AggSqlFunction {
@@ -177,14 +177,16 @@ object AggSqlFunction {
       * Operand type checker based on [[AggregateFunction]] given information.
       */
     new SqlOperandMetadata {
-      override def paramNames(): util.List[String] = {
-        // Does not support named parameters.
-        Collections.emptyList()
+      override def paramNames(): JList[String] = {
+        // This should be never invoked.
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramNames "
+            + "should never be invoked")
       }
 
-      override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] = {
+      override def paramTypes(typeFactory: RelDataTypeFactory): JList[RelDataType] = {
         // This should be never invoked.
-        null
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes "
+            + "should never be invoked")
       }
 
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {

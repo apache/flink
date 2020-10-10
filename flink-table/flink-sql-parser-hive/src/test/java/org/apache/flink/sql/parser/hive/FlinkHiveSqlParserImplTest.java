@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -34,13 +35,19 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
 		return FlinkHiveSqlParserImpl.FACTORY;
 	}
 
-	// overrides test methods that we don't support
+	// ignore test methods that we don't support
+	@Ignore
+	@Test
 	public void testDescribeStatement() {
 	}
 
+	@Ignore
+	@Test
 	public void testTableHintsInInsert() {
 	}
 
+	@Ignore
+	@Test
 	public void testDescribeSchema() {
 	}
 

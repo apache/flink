@@ -24,13 +24,10 @@ import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
-
-import java.util.Collections
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -49,13 +46,6 @@ class TableSqlFunction(
     createEvalOperandTypeInference(name, tableFunction, typeFactory),
     createEvalOperandMetadata(name, tableFunction),
     functionImpl) {
-
-  override def getRowTypeInference: SqlReturnTypeInference = new SqlReturnTypeInference {
-    override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
-      // The arguments should never be used.
-      functionImpl.getRowType(opBinding.getTypeFactory, Collections.emptyList())
-    }
-  }
 
   /**
     * Get the user-defined table function.

@@ -91,12 +91,13 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(), null))
     assertEquals(50.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0), null))
     assertEquals(48.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(1), null))
-    assertEquals(17.13976902522821,
+    assertEquals(17.13,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), null), 1e-2)
-    assertEquals(6.99, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), null), 1e-2)
-    assertEquals(21.907435805694995,
+    assertEquals(6.99,
+      mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), null), 1e-2)
+    assertEquals(21.90,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), null), 1e-2)
-    assertEquals(21.907435805694995,
+    assertEquals(21.90,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), null), 1e-2)
     assertEquals(35.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(6), null))
     // TODO check result ??
@@ -104,7 +105,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), null))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), null))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), null))
-    assertEquals(17.13976902522821,
+    assertEquals(17.13,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), null), 1e-2)
 
     // id > 10
@@ -113,12 +114,12 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(), expr1))
     assertEquals(25.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0), expr1))
     assertEquals(24.68, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(1), expr1), 1e-2)
-    assertEquals(17.13976902522821,
+    assertEquals(17.13,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), expr1), 1e-2)
     assertEquals(6.99, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), expr1), 1e-2)
-    assertEquals(21.907435805694995,
+    assertEquals(21.90,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), expr1), 1e-2)
-    assertEquals(21.907435805694995,
+    assertEquals(21.90,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), expr1), 1e-2)
     assertEquals(22.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(6), expr1), 1e-2)
     // TODO check result ??
@@ -126,7 +127,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), expr1))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), expr1))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), expr1))
-    assertEquals(17.13976902522821,
+    assertEquals(17.13,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr1), 1e-2)
 
     // age > 15 and class = 5
@@ -137,12 +138,12 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(1), expr2), 1e-2)
-    assertEquals(17.13976902522821,
+    assertEquals(17.13,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(2), expr2), 1e-2)
     assertEquals(6.99, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(3), expr2), 1e-2)
-    assertEquals(21.907435805694995,
+    assertEquals(21.90,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(4), expr2), 1e-2)
-    assertEquals(21.907435805694995,
+    assertEquals(21.90,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(5), expr2), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(6), expr2), 1e-2)
     // TODO check result ??
@@ -150,7 +151,7 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(8), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(9), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(10), expr2))
-    assertEquals(17.13976902522821,
+    assertEquals(17.13,
       mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(11), expr2), 1e-2)
 
     assertEquals(1.0, mq.getDistinctRowCount(logicalProject, ImmutableBitSet.of(0, 1), expr2))
@@ -193,20 +194,20 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(), null))
     assertEquals(25.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(0), null))
     assertEquals(24.68, mq.getDistinctRowCount(calc, ImmutableBitSet.of(1), null), 1e-2)
-    assertEquals(11.229566003078599,
+    assertEquals(11.22,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(2), null), 1e-2)
-    assertEquals(6.679177597183829,
+    assertEquals(6.67,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(3), null), 1e-2)
-    assertEquals(12.303833004352876,
+    assertEquals(12.30,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(4), null), 1e-2)
-    assertEquals(12.303833004352876,
+    assertEquals(12.30,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(5), null), 1e-2)
     assertEquals(22.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(6), null), 1e-2)
     assertEquals(2.5, mq.getDistinctRowCount(calc, ImmutableBitSet.of(7), null), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(8), null))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(9), null))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(10), null))
-    assertEquals(11.229566003078599,
+    assertEquals(11.22,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), null), 1e-2)
 
     // class = 5
@@ -215,20 +216,20 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(), expr2))
     assertEquals(12.5, mq.getDistinctRowCount(calc, ImmutableBitSet.of(0), expr2))
     assertEquals(12.43, mq.getDistinctRowCount(calc, ImmutableBitSet.of(1), expr2), 1e-2)
-    assertEquals(11.229566003078599,
+    assertEquals(11.22,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(2), expr2), 1e-2)
-    assertEquals(6.679177597183829,
+    assertEquals(6.67,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(3), expr2), 1e-2)
-    assertEquals(12.303833004352876,
+    assertEquals(12.30,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(4), expr2), 1e-2)
-    assertEquals(12.303833004352876,
+    assertEquals(12.30,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(5), expr2), 1e-2)
     assertEquals(11.79, mq.getDistinctRowCount(calc, ImmutableBitSet.of(6), expr2), 1e-2)
     assertEquals(2.5, mq.getDistinctRowCount(calc, ImmutableBitSet.of(7), expr2), 1e-2)
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(8), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(9), expr2))
     assertEquals(1.0, mq.getDistinctRowCount(calc, ImmutableBitSet.of(10), expr2))
-    assertEquals(11.229566003078599,
+    assertEquals(11.22,
       mq.getDistinctRowCount(calc, ImmutableBitSet.of(11), expr2), 1e-2)
   }
 
@@ -574,40 +575,40 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(), null))
 
-    assertEquals(49.99993877818909,
+    assertEquals(49.999938,
       mq.getDistinctRowCount(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of(0), null), 1e-6)
     assertEquals(49.999998,
       mq.getDistinctRowCount(logicalInnerJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-6)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalInnerJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(5.056964454581646E8,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalInnerJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalLeftJoinOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(5.056964454581646E8,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalLeftJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(5.056964454581646E8,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
-    assertEquals(49.99993877818909,
+    assertEquals(49.999938,
       mq.getDistinctRowCount(logicalRightJoinOnUniqueKeys, ImmutableBitSet.of(0), null), 1e-6)
     assertEquals(49.999998,
       mq.getDistinctRowCount(logicalRightJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-6)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalRightJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(5.056964454581646E8,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalRightJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(5.056964454581646E8,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
     assertEquals(2.0E7,
       mq.getDistinctRowCount(logicalFullJoinNotOnUniqueKeys, ImmutableBitSet.of(0), null))
-    assertEquals(5.056964454581646E8,
+    assertEquals(5.0569644545E8,
       mq.getDistinctRowCount(logicalFullJoinNotOnUniqueKeys, ImmutableBitSet.of(1), null), 1e-2)
 
     assertEquals(50,

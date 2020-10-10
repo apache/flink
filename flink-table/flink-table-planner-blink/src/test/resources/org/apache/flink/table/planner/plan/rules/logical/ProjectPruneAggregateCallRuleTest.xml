@@ -123,7 +123,8 @@ LogicalProject(EXPR$0=[1])
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+  LogicalProject($f0=[0])
+    LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
@@ -136,7 +137,8 @@ LogicalJoin(condition=[$4], joinType=[semi])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalProject(i=[true])
          +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-            +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+            +- LogicalProject($f0=[0])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 ]]>
     </Resource>
   </TestCase>
@@ -149,8 +151,9 @@ LogicalJoin(condition=[$4], joinType=[semi])
 LogicalProject(a2=[$0], b2=[$1], c2=[$2], d2=[$3])
 +- LogicalFilter(condition=[EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalFilter(condition=[=(1, 2)])
-    LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+  LogicalProject($f0=[0])
+    LogicalFilter(condition=[=(1, 2)])
+      LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
 })])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
 ]]>
