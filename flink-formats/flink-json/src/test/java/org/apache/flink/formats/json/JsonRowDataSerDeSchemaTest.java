@@ -58,6 +58,7 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
@@ -97,6 +98,9 @@ public class JsonRowDataSerDeSchemaTest {
 		Map<String, Long> map = new HashMap<>();
 		map.put("flink", 123L);
 
+		Map<String, Integer> multiSet = new HashMap<>();
+		multiSet.put("blink", 2);
+
 		Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
 		Map<String, Integer> innerMap = new HashMap<>();
 		innerMap.put("key", 234);
@@ -123,6 +127,7 @@ public class JsonRowDataSerDeSchemaTest {
 		root.put("timestamp9", "1990-10-14T12:12:43.123456789");
 		root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
 		root.putObject("map").put("flink", 123);
+		root.putObject("multiSet").put("blink", 2);
 		root.putObject("map2map").putObject("inner_map").put("key", 234);
 
 		byte[] serializedJson = objectMapper.writeValueAsBytes(root);
@@ -144,6 +149,7 @@ public class JsonRowDataSerDeSchemaTest {
 			FIELD("timestamp9", TIMESTAMP(9)),
 			FIELD("timestampWithLocalZone", TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
 			FIELD("map", MAP(STRING(), BIGINT())),
+			FIELD("multiSet", MULTISET(STRING())),
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))));
 		RowType schema = (RowType) dataType.getLogicalType();
 		TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
@@ -151,7 +157,7 @@ public class JsonRowDataSerDeSchemaTest {
 		JsonRowDataDeserializationSchema deserializationSchema = new JsonRowDataDeserializationSchema(
 			schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
 
-		Row expected = new Row(17);
+		Row expected = new Row(18);
 		expected.setField(0, true);
 		expected.setField(1, tinyint);
 		expected.setField(2, smallint);
@@ -168,7 +174,8 @@ public class JsonRowDataSerDeSchemaTest {
 		expected.setField(13, timestamp9.toLocalDateTime());
 		expected.setField(14, timestampWithLocalZone);
 		expected.setField(15, map);
-		expected.setField(16, nestedMap);
+		expected.setField(16, multiSet);
+		expected.setField(17, nestedMap);
 
 		RowData rowData = deserializationSchema.deserialize(serializedJson);
 		Row actual = convertToExternal(rowData, dataType);
