@@ -21,10 +21,8 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -533,30 +531,6 @@ public final class Utils {
 			}
 		}
 		return resourceDescriptors;
-	}
-
-	static TaskExecutorProcessSpecContainerResourceAdapter createTaskExecutorProcessSpecContainerResourceAdapter(
-		org.apache.flink.configuration.Configuration flinkConfig,
-		YarnConfiguration yarnConfig) {
-
-		Resource unitResource = getUnitResource(yarnConfig);
-
-		return new TaskExecutorProcessSpecContainerResourceAdapter(
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_MB),
-			yarnConfig.getInt(
-				YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES,
-				YarnConfiguration.DEFAULT_RM_SCHEDULER_MAXIMUM_ALLOCATION_VCORES),
-			unitResource.getMemory(),
-			unitResource.getVirtualCores(),
-			ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 	}
 
 	@VisibleForTesting
