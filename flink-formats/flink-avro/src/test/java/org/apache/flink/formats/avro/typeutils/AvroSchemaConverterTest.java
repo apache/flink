@@ -96,38 +96,36 @@ public class AvroSchemaConverterTest {
 	}
 
 	@Test
-	public void testRowTypeAvroSchemaConversion(){
+	public void testRowTypeAvroSchemaConversion() {
 		RowType rowType = (RowType) TableSchema.builder()
-			.field("row", DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
-			.field("row_array", DataTypes.ARRAY(DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING()))))
+			.field("row1", DataTypes.ROW(DataTypes.FIELD("a", DataTypes.STRING())))
+			.field("row2", DataTypes.ROW(DataTypes.FIELD("b", DataTypes.STRING())))
 			.build().toRowDataType().getLogicalType();
-		Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		String defaultRowName = "row_" + System.currentTimeMillis();
+		Schema schema = AvroSchemaConverter.convertToSchema(rowType, defaultRowName);
 		assertEquals("{\n" +
 			"  \"type\" : \"record\",\n" +
-			"  \"name\" : \"row_0\",\n" +
+			"  \"name\" : \"" + defaultRowName + "\",\n" +
 			"  \"fields\" : [ {\n" +
-			"    \"name\" : \"row\",\n" +
+			"    \"name\" : \"row1\",\n" +
 			"    \"type\" : {\n" +
 			"      \"type\" : \"record\",\n" +
-			"      \"name\" : \"row\",\n" +
+			"      \"name\" : \"row1\",\n" +
 			"      \"fields\" : [ {\n" +
 			"        \"name\" : \"a\",\n" +
 			"        \"type\" : [ \"string\", \"null\" ]\n" +
 			"      } ]\n" +
 			"    }\n" +
 			"  }, {\n" +
-			"    \"name\" : \"row_array\",\n" +
-			"    \"type\" : [ {\n" +
-			"      \"type\" : \"array\",\n" +
-			"      \"items\" : {\n" +
-			"        \"type\" : \"record\",\n" +
-			"        \"name\" : \"row_array\",\n" +
-			"        \"fields\" : [ {\n" +
-			"          \"name\" : \"a\",\n" +
-			"          \"type\" : [ \"string\", \"null\" ]\n" +
-			"        } ]\n" +
-			"      }\n" +
-			"    }, \"null\" ]\n" +
+			"    \"name\" : \"row2\",\n" +
+			"    \"type\" : {\n" +
+			"      \"type\" : \"record\",\n" +
+			"      \"name\" : \"row2\",\n" +
+			"      \"fields\" : [ {\n" +
+			"        \"name\" : \"b\",\n" +
+			"        \"type\" : [ \"string\", \"null\" ]\n" +
+			"      } ]\n" +
+			"    }\n" +
 			"  } ]\n" +
 			"}", schema.toString(true));
 	}
@@ -147,7 +145,7 @@ public class AvroSchemaConverterTest {
 			Types.STRING);
 
 		final TypeInformation<Row> user = Types.ROW_NAMED(
-			new String[] {
+			new String[]{
 				"name",
 				"favorite_number",
 				"favorite_color",
@@ -203,42 +201,42 @@ public class AvroSchemaConverterTest {
 
 	private void validateUserSchema(DataType actual) {
 		final DataType address = DataTypes.ROW(
-				DataTypes.FIELD("num", DataTypes.INT().notNull()),
-				DataTypes.FIELD("street", DataTypes.STRING().notNull()),
-				DataTypes.FIELD("city", DataTypes.STRING().notNull()),
-				DataTypes.FIELD("state", DataTypes.STRING().notNull()),
-				DataTypes.FIELD("zip", DataTypes.STRING().notNull()));
+			DataTypes.FIELD("num", DataTypes.INT().notNull()),
+			DataTypes.FIELD("street", DataTypes.STRING().notNull()),
+			DataTypes.FIELD("city", DataTypes.STRING().notNull()),
+			DataTypes.FIELD("state", DataTypes.STRING().notNull()),
+			DataTypes.FIELD("zip", DataTypes.STRING().notNull()));
 
 		final DataType user = DataTypes.ROW(
-				DataTypes.FIELD("name", DataTypes.STRING().notNull()),
-				DataTypes.FIELD("favorite_number", DataTypes.INT()),
-				DataTypes.FIELD("favorite_color", DataTypes.STRING()),
-				DataTypes.FIELD("type_long_test", DataTypes.BIGINT()),
-				DataTypes.FIELD("type_double_test", DataTypes.DOUBLE().notNull()),
-				DataTypes.FIELD("type_null_test", DataTypes.NULL()),
-				DataTypes.FIELD("type_bool_test", DataTypes.BOOLEAN().notNull()),
-				DataTypes.FIELD("type_array_string",
-						DataTypes.ARRAY(DataTypes.STRING().notNull()).notNull()),
-				DataTypes.FIELD("type_array_boolean",
-						DataTypes.ARRAY(DataTypes.BOOLEAN().notNull()).notNull()),
-				DataTypes.FIELD("type_nullable_array", DataTypes.ARRAY(DataTypes.STRING().notNull())),
-				DataTypes.FIELD("type_enum", DataTypes.STRING().notNull()),
-				DataTypes.FIELD("type_map",
-						DataTypes.MAP(DataTypes.STRING().notNull(), DataTypes.BIGINT().notNull()).notNull()),
-				DataTypes.FIELD("type_fixed", DataTypes.VARBINARY(16)),
-				DataTypes.FIELD("type_union", DataTypes.RAW(Types.GENERIC(Object.class)).notNull()),
-				DataTypes.FIELD("type_nested", address),
-				DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
-				DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),
-				DataTypes.FIELD("type_time_millis", DataTypes.TIME().notNull()),
-				DataTypes.FIELD("type_time_micros", DataTypes.TIME(6).notNull()),
-				DataTypes.FIELD("type_timestamp_millis",
-						DataTypes.TIMESTAMP(3).notNull()),
-				DataTypes.FIELD("type_timestamp_micros",
-						DataTypes.TIMESTAMP(6).notNull()),
-				DataTypes.FIELD("type_decimal_bytes", DataTypes.DECIMAL(4, 2).notNull()),
-				DataTypes.FIELD("type_decimal_fixed", DataTypes.DECIMAL(4, 2).notNull()))
-				.notNull();
+			DataTypes.FIELD("name", DataTypes.STRING().notNull()),
+			DataTypes.FIELD("favorite_number", DataTypes.INT()),
+			DataTypes.FIELD("favorite_color", DataTypes.STRING()),
+			DataTypes.FIELD("type_long_test", DataTypes.BIGINT()),
+			DataTypes.FIELD("type_double_test", DataTypes.DOUBLE().notNull()),
+			DataTypes.FIELD("type_null_test", DataTypes.NULL()),
+			DataTypes.FIELD("type_bool_test", DataTypes.BOOLEAN().notNull()),
+			DataTypes.FIELD("type_array_string",
+				DataTypes.ARRAY(DataTypes.STRING().notNull()).notNull()),
+			DataTypes.FIELD("type_array_boolean",
+				DataTypes.ARRAY(DataTypes.BOOLEAN().notNull()).notNull()),
+			DataTypes.FIELD("type_nullable_array", DataTypes.ARRAY(DataTypes.STRING().notNull())),
+			DataTypes.FIELD("type_enum", DataTypes.STRING().notNull()),
+			DataTypes.FIELD("type_map",
+				DataTypes.MAP(DataTypes.STRING().notNull(), DataTypes.BIGINT().notNull()).notNull()),
+			DataTypes.FIELD("type_fixed", DataTypes.VARBINARY(16)),
+			DataTypes.FIELD("type_union", DataTypes.RAW(Types.GENERIC(Object.class)).notNull()),
+			DataTypes.FIELD("type_nested", address),
+			DataTypes.FIELD("type_bytes", DataTypes.BYTES().notNull()),
+			DataTypes.FIELD("type_date", DataTypes.DATE().notNull()),
+			DataTypes.FIELD("type_time_millis", DataTypes.TIME().notNull()),
+			DataTypes.FIELD("type_time_micros", DataTypes.TIME(6).notNull()),
+			DataTypes.FIELD("type_timestamp_millis",
+				DataTypes.TIMESTAMP(3).notNull()),
+			DataTypes.FIELD("type_timestamp_micros",
+				DataTypes.TIMESTAMP(6).notNull()),
+			DataTypes.FIELD("type_decimal_bytes", DataTypes.DECIMAL(4, 2).notNull()),
+			DataTypes.FIELD("type_decimal_fixed", DataTypes.DECIMAL(4, 2).notNull()))
+			.notNull();
 
 		assertEquals(user, actual);
 	}
