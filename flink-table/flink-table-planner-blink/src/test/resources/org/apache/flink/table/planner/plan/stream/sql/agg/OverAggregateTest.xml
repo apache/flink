@@ -29,7 +29,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum1=[CASE(>(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -60,7 +60,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:INTEGER)], cnt2=[COUNT(DISTINCT $0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum2=[CASE(>(COUNT(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:BIGINT)])
+LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)], cnt2=[COUNT(DISTINCT $0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum2=[CASE(>(COUNT(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:BIGINT)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -85,7 +85,7 @@ SELECT a,
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN 10000:INTERVAL SECOND PRECEDING AND CURRENT ROW)])
+LogicalProject(a=[$0], EXPR$1=[COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE 10000:INTERVAL SECOND PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -109,7 +109,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -134,7 +134,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), null:BIGINT), COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW))])
+LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000:INTERVAL HOUR PRECEDING), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000:INTERVAL HOUR PRECEDING), null:BIGINT), COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE 7200000:INTERVAL HOUR PRECEDING))])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -161,7 +161,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -173,7 +173,6 @@ Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS 
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-
     </Resource>
   </TestCase>
   <TestCase name="testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime">
@@ -182,7 +181,7 @@ Calc(select=[c, w0$o0 AS cnt1, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:INTEGER) AS 
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW), null:BIGINT)], EXPR$2=[MIN($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)])
+LogicalProject(a=[$0], EXPR$1=[CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS 4 PRECEDING), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS 4 PRECEDING), null:BIGINT)], EXPR$2=[MIN($2) OVER (PARTITION BY $0 ORDER BY PROCTIME() NULLS FIRST ROWS 4 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -207,7 +206,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $3 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $3 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -231,7 +230,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -255,7 +254,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -280,7 +279,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -304,7 +303,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN 1000:INTERVAL SECOND PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE 1000:INTERVAL SECOND PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -329,7 +328,7 @@ SELECT c,
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN 1000:INTERVAL SECOND PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 1000:INTERVAL SECOND PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -353,7 +352,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -378,7 +377,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN 5 PRECEDING AND CURRENT ROW)])
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS 5 PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -403,7 +402,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -428,7 +427,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING)], cnt2=[CASE(>(COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), 0), $SUM0($0) OVER (ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -453,7 +452,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -478,7 +477,7 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), null:INTEGER)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
