@@ -33,8 +33,11 @@ NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux envi
 # for non-linux os, test against user installed version, or suggest latest stable version
 if [[ "${OS_TYPE}" != "linux" ]]; then
     check_kubernetes_status && KUBERNETES_VERSIONS=$(installed_version) || KUBERNETES_VERSIONS='v1.19.2'
+elif [[ "${IS_CI_BUILD}" = "yes" ]]; then
+    echo "Select kubernetes latest stable version because this is a CI build"
+    KUBERNETES_VERSIONS='v1.19.2'
 else
-     KUBERNETES_VERSIONS='v1.17.12 v1.18.9 v1.19.2'
+    KUBERNETES_VERSIONS='v1.17.12 v1.18.9 v1.19.2'
 fi
 
 # If running tests on non-linux os, the kubectl and minikube should be installed manually
