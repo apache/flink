@@ -257,7 +257,13 @@ public abstract class NettyMessage {
 
         // receiver ID (16), sequence number (4), backlog (4), dataType (1), isCompressed (1),
         // buffer size (4)
-        static final int MESSAGE_HEADER_LENGTH = 16 + 4 + 4 + 1 + 1 + 4;
+        static final int MESSAGE_HEADER_LENGTH =
+                InputChannelID.getByteBufLength()
+                        + Integer.BYTES
+                        + Integer.BYTES
+                        + Byte.BYTES
+                        + Byte.BYTES
+                        + Integer.BYTES;
 
         final Buffer buffer;
 
@@ -518,7 +524,17 @@ public abstract class NettyMessage {
                         bb.writeInt(credit);
                     };
 
-            writeToChannel(out, promise, allocator, consumer, ID, 20 + 16 + 4 + 16 + 4);
+            writeToChannel(
+                    out,
+                    promise,
+                    allocator,
+                    consumer,
+                    ID,
+                    IntermediateResultPartitionID.getByteBufLength()
+                            + ExecutionAttemptID.getByteBufLength()
+                            + Integer.BYTES
+                            + InputChannelID.getByteBufLength()
+                            + Integer.BYTES);
         }
 
         static PartitionRequest readFrom(ByteBuf buffer) {
@@ -578,7 +594,11 @@ public abstract class NettyMessage {
                     allocator,
                     consumer,
                     ID,
-                    4 + serializedEvent.remaining() + 20 + 16 + 16);
+                    Integer.BYTES
+                            + serializedEvent.remaining()
+                            + IntermediateResultPartitionID.getByteBufLength()
+                            + ExecutionAttemptID.getByteBufLength()
+                            + InputChannelID.getByteBufLength());
         }
 
         static TaskEventRequest readFrom(ByteBuf buffer, ClassLoader classLoader)
@@ -623,7 +643,13 @@ public abstract class NettyMessage {
         @Override
         void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
                 throws IOException {
-            writeToChannel(out, promise, allocator, receiverId::writeTo, ID, 16);
+            writeToChannel(
+                    out,
+                    promise,
+                    allocator,
+                    receiverId::writeTo,
+                    ID,
+                    InputChannelID.getByteBufLength());
         }
 
         static CancelPartitionRequest readFrom(ByteBuf buffer) throws Exception {
@@ -669,7 +695,9 @@ public abstract class NettyMessage {
             ByteBuf result = null;
 
             try {
-                result = allocateBuffer(allocator, ID, 4 + 16);
+                result =
+                        allocateBuffer(
+                                allocator, ID, Integer.BYTES + InputChannelID.getByteBufLength());
                 result.writeInt(credit);
                 receiverId.writeTo(result);
 
@@ -706,7 +734,13 @@ public abstract class NettyMessage {
         @Override
         void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
                 throws IOException {
-            writeToChannel(out, promise, allocator, receiverId::writeTo, ID, 16);
+            writeToChannel(
+                    out,
+                    promise,
+                    allocator,
+                    receiverId::writeTo,
+                    ID,
+                    InputChannelID.getByteBufLength());
         }
 
         static ResumeConsumption readFrom(ByteBuf buffer) {
