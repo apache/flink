@@ -78,6 +78,10 @@ under the License.
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>jackson-annotations</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
+				</exclusion>
 			</exclusions>
 			<scope>test</scope>
 			<type>test-jar</type>
