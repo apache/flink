@@ -51,12 +51,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  * transported through the network.
  */
 public abstract class BufferWritingResultPartition extends ResultPartition {
+	private static final int PARTIAL_LENGTH = Integer.BYTES;
 
 	/** The subpartitions of this partition. At least one. */
 	protected final ResultSubpartition[] subpartitions;
 
 	/** For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be null. */
 	private final BufferBuilder[] subpartitionBufferBuilders;
+
+	private final ByteBuffer partialLenBuffer = ByteBuffer.allocateDirect(PARTIAL_LENGTH);
 
 	/** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
 	private BufferBuilder broadcastBufferBuilder;
@@ -128,26 +131,42 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
 	@Override
 	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-		do {
-			final BufferBuilder bufferBuilder = getSubpartitionBufferBuilder(targetSubpartition);
-			bufferBuilder.appendAndCommit(record);
+		BufferBuilder buffer = subpartitionBufferBuilders[targetSubpartition];
+		if (buffer == null) {
+			buffer = getNewEmptySubpartitionBufferBuilder(targetSubpartition);
+		}
+		buffer.appendAndCommit(record);
 
-			if (bufferBuilder.isFull()) {
-				finishSubpartitionBufferBuilder(targetSubpartition);
-			}
-		} while (record.hasRemaining());
+		while (record.hasRemaining()) {
+			finishSubpartitionBufferBuilder(targetSubpartition);
+			buffer = getNewEmptySubpartitionBufferBuilder(targetSubpartition);
+			writePartialLen(record, buffer);
+			buffer.appendAndCommit(record);
+		}
+
+		if (buffer.isFull()) {
+			finishSubpartitionBufferBuilder(targetSubpartition);
+		}
 	}
 
 	@Override
 	public void broadcastRecord(ByteBuffer record) throws IOException {
-		do {
-			final BufferBuilder bufferBuilder = getBroadcastBufferBuilder();
-			bufferBuilder.appendAndCommit(record);
+		BufferBuilder buffer = broadcastBufferBuilder;
+		if (buffer == null) {
+			buffer = getNewEmptyBroadcastBufferBuilder();
+		}
+		buffer.appendAndCommit(record);
 
-			if (bufferBuilder.isFull()) {
-				finishBroadcastBufferBuilder();
-			}
-		} while (record.hasRemaining());
+		while (record.hasRemaining()) {
+			finishBroadcastBufferBuilder();
+			buffer = getNewEmptyBroadcastBufferBuilder();
+			writePartialLen(record, buffer);
+			buffer.appendAndCommit(record);
+		}
+
+		if (buffer.isFull()) {
+			finishBroadcastBufferBuilder();
+		}
 	}
 
 	@Override
@@ -211,40 +230,30 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		}
 	}
 
-	private BufferBuilder getSubpartitionBufferBuilder(int targetSubpartition) throws IOException {
-		final BufferBuilder bufferBuilder = subpartitionBufferBuilders[targetSubpartition];
-		if (bufferBuilder != null) {
-			return bufferBuilder;
-		}
-
-		return getNewSubpartitionBufferBuilder(targetSubpartition);
+	private void writePartialLen(ByteBuffer recordBytes, BufferBuilder buffer) {
+		partialLenBuffer.clear();
+		int length = Math.min(recordBytes.remaining(), buffer.getWritableBytes() - PARTIAL_LENGTH);
+		partialLenBuffer.putInt(0, Math.negateExact(length));
+		buffer.append(partialLenBuffer);
 	}
 
-	private BufferBuilder getNewSubpartitionBufferBuilder(int targetSubpartition) throws IOException {
+	private BufferBuilder getNewEmptySubpartitionBufferBuilder(int targetSubpartition) throws IOException {
 		checkInProduceState();
 		ensureUnicastMode();
 
 		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
-		subpartitions[targetSubpartition].add(bufferBuilder.createBufferConsumer());
 		subpartitionBufferBuilders[targetSubpartition] = bufferBuilder;
+		subpartitions[targetSubpartition].add(bufferBuilder.createBufferConsumer());
+
 		return bufferBuilder;
 	}
 
-	private BufferBuilder getBroadcastBufferBuilder() throws IOException {
-		if (broadcastBufferBuilder != null) {
-			return broadcastBufferBuilder;
-		}
-
-		return getNewBroadcastBufferBuilder();
-	}
-
-	private BufferBuilder getNewBroadcastBufferBuilder() throws IOException {
+	private BufferBuilder getNewEmptyBroadcastBufferBuilder() throws IOException {
 		checkInProduceState();
 		ensureBroadcastMode();
 
 		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(0);
 		broadcastBufferBuilder = bufferBuilder;
-
 		try (final BufferConsumer consumer = bufferBuilder.createBufferConsumer()) {
 			for (ResultSubpartition subpartition : subpartitions) {
 				subpartition.add(consumer.copy());
