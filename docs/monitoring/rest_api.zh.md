@@ -33,7 +33,7 @@ The monitoring API is a REST-ful API that accepts HTTP requests and responds wit
 
 ## Overview
 
-The monitoring API is backed by a web server that runs as part of the *Dispatcher*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `rest.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
+The monitoring API is backed by a web server that runs as part of the *Dispatcher*. By default, this server listens at port `8081`, which can be configured in `flink-conf.yaml` via `rest.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
 
 In the case of multiple Dispatchers (for high availability), each Dispatcher will run its own instance of the monitoring API, which offers information about completed and running job while that Dispatcher was elected the cluster leader.
 
