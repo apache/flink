@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test for {@link RowTimeRangeBoundedPrecedingFunction}.
  */
-public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase{
+public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
 	@Test
 	public void testStateCleanup() throws Exception {

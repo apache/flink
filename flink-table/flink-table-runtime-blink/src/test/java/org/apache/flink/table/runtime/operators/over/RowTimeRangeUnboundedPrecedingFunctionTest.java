@@ -32,7 +32,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test for {@link RowTimeRangeUnboundedPrecedingFunction}.
  */
-public class RowTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTestBase{
+public class RowTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
 	@Test
 	public void testLateRecordMetrics() throws Exception {

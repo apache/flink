@@ -27,8 +27,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -95,9 +93,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 	// Metrics
 	// ------------------------------------------------------------------------
 	protected static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
-	protected static final String LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME = "lateRecordsDroppedRate";
 	private transient Counter numLateRecordsDropped;
-	private transient Meter lateRecordsDroppedRate;
 
 	@VisibleForTesting
 	public Counter getCounter() {
@@ -155,9 +151,6 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 
 		// metrics
 		this.numLateRecordsDropped = getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
-		this.lateRecordsDroppedRate = getRuntimeContext().getMetricGroup().meter(
-			LATE_ELEMENTS_DROPPED_RATE_METRIC_NAME,
-			new MeterView(numLateRecordsDropped));
 	}
 
 	@Override
@@ -190,7 +183,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K> extends KeyedProcessFunction
 				ctx.timerService().registerEventTimeTimer(triggeringTs);
 			}
 		} else {
-			lateRecordsDroppedRate.markEvent();
+			numLateRecordsDropped.inc();
 		}
 	}
 
