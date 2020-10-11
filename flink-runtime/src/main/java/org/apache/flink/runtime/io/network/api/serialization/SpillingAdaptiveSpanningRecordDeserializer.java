@@ -104,11 +104,15 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 		// would have to return a tuple of DeserializationResult and recordLen, which would affect
 		// performance too much
 		int recordLen = nonSpanningWrapper.readInt();
-		if (nonSpanningWrapper.canReadRecord(recordLen)) {
-			return nonSpanningWrapper.readInto(target);
+		if (recordLen < 0) {
+			return nonSpanningWrapper.skipPartialRecord(Math.negateExact(recordLen));
 		} else {
-			spanningWrapper.transferFrom(nonSpanningWrapper, recordLen);
-			return PARTIAL_RECORD;
+			if (nonSpanningWrapper.canReadRecord(recordLen)) {
+				return nonSpanningWrapper.readInto(target);
+			} else {
+				spanningWrapper.transferFrom(nonSpanningWrapper, recordLen);
+				return PARTIAL_RECORD;
+			}
 		}
 	}
 

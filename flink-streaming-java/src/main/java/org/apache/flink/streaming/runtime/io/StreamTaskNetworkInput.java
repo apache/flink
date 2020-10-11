@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD_CLEANUP_IN_BUFFER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -151,6 +152,10 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 				if (result.isFullRecord()) {
 					processElement(deserializationDelegate.getInstance(), output);
 					return InputStatus.MORE_AVAILABLE;
+				}
+
+				if (result == PARTIAL_RECORD_CLEANUP_IN_BUFFER) {
+					continue;
 				}
 			}
 

@@ -34,6 +34,8 @@ import java.nio.ByteBuffer;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.INTERMEDIATE_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD_CLEANUP_FULL_BUFFER;
+import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD_CLEANUP_IN_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer.LENGTH_BYTES;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 
@@ -341,6 +343,16 @@ final class NonSpanningWrapper implements DataInputView {
 			throw new IOException(BROKEN_SERIALIZATION_ERROR_MESSAGE, new IndexOutOfBoundsException("Remaining = " + remaining));
 		}
 		return remaining == 0 ? LAST_RECORD_FROM_BUFFER : INTERMEDIATE_RECORD_FROM_BUFFER;
+	}
+
+	DeserializationResult skipPartialRecord(int partialLen) {
+		position += partialLen;
+
+		if (hasRemaining()) {
+			return PARTIAL_RECORD_CLEANUP_IN_BUFFER;
+		} else {
+			return PARTIAL_RECORD_CLEANUP_FULL_BUFFER;
+		}
 	}
 
 	boolean hasCompleteLength() {

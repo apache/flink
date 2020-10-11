@@ -35,7 +35,9 @@ public interface RecordDeserializer<T extends IOReadableWritable> {
 	enum DeserializationResult {
 		PARTIAL_RECORD(false, true),
 		INTERMEDIATE_RECORD_FROM_BUFFER(true, false),
-		LAST_RECORD_FROM_BUFFER(true, true);
+		LAST_RECORD_FROM_BUFFER(true, true),
+		PARTIAL_RECORD_CLEANUP_FULL_BUFFER(false, true),
+		PARTIAL_RECORD_CLEANUP_IN_BUFFER(false, false);
 
 		private final boolean isFullRecord;
 
