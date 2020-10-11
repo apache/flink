@@ -100,11 +100,11 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 	}
 
 	public RowTimeRangeBoundedPrecedingFunction(
-		GeneratedAggsHandleFunction genAggsHandler,
-		LogicalType[] accTypes,
-		LogicalType[] inputFieldTypes,
-		long precedingOffset,
-		int rowTimeIdx) {
+			GeneratedAggsHandleFunction genAggsHandler,
+			LogicalType[] accTypes,
+			LogicalType[] inputFieldTypes,
+			long precedingOffset,
+			int rowTimeIdx) {
 		Preconditions.checkNotNull(precedingOffset);
 		this.genAggsHandler = genAggsHandler;
 		this.accTypes = accTypes;
