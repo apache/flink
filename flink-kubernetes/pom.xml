@@ -43,12 +43,6 @@ under the License.
 				<artifactId>okhttp</artifactId>
 				<version>3.12.1</version>
 			</dependency>
-			<dependency>
-				<!-- Bumped for security purposes -->
-				<groupId>org.yaml</groupId>
-				<artifactId>snakeyaml</artifactId>
-				<version>1.27</version>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -74,6 +68,20 @@ under the License.
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
 			<version>${kubernetes.client.version}</version>
+			<exclusions>
+				<!-- Exclude org.yaml:snakeyaml:1.24 for security purposes -->
+				<exclusion>
+					<groupId>org.yaml</groupId>
+					<artifactId>snakeyaml</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<!-- Bumped for security purposes. -->
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+			<version>1.27</version>
 		</dependency>
 
 		<!-- test dependencies -->
