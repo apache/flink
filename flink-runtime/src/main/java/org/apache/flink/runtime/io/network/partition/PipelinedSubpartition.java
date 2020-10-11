@@ -513,4 +513,10 @@ public class PipelinedSubpartition extends ResultSubpartition
 	public void addBufferConsumer(BufferConsumer bufferConsumer) {
 		add(bufferConsumer);
 	}
+
+	public void releaseView() {
+		readView = null;
+		isBlockedByCheckpoint = false;
+		sequenceNumber = 0;
+	}
 }
