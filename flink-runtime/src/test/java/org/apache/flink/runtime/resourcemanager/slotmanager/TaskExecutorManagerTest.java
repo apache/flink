@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -197,10 +198,47 @@ public class TaskExecutorManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Test that the task executor manager respects the max limitation of the number of slots when allocating new resources.
+	 * Test that the task executor manager only allocates new workers if their worker spec can fulfill the
+	 * requested resource profile.
 	 */
 	@Test
-	public void testMaxSlotLimitAllocateResource() {
+	public void testWorkerOnlyAllocatedIfRequestedSlotCouldBeFulfilled() {
+		final int numCoresPerWorker = 1;
+
+		final WorkerResourceSpec workerResourceSpec = new WorkerResourceSpec.Builder()
+			.setCpuCores(numCoresPerWorker)
+			.build();
+
+		final ResourceProfile requestedProfile = ResourceProfile.newBuilder()
+			.setCpuCores(numCoresPerWorker + 1)
+			.build();
+
+		final AtomicInteger resourceRequests = new AtomicInteger(0);
+		ResourceActions resourceActions = createResourceActionsBuilder()
+			.setAllocateResourceFunction(
+				ignored -> {
+					resourceRequests.incrementAndGet();
+					return true;
+				})
+			.build();
+
+		try (final TaskExecutorManager taskExecutorManager = createTaskExecutorManagerBuilder()
+			.setDefaultWorkerResourceSpec(workerResourceSpec)
+			.setNumSlotsPerWorker(1)
+			.setMaxNumSlots(1)
+			.setResourceActions(resourceActions)
+			.createTaskExecutorManager()) {
+
+			assertThat(taskExecutorManager.allocateWorker(requestedProfile).orElse(null), nullValue());
+			assertThat(resourceRequests.get(), is(0));
+		}
+	}
+
+	/**
+	 * Test that the task executor manager respects the max limitation of the number of slots when allocating new workers.
+	 */
+	@Test
+	public void testMaxSlotLimitAllocateWorker() {
 		final int numberSlots = 1;
 		final int maxSlotNum = 1;
 
@@ -233,7 +271,7 @@ public class TaskExecutorManagerTest extends TestLogger {
 	 * Test that the slot manager release resource when the number of slots exceed max limit when new TaskExecutor registered.
 	 */
 	@Test
-	public void testMaxSlotLimitRegisterResource() throws Exception {
+	public void testMaxSlotLimitRegisterWorker() throws Exception {
 		final int numberSlots = 1;
 		final int maxSlotNum = 1;
 
