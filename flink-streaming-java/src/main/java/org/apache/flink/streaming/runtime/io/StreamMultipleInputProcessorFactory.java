@@ -85,7 +85,7 @@ public class StreamMultipleInputProcessorFactory {
 					operatorInputs.get(i),
 					streamStatusMaintainer,
 					inputWatermarkGauges[i],
-					inputSelectionHandler, streamStatusTracker,
+					streamStatusTracker,
 					i,
 					mainOperatorRecordsIn,
 					networkRecordsIn);
@@ -168,8 +168,6 @@ public class StreamMultipleInputProcessorFactory {
 
 		private final MultiStreamStreamStatusTracker streamStatusTracker;
 
-		private final MultipleInputSelectionHandler inputSelectionHandler;
-
 		private final Counter mainOperatorRecordsIn;
 
 		private final Counter networkRecordsIn;
@@ -178,7 +176,6 @@ public class StreamMultipleInputProcessorFactory {
 				Input<T> input,
 				StreamStatusMaintainer streamStatusMaintainer,
 				WatermarkGauge inputWatermarkGauge,
-				MultipleInputSelectionHandler inputSelectionHandler,
 				MultiStreamStreamStatusTracker streamStatusTracker,
 				int inputIndex,
 				Counter mainOperatorRecordsIn,
@@ -187,7 +184,6 @@ public class StreamMultipleInputProcessorFactory {
 
 			this.input = checkNotNull(input);
 			this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
-			this.inputSelectionHandler = inputSelectionHandler;
 			this.streamStatusTracker = streamStatusTracker;
 			this.inputIndex = inputIndex;
 			this.mainOperatorRecordsIn = mainOperatorRecordsIn;
@@ -200,7 +196,6 @@ public class StreamMultipleInputProcessorFactory {
 			input.processElement(record);
 			mainOperatorRecordsIn.inc();
 			networkRecordsIn.inc();
-			inputSelectionHandler.nextSelection();
 		}
 
 		@Override
