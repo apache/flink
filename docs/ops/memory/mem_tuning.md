@@ -88,3 +88,23 @@ on the performance of your applications. Flink will attempt to allocate and use 
 as configured for batch jobs but not go beyond its limits. This prevents `OutOfMemoryError`'s because Flink knows precisely
 how much memory it has to leverage. If the [managed memory](../memory/mem_setup_tm.html#managed-memory) is not sufficient,
 Flink will gracefully spill to disk.
+
+## Configure memory for sort-merge blocking shuffle
+
+The number of required network buffers per sort-merge blocking result partition is controlled by 
+[taskmanager.network.sort-shuffle.min-buffers](../config.html#taskmanager-network-sort-shuffle-min-buffers)
+and the default value is 64 which is quite small. Though it can work for arbitrary parallelism, the 
+performance may not be the best. For large scale jobs, it is suggested to increase this config value 
+to improve compression ratio and reduce small network packets which is good for performance. To increase 
+this value, you may also need to increase the size of total network memory by adjusting the config 
+values of [taskmanager.memory.network.fraction](../config.html#taskmanager-memory-network-fraction),
+[taskmanager.memory.network.min](../config.html#taskmanager-memory-network-min) and [taskmanager.
+memory.network.max](../config.html#taskmanager-memory-network-max) to avoid `insufficient number of 
+network buffers` error.
+
+Except for network memory, the sort-merge blocking shuffle implementation also uses some unmanaged 
+direct memory for shuffle data writing and reading. So to use sort-merge blocking shuffle, you may 
+need to reserve some direct memory for it by increasing the config value of [taskmanager.memory.task
+.off-heap.size](../config.html#taskmanager-memory-task-off-heap-size). If direct memory OOM error 
+occurs after you enable the sort-merge blocking shuffle, you can just give more direct memory until 
+the OOM error disappears.

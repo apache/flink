@@ -85,3 +85,20 @@ Flink 批处理算子使用[托管内存](../memory/mem_setup_tm.html#managed-me
 因此 Flink 会在不超过其配置限额的前提下，尽可能分配更多的[托管内存](../memory/mem_setup_tm.html#managed-memory)。
 Flink 明确知道可以使用的内存大小，因此可以有效避免 `OutOfMemoryError` 的发生。
 当[托管内存](../memory/mem_setup_tm.html#managed-memory)不足时，Flink 会优雅地将数据落盘。
+
+## SortMerge数据Shuffle内存配置
+
+对于SortMerge数据Shuffle，每个ResultPartition需要的网络缓冲区（Buffer）数目是由[taskmanager.network.sort-
+shuffle.min-buffers](../config.html#taskmanager-network-sort-shuffle-min-buffers)这个配置决定的。它的
+默认值是64，是比较小的。虽然64个网络Buffer已经可以支持任意规模的并发，但性能可能不是最好的。对于大并发的作业，通
+过增大这个配置值，可以提高落盘数据的压缩率并且减少网络小包的数量，从而有利于提高Shuffle性能。为了增大这个配置值，
+你可能需要通过调整[taskmanager.memory.network.fraction](../config.html#taskmanager-memory-network-fraction)，
+[taskmanager.memory.network.min](../config.html#taskmanager-memory-network-min)和[taskmanager.memory
+.network.max](../config.html#taskmanager-memory-network-max)这三个参数来增大总的网络内存大小从而避免出现
+`insufficient number of network buffers`错误。
+
+除了网络内存，SortMerge数据Shuffle还需要使用一些JVM Direct Memory来进行Shuffle数据的写出与读取。所以，为了使
+用SortMerge数据Shuffle你可能还需要通过增大这个配置值[taskmanager.memory.task.off-heap.size
+](../config.html#taskmanager-memory-task-off-heap-size)来为其来预留一些JVM Direct Memory。如果在你开启
+SortMerge数据Shuffle之后出现了Direct Memory OOM的错误，你只需要继续加大上面的配置值来预留更多的Direct Memory
+直到不再发生Direct Memory OOM的错误为止。
