@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
@@ -131,13 +132,13 @@ public class IntermediateResultPartitionTest extends TestLogger {
 			ResultPartitionType resultPartitionType,
 			int producerCount) throws Exception {
 
-		ExecutionJobVertex jobVertex = getExecutionJobVertex(new JobVertexID(), new DirectScheduledExecutorService());
-		IntermediateResult result =
-				new IntermediateResult(new IntermediateDataSetID(), jobVertex, producerCount, resultPartitionType);
-		for (int i = 0; i < producerCount; i++) {
-			// Generate result partition in the result
-			new ExecutionVertex(jobVertex, i, new IntermediateResult[]{result}, Time.minutes(1));
-		}
+		JobVertex jobVertex = new JobVertex("v1");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(producerCount);
+		jobVertex.createAndAddResultDataSet(resultPartitionType);
+
+		ExecutionJobVertex ejv = getExecutionJobVertex(jobVertex, new DirectScheduledExecutorService(), ScheduleMode.LAZY_FROM_SOURCES);
+		IntermediateResult result = ejv.getProducedDataSets()[0];
 
 		return result;
 	}
