@@ -23,16 +23,16 @@ under the License.
 -->
 
 
-这篇描述了如何在 PyFlink 中使用连接器，并强调了在 Python 程序中使用 Flink 连接器时需要注意的细节。
+本篇描述了如何在 PyFlink 中使用连接器，并着重介绍了在 Python 程序中使用 Flink 连接器时需要注意的细节。
 
 * This will be replaced by the TOC
 {:toc}
 
 <span class="label label-info">Note</span> 想要了解常见的连接器信息和通用配置，请查阅相关的 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/connectors/index.html)。
 
-## 下载连接器和格式 jar 包
+## 下载连接器（connector）和格式（format）jar 包
 
-由于 Flink 是一个基于 Java/Scala-based 的项目，对于连接器和格式的实现可以作为 jar 包使用，将其指定为作业的 [依赖]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html)。
+由于 Flink 是一个基于 Java/Scala-based 的项目，连接器和格式的实现是作为 jar 包存在的，需要将其指定为作业的 [依赖]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html)。
 
 {% highlight python %}
 
@@ -42,7 +42,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 
 ## 如何使用连接器
 
-在 PyFink Table API 中，DDL 是定义 sources 和 sinks 推荐的方式，通过执行在 `TableEnvironment` 中的  `execute_sql()` 方法。这样使得在应用程序可以使用这张表。
+在 PyFink Table API 中，DDL 是定义 sources 和 sinks 比较推荐的方式，这可以通过 `TableEnvironment` 中的 `execute_sql()` 方法来完成。然后就可以在作业中使用这张表了。
 
 {% highlight python %}
 
@@ -135,11 +135,11 @@ if __name__ == '__main__':
 
 ## 内置的 Sources 和 Sinks
 
-有些 sources 和 sinks 被内置在 Flink 中，并且可以直接使用。这些内置的 sources 包括可以从 Pandas DataFrame 读数据，或者从 collections 消费数据。内置的 sinks 支持将数据写到 Pandas DataFrame 中。
+有些 sources 和 sinks 被内置在 Flink 中，可以直接使用。这些内置的 sources 包括可以从 Pandas DataFrame 读取数据，或者从 collections 中消费数据。内置的 sinks 包括将数据写到 Pandas DataFrame 中。
 
 ### 和 Pandas 之间转换
 
-PyFlink 表支持和 Pandas DataFrame 之间转换数据。
+PyFlink 表支持与 Pandas DataFrame 之间互相转换。
 
 {% highlight python %}
 
@@ -165,7 +165,7 @@ table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
 # 使用第二个参数指定自定义字段名
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
 
-# 使用第二个参数指定自定义表模式
+# 使用第二个参数指定自定义表结构
 table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
                                        DataTypes.FIELD("b", DataTypes.STRING())]))
@@ -185,5 +185,5 @@ table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
 
 ## 用户自定义的 sources 和 sinks
 
-在某些情况下，你可能想要自定义 sources 和 sinks。目前，sources 和 sinks 必须使用 Java/Scala 实现，但是你可以通过DDL定义一个 `TableFactory` 来使用它们。更多详情，可查阅 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/sourceSinks.html)。
+在某些情况下，你可能想要自定义 sources 和 sinks。目前，sources 和 sinks 必须使用 Java/Scala 实现，但是你可以定义一个 `TableFactory` ，然后通过 DDL 来使用它们。更多详情，可查阅 [Java/Scala 文档]({{ site.baseurl }}/zh/dev/table/sourceSinks.html)。
 
