@@ -26,7 +26,7 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies
-from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
+from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation, _from_java_type
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
@@ -35,7 +35,6 @@ from pyflink.datastream.state_backend import _from_j_state_backend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.table.types import _from_java_type
 from pyflink.util.utils import load_java_class, add_jars_to_context_class_loader
 
 __all__ = ['StreamExecutionEnvironment']
@@ -713,8 +712,8 @@ class StreamExecutionEnvironment(object):
         :return: the data stream representing the given collection.
         """
         if type_info is not None:
-            data_type = _from_java_type(type_info.get_java_type_info())
-            collection = [data_type.to_sql_type(element) for element in collection]
+            wrapper_type = _from_java_type(type_info.get_java_type_info())
+            collection = [wrapper_type.to_wrapper_type(element) for element in collection]
         return self._from_collection(collection, type_info)
 
     def _from_collection(self, elements: List[Any],
