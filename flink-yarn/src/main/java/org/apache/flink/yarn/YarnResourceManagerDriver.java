@@ -293,7 +293,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 				requestResourceFutures.remove(taskExecutorProcessSpec);
 			}
 
-			startTaskExecutorInContainer(container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
+			startTaskExecutorInContainerAsync(container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
 			removeContainerRequest(pendingRequest);
 
 			numAccepted++;
@@ -328,21 +328,25 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		resourceManagerClient.releaseAssignedContainer(excessContainer.getId());
 	}
 
-	private void startTaskExecutorInContainer(Container container, TaskExecutorProcessSpec taskExecutorProcessSpec, ResourceID resourceId, CompletableFuture<YarnWorkerNode> requestResourceFuture) {
-		final YarnWorkerNode yarnWorkerNode = new YarnWorkerNode(container, resourceId);
+	private void startTaskExecutorInContainerAsync(
+			Container container,
+			TaskExecutorProcessSpec taskExecutorProcessSpec,
+			ResourceID resourceId,
+			CompletableFuture<YarnWorkerNode> requestResourceFuture) {
+		final CompletableFuture<ContainerLaunchContext> containerLaunchContextFuture =
+			FutureUtils.supplyAsync(() -> createTaskExecutorLaunchContext(
+				resourceId, container.getNodeId().getHost(), taskExecutorProcessSpec), getIoExecutor());
 
-		try {
-			// Context information used to start a TaskExecutor Java process
-			ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-				resourceId,
-				container.getNodeId().getHost(),
-				taskExecutorProcessSpec);
-
-			nodeManagerClient.startContainerAsync(container, taskExecutorLaunchContext);
-			requestResourceFuture.complete(yarnWorkerNode);
-		} catch (Throwable t) {
-			requestResourceFuture.completeExceptionally(t);
-		}
+		FutureUtils.assertNoException(
+			containerLaunchContextFuture.handleAsync((context, exception) -> {
+				if (exception == null) {
+					nodeManagerClient.startContainerAsync(container, context);
+					requestResourceFuture.complete(new YarnWorkerNode(container, resourceId));
+				} else {
+					requestResourceFuture.completeExceptionally(exception);
+				}
+				return null;
+			}, getMainThreadExecutor()));
 	}
 
 	private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(Resource resource, int expectedNum) {
