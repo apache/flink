@@ -29,12 +29,10 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
-import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
@@ -121,10 +119,6 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			List<IndexedInputGate>[] inputGates,
 			InputConfig[] inputs,
 			WatermarkGauge[] inputWatermarkGauges) {
-		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null,
-			inputs.length);
-
 		checkpointBarrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
 			this,
 			getConfiguration(),
@@ -149,7 +143,6 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			setupNumRecordsInCounter(mainOperator),
 			getStreamStatusMaintainer(),
 			mainOperator,
-			selectionHandler,
 			inputWatermarkGauges,
 			getConfiguration(),
 			getTaskConfiguration(),

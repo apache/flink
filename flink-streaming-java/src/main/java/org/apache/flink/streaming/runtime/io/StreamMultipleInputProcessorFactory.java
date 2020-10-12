@@ -32,9 +32,11 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
+import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -69,7 +71,6 @@ public class StreamMultipleInputProcessorFactory {
 			Counter mainOperatorRecordsIn,
 			StreamStatusMaintainer streamStatusMaintainer,
 			MultipleInputStreamOperator<?> mainOperator,
-			MultipleInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge[] inputWatermarkGauges,
 			StreamConfig streamConfig,
 			Configuration taskManagerConfig,
@@ -78,7 +79,6 @@ public class StreamMultipleInputProcessorFactory {
 			ClassLoader userClassloader,
 			OperatorChain<?, ?> operatorChain) {
 		checkNotNull(operatorChain);
-		checkNotNull(inputSelectionHandler);
 
 		List<Input> operatorInputs = mainOperator.getInputs();
 		int inputsCount = operatorInputs.size();
@@ -114,8 +114,15 @@ public class StreamMultipleInputProcessorFactory {
 			}
 		}
 
+		InputSelectable inputSelectable =
+			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null;
 		if (streamConfig.shouldSortInputs()) {
-			inputs = MultiInputSortingDataInput.wrapInputs(
+
+			if (inputSelectable != null) {
+				throw new IllegalStateException("The InputSelectable interface is not supported with sorting inputs");
+			}
+
+			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
 				ownerTask,
 				inputs,
 				IntStream.range(0, inputsCount)
@@ -134,6 +141,9 @@ public class StreamMultipleInputProcessorFactory {
 				),
 				jobConfig
 			);
+
+			inputs = selectableSortingInputs.getSortingInputs();
+			inputSelectable = selectableSortingInputs.getInputSelectable();
 		}
 
 		for (int i = 0; i < inputsCount; i++) {
@@ -170,7 +180,7 @@ public class StreamMultipleInputProcessorFactory {
 		}
 
 		return new StreamMultipleInputProcessor(
-			inputSelectionHandler,
+			new MultipleInputSelectionHandler(inputSelectable, inputsCount),
 			inputProcessors
 		);
 	}
