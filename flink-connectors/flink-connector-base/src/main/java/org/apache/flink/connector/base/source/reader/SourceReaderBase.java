@@ -262,10 +262,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	private InputStatus finishedOrAvailableLater() {
 		final boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
-		if (noMoreSplitsAssignment && allFetchersHaveShutdown && elementsQueue.isEmpty()) {
+		if (!(noMoreSplitsAssignment && allFetchersHaveShutdown)) {
+			return InputStatus.NOTHING_AVAILABLE;
+		}
+		if (elementsQueue.isEmpty()) {
 			return InputStatus.END_OF_INPUT;
 		} else {
-			return InputStatus.NOTHING_AVAILABLE;
+			throw new IllegalStateException("Called 'finishedOrAvailableLater()' with shut-down fetchers but non-empty queue");
 		}
 	}
 
