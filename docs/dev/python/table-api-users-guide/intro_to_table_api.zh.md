@@ -64,10 +64,10 @@ table_env.execute_sql("""
     )
 """)
 
-# 4. 从 source 表中查询同时执行计算
-# 使用 Table API 查询语句创建一张表：
+# 4. 查询 source 表，同时执行计算
+# 通过 Table API 查询语句创建一张表：
 source_table = table_env.from_path("datagen")
-# 或者使用 SQL 查询语句创建一张表：
+# 或者通过 SQL 查询语句创建一张表：
 source_table = table_env.sql_query("SELECT * FROM datagen")
 
 result_table = source_table.select(source_table.id + 1, source_table.data)
@@ -99,7 +99,7 @@ table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
-# 创建 flink 流式 TableEnvironment
+# 创建 flink 流 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
@@ -124,7 +124,7 @@ table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 目前有2个可用的执行器 : flink 执行器 和 blink 执行器。
 
 你应该在当前程序中显式地设置使用哪个执行器。
-我们建议尽可能多的使用 blink 执行器。 
+我们建议尽可能使用 blink 执行器。
 
 {% top %}
 
@@ -133,15 +133,15 @@ table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 `Table` 是 Python Table API 的核心组件。一张 `Table` 是 Table API 作业中间结果的逻辑表示。
 
-一张 `Table` 总是绑定到特定的 `TableEnvironment`。不可能在同一个查询中合并来自不同 TableEnvironments 的表，例如 join 或者 union 它们。
+一个 `Table` 实例总是与一个特定的 `TableEnvironment` 相绑定。不支持在同一个查询中合并来自不同 TableEnvironments 的表，例如 join 或者 union 它们。
 
-### 使用列表对象创建
+### 通过列表对象创建
 
 你可以使用一个列表对象创建一张表：
 
 {% highlight python %}
 
-# 创建 blink 批处理环境
+# 创建 blink 批 TableEnvironment
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
@@ -210,7 +210,7 @@ print('Now the type of the "id" column is %s.' % type)
 你可以使用连接器 DDL 创建一张表：
 
 {% highlight python %}
-# 创建 blink 流式环境
+# 创建 blink 流 TableEnvironment
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
@@ -244,13 +244,13 @@ table.to_pandas()
 2   3     6
 {% endhighlight %}
 
-### 使用 Catalog 创建
+### 通过 Catalog 创建
 
 `TableEnvironment` 维护了一个使用标识符创建的表的 catalogs 映射。
 
-Catalog 中的表可以是临时的，并与单个 Flink 会话生命周期相关联，也可以是永久的，跨多个 Flink 会话可见。
+Catalog 中的表既可以是临时的，并与单个 Flink 会话生命周期相关联，也可以是永久的，跨多个 Flink 会话可见。
 
-通过 SQL DDL 创建的表和视图， 例如 "create table ..." 和 "create view ..." 都是被存储在 catalog。
+通过 SQL DDL 创建的表和视图， 例如 "create table ..." 和 "create view ..." 都存储在 catalog 中。
 
 你可以通过 SQL 直接访问 catalog 中的表。
 
@@ -259,7 +259,7 @@ Catalog 中的表可以是临时的，并与单个 Flink 会话生命周期相�
 {% highlight python %}
 
 # 准备 catalog
-# 在 catalog 中注册 Table API 表
+# 将 Table API 表注册到 catalog 中
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view('source_table', table)
 
@@ -284,7 +284,7 @@ new_table.to_pandas()
 
 ### Table API 查询
 
-`Table` 对象为应用关系操作提供了许多方法。
+`Table` 对象有许多方法，可以用于进行关系操作。
 这些方法返回新的 `Table` 对象，表示对输入 `Table` 应用关系操作的结果。
 这些关系操作可以由多个方法调用组成，例如 `table.group_by(...).select(...)`。
 
@@ -294,7 +294,7 @@ new_table.to_pandas()
 
 {% highlight python %}
 
-# 使用 batch table environment 来执行查询
+# 通过 batch table environment 来执行查询
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
@@ -323,7 +323,7 @@ revenue.to_pandas()
 
 ### SQL 查询
 
-Flink's SQL 是使用 [Apache Calcite](https://calcite.apache.org) 集成的，它实现了标准的 SQL。SQL 查询语句使用字符串来表达。
+Flink 的 SQL 是使用 [Apache Calcite](https://calcite.apache.org) 集成的，它实现了标准的 SQL。SQL 查询语句使用字符串来表达。
 
 [SQL]({% link dev/table/sql/index.zh.md %}) 文档描述了 Flink 对流和批处理所支持的 SQL。
 
@@ -331,7 +331,7 @@ Flink's SQL 是使用 [Apache Calcite](https://calcite.apache.org) 集成的，�
 
 {% highlight python %}
 
-# 使用 StreamTableEnvironment 来执行查询
+# 通过 StreamTableEnvironment 来执行查询
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment
 
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
@@ -390,7 +390,7 @@ table_env.execute_sql("""
 {subtask id}> {消息类型}{值的字符串格式}
 {% endhighlight %}
 例如，"2> +I(4,11)" 表示这条消息来自第二个 subtask，同时 "+I" 表示这是一条插入的消息。"(4, 11)" 是这条消息的内容。
-另外，"-U" 表示这是一条回撤的消息 (即更新前)，这意味着应该在 sink 中删除或回撤该消息。 
+另外，"-U" 表示这是一条回撤消息 (即更新前)，这意味着应该在 sink 中删除或回撤该消息。 
 "+U" 表示这是一条更新的记录 (即更新后)，这意味着应该在 sink 中更新或插入该消息。
 
 所以，我们从上面的变更日志中得到以下结果：
@@ -409,7 +409,7 @@ Table API 中的 `Table` 对象和 SQL 中的 tables 可以自由地相互转换
 
 {% highlight python %}
 
-# 创建一张 sink 表来发送数据
+# 创建一张 sink 表来接收结果数据
 table_env.execute_sql("""
     CREATE TABLE table_sink (
         id BIGINT, 
@@ -423,7 +423,7 @@ table_env.execute_sql("""
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 table_env.create_temporary_view('table_api_table', table)
 
-# 将数据写入 Table API 表
+# 将 Table API 表的数据写入结果表
 table_env.execute_sql("INSERT INTO table_sink SELECT * FROM table_api_table").wait()
 
 {% endhighlight %}
@@ -455,13 +455,13 @@ table_env.execute_sql("""
     )
 """)
 
-# 将 sql 表转化成 Table API 表
+# 将 sql 表转换成 Table API 表
 table = table_env.from_path("sql_source")
 
 # 或者从 sql 查询语句中创建表
 table = table_env.sql_query("SELECT * FROM sql_source")
 
-# 将数据发送到该表中
+# 将表中的数据写出
 table.to_pandas()
 
 {% endhighlight %}
@@ -500,7 +500,7 @@ table.to_pandas()
 1   2  Hello
 {% endhighlight %}
 
-<span class="label label-info">Note</span> "to_pandas" 将会触发表的物化同时将表的内容收集到客户端内存中，所以通过 <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a> 来限制收集数据的条数是一种很好的做法。
+<span class="label label-info">Note</span> "to_pandas" 将会触发表的物化，同时将表的内容收集到客户端内存中，所以通过 <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a> 来限制收集数据的条数是一种很好的做法。
 <span class="label label-info">Note</span> flink planner 不支持 "to_pandas"，并且并不是所有的数据类型都可以转换为 pandas DataFrames。
 
 ### 将结果发送到一张 Sink 表中
@@ -539,7 +539,7 @@ table_env.execute_sql("INSERT INTO sink_table SELECT * FROM table_source").wait(
 
 {% endhighlight %}
 
-### 将数据发送到多张的 Sink 表中
+### 将数据发送到多张 Sink 表中
 
 你可以使用 `StatementSet` 在一个作业中将 `Table` 中的数据发送到多张 sink 表中：
 
@@ -568,10 +568,10 @@ table_env.execute_sql("""
 # 创建 statement set
 statement_set = table_env.create_statement_set()
 
-# 发送 "table" 对象到 "first_sink_table"
+# 将 "table" 的数据写入 "first_sink_table"
 statement_set.add_insert("first_sink_table", table)
 
-# 通过一条 sql 插入查询语句将数据从 "simple_source" 发送到 "second_sink_table"
+# 通过一条 sql 插入语句将数据从 "simple_source" 发送到 "second_sink_table"
 statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM simple_source")
 
 # 执行 statement set
@@ -591,8 +591,8 @@ statement_set.execute().wait()
 Explain 表
 -----------------
 
-Table API 提供了一种机制来翻译 `Table` 的逻辑和优化查询计划。 
-这个通过 `Table.explain()` 或者 `StatementSet.explain()` 方法来完成。`Table.explain()` 返回 `Table` 的执行计划。`StatementSet.explain()` 返回多个 sink 的执行计划。这些方法返回一个字符串来描述三个方面：
+Table API 提供了一种机制来解释 `Table` 的逻辑查询计划和优化后的查询计划。 
+这是通过 `Table.explain()` 或者 `StatementSet.explain()` 方法来完成的。`Table.explain()` 可以返回一个 `Table` 的执行计划。`StatementSet.explain()` 则可以返回含有多个 sink 的作业的执行计划。这些方法会返回一个字符串，字符串描述了以下三个方面的信息：
 
 1. 关系查询的抽象语法树，即未优化的逻辑查询计划，
 2. 优化后的逻辑查询计划，
