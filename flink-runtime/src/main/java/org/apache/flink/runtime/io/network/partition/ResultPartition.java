@@ -307,4 +307,12 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 	public ResultPartitionManager getPartitionManager() {
 		return partitionManager;
 	}
+
+	/**
+	 * Whether the buffer can be compressed or not. Note that event is not compressed because it
+	 * is usually small and the size can become even larger after compression.
+	 */
+	protected boolean canBeCompressed(Buffer buffer) {
+		return bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
+	}
 }

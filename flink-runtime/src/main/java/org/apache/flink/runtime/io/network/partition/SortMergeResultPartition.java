@@ -218,12 +218,26 @@ public class SortMergeResultPartition extends ResultPartition {
 				Buffer buffer = bufferWithChannel.getBuffer();
 				int subpartitionIndex = bufferWithChannel.getChannelIndex();
 
-				fileWriter.writeBuffer(buffer, subpartitionIndex);
-				updateStatistics(buffer, subpartitionIndex);
+				writeCompressedBufferIfPossible(buffer, subpartitionIndex);
 			}
 		}
 
 		currentSortBuffer.release();
+	}
+
+	private void writeCompressedBufferIfPossible(
+			Buffer buffer,
+			int targetSubpartition) throws IOException {
+		updateStatistics(buffer, targetSubpartition);
+
+		try {
+			if (canBeCompressed(buffer)) {
+				buffer = bufferCompressor.compressToIntermediateBuffer(buffer);
+			}
+			fileWriter.writeBuffer(buffer, targetSubpartition);
+		} finally {
+			buffer.recycleBuffer();
+		}
 	}
 
 	private void updateStatistics(Buffer buffer, int subpartitionIndex) {
@@ -246,10 +260,9 @@ public class SortMergeResultPartition extends ResultPartition {
 		while (record.hasRemaining()) {
 			int toCopy = Math.min(record.remaining(), writeBuffer.size());
 			writeBuffer.put(0, record, toCopy);
-
 			NetworkBuffer buffer = new NetworkBuffer(writeBuffer, (buf) -> {}, dataType, toCopy);
-			fileWriter.writeBuffer(buffer, targetSubpartition);
-			updateStatistics(buffer, targetSubpartition);
+
+			writeCompressedBufferIfPossible(buffer, targetSubpartition);
 		}
 	}
 
