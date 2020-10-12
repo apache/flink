@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
@@ -31,7 +29,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionJobVertex;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -41,9 +39,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
 		try {
-			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			// a slot than cannot be deployed to
 			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
@@ -73,9 +69,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 	@Test
 	public void testSlotReleasedWhenScheduledQueued() {
 		try {
-			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			// a slot than cannot be deployed to
 			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
@@ -109,9 +103,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 	@Test
 	public void testScheduleToDeploying() {
 		try {
-			final ExecutionJobVertex ejv = getExecutionJobVertex(new JobVertexID());
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.getDefaultTimeout());
+			final ExecutionVertex vertex = getExecutionVertex();
 
 			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
