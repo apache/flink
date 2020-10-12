@@ -477,7 +477,7 @@ The details of this behavior are defined by the implementations of the
 
 Prior to introducing the current abstraction of `WatermarkStrategy`,
 `TimestampAssigner`, and `WatermarkGenerator`, Flink used
-`AssignerWithPeriodicWatermarks` and `AssignerWithPeriodicWatermarks`. You will
+`AssignerWithPeriodicWatermarks` and `AssignerWithPunctuatedWatermarks`. You will
 still see them in the API but it is recommended to use the new interfaces
 because they offer a clearer separation of concerns and also unify periodic and
 punctuated styles of watermark generation.
