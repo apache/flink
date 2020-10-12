@@ -83,13 +83,13 @@ public class HiveTableFactoryTest {
 		assertTrue(opt.isPresent());
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
 		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration(), false));
 		assertTrue(tableSource instanceof StreamTableSource);
 		TableSink tableSink = tableFactory.createTableSink(new TableSinkFactoryContextImpl(
 				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
 				table,
 				new Configuration(),
-				true));
+				true, false));
 		assertTrue(tableSink instanceof StreamTableSink);
 	}
 
@@ -114,10 +114,10 @@ public class HiveTableFactoryTest {
 				ObjectIdentifier.of("mycatalog", "mydb", "mytable"),
 				table,
 				new Configuration(),
-				true));
+				true, false));
 		assertTrue(tableSink instanceof HiveTableSink);
 		TableSource tableSource = tableFactory.createTableSource(new TableSourceFactoryContextImpl(
-				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration()));
+				ObjectIdentifier.of("mycatalog", "mydb", "mytable"), table, new Configuration(), false));
 		assertTrue(tableSource instanceof HiveTableSource);
 	}
 
