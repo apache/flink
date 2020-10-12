@@ -310,7 +310,7 @@ public class PartitionSortedBufferTest {
 		NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
 		BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
-		SortBuffer sortBuffer = new PartitionSortedBuffer(bufferPool, 1, bufferSize, null);
+		SortBuffer sortBuffer = new PartitionSortedBuffer(new Object(), bufferPool, 1, bufferSize, null);
 		sortBuffer.append(ByteBuffer.allocate(recordSize), 0, Buffer.DataType.DATA_BUFFER);
 
 		assertEquals(bufferPoolSize, bufferPool.bestEffortGetNumOfUsedBuffers());
@@ -341,7 +341,8 @@ public class PartitionSortedBufferTest {
 		NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
 		BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
 
-		return new PartitionSortedBuffer(bufferPool, numSubpartitions, bufferSize, customReadOrder);
+		return new PartitionSortedBuffer(
+			new Object(), bufferPool, numSubpartitions, bufferSize, customReadOrder);
 	}
 
 	public static int[] getRandomSubpartitionOrder(int numSubpartitions) {

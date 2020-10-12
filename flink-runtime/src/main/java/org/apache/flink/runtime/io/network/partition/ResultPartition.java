@@ -43,7 +43,6 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -145,11 +144,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
-		BufferPool bufferPool = checkNotNull(bufferPoolFactory.get());
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
-			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
-
-		this.bufferPool = bufferPool;
+		this.bufferPool = checkNotNull(bufferPoolFactory.get());
 		partitionManager.registerResultPartition(this);
 	}
 
