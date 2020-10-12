@@ -144,11 +144,6 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public void unregisterTaskManagersAndReleaseResources() {
-
-	}
-
-	@Override
 	public void close() throws Exception {
 
 	}
