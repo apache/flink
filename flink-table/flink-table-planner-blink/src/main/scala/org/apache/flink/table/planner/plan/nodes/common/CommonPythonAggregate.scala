@@ -19,19 +19,16 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableException}
-import org.apache.flink.table.api.dataview.ListView
-import org.apache.flink.table.dataview.ListViewTypeInfo
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.dataview.{DataView, ListView}
 import org.apache.flink.table.functions.python.{PythonAggregateFunction, PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec}
-import org.apache.flink.table.types.utils.TypeConversions
+import org.apache.flink.table.types.logical.{RowType, StructuredType}
+import org.apache.flink.table.types.{DataType, FieldsDataType}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -82,7 +79,9 @@ trait CommonPythonAggregate extends CommonPythonBase {
             pythonAggregateInfo.argIndexes.map(_.asInstanceOf[AnyRef])),
           extractDataViewSpecs(
             aggIndex,
-            function.asInstanceOf[PythonAggregateFunction].getAccumulatorType)
+            function.asInstanceOf[PythonAggregateFunction].getTypeInference(null)
+              .getAccumulatorTypeStrategy.get()
+              .inferType(null).get())
         )
       case _: Count1AggFunction =>
         // The count star will be treated specially in Python UDF worker
@@ -95,36 +94,42 @@ trait CommonPythonAggregate extends CommonPythonBase {
 
   protected def extractDataViewSpecs(
       index: Int,
-      accType: TypeInformation[_]): Array[DataViewSpec] = {
-    if (!accType.isInstanceOf[CompositeType[_]]) {
+      accType: DataType): Array[DataViewSpec] = {
+    if (!accType.isInstanceOf[FieldsDataType]) {
       return Array()
     }
 
-    def includesDataView(ct: CompositeType[_]): Boolean = {
-      (0 until ct.getArity).exists(i =>
-        ct.getTypeAt(i) match {
-          case nestedCT: CompositeType[_] => includesDataView(nestedCT)
-          case t: TypeInformation[_] if t.getTypeClass == classOf[ListView[_]] => true
+    val compositeAccType = accType.asInstanceOf[FieldsDataType]
+
+    def includesDataView(fdt: FieldsDataType): Boolean = {
+      (0 until fdt.getChildren.size()).exists(i =>
+        fdt.getChildren.get(i).getLogicalType match {
+          case row: RowType =>
+            includesDataView(fdt.getChildren.get(i).asInstanceOf[FieldsDataType])
+          case structed: StructuredType =>
+            classOf[DataView].isAssignableFrom(structed.getImplementationClass.get())
           case _ => false
         }
       )
     }
 
-    if (includesDataView(accType.asInstanceOf[CompositeType[_]])) {
-      accType match {
-        case rowType: RowTypeInfo =>
-            (0 until rowType.getArity).flatMap(i => {
-              rowType.getFieldTypes()(i) match {
-                case ct: CompositeType[_] if includesDataView(ct) =>
+    if (includesDataView(compositeAccType)) {
+      compositeAccType.getLogicalType match {
+        case rowType: RowType =>
+            (0 until compositeAccType.getChildren.size()).flatMap(i => {
+              compositeAccType.getChildren.get(i).getLogicalType match {
+                case _: RowType if includesDataView(
+                  compositeAccType.getChildren.get(i).asInstanceOf[FieldsDataType]) =>
                   throw new TableException(
                     "For Python AggregateFunction DataView only supported at first " +
                       "level of accumulators of Row type.")
-                case listView: ListViewTypeInfo[_] =>
+                case listViewType: StructuredType if classOf[ListView[_]].isAssignableFrom(
+                  listViewType.getImplementationClass.get()) =>
                   Some(new ListViewSpec(
                     "agg" + index + "$" + rowType.getFieldNames()(i),
                     i,
-                    DataTypes.ARRAY(
-                      TypeConversions.fromLegacyInfoToDataType(listView.getElementType))))
+                    compositeAccType.getChildren.get(i).asInstanceOf[FieldsDataType]
+                      .getChildren.get(0)))
                 case _ =>
                   None
               }

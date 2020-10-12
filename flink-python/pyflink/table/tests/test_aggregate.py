@@ -78,12 +78,13 @@ class SumAggregateFunction(AggregateFunction):
 class ConcatAggregateFunction(AggregateFunction):
 
     def get_value(self, accumulator):
-        return ",".join(accumulator[0])
+        return accumulator[1].join(accumulator[0])
 
     def create_accumulator(self):
-        return Row(ListView())
+        return Row(ListView(), '')
 
     def accumulate(self, accumulator, *args):
+        accumulator[1] = args[1]
         accumulator[0].add(args[0])
 
     def retract(self, accumulator, *args):
@@ -141,7 +142,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                                       (3, 'Hi2', 'hi'),
                                       (3, 'Hi', 'hi2'),
                                       (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by(t.c).select(my_concat(t.b).alias("a"), t.c)
+        result = t.group_by(t.c).select(my_concat(t.b, ',').alias("a"), t.c)
         assert_frame_equal(result.to_pandas(),
                            pd.DataFrame([["Hi,Hi2", "hi"],
                                          ["Hi", "hi2"],

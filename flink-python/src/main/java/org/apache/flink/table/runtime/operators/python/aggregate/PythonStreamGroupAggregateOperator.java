@@ -383,30 +383,13 @@ public class PythonStreamGroupAggregateOperator
 	public FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
 			FlinkFnApi.UserDefinedAggregateFunctions.newBuilder();
-		for (PythonFunctionInfo pythonFunctionInfo : aggregateFunctions) {
-			builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
-		}
-		for (DataViewUtils.DataViewSpec[] specs : dataViewSpecs) {
-			FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpecs.Builder specsBuilder =
-				FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpecs.newBuilder();
-			for (DataViewUtils.DataViewSpec spec : specs) {
-				FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.Builder specBuilder =
-					FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.newBuilder();
-				specBuilder.setName(spec.getStateId());
-				if (spec instanceof DataViewUtils.ListViewSpec) {
-					DataViewUtils.ListViewSpec listViewSpec = (DataViewUtils.ListViewSpec) spec;
-					specBuilder.setType(FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.DataViewType.LIST);
-					specBuilder.setElementType(toProtoType(listViewSpec.getElementDataType().getLogicalType()));
-				} else {
-					DataViewUtils.MapViewSpec mapViewSpec = (DataViewUtils.MapViewSpec) spec;
-					specBuilder.setType(FlinkFnApi.UserDefinedAggregateFunctions.DataViewSpec.DataViewType.MAP);
-					specBuilder.setElementType(toProtoType(mapViewSpec.getValueDataType().getLogicalType()));
-					specBuilder.setKeyType(toProtoType(mapViewSpec.getKeyDataType().getLogicalType()));
-				}
-				specBuilder.setFieldIndex(spec.getFieldIndex());
-				specsBuilder.addSpecs(specBuilder.build());
+		for (int i = 0; i < aggregateFunctions.length; i++) {
+			DataViewUtils.DataViewSpec[] specs = null;
+			if (i < dataViewSpecs.length) {
+				specs = dataViewSpecs[i];
 			}
-			builder.addUdfDataViewSpecs(specsBuilder.build());
+			builder.addUdfs(
+				PythonOperatorUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
 		}
 		builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
 		builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));

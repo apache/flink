@@ -1985,6 +1985,9 @@ def _to_java_data_type(data_type: DataType):
                                               JDataTypes.SECOND(data_type.fractional_precision))
         else:
             j_data_type = JDataTypes.INTERVAL(JDataTypes.SECOND(data_type.fractional_precision))
+    elif isinstance(data_type, ListViewType):
+        return gateway.jvm.org.apache.flink.table.api.dataview.ListView.newListViewDataType(
+            _to_java_data_type(data_type._element_type))
     else:
         raise TypeError("Unsupported data type: %s" % data_type)
 

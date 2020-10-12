@@ -18,12 +18,10 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict
 
-from apache_beam.coders import PickleCoder
-from apache_beam.coders.coders import FastCoder
+from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.common import Row, RowKind
 from pyflink.common.state import ListState
-from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, FunctionContext
@@ -39,28 +37,28 @@ def join_row(left: Row, right: Row):
     return Row(*fields)
 
 
-DataViewType = flink_fn_execution_pb2.UserDefinedAggregateFunctions.DataViewSpec.DataViewType
-
-
-def extract_data_view_specs(udf_data_view_specs_proto):
-    if udf_data_view_specs_proto is None:
-        return []
+def extract_data_view_specs(udfs):
     extracted_udf_data_view_specs = []
-    for data_view_specs_proto in udf_data_view_specs_proto:
+    for udf in udfs:
+        udf_data_view_specs_proto = udf.specs
+        if udf_data_view_specs_proto is None:
+            extracted_udf_data_view_specs.append([])
         extracted_specs = []
-        for spec_proto in data_view_specs_proto.specs:
+        for spec_proto in udf_data_view_specs_proto:
             state_id = spec_proto.name
             field_index = spec_proto.field_index
-            if spec_proto.type == DataViewType.LIST:
-                element_coder = from_proto(spec_proto.element_type)
+            if spec_proto.list_view is not None:
+                element_coder = from_proto(spec_proto.list_view.element_type)
                 extracted_specs.append(ListViewSpec(state_id, field_index, element_coder))
-            elif spec_proto.type == DataViewType.MAP:
-                value_coder = from_proto(spec_proto.element_type)
-                key_coder = from_proto(spec_proto.key_type)
+            elif spec_proto.map_view is not None:
+                key_coder = from_proto(spec_proto.map_view.key_type)
+                value_coder = from_proto(spec_proto.map_view.value_type)
                 extracted_specs.append(MapViewSpec(state_id, field_index, key_coder, value_coder))
             else:
                 raise Exception("Unsupported data view spec type: " + spec_proto.type)
         extracted_udf_data_view_specs.append(extracted_specs)
+    if all([len(i) == 0 for i in extracted_udf_data_view_specs]):
+        return []
     return extracted_udf_data_view_specs
 
 
@@ -246,18 +244,18 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
 
     def __init__(self,
                  udfs: List[AggregateFunction],
-                 args_offsets_list: List[List[int]],
+                 input_extractors: List,
                  index_of_count_star: int,
                  udf_data_view_specs: List[List[DataViewSpec]]):
         self._udfs = udfs
-        self._args_offsets_list = args_offsets_list
+        self._input_extractors = input_extractors
         self._accumulators = None  # type: Row
         self._get_value_indexes = [i for i in range(len(udfs))]
         if index_of_count_star >= 0:
             # The record count is used internally, should be ignored by the get_value method.
             self._get_value_indexes.remove(index_of_count_star)
         self._udf_data_view_specs = udf_data_view_specs
-        self._udf_data_views = []  # type: List[Dict[DataView]]
+        self._udf_data_views = []
 
     def open(self, state_data_view_store):
         for udf in self._udfs:
@@ -275,14 +273,14 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
 
     def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
-            args_offset = self._args_offsets_list[i]
-            args = [input_data[offset] for offset in args_offset]
+            input_extractor = self._input_extractors[i]
+            args = input_extractor(input_data)
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
     def retract(self, input_data: Row):
         for i in range(len(self._udfs)):
-            args_offset = self._args_offsets_list[i]
-            args = [input_data[offset] for offset in args_offset]
+            input_extractor = self._input_extractors[i]
+            args = input_extractor(input_data)
             self._udfs[i].retract(self._accumulators[i], *args)
 
     def merge(self, accumulators: Row):
@@ -356,7 +354,7 @@ class GroupAggFunction(object):
                  aggs_handle: AggsHandleFunction,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: FastCoder,
+                 state_value_coder: Coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):
@@ -364,8 +362,6 @@ class GroupAggFunction(object):
         self.generate_update_before = generate_update_before
         self.state_cleaning_enabled = state_cleaning_enabled
         self.key_selector = key_selector
-        # Currently we do not support user-defined type accumulator.
-        # So any accumulators can be encoded by the PickleCoder.
         self.state_value_coder = state_value_coder
         self.state_backend = state_backend
         self.record_counter = RecordCounter.of(index_of_count_star)

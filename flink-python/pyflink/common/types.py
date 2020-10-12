@@ -165,12 +165,13 @@ class Row(object):
     def __setitem__(self, key, value):
         if isinstance(key, (int, slice)):
             self._values[key] = value
+            return
         try:
             # it will be slow when it has many fields,
             # but this will not be used in normal cases
             idx = self._fields.index(key)
             self._values[idx] = value
-        except IndexError:
+        except (IndexError, AttributeError):
             raise KeyError(key)
         except ValueError:
             raise ValueError(value)
