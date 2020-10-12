@@ -47,14 +47,6 @@ public abstract class ResultSubpartition {
 		this.subpartitionInfo = new ResultSubpartitionInfo(parent.getPartitionIndex(), index);
 	}
 
-	/**
-	 * Whether the buffer can be compressed or not. Note that event is not compressed because it
-	 * is usually small and the size can become even larger after compression.
-	 */
-	protected boolean canBeCompressed(Buffer buffer) {
-		return parent.bufferCompressor != null && buffer.isBuffer() && buffer.readableBytes() > 0;
-	}
-
 	public ResultSubpartitionInfo getSubpartitionInfo() {
 		return subpartitionInfo;
 	}

@@ -78,9 +78,20 @@ public class ShuffleCompressionITCase {
 	}
 
 	@Test
-	public void testDataCompressionForBlockingShuffle() throws Exception {
+	public void testDataCompressionForBoundedBlockingShuffle() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
+
+		JobGraph jobGraph = createJobGraph(
+			ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
+		JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
+	}
+
+	@Test
+	public void testDataCompressionForSortMergeBlockingShuffle() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setBoolean(NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
+		configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
 
 		JobGraph jobGraph = createJobGraph(
 			ScheduleMode.LAZY_FROM_SOURCES, ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
