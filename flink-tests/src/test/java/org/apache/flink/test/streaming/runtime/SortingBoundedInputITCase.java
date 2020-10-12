@@ -185,7 +185,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void endInput() throws Exception {
+		public void endInput() {
 			output.collect(new StreamRecord<>(seenRecords));
 		}
 	}
@@ -199,16 +199,16 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 		private boolean input2Finished = false;
 
 		@Override
-		public void processElement1(StreamRecord<Tuple2<Integer, byte[]>> element) throws Exception {
+		public void processElement1(StreamRecord<Tuple2<Integer, byte[]>> element) {
 			processElement(element);
 		}
 
 		@Override
-		public void processElement2(StreamRecord<Tuple2<Integer, byte[]>> element) throws Exception {
+		public void processElement2(StreamRecord<Tuple2<Integer, byte[]>> element) {
 			processElement(element);
 		}
 
-		private void processElement(StreamRecord<Tuple2<Integer, byte[]>> element) throws Exception {
+		private void processElement(StreamRecord<Tuple2<Integer, byte[]>> element) {
 			this.seenRecords++;
 			Integer incomingKey = element.getValue().f0;
 			if (!Objects.equals(incomingKey, currentKey)) {

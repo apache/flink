@@ -20,12 +20,10 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
-import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
-import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
 import java.util.Collections;
 import java.util.List;
@@ -48,9 +46,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		List<IndexedInputGate> inputGates1,
 		List<IndexedInputGate> inputGates2) {
 
-		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
-			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null);
-
 		// create an input instance for each input
 		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedMultipleInputGate(
 			this,
@@ -71,7 +66,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			getStreamStatusMaintainer(),
 			mainOperator,
-			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
 			operatorChain,

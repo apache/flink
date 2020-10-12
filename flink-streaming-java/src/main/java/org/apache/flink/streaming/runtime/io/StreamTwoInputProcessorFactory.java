@@ -30,8 +30,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
+import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -55,7 +57,6 @@ public class StreamTwoInputProcessorFactory {
 			TaskIOMetricGroup taskIOMetricGroup,
 			StreamStatusMaintainer streamStatusMaintainer,
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
-			TwoInputSelectionHandler inputSelectionHandler,
 			WatermarkGauge input1WatermarkGauge,
 			WatermarkGauge input2WatermarkGauge,
 			BoundedMultiInput endOfInputAware,
@@ -67,7 +68,6 @@ public class StreamTwoInputProcessorFactory {
 			Counter numRecordsIn) {
 
 		checkNotNull(endOfInputAware);
-		checkNotNull(inputSelectionHandler);
 
 		StreamStatusTracker statusTracker = new StreamStatusTracker();
 		taskIOMetricGroup.reuseRecordsInputCounter(numRecordsIn);
@@ -86,9 +86,16 @@ public class StreamTwoInputProcessorFactory {
 			new StatusWatermarkValve(checkpointedInputGates[1].getNumberOfInputChannels()),
 			1);
 
+		InputSelectable inputSelectable =
+			streamOperator instanceof InputSelectable ? (InputSelectable) streamOperator : null;
 		if (streamConfig.shouldSortInputs()) {
+
+			if (inputSelectable != null) {
+				throw new IllegalStateException("The InputSelectable interface is not supported with sorting inputs");
+			}
+
 			@SuppressWarnings("unchecked")
-			StreamTaskInput<?>[] multiInputs = MultiInputSortingDataInput.wrapInputs(
+			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
 				ownerTask,
 				new StreamTaskInput[]{input1, input2},
 				new KeySelector[]{
@@ -105,8 +112,9 @@ public class StreamTwoInputProcessorFactory {
 				),
 				jobConfig
 			);
-			input1 = getSortedInput(multiInputs[0]);
-			input2 = getSortedInput(multiInputs[1]);
+			inputSelectable = selectableSortingInputs.getInputSelectable();
+			input1 = getSortedInput(selectableSortingInputs.getSortingInputs()[0]);
+			input2 = getSortedInput(selectableSortingInputs.getSortingInputs()[1]);
 		}
 
 		StreamTaskNetworkOutput<IN1> output1 = new StreamTaskNetworkOutput<>(
@@ -138,7 +146,7 @@ public class StreamTwoInputProcessorFactory {
 		);
 
 		return new StreamTwoInputProcessor<>(
-			inputSelectionHandler,
+			new TwoInputSelectionHandler(inputSelectable),
 			processor1,
 			processor2
 		);
