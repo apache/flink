@@ -56,14 +56,15 @@ public class HiveDynamicTableFactory implements
 		throw new UnsupportedOperationException("Hive factory is only work for catalog.");
 	}
 
-	private static CatalogTable removeIsGenericFlag(CatalogTable table) {
-		Map<String, String> newOptions = new HashMap<>(table.getOptions());
+	private static CatalogTable removeIsGenericFlag(Context context) {
+		Map<String, String> newOptions = new HashMap<>(context.getCatalogTable().getOptions());
 		boolean isGeneric = Boolean.parseBoolean(newOptions.remove(IS_GENERIC));
-		if (!isGeneric) {
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
 			throw new ValidationException(
 					"Hive dynamic table factory now only work for generic table.");
 		}
-		return table.copy(newOptions);
+		return context.getCatalogTable().copy(newOptions);
 	}
 
 	@Override
@@ -71,7 +72,7 @@ public class HiveDynamicTableFactory implements
 		return FactoryUtil.createTableSink(
 				null, // we already in the factory of catalog
 				context.getObjectIdentifier(),
-				removeIsGenericFlag(context.getCatalogTable()),
+				removeIsGenericFlag(context),
 				context.getConfiguration(),
 				context.getClassLoader(),
 				false);
@@ -82,7 +83,7 @@ public class HiveDynamicTableFactory implements
 		return FactoryUtil.createTableSource(
 				null, // we already in the factory of catalog
 				context.getObjectIdentifier(),
-				removeIsGenericFlag(context.getCatalogTable()),
+				removeIsGenericFlag(context),
 				context.getConfiguration(),
 				context.getClassLoader(),
 				false);
