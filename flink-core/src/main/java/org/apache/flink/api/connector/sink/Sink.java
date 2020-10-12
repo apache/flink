@@ -37,11 +37,11 @@ import java.util.Optional;
  *
  * @param <InputT>        The type of the sink's input
  * @param <CommT>         The type of the committable data
- * @param <GlobalCommT>   The type of the aggregated committable
  * @param <WriterStateT>  The type of the writer's state
+ * @param <GlobalCommT>   The type of the aggregated committable
  */
 @Experimental
-public interface Sink<InputT, CommT, GlobalCommT, WriterStateT> {
+public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> {
 
 	/**
 	 * Create a {@link Writer}.

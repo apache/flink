@@ -21,6 +21,8 @@ package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.util.List;
+
 /**
  * This interface is responsible for committing the data to the external system.
  *
@@ -28,10 +30,12 @@ import org.apache.flink.annotation.Experimental;
  */
 @Experimental
 public interface Committer<CommT> extends AutoCloseable {
+
 	/**
-	 * Commit the committable data to the external system.
+	 * Commit the given collection of {@link CommT}.
 	 * @param committable the data needed to be committed.
-	 * @throws Exception if the commit operation fail.
+	 * @return a collection of {@link CommT} that is needed to re-commit latter.
+	 * @throws Exception if the commit operation fail and do not want to retry any more.
 	 */
-	void commit(CommT committable) throws Exception;
+	List<CommT> commit(List<CommT> committable) throws Exception;
 }
