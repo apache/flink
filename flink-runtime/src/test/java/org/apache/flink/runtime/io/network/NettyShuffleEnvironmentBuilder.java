@@ -54,6 +54,10 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private int floatingNetworkBuffersPerGate = 8;
 
+	private int sortShuffleMinBuffers = 100;
+
+	private int sortShuffleMinParallelism = Integer.MAX_VALUE;
+
 	private int maxBuffersPerChannel = Integer.MAX_VALUE;
 
 	private boolean blockingShuffleCompressionEnabled = false;
@@ -110,6 +114,16 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
+	public NettyShuffleEnvironmentBuilder setSortShuffleMinBuffers(int sortShuffleMinBuffers) {
+		this.sortShuffleMinBuffers = sortShuffleMinBuffers;
+		return this;
+	}
+
+	public NettyShuffleEnvironmentBuilder setSortShuffleMinParallelism(int sortShuffleMinParallelism) {
+		this.sortShuffleMinParallelism = sortShuffleMinParallelism;
+		return this;
+	}
+
 	public NettyShuffleEnvironmentBuilder setBlockingShuffleCompressionEnabled(boolean blockingShuffleCompressionEnabled) {
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		return this;
@@ -156,7 +170,9 @@ public class NettyShuffleEnvironmentBuilder {
 				BoundedBlockingSubpartitionType.AUTO,
 				blockingShuffleCompressionEnabled,
 				compressionCodec,
-				maxBuffersPerChannel),
+				maxBuffersPerChannel,
+				sortShuffleMinBuffers,
+				sortShuffleMinParallelism),
 			taskManagerLocation,
 			new TaskEventDispatcher(),
 			resultPartitionManager,
