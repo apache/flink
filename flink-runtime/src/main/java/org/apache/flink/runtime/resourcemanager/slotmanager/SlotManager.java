@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -141,7 +140,4 @@ public interface SlotManager extends AutoCloseable {
 	void freeSlot(SlotID slotId, AllocationID allocationId);
 
 	void setFailUnfulfillableRequest(boolean failUnfulfillableRequest);
-
-	@VisibleForTesting
-	void unregisterTaskManagersAndReleaseResources();
 }

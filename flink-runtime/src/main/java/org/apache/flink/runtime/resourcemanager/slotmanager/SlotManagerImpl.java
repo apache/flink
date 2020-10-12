@@ -1371,21 +1371,4 @@ public class SlotManagerImpl implements SlotManager {
 		}
 	}
 
-	@Override
-	@VisibleForTesting
-	public void unregisterTaskManagersAndReleaseResources() {
-		Iterator<Map.Entry<InstanceID, TaskManagerRegistration>> taskManagerRegistrationIterator =
-				taskManagerRegistrations.entrySet().iterator();
-
-		while (taskManagerRegistrationIterator.hasNext()) {
-			TaskManagerRegistration taskManagerRegistration =
-					taskManagerRegistrationIterator.next().getValue();
-
-			taskManagerRegistrationIterator.remove();
-
-			final FlinkException cause = new FlinkException("Triggering of SlotManager#unregisterTaskManagersAndReleaseResources.");
-			internalUnregisterTaskManager(taskManagerRegistration, cause);
-			resourceActions.releaseResource(taskManagerRegistration.getInstanceId(), cause);
-		}
-	}
 }
