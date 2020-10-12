@@ -66,7 +66,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * this snapshot. This depends for each entry on whether or not it was subject to copy-on-write
      * operations by the {@link CopyOnWriteStateMap}.
      */
-    @Nonnull private final CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData;
+    @Nonnull private final StateMapEntry<K, N, S>[] snapshotData;
 
     /** The number of (non-null) entries in snapshotData. */
     @Nonnegative private final int numberOfEntriesInSnapshotData;
@@ -153,15 +153,15 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 
         int numberOfEntriesInSnapshotData;
 
-        CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData;
+        StateMapEntry<K, N, S>[] snapshotData;
 
-        Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> chainIterator;
+        Iterator<StateMapEntry<K, N, S>> chainIterator;
 
-        Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> entryIterator;
+        Iterator<StateMapEntry<K, N, S>> entryIterator;
 
         SnapshotIterator(
                 int numberOfEntriesInSnapshotData,
-                CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData,
+                StateMapEntry<K, N, S>[] snapshotData,
                 @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer) {
             this.numberOfEntriesInSnapshotData = numberOfEntriesInSnapshotData;
             this.snapshotData = snapshotData;
@@ -178,15 +178,15 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
         abstract void transform(@Nullable StateSnapshotTransformer<S> stateSnapshotTransformer);
 
         /** Return an iterator over the chains of entries in snapshotData. */
-        abstract Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getChainIterator();
+        abstract Iterator<StateMapEntry<K, N, S>> getChainIterator();
 
         /**
          * Return an iterator over the entries in the chain.
          *
          * @param stateMapEntry The head entry of the chain.
          */
-        abstract Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getEntryIterator(
-                CopyOnWriteStateMap.StateMapEntry<K, N, S> stateMapEntry);
+        abstract Iterator<StateMapEntry<K, N, S>> getEntryIterator(
+                StateMapEntry<K, N, S> stateMapEntry);
 
         @Override
         public boolean hasNext() {
@@ -194,12 +194,12 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
         }
 
         @Override
-        public CopyOnWriteStateMap.StateMapEntry<K, N, S> next() {
+        public StateMapEntry<K, N, S> next() {
             if (entryIterator.hasNext()) {
                 return entryIterator.next();
             }
 
-            CopyOnWriteStateMap.StateMapEntry<K, N, S> stateMapEntry = chainIterator.next();
+            StateMapEntry<K, N, S> stateMapEntry = chainIterator.next();
             entryIterator = getEntryIterator(stateMapEntry);
             return entryIterator.next();
         }
@@ -209,8 +209,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
     static class NonTransformSnapshotIterator<K, N, S> extends SnapshotIterator<K, N, S> {
 
         NonTransformSnapshotIterator(
-                int numberOfEntriesInSnapshotData,
-                CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData) {
+                int numberOfEntriesInSnapshotData, StateMapEntry<K, N, S>[] snapshotData) {
             super(numberOfEntriesInSnapshotData, snapshotData, null);
         }
 
@@ -223,16 +222,16 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
         }
 
         @Override
-        Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getChainIterator() {
+        Iterator<StateMapEntry<K, N, S>> getChainIterator() {
             return Arrays.stream(snapshotData).filter(Objects::nonNull).iterator();
         }
 
         @Override
-        Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getEntryIterator(
-                final CopyOnWriteStateMap.StateMapEntry<K, N, S> stateMapEntry) {
-            return new Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>>() {
+        Iterator<StateMapEntry<K, N, S>> getEntryIterator(
+                final StateMapEntry<K, N, S> stateMapEntry) {
+            return new Iterator<StateMapEntry<K, N, S>>() {
 
-                CopyOnWriteStateMap.StateMapEntry<K, N, S> nextEntry = stateMapEntry;
+                StateMapEntry<K, N, S> nextEntry = stateMapEntry;
 
                 @Override
                 public boolean hasNext() {
@@ -240,11 +239,11 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
                 }
 
                 @Override
-                public CopyOnWriteStateMap.StateMapEntry<K, N, S> next() {
+                public StateMapEntry<K, N, S> next() {
                     if (nextEntry == null) {
                         throw new NoSuchElementException();
                     }
-                    CopyOnWriteStateMap.StateMapEntry<K, N, S> entry = nextEntry;
+                    StateMapEntry<K, N, S> entry = nextEntry;
                     nextEntry = nextEntry.next;
                     return entry;
                 }
@@ -257,7 +256,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
 
         TransformedSnapshotIterator(
                 int numberOfEntriesInSnapshotData,
-                CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData,
+                StateMapEntry<K, N, S>[] snapshotData,
                 @Nonnull StateSnapshotTransformer<S> stateSnapshotTransformer) {
             super(numberOfEntriesInSnapshotData, snapshotData, stateSnapshotTransformer);
         }
@@ -280,7 +279,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
             index--;
             // move the chains to the back
             while (index >= 0) {
-                CopyOnWriteStateMap.StateMapEntry<K, N, S> entry = snapshotData[index];
+                StateMapEntry<K, N, S> entry = snapshotData[index];
                 if (entry != null) {
                     snapshotData[lastNullIndex] = entry;
                     snapshotData[index] = null;
@@ -299,15 +298,13 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
             int count = 0;
             // reuse the snapshotData to transform and flatten the entries.
             for (int i = indexOfFirstChain; i < snapshotData.length; i++) {
-                CopyOnWriteStateMap.StateMapEntry<K, N, S> entry = snapshotData[i];
+                StateMapEntry<K, N, S> entry = snapshotData[i];
                 while (entry != null) {
                     S transformedValue = stateSnapshotTransformer.filterOrTransform(entry.state);
                     if (transformedValue != null) {
-                        CopyOnWriteStateMap.StateMapEntry<K, N, S> filteredEntry = entry;
+                        StateMapEntry<K, N, S> filteredEntry = entry;
                         if (transformedValue != entry.state) {
-                            filteredEntry =
-                                    new CopyOnWriteStateMap.StateMapEntry<>(
-                                            entry, entry.entryVersion);
+                            filteredEntry = new StateMapEntry<>(entry, entry.entryVersion);
                             filteredEntry.state = transformedValue;
                         }
                         snapshotData[count++] = filteredEntry;
@@ -324,13 +321,12 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
         }
 
         @Override
-        Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getChainIterator() {
+        Iterator<StateMapEntry<K, N, S>> getChainIterator() {
             return Arrays.stream(snapshotData, 0, numberOfEntriesInSnapshotData).iterator();
         }
 
         @Override
-        Iterator<CopyOnWriteStateMap.StateMapEntry<K, N, S>> getEntryIterator(
-                CopyOnWriteStateMap.StateMapEntry<K, N, S> stateMapEntry) {
+        Iterator<StateMapEntry<K, N, S>> getEntryIterator(StateMapEntry<K, N, S> stateMapEntry) {
             return Collections.singleton(stateMapEntry).iterator();
         }
     }
