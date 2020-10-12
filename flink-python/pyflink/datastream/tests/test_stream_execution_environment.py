@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 import glob
 import json
 import os
@@ -225,27 +226,50 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertIsNotNone(str(execution_result))
 
     def test_from_collection_without_data_types(self):
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
+        ds = self.env.from_collection([(1, 'Hi', 'Hello', datetime.date(2014, 9, 13),
+                                        datetime.time(hour=11, minute=0, second=0,
+                                                      microsecond=123000),
+                                        datetime.datetime(2018, 3, 11, 3, 0, 0, 123000)),
+                                       (2, 'Hello', 'Hi', datetime.date(2015, 10, 14),
+                                        datetime.time(hour=12, minute=0, second=0,
+                                                      microsecond=234000),
+                                        datetime.datetime(2019, 4, 12, 4, 1, 1, 234000))])
         ds.add_sink(self.test_sink)
         self.env.execute("test from collection")
         results = self.test_sink.get_results(True)
         # user does not specify data types for input data, the collected result should be in
         # in tuple format as inputs.
-        expected = ["(1, 'Hi', 'Hello')", "(2, 'Hello', 'Hi')"]
+        expected = ["(1, 'Hi', 'Hello', datetime.date(2014, 9, 13), "
+                    "datetime.time(11, 0, 0, 123000), "
+                    "datetime.datetime(2018, 3, 11, 3, 0, 0, 123000))",
+                    "(2, 'Hello', 'Hi', datetime.date(2015, 10, 14), "
+                    "datetime.time(12, 0, 0, 234000), "
+                    "datetime.datetime(2019, 4, 12, 4, 1, 1, 234000))"]
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
 
     def test_from_collection_with_data_types(self):
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
+        ds = self.env.from_collection([(1, 'Hi', 'Hello', datetime.date(2014, 9, 13),
+                                        datetime.time(hour=11, minute=0, second=0,
+                                                      microsecond=123000),
+                                        datetime.datetime(2018, 3, 11, 3, 0, 0, 123000)),
+                                       (2, 'Hello', 'Hi', datetime.date(2015, 10, 14),
+                                        datetime.time(hour=12, minute=0, second=0,
+                                                      microsecond=234000),
+                                        datetime.datetime(2019, 4, 12, 4, 1, 1, 234000))],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.STRING(),
-                                                           Types.STRING()]))
+                                                           Types.STRING(),
+                                                           Types.SQL_DATE(),
+                                                           Types.SQL_TIME(),
+                                                           Types.SQL_TIMESTAMP()]))
         ds.add_sink(self.test_sink)
         self.env.execute("test from collection")
         results = self.test_sink.get_results(False)
         # if user specifies data types of input data, the collected result should be in row format.
-        expected = ['1,Hi,Hello', '2,Hello,Hi']
+        expected = ['1,Hi,Hello,2014-09-13,11:00:00,2018-03-11 03:00:00.123',
+                    '2,Hello,Hi,2015-10-14,12:00:00,2019-04-12 04:01:01.234']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
