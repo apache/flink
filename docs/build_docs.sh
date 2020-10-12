@@ -62,11 +62,11 @@ DOC_LANGUAGES="en zh"
 while getopts "piez" opt; do
 	case $opt in
 		p)
-		JEKYLL_CMD="serve --baseurl= --watch"
+		JEKYLL_CMD="serve --baseurl= --force_polling"
 		;;
 		i)
 		[[ `${RUBY} -v` =~ 'ruby 1' ]] && echo "Error: building the docs with the incremental option requires at least ruby 2.0" && exit 1
-		JEKYLL_CMD="serve --baseurl= --watch --incremental"
+		JEKYLL_CMD="serve --baseurl= --force_polling --incremental"
 		;;
 		e)
 		JEKYLL_CONFIG="--config _config.yml,_config_dev_en.yml"
