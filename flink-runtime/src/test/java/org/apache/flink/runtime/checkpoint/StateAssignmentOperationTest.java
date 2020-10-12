@@ -170,9 +170,8 @@ public class StateAssignmentOperationTest extends TestLogger {
 	) {
 		final Map<OperatorInstanceID, List<OperatorStateHandle>> newManagedOperatorStates =
 			StateAssignmentOperation.reDistributePartitionableStates(
-				Collections.singletonList(operatorState),
+				Collections.singletonMap(operatorID, operatorState),
 				newParallelism,
-				Collections.singletonList(OperatorIDPair.generatedIDOnly(operatorID)),
 				OperatorSubtaskState::getManagedOperatorState,
 				RoundRobinOperatorStateRepartitioner.INSTANCE
 			);
