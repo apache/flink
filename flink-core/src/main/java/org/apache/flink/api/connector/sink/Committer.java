@@ -24,18 +24,18 @@ import org.apache.flink.annotation.Experimental;
 import java.util.List;
 
 /**
- * This interface is responsible for committing the data to the external system.
+ * This interface is responsible for committing information needed to commit data staged by the sink to the external system.
  *
- * @param <CommT> The type of the committable data.
+ * @param <CommT> The type of information needed to commit data staged by the sink
  */
 @Experimental
 public interface Committer<CommT> extends AutoCloseable {
 
 	/**
-	 * Commit the given collection of {@link CommT}.
-	 * @param committable the data needed to be committed.
-	 * @return a collection of {@link CommT} that is needed to re-commit latter.
+	 * Commit the given list of {@link CommT}.
+	 * @param committables A list of information needed to commit data staged by the sink.
+	 * @return A list of {@link CommT} needed to re-commit, which is needed in case we implement a "commit-with-retry" pattern.
 	 * @throws Exception if the commit operation fail and do not want to retry any more.
 	 */
-	List<CommT> commit(List<CommT> committable) throws Exception;
+	List<CommT> commit(List<CommT> committables) throws Exception;
 }

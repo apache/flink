@@ -24,9 +24,9 @@ import org.apache.flink.annotation.Experimental;
 import java.util.List;
 
 /**
- * The {@link GlobalCommitter} is responsible for committing an aggregated committable, which we called global committable.
+ * The {@link GlobalCommitter} is responsible for committing an aggregated committable, which we call global committable.
  *
- * @param <CommT>         The type of the committable data
+ * @param <CommT>         The type of information needed to commit data staged by the sink
  * @param <GlobalCommT>   The type of the aggregated committable
  */
 @Experimental
@@ -34,28 +34,29 @@ public interface GlobalCommitter<CommT, GlobalCommT> extends Committer<GlobalCom
 
 	/**
 	 * Find out which global committables need to be retried when recovering from the failure.
-	 * @param globalCommittables the global committable that are properly not committed in the previous attempt.
-	 * @return the global committables that should be committed again.
+	 * @param globalCommittables A list of {@link GlobalCommT} for which we want to verify
+	 *                              which ones were successfully committed and which ones did not.
+	 * @return A list of {@link GlobalCommT} that should be committed again.
 	 */
 	List<GlobalCommT> filterRecoveredCommittables(List<GlobalCommT> globalCommittables);
 
 	/**
-	 * Compute an aggregated committable from a collection of committables.
-	 * @param committables a collection of committables that are needed to combine
+	 * Compute an aggregated committable from a list of committables.
+	 * @param committables A list of {@link CommT} to be combined into a {@link GlobalCommT}.
 	 * @return an aggregated committable
 	 */
 	GlobalCommT combine(List<CommT> committables);
 
 	/**
-	 * Commit the given collection of {@link GlobalCommT}.
-	 * @param globalCommittables a collection of {@link GlobalCommT}.
-	 * @return a collection of {@link GlobalCommT} that is needed to re-commit latter.
+	 * Commit the given list of {@link GlobalCommT}.
+	 * @param globalCommittables a list of {@link GlobalCommT}.
+	 * @return A list of {@link GlobalCommT} needed to re-commit, which is needed in case we implement a "commit-with-retry" pattern.
 	 * @throws Exception if the commit operation fail and do not want to retry any more.
 	 */
 	List<GlobalCommT> commit(List<GlobalCommT> globalCommittables) throws Exception;
 
 	/**
-	 * There is no committable any more.
+	 * Signals that there is no committable any more.
 	 */
 	void endOfInput();
 }

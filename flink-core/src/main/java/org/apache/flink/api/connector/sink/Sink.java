@@ -32,12 +32,12 @@ import java.util.Optional;
  * semantics in both batch and stream execution mode if there is a {@link Committer} or {@link GlobalCommitter}.
  * 1. The {@link Writer} is responsible for producing the committable.
  * 2. The {@link Committer} is responsible for committing a single committable.
- * 3. The {@link GlobalCommitter} is responsible for committing an aggregated committable, which we called the global
- *    committable. There is only one instance of the {@link GlobalCommitter}.
+ * 3. The {@link GlobalCommitter} is responsible for committing an aggregated committable, which we call the global
+ *    committable. The {@link GlobalCommitter} is always executed with a parallelism of 1.
  * Note: Developers need to ensure the idempotence of {@link Committer} and {@link GlobalCommitter}.
  *
  * @param <InputT>        The type of the sink's input
- * @param <CommT>         The type of the committable data
+ * @param <CommT>         The type of information needed to commit data staged by the sink
  * @param <WriterStateT>  The type of the writer's state
  * @param <GlobalCommT>   The type of the aggregated committable
  */

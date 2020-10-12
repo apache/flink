@@ -24,11 +24,11 @@ import org.apache.flink.annotation.Experimental;
 import java.util.List;
 
 /**
- * The interface is responsible for writing data and handling any potential tmp area used to write yet un-staged data, e.g. in-progress files.
+ * This interface is responsible for writing data and handling any potential tmp area used to write yet un-staged data, e.g. in-progress files.
  * The data (or metadata pointing to where the actual data is staged) ready to commit is returned to the system by the {@link #prepareCommit(boolean)}.
  *
  * @param <InputT>         The type of the writer's input
- * @param <CommT>          The type of the committable data
+ * @param <CommT>          The type of information needed to commit data staged by the sink
  * @param <WriterStateT>   The type of the writer's state
  */
 @Experimental
@@ -43,13 +43,13 @@ public interface Writer<InputT, CommT, WriterStateT> extends AutoCloseable {
 
 	/**
 	 * Prepare for a commit.
-	 * @param flush whether flushing the un-staged data or not
+	 * @param flush Whether flushing the un-staged data or not
 	 * @return The data is ready to commit.
 	 */
 	List<CommT> prepareCommit(boolean flush);
 
 	/**
-	 * @return the writer's state.
+	 * @return The writer's state.
 	 */
 	List<WriterStateT> snapshotState();
 
