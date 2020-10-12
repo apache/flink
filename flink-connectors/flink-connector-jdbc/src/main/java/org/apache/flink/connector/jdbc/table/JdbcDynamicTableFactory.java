@@ -112,8 +112,9 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 	private static final ConfigOption<Boolean> SCAN_AUTO_COMMIT = ConfigOptions
 		.key("scan.auto-commit")
 		.booleanType()
-		.noDefaultValue()
-		.withDescription("sets whether the driver is in auto-commit mode.");
+		.defaultValue(true)
+		.withDescription("sets whether the driver is in auto-commit mode. The default value is true, per" +
+			" the JDBC spec.");
 
 	// look up config options
 	private static final ConfigOption<Long> LOOKUP_CACHE_MAX_ROWS = ConfigOptions
@@ -208,7 +209,7 @@ public class JdbcDynamicTableFactory implements DynamicTableSourceFactory, Dynam
 			builder.setNumPartitions(readableConfig.get(SCAN_PARTITION_NUM));
 		}
 		readableConfig.getOptional(SCAN_FETCH_SIZE).ifPresent(builder::setFetchSize);
-		readableConfig.getOptional(SCAN_AUTO_COMMIT).ifPresent(builder::setAutoCommit);
+		builder.setAutoCommit(readableConfig.get(SCAN_AUTO_COMMIT));
 		return builder.build();
 	}
 

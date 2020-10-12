@@ -187,9 +187,11 @@ Connector Options
     <tr>
       <td><h5>scan.auto-commit</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>Sets the auto commit flag on the JDBC driver.</td>
+      <td>Sets the <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html#commit_transactions">auto-commit</a> flag on the JDBC driver,
+      which determines whether each statement is committed in a transaction automatically. Some JDBC drivers, specifically
+      <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
     </tr>
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
