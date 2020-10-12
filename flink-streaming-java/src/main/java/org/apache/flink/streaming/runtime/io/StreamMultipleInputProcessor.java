@@ -79,7 +79,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
 		lastReadInputIndex = readingInputIndex;
 		InputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
-		checkFinished(inputStatus);
+		inputSelectionHandler.nextSelection();
 		return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
 	}
 
@@ -92,12 +92,6 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 		isPrepared = true;
 
 		return selectNextReadingInputIndex();
-	}
-
-	private void checkFinished(InputStatus status) throws Exception {
-		if (status == InputStatus.END_OF_INPUT) {
-			inputSelectionHandler.nextSelection();
-		}
 	}
 
 	@Override
