@@ -135,7 +135,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		streamOperator.setKeyContextElement1(record);
 		streamOperator.processElement1(record);
-		postProcessRecord();
 	}
 
 	private void processRecord2(
@@ -144,11 +143,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		streamOperator.setKeyContextElement2(record);
 		streamOperator.processElement2(record);
-		postProcessRecord();
-	}
-
-	private void postProcessRecord() {
-		inputSelectionHandler.nextSelection();
 	}
 
 	@Override
@@ -180,11 +174,10 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		if (readingInputIndex == 0) {
 			firstInputStatus = processor1.processInput();
-			checkFinished(firstInputStatus);
 		} else {
 			secondInputStatus = processor2.processInput();
-			checkFinished(secondInputStatus);
 		}
+		inputSelectionHandler.nextSelection();
 
 		return getInputStatus();
 	}
@@ -207,12 +200,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		isPrepared = true;
 
 		return selectNextReadingInputIndex();
-	}
-
-	private void checkFinished(InputStatus status) throws Exception {
-		if (status == InputStatus.END_OF_INPUT) {
-			inputSelectionHandler.nextSelection();
-		}
 	}
 
 	private InputStatus getInputStatus() {
