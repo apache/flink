@@ -26,7 +26,7 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies
-from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation
+from pyflink.common.typeinfo import PickledBytesTypeInfo, TypeInformation, _from_java_type
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream
@@ -711,6 +711,9 @@ class StreamExecutionEnvironment(object):
         :param type_info: The TypeInformation for the produced data stream
         :return: the data stream representing the given collection.
         """
+        if type_info is not None:
+            wrapper_type = _from_java_type(type_info.get_java_type_info())
+            collection = [wrapper_type.to_internal_type(element) for element in collection]
         return self._from_collection(collection, type_info)
 
     def _from_collection(self, elements: List[Any],
@@ -728,7 +731,7 @@ class StreamExecutionEnvironment(object):
                 j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
                 out_put_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
             else:
-                j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, False)
+                j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info
             # Since flink python module depends on table module, we can make use of utils of it when
             # implementing python DataStream API.

@@ -15,7 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import calendar
+import datetime
+import time
 from abc import ABC
 from typing import List, Union
 
@@ -69,6 +71,18 @@ class WrapperTypeInfo(TypeInformation):
 
     def __str__(self):
         return self._j_typeinfo.toString()
+
+    def need_conversion(self):
+        """
+        Does this type need to conversion between Python object and internal Wrapper object.
+        """
+        return False
+
+    def to_internal_type(self, obj):
+        """
+        Converts a Python object into an internal object.
+        """
+        return obj
 
 
 class BasicTypeInfo(TypeInformation, ABC):
@@ -140,17 +154,17 @@ class SqlTimeTypeInfo(TypeInformation, ABC):
 
     @staticmethod
     def DATE():
-        return WrapperTypeInfo(
+        return DateTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.DATE)
 
     @staticmethod
     def TIME():
-        return WrapperTypeInfo(
+        return TimeTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIME)
 
     @staticmethod
     def TIMESTAMP():
-        return WrapperTypeInfo(
+        return TimestampTypeInfo(
             get_gateway().jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP)
 
 
@@ -304,6 +318,8 @@ class RowTypeInfo(WrapperTypeInfo):
                 j_names_array[i] = field_names[i]
             self._j_typeinfo = get_gateway().jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
                 self.j_types_array, j_names_array)
+        self._need_conversion = [f.need_conversion() for f in types]
+        self._need_serialize_any_field = any(self._need_conversion)
         super(RowTypeInfo, self).__init__(self._j_typeinfo)
 
     def get_field_names(self) -> List[str]:
@@ -329,6 +345,40 @@ class RowTypeInfo(WrapperTypeInfo):
                                               for field_name, field_type in
                                               zip(self.get_field_names(),
                                                   self.get_field_types())])
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, obj):
+        if obj is None:
+            return
+
+        if self._need_serialize_any_field:
+            # Only calling to_internal_type function for fields that need conversion
+            if isinstance(obj, dict):
+                return tuple(f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                             for n, f, c in zip(self._j_typeinfo.getFieldNames(), self.types,
+                                                self._need_conversion))
+            elif isinstance(obj, (tuple, list)):
+                return tuple(f.to_internal_type(v) if c else v
+                             for f, v, c in zip(self.types, obj, self._need_conversion))
+            elif hasattr(obj, "__dict__"):
+                d = obj.__dict__
+                return tuple(f.to_internal_type(d.get(n)) if c else d.get(n)
+                             for n, f, c in zip(self._j_typeinfo.getFieldNames(), self.types,
+                                                self._need_conversion))
+            else:
+                raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
+        else:
+            if isinstance(obj, dict):
+                return tuple(obj.get(n) for n in self._j_typeinfo.getFieldNames())
+            elif isinstance(obj, (list, tuple)):
+                return tuple(obj)
+            elif hasattr(obj, "__dict__"):
+                d = obj.__dict__
+                return tuple(d.get(n) for n in self._j_typeinfo.getFieldNames())
+            else:
+                raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
 
 
 class TupleTypeInfo(WrapperTypeInfo):
@@ -359,6 +409,69 @@ class TupleTypeInfo(WrapperTypeInfo):
 
     def __str__(self) -> str:
         return "TupleTypeInfo(%s)" % ', '.join([field_type.__str__() for field_type in self.types])
+
+
+class DateTypeInfo(WrapperTypeInfo):
+    """
+    TypeInformation for Date.
+    """
+
+    def __init__(self, j_typeinfo):
+        super(DateTypeInfo, self).__init__(j_typeinfo)
+
+    EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, d):
+        if d is not None:
+            return d.toordinal() - self.EPOCH_ORDINAL
+
+
+class TimeTypeInfo(WrapperTypeInfo):
+    """
+    TypeInformation for Time.
+    """
+
+    EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 6
+
+    def __init__(self, j_typeinfo):
+        super(TimeTypeInfo, self).__init__(j_typeinfo)
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, t):
+        if t is not None:
+            if t.tzinfo is not None:
+                offset = t.utcoffset()
+                offset = offset if offset else datetime.timedelta()
+                offset_microseconds =\
+                    (offset.days * 86400 + offset.seconds) * 10 ** 6 + offset.microseconds
+            else:
+                offset_microseconds = self.EPOCH_ORDINAL
+            minutes = t.hour * 60 + t.minute
+            seconds = minutes * 60 + t.second
+            return seconds * 10 ** 6 + t.microsecond - offset_microseconds
+
+
+class TimestampTypeInfo(WrapperTypeInfo):
+    """
+    TypeInformation for Timestamp.
+    """
+
+    def __init__(self, j_typeinfo):
+        super(TimestampTypeInfo, self).__init__(j_typeinfo)
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, dt):
+        if dt is not None:
+            seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
+                       else time.mktime(dt.timetuple()))
+            return int(seconds) * 10 ** 6 + dt.microsecond
 
 
 class Types(object):
@@ -549,6 +662,8 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return Types.BASIC_ARRAY(Types.DOUBLE())
     elif _is_instance_of(j_type_info, JBasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO):
         return Types.BASIC_ARRAY(Types.CHAR())
+    elif _is_instance_of(j_type_info, JBasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO):
+        return Types.BASIC_ARRAY(Types.STRING())
 
     JPickledBytesTypeInfo = gateway.jvm \
         .org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo\
