@@ -120,16 +120,16 @@ public class SplitFetcherTest {
 		final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcherWithSplit(
 			"test-split", queue, new TestingSplitReader<>(finishedSplitFetch("test-split")));
 
-		final QueueDrainerThread queueDrainer = new QueueDrainerThread(queue);
+		final QueueDrainerThread queueDrainer = new QueueDrainerThread(queue, fetcher, 1);
 		queueDrainer.start();
 
-		try {
-			fetcher.runOnce();
+		fetcher.runOnce();
 
-			assertTrue(queue.getAvailabilityFuture().isDone());
-		} finally {
-			queueDrainer.shutdown();
-		}
+		queueDrainer.sync();
+
+		// either we got the notification that the fetcher went idle after the queue was drained (thread finished)
+		// or the fetcher was already idle when the thread drained the queue (then we need no additional notification)
+		assertTrue(queue.getAvailabilityFuture().isDone() || queueDrainer.wasIdleWhenFinished());
 	}
 
 	@Test
@@ -139,18 +139,15 @@ public class SplitFetcherTest {
 		final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcherWithSplit(
 				"test-split", queue, new TestingSplitReader<>(finishedSplitFetch("test-split")));
 
-		final QueueDrainerThread queueDrainer = new QueueDrainerThread(queue);
+		final QueueDrainerThread queueDrainer = new QueueDrainerThread(queue, fetcher, 1);
 		queueDrainer.start();
 
 		final CompletableFuture<?> future = queue.getAvailabilityFuture();
 
-		try {
-			fetcher.runOnce();
+		fetcher.runOnce();
+		assertTrue(future.isDone());
 
-			assertTrue(future.isDone());
-		} finally {
-			queueDrainer.shutdown();
-		}
+		queueDrainer.sync();
 	}
 
 	@Test
@@ -274,31 +271,32 @@ public class SplitFetcherTest {
 	private static final class QueueDrainerThread extends CheckedThread {
 
 		private final FutureCompletingBlockingQueue<?> queue;
-		private volatile boolean running = true;
+		private final SplitFetcher<?, ?> fetcher;
+		private final int numFetchesToTake;
 
-		QueueDrainerThread(FutureCompletingBlockingQueue<?> queue) {
+		private volatile boolean wasIdleWhenFinished;
+
+		QueueDrainerThread(FutureCompletingBlockingQueue<?> queue, SplitFetcher<?, ?> fetcher, int numFetchesToTake) {
 			super("Queue Drainer");
 			setPriority(Thread.MAX_PRIORITY);
 			this.queue = queue;
+			this.fetcher = fetcher;
+			this.numFetchesToTake = numFetchesToTake;
 		}
 
 		@Override
 		public void go() throws Exception {
-			while (running) {
-				try {
-					queue.take();
-				}
-				catch (InterruptedException ignored) {
-					Thread.currentThread().interrupt();
-					// fall through the loop
-				}
+			int remaining = numFetchesToTake;
+			while (remaining > 0) {
+				remaining--;
+				queue.take();
 			}
+
+			wasIdleWhenFinished = fetcher.isIdle();
 		}
 
-		public void shutdown() throws Exception {
-			running = false;
-			interrupt();
-			sync();
+		public boolean wasIdleWhenFinished() {
+			return wasIdleWhenFinished;
 		}
 	}
 }
