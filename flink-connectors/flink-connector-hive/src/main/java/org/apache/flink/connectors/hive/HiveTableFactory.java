@@ -66,7 +66,8 @@ public class HiveTableFactory
 
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (!isGeneric) {
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
 			return new HiveTableSource(
 					new JobConf(hiveConf),
 					context.getConfiguration(),
@@ -84,7 +85,8 @@ public class HiveTableFactory
 
 		boolean isGeneric = Boolean.parseBoolean(table.getProperties().get(CatalogConfig.IS_GENERIC));
 
-		if (!isGeneric) {
+		// temporary table doesn't have the IS_GENERIC flag but we still consider it generic
+		if (!isGeneric && !context.isTemporary()) {
 			return new HiveTableSink(
 					context.getConfiguration().get(
 							HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_WRITER),

@@ -35,6 +35,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -56,6 +57,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.PrintStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -432,5 +434,33 @@ public class HiveCatalogITCase {
 		for (Future<List<String>> future : listDBFutures) {
 			future.get(5, TimeUnit.SECONDS);
 		}
+	}
+
+	@Test
+	public void testTemporaryGenericTable() throws Exception {
+		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(Arrays.asList(Row.of(1), Row.of(2)));
+		tableEnv.executeSql("create temporary table src(x int) with ('connector'='COLLECTION','is-bounded' = 'false')");
+		File tempDir = Files.createTempDirectory("dest-").toFile();
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> org.apache.commons.io.FileUtils.deleteQuietly(tempDir)));
+		tableEnv.executeSql("create temporary table dest(x int) with (" +
+				"'connector' = 'filesystem'," +
+				String.format("'path' = 'file://%s/1.csv',", tempDir.getAbsolutePath()) +
+				"'format' = 'csv')");
+		tableEnv.executeSql("insert into dest select * from src").await();
+
+		tableEnv.executeSql("create temporary table datagen(i int) with (" +
+				"'connector'='datagen'," +
+				"'rows-per-second'='5'," +
+				"'fields.i.kind'='sequence'," +
+				"'fields.i.start'='1'," +
+				"'fields.i.end'='10')");
+		tableEnv.executeSql("create temporary table blackhole(i int) with ('connector'='blackhole')");
+		tableEnv.executeSql("insert into blackhole select * from datagen").await();
 	}
 }
