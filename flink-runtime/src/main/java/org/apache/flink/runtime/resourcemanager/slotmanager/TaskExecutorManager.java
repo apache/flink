@@ -50,7 +50,14 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
- * SlotManager component for all task executor related things.
+ * SlotManager component for various task executor related responsibilities of the slot manager, including:
+ * <ul>
+ *     <li>tracking registered task executors</li>
+ *     <li>allocating new task executors (both on-demand, and for redundancy)</li>
+ *     <li>releasing idle task executors</li>
+ *     <li>tracking pending slots (expected slots from executors that are currently being allocated</li>
+ *     <li>tracking how many slots are used on each task executor</li>
+ * </ul>
  *
  * <p>Dev note: This component only exists to keep the code out of the slot manager.
  * It covers many aspects that aren't really the responsibility of the slot manager, and should be refactored to live
