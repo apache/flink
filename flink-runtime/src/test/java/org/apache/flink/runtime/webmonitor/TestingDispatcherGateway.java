@@ -59,7 +59,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	static final DispatcherId DEFAULT_FENCING_TOKEN = DispatcherId.generate();
 	static final Function<JobID, CompletableFuture<ArchivedExecutionGraph>> DEFAULT_REQUEST_ARCHIVED_JOB_FUNCTION = jobID -> CompletableFuture.completedFuture(null);
 	static final Function<ApplicationStatus, CompletableFuture<Acknowledge>> DEFAULT_SHUTDOWN_WITH_STATUS_FUNCTION = status -> CompletableFuture.completedFuture(Acknowledge.get());
-	static final Function<Throwable, CompletableFuture<Acknowledge>> DEFAULT_SHUTDOWN_WITH_EXCEPTION_FUNCTION = throwable -> CompletableFuture.completedFuture(Acknowledge.get());
 
 	private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
 	private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -67,7 +66,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	private DispatcherId fencingToken;
 	private Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction;
 	private Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction;
-	private Function<Throwable, CompletableFuture<Acknowledge>> clusterShutdownWithExceptionFunction;
 
 	public TestingDispatcherGateway() {
 		super();
@@ -100,7 +98,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 			Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction,
 			Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
 			Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction,
-			Function<Throwable, CompletableFuture<Acknowledge>> clusterShutdownWithExceptionFunction,
 			TriFunction<JobID, OperatorID, SerializedValue<CoordinationRequest>, CompletableFuture<CoordinationResponse>> deliverCoordinationRequestToCoordinatorFunction) {
 		super(
 			address,
@@ -124,7 +121,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		this.fencingToken = fencingToken;
 		this.requestArchivedJobFunction = requestArchivedJobFunction;
 		this.clusterShutdownWithStatusFunction = clusterShutdownWithStatusFunction;
-		this.clusterShutdownWithExceptionFunction = clusterShutdownWithExceptionFunction;
 	}
 
 	@Override
@@ -156,11 +152,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		return clusterShutdownWithStatusFunction.apply(applicationStatus);
 	}
 
-	@Override
-	public CompletableFuture<Acknowledge> shutDownClusterExceptionally(Throwable throwable) {
-		return clusterShutdownWithExceptionFunction.apply(throwable);
-	}
-
 	/**
 	 * Builder for the {@link TestingDispatcherGateway}.
 	 */
@@ -172,7 +163,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		private DispatcherId fencingToken;
 		private Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestArchivedJobFunction;
 		private Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownWithStatusFunction = DEFAULT_SHUTDOWN_WITH_STATUS_FUNCTION;
-		private Function<Throwable, CompletableFuture<Acknowledge>> clusterShutdownWithExceptionFunction = DEFAULT_SHUTDOWN_WITH_EXCEPTION_FUNCTION;
 
 		public Builder setSubmitFunction(Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction) {
 			this.submitFunction = submitFunction;
@@ -191,11 +181,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 
 		public Builder setClusterShutdownFunction(Function<ApplicationStatus, CompletableFuture<Acknowledge>> clusterShutdownFunction) {
 			this.clusterShutdownWithStatusFunction = clusterShutdownFunction;
-			return this;
-		}
-
-		public Builder setClusterShutdownWithExceptionFunction(Function<Throwable, CompletableFuture<Acknowledge>> clusterShutdownWithExceptionFunction) {
-			this.clusterShutdownWithExceptionFunction = clusterShutdownWithExceptionFunction;
 			return this;
 		}
 
@@ -242,7 +227,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 				requestArchivedJobFunction,
 				clusterShutdownSupplier,
 				clusterShutdownWithStatusFunction,
-				clusterShutdownWithExceptionFunction,
 				deliverCoordinationRequestToCoordinatorFunction);
 		}
 	}

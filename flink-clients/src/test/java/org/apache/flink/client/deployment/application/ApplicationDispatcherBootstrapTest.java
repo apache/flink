@@ -303,6 +303,7 @@ public class ApplicationDispatcherBootstrapTest {
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING));
 
 		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		bootstrap.setErrorHandler(exception -> {});
 
 		final CompletableFuture<Acknowledge> shutdownFuture =
 				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
@@ -326,13 +327,10 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
-				.setClusterShutdownWithExceptionFunction((throwable) -> {
-					externalShutdownFuture.completeExceptionally(throwable);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				});
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING));
 
 		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(2);
+		bootstrap.setErrorHandler(externalShutdownFuture::completeExceptionally);
 
 		final CompletableFuture<Acknowledge> shutdownFuture =
 				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
@@ -354,13 +352,10 @@ public class ApplicationDispatcherBootstrapTest {
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> {
 					throw new FlinkRuntimeException("Submission Failed!");
-				})
-				.setClusterShutdownWithExceptionFunction((throwable) -> {
-					externalShutdownFuture.completeExceptionally(throwable);
-					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
 		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		bootstrap.setErrorHandler(externalShutdownFuture::completeExceptionally);
 
 		final CompletableFuture<Acknowledge> shutdownFuture =
 				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);

@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 
@@ -85,6 +86,8 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 	private final Configuration configuration;
 
+	private FatalErrorHandler errorHandler;
+
 	private CompletableFuture<Void> applicationCompletionFuture;
 
 	private ScheduledFuture<?> applicationExecutionTask;
@@ -96,6 +99,10 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		this.configuration = checkNotNull(configuration);
 		this.recoveredJobs = checkNotNull(recoveredJobs);
 		this.application = checkNotNull(application);
+	}
+
+	public void setErrorHandler(final FatalErrorHandler errorHandler) {
+		this.errorHandler = checkNotNull(errorHandler);
 	}
 
 	@Override
@@ -144,19 +151,21 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 						if (ExceptionUtils.findThrowable(t, JobCancellationException.class).isPresent()) {
 							// this means the Flink Job was cancelled
 							applicationStatus = ApplicationStatus.CANCELED;
-							LOG.warn("Application {}: ", applicationStatus, t);
+							LOG.info("Application {}: ", applicationStatus, t);
 
 							return dispatcher.shutDownCluster(applicationStatus);
 						}
 
 						if (ExceptionUtils.findThrowable(t, JobExecutionException.class).isPresent()) {
 							applicationStatus = ApplicationStatus.FAILED;
-							LOG.warn("Application {}: ", applicationStatus, t);
+							LOG.info("Application {}: ", applicationStatus, t);
 
 							return dispatcher.shutDownCluster(applicationStatus);
 						}
 
-						return dispatcher.shutDownClusterExceptionally(t);
+						LOG.warn("Exiting with Application Status UNKNOWN: ", t);
+						errorHandler.onFatalError(t);
+						return CompletableFuture.completedFuture(Acknowledge.get());
 
 					} else {
 						applicationStatus = ApplicationStatus.SUCCEEDED;

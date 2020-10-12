@@ -605,12 +605,6 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> shutDownClusterExceptionally(final Throwable throwable) {
-		shutDownFuture.completeExceptionally(throwable);
-		return CompletableFuture.completedFuture(Acknowledge.get());
-	}
-
-	@Override
 	public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
 			JobID jobId,
 			OperatorID operatorId,

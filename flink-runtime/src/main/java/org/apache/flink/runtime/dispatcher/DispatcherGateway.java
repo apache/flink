@@ -82,8 +82,4 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	default CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus applicationStatus) {
 		return shutDownCluster();
 	}
-
-	default CompletableFuture<Acknowledge> shutDownClusterExceptionally(final Throwable throwable) {
-		throw new UnsupportedOperationException();
-	}
 }
