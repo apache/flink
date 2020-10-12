@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +42,7 @@ import java.util.Optional;
  * @param <GlobalCommT>   The type of the aggregated committable
  */
 @Experimental
-public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> {
+public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializable {
 
 	/**
 	 * Create a {@link Writer}.
