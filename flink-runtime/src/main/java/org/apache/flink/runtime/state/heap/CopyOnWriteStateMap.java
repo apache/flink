@@ -285,6 +285,11 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
                     }
                     e.stateVersion = stateMapVersion;
                     e.state = getStateSerializer().copy(e.state);
+                } else if (e.stateVersion < stateMapVersion) {
+                    // the entry is not used by any active snapshot;
+                    // if it WAS used then it should NOT be included into the next one if it takes
+                    // versioning into account
+                    e.stateVersion = stateMapVersion;
                 }
 
                 return e.state;
@@ -424,6 +429,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
                     if (prev.entryVersion < highestRequiredSnapshotVersion) {
                         prev = handleChainedEntryCopyOnWrite(tab, index, prev);
                     }
+                    prev.entryVersion = stateMapVersion;
                     prev.next = e.next;
                 }
                 ++modCount;
