@@ -53,7 +53,7 @@ public class RowTimeOverWindowTestBase {
 	protected TypeInformation<RowData> keyType = keySelector.getProducedType();
 
 	protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-		KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
+			KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
 		return new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
 	}
 }

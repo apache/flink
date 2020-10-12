@@ -91,11 +91,11 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 	// ------------------------------------------------------------------------
 	// Metrics
 	// ------------------------------------------------------------------------
-	protected static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+	private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
 	private transient Counter numLateRecordsDropped;
 
 	@VisibleForTesting
-	public Counter getCounter() {
+	protected Counter getCounter() {
 		return numLateRecordsDropped;
 	}
 
