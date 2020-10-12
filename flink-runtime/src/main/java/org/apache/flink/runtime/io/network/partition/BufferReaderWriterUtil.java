@@ -140,6 +140,31 @@ final class BufferReaderWriterUtil {
 		return -1L;
 	}
 
+	static long writeToByteChannel(
+			FileChannel channel,
+			Buffer buffer,
+			ByteBuffer writeDataCache,
+			ByteBuffer[] arrayWithHeaderBuffer) throws IOException {
+
+		final long bytesToWrite = HEADER_LENGTH + buffer.readableBytes();
+		if (bytesToWrite > writeDataCache.remaining()) {
+			writeDataCache.flip();
+			writeBuffer(channel, writeDataCache);
+			writeDataCache.clear();
+		}
+
+		if (bytesToWrite > writeDataCache.remaining()) {
+			return writeToByteChannel(channel, buffer, arrayWithHeaderBuffer);
+		}
+
+		writeDataCache.putShort(buffer.isBuffer() ? HEADER_VALUE_IS_BUFFER : HEADER_VALUE_IS_EVENT);
+		writeDataCache.putShort(buffer.isCompressed() ? BUFFER_IS_COMPRESSED : BUFFER_IS_NOT_COMPRESSED);
+		writeDataCache.putInt(buffer.getSize());
+		writeDataCache.put(buffer.getNioBufferReadable());
+
+		return bytesToWrite;
+	}
+
 	@Nullable
 	static Buffer readFromByteChannel(
 			FileChannel channel,
@@ -201,7 +226,7 @@ final class BufferReaderWriterUtil {
 		}
 	}
 
-	private static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
+	static void readByteBufferFully(FileChannel channel, ByteBuffer b) throws IOException {
 		// the post-checked loop here gets away with one less check in the normal case
 		do {
 			if (channel.read(b) == -1) {
@@ -211,7 +236,7 @@ final class BufferReaderWriterUtil {
 		while (b.hasRemaining());
 	}
 
-	private static void writeBuffer(FileChannel channel, ByteBuffer buffer) throws IOException {
+	static void writeBuffer(FileChannel channel, ByteBuffer buffer) throws IOException {
 		while (buffer.hasRemaining()) {
 			channel.write(buffer);
 		}

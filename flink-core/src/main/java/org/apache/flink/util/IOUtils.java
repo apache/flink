@@ -25,6 +25,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static java.util.Arrays.asList;
 
@@ -278,6 +280,17 @@ public final class IOUtils {
 			if (closeable != null) {
 				closeable.close();
 			}
+		} catch (Throwable ignored) {}
+	}
+
+	/**
+	 * Deletes the given file.
+	 *
+	 * <p><b>Important:</b> This method is expected to never throw an exception.
+	 */
+	public static void deleteFileQuietly(Path path) {
+		try {
+			Files.deleteIfExists(path);
 		} catch (Throwable ignored) {}
 	}
 

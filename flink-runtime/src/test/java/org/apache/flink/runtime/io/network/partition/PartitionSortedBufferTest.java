@@ -344,7 +344,7 @@ public class PartitionSortedBufferTest {
 		return new PartitionSortedBuffer(bufferPool, numSubpartitions, bufferSize, customReadOrder);
 	}
 
-	private int[] getRandomSubpartitionOrder(int numSubpartitions) {
+	public static int[] getRandomSubpartitionOrder(int numSubpartitions) {
 		Random random = new Random(1111);
 		int[] subpartitionReadOrder = new int[numSubpartitions];
 		int shift = random.nextInt(numSubpartitions);
