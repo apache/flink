@@ -76,7 +76,7 @@ public class JMXService {
 		}
 	}
 
-	public static Optional<Integer> getPort() {
+	public static synchronized Optional<Integer> getPort() {
 		return Optional.ofNullable(jmxServer).map(JMXServer::getPort);
 	}
 
