@@ -54,6 +54,7 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 
 import org.slf4j.Logger;
@@ -148,6 +149,7 @@ public class StreamGraphGenerator {
 		tmp.put(TwoInputTransformation.class, new TwoInputTransformationTranslator<>());
 		tmp.put(MultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
 		tmp.put(KeyedMultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
+		tmp.put(SourceTransformation.class, new SourceTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -364,9 +366,7 @@ public class StreamGraphGenerator {
 
 	private Collection<Integer> legacyTransform(Transformation<?> transform) {
 		Collection<Integer> transformedIds;
-		if (transform instanceof SourceTransformation) {
-			transformedIds = transformSource((SourceTransformation<?>) transform);
-		} else if (transform instanceof LegacySourceTransformation<?>) {
+		if (transform instanceof LegacySourceTransformation<?>) {
 			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
 		} else if (transform instanceof LegacySinkTransformation<?>) {
 			transformedIds = transformLegacySink((LegacySinkTransformation<?>) transform);
@@ -633,26 +633,6 @@ public class StreamGraphGenerator {
 		itSource.setSlotSharingGroup(slotSharingGroup);
 
 		return Collections.singleton(itSource.getId());
-	}
-
-	/**
-	 * Transforms a {@code SourceTransformation}.
-	 */
-	private <T> Collection<Integer> transformSource(SourceTransformation<T> source) {
-		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), Collections.emptyList());
-
-		streamGraph.addSource(source.getId(),
-				slotSharingGroup,
-				source.getCoLocationGroupKey(),
-				source.getOperatorFactory(),
-				null,
-				source.getOutputType(),
-				"Source: " + source.getName());
-		int parallelism = source.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-				source.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(source.getId(), parallelism);
-		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
-		return Collections.singleton(source.getId());
 	}
 
 	/**
