@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -128,7 +129,7 @@ public class LargeSortingDataInputITCase {
 		GeneratedRecordsDataInput input2 = new GeneratedRecordsDataInput(numberOfRecords, 1);
 		KeySelector<Tuple3<Integer, String, byte[]>, String> keySelector = value -> value.f1;
 		try (MockEnvironment environment = MockEnvironment.builder().build()) {
-			StreamTaskInput<?>[] sortedInputs = MultiInputSortingDataInput.wrapInputs(
+			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
 				new DummyInvokable(),
 				new StreamTaskInput[]{input1, input2},
 				new KeySelector[]{keySelector, keySelector},
@@ -141,13 +142,13 @@ public class LargeSortingDataInputITCase {
 				new Configuration()
 			);
 
-			try (
-				StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 = (StreamTaskInput<Tuple3<Integer, String, byte[]>>) sortedInputs[0];
-				StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput2 = (StreamTaskInput<Tuple3<Integer, String, byte[]>>) sortedInputs[1]) {
+			StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortingInputs();
+			try (StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 = (StreamTaskInput<Tuple3<Integer, String, byte[]>>) sortingDataInputs[0];
+					StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput2 = (StreamTaskInput<Tuple3<Integer, String, byte[]>>) sortingDataInputs[1]) {
 
 				VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
 				StreamMultipleInputProcessor multiSortedProcessor = new StreamMultipleInputProcessor(
-					new MultipleInputSelectionHandler(null, 2),
+					new MultipleInputSelectionHandler(selectableSortingInputs.getInputSelectable(), 2),
 					new StreamOneInputProcessor[]{
 						new StreamOneInputProcessor(
 							sortedInput1,

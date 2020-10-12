@@ -26,6 +26,7 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
@@ -63,7 +64,7 @@ public class MultiInputSortingDataInputsTest  {
 		CollectionDataInput<Integer> dataInput2 = new CollectionDataInput<>(elements, 1);
 		KeySelector<Integer, Integer> keySelector = value -> value;
 		try (MockEnvironment environment = MockEnvironment.builder().build()) {
-			StreamTaskInput<?>[] sortingDataInput = MultiInputSortingDataInput.wrapInputs(
+			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
 				new DummyInvokable(),
 				new StreamTaskInput[]{dataInput1, dataInput2},
 				new KeySelector[]{keySelector, keySelector},
@@ -76,10 +77,13 @@ public class MultiInputSortingDataInputsTest  {
 				new Configuration()
 			);
 
-			try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInput[0];
-					StreamTaskInput<Object> input2 = (StreamTaskInput<Object>) sortingDataInput[1]) {
+			StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortingInputs();
+			try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInputs[0];
+					StreamTaskInput<Object> input2 = (StreamTaskInput<Object>) sortingDataInputs[1]) {
 
-				MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(null, 2);
+				MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
+					selectableSortingInputs.getInputSelectable(),
+					2);
 				StreamMultipleInputProcessor processor = new StreamMultipleInputProcessor(
 					selectionHandler,
 					new StreamOneInputProcessor[]{
@@ -143,7 +147,7 @@ public class MultiInputSortingDataInputsTest  {
 		CollectionDataInput<Integer> dataInput2 = new CollectionDataInput<>(elements2, 1);
 		KeySelector<Integer, Integer> keySelector = value -> value;
 		try (MockEnvironment environment = MockEnvironment.builder().build()) {
-			StreamTaskInput<?>[] sortingDataInput = MultiInputSortingDataInput.wrapInputs(
+			SelectableSortingInputs selectableSortingInputs = MultiInputSortingDataInput.wrapInputs(
 				new DummyInvokable(),
 				new StreamTaskInput[]{dataInput1, dataInput2},
 				new KeySelector[]{keySelector, keySelector},
@@ -156,10 +160,13 @@ public class MultiInputSortingDataInputsTest  {
 				new Configuration()
 			);
 
-			try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInput[0];
-					StreamTaskInput<Object> input2 = (StreamTaskInput<Object>) sortingDataInput[1]) {
+			StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortingInputs();
+			try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInputs[0];
+					StreamTaskInput<Object> input2 = (StreamTaskInput<Object>) sortingDataInputs[1]) {
 
-				MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(null, 2);
+				MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
+					selectableSortingInputs.getInputSelectable(),
+					2);
 				StreamMultipleInputProcessor processor = new StreamMultipleInputProcessor(
 					selectionHandler,
 					new StreamOneInputProcessor[]{

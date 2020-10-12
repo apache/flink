@@ -33,8 +33,11 @@ import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.PushSorter;
+import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -98,7 +101,29 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 		this.dataOutputSerializer = dataOutputSerializer;
 	}
 
-	public static <K> StreamTaskInput<?>[] wrapInputs(
+	/**
+	 * A wrapper that combines sorting {@link StreamTaskInput inputs} with a {@link InputSelectable} that should be
+	 * used to choose which input to consume next from.
+	 */
+	public static class SelectableSortingInputs {
+		private final InputSelectable inputSelectable;
+		private final StreamTaskInput<?>[] sortingInputs;
+
+		public SelectableSortingInputs(StreamTaskInput<?>[] sortingInputs, InputSelectable inputSelectable) {
+			this.sortingInputs = sortingInputs;
+			this.inputSelectable = inputSelectable;
+		}
+
+		public InputSelectable getInputSelectable() {
+			return inputSelectable;
+		}
+
+		public StreamTaskInput<?>[] getSortingInputs() {
+			return sortingInputs;
+		}
+	}
+
+	public static <K> SelectableSortingInputs wrapInputs(
 			AbstractInvokable containingTask,
 			StreamTaskInput<Object>[] inputs,
 			KeySelector<Object, K>[] keySelectors,
@@ -122,7 +147,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 
 		int numberOfInputs = inputs.length;
 		CommonContext commonContext = new CommonContext(numberOfInputs);
-		return IntStream.range(0, numberOfInputs)
+		StreamTaskInput<?>[] sortingInputs = IntStream.range(0, numberOfInputs)
 			.mapToObj(
 				idx -> {
 					try {
@@ -156,6 +181,13 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 					}
 				}
 			).toArray(StreamTaskInput[]::new);
+		return new SelectableSortingInputs(
+			sortingInputs,
+			new InputSelector(
+				commonContext,
+				numberOfInputs
+			)
+		);
 	}
 
 	@Override
@@ -266,32 +298,6 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 	}
 
 	@Override
-	public boolean isApproximatelyAvailable() {
-		if (sortedInput != null) {
-			return isHeadAvailable();
-		} else {
-			return StreamTaskInput.super.isApproximatelyAvailable();
-		}
-	}
-
-	@Override
-	public boolean isAvailable() {
-		if (sortedInput != null) {
-			return isHeadAvailable();
-		} else {
-			return StreamTaskInput.super.isAvailable();
-		}
-	}
-
-	private boolean isHeadAvailable() {
-		if (!commonContext.allSorted()) {
-			return false;
-		}
-		HeadElement headElement = commonContext.getQueueOfHeads().peek();
-		return headElement != null && headElement.inputIndex == idx;
-	}
-
-	@Override
 	public CompletableFuture<?> getAvailableFuture() {
 		if (sortedInput != null) {
 			return commonContext.getAllFinished().getAvailableFuture();
@@ -305,7 +311,35 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 	// ---------------------------------------------------------------------------------
 
 	/**
-	 * A simple {@link PushingAsyncDataInput.DataOutput} used in the sorting phase when we have not seen all the
+	 * An {@link InputSelectable} that indicates which input contain the current smallest
+	 * element of all sorting inputs. Should be used by the {@link StreamInputProcessor} to
+	 * choose the next input to consume from.
+	 */
+	private static class InputSelector implements InputSelectable {
+
+		private final CommonContext commonContext;
+		private final int numberOfInputs;
+
+		private InputSelector(CommonContext commonContext, int numberOfInputs) {
+			this.commonContext = commonContext;
+			this.numberOfInputs = numberOfInputs;
+		}
+
+		@Override
+		public InputSelection nextSelection() {
+			if (commonContext.allSorted()) {
+				HeadElement headElement = commonContext.getQueueOfHeads().peek();
+				if (headElement != null) {
+					int headIdx = headElement.inputIndex;
+					return new InputSelection.Builder().select(headIdx + 1).build(numberOfInputs);
+				}
+			}
+			return InputSelection.ALL;
+		}
+	}
+
+	/**
+	 * A {@link PushingAsyncDataInput.DataOutput} used in the sorting phase when we have not seen all the
 	 * records from the underlying input yet. It forwards the records to a corresponding sorter.
 	 */
 	private class SortingPhaseDataOutput implements PushingAsyncDataInput.DataOutput<IN> {
