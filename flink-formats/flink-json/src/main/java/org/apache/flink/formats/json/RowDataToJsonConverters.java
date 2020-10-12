@@ -26,9 +26,11 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
@@ -122,8 +124,13 @@ public class RowDataToJsonConverters implements Serializable {
 			case ARRAY:
 				return createArrayConverter((ArrayType) type);
 			case MAP:
+				MapType mapType = (MapType) type;
+				return createMapConverter(
+					mapType.asSummaryString(), mapType.getKeyType(), mapType.getValueType());
 			case MULTISET:
-				return createMapConverter((MapType) type);
+				MultisetType multisetType = (MultisetType) type;
+				return createMapConverter
+					(multisetType.asSummaryString(), multisetType.getElementType(), new IntType());
 			case ROW:
 				return createRowConverter((RowType) type);
 			case RAW:
@@ -218,14 +225,13 @@ public class RowDataToJsonConverters implements Serializable {
 		};
 	}
 
-	private RowDataToJsonConverter createMapConverter(MapType type) {
-		LogicalType keyType = type.getKeyType();
+	private RowDataToJsonConverter createMapConverter(
+			String typeSummary, LogicalType keyType, LogicalType valueType) {
 		if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
 			throw new UnsupportedOperationException(
 				"JSON format doesn't support non-string as key type of map. " +
-					"The map type is: " + type.asSummaryString());
+					"The type is: " + typeSummary);
 		}
-		final LogicalType valueType = type.getValueType();
 		final RowDataToJsonConverter valueConverter = createConverter(valueType);
 		return (mapper, reuse, object) -> {
 			ObjectNode node;
