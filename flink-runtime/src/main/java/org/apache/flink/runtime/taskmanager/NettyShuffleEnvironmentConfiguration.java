@@ -58,6 +58,10 @@ public class NettyShuffleEnvironmentConfiguration {
 	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
 	private final int floatingNetworkBuffersPerGate;
 
+	private final int sortShuffleMinBuffers;
+
+	private final int sortShuffleMinParallelism;
+
 	private final Duration requestSegmentsTimeout;
 
 	private final boolean isNetworkDetailedMetrics;
@@ -88,7 +92,9 @@ public class NettyShuffleEnvironmentConfiguration {
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			boolean blockingShuffleCompressionEnabled,
 			String compressionCodec,
-			int maxBuffersPerChannel) {
+			int maxBuffersPerChannel,
+			int sortShuffleMinBuffers,
+			int sortShuffleMinParallelism) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -104,6 +110,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
 		this.compressionCodec = Preconditions.checkNotNull(compressionCodec);
 		this.maxBuffersPerChannel = maxBuffersPerChannel;
+		this.sortShuffleMinBuffers = sortShuffleMinBuffers;
+		this.sortShuffleMinParallelism = sortShuffleMinParallelism;
 	}
 
 	// ------------------------------------------------------------------------
@@ -130,6 +138,14 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	public int floatingNetworkBuffersPerGate() {
 		return floatingNetworkBuffersPerGate;
+	}
+
+	public int sortShuffleMinBuffers() {
+		return sortShuffleMinBuffers;
+	}
+
+	public int sortShuffleMinParallelism() {
+		return sortShuffleMinParallelism;
 	}
 
 	public Duration getRequestSegmentsTimeout() {
@@ -201,6 +217,11 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		int maxBuffersPerChannel = configuration.getInteger(NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
 
+		int sortShuffleMinBuffers = configuration.getInteger(
+			NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
+		int sortShuffleMinParallelism = configuration.getInteger(
+			NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
+
 		boolean isNetworkDetailedMetrics = configuration.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
 
 		String[] tempDirs = ConfigurationUtils.parseTempDirectories(configuration);
@@ -228,7 +249,9 @@ public class NettyShuffleEnvironmentConfiguration {
 			blockingSubpartitionType,
 			blockingShuffleCompressionEnabled,
 			compressionCodec,
-			maxBuffersPerChannel);
+			maxBuffersPerChannel,
+			sortShuffleMinBuffers,
+			sortShuffleMinParallelism);
 	}
 
 	/**
@@ -350,6 +373,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + (blockingShuffleCompressionEnabled ? 1 : 0);
 		result = 31 * result + Objects.hashCode(compressionCodec);
 		result = 31 * result + maxBuffersPerChannel;
+		result = 31 * result + sortShuffleMinBuffers;
+		result = 31 * result + sortShuffleMinParallelism;
 		return result;
 	}
 
@@ -370,6 +395,8 @@ public class NettyShuffleEnvironmentConfiguration {
 					this.partitionRequestMaxBackoff == that.partitionRequestMaxBackoff &&
 					this.networkBuffersPerChannel == that.networkBuffersPerChannel &&
 					this.floatingNetworkBuffersPerGate == that.floatingNetworkBuffersPerGate &&
+					this.sortShuffleMinBuffers == that.sortShuffleMinBuffers &&
+					this.sortShuffleMinParallelism == that.sortShuffleMinParallelism &&
 					this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout) &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
 					Arrays.equals(this.tempDirs, that.tempDirs) &&
@@ -394,6 +421,8 @@ public class NettyShuffleEnvironmentConfiguration {
 				", blockingShuffleCompressionEnabled=" + blockingShuffleCompressionEnabled +
 				", compressionCodec=" + compressionCodec +
 				", maxBuffersPerChannel=" + maxBuffersPerChannel +
+				", sortShuffleMinBuffers=" + sortShuffleMinBuffers +
+				", sortShuffleMinParallelism=" + sortShuffleMinParallelism +
 				'}';
 	}
 }
