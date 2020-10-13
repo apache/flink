@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.jdbc.internal.connection;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import java.sql.SQLException;
 /**
  * Simple JDBC connection provider.
  */
+@Internal
 public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleJdbcConnectionProvider.class);
