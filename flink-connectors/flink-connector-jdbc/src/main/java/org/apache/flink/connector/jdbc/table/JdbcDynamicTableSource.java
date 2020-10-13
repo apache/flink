@@ -92,7 +92,8 @@ public class JdbcDynamicTableSource implements ScanTableSource, LookupTableSourc
 			.setDrivername(options.getDriverName())
 			.setDBUrl(options.getDbURL())
 			.setUsername(options.getUsername().orElse(null))
-			.setPassword(options.getPassword().orElse(null));
+			.setPassword(options.getPassword().orElse(null))
+			.setAutoCommit(readOptions.getAutoCommit());
 
 		if (readOptions.getFetchSize() != 0) {
 			builder.setFetchSize(readOptions.getFetchSize());

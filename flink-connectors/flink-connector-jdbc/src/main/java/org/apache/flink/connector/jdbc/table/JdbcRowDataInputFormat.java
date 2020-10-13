@@ -363,7 +363,7 @@ public class JdbcRowDataInputFormat extends RichInputFormat<RowData, InputSplit>
 			return this;
 		}
 
-		public Builder setAutoCommit(Boolean autoCommit) {
+		public Builder setAutoCommit(boolean autoCommit) {
 			this.autoCommit = autoCommit;
 			return this;
 		}
