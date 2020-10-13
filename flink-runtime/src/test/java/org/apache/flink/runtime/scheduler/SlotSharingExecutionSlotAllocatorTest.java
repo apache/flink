@@ -36,6 +36,7 @@ import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotP
 import org.apache.flink.runtime.scheduler.SharedSlotTestingUtils.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.Test;
@@ -68,7 +69,7 @@ import static org.junit.Assert.fail;
 /**
  * Test suite for {@link SlotSharingExecutionSlotAllocator}.
  */
-public class SlotSharingExecutionSlotAllocatorTest {
+public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 	private static final Time ALLOCATION_TIMEOUT = Time.milliseconds(100L);
 	private static final ResourceProfile RESOURCE_PROFILE = ResourceProfile.fromResources(3, 5);
 
