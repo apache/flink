@@ -21,6 +21,8 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -41,8 +43,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.junit.Assert.assertEquals;
+
 /**
- * Test for {@link StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator}.
+ * Test for {@link StreamArrowPythonRowTimeBoundedRangeOperator}.
  * These test that:
  *
  * <ul>
@@ -52,7 +56,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * 		<li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
  * </ul>
  */
-public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperatorTest
+public class StreamArrowPythonRowTimeBoundedRangeOperatorTest
 	extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
 
 	@Test
@@ -77,7 +81,7 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -107,7 +111,7 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -137,7 +141,7 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
 		expectedOutput.add(new Watermark(1000L));
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -168,9 +172,35 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
+	}
+
+	@Test
+	public void testStateCleanup() throws Exception {
+		Configuration conf = new Configuration();
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
+		AbstractStreamOperator<RowData> operator = testHarness.getOperator();
+
+		testHarness.open();
+
+		AbstractKeyedStateBackend stateBackend = (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
+		assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 100L)));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 100L)));
+		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 500L)));
+
+		testHarness.processWatermark(new Watermark(1000L));
+		// at this moment we expect the function to have some records in state
+
+		testHarness.processWatermark(new Watermark(4000L));
+		// at this moment the function should have cleaned up states
+
+		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
 
 		testHarness.close();
 	}
@@ -213,21 +243,21 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 		RowType outputType,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		return new PassThroughStreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator(
+		return new PassThroughStreamArrowPythonRowTimeBoundedRangeOperator(
 			config,
 			pandasAggregateFunctions,
 			inputType,
 			outputType,
 			3,
-			1,
+			3L,
 			groupingSet,
 			udafInputOffsets);
 	}
 
-	private static class PassThroughStreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator
-		extends StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator {
+	private static class PassThroughStreamArrowPythonRowTimeBoundedRangeOperator
+		extends StreamArrowPythonRowTimeBoundedRangeOperator {
 
-		PassThroughStreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator(
+		PassThroughStreamArrowPythonRowTimeBoundedRangeOperator(
 			Configuration config,
 			PythonFunctionInfo[] pandasAggFunctions,
 			RowType inputType,
@@ -236,8 +266,8 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 			long lowerBoundary,
 			int[] groupingSet,
 			int[] udafInputOffsets) {
-			super(config, 1000, 2000, pandasAggFunctions, inputType,
-				outputType, inputTimeFieldIndex, lowerBoundary, groupingSet, udafInputOffsets);
+			super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex,
+				lowerBoundary, groupingSet, udafInputOffsets);
 		}
 
 		@Override

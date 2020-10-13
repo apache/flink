@@ -40,9 +40,9 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Test for {@link StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator}.
+ * Test for {@link StreamArrowPythonProcTimeBoundedRangeOperator}.
  */
-public class StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperatorTest
+public class StreamArrowPythonProcTimeBoundedRangeOperatorTest
 	extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
 
 	@Test
@@ -56,6 +56,7 @@ public class StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOper
 
 		testHarness.setProcessingTime(100);
 		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L)));
+		testHarness.setProcessingTime(150);
 		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L)));
 		testHarness.setProcessingTime(200);
 		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L)));
@@ -108,21 +109,21 @@ public class StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOper
 		RowType outputType,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		return new PassThroughStreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator(
+		return new PassThroughStreamArrowPythonProcTimeBoundedRangeOperator(
 			config,
 			pandasAggregateFunctions,
 			inputType,
 			outputType,
-			3,
-			1,
+			-1,
+			100L,
 			groupingSet,
 			udafInputOffsets);
 	}
 
-	private static class PassThroughStreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator
-		extends StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator {
+	private static class PassThroughStreamArrowPythonProcTimeBoundedRangeOperator
+		extends StreamArrowPythonProcTimeBoundedRangeOperator {
 
-		PassThroughStreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator(
+		PassThroughStreamArrowPythonProcTimeBoundedRangeOperator(
 			Configuration config,
 			PythonFunctionInfo[] pandasAggFunctions,
 			RowType inputType,
@@ -131,8 +132,8 @@ public class StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOper
 			long lowerBoundary,
 			int[] groupingSet,
 			int[] udafInputOffsets) {
-			super(config, 100, 200, pandasAggFunctions, inputType,
-				outputType, inputTimeFieldIndex, lowerBoundary, groupingSet, udafInputOffsets);
+			super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex,
+				lowerBoundary, groupingSet, udafInputOffsets);
 		}
 
 		@Override

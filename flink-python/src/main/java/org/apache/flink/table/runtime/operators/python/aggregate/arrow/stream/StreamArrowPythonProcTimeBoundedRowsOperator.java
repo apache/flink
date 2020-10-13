@@ -29,16 +29,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Stream Arrow Python {@link AggregateFunction} Operator for RANGE clause event-time bounded
+ * The Stream Arrow Python {@link AggregateFunction} Operator for ROWS clause proc-time bounded
  * OVER window.
  */
 @Internal
-public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator<K>
-	extends AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFunctionOperator<K> {
+public class StreamArrowPythonProcTimeBoundedRowsOperator<K>
+	extends AbstractStreamArrowPythonBoundedRowsOperator<K> {
 
 	private static final long serialVersionUID = 1L;
 
-	public StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator(
+	private transient long currentTime;
+
+	private transient List<RowData> rowList;
+
+	public StreamArrowPythonProcTimeBoundedRowsOperator(
 		Configuration config,
 		long minRetentionTime,
 		long maxRetentionTime,
@@ -55,31 +59,33 @@ public class StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOpera
 
 	@Override
 	public void bufferInput(RowData input) throws Exception {
+		currentTime = timerService.currentProcessingTime();
 		// register state-cleanup timer
-		registerProcessingCleanupTimer(timerService.currentProcessingTime());
+		registerProcessingCleanupTimer(currentTime);
 
-		// triggering timestamp for trigger calculation
-		long triggeringTs = input.getLong(inputTimeFieldIndex);
+		// buffer the event incoming event
 
-		Long lastTriggeringTs = lastTriggeringTsState.value();
-		if (lastTriggeringTs == null) {
-			lastTriggeringTs = 0L;
+		// add current element to the window list of elements with corresponding timestamp
+		rowList = inputState.get(currentTime);
+		// null value means that this is the first event received for this timestamp
+		if (rowList == null) {
+			rowList = new ArrayList<>();
 		}
+		rowList.add(input);
+		inputState.put(currentTime, rowList);
+	}
 
-		// check if the data is expired, if not, save the data and register event time timer
-		if (triggeringTs > lastTriggeringTs) {
-			List<RowData> data = inputState.get(triggeringTs);
-			if (null != data) {
-				data.add(input);
-				inputState.put(triggeringTs, data);
-			} else {
-				data = new ArrayList<>();
-				data.add(input);
-				inputState.put(triggeringTs, data);
-				// register event time timer
-				timerService.registerEventTimeTimer(triggeringTs);
-			}
-			inputState.put(triggeringTs, data);
+	@Override
+	public void processElementInternal(RowData value) throws Exception {
+		forwardedInputQueue.add(value);
+		// gets all window data from state for the calculation
+		Iterable<Long> keyIter = inputState.keys();
+		for (Long dataTs : keyIter) {
+			insertToSortedList(dataTs);
 		}
+		int index = sortedTimestamps.indexOf(currentTime);
+		triggerWindowProcess(rowList, rowList.size() - 1, index);
+		sortedTimestamps.clear();
+		windowData.clear();
 	}
 }

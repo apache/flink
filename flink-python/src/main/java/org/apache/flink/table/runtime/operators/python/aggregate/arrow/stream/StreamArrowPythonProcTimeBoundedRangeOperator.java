@@ -30,16 +30,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Stream Arrow Python {@link AggregateFunction} Operator for RANGE clause event-time bounded
+ * The Stream Arrow Python {@link AggregateFunction} Operator for ROWS clause proc-time bounded
  * OVER window.
  */
 @Internal
-public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator<K>
-	extends AbstractStreamArrowPythonRangeBoundedOverWindowAggregateFunctionOperator<K> {
+public class StreamArrowPythonProcTimeBoundedRangeOperator<K>
+	extends AbstractStreamArrowPythonBoundedRangeOperator<K> {
 
 	private static final long serialVersionUID = 1L;
 
-	public StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator(
+	public StreamArrowPythonProcTimeBoundedRangeOperator(
 		Configuration config,
 		PythonFunctionInfo[] pandasAggFunctions,
 		RowType inputType,
@@ -54,24 +54,19 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 
 	@Override
 	public void bufferInput(RowData input) throws Exception {
-		long triggeringTs = input.getLong(inputTimeFieldIndex);
-		Long lastTriggeringTs = lastTriggeringTsState.value();
-		if (lastTriggeringTs == null) {
-			lastTriggeringTs = 0L;
+		long currentTime = timerService.currentProcessingTime();
+		// buffer the event incoming event
+
+		// add current element to the window list of elements with corresponding timestamp
+		List<RowData> rowList = inputState.get(currentTime);
+		// null value means that this is the first event received for this timestamp
+		if (rowList == null) {
+			rowList = new ArrayList<>();
+			// register timer to process event once the current millisecond passed
+			timerService.registerProcessingTimeTimer(currentTime + 1);
+			registerCleanupTimer(currentTime, TimeDomain.PROCESSING_TIME);
 		}
-		if (triggeringTs > lastTriggeringTs) {
-			List<RowData> data = inputState.get(triggeringTs);
-			if (null != data) {
-				data.add(input);
-				inputState.put(triggeringTs, data);
-			} else {
-				data = new ArrayList<>();
-				data.add(input);
-				inputState.put(triggeringTs, data);
-				// register event time timer
-				timerService.registerEventTimeTimer(triggeringTs);
-			}
-			registerCleanupTimer(triggeringTs, TimeDomain.EVENT_TIME);
-		}
+		rowList.add(input);
+		inputState.put(currentTime, rowList);
 	}
 }

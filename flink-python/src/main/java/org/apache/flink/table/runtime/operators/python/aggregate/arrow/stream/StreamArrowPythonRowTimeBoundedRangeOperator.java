@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -29,21 +30,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Stream Arrow Python {@link AggregateFunction} Operator for ROWS clause proc-time bounded
+ * The Stream Arrow Python {@link AggregateFunction} Operator for RANGE clause event-time bounded
  * OVER window.
  */
 @Internal
-public class StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator<K>
-	extends AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFunctionOperator<K> {
+public class StreamArrowPythonRowTimeBoundedRangeOperator<K>
+	extends AbstractStreamArrowPythonBoundedRangeOperator<K> {
 
 	private static final long serialVersionUID = 1L;
 
-	private transient long currentTime;
-
-	public StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator(
+	public StreamArrowPythonRowTimeBoundedRangeOperator(
 		Configuration config,
-		long minRetentionTime,
-		long maxRetentionTime,
 		PythonFunctionInfo[] pandasAggFunctions,
 		RowType inputType,
 		RowType outputType,
@@ -51,39 +48,30 @@ public class StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOper
 		long lowerBoundary,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		super(config, minRetentionTime, maxRetentionTime, pandasAggFunctions,
-			inputType, outputType, inputTimeFieldIndex, lowerBoundary, groupingSet, udafInputOffsets);
+		super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex, lowerBoundary,
+			groupingSet, udafInputOffsets);
 	}
 
 	@Override
 	public void bufferInput(RowData input) throws Exception {
-		currentTime = timerService.currentProcessingTime();
-		// register state-cleanup timer
-		registerProcessingCleanupTimer(currentTime);
-
-		// buffer the event incoming event
-
-		// add current element to the window list of elements with corresponding timestamp
-		List<RowData> rowList = inputState.get(currentTime);
-		// null value means that this is the first event received for this timestamp
-		if (rowList == null) {
-			rowList = new ArrayList<>();
+		long triggeringTs = input.getLong(inputTimeFieldIndex);
+		Long lastTriggeringTs = lastTriggeringTsState.value();
+		if (lastTriggeringTs == null) {
+			lastTriggeringTs = 0L;
 		}
-		rowList.add(input);
-		inputState.put(currentTime, rowList);
-	}
-
-	@Override
-	public void processElementInternal(RowData value) throws Exception {
-		forwardedInputQueue.add(value);
-		// gets all window data from state for the calculation
-		List<RowData> inputs = inputState.get(currentTime);
-		Iterable<Long> keyIter = inputState.keys();
-		for (Long dataTs : keyIter) {
-			insertToSortedList(dataTs);
+		if (triggeringTs > lastTriggeringTs) {
+			List<RowData> data = inputState.get(triggeringTs);
+			if (null != data) {
+				data.add(input);
+				inputState.put(triggeringTs, data);
+			} else {
+				data = new ArrayList<>();
+				data.add(input);
+				inputState.put(triggeringTs, data);
+				// register event time timer
+				timerService.registerEventTimeTimer(triggeringTs);
+			}
+			registerCleanupTimer(triggeringTs, TimeDomain.EVENT_TIME);
 		}
-		int index = sortedTimestamps.indexOf(currentTime);
-		triggerWindowProcess(inputs, inputs.size() - 1, index);
-		sortedTimestamps.clear();
 	}
 }

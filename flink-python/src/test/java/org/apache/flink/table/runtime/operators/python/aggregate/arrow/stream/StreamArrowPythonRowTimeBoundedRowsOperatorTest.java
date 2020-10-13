@@ -21,8 +21,6 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -43,10 +41,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
-
 /**
- * Test for {@link StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator}.
+ * Test for {@link StreamArrowPythonRowTimeBoundedRowsOperator}.
  * These test that:
  *
  * <ul>
@@ -56,7 +52,7 @@ import static org.junit.Assert.assertEquals;
  * 		<li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
  * </ul>
  */
-public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperatorTest
+public class StreamArrowPythonRowTimeBoundedRowsOperatorTest
 	extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
 
 	@Test
@@ -81,7 +77,7 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -111,7 +107,7 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -121,7 +117,7 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 	@Test
 	public void testFinishBundleTriggeredByCount() throws Exception {
 		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 4);
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 6);
 		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
 
 		long initialTime = 0L;
@@ -141,7 +137,7 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
 		expectedOutput.add(new Watermark(1000L));
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -172,35 +168,9 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c4", 1L, 1L, 0L)));
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c2", "c8", 3L, 2L, 3L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 2L)));
+		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c6", 2L, 10L, 1L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-
-		testHarness.close();
-	}
-
-	@Test
-	public void testStateCleanup() throws Exception {
-		Configuration conf = new Configuration();
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = getTestHarness(conf);
-		AbstractStreamOperator<RowData> operator = testHarness.getOperator();
-
-		testHarness.open();
-
-		AbstractKeyedStateBackend stateBackend = (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
-		assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
-
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 100L)));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 100L)));
-		testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c6", 2L, 500L)));
-
-		testHarness.processWatermark(new Watermark(1000L));
-		// at this moment we expect the function to have some records in state
-
-		testHarness.processWatermark(new Watermark(4000L));
-		// at this moment the function should have cleaned up states
-
-		assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
 
 		testHarness.close();
 	}
@@ -243,21 +213,21 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 		RowType outputType,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		return new PassThroughStreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator(
+		return new PassThroughStreamArrowPythonRowTimeBoundedRowsOperator(
 			config,
 			pandasAggregateFunctions,
 			inputType,
 			outputType,
 			3,
-			3L,
+			1,
 			groupingSet,
 			udafInputOffsets);
 	}
 
-	private static class PassThroughStreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator
-		extends StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator {
+	private static class PassThroughStreamArrowPythonRowTimeBoundedRowsOperator
+		extends StreamArrowPythonRowTimeBoundedRowsOperator {
 
-		PassThroughStreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator(
+		PassThroughStreamArrowPythonRowTimeBoundedRowsOperator(
 			Configuration config,
 			PythonFunctionInfo[] pandasAggFunctions,
 			RowType inputType,
@@ -266,8 +236,8 @@ public class StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOper
 			long lowerBoundary,
 			int[] groupingSet,
 			int[] udafInputOffsets) {
-			super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex,
-				lowerBoundary, groupingSet, udafInputOffsets);
+			super(config, 1000, 2000, pandasAggFunctions, inputType,
+				outputType, inputTimeFieldIndex, lowerBoundary, groupingSet, udafInputOffsets);
 		}
 
 		@Override

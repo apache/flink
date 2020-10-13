@@ -31,20 +31,21 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The Abstract class of Stream Arrow Python {@link AggregateFunction} Operator for RANGE clause
  * bounded Over Window Aggregation.
  */
 @Internal
-public abstract class AbstractStreamArrowPythonRangeBoundedOverWindowAggregateFunctionOperator<K>
+public abstract class AbstractStreamArrowPythonBoundedRangeOperator<K>
 	extends AbstractStreamArrowPythonOverWindowAggregateFunctionOperator<K> {
 
 	private static final long serialVersionUID = 1L;
 
 	private transient LinkedList<List<RowData>> inputData;
 
-	public AbstractStreamArrowPythonRangeBoundedOverWindowAggregateFunctionOperator(
+	public AbstractStreamArrowPythonBoundedRangeOperator(
 		Configuration config,
 		PythonFunctionInfo[] pandasAggFunctions,
 		RowType inputType,
@@ -134,19 +135,30 @@ public abstract class AbstractStreamArrowPythonRangeBoundedOverWindowAggregateFu
 		}
 	}
 
-	private void triggerWindowProcess(long timestamp, List<RowData> inputs) throws Exception {
-		long limit = timestamp - lowerBoundary;
+	private void triggerWindowProcess(long upperLimit, List<RowData> inputs) throws Exception {
+		long lowerLimit = upperLimit - lowerBoundary;
+		List<Long> outdatedTs = new LinkedList<>();
 		if (inputs != null) {
-			for (long dataTs : inputState.keys()) {
-				if (dataTs >= limit && dataTs <= timestamp) {
-					List<RowData> dataList = inputState.get(dataTs);
-					if (dataList != null) {
-						for (RowData data : dataList) {
-							arrowSerializer.write(getFunctionInput(data));
-							currentBatchCount++;
+
+			for (Map.Entry<Long, List<RowData>> entry : inputState.entries()) {
+				long dataTs = entry.getKey();
+				if (dataTs >= lowerLimit) {
+					if (dataTs <= upperLimit) {
+						List<RowData> dataList = entry.getValue();
+						if (dataList != null) {
+							for (RowData data : dataList) {
+								arrowSerializer.write(getFunctionInput(data));
+								currentBatchCount++;
+							}
 						}
 					}
+				} else {
+					outdatedTs.add(dataTs);
 				}
+			}
+			// clear outdated state.
+			for (Long dateTs : outdatedTs) {
+				inputState.remove(dateTs);
 			}
 			inputData.add(inputs);
 			if (currentBatchCount > 0) {

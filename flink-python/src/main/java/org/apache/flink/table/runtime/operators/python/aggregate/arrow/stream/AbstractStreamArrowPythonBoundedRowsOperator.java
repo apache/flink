@@ -39,7 +39,7 @@ import java.util.ListIterator;
  * bounded Over Window Aggregation.
  */
 @Internal
-public abstract class AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFunctionOperator<K>
+public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
 	extends AbstractStreamArrowPythonOverWindowAggregateFunctionOperator<K> implements CleanupState {
 
 	private static final long serialVersionUID = 1L;
@@ -55,7 +55,9 @@ public abstract class AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFun
 	 */
 	transient LinkedList<Long> sortedTimestamps;
 
-	public AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFunctionOperator(
+	transient LinkedList<RowData> windowData;
+
+	public AbstractStreamArrowPythonBoundedRowsOperator(
 		Configuration config,
 		long minRetentionTime,
 		long maxRetentionTime,
@@ -77,6 +79,7 @@ public abstract class AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFun
 	public void open() throws Exception {
 		super.open();
 		sortedTimestamps = new LinkedList<>();
+		windowData = new LinkedList<>();
 	}
 
 	@Override
@@ -124,6 +127,7 @@ public abstract class AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFun
 			forwardedInputQueue.add(inputs.get(i));
 			triggerWindowProcess(inputs, i, index);
 		}
+		windowData.clear();
 		sortedTimestamps.clear();
 	}
 
@@ -156,50 +160,77 @@ public abstract class AbstractStreamArrowPythonRowsBoundedOverWindowAggregateFun
 	void triggerWindowProcess(List<RowData> inputs, int i, int index) throws Exception {
 		int startIndex;
 		int startPos = 0;
-		if (i >= lowerBoundary) {
-			for (int j = (int) (i - lowerBoundary); j <= i; j++) {
-				arrowSerializer.write(getFunctionInput(inputs.get(j)));
-			}
-			currentBatchCount += lowerBoundary;
-		} else {
-			Long previousTimestamp;
-			List<RowData> previousData = null;
-			int length = 0;
-			startIndex = index - 1;
-			long remainingDataCount = lowerBoundary - i;
-			ListIterator<Long> iter = sortedTimestamps.listIterator(index);
-			while (remainingDataCount > 0 && iter.hasPrevious()) {
-				previousTimestamp = iter.previous();
-				previousData = inputState.get(previousTimestamp);
-				length = previousData.size();
-				if (remainingDataCount <= length) {
-					startPos = (int) (length - remainingDataCount);
-					remainingDataCount = 0;
-				} else {
-					remainingDataCount -= length;
-					startIndex--;
+		if (windowData.isEmpty()) {
+			if (i >= lowerBoundary) {
+				for (int j = (int) (i - lowerBoundary); j <= i; j++) {
+					RowData rowData = inputs.get(j);
+					windowData.add(rowData);
+					arrowSerializer.write(getFunctionInput(rowData));
 				}
-			}
-			if (previousData != null) {
-				for (int j = startPos; j < length; j++) {
-					arrowSerializer.write(getFunctionInput(previousData.get(j)));
-					currentBatchCount++;
-					startIndex++;
-				}
-				while (startIndex < index) {
-					previousTimestamp = iter.next();
+				currentBatchCount += lowerBoundary;
+			} else {
+				Long previousTimestamp;
+				List<RowData> previousData = null;
+				int length = 0;
+				startIndex = index - 1;
+				long remainingDataCount = lowerBoundary - i;
+				ListIterator<Long> iter = sortedTimestamps.listIterator(index);
+				while (remainingDataCount > 0 && iter.hasPrevious()) {
+					previousTimestamp = iter.previous();
 					previousData = inputState.get(previousTimestamp);
-					for (RowData previousDatum : previousData) {
-						arrowSerializer.write(getFunctionInput(previousDatum));
+					length = previousData.size();
+					if (remainingDataCount <= length) {
+						startPos = (int) (length - remainingDataCount);
+						remainingDataCount = 0;
+					} else {
+						remainingDataCount -= length;
+						startIndex--;
 					}
-					currentBatchCount += previousData.size();
-					startIndex++;
 				}
+				if (previousData != null) {
+					for (int j = startPos; j < length; j++) {
+						RowData rowData = previousData.get(j);
+						windowData.add(rowData);
+						arrowSerializer.write(getFunctionInput(rowData));
+						currentBatchCount++;
+					}
+					// clear outdated data.
+					ListIterator<Long> clearIter = sortedTimestamps.listIterator();
+					for (int j = 0; j < startIndex; j++) {
+						long outdatedTs = clearIter.next();
+						inputState.remove(outdatedTs);
+					}
+
+					startIndex++;
+					while (startIndex < index) {
+						previousTimestamp = iter.next();
+						previousData = inputState.get(previousTimestamp);
+						for (RowData rowData : previousData) {
+							windowData.add(rowData);
+							arrowSerializer.write(getFunctionInput(rowData));
+						}
+						currentBatchCount += previousData.size();
+						startIndex++;
+					}
+				}
+				for (int j = 0; j <= i; j++) {
+					RowData rowData = inputs.get(j);
+					windowData.add(rowData);
+					arrowSerializer.write(getFunctionInput(rowData));
+				}
+				currentBatchCount += i + 1;
 			}
-			for (int j = 0; j <= i; j++) {
-				arrowSerializer.write(getFunctionInput(inputs.get(j)));
+		} else {
+			if (windowData.size() <= lowerBoundary) {
+				windowData.add(inputs.get(i));
+			} else {
+				windowData.pop();
+				windowData.add(inputs.get(i));
 			}
-			currentBatchCount += i + 1;
+			for (RowData rowData : windowData) {
+				arrowSerializer.write(getFunctionInput(rowData));
+			}
+			currentBatchCount += windowData.size();
 		}
 		if (currentBatchCount > 0) {
 			arrowSerializer.finishCurrentBatch();

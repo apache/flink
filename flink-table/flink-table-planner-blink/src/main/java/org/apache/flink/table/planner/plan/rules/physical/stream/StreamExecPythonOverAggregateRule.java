@@ -63,7 +63,7 @@ public class StreamExecPythonOverAggregateRule extends ConverterRule {
 			aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
 		if (existPandasFunction || existGeneralPythonFunction) {
 			if (existGeneralPythonFunction) {
-				throw new TableException("non-Pandas UDAFs are not supported in stream mode currently.");
+				throw new TableException("Non-Pandas Python UDAFs are not supported in stream mode currently.");
 			}
 			if (existJavaFunction) {
 				throw new TableException("Python UDAF and Java/Scala UDAF cannot be used together.");

@@ -130,11 +130,11 @@ class StreamExecPythonOverAggregate(
     if (overWindow.lowerBound.isPreceding
       && overWindow.lowerBound.isUnbounded) {
       throw new TableException(
-        "OVER PRECEDING windows are not supported yet."
+        "Python UDAF are not supported to be used in UNBOUNDED PRECEDING OVER windows."
       )
     } else if (!overWindow.upperBound.isCurrentRow) {
       throw new TableException(
-        "OVER FOLLOWING windows are not supported yet."
+        "Python UDAF are not supported to be used in UNBOUNDED FOLLOWING OVER windows."
       )
     }
     val aggregateCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
@@ -299,14 +299,14 @@ class StreamExecPythonOverAggregate(
 object StreamExecPythonOverAggregate {
   val ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
-      "StreamArrowPythonRowTimeRangeBoundedOverWindowAggregateFunctionOperator"
+      "StreamArrowPythonRowTimeBoundedRangeOperator"
   val ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
-      "StreamArrowPythonProcTimeRangeBoundedOverWindowAggregateFunctionOperator"
+      "StreamArrowPythonProcTimeBoundedRangeOperator"
   val ARROW_PYTHON_OVER_WINDOW_ROWS_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
-      "StreamArrowPythonRowTimeRowsBoundedOverWindowAggregateFunctionOperator"
+      "StreamArrowPythonRowTimeBoundedRowsOperator"
   val ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
-      "StreamArrowPythonProcTimeRowsBoundedOverWindowAggregateFunctionOperator"
+      "StreamArrowPythonProcTimeBoundedRowsOperator"
 }

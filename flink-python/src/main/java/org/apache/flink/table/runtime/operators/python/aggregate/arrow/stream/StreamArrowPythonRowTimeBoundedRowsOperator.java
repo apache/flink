@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -30,17 +29,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Stream Arrow Python {@link AggregateFunction} Operator for ROWS clause proc-time bounded
+ * The Stream Arrow Python {@link AggregateFunction} Operator for RANGE clause event-time bounded
  * OVER window.
  */
 @Internal
-public class StreamArrowPythonProcTimeRangeBoundedOverWindowAggregateFunctionOperator<K>
-	extends AbstractStreamArrowPythonRangeBoundedOverWindowAggregateFunctionOperator<K> {
+public class StreamArrowPythonRowTimeBoundedRowsOperator<K>
+	extends AbstractStreamArrowPythonBoundedRowsOperator<K> {
 
 	private static final long serialVersionUID = 1L;
 
-	public StreamArrowPythonProcTimeRangeBoundedOverWindowAggregateFunctionOperator(
+	public StreamArrowPythonRowTimeBoundedRowsOperator(
 		Configuration config,
+		long minRetentionTime,
+		long maxRetentionTime,
 		PythonFunctionInfo[] pandasAggFunctions,
 		RowType inputType,
 		RowType outputType,
@@ -48,25 +49,35 @@ public class StreamArrowPythonProcTimeRangeBoundedOverWindowAggregateFunctionOpe
 		long lowerBoundary,
 		int[] groupingSet,
 		int[] udafInputOffsets) {
-		super(config, pandasAggFunctions, inputType, outputType, inputTimeFieldIndex, lowerBoundary,
-			groupingSet, udafInputOffsets);
+		super(config, minRetentionTime, maxRetentionTime, pandasAggFunctions,
+			inputType, outputType, inputTimeFieldIndex, lowerBoundary, groupingSet, udafInputOffsets);
 	}
 
 	@Override
 	public void bufferInput(RowData input) throws Exception {
-		long currentTime = timerService.currentProcessingTime();
-		// buffer the event incoming event
+		// register state-cleanup timer
+		registerProcessingCleanupTimer(timerService.currentProcessingTime());
 
-		// add current element to the window list of elements with corresponding timestamp
-		List<RowData> rowList = inputState.get(currentTime);
-		// null value means that this is the first event received for this timestamp
-		if (rowList == null) {
-			rowList = new ArrayList<>();
-			// register timer to process event once the current millisecond passed
-			timerService.registerProcessingTimeTimer(currentTime + 1);
-			registerCleanupTimer(currentTime, TimeDomain.PROCESSING_TIME);
+		// triggering timestamp for trigger calculation
+		long triggeringTs = input.getLong(inputTimeFieldIndex);
+
+		Long lastTriggeringTs = lastTriggeringTsState.value();
+		if (lastTriggeringTs == null) {
+			lastTriggeringTs = 0L;
 		}
-		rowList.add(input);
-		inputState.put(currentTime, rowList);
+
+		// check if the data is expired, if not, save the data and register event time timer
+		if (triggeringTs > lastTriggeringTs) {
+			List<RowData> data = inputState.get(triggeringTs);
+			if (null != data) {
+				data.add(input);
+			} else {
+				data = new ArrayList<>();
+				data.add(input);
+				// register event time timer
+				timerService.registerEventTimeTimer(triggeringTs);
+			}
+			inputState.put(triggeringTs, data);
+		}
 	}
 }
