@@ -222,6 +222,8 @@ public abstract class AbstractTableInputFormat<T> extends RichInputFormat<T, Tab
 			// Get the starting and ending row keys for every region in the currently open table
 			final Pair<byte[][], byte[][]> keys = table.getRegionLocator().getStartEndKeys();
 			if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
+				LOG.info("unexpected keys: %s in HBase table: %s, all region information: %s",
+						keys, table, table.getRegionLocator().getAllRegionLocations());
 				throw new IOException("Expecting at least one region.");
 			}
 			final byte[] startRow = scan.getStartRow();
