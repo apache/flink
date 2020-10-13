@@ -16,11 +16,13 @@
 # limitations under the License.
 ################################################################################
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Iterable, List, Any, Iterator
+from typing import TypeVar, Generic, Iterable, List, Any, Iterator, Dict, Tuple
 
 T = TypeVar('T')
+K = TypeVar('K')
+V = TypeVar('V')
 
-__all__ = ['DataView', 'ListView']
+__all__ = ['DataView', 'ListView', 'MapView']
 
 
 class DataView(ABC):
@@ -98,3 +100,98 @@ class ListView(DataView, Generic[T]):
 
     def __iter__(self) -> Iterator[T]:
         return iter(self.get())
+
+
+class MapView(Generic[K, V]):
+    """
+    A :class:`DataView` that provides dict-like functionality in the accumulator of an
+    AggregateFunction when large amounts of data are expected.
+    """
+
+    def __init__(self):
+        self._dict = dict()
+
+    def get(self, key: K) -> V:
+        """
+        Return the value for the specified key.
+        """
+        return self._dict[key]
+
+    def put(self, key: K, value: V) -> None:
+        """
+        Inserts a value for the given key into the map view.
+        If the map view already contains a value for the key, the existing value is overwritten.
+        """
+        self._dict[key] = value
+
+    def put_all(self, dict_value: Dict[K, V]) -> None:
+        """
+        Inserts all mappings from the specified map to this map view.
+        """
+        self._dict.update(dict_value)
+
+    def remove(self, key: K) -> None:
+        """
+        Deletes the value for the given key.
+        """
+        del self._dict[key]
+
+    def contains(self, key: K) -> bool:
+        """
+        Checks if the map view contains a value for a given key.
+        """
+        return key in self._dict
+
+    def items(self) -> Iterable[Tuple[K, V]]:
+        """
+        Returns all entries of the map view.
+        """
+        return self._dict.items()
+
+    def keys(self) -> Iterable[K]:
+        """
+        Returns all the keys in the map view.
+        """
+        return self._dict.keys()
+
+    def values(self) -> Iterable[V]:
+        """
+        Returns all the values in the map view.
+        """
+        return self._dict.values()
+
+    def is_empty(self) -> bool:
+        """
+        Returns true if the map view contains no key-value mappings, otherwise false.
+        """
+        return len(self._dict) == 0
+
+    def clear(self) -> None:
+        """
+        Removes all entries of this map.
+        """
+        self._dict.clear()
+
+    def __eq__(self, other: Any) -> bool:
+        if other is None:
+            return False
+        if other.__class__ == MapView:
+            return self._dict == other._dict
+        else:
+            # comparing the content of state backed map view is too expensive
+            return other is self
+
+    def __getitem__(self, key: K) -> V:
+        return self.get(key)
+
+    def __setitem__(self, key: K, value: V) -> None:
+        self.put(key, value)
+
+    def __delitem__(self, key: K) -> None:
+        self.remove(key)
+
+    def __contains__(self, key: K) -> bool:
+        return self.contains(key)
+
+    def __iter__(self) -> Iterator[K]:
+        return iter(self.keys())

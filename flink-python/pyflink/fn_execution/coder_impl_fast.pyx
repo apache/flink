@@ -216,7 +216,11 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef void _encode_one_row_to_buffer(self, value, unsigned char row_kind_value):
         cdef size_t i
         self._write_mask(
-            value, self._leading_complete_bytes_num, self._remaining_bits_num, row_kind_value)
+            value,
+            self._leading_complete_bytes_num,
+            self._remaining_bits_num,
+            row_kind_value,
+            self._field_count)
         for i in range(self._field_count):
             item = value[i]
             if item is not None:
@@ -603,7 +607,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
             remaining_bits_num = row_field_count % 8
             row_value = list(item)
             row_kind_value = item._row_kind.value
-            self._write_mask(row_value, leading_complete_bytes_num, remaining_bits_num, row_kind_value)
+            self._write_mask(row_value, leading_complete_bytes_num, remaining_bits_num, row_kind_value, row_field_count)
             for i in range(row_field_count):
                 field_item = row_value[i]
                 row_field_coder = row_field_coders[i]
@@ -670,13 +674,12 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
         self._tmp_output_pos += length
 
     cdef void _write_mask(self, value, size_t leading_complete_bytes_num,
-                          size_t remaining_bits_num, unsigned char row_kind_value):
+                          size_t remaining_bits_num, unsigned char row_kind_value, size_t field_count):
         cdef size_t field_pos, index
         cdef unsigned char*bit_map_byte_search_table
         cdef unsigned char b, i
         field_pos = 0
         bit_map_byte_search_table = self._mask_byte_search_table
-        field_count = self._field_count
 
         # first byte contains the row kind bits
         b = self._row_kind_byte_table[row_kind_value]

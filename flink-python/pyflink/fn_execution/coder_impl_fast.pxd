@@ -55,7 +55,7 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef void _init_attribute(self)
 
     cdef void _write_mask(self, value, size_t leading_complete_bytes_num,
-                             size_t remaining_bits_num, unsigned char row_kind_value)
+                             size_t remaining_bits_num, unsigned char row_kind_value, size_t field_count)
     cdef void _read_mask(self, bint*null_mask, size_t leading_complete_bytes_num,
                             size_t remaining_bits_num)
 

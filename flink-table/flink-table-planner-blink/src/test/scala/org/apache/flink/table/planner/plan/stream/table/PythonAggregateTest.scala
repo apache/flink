@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.api.java.tuple.Tuple1
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.dataview.ListView
+import org.apache.flink.table.api.dataview.{ListView, MapView}
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.TestPythonAggregateFunction
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.DataType
 import org.junit.Assert.assertEquals
@@ -71,7 +71,8 @@ class PythonAggregateTest extends TableTestBase {
   def testExtractDataViewSpecs(): Unit = {
     val accType = DataTypes.ROW(
       DataTypes.FIELD("f0", DataTypes.STRING()),
-      DataTypes.FIELD("f1", ListView.newListViewDataType(DataTypes.STRING())))
+      DataTypes.FIELD("f1", ListView.newListViewDataType(DataTypes.STRING())),
+      DataTypes.FIELD("f2", MapView.newMapViewDataType(DataTypes.STRING(), DataTypes.BIGINT())))
 
     val specs = TestCommonPythonAggregate.extractDataViewSpecs(accType)
 
@@ -79,12 +80,22 @@ class PythonAggregateTest extends TableTestBase {
       new ListViewSpec(
         "agg0$f1",
         1,
-        DataTypes.ARRAY(DataTypes.STRING()).bridgedTo(classOf[java.util.List[_]])))
+        DataTypes.ARRAY(DataTypes.STRING()).bridgedTo(classOf[java.util.List[_]])),
+      new MapViewSpec(
+        "agg0$f2",
+        2,
+        DataTypes.MAP(
+          DataTypes.STRING(), DataTypes.BIGINT()).bridgedTo(classOf[java.util.Map[_, _]]),
+        false))
 
     assertEquals(expected(0).getClass, specs(0).getClass)
     assertEquals(expected(0).getDataType, specs(0).getDataType)
     assertEquals(expected(0).getStateId, specs(0).getStateId)
     assertEquals(expected(0).getFieldIndex, specs(0).getFieldIndex)
+    assertEquals(expected(1).getClass, specs(1).getClass)
+    assertEquals(expected(1).getDataType, specs(1).getDataType)
+    assertEquals(expected(1).getStateId, specs(1).getStateId)
+    assertEquals(expected(1).getFieldIndex, specs(1).getFieldIndex)
   }
 
   @Test(expected = classOf[TableException])
