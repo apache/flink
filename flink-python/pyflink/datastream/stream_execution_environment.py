@@ -731,7 +731,7 @@ class StreamExecutionEnvironment(object):
                 j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
                 out_put_type_info = PickledBytesTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO()
             else:
-                j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, False)
+                j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info
             # Since flink python module depends on table module, we can make use of utils of it when
             # implementing python DataStream API.
