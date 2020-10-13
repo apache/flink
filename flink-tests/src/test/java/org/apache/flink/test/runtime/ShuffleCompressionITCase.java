@@ -50,10 +50,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 /**
  * Tests network shuffle when data compression is enabled.
@@ -109,8 +107,10 @@ public class ShuffleCompressionITCase {
 			// wait for the submission to succeed
 			JobID jobID = miniClusterClient.submitJob(jobGraph).get();
 
-			CompletableFuture<JobResult> resultFuture = miniClusterClient.requestJobResult(jobID);
-			assertFalse(resultFuture.get().getSerializedThrowable().isPresent());
+			JobResult jobResult = miniClusterClient.requestJobResult(jobID).get();
+			if (jobResult.getSerializedThrowable().isPresent()) {
+				throw new AssertionError(jobResult.getSerializedThrowable().get());
+			}
 		}
 	}
 
