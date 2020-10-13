@@ -1,7 +1,7 @@
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -22,7 +22,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -61,7 +60,7 @@ public class ExecutionGraphGenerateClusterPartitionDescriptorTest extends TestLo
 			});
 		});
 
-		final Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult =
+		final Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult =
 			executionGraph.getPersistedIntermediateResult();
 		assertEquals(2, persistedIntermediateResult.size());
 	}

@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
-import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -103,7 +102,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	@Nullable
 	private final String stateBackendName;
 
-	private Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult;
+	private Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult;
 
 	public ArchivedExecutionGraph(
 		JobID jobID,
@@ -120,7 +119,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		boolean isStoppable,
 		@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 		@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
-		@Nullable String stateBackendName, Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>>
+		@Nullable String stateBackendName, Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor>
 			persistedIntermediateResult) {
 
 		this.jobID = Preconditions.checkNotNull(jobID);
@@ -270,7 +269,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	}
 
 	@Override
-	public Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> getPersistedIntermediateResult() {
+	public Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> getPersistedIntermediateResult() {
 		return persistedIntermediateResult;
 	}
 

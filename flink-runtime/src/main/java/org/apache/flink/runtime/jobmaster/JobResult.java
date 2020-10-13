@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ClusterPartitionDescriptor;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -39,7 +39,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -70,7 +69,7 @@ public class JobResult implements Serializable {
 	@Nullable
 	private final SerializedThrowable serializedThrowable;
 
-	private Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult;
+	private Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult;
 
 	private JobResult(
 		final JobID jobId,
@@ -78,7 +77,7 @@ public class JobResult implements Serializable {
 		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
 		final long netRuntime,
 		@Nullable final SerializedThrowable serializedThrowable,
-		Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult) {
+		Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult) {
 		this.persistedIntermediateResult = persistedIntermediateResult;
 
 		checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
@@ -121,7 +120,7 @@ public class JobResult implements Serializable {
 		return Optional.ofNullable(serializedThrowable);
 	}
 
-	public Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> getPersistedIntermediateResult() {
+	public Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> getPersistedIntermediateResult() {
 		return persistedIntermediateResult;
 	}
 
@@ -182,7 +181,7 @@ public class JobResult implements Serializable {
 
 		private SerializedThrowable serializedThrowable;
 
-		private Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult;
+		private Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult;
 
 		public Builder jobId(final JobID jobId) {
 			this.jobId = jobId;
@@ -210,7 +209,7 @@ public class JobResult implements Serializable {
 		}
 
 		public Builder persistedIntermediateResult(
-			Map<IntermediateDataSetID, Collection<ClusterPartitionDescriptor>> persistedIntermediateResult) {
+			Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult) {
 			this.persistedIntermediateResult = persistedIntermediateResult;
 			return this;
 		}
