@@ -136,7 +136,14 @@ public class PythonStreamGroupAggregateOperator
 	/**
 	 * The maximum NUMBER of the states cached in Python side.
 	 */
-	private int stateCacheSize;
+	private final int stateCacheSize;
+
+	/**
+	 * The maximum number of cached items which read from Java side in a Python MapState.
+	 */
+	private final int mapStateReadCacheSize;
+
+	private final int mapStateWriteCacheSize;
 
 	/**
 	 * Indicates whether state cleaning is enabled. Can be calculated from the `minRetentionTime`.
@@ -216,6 +223,9 @@ public class PythonStreamGroupAggregateOperator
 		this.minRetentionTime = minRetentionTime;
 		this.maxRetentionTime = maxRetentionTime;
 		this.stateCleaningEnabled = minRetentionTime > 1;
+		this.stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
+		this.mapStateReadCacheSize = config.get(PythonOptions.MAP_STATE_READ_CACHE_SIZE);
+		this.mapStateWriteCacheSize = config.get(PythonOptions.MAP_STATE_WRITE_CACHE_SIZE);
 	}
 
 	/**
@@ -351,8 +361,9 @@ public class PythonStreamGroupAggregateOperator
 		if (config.containsKey("table.exec.timezone")) {
 			jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
 		}
-		stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
-		jobOptions.put(PythonOptions.STATE_CACHE_SIZE.key(), String.valueOf(stateCacheSize));
+		jobOptions.put(
+			PythonOptions.STATE_CACHE_SIZE.key(),
+			String.valueOf(config.get(PythonOptions.STATE_CACHE_SIZE)));
 		return jobOptions;
 	}
 
@@ -398,6 +409,8 @@ public class PythonStreamGroupAggregateOperator
 		builder.setKeyType(toProtoType(getKeyType()));
 		builder.setStateCleaningEnabled(stateCleaningEnabled);
 		builder.setStateCacheSize(stateCacheSize);
+		builder.setMapStateReadCacheSize(mapStateReadCacheSize);
+		builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
 		return builder.build();
 	}
 }

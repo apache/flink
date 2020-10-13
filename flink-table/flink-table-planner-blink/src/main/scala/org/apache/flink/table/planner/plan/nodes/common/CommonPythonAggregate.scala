@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.dataview.{DataView, ListView}
+import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
 import org.apache.flink.table.functions.python.{PythonAggregateFunction, PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec}
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.types.logical.{RowType, StructuredType}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 
@@ -130,6 +130,14 @@ trait CommonPythonAggregate extends CommonPythonBase {
                     i,
                     compositeAccType.getChildren.get(i).asInstanceOf[FieldsDataType]
                       .getChildren.get(0)))
+                case mapViewType: StructuredType if classOf[MapView[_, _]].isAssignableFrom(
+                  mapViewType.getImplementationClass.get()) =>
+                  Some(new MapViewSpec(
+                    "agg" + index + "$" + rowType.getFieldNames()(i),
+                    i,
+                    compositeAccType.getChildren.get(i).asInstanceOf[FieldsDataType]
+                      .getChildren.get(0),
+                    false).asInstanceOf[DataViewSpec])
                 case _ =>
                   None
               }

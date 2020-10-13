@@ -145,10 +145,14 @@ message UserDefinedAggregateFunctions {
   Schema.FieldType key_type = 5;
   // The index of a count aggregate used to calculate the number of accumulated rows.
   int32 index_of_count_star = 6;
-  // The state cache size.
-  int32 state_cache_size = 7;
   // Cleanup the expired state if true.
-  bool state_cleaning_enabled = 8;
+  bool state_cleaning_enabled = 7;
+  // The state cache size.
+  int32 state_cache_size = 8;
+  // The map state read cache size.
+  int32 map_state_read_cache_size = 9;
+  // The map_state_write_cache_size.
+  int32 map_state_write_cache_size = 10;
 }
 
 // A representation of the data schema.

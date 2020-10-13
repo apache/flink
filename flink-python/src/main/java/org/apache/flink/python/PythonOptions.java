@@ -173,4 +173,24 @@ public class PythonOptions {
 		.defaultValue(1000)
 		.withDescription("The maximum number of states cached in a Python UDF worker. Note that this " +
 			"is an experimental flag and might not be available in future releases.");
+
+	/**
+	 * The maximum number of cached items which read from Java side in a Python MapState.
+	 */
+	@Experimental
+	public static final ConfigOption<Integer> MAP_STATE_READ_CACHE_SIZE = ConfigOptions
+		.key("python.map-state.read.cache.size")
+		.defaultValue(1000)
+		.withDescription("The maximum number of cached items which read from Java side in a Python MapState. "
+			+ "Note that this is an experimental flag and might not be available in future releases.");
+
+	/**
+	 * The maximum number of write requests cached in a Python MapState.
+	 */
+	@Experimental
+	public static final ConfigOption<Integer> MAP_STATE_WRITE_CACHE_SIZE = ConfigOptions
+		.key("python.map-state.write.cache.size")
+		.defaultValue(1000)
+		.withDescription("The maximum number of write requests cached in a Python MapState. Note that this " +
+			"is an experimental flag and might not be available in future releases.");
 }
