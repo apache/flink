@@ -96,15 +96,6 @@ public class StateMapEntry<K, N, S> implements StateEntry<K, N, S> {
         this.stateVersion = stateVersion;
     }
 
-    public final void setState(@Nullable S value, int mapVersion) {
-        // naturally, we can update the state version every time we replace the old state with a
-        // different object
-        if (value != state) {
-            this.state = value;
-            this.stateVersion = mapVersion;
-        }
-    }
-
     @Nonnull
     @Override
     public K getKey() {

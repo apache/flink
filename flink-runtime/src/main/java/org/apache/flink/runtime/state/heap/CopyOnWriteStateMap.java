@@ -281,13 +281,9 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
                     if (e.entryVersion < requiredVersion) {
                         e = handleChainedEntryCopyOnWrite(tab, hash & (tab.length - 1), e);
                     }
-                    e.stateVersion = stateMapVersion;
-                    e.state = getStateSerializer().copy(e.state);
+                    setStateBeforeRead(e);
                 } else if (e.stateVersion < stateMapVersion) {
-                    // the entry is not used by any active snapshot;
-                    // if it WAS used then it should NOT be included into the next one if it takes
-                    // versioning into account
-                    e.stateVersion = stateMapVersion;
+                    beforeFirstReadAfterSnapshot(e);
                 }
 
                 return e.state;
@@ -295,6 +291,18 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
         }
 
         return null;
+    }
+
+    protected void setStateBeforeRead(StateMapEntry<K, N, S> e) {
+        e.stateVersion = stateMapVersion;
+        e.state = copyState(e);
+    }
+
+    protected void beforeFirstReadAfterSnapshot(StateMapEntry<K, N, S> e) {
+        // the entry is not used by any active snapshot;
+        // if it WAS used then it should NOT be included into the next one if it takes
+        // versioning into account
+        e.stateVersion = stateMapVersion;
     }
 
     @Override
@@ -318,6 +326,10 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
     public void put(K key, N namespace, S value) {
         final StateMapEntry<K, N, S> e = putEntry(key, namespace);
 
+        setStateOnWrite(e, value);
+    }
+
+    protected void setStateOnWrite(StateMapEntry<K, N, S> e, S value) {
         e.state = value;
         e.stateVersion = stateMapVersion;
     }
@@ -326,16 +338,19 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
     public S putAndGetOld(K key, N namespace, S state) {
         final StateMapEntry<K, N, S> e = putEntry(key, namespace);
 
-        // copy-on-write check for state
-        S oldState =
-                (e.stateVersion < highestRequiredSnapshotVersion)
-                        ? getStateSerializer().copy(e.state)
-                        : e.state;
+        S oldState = getStateAndCopyIfNeeded(e);
 
-        e.state = state;
-        e.stateVersion = stateMapVersion;
+        setStateOnWrite(e, state);
 
         return oldState;
+    }
+
+    private S getStateAndCopyIfNeeded(StateMapEntry<K, N, S> e) {
+        return e.stateVersion < highestRequiredSnapshotVersion ? copyState(e) : e.state;
+    }
+
+    protected S copyState(StateMapEntry<K, N, S> e) {
+        return e.state == null ? null : getStateSerializer().copy(e.state);
     }
 
     @Override
@@ -345,16 +360,9 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
     @Override
     public S removeAndGetOld(K key, N namespace) {
-
         final StateMapEntry<K, N, S> e = removeEntry(key, namespace);
 
-        return e != null
-                ?
-                // copy-on-write check for state
-                (e.stateVersion < highestRequiredSnapshotVersion
-                        ? getStateSerializer().copy(e.state)
-                        : e.state)
-                : null;
+        return e == null ? null : getStateAndCopyIfNeeded(e);
     }
 
     @Override
@@ -371,14 +379,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
         final StateMapEntry<K, N, S> entry = putEntry(key, namespace);
 
-        // copy-on-write check for state
-        entry.state =
-                transformation.apply(
-                        (entry.stateVersion < highestRequiredSnapshotVersion)
-                                ? getStateSerializer().copy(entry.state)
-                                : entry.state,
-                        value);
-        entry.stateVersion = stateMapVersion;
+        setStateOnWrite(entry, transformation.apply(getStateAndCopyIfNeeded(entry), value));
     }
 
     // Private implementation details of the API methods
@@ -584,9 +585,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
         }
 
         int index = hash & (table.length - 1);
-        StateMapEntry<K, N, S> newEntry =
-                new StateMapEntry<>(
-                        key, namespace, null, hash, table[index], stateMapVersion, stateMapVersion);
+        StateMapEntry<K, N, S> newEntry = createEntry(namespace, key, hash, table[index]);
         table[index] = newEntry;
 
         if (table == primaryTable) {
@@ -673,7 +672,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
             while (e != null) {
                 // copy-on-write check for entry
                 if (e.entryVersion < requiredVersion) {
-                    e = new StateMapEntry<>(e, stateMapVersion);
+                    e = copyEntry(e);
                 }
                 StateMapEntry<K, N, S> n = e.next;
                 int pos = e.hash & newMask;
@@ -714,7 +713,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
         StateMapEntry<K, N, S> copy;
 
         if (current.entryVersion < required) {
-            copy = new StateMapEntry<>(current, stateMapVersion);
+            copy = copyEntry(current);
             tab[mapIdx] = copy;
         } else {
             // nothing to do, just advance copy to current
@@ -729,7 +728,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
             if (current.entryVersion < required) {
                 // copy and advance the current's copy
-                copy.next = new StateMapEntry<>(current, stateMapVersion);
+                copy.next = copyEntry(current);
                 copy = copy.next;
             } else {
                 // nothing to do, just advance copy to current
@@ -965,5 +964,15 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
         public void update(StateEntry<K, N, S> stateEntry, S newValue) {
             CopyOnWriteStateMap.this.put(stateEntry.getKey(), stateEntry.getNamespace(), newValue);
         }
+    }
+
+    protected StateMapEntry<K, N, S> createEntry(
+            N namespace, K key, int hash, StateMapEntry<K, N, S> next) {
+        return new StateMapEntry<>(
+                key, namespace, null, hash, next, stateMapVersion, stateMapVersion);
+    }
+
+    protected StateMapEntry<K, N, S> copyEntry(StateMapEntry<K, N, S> e) {
+        return new StateMapEntry<>(e, stateMapVersion);
     }
 }
