@@ -34,6 +34,7 @@ public class JdbcReadOptions implements Serializable {
 	private final Integer numPartitions;
 
 	private final int fetchSize;
+	private final boolean autoCommit;
 
 	private JdbcReadOptions(
 			String query,
@@ -41,7 +42,8 @@ public class JdbcReadOptions implements Serializable {
 			Long partitionLowerBound,
 			Long partitionUpperBound,
 			Integer numPartitions,
-			int fetchSize) {
+			int fetchSize,
+			boolean autoCommit) {
 		this.query = query;
 		this.partitionColumnName = partitionColumnName;
 		this.partitionLowerBound = partitionLowerBound;
@@ -49,6 +51,7 @@ public class JdbcReadOptions implements Serializable {
 		this.numPartitions = numPartitions;
 
 		this.fetchSize = fetchSize;
+		this.autoCommit = autoCommit;
 	}
 
 	public Optional<String> getQuery() {
@@ -75,6 +78,10 @@ public class JdbcReadOptions implements Serializable {
 		return fetchSize;
 	}
 
+	public boolean getAutoCommit() {
+		return autoCommit;
+	}
+
 	public static Builder builder() {
 		return new Builder();
 	}
@@ -88,7 +95,8 @@ public class JdbcReadOptions implements Serializable {
 					Objects.equals(partitionLowerBound, options.partitionLowerBound) &&
 					Objects.equals(partitionUpperBound, options.partitionUpperBound) &&
 					Objects.equals(numPartitions, options.numPartitions) &&
-					Objects.equals(fetchSize, options.fetchSize);
+					Objects.equals(fetchSize, options.fetchSize) &&
+					Objects.equals(autoCommit, options.autoCommit);
 		} else {
 			return false;
 		}
@@ -105,6 +113,7 @@ public class JdbcReadOptions implements Serializable {
 		protected Integer numPartitions;
 
 		protected int fetchSize = 0;
+		protected boolean autoCommit = true;
 
 		/**
 		 * optional, SQL query statement for this JDBC source.
@@ -155,9 +164,17 @@ public class JdbcReadOptions implements Serializable {
 			return this;
 		}
 
+		/**
+		 * optional, whether to set auto commit on the JDBC driver.
+		 */
+		public Builder setAutoCommit(boolean autoCommit) {
+			this.autoCommit = autoCommit;
+			return this;
+		}
+
 		public JdbcReadOptions build() {
 			return new JdbcReadOptions(
-				query, partitionColumnName, partitionLowerBound, partitionUpperBound, numPartitions, fetchSize);
+				query, partitionColumnName, partitionLowerBound, partitionUpperBound, numPartitions, fetchSize, autoCommit);
 		}
 	}
 }
