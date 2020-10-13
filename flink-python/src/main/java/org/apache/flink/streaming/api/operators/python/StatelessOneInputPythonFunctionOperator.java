@@ -30,14 +30,15 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamStatelessPythonFunctionRunner;
-import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
-import com.google.protobuf.ByteString;
-
+import java.util.Collections;
 import java.util.Map;
+
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 
 /**
  * {@link StatelessOneInputPythonFunctionOperator} is responsible for launching beam runner which will start a python
@@ -123,7 +124,7 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 			inputTypeInfo,
 			outputTypeInfo,
 			DATA_STREAM_STATELESS_PYTHON_FUNCTION_URN,
-			getUserDefinedDataStreamFunctionsProto(),
+			getUserDefinedDataStreamFunctionProto(pythonFunctionInfo, getRuntimeContext(), Collections.EMPTY_MAP),
 			coderUrn,
 			jobOptions,
 			getFlinkMetricContainer()
@@ -151,22 +152,5 @@ public class StatelessOneInputPythonFunctionOperator<IN, OUT>
 		elementCount++;
 		checkInvokeFinishBundleByCount();
 		emitResults();
-	}
-
-	protected FlinkFnApi.UserDefinedDataStreamFunctions getUserDefinedDataStreamFunctionsProto() {
-		FlinkFnApi.UserDefinedDataStreamFunctions.Builder builder = FlinkFnApi.UserDefinedDataStreamFunctions.newBuilder();
-		builder.addUdfs(getUserDefinedDataStreamFunctionProto(pythonFunctionInfo));
-		return builder.build();
-	}
-
-	private FlinkFnApi.UserDefinedDataStreamFunction getUserDefinedDataStreamFunctionProto(
-		DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo) {
-		FlinkFnApi.UserDefinedDataStreamFunction.Builder builder =
-			FlinkFnApi.UserDefinedDataStreamFunction.newBuilder();
-		builder.setFunctionType(FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.forNumber(
-			dataStreamPythonFunctionInfo.getFunctionType()));
-		builder.setPayload(ByteString.copyFrom(
-			dataStreamPythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
-		return builder.build();
 	}
 }

@@ -16,13 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.python.utils;
+package org.apache.flink.streaming.api.utils;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 
 import com.google.protobuf.ByteString;
+
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
@@ -51,8 +56,8 @@ public enum PythonOperatorUtils {
 	}
 
 	public static FlinkFnApi.UserDefinedAggregateFunction getUserDefinedAggregateFunctionProto(
-			PythonFunctionInfo pythonFunctionInfo,
-			DataViewUtils.DataViewSpec[] dataViewSpecs) {
+		PythonFunctionInfo pythonFunctionInfo,
+		DataViewUtils.DataViewSpec[] dataViewSpecs) {
 		FlinkFnApi.UserDefinedAggregateFunction.Builder builder = FlinkFnApi.UserDefinedAggregateFunction.newBuilder();
 		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		for (Object input : pythonFunctionInfo.getInputs()) {
@@ -87,6 +92,41 @@ public enum PythonOperatorUtils {
 				builder.addSpecs(specBuilder.build());
 			}
 		}
+		return builder.build();
+	}
+
+	public static FlinkFnApi.UserDefinedDataStreamFunction getUserDefinedDataStreamFunctionProto(
+		DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
+		RuntimeContext runtimeContext,
+		Map<String, String> internalParameters) {
+		FlinkFnApi.UserDefinedDataStreamFunction.Builder builder =
+			FlinkFnApi.UserDefinedDataStreamFunction.newBuilder();
+		builder.setFunctionType(FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.forNumber(
+			dataStreamPythonFunctionInfo.getFunctionType()));
+		builder.setRuntimeContext(
+			FlinkFnApi.UserDefinedDataStreamFunction.RuntimeContext.newBuilder()
+				.setTaskName(runtimeContext.getTaskName())
+				.setTaskNameWithSubtasks(runtimeContext.getTaskNameWithSubtasks())
+				.setNumberOfParallelSubtasks(runtimeContext.getNumberOfParallelSubtasks())
+				.setMaxNumberOfParallelSubtasks(runtimeContext.getMaxNumberOfParallelSubtasks())
+				.setIndexOfThisSubtask(runtimeContext.getIndexOfThisSubtask())
+				.setAttemptNumber(runtimeContext.getAttemptNumber())
+				.addAllJobParameters(runtimeContext.getExecutionConfig().getGlobalJobParameters()
+					.toMap().entrySet().stream().map(
+						entry -> FlinkFnApi.UserDefinedDataStreamFunction.JobParameter.newBuilder()
+							.setKey(entry.getKey())
+							.setValue(entry.getValue())
+							.build())
+					.collect(Collectors.toList()))
+				.addAllJobParameters(internalParameters.entrySet().stream().map(
+					entry -> FlinkFnApi.UserDefinedDataStreamFunction.JobParameter.newBuilder()
+						.setKey(entry.getKey())
+						.setValue(entry.getValue())
+						.build())
+					.collect(Collectors.toList()))
+				.build());
+		builder.setPayload(ByteString.copyFrom(
+			dataStreamPythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
 		return builder.build();
 	}
 }

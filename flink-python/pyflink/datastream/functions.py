@@ -17,18 +17,92 @@
 ################################################################################
 
 import abc
-from typing import Union, Any
+from typing import Union, Any, Dict
 
 from py4j.java_gateway import JavaObject
 
 from pyflink.java_gateway import get_gateway
 
 
+class RuntimeContext(object):
+    """
+    A RuntimeContext contains information about the context in which functions are executed.
+    Each parallel instance of the function will have a context through which it can access
+    static contextual information (such as the current parallelism).
+    """
+
+    def __init__(self,
+                 task_name: str,
+                 task_name_with_subtasks: str,
+                 number_of_parallel_subtasks: int,
+                 max_number_of_parallel_subtasks: int,
+                 index_of_this_subtask: int,
+                 attempt_number: int,
+                 job_parameters: Dict[str, str]):
+        self._task_name = task_name
+        self._task_name_with_subtasks = task_name_with_subtasks
+        self._number_of_parallel_subtasks = number_of_parallel_subtasks
+        self._max_number_of_parallel_subtasks = max_number_of_parallel_subtasks
+        self._index_of_this_subtask = index_of_this_subtask
+        self._attempt_number = attempt_number
+        self._job_parameters = job_parameters
+
+    def get_task_name(self) -> str:
+        """
+        Returns the name of the task in which the UDF runs, as assigned during plan construction.
+        """
+        return self._task_name
+
+    def get_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the parallelism with which the parallel task runs.
+        """
+        return self._number_of_parallel_subtasks
+
+    def get_max_number_of_parallel_subtasks(self) -> int:
+        """
+        Gets the number of max-parallelism with which the parallel task runs.
+        """
+        return self._max_number_of_parallel_subtasks
+
+    def get_index_of_this_subtask(self) -> int:
+        """
+        Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+        parallelism-1 (parallelism as returned by
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`).
+        """
+        return self._index_of_this_subtask
+
+    def get_attempt_number(self) -> int:
+        """
+        Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+        """
+        return self._attempt_number
+
+    def get_task_name_with_subtasks(self) -> str:
+        """
+        Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+        where 3 would be (:func:`~RuntimeContext.get_index_of_this_subtask` + 1), and 6 would be
+        :func:`~RuntimeContext.get_number_of_parallel_subtasks`.
+        """
+        return self._task_name_with_subtasks
+
+    def get_job_parameter(self, key: str, default_value: str):
+        """
+        Gets the global job parameter value associated with the given key as a string.
+        """
+        return self._job_parameters[key] if key in self._job_parameters else default_value
+
+
 class Function(abc.ABC):
     """
     The base class for all user-defined functions.
     """
-    pass
+    def open(self, runtime_context: RuntimeContext):
+        pass
+
+    def close(self):
+        pass
 
 
 class MapFunction(Function):
@@ -266,7 +340,7 @@ class Partitioner(Function):
         pass
 
 
-class FunctionWrapper(object):
+class FunctionWrapper(Function):
     """
     A basic wrapper class for user defined function.
     """
