@@ -123,7 +123,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.BATCH_OP,
 				getTaskConfiguration(),
-				getEnvironment().getUserCodeClassLoader().asClassLoader()),
+				userCodeClassLoader),
 			getJobConfiguration(),
 			this
 		);
