@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,6 +42,8 @@ import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
+import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
@@ -543,6 +547,32 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 */
 	private static class SimpleStateRequestHandler implements StateRequestHandler {
 
+		// map state GET request flags
+		private static final byte GET_FLAG = 0;
+		private static final byte ITERATE_FLAG = 1;
+		private static final byte CHECK_EMPTY_FLAG = 2;
+
+		// map state GET response flags
+		private static final byte EXIST_FLAG = 0;
+		private static final byte IS_NONE_FLAG = 1;
+		private static final byte NOT_EXIST_FLAG = 2;
+		private static final byte IS_EMPTY_FLAG = 3;
+		private static final byte NOT_EMPTY_FLAG = 4;
+
+		// map state APPEND request flags
+		private static final byte DELETE = 0;
+		private static final byte SET_NONE = 1;
+		private static final byte SET_VALUE = 2;
+
+		private static final BeamFnApi.StateGetResponse.Builder NOT_EXIST_RESPONSE =
+			BeamFnApi.StateGetResponse.newBuilder().setData(ByteString.copyFrom(new byte[]{NOT_EXIST_FLAG}));
+		private static final BeamFnApi.StateGetResponse.Builder IS_NONE_RESPONSE =
+			BeamFnApi.StateGetResponse.newBuilder().setData(ByteString.copyFrom(new byte[]{IS_NONE_FLAG}));
+		private static final BeamFnApi.StateGetResponse.Builder IS_EMPTY_RESPONSE =
+			BeamFnApi.StateGetResponse.newBuilder().setData(ByteString.copyFrom(new byte[]{IS_EMPTY_FLAG}));
+		private static final BeamFnApi.StateGetResponse.Builder NOT_EMPTY_RESPONSE =
+			BeamFnApi.StateGetResponse.newBuilder().setData(ByteString.copyFrom(new byte[]{NOT_EMPTY_FLAG}));
+
 		private final TypeSerializer keySerializer;
 		private final TypeSerializer<byte[]> valueSerializer;
 		private final KeyedStateBackend keyedStateBackend;
@@ -561,6 +591,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		 * The cache of the stateDescriptors.
 		 */
 		final Map<String, StateDescriptor> stateDescriptorCache;
+
+		private final ByteArrayWrapper reuseByteArrayWrapper = new ByteArrayWrapper(new byte[0]);
 
 		SimpleStateRequestHandler(
 			KeyedStateBackend keyedStateBackend,
@@ -581,6 +613,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			synchronized (keyedStateBackend) {
 				if (typeCase.equals(BeamFnApi.StateKey.TypeCase.BAG_USER_STATE)) {
 					return handleBagState(request);
+				} else if (typeCase.equals(BeamFnApi.StateKey.TypeCase.MULTIMAP_SIDE_INPUT)) {
+					return handleMapState(request);
 				} else {
 					throw new RuntimeException("Unsupported state type: " + typeCase);
 				}
@@ -603,11 +637,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 			switch (request.getRequestCase()) {
 				case GET:
-					return handleGetRequest(request);
+					return handleBagGetRequest(request);
 				case APPEND:
-					return handleAppendRequest(request);
+					return handleBagAppendRequest(request);
 				case CLEAR:
-					return handleClearRequest(request);
+					return handleBagClearRequest(request);
 				default:
 					throw new RuntimeException(
 						String.format(
@@ -626,7 +660,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			return ret;
 		}
 
-		private CompletionStage<BeamFnApi.StateResponse.Builder> handleGetRequest(
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagGetRequest(
 			BeamFnApi.StateRequest request) throws Exception {
 
 			ListState<byte[]> partitionedState = getListState(request);
@@ -640,7 +674,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 							.setData(ByteString.copyFrom(byteStrings))));
 		}
 
-		private CompletionStage<BeamFnApi.StateResponse.Builder> handleAppendRequest(
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagAppendRequest(
 			BeamFnApi.StateRequest request) throws Exception {
 
 			ListState<byte[]> partitionedState = getListState(request);
@@ -654,7 +688,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 					.setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance()));
 		}
 
-		private CompletionStage<BeamFnApi.StateResponse.Builder> handleClearRequest(
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleBagClearRequest(
 			BeamFnApi.StateRequest request) throws Exception {
 
 			ListState<byte[]> partitionedState = getListState(request);
@@ -689,6 +723,170 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 				VoidNamespace.INSTANCE,
 				VoidNamespaceSerializer.INSTANCE,
 				listStateDescriptor);
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapState(
+			BeamFnApi.StateRequest request) throws Exception {
+			// Currently the `beam_fn_api.proto` does not support MapState, so we use the
+			// the `MultimapSideInput` message to mark the state as a MapState for now.
+			if (request.getStateKey().hasMultimapSideInput()) {
+				BeamFnApi.StateKey.MultimapSideInput mapUserState = request.getStateKey().getMultimapSideInput();
+				// get key
+				byte[] keyBytes = mapUserState.getKey().toByteArray();
+				bais.setBuffer(keyBytes, 0, keyBytes.length);
+				Object key = keySerializer.deserialize(baisWrapper);
+				keyedStateBackend.setCurrentKey(
+					((RowDataSerializer) keyedStateBackend.getKeySerializer()).toBinaryRow((RowData) key));
+			} else {
+				throw new RuntimeException("Unsupported bag state request: " + request);
+			}
+
+			switch (request.getRequestCase()) {
+				case GET:
+					return handleMapGetRequest(request);
+				case APPEND:
+					return handleMapAppendRequest(request);
+				case CLEAR:
+					return handleMapClearRequest(request);
+				default:
+					throw new RuntimeException(
+						String.format(
+							"Unsupported request type %s for user state.", request.getRequestCase()));
+			}
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapGetRequest(BeamFnApi.StateRequest request)
+				throws Exception {
+			// The structure of get request bytes is:
+			// [flag(1 byte)][serialized map key(if needed)]
+			byte[] getRequest = request.getGet().getContinuationToken().toByteArray();
+			byte getFlag = getRequest[0];
+			reuseByteArrayWrapper.setData(getRequest);
+			reuseByteArrayWrapper.setOffset(1);
+			reuseByteArrayWrapper.setLimit(getRequest.length);
+			MapState<ByteArrayWrapper, byte[]> mapState = getMapState(request);
+			BeamFnApi.StateGetResponse.Builder response;
+			switch (getFlag) {
+				case GET_FLAG:
+					response = handleMapGetValueRequest(reuseByteArrayWrapper, mapState);
+					break;
+				case CHECK_EMPTY_FLAG:
+					response = handleMapCheckEmptyRequest(mapState);
+					break;
+				default:
+					throw new RuntimeException(String.format(
+						"Unsupported get request type: '%d' for map state.", getFlag));
+			}
+
+			return CompletableFuture.completedFuture(
+				BeamFnApi.StateResponse.newBuilder()
+					.setId(request.getId())
+					.setGet(response));
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapAppendRequest(BeamFnApi.StateRequest request)
+				throws Exception {
+			// The structure of append request bytes is:
+			// [number of requests (int32)][append request flag (1 byte)][map key length (int32)][map key]
+			// [map value length (int32)][map value][append request flag (1 byte)][map key length (int32)][map key]
+			// ...
+			byte[] appendBytes = request.getAppend().getData().toByteArray();
+			bais.setBuffer(appendBytes, 0, appendBytes.length);
+			MapState<ByteArrayWrapper, byte[]> mapState = getMapState(request);
+			int subRequestNum = baisWrapper.readInt();
+			for (int i = 0; i < subRequestNum; i++) {
+				byte requestFlag = baisWrapper.readByte();
+				int keyLength = baisWrapper.readInt();
+				reuseByteArrayWrapper.setData(appendBytes);
+				reuseByteArrayWrapper.setOffset(bais.getPosition());
+				reuseByteArrayWrapper.setLimit(bais.getPosition() + keyLength);
+				baisWrapper.skipBytesToRead(keyLength);
+				switch (requestFlag) {
+					case DELETE:
+						mapState.remove(reuseByteArrayWrapper);
+						break;
+					case SET_NONE:
+						mapState.put(reuseByteArrayWrapper, null);
+						break;
+					case SET_VALUE:
+						int valueLength = baisWrapper.readInt();
+						byte[] valueBytes = new byte[valueLength];
+						int readLength = baisWrapper.read(valueBytes);
+						assert valueLength == readLength;
+						mapState.put(reuseByteArrayWrapper, valueBytes);
+						break;
+					default:
+						throw new RuntimeException(String.format(
+							"Unsupported append request type: '%d' for map state.", requestFlag));
+				}
+			}
+			return CompletableFuture.completedFuture(
+				BeamFnApi.StateResponse.newBuilder()
+					.setId(request.getId())
+					.setAppend(BeamFnApi.StateAppendResponse.getDefaultInstance()));
+		}
+
+		private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapClearRequest(BeamFnApi.StateRequest request)
+			throws Exception {
+			MapState<ByteArrayWrapper, byte[]> partitionedState = getMapState(request);
+
+			partitionedState.clear();
+			return CompletableFuture.completedFuture(
+				BeamFnApi.StateResponse.newBuilder()
+					.setId(request.getId())
+					.setClear(BeamFnApi.StateClearResponse.getDefaultInstance()));
+		}
+
+		private BeamFnApi.StateGetResponse.Builder handleMapGetValueRequest(
+				ByteArrayWrapper key, MapState<ByteArrayWrapper, byte[]> mapState) throws Exception {
+			if (mapState.contains(key)) {
+				byte[] value = mapState.get(key);
+				if (value == null) {
+					return IS_NONE_RESPONSE;
+				} else {
+					ByteString.Output output = ByteString.newOutput();
+					output.write(new byte[]{EXIST_FLAG});
+					output.write(value);
+					return BeamFnApi.StateGetResponse.newBuilder().setData(output.toByteString());
+				}
+			} else {
+				return NOT_EXIST_RESPONSE;
+			}
+		}
+
+		private BeamFnApi.StateGetResponse.Builder handleMapCheckEmptyRequest(
+				MapState<ByteArrayWrapper, byte[]> mapState) throws Exception {
+			if (mapState.isEmpty()) {
+				return IS_EMPTY_RESPONSE;
+			} else {
+				return NOT_EMPTY_RESPONSE;
+			}
+		}
+
+		private MapState<ByteArrayWrapper, byte[]> getMapState(BeamFnApi.StateRequest request) throws Exception {
+			BeamFnApi.StateKey.MultimapSideInput mapUserState = request.getStateKey().getMultimapSideInput();
+			String stateName = PYTHON_STATE_PREFIX + mapUserState.getSideInputId();
+			StateDescriptor cachedStateDescriptor = stateDescriptorCache.get(stateName);
+			MapStateDescriptor<ByteArrayWrapper, byte[]> mapStateDescriptor;
+			if (cachedStateDescriptor instanceof MapStateDescriptor) {
+				mapStateDescriptor = (MapStateDescriptor<ByteArrayWrapper, byte[]>) cachedStateDescriptor;
+			} else if (cachedStateDescriptor == null) {
+				mapStateDescriptor = new MapStateDescriptor<>(
+					stateName, ByteArrayWrapperSerializer.INSTANCE, valueSerializer);
+				stateDescriptorCache.put(stateName, mapStateDescriptor);
+			} else {
+				throw new RuntimeException(
+					String.format(
+						"State name corrupt detected: " +
+							"'%s' is used both as MAP state and '%s' state at the same time.",
+						stateName,
+						cachedStateDescriptor.getType()));
+			}
+
+			return (MapState<ByteArrayWrapper, byte[]>) keyedStateBackend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE,
+				mapStateDescriptor);
 		}
 	}
 }
