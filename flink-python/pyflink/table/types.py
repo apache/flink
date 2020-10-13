@@ -1804,19 +1804,7 @@ def _from_java_type(j_data_type):
             BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
                 BasicArrayTypeInfo
             BasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
-            if type_info == BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO:
-                data_type = DataTypes.ARRAY(DataTypes.BOOLEAN())
-            elif type_info == BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO:
-                data_type = DataTypes.ARRAY(DataTypes.SMALLINT())
-            elif type_info == BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO:
-                data_type = DataTypes.ARRAY(DataTypes.INT())
-            elif type_info == BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO:
-                data_type = DataTypes.ARRAY(DataTypes.BIGINT())
-            elif type_info == BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO:
-                data_type = DataTypes.ARRAY(DataTypes.FLOAT())
-            elif type_info == BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO:
-                data_type = DataTypes.ARRAY(DataTypes.DOUBLE())
-            elif type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
+            if type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
                 data_type = DataTypes.ARRAY(DataTypes.STRING())
             elif type_info == BasicTypeInfo.BIG_DEC_TYPE_INFO:
                 data_type = DataTypes.DECIMAL(38, 18)
@@ -1824,14 +1812,6 @@ def _from_java_type(j_data_type):
                 get_java_class(gateway.jvm.org.apache.flink.table.runtime.typeutils
                                .BigDecimalTypeInfo):
                 data_type = DataTypes.DECIMAL(type_info.precision(), type_info.scale())
-            elif type_info.getClass() == \
-                    get_java_class(gateway.jvm.org.apache.flink.api.java.typeutils.TupleTypeInfo):
-                field_data_types = []
-                for i in range(type_info.getArity()):
-                    field_data_types.append(type_info.getTypeAt(i))
-                fields = [DataTypes.FIELD(name, _from_java_type(field_data_types[idx]))
-                          for idx, name in enumerate(type_info.getFieldNames())]
-                data_type = DataTypes.ROW(fields, logical_type.isNullable())
             else:
                 raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
                                 % type_info)
