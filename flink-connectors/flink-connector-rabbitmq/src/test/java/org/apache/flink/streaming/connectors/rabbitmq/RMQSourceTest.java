@@ -45,11 +45,9 @@ import com.rabbitmq.client.Envelope;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -76,7 +74,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
  * <p>This tests assumes that the message ids are increasing monotonously. That doesn't have to be the
  * case. The correlation id is used to uniquely identify messages.
  */
-@RunWith(PowerMockRunner.class)
 public class RMQSourceTest {
 
 	private RMQSource<String> source;
