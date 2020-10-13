@@ -71,6 +71,8 @@ import static org.apache.flink.util.PropertiesUtil.getLong;
 @PublicEvolving
 public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	/**  Configuration key to change the polling timeout. **/
 	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
 
