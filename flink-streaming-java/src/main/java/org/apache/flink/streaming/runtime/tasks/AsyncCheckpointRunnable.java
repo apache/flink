@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.fs.FileSystemSafetyNet;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -197,7 +199,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 				// We only report the exception for the original cause of fail and cleanup.
 				// Otherwise this followup exception could race the original exception in failing the task.
 				try {
-					taskEnvironment.declineCheckpoint(checkpointMetaData.getCheckpointId(), checkpointException);
+					taskEnvironment.declineCheckpoint(
+							checkpointMetaData.getCheckpointId(),
+							new CheckpointException(CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION, checkpointException));
 				} catch (Exception unhandled) {
 					AsynchronousException asyncException = new AsynchronousException(unhandled);
 					asyncExceptionHandler.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
