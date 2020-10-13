@@ -87,7 +87,7 @@ mkdir -p "$LOCAL_LOGS_PATH"
     -Dkubernetes.rest-service.exposed.type=NodePort \
     -pym word_count -pyfs /opt/flink/examples/python/table/batch
 
-kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
+kubectl wait --for=condition=Available --timeout=60s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
 wait_rest_endpoint_up_k8s $jm_pod_name
 
