@@ -43,8 +43,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test for {@link JdbcTableSource} and {@link JdbcUpsertTableSink} created
- * by {@link JdbcTableSourceSinkFactory}.
+ * Test for {@link JdbcDynamicTableSource} and {@link JdbcDynamicTableSink} created
+ * by {@link JdbcDynamicTableFactory}.
  */
 public class JdbcDynamicTableFactoryTest {
 
@@ -63,6 +63,7 @@ public class JdbcDynamicTableFactoryTest {
 		properties.put("driver", "org.apache.derby.jdbc.EmbeddedDriver");
 		properties.put("username", "user");
 		properties.put("password", "pass");
+		properties.put("scan.query", "select * from mytable");
 
 		// validation for source
 		DynamicTableSource actualSource = createTableSource(properties);
@@ -78,9 +79,13 @@ public class JdbcDynamicTableFactoryTest {
 			.setCacheExpireMs(10_000)
 			.setMaxRetryTimes(3)
 			.build();
+		JdbcReadOptions jdbcReadOptions = JdbcReadOptions.builder()
+			.setQuery("select * from mytable")
+			.build();
+
 		JdbcDynamicTableSource expectedSource = new JdbcDynamicTableSource(
 			options,
-			JdbcReadOptions.builder().build(),
+			jdbcReadOptions,
 			lookupOptions,
 			schema);
 		assertEquals(expectedSource, actualSource);
@@ -110,6 +115,7 @@ public class JdbcDynamicTableFactoryTest {
 	@Test
 	public void testJdbcReadProperties() {
 		Map<String, String> properties = getAllOptions();
+		properties.put("scan.query", "select * from mytable");
 		properties.put("scan.partition.column", "aaa");
 		properties.put("scan.partition.lower-bound", "-10");
 		properties.put("scan.partition.upper-bound", "100");
@@ -128,6 +134,7 @@ public class JdbcDynamicTableFactoryTest {
 			.setPartitionUpperBound(100)
 			.setNumPartitions(10)
 			.setFetchSize(20)
+			.setQuery("select * from mytable")
 			.build();
 		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
 			.setCacheMaxSize(-1)
