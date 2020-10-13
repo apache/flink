@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import os
 from typing import Callable, Union
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
@@ -25,7 +24,7 @@ from pyflink.datastream.functions import _get_python_env, FlatMapFunctionWrapper
     MapFunction, MapFunctionWrapper, Function, FunctionWrapper, SinkFunction, FilterFunction, \
     FilterFunctionWrapper, KeySelectorFunctionWrapper, KeySelector, ReduceFunction, \
     ReduceFunctionWrapper, CoMapFunction, CoFlatMapFunction, Partitioner, \
-    PartitionerFunctionWrapper
+    PartitionerFunctionWrapper, RuntimeContext
 from pyflink.java_gateway import get_gateway
 
 
@@ -467,25 +466,26 @@ class DataStream(object):
             raise TypeError("Parameter partitioner should be a type of Partitioner.")
 
         gateway = get_gateway()
-        data_stream_num_partitions_env_key = \
-            gateway.jvm.PythonPartitionCustomOperator.DATA_STREAM_NUM_PARTITIONS
 
         class PartitionCustomMapFunction(MapFunction):
             """
             A wrapper class for partition_custom map function. It indicates that it is a partition
-            custom operation that we need to apply DataStreamPythonPartitionCustomFunctionOperator
+            custom operation that we need to apply PythonPartitionCustomOperator
             to run the map function.
             """
 
             def __init__(self):
                 self.num_partitions = None
 
-            def map(self, value):
-                return self.partition_custom_map(value)
+            def open(self, runtime_context: RuntimeContext):
+                self.num_partitions = int(runtime_context.get_job_parameter(
+                    "DATA_STREAM_NUM_PARTITIONS", "-1"))
+                if self.num_partitions <= 0:
+                    raise ValueError(
+                        "The partition number should be a positive value, got %s"
+                        % self.num_partitions)
 
-            def partition_custom_map(self, value):
-                if self.num_partitions is None:
-                    self.num_partitions = int(os.environ[data_stream_num_partitions_env_key])
+            def map(self, value):
                 partition = partitioner.partition(key_selector.get_key(value), self.num_partitions)
                 return Row(partition, value)
 

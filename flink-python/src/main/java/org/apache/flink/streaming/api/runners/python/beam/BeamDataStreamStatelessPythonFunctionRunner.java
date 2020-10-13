@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
+import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
@@ -40,7 +40,7 @@ public class BeamDataStreamStatelessPythonFunctionRunner extends BeamPythonFunct
 
 	private final TypeInformation inputType;
 	private final TypeInformation outputTupe;
-	private final FlinkFnApi.UserDefinedDataStreamFunctions userDefinedDataStreamFunctions;
+	private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
 	private final String coderUrn;
 
 	public BeamDataStreamStatelessPythonFunctionRunner(
@@ -49,20 +49,20 @@ public class BeamDataStreamStatelessPythonFunctionRunner extends BeamPythonFunct
 		TypeInformation inputType,
 		TypeInformation outputType,
 		String functionUrn,
-		FlinkFnApi.UserDefinedDataStreamFunctions userDefinedDataStreamFunctions,
+		FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
 		String coderUrn,
 		Map<String, String> jobOptions,
 		@Nullable FlinkMetricContainer flinkMetricContainer) {
 		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, null, null);
 		this.inputType = inputType;
 		this.outputTupe = outputType;
-		this.userDefinedDataStreamFunctions = userDefinedDataStreamFunctions;
+		this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
 		this.coderUrn = coderUrn;
 	}
 
 	@Override
 	protected byte[] getUserDefinedFunctionsProtoBytes() {
-		return this.userDefinedDataStreamFunctions.toByteArray();
+		return this.userDefinedDataStreamFunction.toByteArray();
 	}
 
 	@Override

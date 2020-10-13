@@ -36,7 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
-import static org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
 
 /**
  * The Batch Arrow Python {@link AggregateFunction} Operator for Over Window Aggregation.

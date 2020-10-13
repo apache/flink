@@ -28,6 +28,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operation_specs
 from apache_beam.utils.windowed_value cimport WindowedValue
 
+from pyflink.datastream.functions import RuntimeContext
 from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
@@ -66,7 +67,7 @@ cdef class BeamStatelessFunctionOperation(Operation):
             self._is_python_coder = False
             self._output_coder = self._value_coder_impl._value_coder
 
-        self.func, self.user_defined_funcs = self.generate_func(self.spec.serialized_fn.udfs)
+        self.func, self.user_defined_funcs = self.generate_func(self.spec.serialized_fn)
         self._metric_enabled = self.spec.serialized_fn.metric_enabled
         self.base_metric_group = None
         if self._metric_enabled:
@@ -77,7 +78,7 @@ cdef class BeamStatelessFunctionOperation(Operation):
         for user_defined_func in self.user_defined_funcs:
             user_defined_func.open(FunctionContext(self.base_metric_group))
 
-    def generate_func(self, udfs) -> tuple:
+    def generate_func(self, serialized_fn) -> tuple:
         pass
 
     cpdef start(self):
@@ -145,10 +146,11 @@ cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
         super(BeamScalarFunctionOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers)
 
-    def generate_func(self, udfs):
+    def generate_func(self, serialized_fn):
         """
         Generates a lambda function based on udfs.
-        :param udfs: a list of the proto representation of the Python :class:`ScalarFunction`
+        :param serialized_fn: serialized function which contains a list of the proto
+                              representation of the Python :class:`ScalarFunction`
         :return: the generated lambda function
         """
         scalar_functions, variable_dict, user_defined_funcs = reduce(
@@ -156,7 +158,7 @@ cdef class BeamScalarFunctionOperation(BeamStatelessFunctionOperation):
                 ','.join([x[0], y[0]]),
                 dict(chain(x[1].items(), y[1].items())),
                 x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(udf) for udf in udfs])
+            [operation_utils.extract_user_defined_function(udf) for udf in serialized_fn.udfs])
         mapper = eval('lambda value: [%s]' % scalar_functions, variable_dict)
         if self._is_python_coder:
             generate_func = lambda it: map(mapper, it)
@@ -169,14 +171,14 @@ cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
         super(BeamTableFunctionOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers)
 
-    def generate_func(self, udtfs):
+    def generate_func(self, serialized_fn):
         """
         Generates a lambda function based on udtfs.
         :param udtfs: a list of the proto representation of the Python :class:`TableFunction`
         :return: the generated lambda function
         """
         table_function, variable_dict, user_defined_funcs = \
-            operation_utils.extract_user_defined_function(udtfs[0])
+            operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
         generate_func = eval('lambda value: %s' % table_function, variable_dict)
         return generate_func, user_defined_funcs
 
@@ -185,9 +187,21 @@ cdef class DataStreamStatelessFunctionOperation(BeamStatelessFunctionOperation):
         super(DataStreamStatelessFunctionOperation, self).__init__(name, spec, counter_factory,
                                                                    sampler, consumers)
 
-    def generate_func(self, udfs):
-        func = operation_utils.extract_data_stream_stateless_funcs(udfs)
-        return func, []
+    def open_func(self):
+        for user_defined_func in self.user_defined_funcs:
+            runtime_context = RuntimeContext(
+                self.spec.serialized_fn.runtime_context.task_name,
+                self.spec.serialized_fn.runtime_context.task_name_with_subtasks,
+                self.spec.serialized_fn.runtime_context.number_of_parallel_subtasks,
+                self.spec.serialized_fn.runtime_context.max_number_of_parallel_subtasks,
+                self.spec.serialized_fn.runtime_context.index_of_this_subtask,
+                self.spec.serialized_fn.runtime_context.attempt_number,
+                {p.key: p.value for p in self.spec.serialized_fn.runtime_context.job_parameters})
+            user_defined_func.open(runtime_context)
+
+    def generate_func(self, serialized_fn):
+        func, user_defined_func = operation_utils.extract_data_stream_stateless_funcs(serialized_fn)
+        return func, [user_defined_func]
 
 
 cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
@@ -195,13 +209,14 @@ cdef class PandasAggregateFunctionOperation(BeamStatelessFunctionOperation):
         super(PandasAggregateFunctionOperation, self).__init__(name, spec, counter_factory,
                                                                    sampler, consumers)
 
-    def generate_func(self, udfs):
+    def generate_func(self, serialized_fn):
         pandas_functions, variable_dict, user_defined_funcs = reduce(
             lambda x, y: (
                 ','.join([x[0], y[0]]),
                 dict(chain(x[1].items(), y[1].items())),
                 x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(udf, True) for udf in udfs])
+            [operation_utils.extract_user_defined_function(udf, True)
+             for udf in serialized_fn.udfs])
         variable_dict['wrap_pandas_result'] = operation_utils.wrap_pandas_result
         mapper = eval('lambda value: wrap_pandas_result([%s])' % pandas_functions, variable_dict)
         generate_func = lambda it: map(mapper, it)
@@ -228,11 +243,11 @@ cdef class PandasBatchOverWindowAggregateFunctionOperation(BeamStatelessFunction
             else:
                 self.is_bounded_range_window.append(False)
 
-    def generate_func(self, udfs):
+    def generate_func(self, serialized_fn):
         user_defined_funcs = []
         self.window_indexes = []
         self.mapper = []
-        for udf in udfs:
+        for udf in serialized_fn.udfs:
             pandas_agg_function, variable_dict, user_defined_func, window_index = \
                 operation_utils.extract_over_window_user_defined_function(udf)
             user_defined_funcs.extend(user_defined_func)
@@ -343,12 +358,13 @@ class BeamStreamGroupAggregateOperation(BeamStatefulFunctionOperation):
     def open_func(self):
         self.group_agg_function.open(FunctionContext(self.base_metric_group))
 
-    def generate_func(self, udfs):
+    def generate_func(self, serialized_fn):
         user_defined_aggs = []
         input_extractors = []
-        for i in range(len(udfs)):
+        for i in range(len(serialized_fn.udfs)):
             if i != self.index_of_count_star:
-                user_defined_agg, input_extractor = extract_user_defined_aggregate_function(udfs[i])
+                user_defined_agg, input_extractor = extract_user_defined_aggregate_function(
+                    serialized_fn.udfs[i])
             else:
                 user_defined_agg = Count1AggFunction()
                 input_extractor = lambda value: []
@@ -403,7 +419,7 @@ def create_table_function(factory, transform_id, transform_proto, parameter, con
         factory, transform_proto, consumers, parameter, BeamTableFunctionOperation)
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operation_utils.DATA_STREAM_STATELESS_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedDataStreamFunctions)
+    operation_utils.DATA_STREAM_STATELESS_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedDataStreamFunction)
 def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter, DataStreamStatelessFunctionOperation)
