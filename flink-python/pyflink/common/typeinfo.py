@@ -78,9 +78,9 @@ class WrapperTypeInfo(TypeInformation):
         """
         return False
 
-    def to_wrapper_type(self, obj):
+    def to_internal_type(self, obj):
         """
-        Converts a Python object into an internal wrapper object.
+        Converts a Python object into an internal object.
         """
         return obj
 
@@ -349,22 +349,22 @@ class RowTypeInfo(WrapperTypeInfo):
     def need_conversion(self):
         return True
 
-    def to_wrapper_type(self, obj):
+    def to_internal_type(self, obj):
         if obj is None:
             return
 
         if self._need_serialize_any_field:
-            # Only calling to_wrapper_type function for fields that need conversion
+            # Only calling to_internal_type function for fields that need conversion
             if isinstance(obj, dict):
-                return tuple(f.to_wrapper_type(obj.get(n)) if c else obj.get(n)
+                return tuple(f.to_internal_type(obj.get(n)) if c else obj.get(n)
                              for n, f, c in zip(self._j_typeinfo.getFieldNames(), self.types,
                                                 self._need_conversion))
             elif isinstance(obj, (tuple, list)):
-                return tuple(f.to_wrapper_type(v) if c else v
+                return tuple(f.to_internal_type(v) if c else v
                              for f, v, c in zip(self.types, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(f.to_wrapper_type(d.get(n)) if c else d.get(n)
+                return tuple(f.to_internal_type(d.get(n)) if c else d.get(n)
                              for n, f, c in zip(self._j_typeinfo.getFieldNames(), self.types,
                                                 self._need_conversion))
             else:
@@ -424,7 +424,7 @@ class DateTypeInfo(WrapperTypeInfo):
     def need_conversion(self):
         return True
 
-    def to_wrapper_type(self, d):
+    def to_internal_type(self, d):
         if d is not None:
             return d.toordinal() - self.EPOCH_ORDINAL
 
@@ -442,7 +442,7 @@ class TimeTypeInfo(WrapperTypeInfo):
     def need_conversion(self):
         return True
 
-    def to_wrapper_type(self, t):
+    def to_internal_type(self, t):
         if t is not None:
             if t.tzinfo is not None:
                 offset = t.utcoffset()
@@ -467,7 +467,7 @@ class TimestampTypeInfo(WrapperTypeInfo):
     def need_conversion(self):
         return True
 
-    def to_wrapper_type(self, dt):
+    def to_internal_type(self, dt):
         if dt is not None:
             seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
                        else time.mktime(dt.timetuple()))

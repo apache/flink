@@ -713,7 +713,7 @@ class StreamExecutionEnvironment(object):
         """
         if type_info is not None:
             wrapper_type = _from_java_type(type_info.get_java_type_info())
-            collection = [wrapper_type.to_wrapper_type(element) for element in collection]
+            collection = [wrapper_type.to_internal_type(element) for element in collection]
         return self._from_collection(collection, type_info)
 
     def _from_collection(self, elements: List[Any],
