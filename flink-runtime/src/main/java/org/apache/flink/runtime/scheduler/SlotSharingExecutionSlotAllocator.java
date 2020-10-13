@@ -45,6 +45,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Allocates {@link LogicalSlot}s from physical shared slots.
@@ -163,6 +164,10 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 			for (ExecutionVertexID executionId : executionIds) {
 				CompletableFuture<LogicalSlot> logicalSlotFuture = sharedSlot.allocateLogicalSlot(executionId);
+
+				// logical slot future should be either pending, or completed normally with an available physical slot
+				checkState(!logicalSlotFuture.isCompletedExceptionally());
+
 				SlotExecutionVertexAssignment assignment = new SlotExecutionVertexAssignment(executionId, logicalSlotFuture);
 				assignments.put(executionId, assignment);
 			}

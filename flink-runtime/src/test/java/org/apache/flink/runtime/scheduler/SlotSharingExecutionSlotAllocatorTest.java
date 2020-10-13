@@ -171,6 +171,16 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 		assertThat(context.getSlotProvider().getRequests().keySet(), hasSize(2));
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void testImmediatelyFailedLogicalSlotFutureIsNotAllowed() {
+		AllocationContext context = AllocationContext
+			.newBuilder()
+			.addGroup(EV1)
+			.completeSlotProfileFutureExceptionally()
+			.build();
+		context.allocateSlotsFor(EV1).get(0).getLogicalSlotFuture();
+	}
+
 	@Test
 	public void testSlotWillBeOccupiedIndefinitelyFalse() throws ExecutionException, InterruptedException {
 		testSlotWillBeOccupiedIndefinitely(false);
@@ -452,7 +462,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 		private static class Builder {
 			private final Collection<ExecutionVertexID[]> groups = new ArrayList<>();
 			private boolean completePhysicalSlotFutureManually = false;
-			private boolean completeSlotProfileFutureManually = false;
+			private FutureCompletionStyle slotProfileFutureCompletionStyle = FutureCompletionStyle.NORMALLY;
 			private boolean slotWillBeOccupiedIndefinitely = false;
 			private PhysicalSlotRequestBulkChecker bulkChecker = new TestingPhysicalSlotRequestBulkChecker();
 
@@ -472,7 +482,12 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 			}
 
 			private Builder completeSlotProfileFutureManually() {
-				this.completeSlotProfileFutureManually = true;
+				this.slotProfileFutureCompletionStyle = FutureCompletionStyle.MANUALLY;
+				return this;
+			}
+
+			private Builder completeSlotProfileFutureExceptionally() {
+				this.slotProfileFutureCompletionStyle = FutureCompletionStyle.EXCEPTIONALLY;
 				return this;
 			}
 
@@ -489,7 +504,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 			private AllocationContext build() {
 				TestingPhysicalSlotProvider slotProvider = new TestingPhysicalSlotProvider(completePhysicalSlotFutureManually);
 				TestingSharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory =
-					new TestingSharedSlotProfileRetrieverFactory(completeSlotProfileFutureManually);
+					new TestingSharedSlotProfileRetrieverFactory(slotProfileFutureCompletionStyle);
 				TestingSlotSharingStrategy slotSharingStrategy = TestingSlotSharingStrategy.createWithGroups(groups);
 				SlotSharingExecutionSlotAllocator allocator = new SlotSharingExecutionSlotAllocator(
 					slotProvider,
@@ -609,10 +624,10 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 		private final List<Set<ExecutionVertexID>> askedBulks;
 		private final List<ExecutionSlotSharingGroup> askedGroups;
 		private final Map<ExecutionSlotSharingGroup, CompletableFuture<SlotProfile>> slotProfileFutures;
-		private final boolean completeSlotProfileFutureManually;
+		private final FutureCompletionStyle futureCompletionStyle;
 
-		private TestingSharedSlotProfileRetrieverFactory(boolean completeSlotProfileFutureManually) {
-			this.completeSlotProfileFutureManually = completeSlotProfileFutureManually;
+		private TestingSharedSlotProfileRetrieverFactory(FutureCompletionStyle futureCompletionStyle) {
+			this.futureCompletionStyle = futureCompletionStyle;
 			this.askedBulks = new ArrayList<>();
 			this.askedGroups = new ArrayList<>();
 			this.slotProfileFutures = new IdentityHashMap<>();
@@ -625,8 +640,10 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 				askedGroups.add(group);
 				CompletableFuture<SlotProfile> slotProfileFuture =
 					slotProfileFutures.computeIfAbsent(group, g -> new CompletableFuture<>());
-				if (!completeSlotProfileFutureManually) {
+				if (futureCompletionStyle == FutureCompletionStyle.NORMALLY) {
 					completeSlotProfileFutureFor(group, resourceProfile);
+				} else if (futureCompletionStyle == FutureCompletionStyle.EXCEPTIONALLY) {
+					cancelSlotProfileFutureFor(group);
 				}
 				return slotProfileFuture;
 			};
@@ -636,6 +653,10 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 			slotProfileFutures.get(group).complete(SlotProfile.noLocality(resourceProfile));
 		}
 
+		private void cancelSlotProfileFutureFor(ExecutionSlotSharingGroup group) {
+			slotProfileFutures.get(group).cancel(true);
+		}
+
 		private List<Set<ExecutionVertexID>> getAskedBulks() {
 			return Collections.unmodifiableList(askedBulks);
 		}
@@ -643,6 +664,12 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
 		private List<ExecutionSlotSharingGroup> getAskedGroups() {
 			return Collections.unmodifiableList(askedGroups);
 		}
+	}
+
+	private enum FutureCompletionStyle {
+		NORMALLY,
+		EXCEPTIONALLY,
+		MANUALLY
 	}
 
 	private static class TestingPhysicalSlotRequestBulkChecker implements PhysicalSlotRequestBulkChecker {
