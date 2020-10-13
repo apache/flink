@@ -40,7 +40,7 @@ import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowData
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.runtime.operators.python.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
 
 /**
  * The Abstract class of Arrow Aggregate Operator for Pandas {@link AggregateFunction}.
