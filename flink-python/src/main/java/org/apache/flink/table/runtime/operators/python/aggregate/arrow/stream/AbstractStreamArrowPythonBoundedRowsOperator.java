@@ -119,8 +119,11 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
 		List<RowData> inputs = inputState.get(timestamp);
 
 		Iterable<Long> keyIter = inputState.keys();
+		long currentWatermark = timerService.currentWatermark();
 		for (Long dataTs : keyIter) {
-			insertToSortedList(dataTs);
+			if (dataTs <= currentWatermark) {
+				insertToSortedList(dataTs);
+			}
 		}
 		int index = sortedTimestamps.indexOf(timestamp);
 		for (int i = 0; i < inputs.size(); i++) {
@@ -158,88 +161,46 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
 	}
 
 	void triggerWindowProcess(List<RowData> inputs, int i, int index) throws Exception {
-		int startIndex;
-		int startPos = 0;
 		if (windowData.isEmpty()) {
 			if (i >= lowerBoundary) {
 				for (int j = (int) (i - lowerBoundary); j <= i; j++) {
-					RowData rowData = inputs.get(j);
-					windowData.add(rowData);
-					arrowSerializer.write(getFunctionInput(rowData));
+					windowData.add(inputs.get(j));
 				}
 				currentBatchCount += lowerBoundary;
 			} else {
+				for (int j = 0; j <= i; j++) {
+					RowData rowData = inputs.get(j);
+					windowData.add(rowData);
+					currentBatchCount++;
+				}
 				Long previousTimestamp;
-				List<RowData> previousData = null;
-				int length = 0;
-				startIndex = index - 1;
+				List<RowData> previousData;
+				int length;
 				long remainingDataCount = lowerBoundary - i;
 				ListIterator<Long> iter = sortedTimestamps.listIterator(index);
 				while (remainingDataCount > 0 && iter.hasPrevious()) {
 					previousTimestamp = iter.previous();
 					previousData = inputState.get(previousTimestamp);
 					length = previousData.size();
-					if (remainingDataCount <= length) {
-						startPos = (int) (length - remainingDataCount);
-						remainingDataCount = 0;
-					} else {
-						remainingDataCount -= length;
-						startIndex--;
-					}
-				}
-				if (previousData != null) {
-					for (int j = startPos; j < length; j++) {
-						RowData rowData = previousData.get(j);
-						windowData.add(rowData);
-						arrowSerializer.write(getFunctionInput(rowData));
+					ListIterator<RowData> previousDataIter = previousData.listIterator(length);
+					while (previousDataIter.hasPrevious() && remainingDataCount > 0) {
+						windowData.addFirst(previousDataIter.previous());
+						remainingDataCount--;
 						currentBatchCount++;
 					}
-					// clear outdated data.
-					ListIterator<Long> clearIter = sortedTimestamps.listIterator();
-					for (int j = 0; j < startIndex; j++) {
-						long outdatedTs = clearIter.next();
-						inputState.remove(outdatedTs);
-					}
-
-					startIndex++;
-					while (startIndex < index) {
-						previousTimestamp = iter.next();
-						previousData = inputState.get(previousTimestamp);
-						for (RowData rowData : previousData) {
-							windowData.add(rowData);
-							arrowSerializer.write(getFunctionInput(rowData));
-						}
-						currentBatchCount += previousData.size();
-						startIndex++;
-					}
 				}
-				for (int j = 0; j <= i; j++) {
-					RowData rowData = inputs.get(j);
-					windowData.add(rowData);
-					arrowSerializer.write(getFunctionInput(rowData));
-				}
-				currentBatchCount += i + 1;
 			}
 		} else {
-			if (windowData.size() <= lowerBoundary) {
-				windowData.add(inputs.get(i));
-			} else {
+			if (windowData.size() > lowerBoundary) {
 				windowData.pop();
-				windowData.add(inputs.get(i));
 			}
-			for (RowData rowData : windowData) {
-				arrowSerializer.write(getFunctionInput(rowData));
-			}
+			windowData.add(inputs.get(i));
 			currentBatchCount += windowData.size();
 		}
-		if (currentBatchCount > 0) {
-			arrowSerializer.finishCurrentBatch();
-			pythonFunctionRunner.process(baos.toByteArray());
-			elementCount += currentBatchCount;
-			checkInvokeFinishBundleByCount();
-			currentBatchCount = 0;
-			baos.reset();
+		for (RowData rowData : windowData) {
+			arrowSerializer.write(getFunctionInput(rowData));
 		}
+		invokeCurrentBatch();
 	}
 
 	void insertToSortedList(Long dataTs) {

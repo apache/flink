@@ -130,11 +130,11 @@ class StreamExecPythonOverAggregate(
     if (overWindow.lowerBound.isPreceding
       && overWindow.lowerBound.isUnbounded) {
       throw new TableException(
-        "Python UDAF are not supported to be used in UNBOUNDED PRECEDING OVER windows."
+        "Python UDAF is not supported to be used in UNBOUNDED PRECEDING OVER windows."
       )
     } else if (!overWindow.upperBound.isCurrentRow) {
       throw new TableException(
-        "Python UDAF are not supported to be used in UNBOUNDED FOLLOWING OVER windows."
+        "Python UDAF is not supported to be used in UNBOUNDED FOLLOWING OVER windows."
       )
     }
     val aggregateCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala

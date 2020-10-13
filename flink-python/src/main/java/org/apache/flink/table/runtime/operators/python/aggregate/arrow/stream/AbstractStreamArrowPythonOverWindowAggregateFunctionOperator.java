@@ -130,4 +130,15 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
 	@Override
 	public void processElementInternal(RowData value) throws Exception {
 	}
+
+	void invokeCurrentBatch() throws Exception {
+		if (currentBatchCount > 0) {
+			arrowSerializer.finishCurrentBatch();
+			pythonFunctionRunner.process(baos.toByteArray());
+			elementCount += currentBatchCount;
+			checkInvokeFinishBundleByCount();
+			currentBatchCount = 0;
+			baos.reset();
+		}
+	}
 }

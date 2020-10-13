@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -137,38 +138,25 @@ public abstract class AbstractStreamArrowPythonBoundedRangeOperator<K>
 
 	private void triggerWindowProcess(long upperLimit, List<RowData> inputs) throws Exception {
 		long lowerLimit = upperLimit - lowerBoundary;
-		List<Long> outdatedTs = new LinkedList<>();
 		if (inputs != null) {
-
-			for (Map.Entry<Long, List<RowData>> entry : inputState.entries()) {
+			Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.iterator();
+			while (iter.hasNext()) {
+				Map.Entry<Long, List<RowData>> entry = iter.next();
 				long dataTs = entry.getKey();
 				if (dataTs >= lowerLimit) {
 					if (dataTs <= upperLimit) {
 						List<RowData> dataList = entry.getValue();
-						if (dataList != null) {
-							for (RowData data : dataList) {
-								arrowSerializer.write(getFunctionInput(data));
-								currentBatchCount++;
-							}
+						for (RowData data : dataList) {
+							arrowSerializer.write(getFunctionInput(data));
+							currentBatchCount++;
 						}
 					}
 				} else {
-					outdatedTs.add(dataTs);
+					iter.remove();
 				}
 			}
-			// clear outdated state.
-			for (Long dateTs : outdatedTs) {
-				inputState.remove(dateTs);
-			}
 			inputData.add(inputs);
-			if (currentBatchCount > 0) {
-				arrowSerializer.finishCurrentBatch();
-				pythonFunctionRunner.process(baos.toByteArray());
-				elementCount += currentBatchCount;
-				checkInvokeFinishBundleByCount();
-				currentBatchCount = 0;
-				baos.reset();
-			}
+			invokeCurrentBatch();
 		}
 	}
 }

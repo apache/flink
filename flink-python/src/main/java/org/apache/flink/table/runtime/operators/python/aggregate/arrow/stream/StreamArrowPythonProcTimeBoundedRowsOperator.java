@@ -78,7 +78,6 @@ public class StreamArrowPythonProcTimeBoundedRowsOperator<K>
 	@Override
 	public void processElementInternal(RowData value) throws Exception {
 		forwardedInputQueue.add(value);
-		// gets all window data from state for the calculation
 		Iterable<Long> keyIter = inputState.keys();
 		for (Long dataTs : keyIter) {
 			insertToSortedList(dataTs);
