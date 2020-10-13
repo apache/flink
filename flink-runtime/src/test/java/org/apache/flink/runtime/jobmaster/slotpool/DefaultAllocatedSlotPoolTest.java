@@ -159,7 +159,7 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testFreeReservedSlot() {
+	public void testFreeingOfReservedSlot() {
 		final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
 		final Collection<AllocatedSlot> slots = createAllocatedSlots();
 
@@ -187,7 +187,7 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
 	}
 
 	@Test
-	public void testFreeFreeSlotIsIgnored() {
+	public void testFreeingOfFreeSlotIsIgnored() {
 		final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
 		final AllocatedSlot slot = createAllocatedSlot(null);
 

@@ -76,10 +76,6 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
 	private void addSlotInternal(AllocatedSlot slot, long currentTime) {
 		registeredSlots.put(slot.getAllocationId(), slot);
 		freeSlotsSince.put(slot.getAllocationId(), currentTime);
-
-		slotsPerTaskExecutor
-			.computeIfAbsent(slot.getTaskManagerId(), resourceID -> new HashSet<>())
-			.add(slot.getAllocationId());
 	}
 
 	@Override
