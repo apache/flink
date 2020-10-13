@@ -526,6 +526,44 @@ public class ResultPartitionTest {
 		assertNull(readView2.getNextBuffer());
 	}
 
+	@Test
+	public void testEmitRecordWithRecordSpanningMultipleBuffers() throws Exception {
+		BufferWritingResultPartition bufferWritingResultPartition = createResultPartition(ResultPartitionType.PIPELINED);
+		PipelinedSubpartition pipelinedSubpartition = (PipelinedSubpartition) bufferWritingResultPartition.subpartitions[0];
+		int partialLength = bufferSize / 3;
+
+		try {
+			// emit the first record, record length = partialLength
+			bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(partialLength), 0);
+			// emit the second record, record length = bufferSize
+			bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+		} finally {
+			assertEquals(2, pipelinedSubpartition.getCurrentNumberOfBuffers());
+			assertEquals(0, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+			assertEquals(partialLength, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+		}
+	}
+
+	@Test
+	public void testBroadcastRecordWithRecordSpanningMultipleBuffers() throws Exception {
+		BufferWritingResultPartition bufferWritingResultPartition = createResultPartition(ResultPartitionType.PIPELINED);
+		int partialLength = bufferSize / 3;
+
+		try {
+			// emit the first record, record length = partialLength
+			bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(partialLength));
+			// emit the second record, record length = bufferSize
+			bufferWritingResultPartition.broadcastRecord(ByteBuffer.allocate(bufferSize));
+		} finally {
+			for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
+				PipelinedSubpartition pipelinedSubpartition = (PipelinedSubpartition) resultSubpartition;
+				assertEquals(2, pipelinedSubpartition.getCurrentNumberOfBuffers());
+				assertEquals(0, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+				assertEquals(partialLength, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+			}
+		}
+	}
+
 	private static class TestResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
 		private JobID jobID;
 		private ResultPartitionID partitionID;
