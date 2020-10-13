@@ -154,7 +154,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
 		// Therefore, the next `exceptionally` callback will call removeLogicalSlotRequest and do the cleanup
 		// in requestedLogicalSlots and eventually in sharedSlots
 		logicalSlotFuture.exceptionally(cause -> {
-			LOG.debug("Failed {}", logMessageBase);
+			LOG.debug("Failed {}", logMessageBase, cause);
 			removeLogicalSlotRequest(logicalSlotRequestId);
 			return null;
 		});
