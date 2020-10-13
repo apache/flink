@@ -63,6 +63,17 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
+  def testCast(): Unit = {
+    testSqlApi(
+      "CAST (f18 as varchar)",
+      "hello world")
+
+    testSqlApi(
+      "CAST (f19 as varchar)",
+      "hello flink")
+  }
+
+  @Test
   def testOtherExpressions(): Unit = {
 
     // nested field null type

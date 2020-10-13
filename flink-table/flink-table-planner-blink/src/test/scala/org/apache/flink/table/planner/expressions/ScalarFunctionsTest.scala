@@ -4056,15 +4056,4 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f55=f57",
       "true")
   }
-
-  @Test
-  def testCast(): Unit = {
-    testSqlApi(
-      "CAST (CAST (X'68656c6c6f' as binary) as varchar)",
-      "hello")
-
-    testSqlApi(
-      "CAST (CAST (X'68656c6c6f' as varbinary) as varchar)",
-      "hello")
-  }
 }
