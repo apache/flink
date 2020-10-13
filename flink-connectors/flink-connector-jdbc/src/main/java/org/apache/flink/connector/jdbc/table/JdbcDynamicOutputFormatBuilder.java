@@ -114,20 +114,6 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 		}
 	}
 
-	private static JdbcBatchStatementExecutor<RowData> createKeyedRowExecutor(
-			JdbcDialect dialect,
-			int[] pkFields,
-			LogicalType[] pkTypes,
-			String sql,
-			LogicalType[] logicalTypes) {
-		final JdbcRowConverter rowConverter = dialect.getRowConverter(RowType.of(pkTypes));
-		final Function<RowData, RowData> keyExtractor = createRowKeyExtractor(logicalTypes, pkFields);
-		return JdbcBatchStatementExecutor.keyed(
-			sql,
-			keyExtractor,
-			(st, record) -> rowConverter.toExternal(keyExtractor.apply(record), st));
-	}
-
 	private static JdbcBatchStatementExecutor<RowData> createBufferReduceExecutor(
 			JdbcDmlOptions opt,
 			RuntimeContext ctx,
@@ -182,7 +168,12 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 		checkArgument(dmlOptions.getKeyFields().isPresent());
 		String[] pkNames = Arrays.stream(pkFields).mapToObj(k -> dmlOptions.getFieldNames()[k]).toArray(String[]::new);
 		String deleteSql = dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), pkNames);
-		return createKeyedRowExecutor(dmlOptions.getDialect(), pkFields, pkTypes, deleteSql, fieldTypes);
+		JdbcRowConverter rowConverter = dmlOptions.getDialect().getRowConverter(RowType.of(pkTypes));
+		Function<RowData, RowData> keyExtractor = createRowKeyExtractor(fieldTypes, pkFields);
+		return JdbcBatchStatementExecutor.keyed(
+			deleteSql,
+			keyExtractor,
+			(st, key) -> rowConverter.toExternal(key, st));
 	}
 
 	private static Function<RowData, RowData> createRowKeyExtractor(LogicalType[] logicalTypes, int[] pkFields) {
