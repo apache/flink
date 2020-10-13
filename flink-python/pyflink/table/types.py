@@ -1222,7 +1222,7 @@ class RowType(DataType):
             if isinstance(obj, dict):
                 return tuple(f.to_sql_type(obj.get(n)) if c else obj.get(n)
                              for n, f, c in zip(self.names, self.fields, self._need_conversion))
-            elif isinstance(obj, (tuple, list)):
+            elif isinstance(obj, (tuple, list, Row)):
                 return tuple(f.to_sql_type(v) if c else v
                              for f, v, c in zip(self.fields, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
@@ -1234,9 +1234,9 @@ class RowType(DataType):
         else:
             if isinstance(obj, dict):
                 return tuple(obj.get(n) for n in self.names)
-            elif isinstance(obj, Row) and getattr(obj, "_from_dict", False):
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return tuple(obj[n] for n in self.names)
-            elif isinstance(obj, (list, tuple)):
+            elif isinstance(obj, (list, tuple, Row)):
                 return tuple(obj)
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__

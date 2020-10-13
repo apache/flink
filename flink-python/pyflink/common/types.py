@@ -147,7 +147,7 @@ class Row(object):
         if len(args) > len(self):
             raise ValueError("Can not create Row with fields %s, expected %d values "
                              "but got %s" % (self, len(self), args))
-        return _create_row(self, args, self._row_kind)
+        return _create_row(self._values, args, self._row_kind)
 
     def __getitem__(self, item):
         if isinstance(item, (int, slice)):
@@ -226,7 +226,7 @@ class Row(object):
                 return False
         return self.__class__ == other.__class__ and \
             self._row_kind == other._row_kind and \
-            super(Row, self).__eq__(other)
+            self._values == other._values
 
     def __hash__(self):
         return tuple(self).__hash__()

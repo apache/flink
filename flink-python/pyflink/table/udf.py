@@ -458,7 +458,7 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
         if j_input_types is not None:
             gateway = get_gateway()
             j_input_types = utils.to_jarray(
-                    gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
+                gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
         j_result_type = _to_java_data_type(self._result_type)
         j_accumulator_type = _to_java_data_type(self._accumulator_type)
 

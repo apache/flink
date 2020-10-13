@@ -323,9 +323,6 @@ class BeamStatefulFunctionOperation(BeamStatelessFunctionOperation):
             if self.keyed_state_backend:
                 self.keyed_state_backend.commit()
 
-    def reset(self):
-        super().reset()
-
 
 TRIGGER_TIMER = 1
 

@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List
 
 from apache_beam.coders import PickleCoder, Coder
 
@@ -25,7 +25,7 @@ from pyflink.common.state import ListState
 from pyflink.fn_execution.coders import from_proto
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, FunctionContext
-from pyflink.table.data_view import ListView, DataView
+from pyflink.table.data_view import ListView
 
 
 def join_row(left: Row, right: Row):
@@ -64,9 +64,9 @@ def extract_data_view_specs(udfs):
 
 class StateListView(ListView):
 
-    def __init__(self, list_state):
+    def __init__(self, list_state: ListState):
         super().__init__()
-        self._list_state = list_state  # type: ListState
+        self._list_state = list_state
 
     def get(self):
         return self._list_state.get()

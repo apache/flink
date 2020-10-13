@@ -104,10 +104,10 @@ trait CommonPythonAggregate extends CommonPythonBase {
     def includesDataView(fdt: FieldsDataType): Boolean = {
       (0 until fdt.getChildren.size()).exists(i =>
         fdt.getChildren.get(i).getLogicalType match {
-          case row: RowType =>
+          case _: RowType =>
             includesDataView(fdt.getChildren.get(i).asInstanceOf[FieldsDataType])
-          case structed: StructuredType =>
-            classOf[DataView].isAssignableFrom(structed.getImplementationClass.get())
+          case structuredType: StructuredType =>
+            classOf[DataView].isAssignableFrom(structuredType.getImplementationClass.get())
           case _ => false
         }
       )
@@ -121,8 +121,8 @@ trait CommonPythonAggregate extends CommonPythonBase {
                 case _: RowType if includesDataView(
                   compositeAccType.getChildren.get(i).asInstanceOf[FieldsDataType]) =>
                   throw new TableException(
-                    "For Python AggregateFunction DataView only supported at first " +
-                      "level of accumulators of Row type.")
+                    "For Python AggregateFunction, DataView cannot be used in the nested columns " +
+                      "of the accumulator. ")
                 case listViewType: StructuredType if classOf[ListView[_]].isAssignableFrom(
                   listViewType.getImplementationClass.get()) =>
                   Some(new ListViewSpec(
