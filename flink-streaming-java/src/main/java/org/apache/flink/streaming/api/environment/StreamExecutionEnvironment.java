@@ -36,6 +36,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
@@ -838,6 +839,31 @@ public class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
 		return addSource(new StatefulSequenceSource(from, to), "Sequence Source");
+	}
+
+	/**
+	 * Creates a new data stream that contains a sequence of numbers (longs). This is a parallel {@link Source},
+	 * if you manually set the parallelism to {@code 1}
+	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#setParallelism(int)})
+	 * the produced sequence of elements is in order.
+	 *
+	 * <p>The result will always be a bounded data stream (that produces parallel sequences covering the range).
+	 *
+	 * <p>This method splits the sequence into as multiple parallel sub-sequences, which sub-sequence will be
+	 * produced in order. With the parallelism limited to one, this produced one sequence is in order.
+	 *
+	 * @param from
+	 *    The number to start at (inclusive)
+	 * @param to
+	 *    The number to stop at (inclusive)
+	 * @return A data stream, containing all number in the [from, to] interval
+	 */
+	@Experimental
+	public DataStreamSource<Long> fromSequence(long from, long to) {
+		if (from > to) {
+			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
+		}
+		return fromSource(new NumberSequenceSource(from, to), WatermarkStrategy.noWatermarks(), "Sequence Source");
 	}
 
 	/**

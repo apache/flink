@@ -23,8 +23,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.junit.Assert.assertEquals
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.junit.Assert.{assertEquals, fail}
 import org.junit.Test
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
  * Tests for the [[StreamExecutionEnvironment]].
@@ -46,6 +51,39 @@ class StreamExecutionEnvironmentTest {
       "test source")
 
     assertEquals(typeInfo, stream.dataType)
+  }
+
+  /**
+   * Verifies that calls to fromSequence() instantiate a new DataStream
+   * that contains a sequence of numbers.
+   */
+  @Test
+  def testFromSequence(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val from = 284
+    val to = 618
+    env.fromSequence(from, to).addSink(new RichSinkFunction[Long]() {
+      val sequence = new util.ArrayList[Long]()
+
+      override def invoke(in: Long): Unit = {
+        sequence.add(in)
+      }
+
+      override def close(): Unit = {
+        if (sequence.size() != to - from + 1) {
+          fail(s"Expected: A sequence [$from, $to], but found: sequence " +
+            s"(size ${sequence.size()}) : $sequence")
+        }
+        for (next <- sequence) {
+          if (next < from || next > to) {
+            fail(s"Expected: A sequence [$from, $to], but found: sequence " +
+              s"(size ${sequence.size()}) : $sequence")
+          }
+        }
+      }
+    }).setParallelism(1)
+    env.execute("from sequence test")
   }
 
   // --------------------------------------------------------------------------

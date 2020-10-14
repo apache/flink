@@ -18,9 +18,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -157,20 +155,11 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSource(
-				new NumberSequenceSource(1L, 10L),
-				WatermarkStrategy.noWatermarks(),
-				"source-1");
+		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
 
-		final DataStream<Long> source2 = env.fromSource(
-				new NumberSequenceSource(11L, 20L),
-				WatermarkStrategy.noWatermarks(),
-				"source-2");
+		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
 
-		final DataStream<Long> source3 = env.fromSource(
-				new NumberSequenceSource(21L, 30L),
-				WatermarkStrategy.noWatermarks(),
-				"source-3");
+		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
 
 		return nAryInputStreamOperation(source1, source2, source3);
 	}
@@ -192,20 +181,11 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSource(
-			new NumberSequenceSource(1L, 10L),
-			WatermarkStrategy.noWatermarks(),
-			"source-1");
+		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
 
-		final DataStream<Long> source2 = env.fromSource(
-			new NumberSequenceSource(11L, 20L),
-			WatermarkStrategy.noWatermarks(),
-			"source-2");
+		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
 
-		final DataStream<Long> source3 = env.fromSource(
-			new NumberSequenceSource(21L, 30L),
-			WatermarkStrategy.noWatermarks(),
-			"source-3");
+		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
 
 		final DataStream<Long> stream1 = source1.map(v -> v);
 		final DataStream<Long> stream3 = source3.map(v -> v);
@@ -232,25 +212,13 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSource(
-			new NumberSequenceSource(1L, 10L),
-			WatermarkStrategy.noWatermarks(),
-			"source-1");
+		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
 
-		final DataStream<Long> source2 = env.fromSource(
-			new NumberSequenceSource(11L, 20L),
-			WatermarkStrategy.noWatermarks(),
-			"source-2");
+		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
 
-		final DataStream<Long> source3 = env.fromSource(
-			new NumberSequenceSource(21L, 30L),
-			WatermarkStrategy.noWatermarks(),
-			"source-3");
+		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
 
-		final DataStream<Long> source4 = env.fromSource(
-			new NumberSequenceSource(31L, 40L),
-			WatermarkStrategy.noWatermarks(),
-			"source-4");
+		final DataStream<Long> source4 = env.fromSequence(31L, 40L).name("source-4");
 
 		return nAryInputStreamOperation(
 			source1.map((v) -> v),
@@ -281,35 +249,17 @@ public class SourceNAryInputChainingITCase extends TestLogger {
 		env.setParallelism(PARALLELISM);
 		env.getConfig().enableObjectReuse();
 
-		final DataStream<Long> source1 = env.fromSource(
-			new NumberSequenceSource(1L, 10L),
-			WatermarkStrategy.noWatermarks(),
-			"source-1");
+		final DataStream<Long> source1 = env.fromSequence(1L, 10L).name("source-1");
 
-		final DataStream<Long> source2 = env.fromSource(
-			new NumberSequenceSource(11L, 20L),
-			WatermarkStrategy.noWatermarks(),
-			"source-2");
+		final DataStream<Long> source2 = env.fromSequence(11L, 20L).name("source-2");
 
-		final DataStream<Long> source3 = env.fromSource(
-			new NumberSequenceSource(21L, 30L),
-			WatermarkStrategy.noWatermarks(),
-			"source-3");
+		final DataStream<Long> source3 = env.fromSequence(21L, 30L).name("source-3");
 
-		final DataStream<Long> source4 = env.fromSource(
-			new NumberSequenceSource(31L, 40L),
-			WatermarkStrategy.noWatermarks(),
-			"source-4");
+		final DataStream<Long> source4 = env.fromSequence(31L, 40L).name("source-4");
 
-		final DataStream<Long> source5 = env.fromSource(
-			new NumberSequenceSource(41L, 50L),
-			WatermarkStrategy.noWatermarks(),
-			"source-5");
+		final DataStream<Long> source5 = env.fromSequence(41L, 50L).name("source-5");
 
-		final DataStream<Long> source6 = env.fromSource(
-			new NumberSequenceSource(51L, 60L),
-			WatermarkStrategy.noWatermarks(),
-			"source-6");
+		final DataStream<Long> source6 = env.fromSequence(51L, 60L).name("source-6");
 
 		return nAryInputStreamOperation(
 			source1.map((v) -> v),
