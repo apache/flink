@@ -54,6 +54,7 @@ import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTr
 import org.apache.flink.streaming.runtime.translators.LegacySourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.PartitionTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
@@ -154,6 +155,7 @@ public class StreamGraphGenerator {
 		tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
 		tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
 		tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());
+		tmp.put(PartitionTransformation.class, new PartitionTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -374,8 +376,6 @@ public class StreamGraphGenerator {
 			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
 		} else if (transform instanceof CoFeedbackTransformation<?>) {
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
-		} else if (transform instanceof PartitionTransformation<?>) {
-			transformedIds = transformPartition((PartitionTransformation<?>) transform);
 		} else if (transform instanceof SideOutputTransformation<?>) {
 			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
 		} else {
@@ -414,30 +414,6 @@ public class StreamGraphGenerator {
 			transform.getManagedMemorySlotScopeUseCases());
 
 		return transformedIds;
-	}
-
-	/**
-	 * Transforms a {@code PartitionTransformation}.
-	 *
-	 * <p>For this we create a virtual node in the {@code StreamGraph} that holds the partition
-	 * property. @see StreamGraphGenerator
-	 */
-	private <T> Collection<Integer> transformPartition(PartitionTransformation<T> partition) {
-		List<Transformation<?>> inputs = partition.getInputs();
-		checkState(inputs.size() == 1);
-		Transformation<?> input = inputs.get(0);
-
-		List<Integer> resultIds = new ArrayList<>();
-
-		Collection<Integer> transformedIds = transform(input);
-		for (Integer transformedId: transformedIds) {
-			int virtualId = Transformation.getNewNodeId();
-			streamGraph.addVirtualPartitionNode(
-					transformedId, virtualId, partition.getPartitioner(), partition.getShuffleMode());
-			resultIds.add(virtualId);
-		}
-
-		return resultIds;
 	}
 
 	/**
