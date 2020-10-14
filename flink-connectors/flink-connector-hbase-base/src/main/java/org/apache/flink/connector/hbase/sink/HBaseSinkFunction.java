@@ -123,7 +123,7 @@ public class HBaseSinkFunction<T>
 			}
 			this.mutator = connection.getBufferedMutator(params);
 
-			if (bufferFlushIntervalMillis > 0) {
+			if (bufferFlushIntervalMillis > 0 && bufferFlushMaxMutations != 1) {
 				this.executor = Executors.newScheduledThreadPool(
 					1, new ExecutorThreadFactory("hbase-upsert-sink-flusher"));
 				this.scheduledFuture = this.executor.scheduleWithFixedDelay(() -> {
