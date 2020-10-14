@@ -173,7 +173,7 @@ class TableSourceTest extends TableTestBase {
          |  name string
          |) WITH (
          |  'connector' = 'values',
-         |  'nested-projection-supported' = 'false',
+         |  'nested-projection-supported' = 'true',
          |  'bounded' = 'false'
          |)
        """.stripMargin

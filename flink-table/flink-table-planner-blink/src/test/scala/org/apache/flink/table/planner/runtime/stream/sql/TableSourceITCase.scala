@@ -136,7 +136,6 @@ class TableSourceITCase extends StreamingTestBase {
 
     val dataId = TestValuesTableFactory.registerData(data)
 
-    // TODO: [FLINK-17428] support nested project for TestValuesTableSource
     val ddl =
       s"""
          |CREATE TABLE T (
@@ -150,6 +149,7 @@ class TableSourceITCase extends StreamingTestBase {
          |   lower_name AS LOWER(name)
          |) WITH (
          |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
          |  'data-id' = '$dataId'
          |)
          |""".stripMargin

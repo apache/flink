@@ -274,7 +274,8 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
             // access is top-level access => return top-level access
             case _ :: _ if nestedAccess.equals("*") => List("*")
             // previous access is not prefix of this access => add access
-            case head :: _ if !nestedAccess.startsWith(head) =>
+            // it may cause bug without "." as tail if we have references a.b and a.bb
+            case head :: _ if !nestedAccess.startsWith(head + ".") =>
               nestedAccess :: prefixAccesses
             // previous access is a prefix of this access => do not add access
             case _ => prefixAccesses

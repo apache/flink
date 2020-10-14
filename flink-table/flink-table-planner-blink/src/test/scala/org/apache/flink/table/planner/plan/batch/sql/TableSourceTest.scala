@@ -36,6 +36,7 @@ class TableSourceTest extends TableTestBase {
          |  c varchar(32)
          |) WITH (
          |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
          |  'bounded' = 'true'
          |)
        """.stripMargin
@@ -50,7 +51,8 @@ class TableSourceTest extends TableTestBase {
         |  name string
         |) WITH (
         | 'connector' = 'values',
-        |  'bounded' = 'true'
+        | 'nested-projection-supported' = 'true',
+        | 'bounded' = 'true'
         |)
         |""".stripMargin
     util.tableEnv.executeSql(ddl2)

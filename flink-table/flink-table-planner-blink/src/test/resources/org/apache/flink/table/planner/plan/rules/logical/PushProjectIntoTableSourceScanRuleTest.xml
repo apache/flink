@@ -33,7 +33,44 @@ LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNestedProjectDisabled">
+  <TestCase name="testCannotProjectWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, d, b + 1 FROM VirtualTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testComplicatedNestedProject">
+    <Resource name="sql">
+      <![CDATA[SELECT id,    deepNested.nested1.name AS nestedName,
+    deepNested.nested2 AS nested2,
+    deepNested.nested2.num AS nestedNum
+FROM NestedTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nested2=[$1.nested2], nestedNum=[$1.nested2.num])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$2], nested2=[$1], nestedNum=[$1.num])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2, deepNested_nested1_name]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProject">
     <Resource name="sql">
       <![CDATA[SELECT id,
     deepNested.nested1.name AS nestedName,
@@ -50,25 +87,8 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested, nested]]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCannotProjectWithVirtualColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT a, c, d, b + 1 FROM VirtualTable]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+LogicalProject(id=[$0], nestedName=[$3], nestedValue=[$4], nestedFlag=[$2], nestedNum=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2_num, deepNested_nested2_flag, deepNested_nested1_name, nested_value]]])
 ]]>
     </Resource>
   </TestCase>

@@ -27,6 +27,8 @@ import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -76,9 +78,20 @@ public class TableSchemaUtils {
 		TableSchema.Builder schemaBuilder = TableSchema.builder();
 		List<TableColumn> tableColumns = tableSchema.getTableColumns();
 		for (int[] fieldPath : projectedFields) {
-			checkArgument(fieldPath.length == 1, "Nested projection push down is not supported yet.");
-			TableColumn column = tableColumns.get(fieldPath[0]);
-			schemaBuilder.field(column.getName(), column.getType());
+			if (fieldPath.length == 1) {
+				TableColumn column = tableColumns.get(fieldPath[0]);
+				schemaBuilder.field(column.getName(), column.getType());
+			} else {
+				TableColumn column = tableColumns.get(fieldPath[0]);
+				DataType dataType = column.getType();
+				StringBuilder nameBuilder = new StringBuilder(column.getName());
+				for (int i = 1; i < fieldPath.length; i++) {
+					RowType rowType = (RowType) dataType.getLogicalType();
+					nameBuilder.append('_').append(rowType.getFieldNames().get(fieldPath[i]));
+					dataType = dataType.getChildren().get(fieldPath[i]);
+				}
+				schemaBuilder.field(nameBuilder.toString(), dataType);
+			}
 		}
 		return schemaBuilder.build();
 	}

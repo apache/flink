@@ -18,9 +18,16 @@
 
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.calcite.FlinkRexBuilder
+import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
+
 import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.sql.`type`.SqlTypeName.{INTEGER, VARCHAR}
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -71,5 +78,102 @@ class RexNodeRewriterTest extends RexNodeTestBase {
       "6",
       ">($t2, $t6)",
       "AND($t5, $t7)")))
+  }
+
+  @Test
+  def testRewriteRexProgramWithNestedProject(): Unit ={
+    val exprs = buildExprsWithNesting()
+    assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
+      "$1.amount",
+      "$0",
+      "100"
+    )))
+
+    // origin schema: $0 = RAW<name INT, age varchar>, $1 = RAW<id BIGINT, amount int>.amount
+    // new schema: $1 = ROW<name INT, age varchar>, $0 = ROW<id BIGINT, amount int>.amount
+    val fieldMap = Map(int2Integer(0) -> Map("*" -> int2Integer(1)).asJava,
+      int2Integer(1) -> Map("amount" -> int2Integer(0)).asJava).asJava
+    val rowTypes = util.Arrays.asList(
+      inputOf(typeFactory).field("amount", INTEGER).build,
+      inputOf(typeFactory)
+        .field("name", INTEGER)
+        .field("age", VARCHAR)
+        .build)
+    val builder = new FlinkRexBuilder(typeFactory)
+    val actual = RexNodeRewriter.rewriteNestedProjectionWithNewFieldInput(
+      exprs, fieldMap, rowTypes, builder)
+
+    assertTrue(actual.asScala.map(_.toString) == wrapRefArray(Array(
+      "$0",
+      "$1",
+      "100")))
+  }
+
+  @Test
+  def testRewriteRexProgramWithDeepNestedProject(): Unit ={
+    val exprs = buildExprsWithDeepNesting()
+    assertTrue(exprs.asScala.map(_.toString) == wrapRefArray(Array(
+      "*(10, $1.amount)",
+      "$0.passport.status",
+      "$2.with.deep.entry",
+      "$2.with.deeper.entry.inside.entry",
+      "$2.with.deeper.entry",
+      "$0"
+    )))
+
+    // origin schema:
+    // $0 = persons ROW<name VARCHAR, age INT, passport ROW<id VARCHAR, status VARCHAR>>
+    // $1 = payment ROW<id BIGINT, amount INT>
+    // $2 = field ROW<with ROW<deeper ROW<entry ROW<inside ROW<entry VARCHAR>>>,
+    //                         deep ROW<entry VARCHAR>>>
+
+    // new schema:
+    // $0 = payment.amount INT
+    // $1 = persons ROW<name VARCHAR, age INT, passport ROW<id VARCHAR, status VARCHAR>>
+    // $2 = field.with.deep.entry VARCHAR
+    // $3 = field.with.deeper.entry ROW<inside ROW<entry VARCHAR>>
+
+    // mapping
+    // $1.amount -> $0
+    // $0.passport.status -> $1.passport.status
+    // $2.with.deep.entry -> $2
+    // $2.with.deeper.entry.inside.entry -> $3.inside.entry
+    // $2.with.deeper.entry -> $3
+    // $0 -> $1
+
+
+    val fieldMap = Map(
+      int2Integer(0) -> Map("*" -> int2Integer(1)).asJava,
+      int2Integer(1) -> Map("amount" -> int2Integer(0)).asJava,
+      int2Integer(2) ->
+        Map("with.deep.entry" -> int2Integer(2), "with.deeper.entry" -> int2Integer(3)).asJava
+    ).asJava
+    val rowTypes = util.Arrays.asList(
+      inputOf(typeFactory).field("amount", INTEGER).build,
+      inputOf(typeFactory)
+        .field("name", VARCHAR)
+        .field("age", INTEGER)
+        .nestedField(
+          "passport",
+          inputOf(typeFactory)
+            .field("id", VARCHAR)
+            .field("status", VARCHAR)
+            .build
+        ).build,
+      inputOf(typeFactory).field("entry", VARCHAR).build,
+      inputOf(typeFactory).nestedField("inside",
+        inputOf(typeFactory).field("entry", VARCHAR).build)
+        .build
+    )
+    val builder = new FlinkRexBuilder(typeFactory)
+    val actual = RexNodeRewriter.rewriteNestedProjectionWithNewFieldInput(
+      exprs, fieldMap, rowTypes, builder)
+    assertTrue(actual.asScala.map(_.toString) == wrapRefArray(Array(
+      "*($0, 10)",
+      "$1.passport.status",
+      "$2",
+      "$3.inside.entry",
+      "$3",
+      "$1")))
   }
 }
