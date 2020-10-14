@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Internal;
 

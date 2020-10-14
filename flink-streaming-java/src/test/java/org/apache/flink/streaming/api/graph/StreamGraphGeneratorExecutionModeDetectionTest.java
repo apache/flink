@@ -19,36 +19,130 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.streaming.api.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the detection of the {@link RuntimeExecutionMode runtime execution mode} during
  * stream graph translation.
  */
 public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
+	@Test
+	public void testExecutionModePropagationFromEnvWithDefaultAndBoundedSource() {
+		final StreamExecutionEnvironment environment =
+				StreamExecutionEnvironment.getExecutionEnvironment();
+
+		environment
+				.fromSource(
+						new MockSource(Boundedness.BOUNDED, 100),
+						WatermarkStrategy.noWatermarks(),
+						"bounded-source")
+				.print();
+
+		assertThat(
+				environment.getStreamGraph(),
+				hasProperties(
+						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+						ScheduleMode.EAGER,
+						true));
+	}
+
+	@Test
+	public void testExecutionModePropagationFromEnvWithDefaultAndUnboundedSource() {
+		final StreamExecutionEnvironment environment =
+				StreamExecutionEnvironment.getExecutionEnvironment();
+
+		environment
+				.fromSource(
+						new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 100),
+						WatermarkStrategy.noWatermarks(),
+						"unbounded-source")
+				.print();
+
+		assertThat(
+				environment.getStreamGraph(),
+				hasProperties(
+						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+						ScheduleMode.EAGER,
+						true));
+	}
+
+	@Test
+	public void testExecutionModePropagationFromEnvWithAutomaticAndBoundedSource() {
+		final Configuration config = new Configuration();
+		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.AUTOMATIC);
+
+		final StreamExecutionEnvironment environment =
+				StreamExecutionEnvironment.getExecutionEnvironment();
+		environment.configure(config, getClass().getClassLoader());
+
+		environment
+				.fromSource(
+						new MockSource(Boundedness.BOUNDED, 100),
+						WatermarkStrategy.noWatermarks(),
+						"bounded-source")
+				.print();
+
+		assertThat(
+				environment.getStreamGraph(),
+				hasProperties(
+						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
+						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+						false));
+	}
+
+	@Test
+	public void testExecutionModePropagationFromEnvWithBatchAndUnboundedSource() {
+		final Configuration config = new Configuration();
+		config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+
+		final StreamExecutionEnvironment environment =
+				StreamExecutionEnvironment.getExecutionEnvironment();
+		environment.configure(config, getClass().getClassLoader());
+
+		environment
+				.fromSource(
+						new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 100),
+						WatermarkStrategy.noWatermarks(),
+						"unbounded-source")
+				.print();
+
+		thrown.expect(IllegalStateException.class);
+		thrown.expectMessage("combination is not allowed");
+		environment.getStreamGraph();
+	}
 
 	@Test
 	public void testDetectionThroughTransitivePredecessors() {
@@ -69,9 +163,12 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				1);
 
 		final StreamGraph graph = generateStreamGraph(RuntimeExecutionMode.AUTOMATIC, resultTransform);
-		assertEquals(GlobalDataExchangeMode.ALL_EDGES_PIPELINED, graph.getGlobalDataExchangeMode());
-		assertEquals(ScheduleMode.EAGER, graph.getScheduleMode());
-		assertTrue(graph.isAllVerticesInSameSlotSharingGroupByDefault());
+		assertThat(
+				graph,
+				hasProperties(
+						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+						ScheduleMode.EAGER,
+						true));
 	}
 
 	@Test
@@ -81,9 +178,12 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
 		final StreamGraph graph = generateStreamGraph(RuntimeExecutionMode.AUTOMATIC, bounded);
-		assertEquals(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED, graph.getGlobalDataExchangeMode());
-		assertEquals(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST, graph.getScheduleMode());
-		assertFalse(graph.isAllVerticesInSameSlotSharingGroupByDefault());
+		assertThat(
+				graph,
+				hasProperties(
+						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
+						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+						false));
 	}
 
 	@Test
@@ -93,9 +193,12 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertEquals(Boundedness.CONTINUOUS_UNBOUNDED, unbounded.getBoundedness());
 
 		final StreamGraph graph = generateStreamGraph(RuntimeExecutionMode.AUTOMATIC, unbounded);
-		assertEquals(GlobalDataExchangeMode.ALL_EDGES_PIPELINED, graph.getGlobalDataExchangeMode());
-		assertEquals(ScheduleMode.EAGER, graph.getScheduleMode());
-		assertTrue(graph.isAllVerticesInSameSlotSharingGroupByDefault());
+		assertThat(
+				graph,
+				hasProperties(
+						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+						ScheduleMode.EAGER,
+						true));
 	}
 
 	@Test
@@ -109,9 +212,12 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
 		final StreamGraph graph = generateStreamGraph(RuntimeExecutionMode.AUTOMATIC, unbounded);
-		assertEquals(GlobalDataExchangeMode.ALL_EDGES_PIPELINED, graph.getGlobalDataExchangeMode());
-		assertEquals(ScheduleMode.EAGER, graph.getScheduleMode());
-		assertTrue(graph.isAllVerticesInSameSlotSharingGroupByDefault());
+		assertThat(
+				graph,
+				hasProperties(
+						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+						ScheduleMode.EAGER,
+						true));
 	}
 
 	@Test
@@ -121,14 +227,20 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 		assertEquals(Boundedness.BOUNDED, bounded.getBoundedness());
 
 		final StreamGraph graph = generateStreamGraph(RuntimeExecutionMode.AUTOMATIC, bounded);
-		assertEquals(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED, graph.getGlobalDataExchangeMode());
-		assertEquals(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST, graph.getScheduleMode());
-		assertFalse(graph.isAllVerticesInSameSlotSharingGroupByDefault());
+		assertThat(
+				graph,
+				hasProperties(
+						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
+						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+						false));
 
 		final StreamGraph streamingGraph = generateStreamGraph(RuntimeExecutionMode.STREAMING, bounded);
-		assertEquals(GlobalDataExchangeMode.ALL_EDGES_PIPELINED, streamingGraph.getGlobalDataExchangeMode());
-		assertEquals(ScheduleMode.EAGER, streamingGraph.getScheduleMode());
-		assertTrue(streamingGraph.isAllVerticesInSameSlotSharingGroupByDefault());
+		assertThat(
+				streamingGraph,
+				hasProperties(
+						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+						ScheduleMode.EAGER,
+						true));
 	}
 
 	private StreamGraph generateStreamGraph(
@@ -155,5 +267,29 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				new SourceOperatorFactory<>(new MockSource(boundedness, 100), WatermarkStrategy.noWatermarks()),
 				IntegerTypeInfo.of(Integer.class),
 				1);
+	}
+
+	private static TypeSafeMatcher<StreamGraph> hasProperties(
+			final GlobalDataExchangeMode exchangeMode,
+			final ScheduleMode scheduleMode,
+			final boolean allVerticesShareSameSlotGroup) {
+
+		return new TypeSafeMatcher<StreamGraph>() {
+			@Override
+			protected boolean matchesSafely(StreamGraph actualStreamGraph) {
+				return exchangeMode == actualStreamGraph.getGlobalDataExchangeMode()
+						&& scheduleMode == actualStreamGraph.getScheduleMode()
+						&& actualStreamGraph.isAllVerticesInSameSlotSharingGroupByDefault() == allVerticesShareSameSlotGroup;
+			}
+
+			@Override
+			public void describeTo(Description description) {
+				description.appendText("a StreamGraph with exchangeMode='")
+						.appendValue(exchangeMode)
+						.appendText("' and scheduleMode='")
+						.appendValue(scheduleMode)
+						.appendText("'");
+			}
+		};
 	}
 }
