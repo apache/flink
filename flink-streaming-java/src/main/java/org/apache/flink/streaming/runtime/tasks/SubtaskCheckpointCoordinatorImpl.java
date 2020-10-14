@@ -22,7 +22,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -76,7 +76,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
 	private final CachingCheckpointStorageWorkerView checkpointStorage;
 	private final String taskName;
-	private final ExecutorService executorService;
+	private final ExecutorService asyncOperationsThreadPool;
 	private final Environment env;
 	private final AsyncExceptionHandler asyncExceptionHandler;
 	private final ChannelStateWriter channelStateWriter;
@@ -101,7 +101,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			String taskName,
 			StreamTaskActionExecutor actionExecutor,
 			CloseableRegistry closeableRegistry,
-			ExecutorService executorService,
+			ExecutorService asyncOperationsThreadPool,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
 			boolean unalignedCheckpointEnabled,
@@ -110,7 +110,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			taskName,
 			actionExecutor,
 			closeableRegistry,
-			executorService,
+			asyncOperationsThreadPool,
 			env,
 			asyncExceptionHandler,
 			unalignedCheckpointEnabled,
@@ -123,7 +123,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			String taskName,
 			StreamTaskActionExecutor actionExecutor,
 			CloseableRegistry closeableRegistry,
-			ExecutorService executorService,
+			ExecutorService asyncOperationsThreadPool,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
 			boolean unalignedCheckpointEnabled,
@@ -134,7 +134,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			taskName,
 			actionExecutor,
 			closeableRegistry,
-			executorService,
+			asyncOperationsThreadPool,
 			env,
 			asyncExceptionHandler,
 			prepareInputSnapshot,
@@ -148,7 +148,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			String taskName,
 			StreamTaskActionExecutor actionExecutor,
 			CloseableRegistry closeableRegistry,
-			ExecutorService executorService,
+			ExecutorService asyncOperationsThreadPool,
 			Environment env,
 			AsyncExceptionHandler asyncExceptionHandler,
 			BiFunctionWithException<ChannelStateWriter, Long, CompletableFuture<Void>, IOException> prepareInputSnapshot,
@@ -158,7 +158,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 		this.taskName = checkNotNull(taskName);
 		this.checkpoints = new HashMap<>();
 		this.lock = new Object();
-		this.executorService = checkNotNull(executorService);
+		this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
 		this.env = checkNotNull(env);
 		this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
 		this.actionExecutor = checkNotNull(actionExecutor);
@@ -215,7 +215,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	public void checkpointState(
 			CheckpointMetaData metadata,
 			CheckpointOptions options,
-			CheckpointMetrics metrics,
+			CheckpointMetricsBuilder metrics,
 			OperatorChain<?, ?> operatorChain,
 			Supplier<Boolean> isCanceled) throws Exception {
 
@@ -401,7 +401,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private void cleanup(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData metadata,
-			CheckpointMetrics metrics,
+			CheckpointMetricsBuilder metrics,
 			Exception ex) {
 
 		channelStateWriter.abort(metadata.getCheckpointId(), ex, true);
@@ -419,7 +419,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			LOG.debug(
 				"{} - did NOT finish synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
 				taskName, metadata.getCheckpointId(),
-				metrics.getAlignmentDurationNanos() / 1_000_000,
+				metrics.getAlignmentDurationNanosOrDefault() / 1_000_000,
 				metrics.getSyncDurationMillis());
 		}
 	}
@@ -435,9 +435,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			});
 	}
 
-	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetrics metrics, CheckpointOptions options) {
+	private void finishAndReportAsync(Map<OperatorID, OperatorSnapshotFutures> snapshotFutures, CheckpointMetaData metadata, CheckpointMetricsBuilder metrics, CheckpointOptions options) {
 		// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
-		executorService.execute(new AsyncCheckpointRunnable(
+		asyncOperationsThreadPool.execute(new AsyncCheckpointRunnable(
 			snapshotFutures,
 			metadata,
 			metrics,
@@ -466,7 +466,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 	private boolean takeSnapshotSync(
 			Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
 			CheckpointMetaData checkpointMetaData,
-			CheckpointMetrics checkpointMetrics,
+			CheckpointMetricsBuilder checkpointMetrics,
 			CheckpointOptions checkpointOptions,
 			OperatorChain<?, ?> operatorChain,
 			Supplier<Boolean> isCanceled) throws Exception {
@@ -511,7 +511,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 			"{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
 			taskName,
 			checkpointId,
-			checkpointMetrics.getAlignmentDurationNanos() / 1_000_000,
+			checkpointMetrics.getAlignmentDurationNanosOrDefault() / 1_000_000,
 			checkpointMetrics.getSyncDurationMillis());
 
 		checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);

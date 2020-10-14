@@ -38,6 +38,7 @@ import org.apache.flink.table.types.logical.RowType
 import scala.collection.JavaConversions._
 import java.util
 
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 /**
@@ -120,11 +121,24 @@ class StreamExecPythonGroupAggregate(
 
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
+    val extractedResult: Array[(PythonFunctionInfo, Array[DataViewSpec])] =
+      aggInfoList.aggInfos.zipWithIndex.map(t =>
+        extractPythonAggregateFunctionInfosFromAggregateInfo(t._2, t._1))
+
+    val pythonFunctionInfos = extractedResult.map(_._1)
+
+    var dataViewSpecs = extractedResult.map(_._2)
+
+    if (dataViewSpecs.forall(_.isEmpty)) {
+      dataViewSpecs = Array()
+    }
+
     val operator = getPythonAggregateFunctionOperator(
       getConfig(planner.getExecEnv, tableConfig),
       inputRowType,
       outRowType,
-      aggInfoList.aggInfos.map(extractPythonAggregateFunctionInfosFromAggregateInfo),
+      pythonFunctionInfos,
+      dataViewSpecs,
       tableConfig.getMinIdleStateRetentionTime,
       tableConfig.getMaxIdleStateRetentionTime,
       grouping,
@@ -159,6 +173,7 @@ class StreamExecPythonGroupAggregate(
       inputType: RowType,
       outputType: RowType,
       aggregateFunctions: Array[PythonFunctionInfo],
+      dataViewSpecs: Array[Array[DataViewSpec]],
       minIdleStateRetentionTime: Long,
       maxIdleStateRetentionTime: Long,
       grouping: Array[Int],
@@ -171,6 +186,7 @@ class StreamExecPythonGroupAggregate(
       classOf[RowType],
       classOf[RowType],
       classOf[Array[PythonFunctionInfo]],
+      classOf[Array[Array[DataViewSpec]]],
       classOf[Array[Int]],
       classOf[Int],
       classOf[Boolean],
@@ -181,6 +197,7 @@ class StreamExecPythonGroupAggregate(
       inputType.asInstanceOf[AnyRef],
       outputType.asInstanceOf[AnyRef],
       aggregateFunctions.asInstanceOf[AnyRef],
+      dataViewSpecs.asInstanceOf[AnyRef],
       grouping.asInstanceOf[AnyRef],
       indexOfCountStar.asInstanceOf[AnyRef],
       generateUpdateBefore.asInstanceOf[AnyRef],

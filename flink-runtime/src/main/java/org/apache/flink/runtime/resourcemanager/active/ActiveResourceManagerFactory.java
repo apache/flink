@@ -92,10 +92,10 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 			@Nullable String webInterfaceUrl,
 			ResourceManagerMetricGroup resourceManagerMetricGroup,
 			ResourceManagerRuntimeServices resourceManagerRuntimeServices,
-			Executor ioExecutor) {
+			Executor ioExecutor) throws Exception {
 
 		return new ActiveResourceManager<>(
-				createResourceManagerDriver(configuration),
+				createResourceManagerDriver(configuration, webInterfaceUrl, rpcService.getAddress()),
 				configuration,
 				rpcService,
 				resourceId,
@@ -110,5 +110,6 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 				ioExecutor);
 	}
 
-	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(Configuration configuration);
+	protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver(
+			Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) throws Exception;
 }

@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
@@ -54,7 +54,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -236,6 +235,8 @@ public class CheckpointBarrierUnalignerTest {
 
 		Thread.sleep(sleepTime);
 
+		long alignmentStartNanos = System.nanoTime();
+
 		addSequence(inputGate,
 			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
 			createBarrier(checkpointId, 1, checkpointBarrierCreation),
@@ -244,7 +245,6 @@ public class CheckpointBarrierUnalignerTest {
 			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize));
 
 		long startDelay = System.currentTimeMillis() - checkpointBarrierCreation;
-
 		Thread.sleep(sleepTime);
 
 		addSequence(inputGate,
@@ -252,9 +252,18 @@ public class CheckpointBarrierUnalignerTest {
 			createBuffer(0, bufferSize), createBuffer(1, bufferSize), createBuffer(2, bufferSize),
 			createEndOfPartition(0), createEndOfPartition(1), createEndOfPartition(2));
 
+		long alignmentDuration = System.nanoTime() - alignmentStartNanos;
+
 		assertEquals(checkpointId, inputGate.getCheckpointBarrierHandler().getLatestCheckpointId());
 		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
 		assertThat(inputGate.getCheckpointStartDelayNanos() / 1_000_000, Matchers.lessThanOrEqualTo(startDelay));
+
+		assertTrue(handler.getLastAlignmentDurationNanos().isDone());
+		assertThat(handler.getLastAlignmentDurationNanos().get() / 1_000_000, Matchers.greaterThanOrEqualTo(sleepTime));
+		assertThat(handler.getLastAlignmentDurationNanos().get(), Matchers.lessThanOrEqualTo(alignmentDuration));
+
+		assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
+		assertThat(handler.getLastBytesProcessedDuringAlignment().get(), Matchers.equalTo(6L * bufferSize));
 	}
 
 	@Test
@@ -656,6 +665,16 @@ public class CheckpointBarrierUnalignerTest {
 
 	private BufferOrEvent[] addSequence(CheckpointedInputGate inputGate, BufferOrEvent... sequence) throws Exception {
 		output = new ArrayList<>();
+		addSequence(inputGate, output, sequenceNumbers, sequence);
+		sizeCounter = 1;
+		return sequence;
+	}
+
+	static BufferOrEvent[] addSequence(
+			CheckpointedInputGate inputGate,
+			List<BufferOrEvent> output,
+			int[] sequenceNumbers,
+			BufferOrEvent... sequence) throws Exception {
 		for (BufferOrEvent bufferOrEvent : sequence) {
 			if (bufferOrEvent.isEvent()) {
 				bufferOrEvent = new BufferOrEvent(
@@ -672,7 +691,6 @@ public class CheckpointBarrierUnalignerTest {
 			while (inputGate.pollNext().map(output::add).isPresent()) {
 			}
 		}
-		sizeCounter = 1;
 		return sequence;
 	}
 
@@ -720,53 +738,16 @@ public class CheckpointBarrierUnalignerTest {
 	/**
 	 * The invokable handler used for triggering checkpoint and validation.
 	 */
-	private class ValidatingCheckpointHandler extends AbstractInvokable {
-
-		private long nextExpectedCheckpointId;
-
-		private long lastCanceledCheckpointId;
+	static class ValidatingCheckpointHandler extends org.apache.flink.streaming.runtime.io.ValidatingCheckpointHandler {
 
 		public ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
-			super(new DummyEnvironment("test", 1, 0));
-			this.nextExpectedCheckpointId = nextExpectedCheckpointId;
+			super(nextExpectedCheckpointId);
 		}
 
-		public void invoke() {
-			throw new UnsupportedOperationException();
-		}
-
-		public Future<Boolean> triggerCheckpointAsync(
-				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions,
-				boolean advanceToEndOfEventTime) {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		public void triggerCheckpointOnBarrier(
-				CheckpointMetaData checkpointMetaData,
-				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) throws IOException {
-			if (nextExpectedCheckpointId != -1L) {
-				assertEquals("wrong checkpoint id", nextExpectedCheckpointId, checkpointMetaData.getCheckpointId());
-			}
-
-			assertTrue(checkpointMetaData.getTimestamp() > 0);
-			assertTrue(checkpointMetrics.getAlignmentDurationNanos() >= 0);
-
-			nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
-		}
-
+		@Override
 		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-			lastCanceledCheckpointId = checkpointId;
+			super.abortCheckpointOnBarrier(checkpointId, cause);
 			nextExpectedCheckpointId = -1;
-		}
-
-		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-			throw new UnsupportedOperationException("should never be called");
-		}
-
-		public long getLastCanceledCheckpointId() {
-			return lastCanceledCheckpointId;
 		}
 	}
 
@@ -802,7 +783,7 @@ public class CheckpointBarrierUnalignerTest {
 		public void triggerCheckpointOnBarrier(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				CheckpointMetrics checkpointMetrics) {
+				CheckpointMetricsBuilder checkpointMetrics) {
 			expectedCheckpointId = checkpointMetaData.getCheckpointId();
 			totalNumCheckpoints++;
 		}

@@ -18,7 +18,9 @@
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
+from pyflink.common import Row
 from pyflink.table import DataTypes
+from pyflink.table.data_view import ListView
 from pyflink.table.udf import AggregateFunction, udaf
 from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
@@ -73,6 +75,28 @@ class SumAggregateFunction(AggregateFunction):
         return DataTypes.BIGINT()
 
 
+class ConcatAggregateFunction(AggregateFunction):
+
+    def get_value(self, accumulator):
+        return accumulator[1].join(accumulator[0])
+
+    def create_accumulator(self):
+        return Row(ListView(), '')
+
+    def accumulate(self, accumulator, *args):
+        accumulator[1] = args[1]
+        accumulator[0].add(args[0])
+
+    def retract(self, accumulator, *args):
+        raise NotImplementedError
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.LIST_VIEW(DataTypes.STRING()))])
+
+    def get_result_type(self):
+        return DataTypes.STRING()
+
+
 class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_double_aggregate(self):
@@ -105,6 +129,24 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         result_type = result.get_schema().get_field_data_type(0)
         self.assertTrue(plan.find("PythonGroupAggregate(groupBy=[c], ") >= 0)
         self.assertEqual(result_type, DataTypes.INT())
+
+    def test_data_view(self):
+        my_concat = udaf(ConcatAggregateFunction())
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "2")
+        # trigger the cache eviction in a bundle.
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache.size", "2")
+        t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
+                                      (3, 'Hi', 'hi'),
+                                      (3, 'Hi2', 'hi'),
+                                      (3, 'Hi', 'hi2'),
+                                      (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+        result = t.group_by(t.c).select(my_concat(t.b, ',').alias("a"), t.c)
+        assert_frame_equal(result.to_pandas(),
+                           pd.DataFrame([["Hi,Hi2", "hi"],
+                                         ["Hi", "hi2"],
+                                         ["Hi,Hi", "Hello"]], columns=['a', 'c']))
 
 
 if __name__ == '__main__':

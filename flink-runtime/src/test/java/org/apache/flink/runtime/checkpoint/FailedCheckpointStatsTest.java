@@ -53,6 +53,8 @@ public class FailedCheckpointStatsTest {
 			taskStats,
 			0,
 			0,
+			0,
+			0,
 			failureTimestamp,
 			null,
 			null);
@@ -78,6 +80,8 @@ public class FailedCheckpointStatsTest {
 			taskStats,
 			3,
 			190890123,
+			4242,
+			4444,
 			failureTimestamp,
 			null,
 			new NotSerializableException("message"));
@@ -91,6 +95,8 @@ public class FailedCheckpointStatsTest {
 		assertEquals(failed.getNumberOfAcknowledgedSubtasks(), copy.getNumberOfAcknowledgedSubtasks());
 		assertEquals(failed.getEndToEndDuration(), copy.getEndToEndDuration());
 		assertEquals(failed.getStateSize(), copy.getStateSize());
+		assertEquals(failed.getProcessedData(), copy.getProcessedData());
+		assertEquals(failed.getPersistedData(), copy.getPersistedData());
 		assertEquals(failed.getLatestAcknowledgedSubtaskStats(), copy.getLatestAcknowledgedSubtaskStats());
 		assertEquals(failed.getStatus(), copy.getStatus());
 		assertEquals(failed.getFailureMessage(), copy.getFailureMessage());

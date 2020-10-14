@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.is;
@@ -73,6 +74,7 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 	public void testTerminate() throws Exception {
 		final Context context = createContext();
 		context.runTest(() -> {
+			context.getDriver().onRevokeLeadership();
 			context.getDriver().terminate();
 			context.validateTermination();
 		});
@@ -158,7 +160,9 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 
 			driver.initialize(
 					resourceEventHandlerBuilder.build(),
-					mainThreadExecutor);
+					mainThreadExecutor,
+					ForkJoinPool.commonPool());
+			driver.onGrantLeadership();
 
 			testMethod.run();
 		}
@@ -180,7 +184,7 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
 			assertThat(Thread.currentThread().getName(), is(MAIN_THREAD_NAME));
 		}
 
-		protected abstract void prepareRunTest();
+		protected abstract void prepareRunTest() throws Exception;
 
 		protected abstract ResourceManagerDriver<WorkerType> createResourceManagerDriver();
 

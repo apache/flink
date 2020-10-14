@@ -28,7 +28,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
-import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
+import org.apache.flink.connector.file.src.assigners.LocalityAwareSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.BlockSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.impl.ContinuousFileSplitEnumerator;
@@ -112,9 +112,9 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * The default split assigner, a lazy non-locality-aware assigner.
+	 * The default split assigner, a lazy locality-aware assigner.
 	 */
-	public static final FileSplitAssigner.Provider DEFAULT_SPLIT_ASSIGNER = SimpleSplitAssigner::new;
+	public static final FileSplitAssigner.Provider DEFAULT_SPLIT_ASSIGNER = LocalityAwareSplitAssigner::new;
 
 	/**
 	 * The default file enumerator used for splittable formats.

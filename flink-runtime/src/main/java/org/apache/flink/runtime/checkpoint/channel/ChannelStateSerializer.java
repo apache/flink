@@ -63,6 +63,8 @@ interface ChannelStateByteBuffer {
 
 	boolean isWritable();
 
+	void recycle();
+
 	/**
 	 * Read up to <code>bytesToRead</code> bytes into this buffer from the given {@link InputStream}.
 	 * @return     the total number of bytes read into this buffer.
@@ -80,6 +82,11 @@ interface ChannelStateByteBuffer {
 			}
 
 			@Override
+			public void recycle() {
+				buffer.recycleBuffer();
+			}
+
+			@Override
 			public int writeBytes(InputStream input, int bytesToRead) throws IOException {
 				return byteBuf.writeBytes(input, Math.min(bytesToRead, byteBuf.writableBytes()));
 			}
@@ -92,6 +99,11 @@ interface ChannelStateByteBuffer {
 			@Override
 			public boolean isWritable() {
 				return !bufferBuilder.isFull();
+			}
+
+			@Override
+			public void recycle() {
+				bufferBuilder.recycle();
 			}
 
 			@Override
@@ -120,6 +132,10 @@ interface ChannelStateByteBuffer {
 			@Override
 			public boolean isWritable() {
 				return written < bytes.length;
+			}
+
+			@Override
+			public void recycle() {
 			}
 
 			@Override

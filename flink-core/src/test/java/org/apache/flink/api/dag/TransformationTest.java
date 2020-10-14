@@ -25,8 +25,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
@@ -47,9 +47,9 @@ public class TransformationTest extends TestLogger {
 	@Test
 	public void testDeclareManagedMemoryUseCase() {
 		transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 123);
-		transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.ROCKSDB);
+		transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.STATE_BACKEND);
 		assertThat(transformation.getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(123));
-		assertThat(transformation.getManagedMemorySlotScopeUseCases(), contains(ManagedMemoryUseCase.ROCKSDB));
+		assertThat(transformation.getManagedMemorySlotScopeUseCases(), contains(ManagedMemoryUseCase.STATE_BACKEND));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -75,15 +75,20 @@ public class TransformationTest extends TestLogger {
 	/**
 	 * A test implementation of {@link Transformation}.
 	 */
-	private class TestTransformation<T> extends Transformation<T> {
+	private static class TestTransformation<T> extends Transformation<T> {
 
 		public TestTransformation(String name, TypeInformation<T> outputType, int parallelism) {
 			super(name, outputType, parallelism);
 		}
 
 		@Override
-		public Collection<Transformation<?>> getTransitivePredecessors() {
-			return Collections.EMPTY_LIST;
+		public List<Transformation<?>> getTransitivePredecessors() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public List<Transformation<?>> getInputs() {
+			return Collections.emptyList();
 		}
 	}
 }

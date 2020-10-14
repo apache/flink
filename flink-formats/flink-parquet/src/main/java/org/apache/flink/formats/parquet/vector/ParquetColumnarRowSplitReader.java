@@ -266,10 +266,13 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 	 */
 	private boolean ensureBatch() throws IOException {
 		if (nextRow >= rowsInBatch) {
-			// No more rows available in the Rows array.
-			nextRow = 0;
 			// Try to read the next batch if rows from the file.
-			return nextBatch();
+			if (nextBatch()) {
+				// No more rows available in the Rows array.
+				nextRow = 0;
+				return true;
+			}
+			return false;
 		}
 		// there is at least one Row left in the Rows array.
 		return true;

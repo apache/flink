@@ -137,6 +137,10 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			InputGate gate = getEnvironment().getInputGate(0);
+			gate.finishReadRecoveredState();
+			while (!gate.getStateConsumedFuture().isDone()) {
+				gate.pollNext();
+			}
 			gate.requestPartitions();
 			Buffer buffer = gate.getNext().orElseThrow(IllegalStateException::new).getBuffer();
 			if (buffer != null) {

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.TableColumn.ComputedColumn
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
@@ -63,8 +64,12 @@ class LegacyCatalogSourceTable[T](
   lazy val columnExprs: Map[String, String] = {
     catalogTable.getSchema
       .getTableColumns
-      .filter(column => column.isGenerated)
-      .map(column => (column.getName, column.getExpr.get()))
+      .flatMap {
+        case computedColumn: ComputedColumn =>
+          Some((computedColumn.getName, computedColumn.getExpression))
+        case _ =>
+          None
+      }
       .toMap
   }
 
@@ -176,9 +181,7 @@ class LegacyCatalogSourceTable[T](
       catalogTable
     }
     val context = new TableSourceFactoryContextImpl(
-      schemaTable.getTableIdentifier,
-      tableToFind,
-      conf)
+      schemaTable.getTableIdentifier, tableToFind, conf, schemaTable.isTemporary)
     val tableSource = if (tableFactoryOpt.isPresent) {
       tableFactoryOpt.get() match {
         case tableSourceFactory: TableSourceFactory[_] =>

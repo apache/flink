@@ -130,10 +130,11 @@ public class RemoteInputChannel extends InputChannel implements ChannelStateHold
 	}
 
 	/**
-	 * Assigns exclusive buffers to this input channel, and this method should be called only once
+	 * Setup includes assigning exclusive buffers to this input channel, and this method should be called only once
 	 * after this input channel is created.
 	 */
-	void assignExclusiveSegments() throws IOException {
+	@Override
+	void setup() throws IOException {
 		checkState(bufferManager.unsynchronizedGetAvailableExclusiveBuffers() == 0,
 			"Bug in input channel setup logic: exclusive buffers have already been set for this input channel.");
 

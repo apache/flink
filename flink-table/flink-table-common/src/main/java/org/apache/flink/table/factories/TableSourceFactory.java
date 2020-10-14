@@ -98,6 +98,11 @@ public interface TableSourceFactory<T> extends TableFactory {
 		 * {@code TableEnvironment} session configurations.
 		 */
 		ReadableConfig getConfiguration();
+
+		/**
+		 * Whether the table is temporary.
+		 */
+		boolean isTemporary();
 	}
 
 }

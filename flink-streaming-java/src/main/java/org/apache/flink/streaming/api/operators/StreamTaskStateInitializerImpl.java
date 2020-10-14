@@ -62,6 +62,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
+
 /**
  * This class is the main implementation of a {@link StreamTaskStateInitializer}. This class obtains the state to create
  * {@link StreamOperatorStateContext} objects for stream operators from the {@link TaskStateManager} of the task that
@@ -121,7 +123,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
-		@Nonnull MetricGroup metricGroup) throws Exception {
+		@Nonnull MetricGroup metricGroup,
+		double managedMemoryFraction) throws Exception {
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 		OperatorSubtaskDescriptionText operatorSubtaskDescription =
@@ -150,7 +153,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				operatorIdentifierText,
 				prioritizedOperatorSubtaskStates,
 				streamTaskCloseableRegistry,
-				metricGroup);
+				metricGroup,
+				managedMemoryFraction);
 
 			// -------------- Operator State Backend --------------
 			operatorStateBackend = operatorStateBackend(
@@ -251,7 +255,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		String operatorIdentifierText,
 		PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
 		CloseableRegistry backendCloseableRegistry,
-		MetricGroup metricGroup) throws Exception {
+		MetricGroup metricGroup,
+		double managedMemoryFraction) throws Exception {
 
 		if (keySerializer == null) {
 			return null;
@@ -284,7 +289,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					ttlTimeProvider,
 					metricGroup,
 					stateHandles,
-					cancelStreamRegistryForRestore),
+					cancelStreamRegistryForRestore,
+					managedMemoryFraction),
 				backendCloseableRegistry,
 				logDescription);
 
@@ -550,9 +556,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			if (keyedStateHandle instanceof KeyGroupsStateHandle) {
 				keyGroupsStateHandles.add((KeyGroupsStateHandle) keyedStateHandle);
 			} else if (keyedStateHandle != null) {
-				throw new IllegalStateException("Unexpected state handle type, " +
-					"expected: " + KeyGroupsStateHandle.class +
-					", but found: " + keyedStateHandle.getClass() + ".");
+				throw unexpectedStateHandleException(KeyGroupsStateHandle.class, keyedStateHandle.getClass());
 			}
 		}
 

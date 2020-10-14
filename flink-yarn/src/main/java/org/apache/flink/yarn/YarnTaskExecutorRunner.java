@@ -132,7 +132,7 @@ public class YarnTaskExecutorRunner {
 		}
 
 		// use the hostname passed by job manager
-		final String taskExecutorHostname = variables.get(YarnResourceManager.ENV_FLINK_NODE_ID);
+		final String taskExecutorHostname = variables.get(YarnResourceManagerDriver.ENV_FLINK_NODE_ID);
 		if (taskExecutorHostname != null) {
 			configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
 		}

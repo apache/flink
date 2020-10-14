@@ -25,7 +25,7 @@ import org.apache.flink.api.java.typeutils.InputTypeConfigurable
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.streaming.api.transformations.SinkTransformation
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
@@ -96,7 +96,7 @@ class CommonPhysicalSink (
       fieldNames
     )
 
-    new SinkTransformation(
+    new LegacySinkTransformation(
       inputTransformation,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),

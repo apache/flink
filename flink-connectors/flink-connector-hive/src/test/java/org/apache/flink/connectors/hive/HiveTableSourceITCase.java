@@ -25,8 +25,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
@@ -443,11 +441,11 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		Table table = tEnv.sqlQuery("select * from hive.source_db.test_parallelism_limit_pushdown limit 1");
 		PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
 		RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
-		ExecNode execNode = planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
 		@SuppressWarnings("unchecked")
-		Transformation transformation = execNode.translateToPlan(planner);
-		Assert.assertEquals(1, ((PartitionTransformation) ((OneInputTransformation) transformation).getInput())
-			.getInput().getParallelism());
+		ExecNode<PlannerBase, ?> execNode = (ExecNode<PlannerBase, ?>) planner.translateToExecNodePlan(
+				toScala(Collections.singletonList(relNode))).get(0);
+		Transformation<?> transformation = (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
+		Assert.assertEquals(1, transformation.getParallelism());
 	}
 
 	@Test

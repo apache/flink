@@ -25,6 +25,7 @@ import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -65,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
@@ -113,10 +115,9 @@ public final class Utils {
 	 * Deletes the YARN application files, e.g., Flink binaries, libraries, etc., from the remote
 	 * filesystem.
 	 *
-	 * @param env The environment variables.
+	 * @param applicationFilesDir The application files directory.
 	 */
-	public static void deleteApplicationFiles(final Map<String, String> env) {
-		final String applicationFilesDir = env.get(YarnConfigKeys.FLINK_YARN_FILES);
+	public static void deleteApplicationFiles(final String applicationFilesDir) {
 		if (!StringUtils.isNullOrWhitespaceOnly(applicationFilesDir)) {
 			final org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(applicationFilesDir);
 			try {
@@ -342,8 +343,8 @@ public final class Utils {
 	 *		 The Flink configuration object.
 	 * @param yarnConfig
 	 *		 The YARN configuration object.
-	 * @param env
-	 *		 The environment variables.
+	 * @param configuration
+	 *		 The YarnResourceManagerDriver configurations.
 	 * @param tmParams
 	 *		 The TaskExecutor container memory parameters.
 	 * @param taskManagerDynamicProperties
@@ -363,7 +364,7 @@ public final class Utils {
 	static ContainerLaunchContext createTaskExecutorContext(
 		org.apache.flink.configuration.Configuration flinkConfig,
 		YarnConfiguration yarnConfig,
-		Map<String, String> env,
+		YarnResourceManagerDriverConfiguration configuration,
 		ContaineredTaskManagerParameters tmParams,
 		String taskManagerDynamicProperties,
 		String workingDirectory,
@@ -372,26 +373,15 @@ public final class Utils {
 
 		// get and validate all relevant variables
 
-		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_DIST_JAR);
-		require(remoteFlinkJarPath != null, "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
+		String remoteFlinkJarPath = checkNotNull(configuration.getFlinkDistJar(), "Environment variable %s not set", YarnConfigKeys.FLINK_DIST_JAR);
 
-		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
-		require(appId != null, "Environment variable %s not set", YarnConfigKeys.ENV_APP_ID);
+		String shipListString = checkNotNull(configuration.getClientShipFiles(), "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
 
-		String clientHomeDir = env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-		require(clientHomeDir != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_HOME_DIR);
-
-		String shipListString = env.get(YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-		require(shipListString != null, "Environment variable %s not set", YarnConfigKeys.ENV_CLIENT_SHIP_FILES);
-
-		String yarnClientUsername = env.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
-
-		final String remoteKeytabPath = env.get(YarnConfigKeys.REMOTE_KEYTAB_PATH);
-		final String localKeytabPath = env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH);
-		final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
-		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
+		final String remoteKeytabPath = configuration.getRemoteKeytabPath();
+		final String localKeytabPath = configuration.getLocalKeytabPath();
+		final String keytabPrincipal = configuration.getKeytabPrinciple();
+		final String remoteYarnConfPath = configuration.getYarnSiteXMLPath();
+		final String remoteKrb5Path = configuration.getKrb5Path();
 
 		if (log.isDebugEnabled()) {
 			log.debug("TM:remote keytab path obtained {}", remoteKeytabPath);
@@ -401,8 +391,7 @@ public final class Utils {
 			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
 		}
 
-		String classPathString = env.get(ENV_FLINK_CLASSPATH);
-		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
+		String classPathString = checkNotNull(configuration.getFlinkClasspath(), "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
 
 		//register keytab
 		LocalResource keytabResource = null;
@@ -546,28 +535,13 @@ public final class Utils {
 		return resourceDescriptors;
 	}
 
-	/**
-	 * Validates a condition, throwing a RuntimeException if the condition is violated.
-	 *
-	 * @param condition The condition.
-	 * @param message The message for the runtime exception, with format variables as defined by
-	 *                {@link String#format(String, Object...)}.
-	 * @param values The format arguments.
-	 */
-	static void require(boolean condition, String message, Object... values) {
-		if (!condition) {
-			throw new RuntimeException(String.format(message, values));
-		}
-	}
-
-	public static WorkerSpecContainerResourceAdapter createWorkerSpecContainerResourceAdapter(
-			org.apache.flink.configuration.Configuration flinkConfig,
-			YarnConfiguration yarnConfig) {
+	static TaskExecutorProcessSpecContainerResourceAdapter createTaskExecutorProcessSpecContainerResourceAdapter(
+		org.apache.flink.configuration.Configuration flinkConfig,
+		YarnConfiguration yarnConfig) {
 
 		Resource unitResource = getUnitResource(yarnConfig);
 
-		return new WorkerSpecContainerResourceAdapter(
-			flinkConfig,
+		return new TaskExecutorProcessSpecContainerResourceAdapter(
 			yarnConfig.getInt(
 				YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB,
 				YarnConfiguration.DEFAULT_RM_SCHEDULER_MINIMUM_ALLOCATION_MB),

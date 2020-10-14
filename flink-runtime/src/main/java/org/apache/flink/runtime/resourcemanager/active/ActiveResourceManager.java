@@ -120,7 +120,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		try {
 			resourceManagerDriver.initialize(
 					this,
-					new GatewayMainThreadExecutor());
+					new GatewayMainThreadExecutor(),
+					ioExecutor);
 		} catch (Exception e) {
 			throw new ResourceManagerException("Cannot initialize resource provider.", e);
 		}
@@ -133,6 +134,16 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			throw new ResourceManagerException("Cannot terminate resource provider.", e);
 		}
+	}
+
+	@Override
+	protected CompletableFuture<Void> prepareLeadershipAsync() {
+		return resourceManagerDriver.onGrantLeadership();
+	}
+
+	@Override
+	protected CompletableFuture<Void> clearStateAsync() {
+		return resourceManagerDriver.onRevokeLeadership();
 	}
 
 	@Override

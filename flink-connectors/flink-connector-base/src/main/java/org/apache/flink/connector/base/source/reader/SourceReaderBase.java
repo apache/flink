@@ -24,8 +24,8 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -262,10 +262,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	private InputStatus finishedOrAvailableLater() {
 		final boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
-		if (noMoreSplitsAssignment && allFetchersHaveShutdown && elementsQueue.isEmpty()) {
+		if (!(noMoreSplitsAssignment && allFetchersHaveShutdown)) {
+			return InputStatus.NOTHING_AVAILABLE;
+		}
+		if (elementsQueue.isEmpty()) {
 			return InputStatus.END_OF_INPUT;
 		} else {
-			return InputStatus.NOTHING_AVAILABLE;
+			throw new IllegalStateException("Called 'finishedOrAvailableLater()' with shut-down fetchers but non-empty queue");
 		}
 	}
 

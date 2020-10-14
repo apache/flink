@@ -30,6 +30,7 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryReservationException;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -280,10 +281,12 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 			.getBytes();
 		MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
 		// TODO python operators should declare and use fraction of the PYTHON use case
+		final Environment environment = getContainingTask().getEnvironment();
 		long availableManagedMemory = memoryManager.computeMemorySize(
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.BATCH_OP,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration()));
+				environment.getTaskManagerInfo().getConfiguration(),
+				environment.getUserCodeClassLoader().asClassLoader()));
 		if (requiredPythonWorkerMemory <= availableManagedMemory) {
 			memoryManager.reserveMemory(this, requiredPythonWorkerMemory);
 			LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);

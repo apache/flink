@@ -109,6 +109,11 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
+	public void addProcessedBytes(int bytes) {
+		activeHandler.addProcessedBytes(bytes);
+	}
+
+	@Override
 	public void close() throws IOException {
 		try (Closer closer = Closer.create()) {
 			closer.register(alignedHandler);

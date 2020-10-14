@@ -38,8 +38,8 @@ for kubernetes_version in $KUBERNETES_VERSIONS; do
   start_kubernetes ${kubernetes_version}
 
   mkdir -p $OUTPUT_VOLUME
-
-  test -z $image_built && build_image ${FLINK_IMAGE_NAME} && image_built='yes'
+  
+  test -z $image_built && build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address) && image_built='yes'
 
   export USER_LIB=${FLINK_DIR}/examples/batch
   kubectl create -f ${CONTAINER_SCRIPTS}/job-cluster-service.yaml

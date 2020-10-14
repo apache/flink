@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.checkpointing.utils.AccumulatingIntegerSink;
 import org.apache.flink.test.checkpointing.utils.CancellingIntegerSource;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -63,7 +64,7 @@ import static org.junit.Assert.assertEquals;
  * Tests recovery from a snapshot created in different UC mode (i.e. unaligned checkpoints enabled/disabled).
  */
 @RunWith(Parameterized.class)
-public class UnalignedCheckpointCompatibilityITCase {
+public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();

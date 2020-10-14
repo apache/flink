@@ -29,10 +29,10 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -303,6 +303,14 @@ public abstract class Transformation<T> {
 		managedMemorySlotScopeUseCases.add(managedMemoryUseCase);
 	}
 
+	protected void updateManagedMemoryStateBackendUseCase(boolean hasStateBackend) {
+		if (hasStateBackend) {
+			managedMemorySlotScopeUseCases.add(ManagedMemoryUseCase.STATE_BACKEND);
+		} else {
+			managedMemorySlotScopeUseCases.remove(ManagedMemoryUseCase.STATE_BACKEND);
+		}
+	}
+
 	/**
 	 * Get operator scope use cases that this transformation needs managed memory for, and the use-case-specific weights
 	 * for this transformation. The weights are used for sharing managed memory across transformations for the use cases.
@@ -511,7 +519,13 @@ public abstract class Transformation<T> {
 	 *
 	 * @return The list of transitive predecessors.
 	 */
-	public abstract Collection<Transformation<?>> getTransitivePredecessors();
+	public abstract List<Transformation<?>> getTransitivePredecessors();
+
+	/**
+	 * Returns the {@link Transformation transformations} that are the
+	 * immediate predecessors of the current transformation in the transformation graph.
+	 */
+	public abstract List<Transformation<?>> getInputs();
 
 	@Override
 	public String toString() {

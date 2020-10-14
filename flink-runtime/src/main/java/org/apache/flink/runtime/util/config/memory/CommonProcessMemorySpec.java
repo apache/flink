@@ -101,7 +101,7 @@ public class CommonProcessMemorySpec<FM extends FlinkMemory> implements ProcessM
 	public boolean equals(Object obj) {
 		if (obj == this) {
 			return true;
-		} else if (obj instanceof CommonProcessMemorySpec<?> ) {
+		} else if (obj != null && getClass().equals(obj.getClass())) {
 			CommonProcessMemorySpec<?> that = (CommonProcessMemorySpec<?>) obj;
 			return Objects.equals(this.flinkMemory, that.flinkMemory) &&
 					Objects.equals(this.jvmMetaspaceAndOverhead, that.jvmMetaspaceAndOverhead);

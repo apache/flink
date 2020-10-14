@@ -20,8 +20,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader.ReadResult;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -29,6 +27,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader}.
+ * An input channel reads recovered state from previous unaligned checkpoint snapshots.
  */
 public abstract class RecoveredInputChannel extends InputChannel implements ChannelStateHolder {
 
@@ -88,38 +86,18 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		this.channelStateWriter = checkNotNull(channelStateWriter);
 	}
 
-	public abstract InputChannel toInputChannel() throws IOException;
+	public final InputChannel toInputChannel() throws IOException {
+		Preconditions.checkState(stateConsumedFuture.isDone(), "recovered state is not fully consumed");
+		return toInputChannelInternal();
+	}
+
+	protected abstract InputChannel toInputChannelInternal() throws IOException;
 
 	CompletableFuture<?> getStateConsumedFuture() {
 		return stateConsumedFuture;
 	}
 
-	protected void readRecoveredState(ChannelStateReader reader) throws IOException, InterruptedException {
-		ReadResult result = ReadResult.HAS_MORE_DATA;
-		while (result == ReadResult.HAS_MORE_DATA) {
-			Buffer buffer = bufferManager.requestBufferBlocking();
-			result = internalReaderRecoveredState(reader, buffer);
-		}
-		finishReadRecoveredState();
-	}
-
-	private ReadResult internalReaderRecoveredState(ChannelStateReader reader, Buffer buffer) throws IOException {
-		ReadResult result;
-		try {
-			result = reader.readInputData(channelInfo, buffer);
-		} catch (Throwable t) {
-			buffer.recycleBuffer();
-			throw t;
-		}
-		if (buffer.readableBytes() > 0) {
-			onRecoveredStateBuffer(buffer);
-		} else {
-			buffer.recycleBuffer();
-		}
-		return result;
-	}
-
-	private void onRecoveredStateBuffer(Buffer buffer) {
+	public void onRecoveredStateBuffer(Buffer buffer) {
 		boolean recycleBuffer = true;
 		try {
 			final boolean wasEmpty;
@@ -145,7 +123,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		}
 	}
 
-	private void finishReadRecoveredState() throws IOException {
+	public void finishReadRecoveredState() throws IOException {
 		onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE, false));
 		bufferManager.releaseFloatingBuffers();
 		LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
@@ -201,7 +179,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 	}
 
 	@Override
-	void requestSubpartition(int subpartitionIndex) {
+	final void requestSubpartition(int subpartitionIndex) {
 		throw new UnsupportedOperationException("RecoveredInputChannel should never request partition.");
 	}
 
@@ -242,10 +220,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 		}
 	}
 
-	void assignExclusiveSegments() throws IOException {
-		checkState(!exclusiveBuffersAssigned, "Exclusive buffers should be assigned only once.");
-
-		bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
-		exclusiveBuffersAssigned = true;
+	public Buffer requestBufferBlocking() throws InterruptedException, IOException {
+		// not in setup to avoid assigning buffers unnecessarily if there is no state
+		if (!exclusiveBuffersAssigned) {
+			bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
+			exclusiveBuffersAssigned = true;
+		}
+		return bufferManager.requestBufferBlocking();
 	}
 }

@@ -29,8 +29,8 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION
 
 /**
  * Partition commit trigger.
- * See {@link PartitionTimeCommitTigger}.
- * See {@link ProcTimeCommitTigger}.
+ * See {@link PartitionTimeCommitTrigger}.
+ * See {@link ProcTimeCommitTrigger}.
  */
 public interface PartitionCommitTrigger {
 
@@ -67,10 +67,10 @@ public interface PartitionCommitTrigger {
 		String trigger = conf.get(SINK_PARTITION_COMMIT_TRIGGER);
 		switch (trigger) {
 			case PARTITION_TIME:
-				return new PartitionTimeCommitTigger(
+				return new PartitionTimeCommitTrigger(
 						isRestored, stateStore, conf, cl, partitionKeys);
 			case PROCESS_TIME:
-				return new ProcTimeCommitTigger(
+				return new ProcTimeCommitTrigger(
 						isRestored, stateStore, conf, procTimeService);
 			default:
 				throw new UnsupportedOperationException(

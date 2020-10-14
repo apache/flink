@@ -29,12 +29,17 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 
+import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -43,6 +48,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEvent>, Closeable {
+	private static final Logger LOG = LoggerFactory.getLogger(CheckpointedInputGate.class);
+
 	private final CheckpointBarrierHandler barrierHandler;
 
 	/** The gate that the buffer draws its input from. */
@@ -97,8 +104,13 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
 	private void waitForPriorityEvents(InputGate inputGate, MailboxExecutor mailboxExecutor) {
 		final CompletableFuture<?> priorityEventAvailableFuture = inputGate.getPriorityEventAvailableFuture();
-		priorityEventAvailableFuture.thenRun(() ->
-			mailboxExecutor.execute(this::processPriorityEvents, "process priority event @ gate %s", inputGate));
+		assertNoException(priorityEventAvailableFuture.thenRun(() -> {
+			try {
+				mailboxExecutor.execute(this::processPriorityEvents, "process priority event @ gate %s", inputGate);
+			} catch (RejectedExecutionException ex) {
+				LOG.debug("Ignored RejectedExecutionException in CheckpointedInputGate.waitForPriorityEvents");
+			}
+		}));
 	}
 
 	@Override
@@ -119,6 +131,20 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
 		if (bufferOrEvent.isEvent()) {
 			handleEvent(bufferOrEvent);
+		}
+		else if (bufferOrEvent.isBuffer()) {
+			/**
+			 * https://issues.apache.org/jira/browse/FLINK-19537
+			 * This is not entirely true, as it's ignoring the buffer/bytes accumulated in the
+			 * record deserializers. If buffer is processed here, it doesn't mean it was fully
+			 * processed (so we can over estimate the amount of processed bytes). On the other hand
+			 * some records/bytes might be processed without polling anything from this
+			 * {@link CheckpointedInputGate} (underestimating the amount of processed bytes). All in all
+			 * this should have been calculated on the {@link StreamTaskNetworkInput} level, where we
+			 * have an access to the records deserializers. However the current is on average accurate
+			 * and it might be just good enough (at least for the time being).
+			 */
+			barrierHandler.addProcessedBytes(bufferOrEvent.getBuffer().getSize());
 		}
 		return next;
 	}

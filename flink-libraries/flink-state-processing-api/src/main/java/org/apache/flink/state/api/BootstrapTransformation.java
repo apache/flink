@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.StateBackend;
@@ -194,6 +195,7 @@ public class BootstrapTransformation<T> {
 		config.setOperatorName(operatorID.toHexString());
 		config.setOperatorID(operatorID);
 		config.setStateBackend(stateBackend);
+		config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
 		return config;
 	}
 
