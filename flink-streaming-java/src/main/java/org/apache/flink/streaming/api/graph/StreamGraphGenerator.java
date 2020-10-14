@@ -25,6 +25,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -33,6 +36,8 @@ import org.apache.flink.streaming.api.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
@@ -113,6 +118,8 @@ public class StreamGraphGenerator {
 
 	private final CheckpointConfig checkpointConfig;
 
+	private final ReadableConfig configuration;
+
 	private StateBackend stateBackend;
 
 	private boolean chaining = true;
@@ -146,6 +153,7 @@ public class StreamGraphGenerator {
 
 	// This is used to assign a unique ID to iteration source/sink
 	protected static Integer iterationIdCounter = 0;
+
 	public static int getNewIterationNodeId() {
 		iterationIdCounter--;
 		return iterationIdCounter;
@@ -161,9 +169,23 @@ public class StreamGraphGenerator {
 			final List<Transformation<?>> transformations,
 			final ExecutionConfig executionConfig,
 			final CheckpointConfig checkpointConfig) {
+		this(
+			transformations,
+			executionConfig,
+			checkpointConfig,
+			new Configuration()
+		);
+	}
+
+	public StreamGraphGenerator(
+			List<Transformation<?>> transformations,
+			ExecutionConfig executionConfig,
+			CheckpointConfig checkpointConfig,
+			ReadableConfig configuration) {
 		this.transformations = checkNotNull(transformations);
 		this.executionConfig = checkNotNull(executionConfig);
 		this.checkpointConfig = checkNotNull(checkpointConfig);
+		this.configuration = checkNotNull(configuration);
 	}
 
 	public StreamGraphGenerator setRuntimeExecutionMode(final RuntimeExecutionMode runtimeExecutionMode) {
@@ -228,7 +250,6 @@ public class StreamGraphGenerator {
 	private void configureStreamGraph(final StreamGraph graph) {
 		checkNotNull(graph);
 
-		graph.setStateBackend(stateBackend);
 		graph.setChaining(chaining);
 		graph.setUserArtifacts(userArtifacts);
 		graph.setTimeCharacteristic(timeCharacteristic);
@@ -239,10 +260,28 @@ public class StreamGraphGenerator {
 			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 			setDefaultBufferTimeout(-1);
+			setBatchStateBackendAndTimerService(graph);
 		} else {
+			graph.setStateBackend(stateBackend);
 			graph.setAllVerticesInSameSlotSharingGroupByDefault(true);
 			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.EAGER);
+		}
+	}
+
+	private void setBatchStateBackendAndTimerService(StreamGraph graph) {
+		boolean useStateBackend = configuration.get(ExecutionOptions.USE_BATCH_STATE_BACKEND);
+		boolean sortInputs = configuration.get(ExecutionOptions.SORT_INPUTS);
+		checkState(
+			!useStateBackend || sortInputs,
+			"Batch state backend requires the sorted inputs to be enabled!");
+
+		if (useStateBackend) {
+			LOG.debug("Using BATCH execution state backend and timer service.");
+			graph.setStateBackend(new BatchExecutionStateBackend());
+			graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
+		} else {
+			graph.setStateBackend(stateBackend);
 		}
 	}
 
@@ -691,7 +730,7 @@ public class StreamGraphGenerator {
 						.collect(Collectors.toList()));
 
 		final TransformationTranslator.Context context = new ContextImpl(
-				this, streamGraph, slotSharingGroup);
+				this, streamGraph, slotSharingGroup, configuration);
 
 		return shouldExecuteInBatchMode
 				? translator.translateForBatch(transform, context)
@@ -756,13 +795,17 @@ public class StreamGraphGenerator {
 
 		private final String slotSharingGroup;
 
+		private final ReadableConfig config;
+
 		public ContextImpl(
 				final StreamGraphGenerator streamGraphGenerator,
 				final StreamGraph streamGraph,
-				final String slotSharingGroup) {
+				final String slotSharingGroup,
+				final ReadableConfig config) {
 			this.streamGraphGenerator = checkNotNull(streamGraphGenerator);
 			this.streamGraph = checkNotNull(streamGraph);
 			this.slotSharingGroup = checkNotNull(slotSharingGroup);
+			this.config = checkNotNull(config);
 		}
 
 		@Override
@@ -786,6 +829,11 @@ public class StreamGraphGenerator {
 		@Override
 		public long getDefaultBufferTimeout() {
 			return streamGraphGenerator.defaultBufferTimeout;
+		}
+
+		@Override
+		public ReadableConfig getGraphGeneratorConfig() {
+			return config;
 		}
 	}
 }
