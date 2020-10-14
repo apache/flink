@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -30,6 +31,13 @@ import java.time.Duration;
  */
 @PublicEvolving
 public class ExecutionOptions {
+
+	public static final ConfigOption<RuntimeExecutionMode> RUNTIME_MODE =
+			ConfigOptions.key("execution.runtime-mode")
+					.enumType(RuntimeExecutionMode.class)
+					.defaultValue(RuntimeExecutionMode.STREAMING)
+					.withDescription("Runtime execution mode of DataStream programs. Among other things, " +
+							"this controls task scheduling, network shuffle behavior, and time semantics.");
 
 	/**
 	 * Should be moved to {@code ExecutionCheckpointingOptions} along with

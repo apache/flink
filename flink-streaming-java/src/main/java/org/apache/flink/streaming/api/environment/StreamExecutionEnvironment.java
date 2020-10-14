@@ -24,6 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -790,6 +791,9 @@ public class StreamExecutionEnvironment {
 				this.cacheFile.clear();
 				this.cacheFile.addAll(DistributedCache.parseCachedFilesFromString(f));
 			});
+		configuration.getOptional(ExecutionOptions.RUNTIME_MODE)
+			.ifPresent(runtimeMode ->
+				this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
 		configuration.getOptional(ExecutionOptions.SORT_INPUTS).ifPresent(
@@ -1921,7 +1925,16 @@ public class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
+
+		final RuntimeExecutionMode executionMode =
+				configuration.get(ExecutionOptions.RUNTIME_MODE);
+
+		return new StreamGraphGenerator(
+				transformations,
+				config,
+				checkpointCfg,
+				getConfiguration())
+			.setRuntimeExecutionMode(executionMode)
 			.setStateBackend(defaultStateBackend)
 			.setChaining(isChainingEnabled)
 			.setUserArtifacts(cacheFile)
