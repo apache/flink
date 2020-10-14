@@ -24,11 +24,12 @@ under the License.
 
 Flink 具有监控 API ，可用于查询正在运行的作业以及最近完成的作业的状态和统计信息。该监控 API 被用于 Flink 自己的仪表盘，同时也可用于自定义监控工具。
 
-该监控 API 是 REST-ful 风格的 API ，可以接受 HTTP 请求并返回 JSON 格式的数据。
+该监控 API 是 REST-ful 风格的，可以接受 HTTP 请求并返回 JSON 格式的数据。
 
 * This will be replaced by the TOC
 {:toc}
 
+<a name="overview"></a>
 
 ## 概览
 
@@ -36,6 +37,7 @@ Flink 具有监控 API ，可用于查询正在运行的作业以及最近完成
 
 在多个 Dispatcher 的情况下（为了高可用），每个 Dispatcher 将运行自己的监控 API 实例，当 Dispatcher 被选举成为集群 leader 时，该实例将提供已完成和正在运行作业的相关信息。
 
+<a name="developing"></a>
 
 ## 拓展
 
@@ -45,11 +47,12 @@ Flink 具有监控 API ，可用于查询正在运行的作业以及最近完成
 
 添加新的请求，需要
 * 添加一个新的 `MessageHeaders` 类，作为新请求的接口，
-* 添加一个新的 `AbstractRestHandler` 类，该类根据添加的 `MessageHeaders` 类处理请求，
+* 添加一个新的 `AbstractRestHandler` 类，该类接收并处理 `MessageHeaders` 类的请求，
 * 将处理程序添加到 `org.apache.flink.runtime.webmonitor.WebMonitorEndpoint#initializeHandlers()` 中。
 
 一个很好的例子是使用 `org.apache.flink.runtime.rest.messages.JobExceptionsHeaders` 的 `org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler` 。
 
+<a name="api"></a>
 
 ## API
 
