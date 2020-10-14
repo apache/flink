@@ -32,7 +32,7 @@ This page describes how to use connectors in PyFlink and highlights the details 
 
 ## Download connector and format jars
 
-Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/dev/python/user-guide/table/dependency_management.html).
+Since Flink is a Java/Scala-based project, for both connectors and formats, implementations are available as jars that need to be specified as job [dependencies]({{ site.baseurl }}/dev/python/table-api-users-guide/dependency_management.html).
 
 {% highlight python %}
 
