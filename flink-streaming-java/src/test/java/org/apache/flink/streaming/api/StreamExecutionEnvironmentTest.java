@@ -135,6 +135,18 @@ public class StreamExecutionEnvironmentTest {
 		assertTrue(getFunctionFromDataSource(src4) instanceof FromElementsFunction);
 	}
 
+	/**
+	 * Verifies that the API method doesn't throw and creates a source of the expected type.
+	 */
+	@Test
+	public void testFromSequence() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Long> src = env.fromSequence(0, 2);
+
+		assertEquals(BasicTypeInfo.LONG_TYPE_INFO, src.getType());
+	}
+
 	@Test
 	public void testParallelismBounds() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
