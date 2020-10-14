@@ -178,7 +178,7 @@ cdef class BeamTableFunctionOperation(BeamStatelessFunctionOperation):
         :return: the generated lambda function
         """
         table_function, variable_dict, user_defined_funcs = \
-            operation_utils.extract_user_defined_function(serialized_fn.udtfs[0])
+            operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
         generate_func = eval('lambda value: %s' % table_function, variable_dict)
         return generate_func, user_defined_funcs
 
