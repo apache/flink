@@ -210,19 +210,35 @@ public class HiveTableSource implements
 								" cannot be less than 1");
 			}
 
-			int splitNum;
 			try {
-				long nano1 = System.nanoTime();
-				splitNum = inputFormat.createInputSplits(0).length;
-				long nano2 = System.nanoTime();
+				// `createInputSplits` is costly,
+				// so we try to avoid calling it by first checking the number of files
+				// which is the lower bound of the number of splits
+				long startTimeMillis = System.currentTimeMillis();
+				int lowerBound = inputFormat.getNumFiles();
 				LOG.info(
-						"Hive source({}}) createInputSplits use time: {} ms",
+					"Hive source({}}) getNumFiles use time: {} ms, number of files: {}",
+					tablePath,
+					System.currentTimeMillis() - startTimeMillis,
+					lowerBound);
+
+				if (lowerBound >= max) {
+					parallelism = max;
+				} else {
+					int splitNum;
+					startTimeMillis = System.currentTimeMillis();
+					splitNum = inputFormat.createInputSplits(0).length;
+					LOG.info(
+						"Hive source({}}) createInputSplits use time: {} ms, number of split: {}",
 						tablePath,
-						(nano2 - nano1) / 1_000_000);
+							System.currentTimeMillis() - startTimeMillis,
+						splitNum);
+
+					parallelism = Math.min(splitNum, max);
+				}
 			} catch (IOException e) {
 				throw new FlinkHiveException(e);
 			}
-			parallelism = Math.min(splitNum, max);
 		}
 		parallelism = limit > 0 ? Math.min(parallelism, (int) limit / 1000) : parallelism;
 		parallelism = Math.max(1, parallelism);

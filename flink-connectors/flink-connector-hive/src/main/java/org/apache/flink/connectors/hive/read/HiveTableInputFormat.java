@@ -329,6 +329,24 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
 
+	public int getNumFiles() throws IOException {
+		int numFiles = 0;
+		FileSystem fs = null;
+		for (HiveTablePartition partition : partitions) {
+			StorageDescriptor sd = partition.getStorageDescriptor();
+			Path inputPath = new Path(sd.getLocation());
+			if (fs == null) {
+				fs = inputPath.getFileSystem(jobConf);
+			}
+			// it's possible a partition exists in metastore but the data has been removed
+			if (!fs.exists(inputPath)) {
+				continue;
+			}
+			numFiles += fs.listStatus(inputPath).length;
+		}
+		return numFiles;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
