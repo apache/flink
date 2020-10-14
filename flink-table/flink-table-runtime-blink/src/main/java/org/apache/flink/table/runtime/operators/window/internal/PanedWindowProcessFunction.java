@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.window.internal;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.PanedWindowAssigner;
 
@@ -32,18 +31,18 @@ import java.util.List;
  * The implementation of {@link InternalWindowProcessFunction} for {@link PanedWindowAssigner}.
  * @param <W> The type of {@code Window} that assigner assigns.
  */
-public class PanedWindowProcessFunction<K, W extends Window>
-	extends InternalWindowProcessFunction<K, W> {
+public abstract class PanedWindowProcessFunction<K, W extends Window>
+		extends AbstractWindowProcessFunction<K, W>
+		implements WindowCleanAware<W> {
 
 	private static final long serialVersionUID = 4259335376102569987L;
 
-	private final PanedWindowAssigner<W> windowAssigner;
+	protected final PanedWindowAssigner<W> windowAssigner;
 
 	public PanedWindowProcessFunction(
 			PanedWindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunctionBase<W> windowAggregator,
 			long allowedLateness) {
-		super(windowAssigner, windowAggregator, allowedLateness);
+		super(windowAssigner, allowedLateness);
 		this.windowAssigner = windowAssigner;
 	}
 
@@ -70,20 +69,6 @@ public class PanedWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
-		Iterable<W> panes = windowAssigner.splitIntoPanes(window);
-		RowData acc = windowAggregator.createAccumulators();
-		// null namespace means use heap data views
-		windowAggregator.setAccumulators(null, acc);
-		for (W pane : panes) {
-			RowData paneAcc = ctx.getWindowAccumulators(pane);
-			if (paneAcc != null) {
-				windowAggregator.merge(pane, paneAcc);
-			}
-		}
-	}
-
-	@Override
 	public void cleanWindowIfNeeded(W window, long currentTime) throws Exception {
 		if (isCleanupTime(window, currentTime)) {
 			Iterable<W> panes = windowAssigner.splitIntoPanes(window);
@@ -94,7 +79,7 @@ public class PanedWindowProcessFunction<K, W extends Window>
 				}
 			}
 			ctx.clearTrigger(window);
-			ctx.clearPreviousState(window);
+			onWindowCleaning(window);
 		}
 	}
 

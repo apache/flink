@@ -33,7 +33,6 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.ElementTriggers;
@@ -56,7 +55,6 @@ import org.junit.runners.Parameterized;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -1003,7 +1001,7 @@ public class WindowOperatorTest {
 		WindowOperator operator = WindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
-				.assigner(new PointSessionWindowAssigner(3000))
+				.assigner(WindowTestUtils.PointSessionWindowAssigner.of(3000, 1, 33))
 				.withEventTime(2)
 				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
@@ -1328,42 +1326,6 @@ public class WindowOperatorTest {
 	}
 
 	// --------------------------------------------------------------------------------
-
-	private static class PointSessionWindowAssigner extends SessionWindowAssigner {
-		private static final long serialVersionUID = 1L;
-
-		private final long sessionTimeout;
-
-		private PointSessionWindowAssigner(long sessionTimeout) {
-			super(sessionTimeout, true);
-			this.sessionTimeout = sessionTimeout;
-		}
-
-		private PointSessionWindowAssigner(long sessionTimeout, boolean isEventTime) {
-			super(sessionTimeout, isEventTime);
-			this.sessionTimeout = sessionTimeout;
-		}
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
-			int second = element.getInt(1);
-			if (second == 33) {
-				return Collections.singletonList(new TimeWindow(timestamp, timestamp));
-			}
-			return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
-		}
-
-		@Override
-		public SessionWindowAssigner withEventTime() {
-			return new PointSessionWindowAssigner(sessionTimeout, true);
-		}
-
-		@Override
-		public SessionWindowAssigner withProcessingTime() {
-			return new PointSessionWindowAssigner(sessionTimeout, false);
-		}
-	}
 
 	// sum, count, window_start, window_end
 	private static class SumAndCountAggTimeWindow

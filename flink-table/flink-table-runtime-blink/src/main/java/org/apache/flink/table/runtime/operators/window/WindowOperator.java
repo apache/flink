@@ -47,10 +47,10 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.PanedWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
-import org.apache.flink.table.runtime.operators.window.internal.GeneralWindowProcessFunction;
-import org.apache.flink.table.runtime.operators.window.internal.InternalWindowProcessFunction;
-import org.apache.flink.table.runtime.operators.window.internal.MergingWindowProcessFunction;
-import org.apache.flink.table.runtime.operators.window.internal.PanedWindowProcessFunction;
+import org.apache.flink.table.runtime.operators.window.internal.AggregateGeneralWindowProcessFunction;
+import org.apache.flink.table.runtime.operators.window.internal.AggregateMergingWindowProcessFunction;
+import org.apache.flink.table.runtime.operators.window.internal.AggregatePanedWindowProcessFunction;
+import org.apache.flink.table.runtime.operators.window.internal.WindowAggregateProcessFunction;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -144,7 +144,7 @@ public abstract class WindowOperator<K, W extends Window>
 
 	// --------------------------------------------------------------------------------
 
-	protected transient InternalWindowProcessFunction<K, W> windowFunction;
+	protected transient WindowAggregateProcessFunction<K, W> windowFunction;
 
 	/** This is used for emitting elements with a given timestamp. */
 	protected transient TimestampedCollector<RowData> collector;
@@ -266,18 +266,18 @@ public abstract class WindowOperator<K, W extends Window>
 			getRuntimeContext()));
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
-			this.windowFunction = new MergingWindowProcessFunction<>(
+			this.windowFunction = new AggregateMergingWindowProcessFunction<>(
 					(MergingWindowAssigner<W>) windowAssigner,
 					windowAggregator,
 					windowSerializer,
 					allowedLateness);
 		} else if (windowAssigner instanceof PanedWindowAssigner) {
-			this.windowFunction = new PanedWindowProcessFunction<>(
+			this.windowFunction = new AggregatePanedWindowProcessFunction<>(
 					(PanedWindowAssigner<W>) windowAssigner,
 					windowAggregator,
 					allowedLateness);
 		} else {
-			this.windowFunction = new GeneralWindowProcessFunction<>(
+			this.windowFunction = new AggregateGeneralWindowProcessFunction<>(
 					windowAssigner,
 					windowAggregator,
 					allowedLateness);
@@ -456,7 +456,7 @@ public abstract class WindowOperator<K, W extends Window>
 	/**
 	 * Context of window.
 	 */
-	private class WindowContext implements InternalWindowProcessFunction.Context<K, W> {
+	private class WindowContext implements WindowAggregateProcessFunction.Context<K, W> {
 
 		@Override
 		public <S extends State> S getPartitionedState(

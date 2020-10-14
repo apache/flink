@@ -124,7 +124,11 @@ public abstract class AbstractStreamingJoinOperator extends AbstractStreamOperat
 	// Utility Classes
 	// ----------------------------------------------------------------------------------------
 
-	private class JoinConditionWithNullFilters extends AbstractRichFunction implements JoinCondition {
+	/**
+	 * Code generated condition function for [[org.apache.calcite.rel.core.Join]]
+	 * that can handle nulls.
+	 */
+	protected class JoinConditionWithNullFilters extends AbstractRichFunction implements JoinCondition {
 
 		final JoinCondition backingJoinCondition;
 
