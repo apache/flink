@@ -244,7 +244,8 @@ under the License.
 					 directory, then it download the directory and run the corresponding tests. However, the protoc
 					 executable under the target directory would lost the execution permission bit after downloading.
 					 To solve this issue we would skip generating the target files if they already exist after
-					 downloading. -->
+					 downloading. Meanwhile, since the time might be not consistent between the pre-compile and
+					 the actual execution, we need to adjust the timestamp manually, see unpack_build_artifact.sh-->
 					<checkStaleness>true</checkStaleness>
 					<protoTestSourceRoot>${project.basedir}/src/test/resources/protobuf</protoTestSourceRoot>
 					<!-- Generates classes into a separate directory since the generator always removes existing files. -->
