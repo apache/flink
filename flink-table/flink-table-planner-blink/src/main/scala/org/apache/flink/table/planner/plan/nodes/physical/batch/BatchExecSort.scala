@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
@@ -27,7 +28,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortOperator
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -95,6 +96,9 @@ class BatchExecSort(
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] =
+    List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.END_INPUT, 0))
 
   override def replaceInputNode(
       ordinalInParent: Int,

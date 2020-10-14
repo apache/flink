@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
@@ -241,6 +241,9 @@ class BatchExecRank(
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] =
+    List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
 
   override def replaceInputNode(
       ordinalInParent: Int,

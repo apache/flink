@@ -30,10 +30,10 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
-import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, BinaryRowDataSerializer}
+import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
@@ -179,6 +179,27 @@ class BatchExecHashJoin(
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] = {
+    val (buildRequiredShuffle, probeRequiredShuffle) = if (isBroadcast) {
+      (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
+    } else {
+      (ExecEdge.RequiredShuffle.hash(buildKeys), ExecEdge.RequiredShuffle.hash(probeKeys))
+    }
+    val probeEdgeBehavior = if (hashJoinType.buildLeftSemiOrAnti()) {
+      ExecEdge.EdgeBehavior.END_INPUT
+    } else {
+      ExecEdge.EdgeBehavior.PIPELINED
+    }
+    val buildEdge = new ExecEdge(buildRequiredShuffle, ExecEdge.EdgeBehavior.BLOCKING, 0)
+    val probeEdge = new ExecEdge(probeRequiredShuffle, probeEdgeBehavior, 1)
+
+    if (leftIsBuild) {
+      List(buildEdge, probeEdge)
+    } else {
+      List(probeEdge, buildEdge)
+    }
+  }
 
   override def replaceInputNode(
       ordinalInParent: Int,

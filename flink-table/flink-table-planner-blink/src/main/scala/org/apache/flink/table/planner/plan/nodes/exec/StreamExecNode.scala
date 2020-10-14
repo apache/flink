@@ -21,7 +21,18 @@ package org.apache.flink.table.planner.plan.nodes.exec
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.utils.Logging
 
+import java.util
+
 /**
   * Base class for stream ExecNode.
   */
-trait StreamExecNode[T] extends ExecNode[StreamPlanner, T] with Logging
+trait StreamExecNode[T] extends ExecNode[StreamPlanner, T] with Logging {
+
+  def getInputEdges: util.List[ExecEdge] = {
+    val edges = new util.ArrayList[ExecEdge]()
+    for (_ <- 0 until getInputNodes.size()) {
+      edges.add(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+    }
+    edges
+  }
+}

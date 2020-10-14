@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
@@ -31,7 +30,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
@@ -82,6 +81,8 @@ class BatchExecLegacyTableSourceScan(
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
+
+  override def getInputEdges: util.List[ExecEdge] = List()
 
   override def replaceInputNode(
       ordinalInParent: Int,

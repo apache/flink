@@ -69,12 +69,20 @@ trait ExecNode[E <: Planner, T] {
   protected def translateToPlanInternal(planner: E): Transformation[T]
 
   /**
-    * Returns an array of this node's inputs. If there are no inputs,
+    * Returns a list of this node's input nodes. If there are no inputs,
     * returns an empty list, not null.
     *
-    * @return Array of this node's inputs
+    * @return List of this node's input nodes
     */
   def getInputNodes: util.List[ExecNode[E, _]]
+
+  /**
+   * Returns a list of this node's input edges. If there are no inputs,
+   * returns an empty list, not null.
+   *
+   * @return List of this node's input edges
+   */
+  def getInputEdges: util.List[ExecEdge]
 
   /**
     * Replaces the <code>ordinalInParent</code><sup>th</sup> input.

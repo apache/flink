@@ -27,7 +27,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalSink
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -64,9 +64,13 @@ class BatchExecSink(
     */
   override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-  }
+
+  // the input records will not trigger any output of a sink because it has no output,
+  // so it's EdgeBehavior is BLOCKING
+  override def getInputEdges: util.List[ExecEdge] =
+    List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.BLOCKING, 0))
 
   override def replaceInputNode(
       ordinalInParent: Int,

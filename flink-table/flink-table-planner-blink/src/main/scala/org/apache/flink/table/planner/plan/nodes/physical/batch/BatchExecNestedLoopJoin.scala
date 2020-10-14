@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -26,15 +27,14 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, BinaryRowDataSerializer}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -120,6 +120,23 @@ class BatchExecNestedLoopJoin(
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] = {
+    // this is in sync with BatchExecNestedLoopJoinRuleBase#createNestedLoopJoin
+    val (buildRequiredShuffle, probeRequiredShuffle) = if (joinType == JoinRelType.FULL) {
+      (ExecEdge.RequiredShuffle.singleton(), ExecEdge.RequiredShuffle.singleton())
+    } else {
+      (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
+    }
+    val buildEdge = new ExecEdge(buildRequiredShuffle, ExecEdge.EdgeBehavior.BLOCKING, 0)
+    val probeEdge = new ExecEdge(probeRequiredShuffle, ExecEdge.EdgeBehavior.PIPELINED, 1)
+
+    if (leftIsBuild) {
+      List(buildEdge, probeEdge)
+    } else {
+      List(probeEdge, buildEdge)
+    }
+  }
 
   override def replaceInputNode(
       ordinalInParent: Int,
