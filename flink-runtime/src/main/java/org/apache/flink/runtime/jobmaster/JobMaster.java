@@ -337,17 +337,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	public CompletableFuture<Void> onStop() {
 		log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
 
-		// disconnect from all registered TaskExecutors
-		final Set<ResourceID> taskManagerResourceIds = new HashSet<>(registeredTaskManagers.keySet());
-		final FlinkException cause = new FlinkException("Stopping JobMaster for job " + jobGraph.getName() +
-			'(' + jobGraph.getJobID() + ").");
-
-		for (ResourceID taskManagerResourceId : taskManagerResourceIds) {
-			disconnectTaskManager(taskManagerResourceId, cause);
-		}
-
 		// make sure there is a graceful exit
-		suspendExecution(new FlinkException("JobManager is shutting down."));
+		suspendExecution(new FlinkException("Stopping JobMaster for job " + jobGraph.getName() +
+			'(' + jobGraph.getJobID() + ")."));
 
 		// shut down will internally release all registered slots
 		slotPool.close();
@@ -775,6 +767,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		suspendAndClearSchedulerFields(cause);
+
+		// disconnect from all registered TaskExecutors
+		final Set<ResourceID> taskManagerResourceIds = new HashSet<>(registeredTaskManagers.keySet());
+
+		for (ResourceID taskManagerResourceId : taskManagerResourceIds) {
+			disconnectTaskManager(taskManagerResourceId, cause);
+		}
 
 		// the slot pool stops receiving messages and clears its pooled slots
 		slotPool.suspend();

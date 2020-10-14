@@ -62,6 +62,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -141,6 +142,7 @@ import akka.actor.ActorSystem;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -275,6 +277,66 @@ public class JobMasterTest extends TestLogger {
 			rpcService.stopService();
 			rpcService = null;
 		}
+	}
+
+	/**
+	 * This test ensures that the bookkeeping of TaskExecutors in the JobMaster handles cases where TaskExecutors with the same
+	 * ID re-register properly. FLINK-19237 was a bug where the TaskExecutors and the SlotPool got out of sync, and
+	 * slot offers were rejected.
+	 */
+	@Test
+	public void testAcceptSlotOfferAfterLeaderChange() throws Exception {
+
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+		final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(
+			configuration,
+			RestartStrategyFactory.createRestartStrategyFactory(configuration));
+
+		final JobMaster testingJobMaster = new JobMaster(
+			rpcService,
+			jobMasterConfiguration,
+			jmResourceId,
+			jobGraph,
+			haServices,
+			DefaultSlotPoolFactory.fromConfiguration(configuration),
+			DefaultSchedulerFactory.fromConfiguration(configuration),
+			jobManagerSharedServices,
+			heartbeatServices,
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+			new JobMasterBuilder.TestingOnCompletionActions(),
+			testingFatalErrorHandler,
+			JobMasterTest.class.getClassLoader(),
+			schedulerNGFactory,
+			NettyShuffleMaster.INSTANCE,
+			NoOpJobMasterPartitionTracker.FACTORY);
+
+		testingJobMaster.start(jobMasterId).get();
+
+		JobMasterGateway jobMasterGateway = testingJobMaster.getSelfGateway(JobMasterGateway.class);
+
+		log.info("Register TaskManager");
+
+		String testingTaskManagerAddress = "fake";
+		TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		rpcService.registerGateway(testingTaskManagerAddress, testingTaskExecutorGateway);
+		Assert.assertThat(jobMasterGateway.registerTaskManager(testingTaskManagerAddress, taskManagerLocation, testingTimeout).get(), instanceOf(RegistrationResponse.Success.class));
+
+		log.info("Revoke leadership & re-grant leadership");
+		testingJobMaster.suspend(new FlinkException("Lost leadership")).get();
+
+		testingJobMaster.start(JobMasterId.generate()).get();
+
+		log.info("re-register same TaskManager");
+		Assert.assertThat(jobMasterGateway.registerTaskManager(testingTaskManagerAddress, taskManagerLocation, testingTimeout).get(), instanceOf(RegistrationResponse.Success.class));
+
+		log.info("Ensure JobMaster accepts slot offer");
+		final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
+
+		Collection<SlotOffer> acceptedSlots = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
+		Assert.assertThat(acceptedSlots.size(), is(1));
 	}
 
 	@Test
