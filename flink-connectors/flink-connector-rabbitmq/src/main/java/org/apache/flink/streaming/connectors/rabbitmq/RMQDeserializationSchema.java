@@ -32,7 +32,7 @@ import java.util.List;
  * Interface for the set of methods required to parse an RMQ delivery.
  * @param <T> The output type of the {@link RMQSource}
  */
-public abstract class RMQDeserializationSchema<T> implements  Serializable, ResultTypeQueryable<T> {
+interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Initialization method for the schema. It is called before the actual working methods
@@ -44,9 +44,7 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 *
 	 * @param context Contextual information that can be used during initialization.
 	 */
-	void open(DeserializationSchema.InitializationContext context) throws Exception {
-
-	}
+	default void open(DeserializationSchema.InitializationContext context) throws Exception { }
 
 	/**
 	 * This method takes all the RabbitMQ delivery information supplied by the client extract the data and pass it to
@@ -62,7 +60,7 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 * @param collector the {@link RMQCollector} that will collect the data.
 	 * @throws IOException When the body of the message can't be parsed
 	 */
-	abstract void deserialize(Envelope envelope,
+	void deserialize(Envelope envelope,
 								AMQP.BasicProperties properties,
 								byte[] body,
 								RMQCollector<T> collector) throws IOException;
@@ -74,7 +72,7 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 * @param nextElement The element to test for the end-of-stream signal.
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
-	abstract boolean isEndOfStream(T nextElement);
+	boolean isEndOfStream(T nextElement);
 
 	/**
 	 * Special collector for RMQ messages.
@@ -82,7 +80,7 @@ public abstract class RMQDeserializationSchema<T> implements  Serializable, Resu
 	 * <p>It extends the {@link Collector} to give the ability to collect more than 1 message and the ability to set
 	 * the message correlationId and deliveryTag.
 	 */
-	public interface RMQCollector<T> extends Collector<T> {
+	interface RMQCollector<T> extends Collector<T> {
 		void collect(List<T> records);
 
 		void setMessageIdentifiers(String correlationId, long deliveryTag);

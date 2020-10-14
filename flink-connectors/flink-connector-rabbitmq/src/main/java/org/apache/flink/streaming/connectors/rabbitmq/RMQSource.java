@@ -412,7 +412,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	 * A default {@link RMQDeserializationSchema} implementation that uses the provided {@link DeserializationSchema} to
 	 * parse the message body.
 	 */
-	private static class RMQDeserializationSchemaWrapper<OUT> extends RMQDeserializationSchema<OUT>{
+	private static class RMQDeserializationSchemaWrapper<OUT> implements RMQDeserializationSchema<OUT>{
 		DeserializationSchema<OUT> schema;
 
 		private RMQDeserializationSchemaWrapper(DeserializationSchema<OUT> deserializationSchema) {

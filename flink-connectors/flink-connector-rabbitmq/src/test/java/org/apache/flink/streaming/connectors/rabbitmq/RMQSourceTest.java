@@ -490,7 +490,7 @@ public class RMQSourceTest {
 		}
 	}
 
-	private class CustomDeserializationSchema extends RMQDeserializationSchema<String> {
+	private class CustomDeserializationSchema implements RMQDeserializationSchema<String> {
 		@Override
 		public TypeInformation<String> getProducedType() {
 			return TypeExtractor.getForClass(String.class);
