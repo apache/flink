@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.OperatingSystem;
 
 import org.slf4j.Logger;
@@ -424,7 +425,11 @@ public class EnvironmentInformation {
 			else {
 				log.info(" Program Arguments:");
 				for (String s: commandLineArgs) {
-					log.info("    " + s);
+					if (GlobalConfiguration.isSensitive(s)) {
+						log.info("    " + GlobalConfiguration.HIDDEN_CONTENT + " (sensitive information)");
+					} else {
+						log.info("    " + s);
+					}
 				}
 			}
 
