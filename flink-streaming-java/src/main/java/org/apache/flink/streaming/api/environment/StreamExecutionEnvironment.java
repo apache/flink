@@ -792,6 +792,12 @@ public class StreamExecutionEnvironment {
 			});
 		config.configure(configuration, classLoader);
 		checkpointCfg.configure(configuration);
+		configuration.getOptional(ExecutionOptions.SORT_INPUTS).ifPresent(
+			sortInputs -> this.getConfiguration().set(ExecutionOptions.SORT_INPUTS, sortInputs)
+		);
+		configuration.getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND).ifPresent(
+			sortInputs -> this.getConfiguration().set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs)
+		);
 	}
 
 	private void registerCustomListeners(final ClassLoader classLoader, final List<String> listeners) {
@@ -1915,7 +1921,7 @@ public class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
-		return new StreamGraphGenerator(transformations, config, checkpointCfg)
+		return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
 			.setStateBackend(defaultStateBackend)
 			.setChaining(isChainingEnabled)
 			.setUserArtifacts(cacheFile)

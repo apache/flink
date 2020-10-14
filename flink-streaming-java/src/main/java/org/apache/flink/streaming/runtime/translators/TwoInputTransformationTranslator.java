@@ -46,7 +46,13 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
 	protected Collection<Integer> translateForBatchInternal(
 			final TwoInputTransformation<IN1, IN2, OUT> transformation,
 			final Context context) {
-		return translateInternal(transformation, context);
+		Collection<Integer> ids = translateInternal(transformation, context);
+		boolean isKeyed =
+			transformation.getStateKeySelector1() != null && transformation.getStateKeySelector2() != null;
+		if (isKeyed) {
+			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+		}
+		return ids;
 	}
 
 	@Override
