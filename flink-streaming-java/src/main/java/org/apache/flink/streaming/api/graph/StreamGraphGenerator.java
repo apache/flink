@@ -56,6 +56,7 @@ import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTr
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,6 +153,7 @@ public class StreamGraphGenerator {
 		tmp.put(SourceTransformation.class, new SourceTransformationTranslator<>());
 		tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
 		tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
+		tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -368,9 +370,7 @@ public class StreamGraphGenerator {
 
 	private Collection<Integer> legacyTransform(Transformation<?> transform) {
 		Collection<Integer> transformedIds;
-		if (transform instanceof UnionTransformation<?>) {
-			transformedIds = transformUnion((UnionTransformation<?>) transform);
-		} else if (transform instanceof FeedbackTransformation<?>) {
+		if (transform instanceof FeedbackTransformation<?>) {
 			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
 		} else if (transform instanceof CoFeedbackTransformation<?>) {
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
@@ -414,23 +414,6 @@ public class StreamGraphGenerator {
 			transform.getManagedMemorySlotScopeUseCases());
 
 		return transformedIds;
-	}
-
-	/**
-	 * Transforms a {@code UnionTransformation}.
-	 *
-	 * <p>This is easy, we only have to transform the inputs and return all the IDs in a list so
-	 * that downstream operations can connect to all upstream nodes.
-	 */
-	private <T> Collection<Integer> transformUnion(UnionTransformation<T> union) {
-		List<Transformation<?>> inputs = union.getInputs();
-		List<Integer> resultIds = new ArrayList<>();
-
-		for (Transformation<?> input: inputs) {
-			resultIds.addAll(transform(input));
-		}
-
-		return resultIds;
 	}
 
 	/**
