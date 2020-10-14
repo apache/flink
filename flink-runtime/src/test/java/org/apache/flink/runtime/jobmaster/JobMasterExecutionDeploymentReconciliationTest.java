@@ -31,7 +31,6 @@ import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.resourcemanager.AllocationIdsExposingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
@@ -98,13 +97,11 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 		JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 		RPC_SERVICE_RESOURCE.getTestingRpcService().registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-		final AllocationIdsExposingResourceManagerGateway resourceManagerGateway = createResourceManagerGateway();
-
 		final CompletableFuture<ExecutionAttemptID> taskCancellationFuture = new CompletableFuture<>();
 		TaskExecutorGateway taskExecutorGateway = createTaskExecutorGateway(taskCancellationFuture);
 		LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
 
-		registerTaskExecutorAndOfferSlots(resourceManagerGateway, jobMasterGateway, taskExecutorGateway, localUnresolvedTaskManagerLocation);
+		registerTaskExecutorAndOfferSlots(jobMasterGateway, taskExecutorGateway, localUnresolvedTaskManagerLocation);
 
 		taskDeploymentFuture.get();
 		assertFalse(taskCancellationFuture.isDone());
@@ -134,14 +131,12 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 		JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 		RPC_SERVICE_RESOURCE.getTestingRpcService().registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
 
-		final AllocationIdsExposingResourceManagerGateway resourceManagerGateway = createResourceManagerGateway();
-
 		final CompletableFuture<ExecutionAttemptID> taskCancellationFuture = new CompletableFuture<>();
 		final CompletableFuture<Acknowledge> taskSubmissionAcknowledgeFuture = new CompletableFuture<>();
 		TaskExecutorGateway taskExecutorGateway = createTaskExecutorGateway(taskCancellationFuture, taskSubmissionFuture, taskSubmissionAcknowledgeFuture);
 		LocalUnresolvedTaskManagerLocation localUnresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
 
-		registerTaskExecutorAndOfferSlots(resourceManagerGateway, jobMasterGateway, taskExecutorGateway, localUnresolvedTaskManagerLocation);
+		registerTaskExecutorAndOfferSlots(jobMasterGateway, taskExecutorGateway, localUnresolvedTaskManagerLocation);
 
 		ExecutionAttemptID pendingExecutionId = taskSubmissionFuture.get();
 
@@ -183,13 +178,6 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 		return jobMaster;
 	}
 
-	private AllocationIdsExposingResourceManagerGateway createResourceManagerGateway() {
-		AllocationIdsExposingResourceManagerGateway resourceManagerGateway = new AllocationIdsExposingResourceManagerGateway();
-		RPC_SERVICE_RESOURCE.getTestingRpcService().registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-		resourceManagerLeaderRetriever.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
-		return resourceManagerGateway;
-	}
-
 	private TaskExecutorGateway createTaskExecutorGateway(CompletableFuture<ExecutionAttemptID> taskCancellationFuture) {
 		return createTaskExecutorGateway(taskCancellationFuture, new CompletableFuture<>(), CompletableFuture.completedFuture(Acknowledge.get()));
 	}
@@ -213,14 +201,12 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
 	}
 
 	private void registerTaskExecutorAndOfferSlots(
-			AllocationIdsExposingResourceManagerGateway resourceManagerGateway,
 			JobMasterGateway jobMasterGateway,
 			TaskExecutorGateway taskExecutorGateway,
 			UnresolvedTaskManagerLocation taskManagerLocation) throws ExecutionException, InterruptedException {
 		jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
 
-		final AllocationID allocationId = resourceManagerGateway.takeAllocationId();
-		Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN));
+		Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN));
 
 		jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), slotOffers, testingTimeout).get();
 	}

@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.resourcemanager.AllocationIdsExposingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -178,10 +177,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
-			SettableLeaderRetrievalService rmLeaderRetrievalService = new SettableLeaderRetrievalService(
-				null,
-				null);
-			haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+			haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService(null, null));
 
 			final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
 
@@ -208,27 +204,20 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 			registerTaskExecutorAtJobMaster(
 				rpcService,
 				getJobMasterGateway(),
-				taskExecutorGateway,
-				rmLeaderRetrievalService
+				taskExecutorGateway
 			);
 		}
 
 		private void registerTaskExecutorAtJobMaster(
 				TestingRpcService rpcService,
 				JobMasterGateway jobMasterGateway,
-				TaskExecutorGateway taskExecutorGateway,
-				SettableLeaderRetrievalService rmLeaderRetrievalService) throws ExecutionException, InterruptedException {
-
-			final AllocationIdsExposingResourceManagerGateway resourceManagerGateway = new AllocationIdsExposingResourceManagerGateway();
-			rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-			rmLeaderRetrievalService.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+				TaskExecutorGateway taskExecutorGateway) throws ExecutionException, InterruptedException {
 
 			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
 			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), localTaskManagerUnresolvedLocation, testingTimeout).get();
 
-			final AllocationID allocationId = resourceManagerGateway.takeAllocationId();
-			Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN));
+			Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN));
 
 			jobMasterGateway.offerSlots(localTaskManagerUnresolvedLocation.getResourceID(), slotOffers, testingTimeout).get();
 		}
