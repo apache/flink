@@ -508,9 +508,4 @@ public class PipelinedSubpartition extends ResultSubpartition
 	public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
 		return parent.getBufferPool().requestBufferBuilderBlocking();
 	}
-
-	@Override
-	public void addBufferConsumer(BufferConsumer bufferConsumer) {
-		add(bufferConsumer);
-	}
 }
