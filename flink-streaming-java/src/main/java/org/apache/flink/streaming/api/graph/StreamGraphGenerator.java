@@ -34,7 +34,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
@@ -52,6 +51,7 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.LegacySourceTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
@@ -151,6 +151,7 @@ public class StreamGraphGenerator {
 		tmp.put(KeyedMultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
 		tmp.put(SourceTransformation.class, new SourceTransformationTranslator<>());
 		tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
+		tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -367,9 +368,7 @@ public class StreamGraphGenerator {
 
 	private Collection<Integer> legacyTransform(Transformation<?> transform) {
 		Collection<Integer> transformedIds;
-		if (transform instanceof LegacySourceTransformation<?>) {
-			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
-		} else if (transform instanceof UnionTransformation<?>) {
+		if (transform instanceof UnionTransformation<?>) {
 			transformedIds = transformUnion((UnionTransformation<?>) transform);
 		} else if (transform instanceof FeedbackTransformation<?>) {
 			transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
@@ -632,30 +631,6 @@ public class StreamGraphGenerator {
 		itSource.setSlotSharingGroup(slotSharingGroup);
 
 		return Collections.singleton(itSource.getId());
-	}
-
-	/**
-	 * Transforms a {@code LegacySourceTransformation}.
-	 */
-	private <T> Collection<Integer> transformLegacySource(LegacySourceTransformation<T> source) {
-		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), Collections.emptyList());
-
-		streamGraph.addLegacySource(source.getId(),
-				slotSharingGroup,
-				source.getCoLocationGroupKey(),
-				source.getOperatorFactory(),
-				null,
-				source.getOutputType(),
-				"Source: " + source.getName());
-		if (source.getOperatorFactory() instanceof InputFormatOperatorFactory) {
-			streamGraph.setInputFormat(source.getId(),
-					((InputFormatOperatorFactory<T>) source.getOperatorFactory()).getInputFormat());
-		}
-		int parallelism = source.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-			source.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(source.getId(), parallelism);
-		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
-		return Collections.singleton(source.getId());
 	}
 
 	private Collection<Integer> translate(
