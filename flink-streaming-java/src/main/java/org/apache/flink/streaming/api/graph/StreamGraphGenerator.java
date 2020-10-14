@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.RuntimeExecutionMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.InputFormatOperatorFactory;
@@ -286,19 +286,28 @@ public class StreamGraphGenerator {
 	}
 
 	private boolean shouldExecuteInBatchMode(final RuntimeExecutionMode configuredMode) {
+		final boolean existsUnboundedSource = existsUnboundedSource();
+
+		checkState(configuredMode != RuntimeExecutionMode.BATCH || !existsUnboundedSource,
+				"Detected an UNBOUNDED source with the '" + ExecutionOptions.RUNTIME_MODE.key() + "' set to 'BATCH'. " +
+						"This combination is not allowed, please set the '" + ExecutionOptions.RUNTIME_MODE.key() +
+						"' to STREAMING or AUTOMATIC");
+
 		if (checkNotNull(configuredMode) != RuntimeExecutionMode.AUTOMATIC) {
 			return configuredMode == RuntimeExecutionMode.BATCH;
 		}
+		return !existsUnboundedSource;
+	}
 
-		final boolean continuousSourceExists = transformations
+	private boolean existsUnboundedSource() {
+		return transformations
 				.stream()
 				.anyMatch(transformation ->
 						isUnboundedSource(transformation) ||
-						transformation
-								.getTransitivePredecessors()
-								.stream()
-								.anyMatch(this::isUnboundedSource));
-		return !continuousSourceExists;
+								transformation
+										.getTransitivePredecessors()
+										.stream()
+										.anyMatch(this::isUnboundedSource));
 	}
 
 	private boolean isUnboundedSource(final Transformation<?> transformation) {
