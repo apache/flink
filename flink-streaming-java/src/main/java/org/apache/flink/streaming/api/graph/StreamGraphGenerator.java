@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -52,6 +51,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.MultiInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.OneInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
@@ -150,6 +150,7 @@ public class StreamGraphGenerator {
 		tmp.put(MultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
 		tmp.put(KeyedMultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
 		tmp.put(SourceTransformation.class, new SourceTransformationTranslator<>());
+		tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
 		translatorMap = Collections.unmodifiableMap(tmp);
 	}
 
@@ -368,8 +369,6 @@ public class StreamGraphGenerator {
 		Collection<Integer> transformedIds;
 		if (transform instanceof LegacySourceTransformation<?>) {
 			transformedIds = transformLegacySource((LegacySourceTransformation<?>) transform);
-		} else if (transform instanceof LegacySinkTransformation<?>) {
-			transformedIds = transformLegacySink((LegacySinkTransformation<?>) transform);
 		} else if (transform instanceof UnionTransformation<?>) {
 			transformedIds = transformUnion((UnionTransformation<?>) transform);
 		} else if (transform instanceof FeedbackTransformation<?>) {
@@ -657,46 +656,6 @@ public class StreamGraphGenerator {
 		streamGraph.setParallelism(source.getId(), parallelism);
 		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
 		return Collections.singleton(source.getId());
-	}
-
-	/**
-	 * Transforms a {@code LegacySinkTransformation}.
-	 */
-	private <T> Collection<Integer> transformLegacySink(LegacySinkTransformation<T> sink) {
-		List<Transformation<?>> inputs = sink.getInputs();
-		checkState(inputs.size() == 1);
-		Transformation<?> input = inputs.get(0);
-
-		Collection<Integer> inputIds = transform(input);
-
-		String slotSharingGroup = determineSlotSharingGroup(sink.getSlotSharingGroup(), inputIds);
-
-		streamGraph.addSink(sink.getId(),
-				slotSharingGroup,
-				sink.getCoLocationGroupKey(),
-				sink.getOperatorFactory(),
-				input.getOutputType(),
-				null,
-				"Sink: " + sink.getName());
-
-		int parallelism = sink.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
-			sink.getParallelism() : executionConfig.getParallelism();
-		streamGraph.setParallelism(sink.getId(), parallelism);
-		streamGraph.setMaxParallelism(sink.getId(), sink.getMaxParallelism());
-
-		for (Integer inputId: inputIds) {
-			streamGraph.addEdge(inputId,
-					sink.getId(),
-					0
-			);
-		}
-
-		if (sink.getStateKeySelector() != null) {
-			TypeSerializer<?> keySerializer = sink.getStateKeyType().createSerializer(executionConfig);
-			streamGraph.setOneInputStateKey(sink.getId(), sink.getStateKeySelector(), keySerializer);
-		}
-
-		return Collections.emptyList();
 	}
 
 	private Collection<Integer> translate(
