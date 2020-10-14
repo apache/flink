@@ -21,11 +21,13 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * A {@link ResourceManagerDriver} is responsible for requesting and releasing resources from/to a particular external
@@ -38,8 +40,12 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
 	 *
 	 * @param resourceEventHandler Handler that handles resource events.
 	 * @param mainThreadExecutor Rpc main thread executor.
+	 * @param ioExecutor IO executor.
 	 */
-	void initialize(ResourceEventHandler<WorkerType> resourceEventHandler, ScheduledExecutor mainThreadExecutor) throws Exception;
+	void initialize(
+		ResourceEventHandler<WorkerType> resourceEventHandler,
+		ScheduledExecutor mainThreadExecutor,
+		Executor ioExecutor) throws Exception;
 
 	/**
 	 * Terminate the deployment specific components.
@@ -48,6 +54,28 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
 	 * be terminated.
 	 */
 	CompletableFuture<Void> terminate();
+
+	/**
+	 * This method can be overridden to add a (non-blocking) initialization routine to the
+	 * ResourceManager that will be called when leadership is granted but before leadership is
+	 * confirmed.
+	 *
+	 * @return Returns a {@code CompletableFuture} that completes when the computation is finished.
+	 */
+	default CompletableFuture<Void> onGrantLeadership() {
+		return FutureUtils.completedVoidFuture();
+	}
+
+	/**
+	 * This method can be overridden to add a (non-blocking) state clearing routine to the
+	 * ResourceManager that will be called when leadership is revoked.
+	 *
+	 * @return Returns a {@code CompletableFuture} that completes when the state clearing routine
+	 * is finished.
+	 */
+	default CompletableFuture<Void> onRevokeLeadership() {
+		return FutureUtils.completedVoidFuture();
+	}
 
 	/**
 	 * The deployment specific code to deregister the application. This should report the application's final status.

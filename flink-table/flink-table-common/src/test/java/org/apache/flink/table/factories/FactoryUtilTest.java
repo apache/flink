@@ -237,7 +237,8 @@ public class FactoryUtilTest {
 			ObjectIdentifier.of("cat", "db", "table"),
 			new CatalogTableMock(options),
 			new Configuration(),
-			FactoryUtilTest.class.getClassLoader());
+			FactoryUtilTest.class.getClassLoader(),
+			false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -246,7 +247,8 @@ public class FactoryUtilTest {
 			ObjectIdentifier.of("cat", "db", "table"),
 			new CatalogTableMock(options),
 			new Configuration(),
-			FactoryUtilTest.class.getClassLoader());
+			FactoryUtilTest.class.getClassLoader(),
+			false);
 	}
 
 	private static class CatalogTableMock implements CatalogTable {

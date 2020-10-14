@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.SourceInputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -86,7 +87,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *              main operator.
  */
 @Internal
-public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusMaintainer {
+public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusMaintainer, BoundedMultiInput {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 
@@ -305,7 +306,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				sourceInput,
 				new ChainedSource(
 					chainedSourceOutput,
-					new StreamTaskSourceInput<>(sourceOperator, sourceInputGateIndex++)));
+					new StreamTaskSourceInput<>(sourceOperator, sourceInputGateIndex++, inputId)));
 		}
 		return chainedSourceInputs;
 	}
@@ -381,7 +382,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 *
 	 * @param inputId the input ID starts from 1 which indicates the first input.
 	 */
-	public void endMainOperatorInput(int inputId) throws Exception {
+	@Override
+	public void endInput(int inputId) throws Exception {
 		if (mainOperatorWrapper != null) {
 			mainOperatorWrapper.endOperatorInput(inputId);
 		}

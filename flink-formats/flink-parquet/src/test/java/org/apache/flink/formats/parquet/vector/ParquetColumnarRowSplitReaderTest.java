@@ -161,6 +161,29 @@ public class ParquetColumnarRowSplitReaderTest {
 		testNormalTypes(number, records, values);
 	}
 
+	@Test
+	public void testReachEnd() throws Exception {
+		// prepare parquet file
+		int number = 5;
+		List<Row> records = new ArrayList<>(number);
+		Random random = new Random();
+		for (int i = 0; i < number; i++) {
+			Integer v = random.nextInt(number / 2);
+			if (v % 10 == 0) {
+				records.add(new Row(FIELD_NUMBER));
+			} else {
+				records.add(newRow(v));
+			}
+		}
+		Path testPath = createTempParquetFile(
+				TEMPORARY_FOLDER.newFolder(), PARQUET_SCHEMA, records, rowGroupSize);
+		ParquetColumnarRowSplitReader reader = createReader(testPath, 0, testPath.getFileSystem().getFileStatus(testPath).getLen());
+		while (!reader.reachedEnd()) {
+			reader.nextRecord();
+		}
+		assertTrue(reader.reachedEnd());
+	}
+
 	private void testNormalTypes(int number, List<Row> records,
 			List<Integer> values) throws IOException {
 		Path testPath = createTempParquetFile(
@@ -179,13 +202,10 @@ public class ParquetColumnarRowSplitReaderTest {
 				readSplitAndCheck(number / 2, number / 2, testPath, 0, fileLen, values));
 	}
 
-	private int readSplitAndCheck(
-			int start,
-			long seekToRow,
+	private ParquetColumnarRowSplitReader createReader(
 			Path testPath,
 			long splitStart,
-			long splitLength,
-			List<Integer> values) throws IOException {
+			long splitLength) throws IOException {
 		LogicalType[] fieldTypes = new LogicalType[]{
 				new VarCharType(VarCharType.MAX_LENGTH),
 				new BooleanType(),
@@ -203,12 +223,12 @@ public class ParquetColumnarRowSplitReaderTest {
 				new DecimalType(15, 0),
 				new DecimalType(20, 0)};
 
-		ParquetColumnarRowSplitReader reader = new ParquetColumnarRowSplitReader(
+		return new ParquetColumnarRowSplitReader(
 				false,
 				true,
 				new Configuration(),
 				fieldTypes,
-				new String[] {
+				new String[]{
 						"f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
 						"f8", "f9", "f10", "f11", "f12", "f13", "f14"},
 				VectorizedColumnBatch::new,
@@ -216,6 +236,16 @@ public class ParquetColumnarRowSplitReaderTest {
 				new org.apache.hadoop.fs.Path(testPath.getPath()),
 				splitStart,
 				splitLength);
+	}
+
+	private int readSplitAndCheck(
+			int start,
+			long seekToRow,
+			Path testPath,
+			long splitStart,
+			long splitLength,
+			List<Integer> values) throws IOException {
+		ParquetColumnarRowSplitReader reader = createReader(testPath, splitStart, splitLength);
 		reader.seekToRow(seekToRow);
 
 		int i = start;

@@ -293,7 +293,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 				requestResourceFutures.remove(taskExecutorProcessSpec);
 			}
 
-			startTaskExecutorInContainer(container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
+			startTaskExecutorInContainerAsync(container, taskExecutorProcessSpec, resourceId, requestResourceFuture);
 			removeContainerRequest(pendingRequest);
 
 			numAccepted++;
@@ -328,21 +328,25 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		resourceManagerClient.releaseAssignedContainer(excessContainer.getId());
 	}
 
-	private void startTaskExecutorInContainer(Container container, TaskExecutorProcessSpec taskExecutorProcessSpec, ResourceID resourceId, CompletableFuture<YarnWorkerNode> requestResourceFuture) {
-		final YarnWorkerNode yarnWorkerNode = new YarnWorkerNode(container, resourceId);
+	private void startTaskExecutorInContainerAsync(
+			Container container,
+			TaskExecutorProcessSpec taskExecutorProcessSpec,
+			ResourceID resourceId,
+			CompletableFuture<YarnWorkerNode> requestResourceFuture) {
+		final CompletableFuture<ContainerLaunchContext> containerLaunchContextFuture =
+			FutureUtils.supplyAsync(() -> createTaskExecutorLaunchContext(
+				resourceId, container.getNodeId().getHost(), taskExecutorProcessSpec), getIoExecutor());
 
-		try {
-			// Context information used to start a TaskExecutor Java process
-			ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-				resourceId,
-				container.getNodeId().getHost(),
-				taskExecutorProcessSpec);
-
-			nodeManagerClient.startContainerAsync(container, taskExecutorLaunchContext);
-			requestResourceFuture.complete(yarnWorkerNode);
-		} catch (Throwable t) {
-			requestResourceFuture.completeExceptionally(t);
-		}
+		FutureUtils.assertNoException(
+			containerLaunchContextFuture.handleAsync((context, exception) -> {
+				if (exception == null) {
+					nodeManagerClient.startContainerAsync(container, context);
+					requestResourceFuture.complete(new YarnWorkerNode(container, resourceId));
+				} else {
+					requestResourceFuture.completeExceptionally(exception);
+				}
+				return null;
+			}, getMainThreadExecutor()));
 	}
 
 	private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(Resource resource, int expectedNum) {
@@ -526,7 +530,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		@Override
 		public void onContainersCompleted(List<ContainerStatus> statuses) {
-			getMainThreadExecutor().execute(() -> {
+			runAsyncWithFatalHandler(() -> {
 					log.debug("YARN ResourceManager reported the following containers completed: {}.", statuses);
 					for (final ContainerStatus containerStatus : statuses) {
 
@@ -539,7 +543,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		@Override
 		public void onContainersAllocated(List<Container> containers) {
-			getMainThreadExecutor().execute(() -> {
+			runAsyncWithFatalHandler(() -> {
 				log.info("Received {} containers.", containers.size());
 
 				for (Map.Entry<Resource, List<Container>> entry : groupContainerByResource(containers).entrySet()) {
@@ -550,6 +554,16 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 				// regular heartbeat interval
 				if (getNumRequestedNotAllocatedWorkers() <= 0) {
 					resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
+				}
+			});
+		}
+
+		private void runAsyncWithFatalHandler(Runnable runnable) {
+			getMainThreadExecutor().execute(() -> {
+				try {
+					runnable.run();
+				} catch (Throwable t) {
+					onError(t);
 				}
 			});
 		}
@@ -592,7 +606,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		@Override
 		public void onStartContainerError(ContainerId containerId, Throwable throwable) {
-			getMainThreadExecutor().execute(() -> {
+			runAsyncWithFatalHandler(() -> {
 				resourceManagerClient.releaseAssignedContainer(containerId);
 				getResourceEventHandler().onWorkerTerminated(new ResourceID(containerId.toString()), throwable.getMessage());
 			});

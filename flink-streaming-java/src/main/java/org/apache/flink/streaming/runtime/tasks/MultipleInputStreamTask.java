@@ -19,7 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.Environment;
@@ -29,13 +29,11 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
-import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
-import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
+import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -72,11 +70,6 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
 		ClassLoader userClassLoader = getUserCodeClassLoader();
-
-		if (configuration.shouldSortInputs()) {
-			throw new UnsupportedOperationException(
-				"Sorting inputs is not supported for a multiple input stream task yet.");
-		}
 
 		InputConfig[] inputs = configuration.getInputs(userClassLoader);
 
@@ -126,10 +119,6 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			List<IndexedInputGate>[] inputGates,
 			InputConfig[] inputs,
 			WatermarkGauge[] inputWatermarkGauges) {
-		MultipleInputSelectionHandler selectionHandler = new MultipleInputSelectionHandler(
-			mainOperator instanceof InputSelectable ? (InputSelectable) mainOperator : null,
-			inputs.length);
-
 		checkpointBarrierHandler = InputProcessorUtil.createCheckpointBarrierHandler(
 			this,
 			getConfiguration(),
@@ -144,16 +133,22 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			checkpointBarrierHandler);
 
-		inputProcessor = new StreamMultipleInputProcessor(
+		inputProcessor = StreamMultipleInputProcessorFactory.create(
+			this,
 			checkpointedInputGates,
 			inputs,
 			getEnvironment().getIOManager(),
+			getEnvironment().getMemoryManager(),
 			getEnvironment().getMetricGroup().getIOMetricGroup(),
 			setupNumRecordsInCounter(mainOperator),
 			getStreamStatusMaintainer(),
 			mainOperator,
-			selectionHandler,
 			inputWatermarkGauges,
+			getConfiguration(),
+			getTaskConfiguration(),
+			getJobConfiguration(),
+			getExecutionConfig(),
+			getUserCodeClassLoader(),
 			operatorChain);
 	}
 
@@ -167,7 +162,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 		mainMailboxExecutor.execute(
 			() -> {
 				try {
-					/**
+					/*
 					 * Contrary to {@link SourceStreamTask}, we are not using here
 					 * {@link StreamTask#latestAsyncCheckpointStartDelayNanos} to measure the start delay
 					 * metric, but we will be using {@link CheckpointBarrierHandler#getCheckpointStartDelayNanos()}
@@ -212,7 +207,7 @@ public class MultipleInputStreamTask<OUT> extends StreamTask<OUT, MultipleInputS
 	public void triggerCheckpointOnBarrier(
 			CheckpointMetaData checkpointMetaData,
 			CheckpointOptions checkpointOptions,
-			CheckpointMetrics checkpointMetrics) throws IOException {
+			CheckpointMetricsBuilder checkpointMetrics) throws IOException {
 		CompletableFuture<Boolean> resultFuture = pendingCheckpointCompletedFutures.remove(checkpointMetaData.getCheckpointId());
 		try {
 			super.triggerCheckpointOnBarrier(checkpointMetaData, checkpointOptions, checkpointMetrics);

@@ -30,10 +30,12 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -42,6 +44,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class StateBackendLoader {
 
+	private static final Logger LOG = LoggerFactory.getLogger(StateBackendLoader.class);
 	// ------------------------------------------------------------------------
 	//  Configuration shortcut names
 	// ------------------------------------------------------------------------
@@ -231,6 +234,41 @@ public class StateBackendLoader {
 		}
 
 		return backend;
+	}
+
+	/**
+	 * Checks whether state backend uses managed memory, without having to deserialize or load the state backend.
+	 * @param config Cluster configuration.
+	 * @param stateBackendFromApplicationUsesManagedMemory Whether the application-defined backend uses Flink's managed
+	 *                                                       memory. Empty if application has not defined a backend.
+	 * @param classLoader User code classloader.
+	 * @return Whether the state backend uses managed memory.
+	 */
+	public static boolean stateBackendFromApplicationOrConfigOrDefaultUseManagedMemory(
+			Configuration config,
+			Optional<Boolean> stateBackendFromApplicationUsesManagedMemory,
+			ClassLoader classLoader) {
+
+		checkNotNull(config, "config");
+
+		// (1) the application defined state backend has precedence
+		if (stateBackendFromApplicationUsesManagedMemory.isPresent()) {
+			return stateBackendFromApplicationUsesManagedMemory.get();
+		}
+
+		// (2) check if the config defines a state backend
+		try {
+			final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, LOG);
+			if (fromConfig != null) {
+				return fromConfig.useManagedMemory();
+			}
+		} catch (IllegalConfigurationException | DynamicCodeLoadingException | IOException e) {
+			LOG.warn("Cannot decide whether state backend uses managed memory. Will reserve managed memory by default.", e);
+			return true;
+		}
+
+		// (3) use the default MemoryStateBackend
+		return false;
 	}
 
 	// ------------------------------------------------------------------------

@@ -421,6 +421,8 @@ public class PendingCheckpoint {
 					stateSize,
 					metrics.getSyncDurationMillis(),
 					metrics.getAsyncDurationMillis(),
+					metrics.getBytesProcessedDuringAlignment(),
+					metrics.getBytesPersistedDuringAlignment(),
 					alignmentDurationMillis,
 					checkpointStartDelayMillis);
 

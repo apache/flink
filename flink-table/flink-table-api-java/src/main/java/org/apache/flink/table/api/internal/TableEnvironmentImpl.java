@@ -136,8 +136,6 @@ import org.apache.flink.table.utils.PrintUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1111,18 +1109,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 			schema.getTableColumns()
 				.stream()
 				.map((c) -> {
-					LogicalType logicalType = c.getType().getLogicalType();
+					final LogicalType logicalType = c.getType().getLogicalType();
 					return new Object[]{
 						c.getName(),
-						StringUtils.removeEnd(logicalType.toString(), " NOT NULL"),
+						logicalType.copy(true).asSummaryString(),
 						logicalType.isNullable(),
 						fieldToPrimaryKey.getOrDefault(c.getName(), null),
-						c.getExpr().orElse(null),
-						fieldToWatermark.getOrDefault(c.getName(), null)};
+						c.explainExtras().orElse(null),
+						fieldToWatermark.getOrDefault(c.getName(), null)
+					};
 				}).toArray(Object[][]::new);
 
 		return buildResult(
-			new String[]{"name", "type", "null", "key", "computed column", "watermark"},
+			new String[]{"name", "type", "null", "key", "extras", "watermark"},
 			new DataType[]{DataTypes.STRING(), DataTypes.STRING(), DataTypes.BOOLEAN(), DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()},
 			rows);
 	}

@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -122,7 +119,7 @@ public class ExecutionJobVertexTest {
 
 	public static ExecutionJobVertex createExecutionJobVertex(
 			int parallelism,
-			int preconfiguredMaxParallelism) throws JobException, JobExecutionException {
+			int preconfiguredMaxParallelism) throws Exception {
 		JobVertex jobVertex = new JobVertex("testVertex");
 		jobVertex.setInvokableClass(AbstractInvokable.class);
 		jobVertex.setParallelism(parallelism);
@@ -131,16 +128,6 @@ public class ExecutionJobVertexTest {
 			jobVertex.setMaxParallelism(preconfiguredMaxParallelism);
 		}
 
-		ExecutionGraph executionGraph = createExecutionGraph();
-		return new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(10));
-	}
-
-	private static ExecutionGraph createExecutionGraph() throws JobException, JobExecutionException {
-		final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setFutureExecutor(new DirectScheduledExecutorService())
-			.build();
-		executionGraph.transitionToRunning();
-		return executionGraph;
+		return ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
 	}
 }

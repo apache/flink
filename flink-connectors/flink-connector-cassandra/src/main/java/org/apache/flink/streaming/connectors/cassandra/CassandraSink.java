@@ -30,7 +30,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.types.Row;
 
@@ -60,7 +60,7 @@ public class CassandraSink<IN> {
 		useDataStreamSink = false;
 	}
 
-	private SinkTransformation<IN> getSinkTransformation() {
+	private LegacySinkTransformation<IN> getSinkTransformation() {
 		return sink1.getTransformation();
 	}
 

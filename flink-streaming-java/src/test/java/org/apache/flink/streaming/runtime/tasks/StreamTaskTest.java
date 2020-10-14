@@ -31,6 +31,7 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
@@ -1029,7 +1030,7 @@ public class StreamTaskTest extends TestLogger {
 		harness.streamTask.operatorChain.closeOperators(harness.streamTask.getActionExecutor());
 		assertEquals(true, operator.closed.get());
 
-		harness.streamTask.triggerCheckpointOnBarrier(new CheckpointMetaData(1, 0), CheckpointOptions.forCheckpointWithDefaultLocation(), new CheckpointMetrics());
+		harness.streamTask.triggerCheckpointOnBarrier(new CheckpointMetaData(1, 0), CheckpointOptions.forCheckpointWithDefaultLocation(), new CheckpointMetricsBuilder());
 		assertEquals(1, harness.getCheckpointResponder().getDeclineReports().size());
 	}
 
@@ -1528,7 +1529,7 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 			final StreamTaskStateInitializer streamTaskStateManager = super.createStreamTaskStateInitializer();
-			return (operatorID, operatorClassName, processingTimeService, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
+			return (operatorID, operatorClassName, processingTimeService, keyContext, keySerializer, closeableRegistry, metricGroup, fraction) -> {
 
 				final StreamOperatorStateContext controller = streamTaskStateManager.streamOperatorStateContext(
 					operatorID,
@@ -1537,7 +1538,8 @@ public class StreamTaskTest extends TestLogger {
 					keyContext,
 					keySerializer,
 					closeableRegistry,
-					metricGroup);
+					metricGroup,
+					fraction);
 
 				return new StreamOperatorStateContext() {
 					@Override

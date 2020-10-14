@@ -30,14 +30,30 @@ public class SubtaskStateStatsTest {
 	 */
 	@Test
 	public void testSimpleAccess() throws Exception {
+		test(false);
+	}
+
+	/**
+	 * Tests that the snapshot is actually serializable.
+	 */
+	@Test
+	public void testIsJavaSerializable() throws Exception {
+		test(true);
+	}
+
+	public void test(boolean serialize) throws Exception {
 		SubtaskStateStats stats = new SubtaskStateStats(
 			0,
 			Integer.MAX_VALUE + 1L,
 			Integer.MAX_VALUE + 2L,
 			Integer.MAX_VALUE + 3L,
 			Integer.MAX_VALUE + 4L,
+			Integer.MAX_VALUE + 8L,
+			Integer.MAX_VALUE + 9L,
 			Integer.MAX_VALUE + 6L,
 			Integer.MAX_VALUE + 7L);
+
+		stats = serialize ? CommonTestUtils.createCopySerializable(stats) : stats;
 
 		assertEquals(0, stats.getSubtaskIndex());
 		assertEquals(Integer.MAX_VALUE + 1L, stats.getAckTimestamp());
@@ -54,41 +70,6 @@ public class SubtaskStateStatsTest {
 
 		// Trigger timestamp < ack timestamp
 		assertEquals(0, stats.getEndToEndDuration(ackTimestamp + 1));
-	}
-
-	/**
-	 * Tests that the snapshot is actually serializable.
-	 */
-	@Test
-	public void testIsJavaSerializable() throws Exception {
-		SubtaskStateStats stats = new SubtaskStateStats(
-			0,
-			Integer.MAX_VALUE + 1L,
-			Integer.MAX_VALUE + 2L,
-			Integer.MAX_VALUE + 3L,
-			Integer.MAX_VALUE + 4L,
-			Integer.MAX_VALUE + 6L,
-			Integer.MAX_VALUE + 7L);
-
-
-		SubtaskStateStats copy = CommonTestUtils.createCopySerializable(stats);
-
-		assertEquals(0, copy.getSubtaskIndex());
-		assertEquals(Integer.MAX_VALUE + 1L, copy.getAckTimestamp());
-		assertEquals(Integer.MAX_VALUE + 2L, copy.getStateSize());
-		assertEquals(Integer.MAX_VALUE + 3L, copy.getSyncCheckpointDuration());
-		assertEquals(Integer.MAX_VALUE + 4L, copy.getAsyncCheckpointDuration());
-		assertEquals(Integer.MAX_VALUE + 6L, copy.getAlignmentDuration());
-		assertEquals(Integer.MAX_VALUE + 7L, stats.getCheckpointStartDelay());
-
-		// Check duration helper
-		long ackTimestamp = copy.getAckTimestamp();
-		long triggerTimestamp = ackTimestamp - 10123;
-		assertEquals(10123, copy.getEndToEndDuration(triggerTimestamp));
-
-		// Trigger timestamp < ack timestamp
-		assertEquals(0, copy.getEndToEndDuration(ackTimestamp + 1));
-
 	}
 
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.types.DataType;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
@@ -34,6 +35,10 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  * <p>The interface is generic such that it can support different storage locations and formats.
  *
  * @param <T> The return type of the {@link TableSink}.
+ *
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface consumes
+ *             internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *             information.
  */
 @PublicEvolving
 public interface TableSink<T> {

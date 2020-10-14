@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InputDependencyConstraint;
@@ -26,7 +25,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -126,27 +124,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private InputSplitAssigner splitAssigner;
 
-	/**
-	 * Convenience constructor for testing.
-	 */
-	@VisibleForTesting
 	ExecutionJobVertex(
-			ExecutionGraph graph,
-			JobVertex jobVertex,
-			int defaultParallelism,
-			Time timeout) throws JobException {
-
-		this(
-			graph,
-			jobVertex,
-			defaultParallelism,
-			JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue(),
-			timeout,
-			1L,
-			System.currentTimeMillis());
-	}
-
-	public ExecutionJobVertex(
 			ExecutionGraph graph,
 			JobVertex jobVertex,
 			int defaultParallelism,

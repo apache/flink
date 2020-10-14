@@ -18,11 +18,17 @@
 
 package org.apache.flink.mesos.runtime.clusterframework.services;
 
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerActorFactory;
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerActorFactoryImpl;
 import org.apache.flink.mesos.util.MesosArtifactServer;
+import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import akka.actor.ActorSystem;
+import org.apache.mesos.MesosSchedulerDriver;
+import org.apache.mesos.Scheduler;
+import org.apache.mesos.SchedulerDriver;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,13 +47,33 @@ public abstract class AbstractMesosServices implements MesosServices {
 	}
 
 	@Override
-	public ActorSystem getLocalActorSystem() {
-		return actorSystem;
+	public MesosResourceManagerActorFactory createMesosResourceManagerActorFactory() {
+		return new MesosResourceManagerActorFactoryImpl(actorSystem);
 	}
 
 	@Override
 	public MesosArtifactServer getArtifactServer() {
 		return artifactServer;
+	}
+
+	@Override
+	public SchedulerDriver createMesosSchedulerDriver(
+			MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements) {
+		if (mesosConfig.credential().isDefined()) {
+			return new MesosSchedulerDriver(
+				scheduler,
+				mesosConfig.frameworkInfo().build(),
+				mesosConfig.masterUrl(),
+				implicitAcknowledgements,
+				mesosConfig.credential().get().build());
+		}
+		else {
+			return new MesosSchedulerDriver(
+				scheduler,
+				mesosConfig.frameworkInfo().build(),
+				mesosConfig.masterUrl(),
+				implicitAcknowledgements);
+		}
 	}
 
 	@Override

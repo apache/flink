@@ -910,6 +910,16 @@ class DataTypeConvertTests(PyFlinkTestCase):
 
         self.assertEqual(test_types, converted_python_types)
 
+    def test_list_view_type(self):
+        test_types = [DataTypes.LIST_VIEW(DataTypes.BIGINT()),
+                      DataTypes.LIST_VIEW(DataTypes.STRING())]
+
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
 
 class DataSerializerTests(PyFlinkTestCase):
 

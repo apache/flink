@@ -22,6 +22,7 @@
 from functools import reduce
 from itertools import chain
 
+from apache_beam.coders import PickleCoder
 from libc.stdint cimport *
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operation_specs
@@ -32,13 +33,15 @@ from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputSt
 from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
 from typing import Tuple
 
+from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.coders import from_proto
 
 from pyflink.common import Row
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, GroupAggFunction
+from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, GroupAggFunction, \
+    extract_data_view_specs
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext
 from pyflink.table.functions import Count1AggFunction
@@ -320,11 +323,6 @@ class BeamStatefulFunctionOperation(BeamStatelessFunctionOperation):
             if self.keyed_state_backend:
                 self.keyed_state_backend.commit()
 
-    def reset(self):
-        super().reset()
-        if self.keyed_state_backend:
-            self.keyed_state_backend.reset()
-
 
 TRIGGER_TIMER = 1
 
@@ -338,6 +336,7 @@ class BeamStreamGroupAggregateOperation(BeamStatefulFunctionOperation):
         self.index_of_count_star = spec.serialized_fn.index_of_count_star
         self.state_cache_size = spec.serialized_fn.state_cache_size
         self.state_cleaning_enabled = spec.serialized_fn.state_cleaning_enabled
+        self.udf_data_view_specs = extract_data_view_specs(spec.serialized_fn.udfs)
         super(BeamStreamGroupAggregateOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers, keyed_state_backend)
 
@@ -346,22 +345,30 @@ class BeamStreamGroupAggregateOperation(BeamStatefulFunctionOperation):
 
     def generate_func(self, udfs):
         user_defined_aggs = []
-        input_offsets = []
+        input_extractors = []
         for i in range(len(udfs)):
             if i != self.index_of_count_star:
-                user_defined_agg, input_offset = extract_user_defined_aggregate_function(udfs[i])
+                user_defined_agg, input_extractor = extract_user_defined_aggregate_function(udfs[i])
             else:
                 user_defined_agg = Count1AggFunction()
-                input_offset = []
+                input_extractor = lambda value: []
             user_defined_aggs.append(user_defined_agg)
-            input_offsets.append(input_offset)
+            input_extractors.append(input_extractor)
         aggs_handler_function = SimpleAggsHandleFunction(
-            user_defined_aggs, input_offsets, self.index_of_count_star)
+            user_defined_aggs,
+            input_extractors,
+            self.index_of_count_star,
+            self.udf_data_view_specs)
         key_selector = RowKeySelector(self.grouping)
+        if len(self.udf_data_view_specs) > 0:
+            state_value_coder = DataViewFilterCoder(self.udf_data_view_specs)
+        else:
+            state_value_coder = PickleCoder()
         self.group_agg_function = GroupAggFunction(
             aggs_handler_function,
             key_selector,
             self.keyed_state_backend,
+            state_value_coder,
             self.generate_update_before,
             self.state_cleaning_enabled,
             self.index_of_count_star)
