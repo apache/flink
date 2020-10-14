@@ -43,8 +43,8 @@ public interface EncodingFormatFactory<I> extends Factory {
 	/**
 	 * Creates a format from the given context and format options.
 	 *
-	 * <p>The format options have been projected to top-level options (e.g. from {@code key.format.ignore-errors}
-	 * to {@code format.ignore-errors}).
+	 * <p>The format options have been projected to top-level options (e.g. from {@code format.ignore-errors}
+	 * to {@code ignore-errors}).
 	 */
 	EncodingFormat<I> createEncodingFormat(DynamicTableFactory.Context context, ReadableConfig formatOptions);
 }
