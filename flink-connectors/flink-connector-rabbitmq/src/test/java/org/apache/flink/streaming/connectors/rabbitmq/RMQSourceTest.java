@@ -53,8 +53,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -343,13 +341,11 @@ public class RMQSourceTest {
 
 		source = new RMQTestSource(new CustomDeserializationSchema());
 		source.open(config);
-		List<String> expectedOutput = new ArrayList<>(1);
-		expectedOutput.add("I Love Turtles");
-		expectedOutput.add("Brush your teeth");
 
 		collector = Mockito.mock(RMQDeserializationSchema.RMQCollector.class);
 		source.processMessage(source.mockedDelivery, collector);
-		Mockito.verify(collector, Mockito.times(1)).collect(Mockito.eq(expectedOutput));
+		Mockito.verify(collector, Mockito.times(1)).collect(Mockito.eq("I Love Turtles"));
+		Mockito.verify(collector, Mockito.times(1)).collect(Mockito.eq("Brush your teeth"));
 		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("1", messageId - 1);
 		Mockito.verify(collector, Mockito.times(1)).setMessageIdentifiers("2-MESSAGE_ID", messageId);
 	}
@@ -498,11 +494,9 @@ public class RMQSourceTest {
 
 		@Override
 		public void deserialize(Envelope envelope, AMQP.BasicProperties properties, byte[] body, RMQCollector<String> collector){
-			List<String> messages = new ArrayList<>();
-			messages.add("I Love Turtles");
-			messages.add("Brush your teeth");
 			collector.setMessageIdentifiers(properties.getMessageId(), envelope.getDeliveryTag());
-			collector.collect(messages);
+			collector.collect("I Love Turtles");
+			collector.collect("Brush your teeth");
 		}
 
 		@Override

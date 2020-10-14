@@ -26,7 +26,6 @@ import com.rabbitmq.client.Envelope;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * Interface for the set of methods required to parse an RMQ delivery.
@@ -81,8 +80,6 @@ interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQueryable<
 	 * the message correlationId and deliveryTag.
 	 */
 	interface RMQCollector<T> extends Collector<T> {
-		void collect(List<T> records);
-
 		void setMessageIdentifiers(String correlationId, long deliveryTag);
 	}
 }
