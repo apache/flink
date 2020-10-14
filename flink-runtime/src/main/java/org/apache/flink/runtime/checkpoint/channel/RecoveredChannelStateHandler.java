@@ -44,7 +44,7 @@ interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
 
 	BufferWithContext<Context> getBuffer(Info info) throws IOException, InterruptedException;
 
-	void recover(Info info, Context context);
+	void recover(Info info, Context context) throws IOException;
 }
 
 class InputChannelRecoveredStateHandler implements RecoveredChannelStateHandler<InputChannelInfo, Buffer> {
@@ -98,10 +98,13 @@ class ResultSubpartitionRecoveredStateHandler implements RecoveredChannelStateHa
 	}
 
 	@Override
-	public void recover(ResultSubpartitionInfo subpartitionInfo, Tuple2<BufferBuilder, BufferConsumer> bufferBuilderAndConsumer) {
+	public void recover(ResultSubpartitionInfo subpartitionInfo, Tuple2<BufferBuilder, BufferConsumer> bufferBuilderAndConsumer) throws IOException {
 		bufferBuilderAndConsumer.f0.finish();
 		if (bufferBuilderAndConsumer.f1.isDataAvailable()) {
-			getSubpartition(subpartitionInfo).addBufferConsumer(bufferBuilderAndConsumer.f1);
+			boolean added = getSubpartition(subpartitionInfo).add(bufferBuilderAndConsumer.f1);
+			if (!added) {
+				throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
+			}
 		} else {
 			bufferBuilderAndConsumer.f1.close();
 		}
