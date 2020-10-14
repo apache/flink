@@ -47,7 +47,13 @@ public class OneInputTransformationTranslator<IN, OUT> extends SimpleTransformat
 	public Collection<Integer> translateForBatchInternal(
 			final OneInputTransformation<IN, OUT> transformation,
 			final Context context) {
-		return translateInternal(transformation, context);
+		Collection<Integer> ids = translateInternal(transformation, context);
+		boolean isKeyed = transformation.getStateKeySelector() != null;
+		if (isKeyed) {
+			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+		}
+
+		return ids;
 	}
 
 	@Override

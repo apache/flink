@@ -51,7 +51,12 @@ public class MultiInputTransformationTranslator<OUT>
 	protected Collection<Integer> translateForBatchInternal(
 			final AbstractMultipleInputTransformation<OUT> transformation,
 			final Context context) {
-		return translateInternal(transformation, context);
+		Collection<Integer> ids = translateInternal(transformation, context);
+		boolean isKeyed = transformation instanceof KeyedMultipleInputTransformation;
+		if (isKeyed) {
+			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+		}
+		return ids;
 	}
 
 	@Override

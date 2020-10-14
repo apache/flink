@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 
 import java.util.Collection;
 
@@ -88,5 +89,10 @@ public interface TransformationTranslator<OUT, T extends Transformation<OUT>> {
 		 * Returns the default buffer timeout to be used.
 		 */
 		long getDefaultBufferTimeout();
+
+		/**
+		 * Retrieves additional configuration for the graph generation process.
+		 */
+		ReadableConfig getGraphGeneratorConfig();
 	}
 }
