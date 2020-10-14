@@ -44,6 +44,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -129,6 +131,41 @@ public class MergingSharedSlotProfileRetrieverTest {
 
 		assertThat(slotProfile.getPreferredAllocations(), containsInAnyOrder(prevAllocationID1, prevAllocationID2));
 		assertThat(slotProfile.getPreviousExecutionGraphAllocations(), containsInAnyOrder(prevAllocationIDs.toArray()));
+	}
+
+	@Test
+	public void testIgnoringExecutionsOutOfScheduledBulk() throws ExecutionException, InterruptedException {
+		ExecutionVertexID executionVertexId1 = createRandomExecutionVertexId();
+		AllocationID allocationId1 = new AllocationID();
+		TaskManagerLocation location1 = createTaskManagerLocation();
+
+		ExecutionVertexID executionVertexId2 = createRandomExecutionVertexId();
+		AllocationID allocationId2 = new AllocationID();
+		TaskManagerLocation location2 = createTaskManagerLocation();
+
+		Map<ExecutionVertexID, Collection<TaskManagerLocation>> preferredlocations = new HashMap<>();
+		preferredlocations.put(executionVertexId1, Collections.singleton(location1));
+		preferredlocations.put(executionVertexId2, Collections.singleton(location2));
+
+		Map<ExecutionVertexID, AllocationID> priorAllocationIds = new HashMap<>();
+		priorAllocationIds.put(executionVertexId1, allocationId1);
+		priorAllocationIds.put(executionVertexId2, allocationId2);
+
+		ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup();
+		group.addVertex(executionVertexId1);
+		group.addVertex(executionVertexId2);
+
+		SharedSlotProfileRetriever sharedSlotProfileRetriever = new MergingSharedSlotProfileRetrieverFactory(
+			(id, ignored) -> CompletableFuture.completedFuture(preferredlocations.get(id)),
+			priorAllocationIds::get
+		).createFromBulk(Collections.singleton(executionVertexId1));
+
+		SlotProfile slotProfile = sharedSlotProfileRetriever
+			.getSlotProfileFuture(group, ResourceProfile.ZERO)
+			.get();
+
+		assertThat(slotProfile.getPreferredLocations(), contains(location1));
+		assertThat(slotProfile.getPreferredAllocations(), contains(allocationId1));
 	}
 
 	private static SlotProfile getSlotProfile(

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -87,6 +88,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -389,6 +391,7 @@ public class SchedulerTestingUtils {
 		private ExecutionVertexOperations executionVertexOperations = new DefaultExecutionVertexOperations();
 		private ExecutionVertexVersioner executionVertexVersioner = new ExecutionVertexVersioner();
 		private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory = new TestExecutionSlotAllocatorFactory();
+		private Consumer<ComponentMainThreadExecutor> startUpAction = componentMainThreadExecutor -> {};
 
 		private DefaultSchedulerBuilder(final JobGraph jobGraph) {
 			this.jobGraph = jobGraph;
@@ -489,6 +492,13 @@ public class SchedulerTestingUtils {
 			return this;
 		}
 
+		public DefaultSchedulerBuilder setDefaultSchedulerComponents(DefaultSchedulerComponents components) {
+			this.schedulingStrategyFactory = components.getSchedulingStrategyFactory();
+			this.executionSlotAllocatorFactory = components.getAllocatorFactory();
+			this.startUpAction = components.getStartUpAction();
+			return this;
+		}
+
 		public DefaultScheduler build() throws Exception {
 			return new DefaultScheduler(
 				log,
@@ -496,7 +506,7 @@ public class SchedulerTestingUtils {
 				backPressureStatsTracker,
 				ioExecutor,
 				jobMasterConfiguration,
-				componentMainThreadExecutor -> {},
+				startUpAction,
 				futureExecutor,
 				delayExecutor,
 				userCodeLoader,

@@ -72,13 +72,13 @@ class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetri
 		/**
 		 * All {@link ExecutionVertexID}s of the bulk.
 		 */
-		private final Set<ExecutionVertexID> producersToIgnore;
+		private final Set<ExecutionVertexID> bulkExecutions;
 
 		private MergingSharedSlotProfileRetriever(
 				Set<AllocationID> allBulkPriorAllocationIds,
-				Set<ExecutionVertexID> producersToIgnore) {
+				Set<ExecutionVertexID> bulkExecutions) {
 			this.allBulkPriorAllocationIds = Preconditions.checkNotNull(allBulkPriorAllocationIds);
-			this.producersToIgnore = Preconditions.checkNotNull(producersToIgnore);
+			this.bulkExecutions = Preconditions.checkNotNull(bulkExecutions);
 		}
 
 		/**
@@ -104,10 +104,14 @@ class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetri
 				ResourceProfile physicalSlotResourceProfile) {
 			Collection<AllocationID> priorAllocations = new HashSet<>();
 			Collection<CompletableFuture<Collection<TaskManagerLocation>>> preferredLocationsPerExecution = new ArrayList<>();
-			for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
+
+			Set<ExecutionVertexID> groupExecutionsInBulk = new HashSet<>(executionSlotSharingGroup.getExecutionVertexIds());
+			groupExecutionsInBulk.retainAll(bulkExecutions);
+
+			for (ExecutionVertexID execution : groupExecutionsInBulk) {
 				priorAllocations.add(priorAllocationIdRetriever.apply(execution));
 				preferredLocationsPerExecution.add(preferredLocationsRetriever
-					.getPreferredLocations(execution, producersToIgnore));
+					.getPreferredLocations(execution, bulkExecutions));
 			}
 
 			CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = FutureUtils
