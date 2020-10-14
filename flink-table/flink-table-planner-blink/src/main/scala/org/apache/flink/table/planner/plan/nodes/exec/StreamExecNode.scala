@@ -31,7 +31,10 @@ trait StreamExecNode[T] extends ExecNode[StreamPlanner, T] with Logging {
   def getInputEdges: util.List[ExecEdge] = {
     val edges = new util.ArrayList[ExecEdge]()
     for (_ <- 0 until getInputNodes.size()) {
-      edges.add(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+      edges.add(new ExecEdge(
+        ExecEdge.RequiredShuffle.unknown(),
+        ExecEdge.EdgeBehavior.PIPELINED,
+        0))
     }
     edges
   }
