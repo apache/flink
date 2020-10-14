@@ -198,4 +198,38 @@ public class AvroRowDataDeSerializationSchemaTest {
 		Assert.assertEquals("12:12:12", DataFormatConverters.LocalTimeConverter.INSTANCE.toExternal(
 				rowData.getInt(2)).toString());
 	}
+
+	@Test
+	public void testNullableMapType() throws Exception {
+		final DataType dataType = ROW(
+				FIELD("map", MAP(STRING(), STRING())));
+		final RowType rowType = (RowType) dataType.getLogicalType();
+		final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
+
+		final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+		final GenericRecord record = new GenericData.Record(schema);
+
+		Map<String, String> map = new HashMap<>();
+		map.put("flink", "good");
+		map.put("avro", null);
+		record.put(0, map);
+
+		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
+		serializationSchema.open(null);
+		AvroRowDataDeserializationSchema deserializationSchema =
+				new AvroRowDataDeserializationSchema(rowType, typeInfo);
+		deserializationSchema.open(null);
+
+		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+		GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
+		Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+		datumWriter.write(record, encoder);
+		encoder.flush();
+		byte[] input = byteArrayOutputStream.toByteArray();
+
+		RowData rowData = deserializationSchema.deserialize(input);
+		byte[] output = serializationSchema.serialize(rowData);
+
+		assertArrayEquals(input, output);
+	}
 }
