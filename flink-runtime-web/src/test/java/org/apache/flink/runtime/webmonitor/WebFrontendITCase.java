@@ -305,7 +305,6 @@ public class WebFrontendITCase extends TestLogger {
 
 	/**
 	 * See FLINK-19518. This test ensures that the /jobs/overview handler shows a duration != 0.
-	 *
 	 */
 	@Test
 	public void testJobOverviewHandler() throws Exception {
@@ -318,7 +317,6 @@ public class WebFrontendITCase extends TestLogger {
 		sender.setInvokableClass(BlockingInvokable.class);
 
 		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
-		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
 		clusterClient.submitJob(jobGraph).get();
@@ -332,7 +330,6 @@ public class WebFrontendITCase extends TestLogger {
 		BlockingInvokable.latch.await();
 
 		final Duration testTimeout = Duration.ofMinutes(2);
-		final LocalTime deadline = LocalTime.now().plus(testTimeout);
 
 		String json = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobs/overview");
 

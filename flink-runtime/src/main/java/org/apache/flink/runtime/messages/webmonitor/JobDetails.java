@@ -114,13 +114,13 @@ public class JobDetails implements Serializable {
 		int numTotalTasks = 0;
 
 		for (AccessExecutionJobVertex ejv : job.getVerticesTopologically()) {
-			AccessExecutionVertex[] vertices = ejv.getTaskVertices();
-			numTotalTasks += vertices.length;
+			AccessExecutionVertex[] taskVertices = ejv.getTaskVertices();
+			numTotalTasks += taskVertices.length;
 
-			for (AccessExecutionVertex vertex : vertices) {
-				ExecutionState state = vertex.getExecutionState();
+			for (AccessExecutionVertex taskVertex : taskVertices) {
+				ExecutionState state = taskVertex.getExecutionState();
 				countsPerStatus[state.ordinal()]++;
-				lastChanged = Math.max(lastChanged, vertex.getStateTimestamp(state));
+				lastChanged = Math.max(lastChanged, taskVertex.getStateTimestamp(state));
 			}
 		}
 
