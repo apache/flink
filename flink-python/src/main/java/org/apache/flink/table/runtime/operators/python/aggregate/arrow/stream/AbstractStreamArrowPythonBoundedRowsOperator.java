@@ -189,6 +189,11 @@ public abstract class AbstractStreamArrowPythonBoundedRowsOperator<K>
 						currentBatchCount++;
 					}
 				}
+				// clear outdated data.
+				while (iter.hasPrevious()) {
+					previousTimestamp = iter.previous();
+					inputState.remove(previousTimestamp);
+				}
 			}
 		} else {
 			if (windowData.size() > lowerBoundary) {
