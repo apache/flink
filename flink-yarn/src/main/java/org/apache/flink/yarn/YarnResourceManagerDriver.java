@@ -159,10 +159,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 			resourceManagerClient.start();
 
 			final RegisterApplicationMasterResponse registerApplicationMasterResponse = registerApplicationMaster();
-			int maxPriority = getContainersFromPreviousAttempts(registerApplicationMasterResponse);
+			getContainersFromPreviousAttempts(registerApplicationMasterResponse);
 			taskExecutorProcessSpecContainerResourcePriorityAdapter =
 				new TaskExecutorProcessSpecContainerResourcePriorityAdapter(
-					maxPriority + 1,
 					registerApplicationMasterResponse.getMaximumResourceCapability(),
 					ExternalResourceUtils.getExternalResources(flinkConfig, YarnConfigOptions.EXTERNAL_RESOURCE_YARN_CONFIG_KEY_SUFFIX));
 		} catch (Exception e) {
@@ -230,7 +229,10 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
 		if (!priorityAndResourceOpt.isPresent()) {
 			requestResourceFuture.completeExceptionally(
-				new ResourceManagerException(String.format("Could not compute the container Resource from the given TaskExecutorProcessSpec %s.", taskExecutorProcessSpec)));
+				new ResourceManagerException(
+					String.format("Could not compute the container Resource from the given TaskExecutorProcessSpec %s. " +
+							"This usually indicates the requested resource is larger than Yarn's max container resource limit.",
+						taskExecutorProcessSpec)));
 		} else {
 			final Priority priority = priorityAndResourceOpt.get().getPriority();
 			final Resource resource = priorityAndResourceOpt.get().getResource();
@@ -263,14 +265,9 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		final Optional<TaskExecutorProcessSpecContainerResourcePriorityAdapter.TaskExecutorProcessSpecAndResource> taskExecutorProcessSpecAndResourceOpt =
 			taskExecutorProcessSpecContainerResourcePriorityAdapter.getTaskExecutorProcessSpecAndResource(priority);
 
-		if (!taskExecutorProcessSpecAndResourceOpt.isPresent()) {
-			log.warn("Receive {} containers with unrecognized priority {}. This should not happen.",
-				containers.size(), priority.getPriority());
-			for (Container container : containers) {
-				returnExcessContainer(container);
-			}
-			return;
-		}
+		Preconditions.checkState(taskExecutorProcessSpecAndResourceOpt.isPresent(),
+			"Receive %s containers with unrecognized priority %s. This should not happen.",
+			containers.size(), priority.getPriority());
 
 		final TaskExecutorProcessSpec taskExecutorProcessSpec = taskExecutorProcessSpecAndResourceOpt.get().getTaskExecutorProcessSpec();
 		final Resource resource = taskExecutorProcessSpecAndResourceOpt.get().getResource();
@@ -444,25 +441,21 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		return resourceManagerClient.registerApplicationMaster(rpcAddress, restPort, webInterfaceUrl);
 	}
 
-	private int getContainersFromPreviousAttempts(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
+	private void getContainersFromPreviousAttempts(final RegisterApplicationMasterResponse registerApplicationMasterResponse) {
 		final List<Container> containersFromPreviousAttempts =
 			registerApplicationMasterResponseReflector.getContainersFromPreviousAttempts(registerApplicationMasterResponse);
 		final List<YarnWorkerNode> recoveredWorkers = new ArrayList<>();
 
 		log.info("Recovered {} containers from previous attempts ({}).", containersFromPreviousAttempts.size(), containersFromPreviousAttempts);
 
-		int maxPriority = 0;
 		for (Container container : containersFromPreviousAttempts) {
 			final YarnWorkerNode worker = new YarnWorkerNode(container, getContainerResourceId(container));
 			recoveredWorkers.add(worker);
-			maxPriority = Math.max(container.getPriority().getPriority(), maxPriority);
 		}
 
 		// Should not invoke resource event handler on the main thread executor.
 		// We are in the initializing thread. The main thread executor is not yet ready.
 		getResourceEventHandler().onPreviousAttemptWorkersRecovered(recoveredWorkers);
-
-		return maxPriority;
 	}
 
 	// ------------------------------------------------------------------------
