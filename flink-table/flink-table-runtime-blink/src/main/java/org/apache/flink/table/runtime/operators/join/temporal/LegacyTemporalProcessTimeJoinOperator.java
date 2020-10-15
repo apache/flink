@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 /**
  * The operator to temporal join a stream on processing time.
  */
-public class TemporalProcessTimeJoinOperator
+public class LegacyTemporalProcessTimeJoinOperator
 	extends BaseTwoInputStreamOperatorWithStateRetention {
 
 	private static final long serialVersionUID = -5182289624027523612L;
@@ -51,7 +51,7 @@ public class TemporalProcessTimeJoinOperator
 	private transient JoinedRowData outRow;
 	private transient TimestampedCollector<RowData> collector;
 
-	public TemporalProcessTimeJoinOperator(
+	public LegacyTemporalProcessTimeJoinOperator(
 			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,
 			long minRetentionTime,
