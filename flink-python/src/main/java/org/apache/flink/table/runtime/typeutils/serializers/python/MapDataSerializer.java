@@ -56,6 +56,10 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
 	private final TypeSerializer valueTypeSerializer;
 
+	private final ArrayData.ElementGetter keyGetter;
+
+	private final ArrayData.ElementGetter valueGetter;
+
 	private final int keySize;
 
 	private final int valueSize;
@@ -69,6 +73,8 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 		this.valueTypeSerializer = valueTypeSerializer;
 		this.keySize = BinaryArrayData.calculateFixLengthPartSize(this.keyType);
 		this.valueSize = BinaryArrayData.calculateFixLengthPartSize(this.valueType);
+		this.keyGetter = ArrayData.createElementGetter(keyType);
+		this.valueGetter = ArrayData.createElementGetter(valueType);
 	}
 
 	@Override
@@ -82,13 +88,13 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 			if (keyArray.isNullAt(i)) {
 				throw new IllegalArgumentException("The key of BinaryMapData must not be null.");
 			}
-			Object key = ArrayData.get(keyArray, i, keyType);
+			Object key = keyGetter.getElementOrNull(keyArray, i);
 			keyTypeSerializer.serialize(key, target);
 			if (valueArray.isNullAt(i)) {
 				target.writeBoolean(true);
 			} else {
 				target.writeBoolean(false);
-				Object value = ArrayData.get(valueArray, i, valueType);
+				Object value = valueGetter.getElementOrNull(valueArray, i);
 				valueTypeSerializer.serialize(value, target);
 			}
 		}

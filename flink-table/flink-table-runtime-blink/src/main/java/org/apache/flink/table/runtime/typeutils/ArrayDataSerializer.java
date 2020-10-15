@@ -52,18 +52,19 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 
 	private final LogicalType eleType;
 	private final TypeSerializer<Object> eleSer;
+	private final ArrayData.ElementGetter elementGetter;
 
 	private transient BinaryArrayData reuseArray;
 	private transient BinaryArrayWriter reuseWriter;
 
 	public ArrayDataSerializer(LogicalType eleType) {
-		this.eleType = eleType;
-		this.eleSer = InternalSerializers.create(eleType);
+		this(eleType, InternalSerializers.create(eleType));
 	}
 
 	private ArrayDataSerializer(LogicalType eleType, TypeSerializer<Object> eleSer) {
 		this.eleType = eleType;
 		this.eleSer = eleSer;
+		this.elementGetter = ArrayData.createElementGetter(eleType);
 	}
 
 	@Override
@@ -156,7 +157,7 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 		Object[] newArray = new Object[from.size()];
 		for (int i = 0; i < newArray.length; i++) {
 			if (!from.isNullAt(i)) {
-				newArray[i] = eleSer.copy(ArrayData.get(from, i, eleType));
+				newArray[i] = eleSer.copy(elementGetter.getElementOrNull(from, i));
 			} else {
 				newArray[i] = null;
 			}
@@ -196,7 +197,7 @@ public class ArrayDataSerializer extends TypeSerializer<ArrayData> {
 			if (from.isNullAt(i)) {
 				reuseWriter.setNullAt(i, eleType);
 			} else {
-				BinaryWriter.write(reuseWriter, i, ArrayData.get(from, i, eleType), eleType, eleSer);
+				BinaryWriter.write(reuseWriter, i, elementGetter.getElementOrNull(from, i), eleType, eleSer);
 			}
 		}
 		reuseWriter.complete();
