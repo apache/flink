@@ -290,6 +290,155 @@ public class WindowOperatorTest {
 	}
 
 	@Test
+	public void testEventTimeCumulativeWindows() throws Exception {
+		closeCalled.set(0);
+
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
+			.withEventTime(2)
+			.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+
+		testHarness.open();
+
+		// process elements
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		// add elements out-of-order
+		testHarness.processElement(insertRecord("key2", 1, 2999L));
+		testHarness.processElement(insertRecord("key2", 1, 3000L));
+
+		testHarness.processElement(insertRecord("key1", 1, 20L));
+		testHarness.processElement(insertRecord("key1", 1, 0L));
+		testHarness.processElement(insertRecord("key1", 1, 999L));
+
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processElement(insertRecord("key2", 1, 1999L));
+		testHarness.processElement(insertRecord("key2", 1, 1000L));
+
+		testHarness.processWatermark(new Watermark(999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 1000L, 999L)));
+		expectedOutput.add(new Watermark(999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(1999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 2000L, 1999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L)));
+		expectedOutput.add(new Watermark(1999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(2999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 4L, 4L, 0L, 3000L, 2999L)));
+		expectedOutput.add(new Watermark(2999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// do a snapshot, close and restore again
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+		testHarness.close();
+		expectedOutput.clear();
+
+		testHarness = createTestHarness(operator);
+		testHarness.setup();
+		testHarness.initializeState(snapshot);
+		testHarness.open();
+
+		testHarness.processWatermark(new Watermark(3999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 4000L, 3999L)));
+		expectedOutput.add(new Watermark(3999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(4999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 5000L, 4999L)));
+		expectedOutput.add(new Watermark(4999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processWatermark(new Watermark(5999));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 6000L, 5999L)));
+		expectedOutput.add(new Watermark(5999));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// those don't have any effect...
+		testHarness.processWatermark(new Watermark(6999));
+		testHarness.processWatermark(new Watermark(7999));
+		expectedOutput.add(new Watermark(6999));
+		expectedOutput.add(new Watermark(7999));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
+
+		// we close once in the rest...
+		assertEquals("Close was not called.", 2, closeCalled.get());
+	}
+
+	@Test
+	public void testProcessingTimeCumulativeWindows() throws Throwable {
+		closeCalled.set(0);
+
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
+			.withProcessingTime()
+			.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		// timestamp is ignored in processing time
+		testHarness.setProcessingTime(3);
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(1000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 0L, 1000L, 999L)));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(2000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 2000L, 1999L)));
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(3000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 0L, 3000L, 2999L)));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key2", 1, Long.MAX_VALUE));
+		testHarness.processElement(insertRecord("key1", 1, Long.MAX_VALUE));
+
+		testHarness.setProcessingTime(7000);
+
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 4000L, 3999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 5000L, 4999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 5000L, 4999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key1", 2L, 2L, 3000L, 6000L, 5999L)));
+		expectedOutput.addAll(doubleRecord(isTableAggregate, insertRecord("key2", 1L, 1L, 3000L, 6000L, 5999L)));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	public void testEventTimeTumblingWindows() throws Exception {
 		closeCalled.set(0);

@@ -29,6 +29,7 @@ import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
+import org.apache.flink.table.runtime.operators.window.assigners.CumulativeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.InternalTimeWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -90,6 +91,12 @@ public class WindowOperatorBuilder {
 	public WindowOperatorBuilder sliding(Duration size, Duration slide) {
 		checkArgument(windowAssigner == null);
 		this.windowAssigner = SlidingWindowAssigner.of(size, slide);
+		return this;
+	}
+
+	public WindowOperatorBuilder cumulative(Duration size, Duration step) {
+		checkArgument(windowAssigner == null);
+		this.windowAssigner = CumulativeWindowAssigner.of(size, step);
 		return this;
 	}
 
