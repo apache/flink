@@ -39,15 +39,18 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 	private final LogicalType[] inputFieldTypes;
 	private final LogicalType[] keyFieldTypes;
 	private final TypeSerializer[] keySers;
+	private final RowData.FieldGetter[] fieldGetters;
 
 	public BinaryRowDataKeySelector(int[] keyFields, LogicalType[] inputFieldTypes) {
 		this.keyFields = keyFields;
 		this.inputFieldTypes = inputFieldTypes;
 		this.keyFieldTypes = new LogicalType[keyFields.length];
 		this.keySers = new TypeSerializer[keyFields.length];
+		this.fieldGetters = new RowData.FieldGetter[keyFields.length];
 		for (int i = 0; i < keyFields.length; ++i) {
 			keyFieldTypes[i] = inputFieldTypes[keyFields[i]];
 			keySers[i] = InternalSerializers.create(keyFieldTypes[i]);
+			fieldGetters[i] = RowData.createFieldGetter(inputFieldTypes[keyFields[i]], keyFields[i]);
 		}
 	}
 
@@ -62,7 +65,7 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
 				BinaryWriter.write(
 						writer,
 						i,
-						RowData.get(value, keyFields[i], inputFieldTypes[keyFields[i]]),
+						fieldGetters[i].getFieldOrNull(value),
 						inputFieldTypes[keyFields[i]],
 						keySers[i]);
 			}

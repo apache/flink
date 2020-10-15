@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.utils;
+package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -89,7 +89,8 @@ public class RowDataTestUtil {
 					row.setField(i, null);
 				} else {
 					LogicalType type = types.get(i);
-					Object o = RowData.get(rowData, i, type);
+					RowData.FieldGetter fieldGetter = RowData.createFieldGetter(type, i);
+					Object o = fieldGetter.getFieldOrNull(rowData);
 					if (type instanceof RowType) {
 						o = toGenericRowDeeply((RowData) o, type.getChildren());
 					}
