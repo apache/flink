@@ -110,6 +110,6 @@ function run_local_recovery_test {
 
 ## MAIN
 trap cleanup_after_test_and_exit_fail EXIT
-run_local_recovery_test "$@"
+run_test_with_timeout 600 run_local_recovery_test "$@"
 trap - EXIT
 exit 0
