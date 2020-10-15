@@ -484,8 +484,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		return executionGraph.getResultPartitionAvailabilityChecker();
 	}
 
-	protected final void prepareExecutionGraphForNgScheduling() {
-		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+	protected final void transitionToRunning() {
 		executionGraph.transitionToRunning();
 	}
 
@@ -552,6 +551,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	public void setMainThreadExecutor(final ComponentMainThreadExecutor mainThreadExecutor) {
 		this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
 		initializeOperatorCoordinators(mainThreadExecutor);
+		executionGraph.setInternalTaskFailuresListener(new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
 		executionGraph.start(mainThreadExecutor);
 	}
 
