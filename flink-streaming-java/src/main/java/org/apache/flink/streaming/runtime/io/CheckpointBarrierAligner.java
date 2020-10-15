@@ -107,11 +107,6 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public boolean isBlocked(InputChannelInfo channelInfo) {
-		return blockedChannels.get(channelInfo);
-	}
-
-	@Override
 	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException {
 		final long barrierId = receivedBarrier.getId();
 

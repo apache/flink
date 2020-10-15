@@ -306,14 +306,11 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		sendBarrier(barrierId, checkpointType, fast, checkpointedGate);
 
 		assertEquals(checkpointType.isSavepoint(), target.triggeredCheckpoints.isEmpty());
-		assertEquals(checkpointType.isSavepoint(), barrierHandler.isBlocked(fast.getChannelInfo()));
-		assertFalse(barrierHandler.isBlocked(slow.getChannelInfo()));
 
 		sendBarrier(barrierId, checkpointType, slow, checkpointedGate);
 
 		assertEquals(singletonList(barrierId), target.triggeredCheckpoints);
 		for (InputChannel channel : gate.getInputChannels().values()) {
-			assertFalse(barrierHandler.isBlocked(channel.getChannelInfo()));
 			assertEquals(
 				String.format("channel %d should be resumed", channel.getChannelIndex()),
 				checkpointType.isSavepoint(),
