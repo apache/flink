@@ -196,7 +196,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		assertEquals(1, completedCheckpoints.size());
 
 		// shutdown the store
-		store.shutdown(JobStatus.SUSPENDED);
+		store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {
+		});
 
 		// restore the store
 		Set<ExecutionJobVertex> tasks = new HashSet<>();
@@ -803,13 +804,15 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			operatorStates,
 			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new TestCompletedCheckpointStorageLocation());
+			new TestCompletedCheckpointStorageLocation()
+		);
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinator coord =
 			new CheckpointCoordinatorBuilder()
 				.setTasks(newJobVertex1.getTaskVertices())
-				.setCompletedCheckpointStore(CompletedCheckpointStore.storeFor(completedCheckpoint))
+				.setCompletedCheckpointStore(CompletedCheckpointStore.storeFor(() -> {
+				}, completedCheckpoint))
 				.setTimer(manuallyTriggeredScheduledExecutor)
 				.build();
 

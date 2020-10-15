@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.util.concurrent.Executor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.junit.Test;
@@ -45,7 +47,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
 	@Override
 	protected CompletedCheckpointStore createCompletedCheckpoints(
-		int maxNumberOfCheckpointsToRetain) throws Exception {
+		int maxNumberOfCheckpointsToRetain, Executor executor) throws Exception {
 
 		return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
 	}
@@ -60,11 +62,13 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
 		Collection<OperatorState> operatorStates = checkpoint.getOperatorStates().values();
 
-		store.addCheckpoint(checkpoint);
+		store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 		verifyCheckpointRegistered(operatorStates, sharedStateRegistry);
 
-		store.shutdown(JobStatus.FINISHED);
+		store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {
+		});
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
 		verifyCheckpointDiscarded(operatorStates);
@@ -81,11 +85,13 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
 		Collection<OperatorState> taskStates = checkpoint.getOperatorStates().values();
 
-		store.addCheckpoint(checkpoint);
+		store.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 		verifyCheckpointRegistered(taskStates, sharedStateRegistry);
 
-		store.shutdown(JobStatus.SUSPENDED);
+		store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {
+		});
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
 		verifyCheckpointDiscarded(taskStates);
@@ -99,7 +105,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testAddCheckpointWithFailedRemove() throws Exception {
 
 		final int numCheckpointsToRetain = 1;
-		CompletedCheckpointStore store = createCompletedCheckpoints(numCheckpointsToRetain);
+		CompletedCheckpointStore store = createCompletedCheckpoints(numCheckpointsToRetain, Executors.directExecutor());
 
 		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
@@ -108,7 +114,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume();
 
 			try {
-				store.addCheckpoint(checkpointToAdd);
+				store.addCheckpoint(checkpointToAdd, new CheckpointsCleaner(), () -> {
+				});
 
 				// The checkpoint should be in the store if we successfully add it into the store.
 				List<CompletedCheckpoint> addedCheckpoints = store.getAllCheckpoints();
@@ -125,9 +132,12 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testPreferCheckpointWithoutSavepoint() throws Exception {
 		StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(5);
 		JobID jobId = new JobID();
-		store.addCheckpoint(checkpoint(jobId, 1L));
-		store.addCheckpoint(checkpoint(jobId, 2L));
-		store.addCheckpoint(checkpoint(jobId, 3L));
+		store.addCheckpoint(checkpoint(jobId, 1L), new CheckpointsCleaner(), () -> {
+		});
+		store.addCheckpoint(checkpoint(jobId, 2L), new CheckpointsCleaner(), () -> {
+		});
+		store.addCheckpoint(checkpoint(jobId, 3L), new CheckpointsCleaner(), () -> {
+		});
 
 		CompletedCheckpoint latestCheckpoint = store.getLatestCheckpoint(true);
 
@@ -138,9 +148,12 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testPreferCheckpointWithSavepoint() throws Exception {
 		StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(5);
 		JobID jobId = new JobID();
-		store.addCheckpoint(checkpoint(jobId, 1L));
-		store.addCheckpoint(savepoint(jobId, 2L));
-		store.addCheckpoint(savepoint(jobId, 3L));
+		store.addCheckpoint(checkpoint(jobId, 1L), new CheckpointsCleaner(), () -> {
+		});
+		store.addCheckpoint(savepoint(jobId, 2L), new CheckpointsCleaner(), () -> {
+		});
+		store.addCheckpoint(savepoint(jobId, 3L), new CheckpointsCleaner(), () -> {
+		});
 
 		CompletedCheckpoint latestCheckpoint = store.getLatestCheckpoint(true);
 
@@ -151,8 +164,10 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testPreferCheckpointWithOnlySavepoint() throws Exception {
 		StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(5);
 		JobID jobId = new JobID();
-		store.addCheckpoint(savepoint(jobId, 1L));
-		store.addCheckpoint(savepoint(jobId, 2L));
+		store.addCheckpoint(savepoint(jobId, 1L), new CheckpointsCleaner(), () -> {
+		});
+		store.addCheckpoint(savepoint(jobId, 2L), new CheckpointsCleaner(), () -> {
+		});
 
 		CompletedCheckpoint latestCheckpoint = store.getLatestCheckpoint(true);
 
@@ -165,7 +180,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			checkpointId,
 			checkpointId,
 			Collections.emptyMap(),
-			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE));
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE)
+		);
 	}
 
 	private static CompletedCheckpoint savepoint(JobID jobId, long checkpointId) {
@@ -174,6 +190,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			checkpointId,
 			checkpointId,
 			Collections.emptyMap(),
-			CheckpointProperties.forSavepoint(true));
+			CheckpointProperties.forSavepoint(true)
+		);
 	}
 }

@@ -106,42 +106,41 @@ def _extract_input(args) -> Tuple[str, Dict, List]:
     return ",".join(args_str), local_variable_dict, local_funcs
 
 
-def extract_data_stream_stateless_funcs(udfs):
+def extract_data_stream_stateless_funcs(udf_proto):
     """
     Extracts user-defined-function from the proto representation of a
     :class:`Function`.
 
-    :param udfs: the proto representation of the Python
-    :class:`Function`
+    :param udf: the proto representation of the Python :class:`Function`
     """
-    func_type = udfs[0].functionType
-    udf = flink_fn_execution_pb2.UserDefinedDataStreamFunction
+    func_type = udf_proto.function_type
+    UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
     func = None
-    if func_type == udf.MAP:
-        func = cloudpickle.loads(udfs[0].payload).map
-    elif func_type == udf.FLAT_MAP:
-        func = cloudpickle.loads(udfs[0].payload).flat_map
-    elif func_type == udf.REDUCE:
-        reduce_func = cloudpickle.loads(udfs[0].payload).reduce
+    user_defined_func = cloudpickle.loads(udf_proto.payload)
+    if func_type == UserDefinedDataStreamFunction.MAP:
+        func = user_defined_func.map
+    elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
+        func = user_defined_func.flat_map
+    elif func_type == UserDefinedDataStreamFunction.REDUCE:
+        reduce_func = user_defined_func.reduce
 
         def wrap_func(value):
             return reduce_func(value[0], value[1])
         func = wrap_func
-    elif func_type == udf.CO_MAP:
-        co_map_func = cloudpickle.loads(udfs[0].payload)
+    elif func_type == UserDefinedDataStreamFunction.CO_MAP:
+        co_map_func = user_defined_func
 
         def wrap_func(value):
             return co_map_func.map1(value[1]) if value[0] else co_map_func.map2(value[2])
         func = wrap_func
-    elif func_type == udf.CO_FLAT_MAP:
-        co_flat_map_func = cloudpickle.loads(udfs[0].payload)
+    elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
+        co_flat_map_func = user_defined_func
 
         def wrap_func(value):
-            return co_flat_map_func.flat_map1(
-                value[1]) if value[0] else co_flat_map_func.flat_map2(
-                value[2])
+            return co_flat_map_func.flat_map1(value[1]) if value[0] else \
+                co_flat_map_func.flat_map2(value[2])
         func = wrap_func
-    return func
+    return func, user_defined_func
 
 
 def _parse_constant_value(constant_value) -> Tuple[str, Any]:

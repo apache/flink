@@ -88,7 +88,7 @@ public class CheckpointMetadataLoadingTest {
 
 		try {
 			Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
-			fail("Did not throw expected Exception");
+				fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
 		}

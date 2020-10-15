@@ -269,7 +269,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation());
+				new TestCompletedCheckpointStorageLocation()
+		);
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
 		final CheckpointCoordinator cc = instantiateCheckpointCoordinator(jid, ackVertex);
@@ -278,7 +279,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statelessHook);
 		cc.addMasterHook(statefulHook2);
 
-		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 		cc.restoreLatestCheckpointedStateToAll(
 				Collections.emptySet(),
 				false);
@@ -320,7 +322,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				Collections.<OperatorID, OperatorState>emptyMap(),
 				masterHookStates,
 				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-				new TestCompletedCheckpointStorageLocation());
+				new TestCompletedCheckpointStorageLocation()
+		);
 
 		final ExecutionAttemptID execId = new ExecutionAttemptID();
 		final ExecutionVertex ackVertex = mockExecutionVertex(execId);
@@ -329,7 +332,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 		cc.addMasterHook(statefulHook);
 		cc.addMasterHook(statelessHook);
 
-		cc.getCheckpointStore().addCheckpoint(checkpoint);
+		cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {
+		});
 
 		// since we have unmatched state, this should fail
 		try {
@@ -449,6 +453,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 			false,
 			false,
 			0);
+		Executor executor = Executors.directExecutor();
 		return new CheckpointCoordinator(
 				jid,
 				chkConfig,
@@ -459,7 +464,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
-				Executors.directExecutor(),
+				executor,
+				new CheckpointsCleaner(),
 				testingScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				new CheckpointFailureManager(

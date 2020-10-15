@@ -142,7 +142,8 @@ if [[ ${PROFILE} != *"jdk11"* ]]; then
 		run_test "Run Mesos multiple submission test" "$END_TO_END_DIR/test-scripts/test_mesos_multiple_submissions.sh"
 
 		# `google/cloud-sdk` docker image doesn't support aarch64 currently.
-		run_test "Test PubSub connector with Docker based Google PubSub Emulator" "$END_TO_END_DIR/test-scripts/test_streaming_gcp_pubsub.sh"
+		# Disabled until https://issues.apache.org/jira/browse/FLINK-19619 is fixed.
+		#run_test "Test PubSub connector with Docker based Google PubSub Emulator" "$END_TO_END_DIR/test-scripts/test_streaming_gcp_pubsub.sh"
 	fi
 fi
 
