@@ -133,7 +133,7 @@ public class StreamTaskNetworkInputTest {
 		StreamTaskNetworkInput<Long> input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
-				new CheckpointBarrierUnaligner(
+				SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
 					TestSubtaskCheckpointCoordinator.INSTANCE,
 					"test",
 					new DummyCheckpointInvokable(),
