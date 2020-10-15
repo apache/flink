@@ -43,13 +43,11 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapter {
 	private final Resource maxContainerResource;
 	private final Map<String, Long> externalResourceConfigs;
 
-	private int nextPriority;
+	private int nextPriority = 1;
 
 	TaskExecutorProcessSpecContainerResourcePriorityAdapter(
-			final int nextPriority,
 			final Resource maxContainerResource,
 			final Map<String, Long> externalResourceConfigs) {
-		this.nextPriority = nextPriority;
 		this.maxContainerResource = Preconditions.checkNotNull(maxContainerResource);
 		this.externalResourceConfigs = Preconditions.checkNotNull(externalResourceConfigs);
 

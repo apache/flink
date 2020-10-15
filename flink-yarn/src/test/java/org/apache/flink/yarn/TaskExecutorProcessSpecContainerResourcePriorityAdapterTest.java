@@ -156,10 +156,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	private static TaskExecutorProcessSpecContainerResourcePriorityAdapter getAdapter() {
-		return new TaskExecutorProcessSpecContainerResourcePriorityAdapter(
-			1,
-			MAX_CONTAINER_RESOURCE,
-			Collections.emptyMap());
+		return new TaskExecutorProcessSpecContainerResourcePriorityAdapter(MAX_CONTAINER_RESOURCE, Collections.emptyMap());
 	}
 
 	private static TaskExecutorProcessSpecContainerResourcePriorityAdapter getAdapterWithExternalResources(String name, long amount) {
@@ -170,10 +167,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 		final Map<String, Long> externalResources = new HashMap<>();
 		externalResources.put(name, amount);
 
-		return new TaskExecutorProcessSpecContainerResourcePriorityAdapter(
-			1,
-			maxResource,
-			externalResources);
+		return new TaskExecutorProcessSpecContainerResourcePriorityAdapter(maxResource, externalResources);
 	}
 
 	private static Resource getResource(TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter, TaskExecutorProcessSpec spec) {
