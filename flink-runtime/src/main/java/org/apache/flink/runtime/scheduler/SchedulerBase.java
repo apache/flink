@@ -100,7 +100,6 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -665,7 +664,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	@Override
 	public JobDetails requestJobDetails() {
 		mainThreadExecutor.assertRunningInMainThread();
-		return WebMonitorUtils.createDetailsForJob(executionGraph);
+		return JobDetails.createDetailsForJob(executionGraph);
 	}
 
 	@Override

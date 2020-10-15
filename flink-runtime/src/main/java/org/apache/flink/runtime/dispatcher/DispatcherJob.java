@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -138,19 +137,9 @@ public final class DispatcherJob implements AutoCloseableAsync {
 	}
 
 	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-		return requestJobStatus(timeout).thenApply(status -> {
-			int[] tasksPerState = new int[ExecutionState.values().length];
+		return requestJob(timeout).thenApply(executionGraph -> {
 			synchronized (lock) {
-				return new JobDetails(
-					jobId,
-					jobName,
-					initializationTimestamp,
-					0,
-					0,
-					status,
-					0,
-					tasksPerState,
-					0);
+				return JobDetails.createDetailsForJob(executionGraph);
 			}
 		});
 	}
