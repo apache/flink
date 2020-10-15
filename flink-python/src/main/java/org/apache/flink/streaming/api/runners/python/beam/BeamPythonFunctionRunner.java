@@ -250,6 +250,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			sharedResources =
 				memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, initializer, managedMemoryFraction);
 			LOG.info("Obtained shared Python process of size {} bytes", sharedResources.getSize());
+			sharedResources.getResourceHandle().addPythonEnvironmentManager(environmentManager);
 
 			JobBundleFactory jobBundleFactory = sharedResources.getResourceHandle().getJobBundleFactory();
 			RunnerApi.Environment environment = sharedResources.getResourceHandle().getEnvironment();
@@ -275,13 +276,18 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		try {
 			if (sharedResources != null) {
-				sharedResources.close();
+				if (sharedResources.getResourceHandle().release()) {
+					// release sharedResources iff there are no more Python operators sharing it
+					sharedResources.close();
+				}
+			} else {
+				// if sharedResources is not null, the close of environmentManager will be managed in sharedResources,
+				// otherwise, we need to close the environmentManager explicitly
+				environmentManager.close();
 			}
 		} finally {
 			sharedResources = null;
 		}
-
-		environmentManager.close();
 	}
 
 	@Override
