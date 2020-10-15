@@ -43,9 +43,9 @@ under the License.
 
 请参考专门描述该主题的页面 [数据类型]({{ site.baseurl }}/zh/dev/table/types.html)。
 
-通用类型与（嵌套的）符合类型 （如：POJO、tuples、rows、Scala case 类) 都可以作为行的字段。
+通用类型与（嵌套的）复合类型 （如：POJO、tuples、rows、Scala case 类) 都可以作为行的字段。
 
-符合类型的字段任意的嵌套可被 [值访问函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html#value-access-functions) 访问。
+复合类型的字段任意的嵌套可被 [值访问函数]({{ site.baseurl }}/zh/dev/table/functions/systemFunctions.html#value-access-functions) 访问。
 
 通用类型将会被视为一个黑箱，且可以被 [用户自定义函数]({{ site.baseurl }}/zh/dev/table/functions/udfs.html) 传递或引用。
 
