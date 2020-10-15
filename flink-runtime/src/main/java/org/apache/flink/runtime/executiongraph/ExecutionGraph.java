@@ -793,9 +793,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 
-	public void enableNgScheduling(final InternalFailuresListener internalTaskFailuresListener) {
+	public void setInternalTaskFailuresListener(final InternalFailuresListener internalTaskFailuresListener) {
 		checkNotNull(internalTaskFailuresListener);
-		checkState(this.internalTaskFailuresListener == null, "enableNgScheduling can be only called once");
+		checkState(this.internalTaskFailuresListener == null, "internalTaskFailuresListener can be only set once");
 		this.internalTaskFailuresListener = internalTaskFailuresListener;
 		this.legacyScheduling = false;
 	}
