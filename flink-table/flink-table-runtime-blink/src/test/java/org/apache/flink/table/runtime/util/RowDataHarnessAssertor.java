@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -106,7 +105,7 @@ public class RowDataHarnessAssertor {
 				if (row instanceof GenericRowData) {
 					expectedRecords.add((GenericRowData) row);
 				} else {
-					GenericRowData genericRow = RowDataUtil.toGenericRow(
+					GenericRowData genericRow = RowDataTestUtil.toGenericRowDeeply(
 						row,
 						types);
 					expectedRecords.add(genericRow);
@@ -118,7 +117,7 @@ public class RowDataHarnessAssertor {
 			if (act instanceof StreamRecord) {
 				RowData actualOutput = (RowData) ((StreamRecord) act).getValue();
 				// joined row can't equals to generic row, so cast joined row to generic row first
-				GenericRowData actualRow = RowDataUtil.toGenericRow(
+				GenericRowData actualRow = RowDataTestUtil.toGenericRowDeeply(
 						actualOutput,
 						types);
 				actualRecords.add(actualRow);
