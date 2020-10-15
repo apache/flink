@@ -76,16 +76,13 @@ public class JarHelper {
 		}
 
 		mDestJarName = destJar.getCanonicalPath();
-		FileOutputStream fout = new FileOutputStream(destJar);
-		JarOutputStream jout = new JarOutputStream(fout);
-		//jout.setLevel(0);
-		try {
+		try (
+			FileOutputStream fout = new FileOutputStream(destJar);
+			JarOutputStream jout = new JarOutputStream(fout)) {
+			//jout.setLevel(0);
 			jarDir(dirOrFile2Jar, jout, null);
 		} catch (IOException ioe) {
 			throw ioe;
-		} finally {
-			jout.close();
-			fout.close();
 		}
 	}
 
@@ -94,8 +91,9 @@ public class JarHelper {
 	 */
 	public void unjarDir(File jarFile, File destDir) throws IOException {
 		BufferedOutputStream dest = null;
-		FileInputStream fis = new FileInputStream(jarFile);
-		unjar(fis, destDir);
+		try (FileInputStream fis = new FileInputStream(jarFile)) {
+			unjar(fis, destDir);
+		}
 	}
 
 	/**
@@ -103,40 +101,38 @@ public class JarHelper {
 	 * directory.
 	 */
 	public void unjar(InputStream in, File destDir) throws IOException {
-		BufferedOutputStream dest = null;
-		JarInputStream jis = new JarInputStream(in);
-		JarEntry entry;
-		while ((entry = jis.getNextJarEntry()) != null) {
-			if (entry.isDirectory()) {
-				File dir = new File(destDir, entry.getName());
-				dir.mkdir();
+		try (JarInputStream jis = new JarInputStream(in)) {
+			JarEntry entry;
+			while ((entry = jis.getNextJarEntry()) != null) {
+				if (entry.isDirectory()) {
+					File dir = new File(destDir, entry.getName());
+					dir.mkdir();
+					if (entry.getTime() != -1) {
+						dir.setLastModified(entry.getTime());
+					}
+					continue;
+				}
+				int count;
+				byte[] data = new byte[BUFFER_SIZE];
+				File destFile = new File(destDir, entry.getName());
+				if (mVerbose) {
+					System.out.println("unjarring " + destFile +
+						" from " + entry.getName());
+				}
+
+				try (
+					FileOutputStream fos = new FileOutputStream(destFile);
+					BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER_SIZE)) {
+					while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
+						dest.write(data, 0, count);
+					}
+					dest.flush();
+				}
 				if (entry.getTime() != -1) {
-					dir.setLastModified(entry.getTime());
+					destFile.setLastModified(entry.getTime());
 				}
-				continue;
-			}
-			int count;
-			byte[] data = new byte[BUFFER_SIZE];
-			File destFile = new File(destDir, entry.getName());
-			if (mVerbose) {
-				System.out.println("unjarring " + destFile +
-					" from " + entry.getName());
-			}
-			FileOutputStream fos = new FileOutputStream(destFile);
-			dest = new BufferedOutputStream(fos, BUFFER_SIZE);
-			try {
-				while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
-					dest.write(data, 0, count);
-				}
-				dest.flush();
-			} finally {
-				dest.close();
-			}
-			if (entry.getTime() != -1) {
-				destFile.setLastModified(entry.getTime());
 			}
 		}
-		jis.close();
 	}
 
 	public void setVerbose(boolean b) {
@@ -181,8 +177,8 @@ public class JarHelper {
 			if (mVerbose) {
 				System.out.println("adding " + dirOrFile2jar.getPath());
 			}
-			FileInputStream fis = new FileInputStream(dirOrFile2jar);
-			try {
+
+			try (FileInputStream fis = new FileInputStream(dirOrFile2jar)) {
 				JarEntry entry = new JarEntry(path + dirOrFile2jar.getName());
 				entry.setTime(dirOrFile2jar.lastModified());
 				jos.putNextEntry(entry);
@@ -196,8 +192,6 @@ public class JarHelper {
 				jos.closeEntry();
 			} catch (IOException ioe) {
 				throw ioe;
-			} finally {
-				fis.close();
 			}
 		}
 	}
