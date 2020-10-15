@@ -1108,6 +1108,7 @@ public class DataFormatConverters {
 
 		private final Class<T> componentClass;
 		private final LogicalType elementType;
+		private final ArrayData.ElementGetter elementGetter;
 		private final DataFormatConverter<Object, T> elementConverter;
 		private final int elementSize;
 		private final TypeSerializer<T> eleSer;
@@ -1119,6 +1120,7 @@ public class DataFormatConverters {
 		public ObjectArrayConverter(DataType elementType) {
 			this.componentClass = (Class) elementType.getConversionClass();
 			this.elementType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(elementType);
+			this.elementGetter = ArrayData.createElementGetter(this.elementType);
 			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
 			this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
 			this.eleSer = InternalSerializers.create(this.elementType);
@@ -1155,7 +1157,7 @@ public class DataFormatConverters {
 		T[] toExternalImpl(ArrayData value) {
 			return (isEleIndentity && value instanceof GenericArrayData) ?
 					genericArrayToJavaArray((GenericArrayData) value, elementType) :
-					arrayDataToJavaArray(value, elementType, componentClass, elementConverter);
+					arrayDataToJavaArray(value, elementGetter, componentClass, elementConverter);
 		}
 
 		@Override
@@ -1193,7 +1195,7 @@ public class DataFormatConverters {
 	@SuppressWarnings("unchecked")
 	private static <T> T[] arrayDataToJavaArray(
 			ArrayData value,
-			LogicalType elementType,
+			ArrayData.ElementGetter elementGetter,
 			Class<T> componentClass,
 			DataFormatConverter<Object, T> elementConverter) {
 		int size = value.size();
@@ -1202,7 +1204,7 @@ public class DataFormatConverters {
 			if (value.isNullAt(i)) {
 				values[i] = null;
 			} else {
-				values[i] = elementConverter.toExternalImpl(ArrayData.get(value, i, elementType));
+				values[i] = elementConverter.toExternalImpl(elementGetter.getElementOrNull(value, i));
 			}
 		}
 		return values;
@@ -1220,6 +1222,9 @@ public class DataFormatConverters {
 
 		private final DataFormatConverter keyConverter;
 		private final DataFormatConverter valueConverter;
+
+		private final ArrayData.ElementGetter keyGetter;
+		private final ArrayData.ElementGetter valueGetter;
 
 		private final int keyElementSize;
 		private final int valueElementSize;
@@ -1242,6 +1247,8 @@ public class DataFormatConverters {
 			this.valueType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(valueTypeInfo);
 			this.keyConverter = DataFormatConverters.getConverterForDataType(keyTypeInfo);
 			this.valueConverter = DataFormatConverters.getConverterForDataType(valueTypeInfo);
+			this.keyGetter = ArrayData.createElementGetter(keyType);
+			this.valueGetter = ArrayData.createElementGetter(valueType);
 			this.keyElementSize = BinaryArrayData.calculateFixLengthPartSize(keyType);
 			this.valueElementSize = BinaryArrayData.calculateFixLengthPartSize(valueType);
 			this.keyComponentClass = keyTypeInfo.getConversionClass();
@@ -1302,12 +1309,12 @@ public class DataFormatConverters {
 				if (keyArray.isNullAt(i)) {
 					key = null;
 				} else {
-					key = keyConverter.toExternalImpl(ArrayData.get(keyArray, i, keyType));
+					key = keyConverter.toExternalImpl(keyGetter.getElementOrNull(keyArray, i));
 				}
 				if (valueArray.isNullAt(i)) {
 					value = null;
 				} else {
-					value = valueConverter.toExternalImpl(ArrayData.get(valueArray, i, valueType));
+					value = valueConverter.toExternalImpl(valueGetter.getElementOrNull(valueArray, i));
 				}
 				javaMap.put(key, value);
 			}
