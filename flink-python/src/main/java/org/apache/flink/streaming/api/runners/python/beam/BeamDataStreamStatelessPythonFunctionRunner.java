@@ -24,7 +24,6 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.streaming.api.typeutils.PythonTypeUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;

@@ -164,7 +164,8 @@ public class StatelessTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration())
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
 		);
 	}
 

@@ -128,7 +128,8 @@ public class PythonReduceOperator<OUT>
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration())
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader())
 		);
 	}
 }

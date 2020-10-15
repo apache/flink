@@ -277,7 +277,8 @@ public class PythonStreamGroupAggregateOperator
 			getContainingTask().getEnvironment().getMemoryManager(),
 			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
 				ManagedMemoryUseCase.PYTHON,
-				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration()));
+				getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getContainingTask().getEnvironment().getUserCodeClassLoader().asClassLoader()));
 	}
 
 	@Override
