@@ -15,8 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.common.types import RowKind
+
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, LocalZonedTimestampType, _from_java_type, Row, RowType, \
+from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
     TimeType, DateType, ArrayType, MapType
 from pyflink.util.utils import to_jarray
 import datetime
@@ -81,46 +83,17 @@ def to_expression_jarray(exprs):
     return to_jarray(gateway.jvm.Expression, [expr._j_expr for expr in exprs])
 
 
-class CloseableIterator(object):
-    """
-    Representing an Iterator that is also auto closeable.
-    """
-    def __init__(self, j_closeable_iterator, field_data_types):
-        self._j_closeable_iterator = j_closeable_iterator
-        self._j_field_data_types = field_data_types
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if not self._j_closeable_iterator.hasNext():
-            raise StopIteration("No more data.")
-        gateway = get_gateway()
-        pickle_bytes = gateway.jvm.PythonBridgeUtils. \
-            getPickledBytesFromRow(self._j_closeable_iterator.next(),
-                                   self._j_field_data_types)
-        pickle_bytes = list(pickle_bytes)
-        data_types = [_from_java_type(j_field_data_type)
-                      for j_field_data_type in self._j_field_data_types]
-        field_data = zip(pickle_bytes, data_types)
-        fields = []
-        for data, field_type in field_data:
-            data = pickle.loads(data)
-            fields.append(java_to_python_converter(data, field_type))
-        return Row(fields)
-
-    def next(self):
-        return self.__next__()
-
-
 def java_to_python_converter(data, field_type):
     if isinstance(field_type, RowType):
-        data = zip(list(data), field_type.field_types())
+        row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
+        data = zip(list(data[1:]), field_type.field_types())
         fields = []
         for d, d_type in data:
             d = pickle.loads(d)
             fields.append(java_to_python_converter(d, d_type))
-        return Row(fields)
+        result_row = Row(fields)
+        result_row.set_row_kind(row_kind)
+        return result_row
     elif isinstance(field_type, TimeType):
         seconds, microseconds = divmod(data, 10 ** 6)
         minutes, seconds = divmod(seconds, 60)

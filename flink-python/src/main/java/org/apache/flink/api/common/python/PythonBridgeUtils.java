@@ -189,7 +189,9 @@ public final class PythonBridgeUtils {
 
 	private static List<byte[]> getPickledBytesFromRow(Row row, LogicalType[] dataTypes) throws IOException {
 		List<byte[]> pickledRowBytes = new ArrayList<>(row.getArity());
+		pickledRowBytes.add(new byte[]{row.getKind().toByteValue()});
 		Pickler pickler = new Pickler();
+		initialize();
 		for (int i = 0; i < row.getArity(); i++) {
 			Object fieldData = row.getField(i);
 			if (fieldData == null) {
@@ -204,8 +206,7 @@ public final class PythonBridgeUtils {
 					pickledRowBytes.add(pickler.dumps(time));
 				} else if (dataTypes[i] instanceof RowType) {
 					Row tmpRow = (Row) fieldData;
-					LogicalType[] tmpRowFieldTypes = new LogicalType[tmpRow.getArity()];
-					((RowType) dataTypes[i]).getChildren().toArray(tmpRowFieldTypes);
+					LogicalType[] tmpRowFieldTypes = ((RowType) dataTypes[i]).getChildren().toArray(new LogicalType[0]);
 					List<byte[]> rowFieldBytes = getPickledBytesFromRow(tmpRow, tmpRowFieldTypes);
 					pickledRowBytes.add(pickler.dumps(rowFieldBytes));
 				} else {
