@@ -490,11 +490,12 @@ public class SortCodeGeneratorTest {
 				boolean order = orders[i];
 				Object first = null;
 				Object second = null;
+				RowData.FieldGetter fieldGetter = RowData.createFieldGetter(keyTypes[i], keys[i]);
 				if (!o1.isNullAt(keys[i])) {
-					first = RowData.get(o1, keys[i], keyTypes[i]);
+					first = fieldGetter.getFieldOrNull(o1);
 				}
 				if (!o2.isNullAt(keys[i])) {
-					second = RowData.get(o2, keys[i], keyTypes[i]);
+					second = fieldGetter.getFieldOrNull(o2);
 				}
 
 				if (first != null || second != null) {
@@ -585,8 +586,9 @@ public class SortCodeGeneratorTest {
 				boolean isNull2 = result.get(i).isNullAt(keys[j]);
 				Assert.assertEquals(msg, isNull1, isNull2);
 				if (!isNull1 || !isNull2) {
-					Object o1 = RowData.get(data.get(i), keys[j], keyTypes[j]);
-					Object o2 = RowData.get(result.get(i), keys[j], keyTypes[j]);
+					RowData.FieldGetter fieldGetter = RowData.createFieldGetter(keyTypes[j], keys[j]);
+					Object o1 = fieldGetter.getFieldOrNull(data.get(i));
+					Object o2 = fieldGetter.getFieldOrNull(result.get(i));
 					if (keyTypes[j] instanceof VarBinaryType) {
 						Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
 					} else if (keyTypes[j] instanceof TypeInformationRawType) {

@@ -27,7 +27,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
@@ -43,6 +42,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RowDataTestUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -1591,8 +1591,8 @@ public class WindowOperatorTest {
 
 		@Override
 		public boolean equals(RowData row1, RowData row2) {
-			GenericRowData left = RowDataUtil.toGenericRow(row1, fieldTypes);
-			GenericRowData right = RowDataUtil.toGenericRow(row2, fieldTypes);
+			GenericRowData left = RowDataTestUtil.toGenericRowDeeply(row1, fieldTypes);
+			GenericRowData right = RowDataTestUtil.toGenericRowDeeply(row2, fieldTypes);
 			return left.equals(right);
 		}
 	}

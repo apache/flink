@@ -34,12 +34,10 @@ public class GenericRowRecordSortComparator implements Comparator<GenericRowData
 
 	private static final long serialVersionUID = -4988371592272863772L;
 
-	private final int sortKeyIdx;
-	private final LogicalType sortKeyType;
+	private final RowData.FieldGetter sortKeyGetter;
 
 	public GenericRowRecordSortComparator(int sortKeyIdx, LogicalType sortKeyType) {
-		this.sortKeyIdx = sortKeyIdx;
-		this.sortKeyType = sortKeyType;
+		this.sortKeyGetter = RowData.createFieldGetter(sortKeyType, sortKeyIdx);
 	}
 
 	@Override
@@ -49,8 +47,8 @@ public class GenericRowRecordSortComparator implements Comparator<GenericRowData
 		if (kind1 != kind2) {
 			return kind1.toByteValue() - kind2.toByteValue();
 		} else {
-			Object key1 = RowData.get(row1, sortKeyIdx, sortKeyType);
-			Object key2 = RowData.get(row2, sortKeyIdx, sortKeyType);
+			Object key1 = sortKeyGetter.getFieldOrNull(row1);
+			Object key2 = sortKeyGetter.getFieldOrNull(row2);
 			if (key1 instanceof Comparable) {
 				return ((Comparable) key1).compareTo(key2);
 			} else {

@@ -265,6 +265,10 @@ public class RowDataToJsonConverters implements Serializable {
 			.map(this::createConverter)
 			.toArray(RowDataToJsonConverter[]::new);
 		final int fieldCount = type.getFieldCount();
+		final RowData.FieldGetter[] fieldGetters = new RowData.FieldGetter[fieldTypes.length];
+		for (int i = 0; i < fieldCount; i++) {
+			fieldGetters[i] = RowData.createFieldGetter(fieldTypes[i], i);
+		}
 
 		return (mapper, reuse, value) -> {
 			ObjectNode node;
@@ -277,7 +281,7 @@ public class RowDataToJsonConverters implements Serializable {
 			RowData row = (RowData) value;
 			for (int i = 0; i < fieldCount; i++) {
 				String fieldName = fieldNames[i];
-				Object field = RowData.get(row, i, fieldTypes[i]);
+				Object field = fieldGetters[i].getFieldOrNull(row);
 				node.set(fieldName, fieldConverters[i].convert(mapper, node.get(fieldName), field));
 			}
 			return node;

@@ -35,16 +35,16 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
-import org.apache.flink.table.planner.utils.{RowDataTestUtil, TableTestUtil, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.{TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
+import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 

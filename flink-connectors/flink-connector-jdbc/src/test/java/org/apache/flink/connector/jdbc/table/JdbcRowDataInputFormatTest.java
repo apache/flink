@@ -283,10 +283,11 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
 
 		RowData row = new GenericRowData(5);
 		inputFormat.open(split);
+		RowData.FieldGetter idFieldGetter = RowData.createFieldGetter(new IntType(), 0);
 		while (!inputFormat.reachedEnd()) {
 			row = inputFormat.nextRecord(row);
 
-			int id = ((int) RowData.get(row, 0, new IntType()));
+			int id = (int) idFieldGetter.getFieldOrNull(row);
 			int testDataIndex = id - 1001;
 
 			assertEquals(TEST_DATA[testDataIndex], row);

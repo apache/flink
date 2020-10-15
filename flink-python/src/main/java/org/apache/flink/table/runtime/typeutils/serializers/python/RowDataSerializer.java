@@ -36,6 +36,7 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
@@ -48,11 +49,14 @@ import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
 @Internal
 public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.RowDataSerializer {
 
+	private static final long serialVersionUID = 5241636534123419763L;
 	private static final int ROW_KIND_OFFSET = 2;
 
 	private final LogicalType[] fieldTypes;
 
 	private final TypeSerializer[] fieldSerializers;
+
+	private final RowData.FieldGetter[] fieldGetters;
 
 	private transient boolean[] mask;
 
@@ -61,6 +65,9 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 		this.fieldTypes = types;
 		this.fieldSerializers = fieldSerializers;
 		this.mask = new boolean[fieldSerializers.length + ROW_KIND_OFFSET];
+		this.fieldGetters = IntStream.range(0, types.length)
+			.mapToObj(i -> RowData.createFieldGetter(types[i], i))
+			.toArray(RowData.FieldGetter[]::new);
 	}
 
 	@Override
@@ -78,7 +85,7 @@ public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.
 		for (int i = 0; i < row.getArity(); i++) {
 			if (!row.isNullAt(i)) {
 				// TODO: support RowData natively in Python, then we can eliminate the redundant serialize/deserialize
-				fieldSerializers[i].serialize(RowData.get(row, i, fieldTypes[i]), target);
+				fieldSerializers[i].serialize(fieldGetters[i].getFieldOrNull(row), target);
 			}
 		}
 	}
