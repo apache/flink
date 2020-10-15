@@ -54,7 +54,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.runtime.io.CheckpointBarrierUnalignerTest.addSequence;
+import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

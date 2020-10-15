@@ -41,17 +41,17 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- * {@link CheckpointBarrierUnaligner} cancellation test.
+ * {@link UnalignedController} cancellation test.
  */
 @RunWith(Parameterized.class)
-public class CheckpointBarrierUnalignerCancellationTest {
+public class UnalignedControllerCancellationTest {
 	private final List<RuntimeEvent> events;
 	private final boolean expectTriggerCheckpoint;
 	private final boolean expectAbortCheckpoint;
 	private final int numChannels;
 	private final int channel;
 
-	public CheckpointBarrierUnalignerCancellationTest(boolean expectTriggerCheckpoint, boolean expectAbortCheckpoint, List<RuntimeEvent> events, int numChannels, int channel) {
+	public UnalignedControllerCancellationTest(boolean expectTriggerCheckpoint, boolean expectAbortCheckpoint, List<RuntimeEvent> events, int numChannels, int channel) {
 		this.events = events;
 		this.expectTriggerCheckpoint = expectTriggerCheckpoint;
 		this.expectAbortCheckpoint = expectAbortCheckpoint;
@@ -85,7 +85,7 @@ public class CheckpointBarrierUnalignerCancellationTest {
 			.setNumberOfChannels(numChannels)
 			.setChannelFactory(InputChannelBuilder::buildLocalChannel)
 			.build();
-		CheckpointBarrierUnaligner unaligner = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+		SingleCheckpointBarrierHandler unaligner = SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
 
 		for (RuntimeEvent e : events) {
 			if (e instanceof CancelCheckpointMarker) {

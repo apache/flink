@@ -65,7 +65,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the behaviors of the {@link CheckpointedInputGate}.
  */
-public class CheckpointBarrierUnalignerTest {
+public class UnalignedControllerTest {
 
 	private static final long DEFAULT_CHECKPOINT_ID = 0L;
 
@@ -518,7 +518,7 @@ public class CheckpointBarrierUnalignerTest {
 	}
 
 	/**
-	 * Tests {@link CheckpointBarrierUnaligner#processCancellationBarrier(CancelCheckpointMarker)}
+	 * Tests {@link SingleCheckpointBarrierHandler#processCancellationBarrier(CancelCheckpointMarker)}
 	 * abort the current pending checkpoint triggered by
 	 * {@link CheckpointBarrierHandler#processBarrier(CheckpointBarrier, InputChannelInfo)}.
 	 */
@@ -526,7 +526,7 @@ public class CheckpointBarrierUnalignerTest {
 	public void testProcessCancellationBarrierAfterProcessBarrier() throws Exception {
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final SingleInputGate inputGate = new SingleInputGateBuilder().setNumberOfChannels(2).setChannelFactory(InputChannelBuilder::buildLocalChannel).build();
-		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+		final SingleCheckpointBarrierHandler handler = SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
 
 		// should trigger respective checkpoint
 		handler.processBarrier(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
@@ -541,7 +541,7 @@ public class CheckpointBarrierUnalignerTest {
 	public void testProcessCancellationBarrierBeforeProcessAndReceiveBarrier() throws Exception {
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final SingleInputGate inputGate = new SingleInputGateBuilder().setChannelFactory(InputChannelBuilder::buildLocalChannel).build();
-		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+		final SingleCheckpointBarrierHandler handler = SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
 
 		handler.processCancellationBarrier(new CancelCheckpointMarker(DEFAULT_CHECKPOINT_ID));
 
@@ -554,7 +554,7 @@ public class CheckpointBarrierUnalignerTest {
 	}
 
 	private void testProcessCancellationBarrier(
-			CheckpointBarrierUnaligner handler,
+			SingleCheckpointBarrierHandler handler,
 			ValidatingCheckpointInvokable invokable) throws Exception {
 
 		final long cancelledCheckpointId = new Random().nextBoolean() ? DEFAULT_CHECKPOINT_ID : DEFAULT_CHECKPOINT_ID + 1L;
@@ -569,7 +569,7 @@ public class CheckpointBarrierUnalignerTest {
 	}
 
 	private void verifyTriggeredCheckpoint(
-			CheckpointBarrierUnaligner handler,
+			SingleCheckpointBarrierHandler handler,
 			ValidatingCheckpointInvokable invokable,
 			long currentCheckpointId) {
 
@@ -583,7 +583,7 @@ public class CheckpointBarrierUnalignerTest {
 		final int numberOfChannels = 2;
 		final ValidatingCheckpointInvokable invokable = new ValidatingCheckpointInvokable();
 		final SingleInputGate inputGate = new SingleInputGateBuilder().setChannelFactory(InputChannelBuilder::buildLocalChannel).setNumberOfChannels(numberOfChannels).build();
-		final CheckpointBarrierUnaligner handler = new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
+		final SingleCheckpointBarrierHandler handler = SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(TestSubtaskCheckpointCoordinator.INSTANCE, "test", invokable, inputGate);
 
 		// should trigger respective checkpoint
 		handler.processBarrier(buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
@@ -695,7 +695,7 @@ public class CheckpointBarrierUnalignerTest {
 	}
 
 	private CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) {
-		final CheckpointBarrierUnaligner barrierHandler = new CheckpointBarrierUnaligner(
+		final SingleCheckpointBarrierHandler barrierHandler = SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
 			new TestSubtaskCheckpointCoordinator(channelStateWriter),
 			"Test",
 			toNotify,

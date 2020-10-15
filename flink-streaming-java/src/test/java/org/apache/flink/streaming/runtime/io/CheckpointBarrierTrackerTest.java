@@ -51,7 +51,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.runtime.io.CheckpointBarrierUnalignerTest.addSequence;
+import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
