@@ -265,24 +265,26 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			writer.keyword("IF NOT EXISTS");
 		}
 		tableName.unparse(writer, leftPrec, rightPrec);
-		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-		for (SqlNode column : columnList) {
-			printIndent(writer);
-			column.unparse(writer, leftPrec, rightPrec);
-		}
-		if (tableConstraints.size() > 0) {
-			for (SqlTableConstraint constraint : tableConstraints) {
+		if (columnList.size() > 0) {
+			SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
+			for (SqlNode column : columnList) {
 				printIndent(writer);
-				constraint.unparse(writer, leftPrec, rightPrec);
+				column.unparse(writer, leftPrec, rightPrec);
 			}
-		}
-		if (watermark != null) {
-			printIndent(writer);
-			watermark.unparse(writer, leftPrec, rightPrec);
-		}
+			if (tableConstraints.size() > 0) {
+				for (SqlTableConstraint constraint : tableConstraints) {
+					printIndent(writer);
+					constraint.unparse(writer, leftPrec, rightPrec);
+				}
+			}
+			if (watermark != null) {
+				printIndent(writer);
+				watermark.unparse(writer, leftPrec, rightPrec);
+			}
 
-		writer.newlineAndIndent();
-		writer.endList(frame);
+			writer.newlineAndIndent();
+			writer.endList(frame);
+		}
 
 		if (comment != null) {
 			writer.newlineAndIndent();
