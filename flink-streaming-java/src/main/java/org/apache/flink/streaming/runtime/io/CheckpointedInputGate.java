@@ -127,7 +127,6 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		}
 
 		BufferOrEvent bufferOrEvent = next.get();
-		checkState(!barrierHandler.isBlocked(bufferOrEvent.getChannelInfo()));
 
 		if (bufferOrEvent.isEvent()) {
 			handleEvent(bufferOrEvent);
