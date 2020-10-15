@@ -71,16 +71,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 	public void releaseBlocksAndResetBarriers() throws IOException {
 	}
 
-	/**
-	 * Checks whether the channel with the given index is blocked.
-	 *
-	 * @param channelInfo The channel index to check.
-	 * @return True if the channel is blocked, false if not.
-	 */
-	public boolean isBlocked(InputChannelInfo channelInfo) {
-		return false;
-	}
-
 	@Override
 	public void close() throws IOException {
 	}
