@@ -32,7 +32,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     )
 
     testSqlApi(
-      "CAST(f0 AS DECIMAL) IN (42.0, 2.00, 3.01, 1.000000)", // SQL would downcast otherwise
+      "CAST (f0 AS DECIMAL) IN (42.0, 2.00, 3.01, 1.000000)", // SQL would downcast otherwise
       "true"
     )
 
@@ -64,13 +64,22 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testCast(): Unit = {
+
+    // binary -> varchar
     testSqlApi(
       "CAST (f18 as varchar)",
       "hello world")
 
+    // varbinary -> varchar
     testSqlApi(
       "CAST (f19 as varchar)",
       "hello flink")
+
+    // null case
+    testSqlApi("CAST (NULL AS INT)", "null")
+    testSqlApi(
+      "CAST (NULL AS VARCHAR) = ''",
+      "null")
   }
 
   @Test
@@ -99,12 +108,6 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "tRuE",
       "true")
 
-    // null
-    testSqlApi("CAST(NULL AS INT)", "null")
-    testSqlApi(
-      "CAST(NULL AS VARCHAR) = ''",
-      "null")
-
     // case when
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' ELSE 'b' END", "b")
@@ -127,14 +130,14 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("CASE WHEN 'a'='a' THEN 1 END", "1")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "bcd")
     testSqlApi("CASE 1 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "a")
-    testSqlApi("CASE 1 WHEN 1 THEN cast('a' as varchar(1)) WHEN 2 THEN " +
-      "cast('bcd' as varchar(3)) END", "a")
+    testSqlApi("CASE 1 WHEN 1 THEN CAST ('a' as varchar(1)) WHEN 2 THEN " +
+      "CAST ('bcd' as varchar(3)) END", "a")
     testSqlApi("CASE f2 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "11")
     testSqlApi("CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "null")
     testSqlApi("CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "null")
     testSqlApi("CASE 1 WHEN 1 THEN true WHEN 2 THEN false ELSE NULL END", "true")
 
-    testSqlApi("CASE WHEN f2 = 1 THEN CAST('' as INT) ELSE 0 END", "null")
-    testSqlApi("IF(true, CAST('non-numeric' AS BIGINT), 0)", "null")
+    testSqlApi("CASE WHEN f2 = 1 THEN CAST ('' as INT) ELSE 0 END", "null")
+    testSqlApi("IF(true, CAST ('non-numeric' AS BIGINT), 0)", "null")
   }
 }
