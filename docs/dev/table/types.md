@@ -1709,8 +1709,8 @@ The following table lists classes that can be implicitly mapped to a data type w
 If you intend to implement classes in Scala, *it is recommended to use boxed types* (e.g. `java.lang.Integer`)
 instead of Scala's primitives. Scala's primitives (e.g. `Int` or `Double`) are compiled to JVM primitives (e.g.
 `int`/`double`) and result in `NOT NULL` semantics as shown in the table below. Furthermore, Scala primitives that
-are used in generics (e.g. `java.lang.Map[Int, Double]`) are erased during compilation and lead to class
-information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
+are used in generics (e.g. `java.util.Map[Int, Double]`) are erased during compilation and lead to class
+information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 
 | Class                       | Data Type                           |
 |:----------------------------|:------------------------------------|
@@ -1741,7 +1741,7 @@ information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |
-| `java.lang.Map<K, V>`       | `MAP<K, V>`                         |
+| `java.util.Map<K, V>`       | `MAP<K, V>`                         |
 | structured type `T`         | anonymous structured type `T`       |
 
 Other JVM bridging classes mentioned in this document require a `@DataTypeHint` annotation.
