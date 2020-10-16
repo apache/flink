@@ -16,16 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.internal;
+package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 
 import org.apache.kafka.clients.consumer.ConsumerRecords;
