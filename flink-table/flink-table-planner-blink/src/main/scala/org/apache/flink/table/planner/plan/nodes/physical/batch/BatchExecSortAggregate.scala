@@ -166,7 +166,7 @@ class BatchExecSortAggregate(
           .damBehavior(ExecEdge.DamBehavior.END_INPUT)
           .build())
     } else {
-      List(ExecEdge.builder().build())
+      List(ExecEdge.DEFAULT)
     }
   }
 }

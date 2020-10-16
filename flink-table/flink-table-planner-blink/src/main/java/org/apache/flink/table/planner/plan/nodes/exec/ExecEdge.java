@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /**
  * The representation of an edge connecting two {@link ExecNode}.
  */
+@Internal
 public class ExecEdge {
+
+	public static final ExecEdge DEFAULT = ExecEdge.builder().build();
 
 	private final RequiredShuffle requiredShuffle;
 	private final DamBehavior damBehavior;
@@ -113,25 +117,45 @@ public class ExecEdge {
 			return keys;
 		}
 
+		/**
+		 * Returns a {@link RequiredShuffle} which does not require any specific shuffle type.
+		 */
 		public static RequiredShuffle any() {
 			return new RequiredShuffle(ShuffleType.ANY);
 		}
 
+		/**
+		 * Returns a required hash shuffle type.
+		 *
+		 * @param keys hash keys
+		 */
 		public static RequiredShuffle hash(int[] keys) {
 			Preconditions.checkArgument(keys.length > 0, "Hash keys must no be empty.");
 			return new RequiredShuffle(ShuffleType.HASH, keys);
 		}
 
+		/**
+		 * Returns a required broadcast shuffle type.
+		 */
 		public static RequiredShuffle broadcast() {
 			return new RequiredShuffle(ShuffleType.BROADCAST);
 		}
 
+		/**
+		 * Returns a required singleton shuffle type.
+		 */
 		public static RequiredShuffle singleton() {
 			return new RequiredShuffle(ShuffleType.SINGLETON);
 		}
 
 		/**
-		 * Unknown shuffle type, should be filled out in the future.
+		 * Returns a place-holder required shuffle type.
+		 *
+		 * <p>Currently {@link ExecEdge} is only used for deadlock breakup and multi-input in batch mode,
+		 * so for {@link ExecNode}s not affecting the algorithm we use this place-holder.
+		 *
+		 * <p>We should fill out the detailed {@link ExecEdge} for each sub-class of {@link ExecNode}
+		 * in the future.
 		 */
 		public static RequiredShuffle unknown() {
 			return new RequiredShuffle(ShuffleType.UNKNOWN);

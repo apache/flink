@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAG
 
 import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.util.ImmutableIntList
 
 import java.util
 
@@ -145,22 +146,33 @@ class DeadlockBreakupProcessor extends DAGProcessor {
 
   class DeadlockBreakupVisitor(finder: ReuseNodeFinder) extends ExecNodeVisitorImpl {
 
-    private def rewriteJoin(
-        join: BatchExecJoinBase,
-        leftIsBuild: Boolean,
-        distribution: FlinkRelDistribution): Unit = {
-      val (buildSideIndex, probeSideIndex) = if (leftIsBuild) (0, 1) else (1, 0)
-      val buildNode = join.getInputNodes.get(buildSideIndex)
-      val probeNode = join.getInputNodes.get(probeSideIndex)
+    private def rewriteTwoInputNode(
+        node: ExecNode[_, _],
+        leftPriority: Int,
+        requiredShuffle: ExecEdge.RequiredShuffle): Unit = {
+      val (buildSideIndex, probeSideIndex) = if (leftPriority == 0) (0, 1) else (1, 0)
+      val buildNode = node.getInputNodes.get(buildSideIndex)
+      val probeNode = node.getInputNodes.get(probeSideIndex)
 
-      // 1. find all reused nodes in build side of join.
+      // 1. find all reused nodes in build side
       val reusedNodesInBuildSide = findReusedNodesInBuildSide(buildNode, finder)
-      // 2. find all nodes from probe side of join
+      // 2. find all nodes from probe side
       val inputPathsOfProbeSide = buildInputPathsOfProbeSide(
         probeNode, reusedNodesInBuildSide, finder)
       // 3. check whether all input paths have a barrier node (e.g. agg, sort)
       if (inputPathsOfProbeSide.nonEmpty && !hasBarrierNodeInInputPaths(inputPathsOfProbeSide)) {
         // 4. sets Exchange node(if does not exist, add one) as BATCH mode to break up the deadlock
+        val distribution = requiredShuffle.getType match {
+          case ExecEdge.ShuffleType.HASH =>
+            FlinkRelDistribution.hash(ImmutableIntList.of(requiredShuffle.getKeys: _*))
+          case ExecEdge.ShuffleType.BROADCAST =>
+            throw new IllegalStateException(
+              "Trying to add an exchange node on broadcast side. This is unexpected.")
+          case ExecEdge.ShuffleType.SINGLETON =>
+            FlinkRelDistribution.SINGLETON
+          case _ =>
+            FlinkRelDistribution.ANY
+        }
         probeNode match {
           case e: BatchExecExchange =>
             // TODO create a cloned BatchExecExchange for PIPELINE output
@@ -174,29 +186,32 @@ class DeadlockBreakupProcessor extends DAGProcessor {
               probeRel,
               distribution)
             e.setRequiredShuffleMode(ShuffleMode.BATCH)
-            // replace join node's input
-            join.replaceInputNode(probeSideIndex, e)
+            // replace node's input
+            node.asInstanceOf[BatchExecNode[_]].replaceInputNode(probeSideIndex, e)
         }
       }
     }
 
     override def visit(node: ExecNode[_, _]): Unit = {
       super.visit(node)
-      node match {
-        case hashJoin: BatchExecHashJoin =>
-          val joinInfo = hashJoin.getJoinInfo
-          val columns = if (hashJoin.leftIsBuild) joinInfo.rightKeys else joinInfo.leftKeys
-          val distribution = FlinkRelDistribution.hash(columns)
-          rewriteJoin(hashJoin, hashJoin.leftIsBuild, distribution)
-        case nestedLoopJoin: BatchExecNestedLoopJoin =>
-          rewriteJoin(nestedLoopJoin, nestedLoopJoin.leftIsBuild, FlinkRelDistribution.ANY)
-        case _ => // do nothing
+      val inputEdges = node.getInputEdges
+      if (inputEdges.size() == 2) {
+        val leftPriority = inputEdges.get(0).getPriority
+        val rightPriority = inputEdges.get(1).getPriority
+        val requiredShuffle = if (leftPriority == 1) {
+          inputEdges.get(0).getRequiredShuffle
+        } else {
+          inputEdges.get(1).getRequiredShuffle
+        }
+        if (leftPriority != rightPriority) {
+          rewriteTwoInputNode(node, leftPriority, requiredShuffle)
+        }
       }
     }
   }
 
   /**
-    * Find all reused nodes in build side of join.
+    * Find all reused nodes in build side.
     */
   private def findReusedNodesInBuildSide(
       buildNode: ExecNode[_, _],
@@ -214,7 +229,7 @@ class DeadlockBreakupProcessor extends DAGProcessor {
   }
 
   /**
-    * Visit all nodes in probe side of join until to the reused nodes
+    * Visit all nodes in probe side until to the reused nodes
     * which are in `reusedNodesInBuildSide` collection.
     * e.g. (sub-plan reused is enabled)
     * {{{
@@ -298,14 +313,14 @@ class DeadlockBreakupProcessor extends DAGProcessor {
       inputPathsOfProbeSide: List[Array[ExecNode[_, _]]]): Boolean = {
     require(inputPathsOfProbeSide.nonEmpty)
 
-    /** Return true if the successor of join in the input-path is build node, otherwise false */
-    def checkJoinBuildSide(
+    /** Return true if the successor in the input-path is build node, otherwise false */
+    def checkBuildSide(
         buildNode: ExecNode[_, _],
-        idxOfJoin: Int,
+        idx: Int,
         inputPath: Array[ExecNode[_, _]]): Boolean = {
-      if (idxOfJoin < inputPath.length - 1) {
-        val nextNode = inputPath(idxOfJoin + 1)
-        // next node is build node of hash join
+      if (idx < inputPath.length - 1) {
+        val nextNode = inputPath(idx + 1)
+        // next node is build node
         buildNode eq nextNode
       } else {
         false
@@ -324,16 +339,19 @@ class DeadlockBreakupProcessor extends DAGProcessor {
           hasFullDamNode = if (atLeastEndInput) {
             true
           } else {
-            node match {
-              case h: BatchExecHashJoin =>
-                val buildSideIndex = if (h.leftIsBuild) 0 else 1
-                val buildNode = h.getInputNodes.get(buildSideIndex)
-                checkJoinBuildSide(buildNode, idx, inputPath)
-              case n: BatchExecNestedLoopJoin =>
-                val buildSideIndex = if (n.leftIsBuild) 0 else 1
-                val buildNode = n.getInputNodes.get(buildSideIndex)
-                checkJoinBuildSide(buildNode, idx, inputPath)
-              case _ => false
+            val inputEdges = node.getInputEdges
+            if (inputEdges.size() == 2) {
+              val leftPriority = inputEdges.get(0).getPriority
+              val rightPriority = inputEdges.get(1).getPriority
+              if (leftPriority != rightPriority) {
+                val buildSideIndex = if (leftPriority == 0) 0 else 1
+                val buildNode = node.getInputNodes.get(buildSideIndex)
+                checkBuildSide(buildNode, idx, inputPath)
+              } else {
+                false
+              }
+            } else {
+              false
             }
           }
           idx += 1

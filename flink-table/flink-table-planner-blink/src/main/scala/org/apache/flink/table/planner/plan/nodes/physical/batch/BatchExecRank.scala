@@ -239,7 +239,7 @@ class BatchExecRank(
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
 
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.builder().build())
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 
   override def replaceInputNode(
       ordinalInParent: Int,

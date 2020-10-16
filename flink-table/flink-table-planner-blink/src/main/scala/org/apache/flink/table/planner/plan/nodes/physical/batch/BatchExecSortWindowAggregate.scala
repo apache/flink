@@ -91,5 +91,5 @@ class BatchExecSortWindowAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.builder().build())
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 }

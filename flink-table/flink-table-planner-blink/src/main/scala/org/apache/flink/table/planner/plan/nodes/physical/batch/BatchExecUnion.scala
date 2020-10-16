@@ -101,9 +101,7 @@ class BatchExecUnion(
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
-  override def getInputEdges: util.List[ExecEdge] = List(
-    ExecEdge.builder().build(),
-    ExecEdge.builder().build())
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT, ExecEdge.DEFAULT)
 
   override def replaceInputNode(
       ordinalInParent: Int,
