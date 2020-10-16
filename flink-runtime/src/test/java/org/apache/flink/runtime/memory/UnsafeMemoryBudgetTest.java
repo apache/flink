@@ -37,6 +37,18 @@ public class UnsafeMemoryBudgetTest extends TestLogger {
 	}
 
 	@Test
+	public void testAvailableMemory() throws MemoryReservationException {
+		UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
+		assertThat(budget.getAvailableMemorySize(), is(100L));
+
+		budget.reserveMemory(10L);
+		assertThat(budget.getAvailableMemorySize(), is(90L));
+
+		budget.releaseMemory(10L);
+		assertThat(budget.getAvailableMemorySize(), is(100L));
+	}
+
+	@Test
 	public void testReserveMemory() throws MemoryReservationException {
 		UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
 		budget.reserveMemory(50L);
