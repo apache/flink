@@ -345,8 +345,6 @@ public class AlternatingCheckpointBarrierHandlerTest {
 
 	private static AlternatingCheckpointBarrierHandler barrierHandler(SingleInputGate inputGate, AbstractInvokable target) {
 		String taskName = "test";
-		InputGate[] channelIndexToInputGate = new InputGate[inputGate.getNumberOfInputChannels()];
-		Arrays.fill(channelIndexToInputGate, inputGate);
 		return new AlternatingCheckpointBarrierHandler(
 			new CheckpointBarrierAligner(taskName, target, inputGate),
 			new CheckpointBarrierUnaligner(TestSubtaskCheckpointCoordinator.INSTANCE, taskName, target, inputGate),
