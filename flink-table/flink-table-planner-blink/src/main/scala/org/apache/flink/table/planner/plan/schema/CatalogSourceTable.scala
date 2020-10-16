@@ -250,13 +250,6 @@ class CatalogSourceTable[T](
             case _ =>
               // no updates, pass
           }
-
-          // watermark defined on a changelog source is not supported
-          if (!catalogTable.getSchema.getWatermarkSpecs.isEmpty &&
-              !changelogMode.containsOnly(RowKind.INSERT)) {
-            throw new UnsupportedOperationException(
-              "Currently, defining WATERMARK on a changelog source is not supported.")
-          }
         }
       case _ =>
         // pass, lookup table source is validated in LookupJoin node

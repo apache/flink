@@ -69,7 +69,7 @@ import java.util.Optional;
  * value. Upon triggering it, we process all records with event times older then or equal to
  * currentWatermark.
  */
-public class TemporalRowTimeJoinOperator
+public class LegacyTemporalRowTimeJoinOperator
 	extends BaseTwoInputStreamOperatorWithStateRetention {
 
 	private static final long serialVersionUID = 6642514795175288193L;
@@ -118,7 +118,7 @@ public class TemporalRowTimeJoinOperator
 	private transient JoinCondition joinCondition;
 	private transient JoinedRowData outRow;
 
-	public TemporalRowTimeJoinOperator(
+	public LegacyTemporalRowTimeJoinOperator(
 			InternalTypeInfo<RowData> leftType,
 			InternalTypeInfo<RowData> rightType,
 			GeneratedJoinCondition generatedJoinCondition,

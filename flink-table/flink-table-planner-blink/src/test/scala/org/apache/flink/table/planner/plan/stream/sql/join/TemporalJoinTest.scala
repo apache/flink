@@ -17,129 +17,398 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+import org.junit.Assert.{assertTrue, fail}
+import org.junit.{Before, Test}
 
-import org.hamcrest.Matchers.containsString
-import org.junit.Test
-
-import java.sql.Timestamp
-
+/**
+ * Test temporal join in stream mode.
+ */
 class TemporalJoinTest extends TableTestBase {
 
   val util: StreamTableTestUtil = streamTestUtil()
 
-  private val orders = util.addDataStream[(Long, String)](
-    "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
+  @Before
+  def before(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE Orders (
+        | amount INT,
+        | currency STRING,
+        | rowtime TIMESTAMP(3),
+        | proctime AS PROCTIME(),
+        | WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
 
-  private val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
-    "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
+    util.addTable(
+      """
+        |CREATE TABLE RatesHistory (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
 
-  util.addFunction(
-    "Rates",
-    ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
+    util.addTable(
+      """
+        |CREATE TABLE RatesHistoryWithPK (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime AS rowtime,
+        | PRIMARY KEY(currency) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
 
-  private val proctimeOrders = util.addDataStream[(Long, String)](
-    "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
+    util.addTable(
+      """
+        |CREATE TABLE RatesHistoryWithComputedColumn (
+        | currency STRING,
+        | rate INT,
+        | rate1 AS rate + 1,
+        | proctime AS PROCTIME(),
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime AS rowtime,
+        | PRIMARY KEY(currency) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
 
-  private val proctimeRatesHistory = util.addDataStream[(String, Int)](
-    "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
+    util.addTable(
+      """
+        |CREATE TABLE RatesOnly (
+        | currency STRING,
+        | rate INT,
+        | proctime AS PROCTIME()
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
 
-  util.addFunction(
-    "ProctimeRates",
-    proctimeRatesHistory.createTemporalTableFunction($"proctime", $"currency"))
+    util.addTable(
+      " CREATE VIEW DeduplicatedView AS SELECT currency, rate, rowtime FROM " +
+        "  (SELECT *, " +
+        "          ROW_NUMBER() OVER (PARTITION BY currency ORDER BY rowtime DESC) AS rowNum " +
+        "   FROM RatesHistory" +
+        "  ) T " +
+        "  WHERE rowNum = 1")
+
+    util.addTable(
+      " CREATE VIEW latestView AS SELECT T.currency, T.rate, T.proctime FROM " +
+        "  (SELECT *, " +
+        "          ROW_NUMBER() OVER (PARTITION BY currency ORDER BY proctime DESC) AS rowNum " +
+        "   FROM RatesOnly" +
+        "  ) T " +
+        "  WHERE T.rowNum = 1")
+
+    util.addTable("CREATE VIEW latest_rates AS SELECT currency, LAST_VALUE(rate) AS rate " +
+      "FROM RatesHistory " +
+      "GROUP BY currency ")
+  }
 
   @Test
-  def testSimpleJoin(): Unit = {
-    val sqlQuery = "SELECT " +
-      "o_amount * rate as rate " +
-      "FROM Orders AS o, " +
-      "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
-      "WHERE currency = o_currency"
+  def testEventTimeTemporalJoin(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
 
     util.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testSimpleProctimeJoin(): Unit = {
-    val sqlQuery = "SELECT " +
-      "o_amount * rate as rate " +
-      "FROM ProctimeOrders AS o, " +
-      "LATERAL TABLE (ProctimeRates(o.o_proctime)) AS r " +
-      "WHERE currency = o_currency"
+  def testEventTimeTemporalJoinWithView(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
 
     util.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testJoinOnQueryLeft(): Unit = {
-    val orders = util.tableEnv.sqlQuery("SELECT * FROM Orders WHERE o_amount > 1000")
-    util.tableEnv.createTemporaryView("Orders2", orders)
-
-    val sqlQuery = "SELECT " +
-      "o_amount * rate as rate " +
-      "FROM Orders2 AS o, " +
-      "LATERAL TABLE (Rates(o.o_rowtime)) AS r " +
-      "WHERE currency = o_currency"
-
-    util.verifyPlan(sqlQuery)
-  }
-
-  /**
-    * Test versioned joins with more complicated query.
-    * Important thing here is that we have complex OR join condition
-    * and there are some columns that are not being used (are being pruned).
-    */
-  @Test
-  def testComplexJoin(): Unit = {
-    val util = streamTestUtil()
-    util.addDataStream[(String, Int)]("Table3", 't3_comment, 't3_secondary_key)
-    util.addDataStream[(Timestamp, String, Long, String, Int)](
-      "Orders", 'o_rowtime.rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
-
-    util.addDataStream[(Timestamp, String, String, Int, Int)](
-      "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
-    val rates = util.tableEnv
-      .sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110")
-      .createTemporalTableFunction($"rowtime", $"currency")
-    util.addTemporarySystemFunction("Rates", rates)
-
-    val sqlQuery =
-      "SELECT * FROM " +
-        "(SELECT " +
-        "o_amount * rate as rate, " +
-        "secondary_key as secondary_key " +
-        "FROM Orders AS o, " +
-        "LATERAL TABLE (Rates(o_rowtime)) AS r " +
-        "WHERE currency = o_currency OR secondary_key = o_secondary_key), " +
-        "Table3 " +
-        "WHERE t3_secondary_key = secondary_key"
+  def testEventTimeTemporalJoinWithViewWithConstantCondition(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency AND r.rate + 1 = 100"
 
     util.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testUncorrelatedJoin(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(containsString("Cannot generate a valid execution plan"))
+  def testEventTimeTemporalJoinWithViewWithFunctionCondition(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency AND 'RMB-100' = concat('RMB-', cast(r.rate AS STRING))"
 
-    val sqlQuery = "SELECT " +
-      "o_amount * rate as rate " +
-      "FROM Orders AS o, " +
-      "LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123')) AS r " +
-      "WHERE currency = o_currency"
-
-    util.verifyExplain(sqlQuery)
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
-  def testTemporalTableFunctionScan(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(containsString("Cannot generate a valid execution plan"))
+  def testEventTimeTemporalJoinWithViewNonEqui(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency AND o.amount > r.rate"
 
-    val sqlQuery = "SELECT * FROM LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123'))"
+    util.verifyPlan(sqlQuery)
+  }
 
-    util.verifyExplain(sqlQuery)
+  @Test
+  def testEventTimeTemporalJoinWithViewWithPredicates(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency AND amount > 10 AND r.rate < 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testEventTimeLeftTemporalJoinWithViewWithPredicates(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o LEFT JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency AND amount > 10 AND r.rate < 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoin(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "latestView " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinWithView(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "latest_rates " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinWithViewNonEqui(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "latest_rates " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency AND o.amount > r.rate"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinWithViewWithPredicates(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "latest_rates " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency AND o.amount > 10 AND r.rate < 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinWithComputedColumnAndPushDown(): Unit = {
+    val sqlQuery = "SELECT o.currency, r.currency, rate1 " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithComputedColumn " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency AND o.amount > 10 AND r.rate < 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testEventTimeTemporalJoinWithComputedColumnAndPushDown(): Unit = {
+    val sqlQuery = "SELECT o.currency, r.currency, rate1 " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithComputedColumn " +
+      "FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "on o.currency = r.currency AND o.amount > 10 AND r.rate < 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinWithViewWithConstantCondition(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency AND r.rate + 1 = 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeLeftTemporalJoinWithViewWithConstantCondition(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o LEFT JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency AND r.rate + 1 = 100"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinWithViewWithFunctionCondition(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "DeduplicatedView " +
+      "FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "on o.currency = r.currency AND 'RMB-100' = concat('RMB-', cast(r.rate AS STRING))"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testInvalidTemporalTablJoin(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE leftTableWithoutTimeAttribute (
+        | amount INT,
+        | currency STRING,
+        | ts TIMESTAMP(3)
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+    val sqlQuery1 = "SELECT * FROM leftTableWithoutTimeAttribute AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.ts AS r ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery1,
+      s"Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF'" +
+        s" left table's time attribute field",
+      classOf[ValidationException])
+
+    util.addTable(
+      """
+        |CREATE TABLE versionedTableWithoutPk (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime AS rowtime
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+
+    val sqlQuery2 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.amount = r.rate"
+    expectExceptionThrown(
+      sqlQuery2,
+      s"Join key must be the same as temporal table's primary key " +
+        s"in Event-time temporal table join",
+      classOf[ValidationException])
+
+    util.addTable(
+      """
+        |CREATE TABLE versionedTableWithoutTimeAttribute (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | PRIMARY KEY(currency) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+    val sqlQuery3 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "versionedTableWithoutTimeAttribute FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery3,
+      s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
+        s"versioned table, but no row time attribute can be found.",
+      classOf[ValidationException])
+
+    util.addTable(
+      """
+        |CREATE TABLE versionedTableWithoutRowtime (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | proctime AS PROCTIME(),
+        | PRIMARY KEY(currency) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+    val sqlQuery4 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "versionedTableWithoutRowtime FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery4,
+      s"Event-Time Temporal Table Join requires both primary key and row time attribute in " +
+        s"versioned table, but no row time attribute can be found.",
+      classOf[ValidationException])
+  }
+
+  private def expectExceptionThrown(
+    sql: String,
+    keywords: String,
+    clazz: Class[_ <: Throwable] = classOf[ValidationException])
+  : Unit = {
+    try {
+      verifyTranslationSuccess(sql)
+      fail(s"Expected a $clazz, but no exception is thrown.")
+    } catch {
+      case e if e.getClass == clazz =>
+        if (keywords != null) {
+          assertTrue(
+            s"The actual exception message \n${e.getMessage}\n" +
+              s"doesn't contain expected keyword \n$keywords\n",
+            e.getMessage.contains(keywords))
+        }
+      case e: Throwable =>
+        e.printStackTrace()
+        fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    }
+  }
+
+  private def verifyTranslationSuccess(sql: String): Unit = {
+    util.tableEnv.sqlQuery(sql).explain()
   }
 }
