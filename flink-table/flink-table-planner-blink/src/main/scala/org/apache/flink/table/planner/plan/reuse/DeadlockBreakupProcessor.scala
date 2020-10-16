@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.reuse
 
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.TableException
@@ -26,8 +25,10 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
+
 import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.RelNode
+
 import java.util
 
 import scala.collection.JavaConversions._
