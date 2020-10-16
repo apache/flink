@@ -175,22 +175,10 @@ public class ExternalSorter<E> implements Sorter<E> {
 		try {
 			// stop all the threads
 			if (this.readThread != null) {
-				try {
-					this.readThread.close();
-				} catch (Throwable t) {
-					LOG.error("Error shutting down reader thread: " + t.getMessage(), t);
-				}
+				closeThread(this.readThread, "reader");
 			}
-			try {
-				this.sortThread.close();
-			} catch (Throwable t) {
-				LOG.error("Error shutting down sorter thread: " + t.getMessage(), t);
-			}
-			try {
-				this.spillThread.close();
-			} catch (Throwable t) {
-				LOG.error("Error shutting down spilling thread: " + t.getMessage(), t);
-			}
+			closeThread(this.sortThread, "sorter");
+			closeThread(this.spillThread, "spilling");
 		}
 		finally {
 
@@ -227,6 +215,20 @@ public class ExternalSorter<E> implements Sorter<E> {
 					this.largeRecordHandler.close();
 				}
 			} catch (Throwable ignored) {}
+		}
+	}
+
+	private void closeThread(StageRunner thread, String threadName) {
+		try {
+			thread.close();
+		} catch (InterruptedException ie) {
+			LOG.debug(String.format("Closing of %s was interrupted. " +
+					"The %s thread may still be working.", threadName, threadName), ie);
+		} catch (Throwable t) {
+			LOG.error(String.format(
+					"Error shutting down %s thread: %s",
+					threadName,
+					t.getMessage()), t);
 		}
 	}
 
