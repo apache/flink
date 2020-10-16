@@ -35,9 +35,9 @@ public class KubernetesPodsWatcher implements Watcher<Pod> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KubernetesPodsWatcher.class);
 
-	private final FlinkKubeClient.PodCallbackHandler podsCallbackHandler;
+	private final FlinkKubeClient.WatchCallbackHandler<KubernetesPod> podsCallbackHandler;
 
-	public KubernetesPodsWatcher(FlinkKubeClient.PodCallbackHandler callbackHandler) {
+	public KubernetesPodsWatcher(FlinkKubeClient.WatchCallbackHandler<KubernetesPod> callbackHandler) {
 		this.podsCallbackHandler = callbackHandler;
 	}
 
