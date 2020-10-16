@@ -294,7 +294,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		for (int i = 0; i < closedChannels; i++) {
 			barrierHandler.processEndOfPartition();
 		}
-		assertEquals(closedChannels, alignedHandler.getNumClosedChannels());
+		assertEquals(totalChannels - closedChannels, alignedHandler.getNumOpenChannels());
 		assertEquals(totalChannels - closedChannels, unalignedHandler.getNumOpenChannels());
 	}
 

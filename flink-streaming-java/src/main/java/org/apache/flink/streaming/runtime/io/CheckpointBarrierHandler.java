@@ -68,9 +68,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 		this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
 	}
 
-	public void releaseBlocksAndResetBarriers() throws IOException {
-	}
-
 	@Override
 	public void close() throws IOException {
 	}
