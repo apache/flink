@@ -130,6 +130,9 @@ public class ExecEdge {
 			return new RequiredShuffle(ShuffleType.SINGLETON);
 		}
 
+		/**
+		 * Unknown shuffle type, should be filled out in the future.
+		 */
 		public static RequiredShuffle unknown() {
 			return new RequiredShuffle(ShuffleType.UNKNOWN);
 		}
