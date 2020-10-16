@@ -23,13 +23,11 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode, ExecNodeVisitorImpl}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
-
 import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.RelNode
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -320,8 +318,9 @@ class DeadlockBreakupProcessor extends DAGProcessor {
         // should exclude the reused node (at last position in path)
         while (!hasFullDamNode && idx < inputPath.length - 1) {
           val node = inputPath(idx)
-          val nodeDamBehavior = node.asInstanceOf[BatchExecNode[_]].getDamBehavior
-          hasFullDamNode = if (nodeDamBehavior == DamBehavior.FULL_DAM) {
+          val atLeastEndInput = node.getInputEdges.forall(
+            e => e.getDamBehavior.stricterOrEqual(ExecEdge.DamBehavior.END_INPUT))
+          hasFullDamNode = if (atLeastEndInput) {
             true
           } else {
             node match {

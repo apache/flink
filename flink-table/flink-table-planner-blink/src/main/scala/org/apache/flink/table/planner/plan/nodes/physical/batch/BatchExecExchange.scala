@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
@@ -101,18 +100,6 @@ class BatchExecExchange(
     }
   }
 
-  override def getDamBehavior: DamBehavior = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    val shuffleMode = getShuffleMode(tableConfig.getConfiguration)
-    if (shuffleMode eq ShuffleMode.BATCH) {
-      return DamBehavior.FULL_DAM
-    }
-    distribution.getType match {
-      case RelDistribution.Type.RANGE_DISTRIBUTED => DamBehavior.FULL_DAM
-      case _ => DamBehavior.PIPELINED
-    }
-  }
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
@@ -120,22 +107,22 @@ class BatchExecExchange(
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     val shuffleMode = getShuffleMode(tableConfig.getConfiguration)
     if (shuffleMode eq ShuffleMode.BATCH) {
-      List(new ExecEdge(
-        ExecEdge.RequiredShuffle.unknown(),
-        ExecEdge.EdgeBehavior.BLOCKING,
-        0))
+      List(
+        ExecEdge.builder()
+          .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+          .build())
     } else {
       distribution.getType match {
         case RelDistribution.Type.RANGE_DISTRIBUTED =>
-          List(new ExecEdge(
-            ExecEdge.RequiredShuffle.unknown(),
-            ExecEdge.EdgeBehavior.BLOCKING,
-            0))
+          List(
+            ExecEdge.builder()
+              .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+              .build())
         case _ =>
-          List(new ExecEdge(
-            ExecEdge.RequiredShuffle.unknown(),
-            ExecEdge.EdgeBehavior.PIPELINED,
-            0))
+          List(
+            ExecEdge.builder()
+              .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+              .build())
       }
     }
   }

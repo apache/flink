@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
@@ -88,8 +87,5 @@ class BatchExecLocalSortWindowAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.MATERIALIZING
-
-  override def getInputEdges: util.List[ExecEdge] =
-    List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.builder().build())
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
@@ -160,15 +159,14 @@ class BatchExecSortAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = {
-    if (grouping.length == 0) DamBehavior.FULL_DAM else DamBehavior.PIPELINED
-  }
-
   override def getInputEdges: util.List[ExecEdge] = {
     if (grouping.length == 0) {
-      List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.END_INPUT, 0))
+      List(
+        ExecEdge.builder()
+          .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+          .build())
     } else {
-      List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+      List(ExecEdge.builder().build())
     }
   }
 }

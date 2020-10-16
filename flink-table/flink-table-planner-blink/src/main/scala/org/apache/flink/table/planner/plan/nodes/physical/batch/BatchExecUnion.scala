@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.UnionTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
@@ -99,15 +98,12 @@ class BatchExecUnion(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
-  override def getInputEdges: util.List[ExecEdge] =
-    List(
-      new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0),
-      new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder().build(),
+    ExecEdge.builder().build())
 
   override def replaceInputNode(
       ordinalInParent: Int,

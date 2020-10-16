@@ -29,12 +29,14 @@ import java.util
 trait StreamExecNode[T] extends ExecNode[StreamPlanner, T] with Logging {
 
   def getInputEdges: util.List[ExecEdge] = {
+    // TODO fill out the required shuffle for each stream exec node
+    //  currently this interface is only used for deadlock breakup and multi-input in batch mode
+    //  so we just put a placeholder implementation here
     val edges = new util.ArrayList[ExecEdge]()
     for (_ <- 0 until getInputNodes.size()) {
-      edges.add(new ExecEdge(
-        ExecEdge.RequiredShuffle.unknown(),
-        ExecEdge.EdgeBehavior.PIPELINED,
-        0))
+      edges.add(ExecEdge.builder()
+        .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+        .build())
     }
     edges
   }

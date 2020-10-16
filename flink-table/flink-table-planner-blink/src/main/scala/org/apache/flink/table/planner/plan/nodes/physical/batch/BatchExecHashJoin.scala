@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.MemorySize
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -173,10 +173,6 @@ class BatchExecHashJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = {
-    if (hashJoinType.buildLeftSemiOrAnti()) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
-  }
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
@@ -186,13 +182,21 @@ class BatchExecHashJoin(
     } else {
       (ExecEdge.RequiredShuffle.hash(buildKeys), ExecEdge.RequiredShuffle.hash(probeKeys))
     }
-    val probeEdgeBehavior = if (hashJoinType.buildLeftSemiOrAnti()) {
-      ExecEdge.EdgeBehavior.END_INPUT
+    val probeDamBehavior = if (hashJoinType.buildLeftSemiOrAnti()) {
+      ExecEdge.DamBehavior.END_INPUT
     } else {
-      ExecEdge.EdgeBehavior.PIPELINED
+      ExecEdge.DamBehavior.PIPELINED
     }
-    val buildEdge = new ExecEdge(buildRequiredShuffle, ExecEdge.EdgeBehavior.BLOCKING, 0)
-    val probeEdge = new ExecEdge(probeRequiredShuffle, probeEdgeBehavior, 1)
+    val buildEdge = ExecEdge.builder()
+      .requiredShuffle(buildRequiredShuffle)
+      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+      .priority(0)
+      .build()
+    val probeEdge = ExecEdge.builder()
+      .requiredShuffle(probeRequiredShuffle)
+      .damBehavior(probeDamBehavior)
+      .priority(1)
+      .build()
 
     if (leftIsBuild) {
       List(buildEdge, probeEdge)

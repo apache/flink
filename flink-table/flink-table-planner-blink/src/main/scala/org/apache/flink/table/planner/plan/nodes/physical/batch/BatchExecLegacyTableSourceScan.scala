@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction
 import org.apache.flink.table.api.TableException
@@ -77,8 +76,6 @@ class BatchExecLegacyTableSourceScan(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
 

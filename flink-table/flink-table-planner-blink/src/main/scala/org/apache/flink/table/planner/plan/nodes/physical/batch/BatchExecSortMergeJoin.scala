@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.MemorySize
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
@@ -184,19 +183,17 @@ class BatchExecSortMergeJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  /**
-    * Now must be full dam without two input operator chain.
-    * TODO two input operator chain will return different value.
-    */
-  override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
-  override def getInputEdges: util.List[ExecEdge] =
-    List(
-      new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.END_INPUT, 0),
-      new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.END_INPUT, 0))
+  // this method must be in sync with the behavior of SortMergeJoinOperator.
+  override def getInputEdges: util.List[ExecEdge] = List(
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build(),
+    ExecEdge.builder()
+      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+      .build())
 
   override def replaceInputNode(
       ordinalInParent: Int,

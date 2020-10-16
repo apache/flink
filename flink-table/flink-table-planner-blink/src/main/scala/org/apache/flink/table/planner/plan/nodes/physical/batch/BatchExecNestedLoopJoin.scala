@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.MemorySize
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -116,8 +115,6 @@ class BatchExecNestedLoopJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
@@ -128,8 +125,16 @@ class BatchExecNestedLoopJoin(
     } else {
       (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
     }
-    val buildEdge = new ExecEdge(buildRequiredShuffle, ExecEdge.EdgeBehavior.BLOCKING, 0)
-    val probeEdge = new ExecEdge(probeRequiredShuffle, ExecEdge.EdgeBehavior.PIPELINED, 1)
+    val buildEdge = ExecEdge.builder()
+      .requiredShuffle(buildRequiredShuffle)
+      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+      .priority(0)
+      .build()
+    val probeEdge = ExecEdge.builder()
+      .requiredShuffle(probeRequiredShuffle)
+      .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+      .priority(1)
+      .build()
 
     if (leftIsBuild) {
       List(buildEdge, probeEdge)

@@ -18,21 +18,23 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.util.Preconditions;
+
 /**
  * The representation of an edge connecting two {@link ExecNode}.
  */
 public class ExecEdge {
 
 	private final RequiredShuffle requiredShuffle;
-	private final EdgeBehavior edgeBehavior;
+	private final DamBehavior damBehavior;
 	// the priority of this edge read by the target node
 	// the smaller the integer, the higher the priority
 	// same integer indicates the same priority
 	private final int priority;
 
-	public ExecEdge(RequiredShuffle requiredShuffle, EdgeBehavior edgeBehavior, int priority) {
+	private ExecEdge(RequiredShuffle requiredShuffle, DamBehavior damBehavior, int priority) {
 		this.requiredShuffle = requiredShuffle;
-		this.edgeBehavior = edgeBehavior;
+		this.damBehavior = damBehavior;
 		this.priority = priority;
 	}
 
@@ -40,12 +42,50 @@ public class ExecEdge {
 		return requiredShuffle;
 	}
 
-	public EdgeBehavior getEdgeBehavior() {
-		return edgeBehavior;
+	public DamBehavior getDamBehavior() {
+		return damBehavior;
 	}
 
 	public int getPriority() {
 		return priority;
+	}
+
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * Builder of the {@link ExecEdge}.
+	 */
+	public static class Builder {
+		private RequiredShuffle requiredShuffle;
+		private DamBehavior damBehavior;
+		private int priority;
+
+		private Builder() {
+			this.requiredShuffle = RequiredShuffle.unknown();
+			this.damBehavior = DamBehavior.PIPELINED;
+			this.priority = 0;
+		}
+
+		public Builder requiredShuffle(RequiredShuffle requiredShuffle) {
+			this.requiredShuffle = requiredShuffle;
+			return this;
+		}
+
+		public Builder damBehavior(DamBehavior damBehavior) {
+			this.damBehavior = damBehavior;
+			return this;
+		}
+
+		public Builder priority(int priority) {
+			this.priority = priority;
+			return this;
+		}
+
+		public ExecEdge build() {
+			return new ExecEdge(requiredShuffle, damBehavior, priority);
+		}
 	}
 
 	/**
@@ -55,6 +95,10 @@ public class ExecEdge {
 
 		private final ShuffleType type;
 		private final int[] keys;
+
+		private RequiredShuffle(ShuffleType type) {
+			this(type, new int[0]);
+		}
 
 		private RequiredShuffle(ShuffleType type, int[] keys) {
 			this.type = type;
@@ -70,27 +114,24 @@ public class ExecEdge {
 		}
 
 		public static RequiredShuffle any() {
-			return new RequiredShuffle(ShuffleType.ANY, new int[0]);
+			return new RequiredShuffle(ShuffleType.ANY);
 		}
 
 		public static RequiredShuffle hash(int[] keys) {
-			if (keys.length == 0) {
-				return new RequiredShuffle(ShuffleType.ANY, keys);
-			} else {
-				return new RequiredShuffle(ShuffleType.HASH, keys);
-			}
+			Preconditions.checkArgument(keys.length > 0, "Hash keys must no be empty.");
+			return new RequiredShuffle(ShuffleType.HASH, keys);
 		}
 
 		public static RequiredShuffle broadcast() {
-			return new RequiredShuffle(ShuffleType.BROADCAST, new int[0]);
+			return new RequiredShuffle(ShuffleType.BROADCAST);
 		}
 
 		public static RequiredShuffle singleton() {
-			return new RequiredShuffle(ShuffleType.SINGLETON, new int[0]);
+			return new RequiredShuffle(ShuffleType.SINGLETON);
 		}
 
 		public static RequiredShuffle unknown() {
-			return new RequiredShuffle(ShuffleType.UNKNOWN, new int[0]);
+			return new RequiredShuffle(ShuffleType.UNKNOWN);
 		}
 	}
 
@@ -110,7 +151,7 @@ public class ExecEdge {
 		HASH,
 
 		/**
-		 * Each sub-partition contains full records.
+		 * Full records are provided for each parallelism of the target node.
 		 */
 		BROADCAST,
 
@@ -129,7 +170,7 @@ public class ExecEdge {
 	 * Enumeration which describes how an output record from the source node
 	 * may trigger the output of the target node.
 	 */
-	public enum EdgeBehavior {
+	public enum DamBehavior {
 
 		/**
 		 * Constant indicating that some or all output records from the source
@@ -149,7 +190,7 @@ public class ExecEdge {
 		 */
 		BLOCKING;
 
-		public boolean stricterOrEqual(EdgeBehavior o) {
+		public boolean stricterOrEqual(DamBehavior o) {
 			return ordinal() >= o.ordinal();
 		}
 	}

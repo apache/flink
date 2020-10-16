@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
@@ -158,13 +157,10 @@ abstract class BatchExecCorrelateBase(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
-  override def getInputEdges: util.List[ExecEdge] =
-    List(new ExecEdge(ExecEdge.RequiredShuffle.unknown(), ExecEdge.EdgeBehavior.PIPELINED, 0))
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.builder().build())
 
   override def replaceInputNode(
       ordinalInParent: Int,
