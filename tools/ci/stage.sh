@@ -117,7 +117,6 @@ MODULES_KAFKA_GELLY="\
 flink-libraries/flink-gelly,\
 flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
-flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 
