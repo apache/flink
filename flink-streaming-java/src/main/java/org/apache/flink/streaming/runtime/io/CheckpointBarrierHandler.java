@@ -155,9 +155,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
 	protected abstract boolean isCheckpointPending();
 
-	protected void abortPendingCheckpoint(long checkpointId, CheckpointException exception) throws IOException {
-	}
-
 	public void addProcessedBytes(int bytes) {
 		if (isDuringAlignment()) {
 			bytesProcessedDuringAlignment += bytes;
