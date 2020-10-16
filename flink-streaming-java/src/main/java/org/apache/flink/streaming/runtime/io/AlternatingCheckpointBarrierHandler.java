@@ -44,11 +44,6 @@ class AlternatingCheckpointBarrierHandler extends CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void releaseBlocksAndResetBarriers() throws IOException {
-		activeHandler.releaseBlocksAndResetBarriers();
-	}
-
-	@Override
 	public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException {
 		if (receivedBarrier.getId() < lastSeenBarrierId) {
 			return;

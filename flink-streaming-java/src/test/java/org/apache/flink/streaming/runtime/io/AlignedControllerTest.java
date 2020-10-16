@@ -63,9 +63,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the behavior of the {@link CheckpointBarrierAligner}.
+ * Tests for the behavior of the {@link AlignedController}.
  */
-public class CheckpointBarrierAlignerTest {
+public class AlignedControllerTest {
 
 	protected static final int PAGE_SIZE = 512;
 
@@ -123,7 +123,11 @@ public class CheckpointBarrierAlignerTest {
 	protected CheckpointedInputGate createCheckpointedInputGate(IndexedInputGate gate, AbstractInvokable toNotify) {
 		return new CheckpointedInputGate(
 			gate,
-			new CheckpointBarrierAligner("Testing", toNotify, gate),
+			new SingleCheckpointBarrierHandler(
+				"Testing",
+				toNotify,
+				gate.getNumberOfInputChannels(),
+				new AlignedController(gate)),
 			new SyncMailboxExecutor());
 	}
 
