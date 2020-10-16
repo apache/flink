@@ -1594,8 +1594,8 @@ Flink API 经常尝试使用反射自动从类信息中提取数据类型，以�
 If you intend to implement classes in Scala, *it is recommended to use boxed types* (e.g. `java.lang.Integer`)
 instead of Scala's primitives. Scala's primitives (e.g. `Int` or `Double`) are compiled to JVM primitives (e.g.
 `int`/`double`) and result in `NOT NULL` semantics as shown in the table below. Furthermore, Scala primitives that
-are used in generics (e.g. `java.lang.Map[Int, Double]`) are erased during compilation and lead to class
-information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
+are used in generics (e.g. `java.util.Map[Int, Double]`) are erased during compilation and lead to class
+information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 
 | 类                          | 数据类型                            |
 |:----------------------------|:------------------------------------|
@@ -1626,7 +1626,7 @@ information similar to `java.lang.Map[java.lang.Object, java.lang.Object]`.
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |
-| `java.lang.Map<K, V>`       | `MAP<K, V>`                         |
+| `java.util.Map<K, V>`       | `MAP<K, V>`                         |
 | structured type `T`         | anonymous structured type `T`       |
 
 
