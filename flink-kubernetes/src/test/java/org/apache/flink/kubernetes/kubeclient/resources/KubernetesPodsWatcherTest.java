@@ -76,7 +76,7 @@ public class KubernetesPodsWatcherTest extends TestLogger {
 		assertThat(podErrorList.size(), is(1));
 	}
 
-	private class TestingCallbackHandler implements FlinkKubeClient.PodCallbackHandler {
+	private class TestingCallbackHandler implements FlinkKubeClient.WatchCallbackHandler<KubernetesPod> {
 
 		final Consumer<Throwable> consumer;
 
