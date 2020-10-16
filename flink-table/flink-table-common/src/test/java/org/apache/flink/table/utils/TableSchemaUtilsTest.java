@@ -85,7 +85,7 @@ public class TableSchemaUtilsTest {
 				.watermark("t", "t", DataTypes.TIMESTAMP(3))
 				.build();
 		exceptionRule.expect(IllegalArgumentException.class);
-		exceptionRule.expectMessage("It's illegal to project on a schema contains computed columns.");
+		exceptionRule.expectMessage("Projection is only supported for physical columns.");
 		int[][] projectedFields = {{1}};
 		TableSchemaUtils.projectSchema(schema, projectedFields);
 	}

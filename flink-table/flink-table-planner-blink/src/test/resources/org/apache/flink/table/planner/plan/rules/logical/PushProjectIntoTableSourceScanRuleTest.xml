@@ -65,8 +65,8 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nested2=[$1.nested2.], nes
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalProject(id=[$0], nestedName=[$3], nested2=[$2], nestedSum=[+($2.num, $4)])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2._num, deepNested_nested2., deepNested_nested1_name, nested_value.]]])
+LogicalProject(id=[$0], nestedName=[$2], nested2=[$1], nestedSum=[+($1.num, $3)])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2., deepNested_nested1_name, nested_value.]]])
 ]]>
     </Resource>
   </TestCase>

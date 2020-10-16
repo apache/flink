@@ -262,7 +262,15 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
     if (right.length < left.length) {
       false
     } else {
-      right.take(left.length).equals(left)
+      right.take(left.length).zip(left).foldLeft(true) {
+        (ans, fields) => {
+          if (ans) {
+            fields._1.equals(fields._2)
+          } else {
+            false
+          }
+        }
+      }
     }
   }
 
@@ -282,12 +290,14 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
             case head :: Nil if head.get(0).equals("*") => prefixAccesses
             // access is top-level access => return top-level access
             case _ :: _ if nestedAccess.get(0).equals("*") => List(util.Arrays.asList("*"))
-            // previous access is a prefix of this access => do not add access
-            case head :: _ if isPrefix(head, nestedAccess) =>
-              prefixAccesses
-            // previous access is not prefix of this access => add access
-            case _ =>
-              nestedAccess :: prefixAccesses
+            case _  =>
+              if (isPrefix(prefixAccesses.head, nestedAccess)) {
+                // previous access is a prefix of this access => do not add access
+                prefixAccesses
+              }else {
+                // previous access is not prefix of this access => add access
+                nestedAccess :: prefixAccesses
+              }
           }
       }
       prefixAccesses.toArray
