@@ -45,6 +45,7 @@ website_url: "https://flink.apache.org"
 jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
 download_url: "https://flink.apache.org/downloads.html"
+zh_download_url: "https://flink.apache.org/zh/downloads.html"
 
 # please use a protocol relative URL here
 baseurl: //ci.apache.org/projects/flink/flink-docs-master
