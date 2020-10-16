@@ -129,6 +129,25 @@ public class PipelinedRegionSchedulingStrategyTest extends TestLogger {
 		assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
 	}
 
+	@Test
+	public void testSchedulingTopologyWithPersistentBlockingEdges() {
+		final TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+		final List<TestingSchedulingExecutionVertex> v1 = topology.addExecutionVertices().withParallelism(1).finish();
+		final List<TestingSchedulingExecutionVertex> v2 = topology.addExecutionVertices().withParallelism(1).finish();
+
+		topology.connectPointwise(v1, v2)
+			.withResultPartitionState(ResultPartitionState.CREATED)
+			.withResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
+			.finish();
+
+		startScheduling(topology);
+
+		final List<List<TestingSchedulingExecutionVertex>> expectedScheduledVertices = new ArrayList<>();
+		expectedScheduledVertices.add(Arrays.asList(v1.get(0)));
+		assertLatestScheduledVerticesAreEqualTo(expectedScheduledVertices);
+	}
+
 	private PipelinedRegionSchedulingStrategy startScheduling(TestingSchedulingTopology testingSchedulingTopology) {
 		final PipelinedRegionSchedulingStrategy schedulingStrategy = new PipelinedRegionSchedulingStrategy(
 			testingSchedulerOperation,
