@@ -301,10 +301,10 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	}
 
 	// ------------------------------------------------------------------------
-	//  FlinkKubeClient.PodCallbackHandler
+	//  FlinkKubeClient.WatchCallbackHandler
 	// ------------------------------------------------------------------------
 
-	private class PodCallbackHandlerImpl implements FlinkKubeClient.PodCallbackHandler {
+	private class PodCallbackHandlerImpl implements FlinkKubeClient.WatchCallbackHandler<KubernetesPod> {
 		@Override
 		public void onAdded(List<KubernetesPod> pods) {
 			getMainThreadExecutor().execute(() -> {

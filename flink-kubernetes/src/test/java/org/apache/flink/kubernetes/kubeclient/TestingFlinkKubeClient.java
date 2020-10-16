@@ -42,14 +42,14 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 	private final Function<String, CompletableFuture<Void>> stopPodFunction;
 	private final Consumer<String> stopAndCleanupClusterConsumer;
 	private final Function<Map<String, String>, List<KubernetesPod>> getPodsWithLabelsFunction;
-	private final BiFunction<Map<String, String>, PodCallbackHandler, KubernetesWatch> watchPodsAndDoCallbackFunction;
+	private final BiFunction<Map<String, String>, WatchCallbackHandler<KubernetesPod>, KubernetesWatch> watchPodsAndDoCallbackFunction;
 
 	private TestingFlinkKubeClient(
 			Function<KubernetesPod, CompletableFuture<Void>> createTaskManagerPodFunction,
 			Function<String, CompletableFuture<Void>> stopPodFunction,
 			Consumer<String> stopAndCleanupClusterConsumer,
 			Function<Map<String, String>, List<KubernetesPod>> getPodsWithLabelsFunction,
-			BiFunction<Map<String, String>, PodCallbackHandler, KubernetesWatch> watchPodsAndDoCallbackFunction) {
+			BiFunction<Map<String, String>, WatchCallbackHandler<KubernetesPod>, KubernetesWatch> watchPodsAndDoCallbackFunction) {
 
 		this.createTaskManagerPodFunction = createTaskManagerPodFunction;
 		this.stopPodFunction = stopPodFunction;
@@ -99,7 +99,7 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 	}
 
 	@Override
-	public KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler podCallbackHandler) {
+	public KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
 		return watchPodsAndDoCallbackFunction.apply(labels, podCallbackHandler);
 	}
 
@@ -124,7 +124,7 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 				(ignore) -> {};
 		private Function<Map<String, String>, List<KubernetesPod>> getPodsWithLabelsFunction =
 				(ignore) -> Collections.emptyList();
-		private BiFunction<Map<String, String>, PodCallbackHandler, KubernetesWatch> watchPodsAndDoCallbackFunction =
+		private BiFunction<Map<String, String>, WatchCallbackHandler<KubernetesPod>, KubernetesWatch> watchPodsAndDoCallbackFunction =
 				(ignore1, ignore2) -> new MockKubernetesWatch();
 
 		private Builder() {}
@@ -149,7 +149,7 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 			return this;
 		}
 
-		public Builder setWatchPodsAndDoCallbackFunction(BiFunction<Map<String, String>, PodCallbackHandler, KubernetesWatch> watchPodsAndDoCallbackFunction) {
+		public Builder setWatchPodsAndDoCallbackFunction(BiFunction<Map<String, String>, WatchCallbackHandler<KubernetesPod>, KubernetesWatch> watchPodsAndDoCallbackFunction) {
 			this.watchPodsAndDoCallbackFunction = Preconditions.checkNotNull(watchPodsAndDoCallbackFunction);
 			return this;
 		}

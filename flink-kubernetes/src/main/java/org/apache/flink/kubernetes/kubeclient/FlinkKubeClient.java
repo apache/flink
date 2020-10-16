@@ -94,26 +94,28 @@ public interface FlinkKubeClient extends AutoCloseable {
 	void handleException(Exception e);
 
 	/**
-	 * Watch the pods selected by labels and do the {@link PodCallbackHandler}.
+	 * Watch the pods selected by labels and do the {@link WatchCallbackHandler}.
 	 *
 	 * @param labels labels to filter the pods to watch
 	 * @param podCallbackHandler podCallbackHandler which reacts to pod events
 	 * @return Return a watch for pods. It needs to be closed after use.
 	 */
-	KubernetesWatch watchPodsAndDoCallback(Map<String, String> labels, PodCallbackHandler podCallbackHandler);
+	KubernetesWatch watchPodsAndDoCallback(
+		Map<String, String> labels,
+		WatchCallbackHandler<KubernetesPod> podCallbackHandler);
 
 	/**
-	 * Callback handler for kubernetes pods.
+	 * Callback handler for kubernetes resources.
 	 */
-	interface PodCallbackHandler {
+	interface WatchCallbackHandler<T> {
 
-		void onAdded(List<KubernetesPod> pods);
+		void onAdded(List<T> resources);
 
-		void onModified(List<KubernetesPod> pods);
+		void onModified(List<T> resources);
 
-		void onDeleted(List<KubernetesPod> pods);
+		void onDeleted(List<T> resources);
 
-		void onError(List<KubernetesPod> pods);
+		void onError(List<T> resources);
 
 		void handleFatalError(Throwable throwable);
 	}
