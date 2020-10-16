@@ -50,7 +50,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
     def setUpClass(cls):
         super(KafkaDescriptorTests, cls).setUpClass()
         cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-kafka-base')
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-kafka')
 
     def test_version(self):
         kafka = Kafka().version("0.11")
