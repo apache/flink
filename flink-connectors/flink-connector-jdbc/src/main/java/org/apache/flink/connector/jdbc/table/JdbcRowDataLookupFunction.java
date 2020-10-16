@@ -147,7 +147,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
 			}
 		}
 
-		for (int retry = 1; retry <= maxRetryTimes; retry++) {
+		for (int retry = 0; retry <= maxRetryTimes; retry++) {
 			try {
 				statement.clearParameters();
 				statement = lookupKeyRowConverter.toExternal(keyRow, statement);

@@ -282,6 +282,30 @@ public class JdbcDynamicTableFactoryTest {
 					"lookup.cache.max-rows\n" +
 					"lookup.cache.ttl").isPresent());
 		}
+
+		// lookup retries shouldn't be negative
+		try {
+			Map<String, String> properties = getAllOptions();
+			properties.put("lookup.max-retries", "-1");
+			createTableSource(properties);
+			fail("exception expected");
+		} catch (Throwable t) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
+				"The value of 'lookup.max-retries' option shouldn't be negative, but is -1.")
+				.isPresent());
+		}
+
+		// sink retries shouldn't be negative
+		try {
+			Map<String, String> properties = getAllOptions();
+			properties.put("sink.max-retries", "-1");
+			createTableSource(properties);
+			fail("exception expected");
+		} catch (Throwable t) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
+				"The value of 'sink.max-retries' option shouldn't be negative, but is -1.")
+				.isPresent());
+		}
 	}
 
 	private Map<String, String> getAllOptions() {
