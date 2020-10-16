@@ -125,13 +125,21 @@ public class InputProcessorUtil {
 
 		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
-				if (config.isUnalignedCheckpointsEnabled()) {
-					return new AlternatingCheckpointBarrierHandler(
-						new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputs),
-						new CheckpointBarrierUnaligner(checkpointCoordinator, taskName, toNotifyOnCheckpoint, inputs),
-						toNotifyOnCheckpoint);
-				}
-				return new CheckpointBarrierAligner(taskName, toNotifyOnCheckpoint, inputs);
+				int numberOfChannels = (int) Arrays
+						.stream(inputs)
+						.flatMap(gate -> gate.getChannelInfos().stream())
+						.count();
+				CheckpointBarrierBehaviourController controller =
+					config.isUnalignedCheckpointsEnabled() ?
+						new AlternatingController(
+							new AlignedController(inputs),
+							new UnalignedController(checkpointCoordinator, inputs)) :
+						new AlignedController(inputs);
+				return new SingleCheckpointBarrierHandler(
+						taskName,
+						toNotifyOnCheckpoint,
+						numberOfChannels,
+						controller);
 			case AT_LEAST_ONCE:
 				if (config.isUnalignedCheckpointsEnabled()) {
 					throw new IllegalStateException("Cannot use unaligned checkpoints with AT_LEAST_ONCE " +
