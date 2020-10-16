@@ -119,8 +119,8 @@ class TableSourceITCase extends BatchTestBase {
          |CREATE TABLE T (
          |  id BIGINT,
          |  deepNested ROW<
-         |     nested1 ROW<name STRING, `value` INT>,
-         |     nested2 ROW<num INT, flag BOOLEAN>
+         |     nested1 ROW<name STRING, `value.` INT>,
+         |     `nested2.` ROW<num INT, flag BOOLEAN>
          |   >,
          |   nested ROW<name STRING, `value` INT>,
          |   name STRING,
@@ -139,14 +139,14 @@ class TableSourceITCase extends BatchTestBase {
         |SELECT id,
         |    deepNested.nested1.name AS nestedName,
         |    nested.`value` AS nestedValue,
-        |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum,
+        |    deepNested.`nested2.`.flag AS nestedFlag,
+        |    deepNested.`nested2.`.num + deepNested.nested1.`value.` AS nestedNum,
         |    lower_name
         |FROM T
       """.stripMargin,
-      Seq(row(1, "Sarah", 10000, true, 1000, "mary"),
-        row(2, "Rob", 20000, false, 2000, "bob"),
-        row(3, "Mike", 30000, true, 3000, "liz")
+      Seq(row(1, "Sarah", 10000, true, 1100, "mary"),
+        row(2, "Rob", 20000, false, 2200, "bob"),
+        row(3, "Mike", 30000, true, 3300, "liz")
       )
     )
   }

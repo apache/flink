@@ -141,8 +141,8 @@ class TableSourceITCase extends StreamingTestBase {
          |CREATE TABLE T (
          |  id BIGINT,
          |  deepNested ROW<
-         |     nested1 ROW<name STRING, `value` INT>,
-         |     nested2 ROW<num INT, flag BOOLEAN>
+         |     nested1 ROW<name STRING, `value.` INT>,
+         |     `nested2.` ROW<num INT, flag BOOLEAN>
          |   >,
          |   nested ROW<name STRING, `value` INT>,
          |   name STRING,
@@ -160,8 +160,8 @@ class TableSourceITCase extends StreamingTestBase {
         |SELECT id,
         |    deepNested.nested1.name AS nestedName,
         |    nested.`value` AS nestedValue,
-        |    deepNested.nested2.flag AS nestedFlag,
-        |    deepNested.nested2.num AS nestedNum,
+        |    deepNested.`nested2.`.flag AS nestedFlag,
+        |    deepNested.`nested2.`.num + deepNested.nested1.`value.` AS nestedNum,
         |    lower_name
         |FROM T
       """.stripMargin
@@ -172,9 +172,9 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq(
-      "1,Sarah,10000,true,1000,mary",
-      "2,Rob,20000,false,2000,bob",
-      "3,Mike,30000,true,3000,liz")
+      "1,Sarah,10000,true,1100,mary",
+      "2,Rob,20000,false,2200,bob",
+      "3,Mike,30000,true,3300,liz")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

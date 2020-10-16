@@ -53,20 +53,20 @@ LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
   <TestCase name="testComplicatedNestedProject">
     <Resource name="sql">
       <![CDATA[SELECT id,    deepNested.nested1.name AS nestedName,
-    deepNested.nested2 AS nested2,
-    deepNested.nested2.num AS nestedNum
+    deepNested.`nested2.` AS nested2,
+    (deepNested.`nested2.`.num + nested.`value.`) AS nestedSum
 FROM NestedTable]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(id=[$0], nestedName=[$1.nested1.name], nested2=[$1.nested2], nestedNum=[$1.nested2.num])
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nested2=[$1.nested2.], nestedSum=[+($1.nested2..num, $2.value.)])
 +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalProject(id=[$0], nestedName=[$2], nested2=[$1], nestedNum=[$1.num])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2, deepNested_nested1_name]]])
+LogicalProject(id=[$0], nestedName=[$3], nested2=[$2], nestedSum=[+($2.num, $4)])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2._num, deepNested_nested2., deepNested_nested1_name, nested_value.]]])
 ]]>
     </Resource>
   </TestCase>
@@ -74,21 +74,21 @@ LogicalProject(id=[$0], nestedName=[$2], nested2=[$1], nestedNum=[$1.num])
     <Resource name="sql">
       <![CDATA[SELECT id,
     deepNested.nested1.name AS nestedName,
-    nested.`value` AS nestedValue,
-    deepNested.nested2.flag AS nestedFlag,
-    deepNested.nested2.num AS nestedNum
+    nested.`value.` AS nestedValue,
+    deepNested.`nested2.`.flag AS nestedFlag,
+    deepNested.`nested2.`.num AS nestedNum
 FROM NestedTable]]>
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value.], nestedFlag=[$1.nested2..flag], nestedNum=[$1.nested2..num])
 +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$3], nestedValue=[$4], nestedFlag=[$2], nestedNum=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2_num, deepNested_nested2_flag, deepNested_nested1_name, nested_value]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2._num, deepNested_nested2._flag, deepNested_nested1_name, nested_value.]]])
 ]]>
     </Resource>
   </TestCase>

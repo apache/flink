@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 
-import java.util.{List => JList, Map => JMap}
+import java.util.{Collections, Arrays, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -54,7 +54,7 @@ object RexNodeRewriter {
    */
   def rewriteNestedProjectionWithNewFieldInput(
       exps: JList[RexNode],
-      fieldMap: JMap[Integer, JMap[String, Integer]],
+      fieldMap: JMap[Integer, JMap[JList[String], Integer]],
       rowTypes: JList[RelDataType],
       rexBuilder: RexBuilder): JList[RexNode] = {
     val writer = new NestedInputRewriter(fieldMap, rowTypes, rexBuilder)
@@ -99,53 +99,13 @@ class InputRewriter(fieldMap: Map[Int, Int]) extends RexShuttle {
  *  we create a reference. Otherwise, we should go to the next level with the new prefix.
  */
 class NestedInputRewriter(
-  fieldMap: JMap[Integer, JMap[String, Integer]],
+  fieldMap: JMap[Integer, JMap[JList[String], Integer]],
   rowTypes: JList[RelDataType],
   builder: RexBuilder) extends RexShuttle {
 
+  val topLevelIdentifier = Collections.singletonList("*")
+
   override def visitFieldAccess(input: RexFieldAccess): RexNode = {
-    def traverse(fieldAccess: RexFieldAccess): (Int, String, Option[RexNode]) = {
-      fieldAccess.getReferenceExpr match {
-        case ref: RexInputRef =>
-          val mapping =
-            fieldMap.getOrElse(ref.getIndex,
-              throw new IllegalArgumentException("input field contains unknown index"))
-          if (mapping.contains("*")) {
-            (ref.getIndex,
-              "",
-              Option.apply(builder.makeFieldAccess(
-                new RexInputRef(mapping("*"), rowTypes(mapping("*"))),
-                fieldAccess.getField.getName,
-                false))
-            )
-          } else if(mapping.contains(fieldAccess.getField.getName)) {
-            (ref.getIndex,
-              "",
-              Option.apply(new RexInputRef(mapping(fieldAccess.getField.getName),
-                rowTypes(mapping(fieldAccess.getField.getName)))))
-          } else {
-            (ref.getIndex, fieldAccess.getField.getName, Option.empty)
-          }
-        case acc: RexFieldAccess =>
-          val (i, prefix, node) = traverse(acc)
-          if (node.isDefined) {
-            (i,
-              "",
-              Option.apply(builder.makeFieldAccess(node.get, fieldAccess.getField.getName, false)))
-          } else {
-            val newPrefix = s"$prefix.${fieldAccess.getField.getName}"
-            // we have checked before
-            val mapping = fieldMap(i)
-            if (mapping.contains(newPrefix)) {
-              (i,
-                "",
-                Option.apply(new RexInputRef(mapping(newPrefix), rowTypes(mapping(newPrefix)))))
-            } else {
-              (i, newPrefix, Option.empty)
-            }
-          }
-      }
-    }
     val (_, _, node) = traverse(input)
     if (node.isDefined) {
       node.get
@@ -157,10 +117,53 @@ class NestedInputRewriter(
   override def visitInputRef(inputRef: RexInputRef): RexNode = {
     val mapping = fieldMap.getOrElse(inputRef.getIndex,
       throw new IllegalArgumentException("input field contains unknown index"))
-    if (mapping.contains("*")) {
-      new RexInputRef(mapping("*"), rowTypes(mapping("*")))
+    if (mapping.contains(topLevelIdentifier)) {
+      new RexInputRef(mapping(topLevelIdentifier), rowTypes(mapping(topLevelIdentifier)))
     } else {
       throw new IllegalArgumentException("empty field mapping")
+    }
+  }
+
+  private def traverse(fieldAccess: RexFieldAccess): (Int, JList[String], Option[RexNode]) = {
+    fieldAccess.getReferenceExpr match {
+      case ref: RexInputRef =>
+        val mapping =
+          fieldMap.getOrElse(ref.getIndex,
+            throw new IllegalArgumentException("input field contains unknown index"))
+        val key = Arrays.asList(fieldAccess.getField.getName)
+        if (mapping.contains(topLevelIdentifier)) {
+          (ref.getIndex,
+            Collections.emptyList(),
+            Some(builder.makeFieldAccess(
+              new RexInputRef(mapping(topLevelIdentifier), rowTypes(mapping(topLevelIdentifier))),
+              fieldAccess.getField.getName,
+              false))
+          )
+        } else if(mapping.contains(key)) {
+          (ref.getIndex,
+            Collections.emptyList(),
+            Some(new RexInputRef(mapping(key), rowTypes(mapping(key)))))
+        } else {
+          (ref.getIndex, Arrays.asList(fieldAccess.getField.getName), Option.empty)
+        }
+      case acc: RexFieldAccess =>
+        val (i, prefix, node) = traverse(acc)
+        if (node.isDefined) {
+          (i,
+            Collections.emptyList(),
+            Some(builder.makeFieldAccess(node.get, fieldAccess.getField.getName, false)))
+        } else {
+          val newPrefix = prefix :+ fieldAccess.getField.getName
+          // we have checked before
+          val mapping = fieldMap(i)
+          if (mapping.contains(newPrefix)) {
+            (i,
+              Collections.emptyList(),
+              Some(new RexInputRef(mapping(newPrefix), rowTypes(mapping(newPrefix)))))
+          } else {
+            (i, newPrefix, Option.empty)
+          }
+        }
     }
   }
 }

@@ -27,7 +27,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName.{INTEGER, VARCHAR}
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-import java.util
+import java.util.Arrays
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -91,9 +91,9 @@ class RexNodeRewriterTest extends RexNodeTestBase {
 
     // origin schema: $0 = RAW<name INT, age varchar>, $1 = RAW<id BIGINT, amount int>.amount
     // new schema: $1 = ROW<name INT, age varchar>, $0 = ROW<id BIGINT, amount int>.amount
-    val fieldMap = Map(int2Integer(0) -> Map("*" -> int2Integer(1)).asJava,
-      int2Integer(1) -> Map("amount" -> int2Integer(0)).asJava).asJava
-    val rowTypes = util.Arrays.asList(
+    val fieldMap = Map(int2Integer(0) -> Map(Arrays.asList("*") -> int2Integer(1)).asJava,
+      int2Integer(1) -> Map(Arrays.asList("amount") -> int2Integer(0)).asJava).asJava
+    val rowTypes = Arrays.asList(
       inputOf(typeFactory).field("amount", INTEGER).build,
       inputOf(typeFactory)
         .field("name", INTEGER)
@@ -143,12 +143,13 @@ class RexNodeRewriterTest extends RexNodeTestBase {
 
 
     val fieldMap = Map(
-      int2Integer(0) -> Map("*" -> int2Integer(1)).asJava,
-      int2Integer(1) -> Map("amount" -> int2Integer(0)).asJava,
+      int2Integer(0) -> Map(Arrays.asList("*") -> int2Integer(1)).asJava,
+      int2Integer(1) -> Map(Arrays.asList("amount") -> int2Integer(0)).asJava,
       int2Integer(2) ->
-        Map("with.deep.entry" -> int2Integer(2), "with.deeper.entry" -> int2Integer(3)).asJava
+        Map(Arrays.asList("with","deep", "entry") -> int2Integer(2),
+          Arrays.asList("with", "deeper", "entry") -> int2Integer(3)).asJava
     ).asJava
-    val rowTypes = util.Arrays.asList(
+    val rowTypes = Arrays.asList(
       inputOf(typeFactory).field("amount", INTEGER).build,
       inputOf(typeFactory)
         .field("name", VARCHAR)

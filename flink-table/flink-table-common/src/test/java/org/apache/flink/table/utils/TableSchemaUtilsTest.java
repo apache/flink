@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 
@@ -75,8 +76,7 @@ public class TableSchemaUtilsTest {
 
 	@Test
 	public void testInvalidProjectSchema() {
-		{
-			TableSchema schema = TableSchema.builder()
+		TableSchema schema = TableSchema.builder()
 				.field("a", DataTypes.INT().notNull())
 				.field("b", DataTypes.STRING())
 				.field("c", DataTypes.INT(), "a + 1")
@@ -84,22 +84,10 @@ public class TableSchemaUtilsTest {
 				.primaryKey("ct1", new String[]{"a"})
 				.watermark("t", "t", DataTypes.TIMESTAMP(3))
 				.build();
-			exceptionRule.expect(IllegalArgumentException.class);
-			exceptionRule.expectMessage("Projection is only supported for physical columns.");
-			int[][] projectedFields = {{1}};
-			TableSchemaUtils.projectSchema(schema, projectedFields);
-		}
-
-		{
-			TableSchema schema = TableSchema.builder()
-				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
-				.field("b", DataTypes.STRING())
-				.build();
-			exceptionRule.expect(IllegalArgumentException.class);
-			exceptionRule.expectMessage("Nested projection push down is not supported yet.");
-			int[][] projectedFields = {{0, 1}};
-			TableSchemaUtils.projectSchema(schema, projectedFields);
-		}
+		exceptionRule.expect(IllegalArgumentException.class);
+		exceptionRule.expectMessage("It's illegal to project on a schema contains computed columns.");
+		int[][] projectedFields = {{1}};
+		TableSchemaUtils.projectSchema(schema, projectedFields);
 	}
 
 	@Test
@@ -119,5 +107,21 @@ public class TableSchemaUtilsTest {
 			.field("a", DataTypes.INT().notNull())
 			.build();
 		assertEquals(expected, projected);
+	}
+
+	@Test
+	public void testProjectSchemaWithNameConflict() {
+		TableSchema schema = TableSchema.builder()
+				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
+				.field("a_f0", DataTypes.STRING())
+				.build();
+		exceptionRule.expect(TableException.class);
+		exceptionRule.expectMessage(
+				"Get name conflicts for origin fields `a`.`f0` and `a_f0` with new name `a_f0`. " +
+						"When pushing projection into scan, we will concatenate top level names with delimiter '_'. " +
+						"Please rename the origin field names when creating table."
+		);
+		int[][] projectedFields = {{0, 0}, {1}};
+		TableSchemaUtils.projectSchema(schema, projectedFields);
 	}
 }

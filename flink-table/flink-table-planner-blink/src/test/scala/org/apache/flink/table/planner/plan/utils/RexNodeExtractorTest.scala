@@ -31,7 +31,6 @@ import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
-import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
 import org.apache.flink.table.utils.CatalogManagerMocks
 
@@ -39,7 +38,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
@@ -48,6 +46,7 @@ import org.junit.Test
 
 import java.math.BigDecimal
 import java.time.ZoneId
+import java.util
 import java.util.{TimeZone, List => JList}
 
 import scala.collection.JavaConverters._
@@ -79,7 +78,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedFields = RexNodeExtractor.extractRefInputFields(rexProgram)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
-    val expected = Array(Array("amount"), Array("*"))
+    val expected = Array(Array(util.Arrays.asList("amount")), Array(util.Arrays.asList("*")))
     assertThat(usedNestedFields, is(expected))
   }
 
@@ -90,7 +89,8 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedFields = RexNodeExtractor.extractRefInputFields(exprs)
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(exprs, usedFields)
 
-    val expected = Array(Array("*"), Array("*"), Array("*"))
+    val expected = Array(Array(util.Arrays.asList("*")),
+      Array(util.Arrays.asList("*")), Array(util.Arrays.asList("*")))
     assertThat(usedNestedFields, is(expected))
   }
 
@@ -102,9 +102,10 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val usedNestedFields = RexNodeExtractor.extractRefNestedInputFields(rexProgram, usedFields)
 
     val expected = Array(
-      Array("amount"),
-      Array("*"),
-      Array("with.deeper.entry", "with.deep.entry"))
+      Array(util.Arrays.asList("amount")),
+      Array(util.Arrays.asList("*")),
+      Array(util.Arrays.asList("with", "deeper", "entry"),
+        util.Arrays.asList("with", "deep", "entry")))
 
     assertThat(usedFields, is(Array(1, 0, 2)))
     assertThat(usedNestedFields, is(expected))
