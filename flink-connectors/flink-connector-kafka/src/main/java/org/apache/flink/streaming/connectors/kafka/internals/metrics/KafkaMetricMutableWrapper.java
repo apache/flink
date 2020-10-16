@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.internal.metrics;
+package org.apache.flink.streaming.connectors.kafka.internals.metrics;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
