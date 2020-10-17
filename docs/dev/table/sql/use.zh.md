@@ -204,7 +204,7 @@ Flink SQL> USE db1;
 
 {% top %}
 
-## USE CATLOAG
+## USE CATALOG
 
 {% highlight sql %}
 USE CATALOG catalog_name
