@@ -107,8 +107,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			1L,
+			startNanos,
 			6_000_000L,
-			System.nanoTime() - startNanos,
 			10_000_000L,
 			bufferSize * 2);
 
@@ -121,8 +121,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			2L,
+			startNanos,
 			0L,
-			System.nanoTime() - startNanos,
 			5_000_000L,
 			bufferSize * 2);
 		Thread.sleep(5);
@@ -133,8 +133,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			2L,
+			startNanos,
 			5_000_000L,
-			System.nanoTime() - startNanos,
 			5_000_000L,
 			bufferSize);
 
@@ -147,8 +147,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			3L,
+			startNanos,
 			0L,
-			System.nanoTime() - startNanos,
 			7_000_000L,
 			-1L);
 		Thread.sleep(10);
@@ -157,8 +157,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			3L,
+			startNanos,
 			10_000_000L,
-			System.nanoTime() - startNanos,
 			7_000_000L,
 			bufferSize * 2);
 	}
@@ -171,6 +171,8 @@ public class AlternatingCheckpointBarrierHandlerTest {
 		CheckpointedInputGate gate = buildGate(target, numChannels);
 
 		long checkpoint1CreationTime = System.currentTimeMillis() - 10;
+		long startNanos = System.nanoTime();
+
 		sendBuffer(bufferSize, gate, 0);
 		sendBarrier(1, checkpoint1CreationTime, CHECKPOINT, gate, 0);
 		sendBuffer(bufferSize, gate, 0);
@@ -179,12 +181,13 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			1L,
-			0L,
+			startNanos,
 			0L,
 			10_000_000L,
 			0);
 
 		long checkpoint2CreationTime = System.currentTimeMillis() - 5;
+		startNanos = System.nanoTime();
 		sendBuffer(bufferSize, gate, 0);
 		sendBarrier(2, checkpoint2CreationTime, SAVEPOINT, gate, 0);
 		sendBuffer(bufferSize, gate, 0);
@@ -193,7 +196,7 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			target,
 			gate.getCheckpointBarrierHandler(),
 			2L,
-			0L,
+			startNanos,
 			0L,
 			5_000_000L,
 			0);
@@ -203,17 +206,19 @@ public class AlternatingCheckpointBarrierHandlerTest {
 			ValidatingCheckpointHandler target,
 			CheckpointBarrierHandler checkpointBarrierHandler,
 			long latestCheckpointId,
+			long alignmentDurationStartNanos,
 			long alignmentDurationNanosMin,
-			long alignmentDurationNanosMax,
 			long startDelayNanos,
 			long bytesProcessedDuringAlignment) {
 		assertThat(checkpointBarrierHandler.getLatestCheckpointId(), equalTo(latestCheckpointId));
-		assertThat(checkpointBarrierHandler.getAlignmentDurationNanos(), greaterThanOrEqualTo(alignmentDurationNanosMin));
-		assertThat(checkpointBarrierHandler.getAlignmentDurationNanos(), lessThanOrEqualTo(alignmentDurationNanosMax));
+		long alignmentDurationNanos = checkpointBarrierHandler.getAlignmentDurationNanos();
+		long expectedAlignmentDurationNanosMax = System.nanoTime() - alignmentDurationStartNanos;
+		assertThat(alignmentDurationNanos, greaterThanOrEqualTo(alignmentDurationNanosMin));
+		assertThat(alignmentDurationNanos, lessThanOrEqualTo(expectedAlignmentDurationNanosMax));
 		assertThat(checkpointBarrierHandler.getCheckpointStartDelayNanos(), greaterThanOrEqualTo(startDelayNanos));
 		assertThat(
-			FutureUtils.getOrDefault(target.getLastBytesProcessedDuringAlignment(), -1L),
-			equalTo(bytesProcessedDuringAlignment));
+				FutureUtils.getOrDefault(target.getLastBytesProcessedDuringAlignment(), -1L),
+				equalTo(bytesProcessedDuringAlignment));
 	}
 
 	@Test
