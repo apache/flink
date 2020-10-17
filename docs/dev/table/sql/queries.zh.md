@@ -697,7 +697,7 @@ SELECT users, tag
 FROM Orders, LATERAL TABLE(unnest_udtf(tags)) AS t(tag)
 -- 从1.11开始，也可以使用下面的方式：
 SELECT users, tag
-FROM Orders, LATERAL TABLE(unnest_udtf(tags)) AS t(tag)
+FROM Orders, LATERAL TABLE(unnest_udtf(tags))
 {% endhighlight %}
 
         <p><b>Left Outer Join</b></p>
@@ -707,7 +707,7 @@ SELECT users, tag
 FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) AS t(tag) ON TRUE
 -- 从1.11开始，也可以使用下面的方式：
 SELECT users, tag
-FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) AS t(tag) ON TRUE
+FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) ON TRUE
 {% endhighlight %}
 
         <p><b>注意：</b> 当前仅支持文本常量 <code>TRUE</code> 作为针对横向表的左外部联接的谓词。</p>
