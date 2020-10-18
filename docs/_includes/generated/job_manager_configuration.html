@@ -87,6 +87,12 @@
             <td>Total Process Memory size for the JobManager. This includes all the memory that a JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. In containerized setups, this should be set to the container memory. See also 'jobmanager.memory.flink.size' for Total Flink Memory size configuration.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether JobManager would retrieve canonical host name of TaskManager during registration. If the option is set to "false", TaskManager registration with JobManager could be faster, since no reverse DNS lookup is performed. However, local input split assignment (such as for HDFS files) may be impacted.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.rpc.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

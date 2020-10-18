@@ -309,6 +309,19 @@ public class JobManagerOptions {
 			.withDescription("The max number of completed jobs that can be kept in the job store.");
 
 	/**
+	 * Flag indicating whether JobManager would retrieve canonical host name of TaskManager during registration.
+	 */
+	@Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+	public static final ConfigOption<Boolean> RETRIEVE_TASK_MANAGER_HOSTNAME =
+		key("jobmanager.retrieve-taskmanager-hostname")
+			.defaultValue(true)
+			.withDescription("Flag indicating whether JobManager would retrieve canonical "
+							+ "host name of TaskManager during registration. "
+							+ "If the option is set to \"false\", TaskManager registration with "
+							+ "JobManager could be faster, since no reverse DNS lookup is performed. "
+							+ "However, local input split assignment (such as for HDFS files) may be impacted.");
+
+	/**
 	 * The timeout in milliseconds for requesting a slot from Slot Pool.
 	 */
 	@Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
