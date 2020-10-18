@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -89,6 +90,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation.ResolutionMode;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -164,6 +166,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private final Scheduler scheduler;
 
 	private final SchedulerNGFactory schedulerNGFactory;
+
+	private final boolean retrieveTaskManagerHostName;
 
 	// --------- BackPressure --------
 
@@ -241,6 +245,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.schedulerNGFactory = checkNotNull(schedulerNGFactory);
 		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
+		this.retrieveTaskManagerHostName = jobMasterConfiguration.getConfiguration()
+				.getBoolean(JobManagerOptions.RETRIEVE_TASK_MANAGER_HOSTNAME);
 
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
@@ -579,7 +585,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final TaskManagerLocation taskManagerLocation;
 		try {
-			taskManagerLocation = TaskManagerLocation.fromUnresolvedLocation(unresolvedTaskManagerLocation);
+			if (retrieveTaskManagerHostName) {
+				taskManagerLocation = TaskManagerLocation.fromUnresolvedLocation(
+						unresolvedTaskManagerLocation,
+						ResolutionMode.RETRIEVE_HOST_NAME);
+			} else {
+				taskManagerLocation = TaskManagerLocation.fromUnresolvedLocation(
+						unresolvedTaskManagerLocation,
+						ResolutionMode.USE_IP_ONLY);
+			}
 		} catch (Throwable throwable) {
 			final String errMsg = String.format(
 				"Could not accept TaskManager registration. TaskManager address %s cannot be resolved. %s",
