@@ -55,7 +55,7 @@ import java.util.concurrent.Future;
 @Internal
 public class SourceStreamTask<
                 OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
-        extends StreamTask<OUT, OP> {
+        extends AbstractSourceStreamTask<OUT, OP> {
 
     private final LegacySourceFunctionThread sourceThread;
     private final Object lock;

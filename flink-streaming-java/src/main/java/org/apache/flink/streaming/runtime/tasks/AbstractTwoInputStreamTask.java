@@ -33,7 +33,7 @@ import java.util.List;
 /** Abstract class for executing a {@link TwoInputStreamOperator}. */
 @Internal
 public abstract class AbstractTwoInputStreamTask<IN1, IN2, OUT>
-        extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
+        extends AbstractNonSourceStreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
 
     protected final WatermarkGauge input1WatermarkGauge;
     protected final WatermarkGauge input2WatermarkGauge;

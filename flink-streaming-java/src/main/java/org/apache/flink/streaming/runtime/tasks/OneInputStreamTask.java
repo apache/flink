@@ -58,7 +58,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /** A {@link StreamTask} for executing a {@link OneInputStreamOperator}. */
 @Internal
-public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
+public class OneInputStreamTask<IN, OUT>
+        extends AbstractNonSourceStreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
     @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
 
@@ -87,6 +88,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
     public OneInputStreamTask(Environment env, @Nullable TimerService timeProvider)
             throws Exception {
         super(env, timeProvider);
+    }
+
+    @Nullable
+    @Override
+    protected CheckpointBarrierHandler getCheckpointBarrierHandler() {
+        return checkpointBarrierHandler;
     }
 
     @Override

@@ -46,6 +46,12 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
         super(env);
     }
 
+    @Nullable
+    @Override
+    protected CheckpointBarrierHandler getCheckpointBarrierHandler() {
+        return checkpointBarrierHandler;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     protected void createInputProcessor(

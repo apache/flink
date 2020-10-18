@@ -191,7 +191,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     /** Our checkpoint storage. We use this to create checkpoint streams. */
     protected final CheckpointStorage checkpointStorage;
 
-    private final SubtaskCheckpointCoordinator subtaskCheckpointCoordinator;
+    protected final SubtaskCheckpointCoordinator subtaskCheckpointCoordinator;
 
     /**
      * The internal {@link TimerService} used to define the current processing time (default =
@@ -209,7 +209,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      * Flag to mark the task "in operation", in which case check needs to be initialized to true, so
      * that early cancel() before invoke() behaves correctly.
      */
-    private volatile boolean isRunning;
+    protected volatile boolean isRunning;
 
     /** Flag to mark this task as canceled. */
     private volatile boolean canceled;
@@ -235,8 +235,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private final ExecutorService channelIOExecutor;
 
     private Long syncSavepointId = null;
-
-    private long latestAsyncCheckpointStartDelayNanos;
 
     // ------------------------------------------------------------------------
 
@@ -877,12 +875,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {
-                    latestAsyncCheckpointStartDelayNanos =
-                            1_000_000
-                                    * Math.max(
-                                            0,
-                                            System.currentTimeMillis()
-                                                    - checkpointMetaData.getTimestamp());
                     try {
                         result.complete(
                                 triggerCheckpoint(
@@ -901,54 +893,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         return result;
     }
 
-    private boolean triggerCheckpoint(
+    protected boolean triggerCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
             boolean advanceToEndOfEventTime)
             throws Exception {
-        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-        try {
-            // No alignment if we inject a checkpoint
-            CheckpointMetricsBuilder checkpointMetrics =
-                    new CheckpointMetricsBuilder()
-                            .setAlignmentDurationNanos(0L)
-                            .setBytesProcessedDuringAlignment(0L);
-
-            subtaskCheckpointCoordinator.initCheckpoint(
-                    checkpointMetaData.getCheckpointId(), checkpointOptions);
-
-            boolean success =
-                    performCheckpoint(
-                            checkpointMetaData,
-                            checkpointOptions,
-                            checkpointMetrics,
-                            advanceToEndOfEventTime);
-            if (!success) {
-                declineCheckpoint(checkpointMetaData.getCheckpointId());
-            }
-            return success;
-        } catch (Exception e) {
-            // propagate exceptions only if the task is still in "running" state
-            if (isRunning) {
-                throw new Exception(
-                        "Could not perform checkpoint "
-                                + checkpointMetaData.getCheckpointId()
-                                + " for operator "
-                                + getName()
-                                + '.',
-                        e);
-            } else {
-                LOG.debug(
-                        "Could not perform checkpoint {} for operator {} while the "
-                                + "invokable was not in state running.",
-                        checkpointMetaData.getCheckpointId(),
-                        getName(),
-                        e);
-                return false;
-            }
-        } finally {
-            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-        }
+        return false;
     }
 
     @Override
@@ -991,7 +941,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         subtaskCheckpointCoordinator.abortCheckpointOnBarrier(checkpointId, cause, operatorChain);
     }
 
-    private boolean performCheckpoint(
+    protected boolean performCheckpoint(
             CheckpointMetaData checkpointMetaData,
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
@@ -1343,10 +1293,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } catch (Throwable t) {
             handleAsyncException("Caught exception while processing timer.", new TimerException(t));
         }
-    }
-
-    protected long getAsyncCheckpointStartDelayNanos() {
-        return latestAsyncCheckpointStartDelayNanos;
     }
 
     private static class ResumeWrapper implements Runnable {

@@ -21,6 +21,8 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -37,7 +39,7 @@ import java.util.ArrayDeque;
  * from which input channels. Once it has observed all checkpoint barriers for a checkpoint ID, it
  * notifies its listener of a completed checkpoint.
  *
- * <p>Unlike the {@link CheckpointBarrierAligner}, the BarrierTracker does not block the input
+ * <p>Unlike the {@link SingleCheckpointBarrierHandler}, the BarrierTracker does not block the input
  * channels that have sent barriers, so it cannot be used to gain "exactly-once" processing
  * guarantees. It can, however, be used to gain "at least once" processing guarantees.
  *
@@ -76,6 +78,13 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         super(toNotifyOnCheckpoint);
         this.totalNumberOfInputChannels = totalNumberOfInputChannels;
         this.pendingCheckpoints = new ArrayDeque<>();
+    }
+
+    @Override
+    public boolean triggerCheckpoint(
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
+            throws IOException {
+        throw new UnsupportedOperationException("not supported yet");
     }
 
     public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo)
