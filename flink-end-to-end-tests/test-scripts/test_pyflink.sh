@@ -108,7 +108,7 @@ echo "Test PyFlink Table job:"
 FLINK_PYTHON_TEST_DIR=`cd "${CURRENT_DIR}/../flink-python-test" && pwd -P`
 REQUIREMENTS_PATH="${TEST_DATA_DIR}/requirements.txt"
 
-echo "scipy==1.4.1" > "${REQUIREMENTS_PATH}"
+echo "pytest==4.4.1" > "${REQUIREMENTS_PATH}"
 
 echo "Test submitting python job with 'pipeline.jars':\n"
 PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
