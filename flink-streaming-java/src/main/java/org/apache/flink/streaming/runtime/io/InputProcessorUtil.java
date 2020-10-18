@@ -123,12 +123,12 @@ public class InputProcessorUtil {
 				.sorted(Comparator.comparing(CheckpointableInput::getInputGateIndex))
 				.toArray(CheckpointableInput[]::new);
 
+		int numberOfChannels = (int) Arrays
+			.stream(inputs)
+			.flatMap(gate -> gate.getChannelInfos().stream())
+			.count();
 		switch (config.getCheckpointMode()) {
 			case EXACTLY_ONCE:
-				int numberOfChannels = (int) Arrays
-						.stream(inputs)
-						.flatMap(gate -> gate.getChannelInfos().stream())
-						.count();
 				CheckpointBarrierBehaviourController controller =
 					config.isUnalignedCheckpointsEnabled() ?
 						new AlternatingController(
@@ -147,6 +147,16 @@ public class InputProcessorUtil {
 				}
 				int numInputChannels = Arrays.stream(inputs).mapToInt(CheckpointableInput::getNumberOfInputChannels).sum();
 				return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint);
+			case APPROXIMATE:
+				if (config.isUnalignedCheckpointsEnabled()) {
+					throw new IllegalStateException("Cannot use unaligned checkpoints with AT_LEAST_ONCE " +
+						"checkpointing mode");
+				}
+				return new SingleCheckpointBarrierHandler(
+					taskName,
+					toNotifyOnCheckpoint,
+					numberOfChannels,
+					new AlignedController(inputs));
 			default:
 				throw new UnsupportedOperationException("Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
 		}

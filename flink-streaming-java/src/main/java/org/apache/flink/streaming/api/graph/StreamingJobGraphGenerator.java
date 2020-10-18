@@ -633,14 +633,16 @@ public class StreamingJobGraphGenerator {
 		CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingMode();
 
 		checkArgument(checkpointingMode == CheckpointingMode.EXACTLY_ONCE ||
-			checkpointingMode == CheckpointingMode.AT_LEAST_ONCE, "Unexpected checkpointing mode.");
+			checkpointingMode == CheckpointingMode.AT_LEAST_ONCE ||
+			checkpointingMode == CheckpointingMode.APPROXIMATE,
+			"Unexpected checkpointing mode.");
 
 		if (checkpointConfig.isCheckpointingEnabled()) {
 			return checkpointingMode;
 		} else {
 			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
 			// so we use that one if checkpointing is not enabled
-			return CheckpointingMode.AT_LEAST_ONCE;
+			return checkpointingMode == CheckpointingMode.EXACTLY_ONCE ? CheckpointingMode.AT_LEAST_ONCE : checkpointingMode;
 		}
 	}
 
@@ -716,6 +718,11 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private ResultPartitionType determineResultPartitionType(StreamPartitioner<?> partitioner) {
+
+		if (getCheckpointingMode(streamGraph.getCheckpointConfig()) == CheckpointingMode.APPROXIMATE) {
+			return ResultPartitionType.PIPELINED_APPROXIMATE;
+		}
+
 		switch (streamGraph.getGlobalDataExchangeMode()) {
 			case ALL_EDGES_BLOCKING:
 				return ResultPartitionType.BLOCKING;

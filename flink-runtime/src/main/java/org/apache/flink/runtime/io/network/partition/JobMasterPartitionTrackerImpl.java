@@ -63,7 +63,7 @@ public class JobMasterPartitionTrackerImpl
 		Preconditions.checkNotNull(resultPartitionDeploymentDescriptor);
 
 		// only blocking partitions require explicit release call
-		if (!resultPartitionDeploymentDescriptor.getPartitionType().isBlocking()) {
+		if (!resultPartitionDeploymentDescriptor.getPartitionType().isReconnectable()) {
 			return;
 		}
 

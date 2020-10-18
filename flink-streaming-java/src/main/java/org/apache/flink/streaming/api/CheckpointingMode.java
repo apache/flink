@@ -74,5 +74,7 @@ public enum CheckpointingMode {
 	 * scenarios, where a sustained very-low latency (such as few milliseconds) is needed,
 	 * and where occasional duplicate messages (on recovery) do not matter.</p>
 	 */
-	AT_LEAST_ONCE
+	AT_LEAST_ONCE,
+
+	APPROXIMATE
 }

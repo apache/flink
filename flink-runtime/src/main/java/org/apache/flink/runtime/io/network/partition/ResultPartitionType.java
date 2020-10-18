@@ -34,7 +34,7 @@ public enum ResultPartitionType {
 	 * {@link #PIPELINED} partitions), but only released through the scheduler, when it determines
 	 * that the partition is no longer needed.
 	 */
-	BLOCKING(false, false, false, false),
+	BLOCKING(false, false, false, false, true),
 
 	/**
 	 * BLOCKING_PERSISTENT partitions are similar to {@link #BLOCKING} partitions, but have
@@ -47,7 +47,7 @@ public enum ResultPartitionType {
 	 * scenarios, like when the TaskManager exits or when the TaskManager looses connection
 	 * to JobManager / ResourceManager for too long.
 	 */
-	BLOCKING_PERSISTENT(false, false, false, true),
+	BLOCKING_PERSISTENT(false, false, false, true, true),
 
 	/**
 	 * A pipelined streaming data exchange. This is applicable to both bounded and unbounded streams.
@@ -58,7 +58,7 @@ public enum ResultPartitionType {
 	 * <p>This result partition type may keep an arbitrary amount of data in-flight, in contrast to
 	 * the {@link #PIPELINED_BOUNDED} variant.
 	 */
-	PIPELINED(true, true, false, false),
+	PIPELINED(true, true, false, false, false),
 
 	/**
 	 * Pipelined partitions with a bounded (local) buffer pool.
@@ -71,7 +71,7 @@ public enum ResultPartitionType {
 	 * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
 	 * no checkpoint barriers.
 	 */
-	PIPELINED_BOUNDED(true, true, true, false),
+	PIPELINED_BOUNDED(true, true, true, false, false),
 
 	/**
 	 * Pipelined partitions with a bounded (local) buffer pool to support downstream task to
@@ -79,9 +79,9 @@ public enum ResultPartitionType {
 	 *
 	 * <p>Pipelined results can be consumed only once by a single consumer at one time.
 	 * {@link #PIPELINED_APPROXIMATE} is different from {@link #PIPELINED_BOUNDED} in that
-	 * {@link #PIPELINED_APPROXIMATE} is not decomposed automatically after consumption.
+	 * {@link #PIPELINED_APPROXIMATE} partition can be reconnected after down stream task fails.
 	 */
-	PIPELINED_APPROXIMATE(true, true, true, true);
+	PIPELINED_APPROXIMATE(true, true, true, false, true);
 
 	/** Can the partition be consumed while being produced? */
 	private final boolean isPipelined;
@@ -95,14 +95,23 @@ public enum ResultPartitionType {
 	/** This partition will not be released after consuming if 'isPersistent' is true. */
 	private final boolean isPersistent;
 
+	/** Can the partition be reconnected. */
+	private final boolean isReconnectable;
+
 	/**
 	 * Specifies the behaviour of an intermediate result partition at runtime.
 	 */
-	ResultPartitionType(boolean isPipelined, boolean hasBackPressure, boolean isBounded, boolean isPersistent) {
+	ResultPartitionType(
+			boolean isPipelined,
+			boolean hasBackPressure,
+			boolean isBounded,
+			boolean isPersistent,
+			boolean isReconnectable) {
 		this.isPipelined = isPipelined;
 		this.hasBackPressure = hasBackPressure;
 		this.isBounded = isBounded;
 		this.isPersistent = isPersistent;
+		this.isReconnectable = isReconnectable;
 	}
 
 	public boolean hasBackPressure() {
@@ -115,6 +124,10 @@ public enum ResultPartitionType {
 
 	public boolean isPipelined() {
 		return isPipelined;
+	}
+
+	public boolean isReconnectable() {
+		return isReconnectable;
 	}
 
 	/**

@@ -70,7 +70,7 @@ public final class PipelinedRegionComputeUtil {
 			vertexToRegion.put(vertex, currentRegion);
 
 			for (R consumedResult : vertex.getConsumedResults()) {
-				if (consumedResult.getResultType().isPipelined()) {
+				if (!consumedResult.getResultType().isReconnectable()) {
 					final V producerVertex = consumedResult.getProducer();
 					final Set<V> producerRegion = vertexToRegion.get(producerVertex);
 
