@@ -46,8 +46,8 @@ Some examples of stateful operations:
     to events that occurred in the past.
 
 Flink needs to be aware of the state in order to make it fault tolerant using
-[checkpoints]({{ site.baseurl}}{% link dev/stream/state/checkpointing.zh.md %})
-and [savepoints]({{ site.baseurl }}{%link ops/state/savepoints.zh.md %}).
+[checkpoints]({% link dev/stream/state/checkpointing.zh.md %})
+and [savepoints]({%link ops/state/savepoints.zh.md %}).
 
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
@@ -208,7 +208,7 @@ snapshot barriers from their input streams, and before emitting the barriers to
 their output streams. At that point, all updates to the state from records
 before the barriers will have been made, and no updates that depend on records
 from after the barriers have been applied. Because the state of a snapshot may
-be large, it is stored in a configurable *[state backend]({{ site.baseurl }}{%
+be large, it is stored in a configurable *[state backend]({%
 link ops/state/state_backends.zh.md %})*. By default, this is the JobManager's
 memory, but for production use a distributed reliable storage should be
 configured (such as HDFS). After the state has been stored, the operator
@@ -319,6 +319,6 @@ programs, with minor exceptions:
 
   - The DataSet API introduces special synchronized (superstep-based)
     iterations, which are only possible on bounded streams. For details, check
-    out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
+    out the [iteration docs]({% link dev/batch/iterations.zh.md %}).
 
 {% top %}
