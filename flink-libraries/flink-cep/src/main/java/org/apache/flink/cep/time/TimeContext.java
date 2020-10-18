@@ -32,7 +32,7 @@ public interface TimeContext {
 	/**
 	 * Timestamp of the element currently being processed.
 	 *
-	 * <p>In case of {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime} this means the
+	 * <p>In case of {@link org.apache.flink.cep.time.TimeBehaviour#ProcessingTime} this means the
 	 * time when the event entered the cep operator.
 	 */
 	long timestamp();

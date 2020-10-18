@@ -150,7 +150,7 @@ class DataStreamMatch(
           "Note: Match recognize should not follow a non-windowed GroupBy aggregation.")
     }
 
-    val (timestampedInput, rowComparator) = translateOrder(planner,
+    val (timestampedInput, rowComparator, isProcessingTime) = translateOrder(planner,
       crowInput,
       logicalMatch.orderKeys)
 
@@ -180,9 +180,20 @@ class DataStreamMatch(
     val partitionedStream = applyPartitioning(partitionKeys, inputDS)
 
     val patternStream: PatternStream[Row] = if (rowComparator.isDefined) {
-      CEP.pattern[Row](partitionedStream, cepPattern, new EventRowComparator(rowComparator.get))
+      val stream = CEP.pattern[Row](partitionedStream, cepPattern,
+        new EventRowComparator(rowComparator.get))
+      if (isProcessingTime) {
+        stream.inProcessingTime()
+      } else {
+        stream
+      }
     } else {
-      CEP.pattern[Row](partitionedStream, cepPattern)
+      val stream = CEP.pattern[Row](partitionedStream, cepPattern)
+      if (isProcessingTime) {
+        stream.inProcessingTime()
+      } else {
+        stream
+      }
     }
 
     val measures = logicalMatch.measures
@@ -203,7 +214,7 @@ class DataStreamMatch(
       planner: StreamPlanner,
       crowInput: DataStream[CRow],
       orderKeys: RelCollation)
-    : (DataStream[CRow], Option[RowComparator]) = {
+    : (DataStream[CRow], Option[RowComparator], Boolean) = {
 
     if (orderKeys.getFieldCollations.size() == 0) {
       throw new ValidationException("You must specify either rowtime or proctime for order by.")
@@ -237,9 +248,9 @@ class DataStreamMatch(
         (crowInput.process(
           new RowtimeProcessFunction(timeOrderField.getIndex, CRowTypeInfo(inputSchema.typeInfo))
         ).setParallelism(crowInput.getParallelism),
-          rowComparator)
+          rowComparator, false)
       case _ =>
-        (crowInput, rowComparator)
+        (crowInput, rowComparator, true)
     }
   }
 
