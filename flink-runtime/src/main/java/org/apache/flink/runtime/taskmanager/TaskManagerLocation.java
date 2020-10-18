@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -54,17 +55,14 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	/** The network address that the TaskManager binds its sockets to */
 	private final InetAddress inetAddress;
 
-	/** The fully qualified host name of the TaskManager */
-	private final String fqdnHostName;
+	/** The supplier for fully qualified host name and pure hostname */
+	private final HostNameSupplier hostNameSupplier;
 
-	/** The pure hostname, derived from the fully qualified host name. */
-	private final String hostName;
-	
 	/** The port that the TaskManager receive data transport connection requests at */
 	private final int dataPort;
 
 	/** The toString representation, eagerly constructed and cached to avoid repeated string building */  
-	private final String stringRepresentation;
+	private String stringRepresentation;
 
 	/**
 	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
@@ -74,31 +72,60 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 *        the network address the instance's task manager binds its sockets to
 	 * @param dataPort
 	 *        the port instance's task manager expects to receive transfer envelopes on
+	 * @param hostNameSupplier
+	 *        the supplier for obtaining fully-qualified domain name and pure hostname of the task manager
 	 */
 	@VisibleForTesting
-	public TaskManagerLocation(ResourceID resourceID, InetAddress inetAddress, int dataPort) {
+	public TaskManagerLocation(
+			ResourceID resourceID,
+			InetAddress inetAddress,
+			int dataPort,
+			HostNameSupplier hostNameSupplier) {
 		// -1 indicates a local instance connection info
 		checkArgument(dataPort > 0 || dataPort == -1, "dataPort must be > 0, or -1 (local)");
 
 		this.resourceID = checkNotNull(resourceID);
 		this.inetAddress = checkNotNull(inetAddress);
 		this.dataPort = dataPort;
-
-		// get FQDN hostname on this TaskManager.
-		this.fqdnHostName = getFqdnHostName(inetAddress);
-
-		this.hostName = getHostName(inetAddress);
-
-		this.stringRepresentation = String.format(
-				"%s @ %s (dataPort=%d)", resourceID.getStringWithMetadata(), fqdnHostName, dataPort);
+		this.hostNameSupplier = checkNotNull(hostNameSupplier);
 	}
 
-	public static TaskManagerLocation fromUnresolvedLocation(final UnresolvedTaskManagerLocation unresolvedLocation)
+	/**
+	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
+	 * host name and domain name through the operating system's lookup mechanisms.
+	 *
+	 * @param inetAddress
+	 *        the network address the instance's task manager binds its sockets to
+	 * @param dataPort
+	 *        the port instance's task manager expects to receive transfer envelopes on
+	 */
+	@VisibleForTesting
+	public TaskManagerLocation(ResourceID resourceID, InetAddress inetAddress, int dataPort) {
+		this(resourceID, inetAddress, dataPort,	new DefaultHostNameSupplier(inetAddress));
+	}
+
+	public static TaskManagerLocation fromUnresolvedLocation(final UnresolvedTaskManagerLocation unresolvedLocation,
+	                                                         final ResolutionMode resolutionMode)
 		throws UnknownHostException {
-		return new TaskManagerLocation(
-			unresolvedLocation.getResourceID(),
-			InetAddress.getByName(unresolvedLocation.getExternalAddress()),
-			unresolvedLocation.getDataPort());
+
+		InetAddress inetAddress = InetAddress.getByName(unresolvedLocation.getExternalAddress());
+
+		switch (resolutionMode) {
+			case RETRIEVE_HOST_NAME:
+				return new TaskManagerLocation(
+					unresolvedLocation.getResourceID(),
+					inetAddress,
+					unresolvedLocation.getDataPort(),
+					new DefaultHostNameSupplier(inetAddress));
+			case USE_IP_ONLY:
+				return new TaskManagerLocation(
+					unresolvedLocation.getResourceID(),
+					inetAddress,
+					unresolvedLocation.getDataPort(),
+					new IpOnlyHostNameSupplier(inetAddress));
+			default:
+				throw new UnsupportedOperationException("Unsupported resolution mode provided.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -149,31 +176,26 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	}
 
 	/**
-	 * Returns the fully-qualified domain name the TaskManager. If the name could not be
-	 * determined, the return value will be a textual representation of the TaskManager's IP address.
+	 * Returns the fully-qualified domain name of the TaskManager provided by {@link #hostNameSupplier}.
 	 * 
 	 * @return The fully-qualified domain name of the TaskManager.
 	 */
 	public String getFQDNHostname() {
-		return fqdnHostName;
+		return hostNameSupplier.getFqdnHostName();
 	}
 
 	/**
-	 * Gets the hostname of the TaskManager. The hostname derives from the fully qualified
-	 * domain name (FQDN, see {@link #getFQDNHostname()}):
-	 * <ul>
-	 *     <li>If the FQDN is the textual IP address, then the hostname is also the IP address</li>
-	 *     <li>If the FQDN has only one segment (such as "localhost", or "host17"), then this is
-	 *         used as the hostname.</li>
-	 *     <li>If the FQDN has multiple segments (such as "worker3.subgroup.company.net"), then the first
-	 *         segment (here "worker3") will be used as the hostname.</li>
-	 * </ul>
+	 * Gets the hostname of the TaskManager from {@link #hostNameSupplier}.
 	 *
 	 * @return The hostname of the TaskManager.
 	 */
 	public String getHostname() {
-		return hostName;
+		return hostNameSupplier.getHostName();
 	}
+
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Gets the fully qualified hostname of the TaskManager based on the network address.
@@ -219,12 +241,12 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		return hostName;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Utilities
-	// --------------------------------------------------------------------------------------------
-
 	@Override
 	public String toString() {
+		if (stringRepresentation == null) {
+			this.stringRepresentation = String.format(
+					"%s @ %s (dataPort=%d)", resourceID, getFQDNHostname(), dataPort);
+		}
 		return stringRepresentation;
 	}
 
@@ -287,5 +309,105 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		} else {
 			return 0;
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Hostname Resolution Suppliers
+	// --------------------------------------------------------------------------------------------
+
+	public interface HostNameSupplier extends Serializable {
+		String getHostName();
+		String getFqdnHostName();
+	}
+
+	/**
+	 * This Supplier class could retrieve the FQDN host name of the given InetAddress on demand,
+	 * extract the pure host name and cache the results for later use.
+	 */
+	@VisibleForTesting
+	public static class DefaultHostNameSupplier implements HostNameSupplier {
+		private final InetAddress inetAddress;
+		private String hostName;
+		private String fqdnHostName;
+
+		public DefaultHostNameSupplier(InetAddress inetAddress) {
+			this.inetAddress = inetAddress;
+		}
+
+		/**
+		 * Gets the hostname of the TaskManager. The hostname derives from the fully qualified
+		 * domain name (FQDN, see {@link #getFQDNHostname()}):
+		 * <ul>
+		 *     <li>If the FQDN is the textual IP address, then the hostname is also the IP address</li>
+		 *     <li>If the FQDN has only one segment (such as "localhost", or "host17"), then this is
+		 *         used as the hostname.</li>
+		 *     <li>If the FQDN has multiple segments (such as "worker3.subgroup.company.net"), then the first
+		 *         segment (here "worker3") will be used as the hostname.</li>
+		 * </ul>
+		 *
+		 * @return The hostname of the TaskManager.
+		 */
+		@Override
+		public String getHostName() {
+			if (hostName == null) {
+				hostName = TaskManagerLocation.getHostName(inetAddress);
+			}
+			return hostName;
+		}
+
+		/**
+		 * Returns the fully-qualified domain name the TaskManager. If the name could not be
+		 * determined, the return value will be a textual representation of the TaskManager's IP address.
+		 *
+		 * @return The fully-qualified domain name of the TaskManager.
+		 */
+		@Override
+		public String getFqdnHostName() {
+			if (fqdnHostName == null) {
+				fqdnHostName = TaskManagerLocation.getFqdnHostName(inetAddress);
+			}
+			return fqdnHostName;
+		}
+	}
+
+	/**
+	 * This Supplier class returns the IP address of the given InetAddress directly,
+	 * therefore no reverse DNS lookup is required.
+	 */
+	@VisibleForTesting
+	public static class IpOnlyHostNameSupplier implements HostNameSupplier {
+		private final InetAddress inetAddress;
+
+		public IpOnlyHostNameSupplier(InetAddress inetAddress) {
+			this.inetAddress = inetAddress;
+		}
+
+		/**
+		 * Returns the textual representation of the TaskManager's IP address as host name.
+		 *
+		 * @return The textual representation of the TaskManager's IP address.
+		 */
+		@Override
+		public String getHostName() {
+			return inetAddress.getHostAddress();
+		}
+
+		/**
+		 * Returns the textual representation of the TaskManager's IP address as FQDN host name.
+		 *
+		 * @return The textual representation of the TaskManager's IP address.
+		 */
+		@Override
+		public String getFqdnHostName() {
+			return inetAddress.getHostAddress();
+		}
+	}
+
+	/**
+	 * The DNS resolution mode for TaskManager's IP address
+	 */
+	public enum ResolutionMode {
+		RETRIEVE_HOST_NAME,
+		USE_IP_ONLY
 	}
 }
