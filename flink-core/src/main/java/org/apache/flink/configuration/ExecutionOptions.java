@@ -19,6 +19,8 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -29,6 +31,13 @@ import java.time.Duration;
  */
 @PublicEvolving
 public class ExecutionOptions {
+
+	public static final ConfigOption<RuntimeExecutionMode> RUNTIME_MODE =
+			ConfigOptions.key("execution.runtime-mode")
+					.enumType(RuntimeExecutionMode.class)
+					.defaultValue(RuntimeExecutionMode.STREAMING)
+					.withDescription("Runtime execution mode of DataStream programs. Among other things, " +
+							"this controls task scheduling, network shuffle behavior, and time semantics.");
 
 	/**
 	 * Should be moved to {@code ExecutionCheckpointingOptions} along with
@@ -55,4 +64,25 @@ public class ExecutionOptions {
 						"throughput")
 				)
 				.build());
+
+	@Documentation.ExcludeFromDocumentation("This is an expert option, that we do not want to expose in" +
+		" the documentation")
+	public static final ConfigOption<Boolean> SORT_INPUTS =
+		ConfigOptions.key("execution.sorted-inputs.enabled")
+			.booleanType()
+			.defaultValue(true)
+			.withDescription(
+				"A flag to enable or disable sorting inputs of keyed operators. " +
+					"NOTE: It takes effect only in the BATCH runtime mode.");
+
+	@Documentation.ExcludeFromDocumentation("This is an expert option, that we do not want to expose in" +
+		" the documentation")
+	public static final ConfigOption<Boolean> USE_BATCH_STATE_BACKEND =
+		ConfigOptions.key("execution.batch-state-backend.enabled")
+			.booleanType()
+			.defaultValue(true)
+			.withDescription(
+				"A flag to enable or disable batch runtime specific state backend and timer service for keyed" +
+					" operators. NOTE: It takes effect only in the BATCH runtime mode and requires sorted inputs" +
+					SORT_INPUTS.key() + " to be enabled.");
 }

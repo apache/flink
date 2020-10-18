@@ -22,6 +22,7 @@ import java.util
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
@@ -155,8 +156,7 @@ class BatchExecPythonGroupWindowAggregate(
       getConfig(planner.getExecEnv, planner.getTableConfig))
 
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
-      ExecNode.setManagedMemoryWeight(
-        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
+      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret
   }

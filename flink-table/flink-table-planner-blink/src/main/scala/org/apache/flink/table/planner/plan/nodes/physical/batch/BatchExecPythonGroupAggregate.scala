@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
@@ -43,7 +44,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode, RelWriter}
 import org.apache.calcite.util.{ImmutableIntList, Util}
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -188,8 +188,7 @@ class BatchExecPythonGroupAggregate(
       outputType,
       getConfig(planner.getExecEnv, planner.getTableConfig))
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
-      ExecNode.setManagedMemoryWeight(
-        ret, getPythonWorkerMemory(planner.getTableConfig.getConfiguration).getBytes)
+      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret
   }

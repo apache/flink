@@ -53,9 +53,6 @@ def add(i, j):
 
 table_env = BatchTableEnvironment.create(env)
 
-# configure the off-heap memory of current taskmanager to enable the python worker uses off-heap memory.
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # use the vectorized Python scalar function in Python Table API
 my_table.select(add(my_table.bigint, my_table.bigint))
 
@@ -63,8 +60,3 @@ my_table.select(add(my_table.bigint, my_table.bigint))
 table_env.create_temporary_function("add", add)
 table_env.sql_query("SELECT add(bigint, bigint) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>如果不使用RocksDB作为状态后端，则还可以通过
-将**python.fn-execution.memory.managed**设置为**true** ，来配置python worker以使用taskmanager的托管内存，
-则无需配置**taskmanager.memory.task.off-heap.size** 。
-

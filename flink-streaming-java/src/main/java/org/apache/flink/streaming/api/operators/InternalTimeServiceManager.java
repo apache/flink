@@ -26,6 +26,8 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
+import java.io.Serializable;
+
 /**
  * An entity keeping all the time-related services.
  *
@@ -68,7 +70,7 @@ public interface InternalTimeServiceManager<K> {
 	 * Allows substituting the manager that will be used at the runtime.
 	 */
 	@FunctionalInterface
-	interface Provider {
+	interface Provider extends Serializable {
 		<K> InternalTimeServiceManager<K> create(
 			CheckpointableKeyedStateBackend<K> keyedStatedBackend,
 			ClassLoader userClassloader,

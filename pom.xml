@@ -818,6 +818,12 @@ under the License.
 				<artifactId>disruptor</artifactId>
 				<version>3.4.2</version>
 			</dependency>
+			<dependency>
+				<!-- Bumped for security purposes and making it work with Jackson dependencies (2.10.1) -->
+				<groupId>org.yaml</groupId>
+				<artifactId>snakeyaml</artifactId>
+				<version>1.27</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 

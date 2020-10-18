@@ -40,7 +40,7 @@ public class ResourceCounter {
 		this(new HashMap<>());
 	}
 
-	private ResourceCounter(Map<ResourceProfile, Integer> resources) {
+	public ResourceCounter(Map<ResourceProfile, Integer> resources) {
 		this.resources = resources;
 	}
 

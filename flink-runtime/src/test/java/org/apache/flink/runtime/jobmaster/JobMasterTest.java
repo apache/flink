@@ -141,6 +141,7 @@ import akka.actor.ActorSystem;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -279,6 +280,66 @@ public class JobMasterTest extends TestLogger {
 			rpcService.stopService();
 			rpcService = null;
 		}
+	}
+
+	/**
+	 * This test ensures that the bookkeeping of TaskExecutors in the JobMaster handles cases where TaskExecutors with the same
+	 * ID re-register properly. FLINK-19237 was a bug where the TaskExecutors and the SlotPool got out of sync, and
+	 * slot offers were rejected.
+	 */
+	@Test
+	public void testAcceptSlotOfferAfterLeaderChange() throws Exception {
+
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+		final SchedulerNGFactory schedulerNGFactory = SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
+
+		final JobMaster testingJobMaster = new JobMaster(
+			rpcService,
+			jobMasterConfiguration,
+			jmResourceId,
+			jobGraph,
+			haServices,
+			SlotPoolFactory.fromConfiguration(configuration),
+			jobManagerSharedServices,
+			heartbeatServices,
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+			new JobMasterBuilder.TestingOnCompletionActions(),
+			testingFatalErrorHandler,
+			JobMasterTest.class.getClassLoader(),
+			schedulerNGFactory,
+			NettyShuffleMaster.INSTANCE,
+			NoOpJobMasterPartitionTracker.FACTORY,
+			new DefaultExecutionDeploymentTracker(),
+			DefaultExecutionDeploymentReconciler::new,
+			System.currentTimeMillis());
+
+		testingJobMaster.start(jobMasterId).get();
+
+		JobMasterGateway jobMasterGateway = testingJobMaster.getSelfGateway(JobMasterGateway.class);
+
+		log.info("Register TaskManager");
+
+		String testingTaskManagerAddress = "fake";
+		UnresolvedTaskManagerLocation unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
+		TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+		rpcService.registerGateway(testingTaskManagerAddress, testingTaskExecutorGateway);
+		Assert.assertThat(jobMasterGateway.registerTaskManager(testingTaskManagerAddress, unresolvedTaskManagerLocation, testingTimeout).get(), instanceOf(RegistrationResponse.Success.class));
+
+		log.info("Revoke leadership & re-grant leadership");
+		testingJobMaster.suspend(new FlinkException("Lost leadership")).get();
+
+		testingJobMaster.start(JobMasterId.generate()).get();
+
+		log.info("re-register same TaskManager");
+		Assert.assertThat(jobMasterGateway.registerTaskManager(testingTaskManagerAddress, unresolvedTaskManagerLocation, testingTimeout).get(), instanceOf(RegistrationResponse.Success.class));
+
+		log.info("Ensure JobMaster accepts slot offer");
+		final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
+
+		Collection<SlotOffer> acceptedSlots = jobMasterGateway.offerSlots(unresolvedTaskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
+		Assert.assertThat(acceptedSlots.size(), is(1));
 	}
 
 	@Test

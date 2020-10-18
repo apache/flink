@@ -48,7 +48,7 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTableStatelessPyt
 		String coderUrn,
 		Map<String, String> jobOptions,
 		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions, coderUrn, jobOptions, flinkMetricContainer);
+		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions, coderUrn, jobOptions, flinkMetricContainer, null, 0.0);
 		this.buffer = new LinkedList<>();
 	}
 

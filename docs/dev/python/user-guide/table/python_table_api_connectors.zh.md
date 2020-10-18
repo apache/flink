@@ -32,7 +32,7 @@ under the License.
 
 ## 下载连接器（connector）和格式（format）jar 包
 
-由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{ site.baseurl }}/zh/dev/python/user-guide/table/dependency_management.html)。
+由于 Flink 是一个基于 Java/Scala 的项目，连接器（connector）和格式（format）的实现是作为 jar 包存在的，要在 PyFlink 作业中使用，首先需要将其指定为作业的 [依赖]({{ site.baseurl }}/zh/dev/python/table-api-users-guide/dependency_management.html)。
 
 {% highlight python %}
 
@@ -90,7 +90,6 @@ def log_processing():
     env = StreamExecutionEnvironment.get_execution_environment()
     env_settings = EnvironmentSettings.Builder().use_blink_planner().build()
     t_env = StreamTableEnvironment.create(stream_execution_environment=env, environment_settings=env_settings)
-    t_env.get_config().get_configuration().set_boolean("python.fn-execution.memory.managed", True)
     # specify connector and format jars
     t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
     

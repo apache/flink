@@ -21,18 +21,18 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.runtime.operators.rank.RankType
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
-
 import org.apache.calcite.plan.RelOptTable
+import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
@@ -42,9 +42,7 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
-
 import com.google.common.collect.ImmutableSet
-
 import java.util
 
 import scala.collection.JavaConversions._
@@ -244,7 +242,25 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     val inputUniqueKeys = mq.getUniqueKeys(rel.getInput, ignoreNulls)
     val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel).getOrElse(-1)
-    if (rankFunColumnIndex < 0) {
+    //TODO current deduplicate on row time is still a Rank,
+    // remove this after support deduplicate on row time
+    val canConvertToDeduplicate: Boolean = {
+      val rankRange = rel.rankRange
+      val isRowNumberType = rel.rankType == RankType.ROW_NUMBER
+      val isLimit1 = rankRange match {
+        case rankRange: ConstantRankRange =>
+          rankRange.getRankStart() == 1 && rankRange.getRankEnd() == 1
+        case _ => false
+      }
+      isRowNumberType && isLimit1
+    }
+
+    if (canConvertToDeduplicate) {
+      val retSet = new JHashSet[ImmutableBitSet]
+      retSet.add(rel.partitionKey)
+      retSet
+    }
+    else if (rankFunColumnIndex < 0) {
       inputUniqueKeys
     } else {
       val retSet = new JHashSet[ImmutableBitSet]
@@ -551,6 +567,20 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     } else {
       throw new RuntimeException("CALCITE_1048 is fixed, so check this method again!")
     }
+  }
+
+  def getUniqueKeys(
+      subset: HepRelVertex,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(subset.getCurrentRel, ignoreNulls)
+  }
+
+  def getUniqueKeys(
+      subset: WatermarkAssigner,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(subset.getInput, ignoreNulls)
   }
 
   // Catch-all rule when none of the others apply.

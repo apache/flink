@@ -50,9 +50,6 @@ class HashCode(ScalarFunction):
 
 table_env = BatchTableEnvironment.create(env)
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
 
 # 在Python Table API中使用Python自定义函数
@@ -62,10 +59,6 @@ my_table.select(my_table.string, my_table.bigint, hash_code(my_table.bigint), ca
 table_env.create_temporary_function("hash_code", udf(HashCode(), result_type=DataTypes.BIGINT()))
 table_env.sql_query("SELECT string, bigint, hash_code(bigint) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 除此之外，还支持在Python Table API程序中使用Java / Scala标量函数。
 
@@ -86,9 +79,6 @@ from pyflink.table.expressions import call
 
 table_env = BatchTableEnvironment.create(env)
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # 注册Java函数
 table_env.create_java_temporary_function("hash_code", "my.java.function.HashCode")
 
@@ -98,10 +88,6 @@ my_table.select(call('hash_code', my_table.string))
 # 在SQL API中使用Java函数
 table_env.sql_query("SELECT string, bigint, hash_code(string) FROM MyTable")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 除了扩展基类`ScalarFunction`之外，还支持多种方式来定义Python标量函数。
 以下示例显示了多种定义Python标量函数的方式。该函数需要两个类型为bigint的参数作为输入参数，并返回它们的总和作为结果。
@@ -160,9 +146,6 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # 注册Python表值函数
 split = udtf(Split(), result_types=[DataTypes.STRING(), DataTypes.INT()])
 
@@ -176,10 +159,6 @@ table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 除此之外，还支持在Python Table API程序中使用Java / Scala表值函数。
 {% highlight python %}
@@ -205,9 +184,6 @@ env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 my_table = ...  # type: Table, table schema: [a: String]
 
-# Python worker进程默认使用off-heap内存，配置当前taskmanager的off-heap内存大小
-table_env.get_config().get_configuration().set_string("taskmanager.memory.task.off-heap.size", '80m')
-
 # 注册java自定义函数。
 table_env.create_java_temporary_function("split", "my.java.function.Split")
 
@@ -223,10 +199,6 @@ table_env.sql_query("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)
 # LEFT JOIN一个表值函数（等同于Table API中的"left_outer_join"）。
 table_env.sql_query("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
-
-<span class="label label-info">注意</span>当前不支持Python worker进程与RocksDB state backend同时使用managed memory。
-如果作业中不使用RocksDB state backend的话, 您也可以将配置项**python.fn-execution.memory.managed**设置为**true**，
-配置Python worker进程使用managed memory。这样的话，就不需要配置**taskmanager.memory.task.off-heap.size**了。
 
 像Python标量函数一样，您可以使用上述五种方式来定义Python表值函数。
 

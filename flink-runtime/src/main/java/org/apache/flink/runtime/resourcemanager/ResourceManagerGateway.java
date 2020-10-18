@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
@@ -81,6 +82,18 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	CompletableFuture<Acknowledge> requestSlot(
 		JobMasterId jobMasterId,
 		SlotRequest slotRequest,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Declares the absolute resource requirements for a job.
+	 *
+	 * @param jobMasterId id of the JobMaster
+	 * @param resourceRequirements resource requirements
+	 * @return The confirmation that the requirements have been processed
+	 */
+	CompletableFuture<Acknowledge> declareRequiredResources(
+		JobMasterId jobMasterId,
+		ResourceRequirements resourceRequirements,
 		@RpcTimeout Time timeout);
 
 	/**

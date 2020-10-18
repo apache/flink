@@ -35,12 +35,15 @@ import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -115,6 +118,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 	private static final String WINDOW_STRATEGY = "windowing_strategy";
 
+	private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
+	private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
+
 	private transient boolean bundleStarted;
 
 	private final String taskName;
@@ -123,6 +129,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * The Python execution environment manager.
 	 */
 	private final PythonEnvironmentManager environmentManager;
+
+	private final String functionUrn;
 
 	/**
 	 * The options used to configure the Python worker process.
@@ -179,7 +187,18 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	@Nullable
 	private FlinkMetricContainer flinkMetricContainer;
 
-	private final String functionUrn;
+	@Nullable
+	private final MemoryManager memoryManager;
+
+	/**
+	 * The fraction of total managed memory in the slot that the Python worker could use.
+	 */
+	private final double managedMemoryFraction;
+
+	/**
+	 * The shared resource among Python operators of the same slot.
+	 */
+	private OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
 	public BeamPythonFunctionRunner(
 			String taskName,
@@ -188,13 +207,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			Map<String, String> jobOptions,
 			FlinkMetricContainer flinkMetricContainer,
 			@Nullable KeyedStateBackend keyedStateBackend,
-			@Nullable TypeSerializer keySerializer) {
+			@Nullable TypeSerializer keySerializer,
+			@Nullable MemoryManager memoryManager,
+			double managedMemoryFraction) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
-		this.functionUrn = functionUrn;
+		this.functionUrn = Preconditions.checkNotNull(functionUrn);
 		this.jobOptions = Preconditions.checkNotNull(jobOptions);
 		this.flinkMetricContainer = flinkMetricContainer;
 		this.stateRequestHandler = getStateRequestHandler(keyedStateBackend, keySerializer);
+		this.memoryManager = memoryManager;
+		this.managedMemoryFraction = managedMemoryFraction;
 		this.resultTuple = new Tuple2<>();
 	}
 
@@ -208,8 +231,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		PortablePipelineOptions portableOptions =
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
-		// one operator has one Python SDK harness
-		portableOptions.setSdkWorkerParallelism(1);
 
 		if (jobOptions.containsKey(PythonOptions.STATE_CACHE_SIZE.key())) {
 			portableOptions.as(ExperimentalOptions.class).setExperiments(
@@ -220,8 +241,26 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
-		jobBundleFactory = createJobBundleFactory(pipelineOptions);
-		stageBundleFactory = createStageBundleFactory();
+		if (memoryManager != null && config.isUsingManagedMemory()) {
+			Preconditions.checkArgument(managedMemoryFraction > 0 && managedMemoryFraction <= 1.0);
+
+			final LongFunctionWithException<PythonSharedResources, Exception> initializer = (size) ->
+				new PythonSharedResources(createJobBundleFactory(pipelineOptions), createPythonExecutionEnvironment(size));
+
+			sharedResources =
+				memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, initializer, managedMemoryFraction);
+			LOG.info("Obtained shared Python process of size {} bytes", sharedResources.getSize());
+			sharedResources.getResourceHandle().addPythonEnvironmentManager(environmentManager);
+
+			JobBundleFactory jobBundleFactory = sharedResources.getResourceHandle().getJobBundleFactory();
+			RunnerApi.Environment environment = sharedResources.getResourceHandle().getEnvironment();
+			stageBundleFactory = createStageBundleFactory(jobBundleFactory, environment);
+		} else {
+			// there is no way to access the MemoryManager for the batch job of old planner,
+			// fallback to the way that spawning a Python process for each Python operator
+			jobBundleFactory = createJobBundleFactory(pipelineOptions);
+			stageBundleFactory = createStageBundleFactory(jobBundleFactory, createPythonExecutionEnvironment(-1));
+		}
 		progressHandler = getProgressHandler(flinkMetricContainer);
 	}
 
@@ -235,7 +274,20 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			jobBundleFactory = null;
 		}
 
-		environmentManager.close();
+		try {
+			if (sharedResources != null) {
+				if (sharedResources.getResourceHandle().release()) {
+					// release sharedResources iff there are no more Python operators sharing it
+					sharedResources.close();
+				}
+			} else {
+				// if sharedResources is not null, the close of environmentManager will be managed in sharedResources,
+				// otherwise, we need to close the environmentManager explicitly
+				environmentManager.close();
+			}
+		} finally {
+			sharedResources = null;
+		}
 	}
 
 	@Override
@@ -273,12 +325,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * Creates a specification which specifies the portability Python execution environment.
 	 * It's used by Beam's portability framework to creates the actual Python execution environment.
 	 */
-	protected RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
+	private RunnerApi.Environment createPythonExecutionEnvironment(long memoryLimitBytes) throws Exception {
 		PythonEnvironment environment = environmentManager.createEnvironment();
 		if (environment instanceof ProcessPythonEnvironment) {
 			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
 			Map<String, String> env = processEnvironment.getEnv();
 			env.putAll(jobOptions);
+			env.put(PYTHON_WORKER_MEMORY_LIMIT, String.valueOf(memoryLimitBytes));
 			return Environments.createProcessEnvironment(
 				"",
 				"",
@@ -347,9 +400,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	/**
 	 * To make the error messages more user friendly, throws an exception with the boot logs.
 	 */
-	private StageBundleFactory createStageBundleFactory() throws Exception {
+	private StageBundleFactory createStageBundleFactory(
+			JobBundleFactory jobBundleFactory, RunnerApi.Environment environment) throws Exception {
 		try {
-			return jobBundleFactory.forStage(createExecutableStage());
+			return jobBundleFactory.forStage(createExecutableStage(environment));
 		} catch (Throwable e) {
 			throw new RuntimeException(environmentManager.getBootLog(), e);
 		}
@@ -371,7 +425,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * and output coder, etc.
 	 */
 	@SuppressWarnings("unchecked")
-	private ExecutableStage createExecutableStage() throws Exception {
+	private ExecutableStage createExecutableStage(RunnerApi.Environment environment) throws Exception {
 		RunnerApi.Components components =
 			RunnerApi.Components.newBuilder()
 				.putPcollections(
@@ -427,7 +481,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			Collections.singletonList(
 				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
 		return ImmutableExecutableStage.of(
-			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
+			components, environment, input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
 	private Collection<RunnerApi.ExecutableStagePayload.WireCoderSetting> createValueOnlyWireCoderSetting() throws

@@ -62,29 +62,6 @@ public class PythonOptions {
 			"bundle size. Otherwise, the bundle size will be used as the arrow batch size.");
 
 	/**
-	 * The amount of memory to be allocated by the Python framework.
-	 */
-	public static final ConfigOption<String> PYTHON_FRAMEWORK_MEMORY_SIZE = ConfigOptions
-		.key("python.fn-execution.framework.memory.size")
-		.defaultValue("64mb")
-		.withDescription("The amount of memory to be allocated by the Python framework. The sum " +
-			"of the value of this configuration and \"python.fn-execution.buffer.memory.size\" " +
-			"represents the total memory of a Python worker. The memory will be accounted as " +
-			"managed memory if the actual memory allocated to an operator is no less than the " +
-			"total memory of a Python worker. Otherwise, this configuration takes no effect.");
-
-	/**
-	 * The amount of memory to be allocated by the input/output buffer of a Python worker.
-	 */
-	public static final ConfigOption<String> PYTHON_DATA_BUFFER_MEMORY_SIZE = ConfigOptions
-		.key("python.fn-execution.buffer.memory.size")
-		.defaultValue("15mb")
-		.withDescription("The amount of memory to be allocated by the input buffer and output " +
-			"buffer of a Python worker. The memory will be accounted as managed memory if the " +
-			"actual memory allocated to an operator is no less than the total memory of a Python " +
-			"worker. Otherwise, this configuration takes no effect.");
-
-	/**
 	 * The configuration to enable or disable metric for Python execution.
 	 */
 	public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED = ConfigOptions
@@ -156,13 +133,11 @@ public class PythonOptions {
 	 */
 	public static final ConfigOption<Boolean> USE_MANAGED_MEMORY = ConfigOptions
 		.key("python.fn-execution.memory.managed")
-		.defaultValue(false)
+		.defaultValue(true)
 		.withDescription(String.format("If set, the Python worker will configure itself to use the " +
 			"managed memory budget of the task slot. Otherwise, it will use the Off-Heap Memory " +
 			"of the task slot. In this case, users should set the Task Off-Heap Memory using the " +
-			"configuration key %s. For each Python worker, the required Task Off-Heap Memory " +
-			"is the sum of the value of %s and %s.", TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(),
-			PYTHON_FRAMEWORK_MEMORY_SIZE.key(), PYTHON_DATA_BUFFER_MEMORY_SIZE.key()));
+			"configuration key %s.", TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key()));
 
 	/**
 	 * The maximum number of states cached in a Python UDF worker.

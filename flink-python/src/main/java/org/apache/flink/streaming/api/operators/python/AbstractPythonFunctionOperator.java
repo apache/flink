@@ -21,8 +21,6 @@ package org.apache.flink.streaming.api.operators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -30,9 +28,6 @@ import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.memory.MemoryReservationException;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -88,11 +83,6 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 	private transient Runnable bundleFinishedCallback;
 
 	/**
-	 * The size of the reserved memory from the MemoryManager.
-	 */
-	private transient long reservedMemory;
-
-	/**
 	 * The python config.
 	 */
 	private PythonConfig config;
@@ -109,11 +99,6 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 	@Override
 	public void open() throws Exception {
 		try {
-
-			if (config.isUsingManagedMemory()) {
-				reserveMemoryForPythonWorker();
-			}
-
 			this.maxBundleSize = config.getMaxBundleSize();
 			if (this.maxBundleSize <= 0) {
 				this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
@@ -169,10 +154,6 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 			if (pythonFunctionRunner != null) {
 				pythonFunctionRunner.close();
 				pythonFunctionRunner = null;
-			}
-			if (reservedMemory > 0) {
-				getContainingTask().getEnvironment().getMemoryManager().releaseMemory(this, reservedMemory);
-				reservedMemory = -1;
 			}
 		} finally {
 			super.dispose();
@@ -270,37 +251,6 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 	 * Sends the execution result to the downstream operator.
 	 */
 	public abstract void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception;
-
-	/**
-	 * Reserves the memory used by the Python worker from the MemoryManager. This makes sure that
-	 * the memory used by the Python worker is managed by Flink.
-	 */
-	private void reserveMemoryForPythonWorker() throws MemoryReservationException {
-		long requiredPythonWorkerMemory = MemorySize.parse(config.getPythonFrameworkMemorySize())
-			.add(MemorySize.parse(config.getPythonDataBufferMemorySize()))
-			.getBytes();
-		MemoryManager memoryManager = getContainingTask().getEnvironment().getMemoryManager();
-		// TODO python operators should declare and use fraction of the PYTHON use case
-		final Environment environment = getContainingTask().getEnvironment();
-		long availableManagedMemory = memoryManager.computeMemorySize(
-			getOperatorConfig().getManagedMemoryFractionOperatorUseCaseOfSlot(
-				ManagedMemoryUseCase.BATCH_OP,
-				environment.getTaskManagerInfo().getConfiguration(),
-				environment.getUserCodeClassLoader().asClassLoader()));
-		if (requiredPythonWorkerMemory <= availableManagedMemory) {
-			memoryManager.reserveMemory(this, requiredPythonWorkerMemory);
-			LOG.info("Reserved memory {} for Python worker.", requiredPythonWorkerMemory);
-			this.reservedMemory = requiredPythonWorkerMemory;
-			// TODO enforce the memory limit of the Python worker
-		} else {
-			LOG.warn("Required Python worker memory {} exceeds the available managed off-heap " +
-					"memory {}. Skipping reserving off-heap memory from the MemoryManager. This does " +
-					"not affect the functionality. However, it may affect the stability of a job as " +
-					"the memory used by the Python worker is not managed by Flink.",
-				requiredPythonWorkerMemory, availableManagedMemory);
-			this.reservedMemory = -1;
-		}
-	}
 
 	protected void emitResults() throws Exception {
 		Tuple2<byte[], Integer> resultTuple;
