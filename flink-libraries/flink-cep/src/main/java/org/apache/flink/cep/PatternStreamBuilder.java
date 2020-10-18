@@ -29,7 +29,6 @@ import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.operator.CepOperator;
 import org.apache.flink.cep.pattern.Pattern;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -60,14 +59,30 @@ final class PatternStreamBuilder<IN> {
 	 */
 	private final OutputTag<IN> lateDataOutputTag;
 
+	/**
+	 * The time behaviour to specify processing time or event time.
+	 * Default time behaviour is {@link TimeBehaviour#EventTime}.
+	 */
+	private final TimeBehaviour timeBehaviour;
+
+	/**
+	 * The time behaviour enum defines how the system determines time for time-dependent order and
+	 * operations that depend on time.
+	 */
+	enum TimeBehaviour {
+		ProcessingTime,
+		EventTime
+	}
+
 	private PatternStreamBuilder(
 			final DataStream<IN> inputStream,
 			final Pattern<IN, ?> pattern,
+			final TimeBehaviour timeBehaviour,
 			@Nullable final EventComparator<IN> comparator,
 			@Nullable final OutputTag<IN> lateDataOutputTag) {
-
 		this.inputStream = checkNotNull(inputStream);
 		this.pattern = checkNotNull(pattern);
+		this.timeBehaviour = checkNotNull(timeBehaviour);
 		this.comparator = comparator;
 		this.lateDataOutputTag = lateDataOutputTag;
 	}
@@ -87,11 +102,19 @@ final class PatternStreamBuilder<IN> {
 	}
 
 	PatternStreamBuilder<IN> withComparator(final EventComparator<IN> comparator) {
-		return new PatternStreamBuilder<>(inputStream, pattern, checkNotNull(comparator), lateDataOutputTag);
+		return new PatternStreamBuilder<>(inputStream, pattern, timeBehaviour, checkNotNull(comparator), lateDataOutputTag);
 	}
 
 	PatternStreamBuilder<IN> withLateDataOutputTag(final OutputTag<IN> lateDataOutputTag) {
-		return new PatternStreamBuilder<>(inputStream, pattern, comparator, checkNotNull(lateDataOutputTag));
+		return new PatternStreamBuilder<>(inputStream, pattern, timeBehaviour, comparator, checkNotNull(lateDataOutputTag));
+	}
+
+	PatternStreamBuilder<IN> inProcessingTime() {
+		return new PatternStreamBuilder<>(inputStream, pattern, TimeBehaviour.ProcessingTime, comparator, lateDataOutputTag);
+	}
+
+	PatternStreamBuilder<IN> inEventTime() {
+		return new PatternStreamBuilder<>(inputStream, pattern, TimeBehaviour.EventTime, comparator, lateDataOutputTag);
 	}
 
 	/**
@@ -111,7 +134,7 @@ final class PatternStreamBuilder<IN> {
 		checkNotNull(processFunction);
 
 		final TypeSerializer<IN> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
-		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+		final boolean isProcessingTime = timeBehaviour == TimeBehaviour.ProcessingTime;
 
 		final boolean timeoutHandling = processFunction instanceof TimedOutPartialMatchHandler;
 		final NFACompiler.NFAFactory<IN> nfaFactory = NFACompiler.compileFactory(pattern, timeoutHandling);
@@ -149,6 +172,6 @@ final class PatternStreamBuilder<IN> {
 	// ---------------------------------------- factory-like methods ---------------------------------------- //
 
 	static <IN> PatternStreamBuilder<IN> forStreamAndPattern(final DataStream<IN> inputStream, final Pattern<IN, ?> pattern) {
-		return new PatternStreamBuilder<>(inputStream, pattern, null, null);
+		return new PatternStreamBuilder<>(inputStream, pattern, TimeBehaviour.EventTime, null, null);
 	}
 }

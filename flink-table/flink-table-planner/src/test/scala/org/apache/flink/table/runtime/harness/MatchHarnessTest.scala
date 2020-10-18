@@ -29,8 +29,6 @@ import org.junit.Test
 import java.time.{Instant, ZoneId}
 import java.util.concurrent.ConcurrentLinkedQueue
 
-import org.apache.flink.streaming.api.TimeCharacteristic
-
 import scala.collection.mutable
 
 class MatchHarnessTest extends HarnessTestBase {
@@ -40,7 +38,6 @@ class MatchHarnessTest extends HarnessTestBase {
   @Test
   def testAccessingProctime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val tEnv = StreamTableEnvironment.create(
       env, EnvironmentSettings.newInstance().useOldPlanner().build())
