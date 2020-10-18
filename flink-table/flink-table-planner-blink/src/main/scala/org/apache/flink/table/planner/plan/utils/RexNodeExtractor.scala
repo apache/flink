@@ -263,9 +263,9 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
       false
     } else {
       right.take(left.length).zip(left).foldLeft(true) {
-        (ans, fields) => {
+        case (ans, (lName, rName)) => {
           if (ans) {
-            fields._1.equals(fields._2)
+            lName.equals(rName)
           } else {
             false
           }

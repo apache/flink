@@ -35,8 +35,8 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedValue, deepNested_nested2_flag AS nestedFlag, deepNested_nested2_num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2_num, deepNested_nested2_flag, deepNested_nested1_name, nested_value]]], fields=[id, deepNested_nested2_num, deepNested_nested2_flag, deepNested_nested1_name, nested_value])
+Calc(select=[`id` AS id, `deepNested`_`nested1`_`name` AS nestedName, `nested`_`value` AS nestedValue, `deepNested`_`nested2`_`flag` AS nestedFlag, `deepNested`_`nested2`_`num` AS nestedNum])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[`id`, `deepNested`_`nested2`_`num`, `deepNested`_`nested2`_`flag`, `deepNested`_`nested1`_`name`, `nested`_`value`]]], fields=[`id`, `deepNested`_`nested2`_`num`, `deepNested`_`nested2`_`flag`, `deepNested`_`nested1`_`name`, `nested`_`value`])
 ]]>
     </Resource>
   </TestCase>
@@ -52,7 +52,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
+TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[`a`, `c`]]], fields=[`a`, `c`])
 ]]>
     </Resource>
   </TestCase>

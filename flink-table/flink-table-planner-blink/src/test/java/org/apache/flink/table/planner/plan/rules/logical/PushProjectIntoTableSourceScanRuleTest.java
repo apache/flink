@@ -73,8 +73,9 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 		String ddl3 =
 				"CREATE TABLE NestedTable (\n" +
 						"  id int,\n" +
-						"  deepNested row<nested1 row<name string, `value` int>, `nested2.` row<num int, flag boolean>>,\n" +
-						"  nested row<name string, `value.` int>,\n" +
+						"  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n" +
+						"  nested row<name string, `value` int>,\n" +
+						"  `deepNestedWith.` row<`.value` int, nested row<name string, `.value` int>>,\n" +
 						"  name string\n" +
 						") WITH (\n" +
 						" 'connector' = 'values',\n" +
@@ -89,9 +90,9 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 	public void testNestedProject() {
 		String sqlQuery = "SELECT id,\n" +
 				"    deepNested.nested1.name AS nestedName,\n" +
-				"    nested.`value.` AS nestedValue,\n" +
-				"    deepNested.`nested2.`.flag AS nestedFlag,\n" +
-				"    deepNested.`nested2.`.num AS nestedNum\n" +
+				"    nested.`value` AS nestedValue,\n" +
+				"    deepNested.nested2.flag AS nestedFlag,\n" +
+				"    deepNested.nested2.num AS nestedNum\n" +
 				"FROM NestedTable";
 		util().verifyPlan(sqlQuery);
 	}
@@ -100,8 +101,7 @@ public class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegac
 	public void testComplicatedNestedProject() {
 		String sqlQuery = "SELECT id," +
 				"    deepNested.nested1.name AS nestedName,\n" +
-				"    deepNested.`nested2.` AS nested2,\n" +
-				"    (deepNested.`nested2.`.num + nested.`value.`) AS nestedSum\n" +
+				"    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n" +
 				"FROM NestedTable";
 		util().verifyPlan(sqlQuery);
 	}

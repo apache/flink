@@ -20,7 +20,6 @@ package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WatermarkSpec;
@@ -32,9 +31,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -74,51 +71,30 @@ public class TableSchemaUtils {
 	 * Creates a new {@link TableSchema} with the projected fields from another {@link TableSchema}.
 	 * The new {@link TableSchema} doesn't contain any primary key or watermark information.
 	 *
+	 * <p>When extracting the fields from the origin schema, the fields may get name conflicts in the
+	 * new schema. Considering that the path to the fields is unique in schema, it's reasonable to
+	 * use the qualified path with `_` as delimiter as the new name of the extracted fields. For
+	 * example, the new name of the field `a.b` is ``a`_`b``.
+	 *
 	 * @see org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 	 */
 	public static TableSchema projectSchema(TableSchema tableSchema, int[][] projectedFields) {
 		checkArgument(containsPhysicalColumnsOnly(tableSchema), "Projection is only supported for physical columns.");
 		TableSchema.Builder schemaBuilder = TableSchema.builder();
 		List<TableColumn> tableColumns = tableSchema.getTableColumns();
-		Map<String, String> nameDomain = new HashMap<>();
-		String exceptionTemplate = "Get name conflicts for origin fields %s and %s with new name `%s`. " +
-				"When pushing projection into scan, we will concatenate top level names with delimiter '_'. " +
-				"Please rename the origin field names when creating table.";
-		String originFullyQualifiedName;
-		String newName;
 		for (int[] fieldPath : projectedFields) {
+			TableColumn column = tableColumns.get(fieldPath[0]);
 			if (fieldPath.length == 1) {
-				TableColumn column = tableColumns.get(fieldPath[0]);
-				newName = column.getName();
-				originFullyQualifiedName = String.format("`%s`", column.getName());
-				if (nameDomain.containsKey(column.getName())) {
-					throw new TableException(
-							String.format(exceptionTemplate,
-									nameDomain.get(newName), originFullyQualifiedName, newName));
-				}
-				schemaBuilder.field(newName, column.getType());
-				nameDomain.put(newName, originFullyQualifiedName);
+				schemaBuilder.field(String.format("`%s`", column.getName()), column.getType());
 			} else {
-				TableColumn column = tableColumns.get(fieldPath[0]);
 				DataType dataType = column.getType();
-				StringBuilder nameBuilder = new StringBuilder(column.getName());
-				StringBuilder originQualifiedNameBuilder = new StringBuilder("`" + column.getName() + "`");
+				StringBuilder nameBuilder = new StringBuilder("`" + column.getName() + "`");
 				for (int i = 1; i < fieldPath.length; i++) {
 					RowType rowType = (RowType) dataType.getLogicalType();
-					nameBuilder.append('_').append(rowType.getFieldNames().get(fieldPath[i]));
-					originQualifiedNameBuilder.append(".`")
-							.append(rowType.getFieldNames().get(fieldPath[i]))
-							.append("`");
+					nameBuilder.append("_`").append(rowType.getFieldNames().get(fieldPath[i])).append("`");
 					dataType = dataType.getChildren().get(fieldPath[i]);
 				}
-				originFullyQualifiedName = originQualifiedNameBuilder.toString();
-				newName = nameBuilder.toString();
-				if (nameDomain.containsKey(newName)) {
-					throw new TableException(
-							String.format(exceptionTemplate, originFullyQualifiedName, nameDomain.get(newName), newName));
-				}
-				schemaBuilder.field(newName, dataType);
-				nameDomain.put(newName, originFullyQualifiedName);
+				schemaBuilder.field(nameBuilder.toString(), dataType);
 			}
 		}
 		return schemaBuilder.build();

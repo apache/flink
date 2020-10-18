@@ -19,7 +19,6 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 
@@ -114,14 +113,15 @@ public class TableSchemaUtilsTest {
 		TableSchema schema = TableSchema.builder()
 				.field("a", DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.STRING())))
 				.field("a_f0", DataTypes.STRING())
+				.field("`a`_`f0`", DataTypes.STRING())
 				.build();
-		exceptionRule.expect(TableException.class);
-		exceptionRule.expectMessage(
-				"Get name conflicts for origin fields `a`.`f0` and `a_f0` with new name `a_f0`. " +
-						"When pushing projection into scan, we will concatenate top level names with delimiter '_'. " +
-						"Please rename the origin field names when creating table."
-		);
-		int[][] projectedFields = {{0, 0}, {1}};
-		TableSchemaUtils.projectSchema(schema, projectedFields);
+		int[][] projectedFields = {{0, 0}, {1}, {2}};
+		TableSchema projected = TableSchemaUtils.projectSchema(schema, projectedFields);
+		TableSchema expected = TableSchema.builder()
+				.field("`a`_`f0`", DataTypes.STRING())
+				.field("`a_f0`", DataTypes.STRING())
+				.field("``a`_`f0``", DataTypes.STRING())
+				.build();
+		assertEquals(expected, projected);
 	}
 }
