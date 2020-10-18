@@ -68,6 +68,14 @@ public class PatternStream<T> {
 		return new PatternStream<>(builder.withLateDataOutputTag(lateDataOutputTag));
 	}
 
+	public PatternStream<T> inProcessingTime() {
+		return new PatternStream<>(builder.inProcessingTime());
+	}
+
+	public PatternStream<T> inEventTime() {
+		return new PatternStream<>(builder.inEventTime());
+	}
+
 	/**
 	 * Applies a process function to the detected pattern sequence. For each pattern sequence the
 	 * provided {@link PatternProcessFunction} is called. In order to process timed out partial matches as well one can
