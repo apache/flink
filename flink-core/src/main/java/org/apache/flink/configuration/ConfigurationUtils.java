@@ -145,6 +145,19 @@ public class ConfigurationUtils {
 		return separatedPaths.length() > 0 ? separatedPaths.split(",|" + File.pathSeparator) : EMPTY;
 	}
 
+	/**
+	 * Creates a dynamic parameter list {@code String} of the passed configuration map.
+	 * @param config A {@code Map} containing parameter/value entries that shall be used in the dynamic
+	 * parameter list.
+	 * @return The dynamic parameter list {@code String}.
+	 */
+	public static String assembleDynamicConfigsStr(final Map<String, String> config) {
+		return config.entrySet()
+				.stream()
+				.map(e -> String.format("-D %s=%s", e.getKey(), e.getValue()))
+				.collect(Collectors.joining(" "));
+	}
+
 	@VisibleForTesting
 	public static Map<String, String> parseTmResourceDynamicConfigs(String dynamicConfigsStr) {
 		Map<String, String> configs = new HashMap<>();
