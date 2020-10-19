@@ -81,6 +81,13 @@ public class SecurityOptions {
 			.withDeprecatedKeys("security.keytab")
 			.withDescription("Absolute path to a Kerberos keytab file that contains the user credentials.");
 
+	public static final ConfigOption<String> KERBEROS_KRB5_PATH =
+		key("security.kerberos.krb5-conf.path")
+			.stringType()
+			.noDefaultValue()
+			.withDescription("Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and " +
+				"TaskManager pods for Kubernetes. Note: The KDC defined needs to be visible from inside the containers.");
+
 	@Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
 	public static final ConfigOption<Boolean> KERBEROS_LOGIN_USETICKETCACHE =
 		key("security.kerberos.login.use-ticket-cache")
