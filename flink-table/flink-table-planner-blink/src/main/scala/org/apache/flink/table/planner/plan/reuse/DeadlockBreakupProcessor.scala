@@ -199,7 +199,7 @@ class DeadlockBreakupProcessor extends DAGProcessor {
       if (inputEdges.size() == 2) {
         val leftPriority = inputEdges.get(0).getPriority
         val rightPriority = inputEdges.get(1).getPriority
-        val requiredShuffle = if (leftPriority == 1) {
+        val requiredShuffle = if (leftPriority > rightPriority) {
           inputEdges.get(0).getRequiredShuffle
         } else {
           inputEdges.get(1).getRequiredShuffle
@@ -345,7 +345,7 @@ class DeadlockBreakupProcessor extends DAGProcessor {
               val leftPriority = inputEdges.get(0).getPriority
               val rightPriority = inputEdges.get(1).getPriority
               if (leftPriority != rightPriority) {
-                val higherIndex = if (leftPriority == 0) 0 else 1
+                val higherIndex = if (leftPriority < rightPriority) 0 else 1
                 val higherNode = node.getInputNodes.get(higherIndex)
                 checkHigherInput(higherNode, idx, inputPath)
               } else {
