@@ -134,6 +134,6 @@ public class RocksDBMemoryControllerUtils {
 	 */
 	@VisibleForTesting
 	static boolean validateArenaBlockSize(long arenaBlockSize, long mutableLimit) {
-		return arenaBlockSize < mutableLimit;
+		return arenaBlockSize <= mutableLimit;
 	}
 }
