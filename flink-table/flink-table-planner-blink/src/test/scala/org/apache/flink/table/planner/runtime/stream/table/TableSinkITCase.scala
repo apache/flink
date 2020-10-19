@@ -22,16 +22,18 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{TestSinkContextTableSink, changelogRow}
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{nullData4, smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.util.ExceptionUtils
-
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.Test
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+import java.sql.Timestamp
+import java.time.LocalDateTime
+import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
@@ -619,5 +621,59 @@ class TableSinkITCase extends StreamingTestBase {
     val result = TestValuesTableFactory.getResults("not_null_sink")
     val expected = List("book,1,12", "book,4,11", "fruit,3,44")
     assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testSinkContext(): Unit = {
+    val data = List(
+      rowOf("1970-01-01 00:00:00.001", localDateTime(1L), 1, 1d),
+      rowOf("1970-01-01 00:00:00.002", localDateTime(2L), 1, 2d),
+      rowOf("1970-01-01 00:00:00.003", localDateTime(3L), 1, 2d),
+      rowOf("1970-01-01 00:00:00.004", localDateTime(4L), 1, 5d),
+      rowOf("1970-01-01 00:00:00.007", localDateTime(7L), 1, 3d),
+      rowOf("1970-01-01 00:00:00.008", localDateTime(8L), 1, 3d),
+      rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
+
+    val dataId: String = TestValuesTableFactory.registerData(data)
+
+    val sourceDDL =
+      s"""
+         |CREATE TABLE src (
+         |  log_ts STRING,
+         |  ts TIMESTAMP(3),
+         |  a INT,
+         |  b DOUBLE,
+         |  WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId'
+         |)
+      """.stripMargin
+
+    val sinkDDL =
+      s"""
+         |CREATE TABLE sink (
+         |  log_ts STRING,
+         |  ts TIMESTAMP(3),
+         |  a INT,
+         |  b DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
+         |)
+      """.stripMargin
+
+    tEnv.executeSql(sourceDDL)
+    tEnv.executeSql(sinkDDL)
+    tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
+
+    val expected = List(1, 2, 3, 4, 7, 8, 16)
+    assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+  }
+
+  // ------------------------------------------------------------------------------------------
+
+  private def localDateTime(ts: Long): LocalDateTime = {
+    new Timestamp(ts - TimeZone.getDefault.getOffset(ts)).toLocalDateTime
   }
 }
