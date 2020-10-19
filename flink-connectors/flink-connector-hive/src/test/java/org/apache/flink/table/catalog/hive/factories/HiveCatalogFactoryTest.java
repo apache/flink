@@ -71,6 +71,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
 		final Catalog actualCatalog = TableFactoryService.find(CatalogFactory.class, properties)
 			.createCatalog(catalogName, properties);
 
+		assertEquals("dummy-hms", ((HiveCatalog) actualCatalog).getHiveConf().getVar(HiveConf.ConfVars.METASTOREURIS));
 		checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
 	}
 

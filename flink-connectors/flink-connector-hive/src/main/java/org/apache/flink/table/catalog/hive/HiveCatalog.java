@@ -76,6 +76,7 @@ import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -101,8 +102,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.net.MalformedURLException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -191,17 +190,6 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	private static HiveConf createHiveConf(@Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
-		LOG.info("Setting hive conf dir as {}", hiveConfDir);
-
-		try {
-			HiveConf.setHiveSiteLocation(
-				hiveConfDir == null ?
-					null : Paths.get(hiveConfDir, "hive-site.xml").toUri().toURL());
-		} catch (MalformedURLException e) {
-			throw new CatalogException(
-				String.format("Failed to get hive-site.xml from %s", hiveConfDir), e);
-		}
-
 		// create HiveConf from hadoop configuration with hadoop conf directory configured.
 		Configuration hadoopConf = null;
 		if (isNullOrWhitespaceOnly(hadoopConfDir)) {
@@ -214,7 +202,19 @@ public class HiveCatalog extends AbstractCatalog {
 		} else {
 			hadoopConf = getHadoopConfiguration(hadoopConfDir);
 		}
-		return new HiveConf(hadoopConf == null ? new Configuration() : hadoopConf, HiveConf.class);
+		HiveConf hiveConf = new HiveConf(hadoopConf == null ? new Configuration() : hadoopConf, HiveConf.class);
+
+		LOG.info("Setting hive conf dir as {}", hiveConfDir);
+
+		if (hiveConfDir != null) {
+			Path hiveSite = new Path(hiveConfDir, "hive-site.xml");
+			if (!hiveSite.toUri().isAbsolute()) {
+				// treat relative URI as local file to be compatible with previous behavior
+				hiveSite = new Path("file", null, hiveSite.toString());
+			}
+			hiveConf.addResource(hiveSite);
+		}
+		return hiveConf;
 	}
 
 	@VisibleForTesting
