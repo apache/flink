@@ -20,6 +20,7 @@ package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -34,13 +35,9 @@ import org.apache.flink.table.filesystem.PartitionCommitPolicy;
 import org.apache.flink.table.filesystem.TableMetaStoreFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
@@ -49,20 +46,21 @@ import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionSp
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 
 /**
- * Committer for {@link StreamingFileWriter}. This is the single (non-parallel) task.
+ * Committer operator for partitions. This is the single (non-parallel) task.
  * It collects all the partition information sent from upstream, and triggers the partition
  * submission decision when it judges to collect the partitions from all tasks of a checkpoint.
+ *
+ * <p>NOTE: It processes records after the checkpoint completes successfully.
+ * Receive records from upstream {@link CheckpointListener#notifyCheckpointComplete}.
  *
  * <p>Processing steps:
  * 1.Partitions are sent from upstream. Add partition to trigger.
  * 2.{@link TaskTracker} say it have already received partition data from all tasks in a checkpoint.
  * 3.Extracting committable partitions from {@link PartitionCommitTrigger}.
  * 4.Using {@link PartitionCommitPolicy} chain to commit partitions.
- *
- * <p>See {@link StreamingFileWriter#notifyCheckpointComplete}.
  */
-public class StreamingFileCommitter extends AbstractStreamOperator<Void>
-		implements OneInputStreamOperator<StreamingFileCommitter.CommitMessage, Void> {
+public class PartitionCommitter extends AbstractStreamOperator<Void>
+		implements OneInputStreamOperator<PartitionCommitInfo, Void> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -86,7 +84,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 
 	private transient List<PartitionCommitPolicy> policies;
 
-	public StreamingFileCommitter(
+	public PartitionCommitter(
 			Path locationPath,
 			ObjectIdentifier tableIdentifier,
 			List<String> partitionKeys,
@@ -107,7 +105,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-		currentWatermark = Long.MIN_VALUE;
+		this.currentWatermark = Long.MIN_VALUE;
 		this.trigger = PartitionCommitTrigger.create(
 				context.isRestored(),
 				context.getOperatorStateStore(),
@@ -130,18 +128,18 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 	}
 
 	@Override
-	public void processElement(StreamRecord<CommitMessage> element) throws Exception {
-		CommitMessage message = element.getValue();
-		for (String partition : message.partitions) {
+	public void processElement(StreamRecord<PartitionCommitInfo> element) throws Exception {
+		PartitionCommitInfo message = element.getValue();
+		for (String partition : message.getPartitions()) {
 			trigger.addPartition(partition);
 		}
 
 		if (taskTracker == null) {
-			taskTracker = new TaskTracker(message.numberOfTasks);
+			taskTracker = new TaskTracker(message.getNumberOfTasks());
 		}
-		boolean needCommit = taskTracker.add(message.checkpointId, message.taskId);
+		boolean needCommit = taskTracker.add(message.getCheckpointId(), message.getTaskId());
 		if (needCommit) {
-			commitPartitions(message.checkpointId);
+			commitPartitions(message.getCheckpointId());
 		}
 	}
 
@@ -158,7 +156,7 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 				LinkedHashMap<String, String> partSpec = extractPartitionSpecFromPath(new Path(partition));
 				LOG.info("Partition {} of table {} is ready to be committed", partSpec, tableIdentifier);
 				Path path = new Path(locationPath, generatePartitionPath(partSpec));
-				PartitionCommitPolicy.Context context = new PolicyContext(
+				PartitionCommitPolicy.Context context = new CommitPolicyContextImpl(
 						new ArrayList<>(partSpec.values()), path);
 				for (PartitionCommitPolicy policy : policies) {
 					if (policy instanceof MetastoreCommitPolicy) {
@@ -182,70 +180,12 @@ public class StreamingFileCommitter extends AbstractStreamOperator<Void>
 		trigger.snapshotState(context.getCheckpointId(), currentWatermark);
 	}
 
-	/**
-	 * The message sent upstream.
-	 *
-	 * <p>Need to ensure that the partitions are ready to commit. That is to say, the files in
-	 * the partition have become readable rather than temporary.
-	 */
-	public static class CommitMessage implements Serializable {
-
-		public long checkpointId;
-		public int taskId;
-		public int numberOfTasks;
-		public List<String> partitions;
-
-		/**
-		 * Pojo need this constructor.
-		 */
-		public CommitMessage() {}
-
-		public CommitMessage(
-				long checkpointId, int taskId, int numberOfTasks, List<String> partitions) {
-			this.checkpointId = checkpointId;
-			this.taskId = taskId;
-			this.numberOfTasks = numberOfTasks;
-			this.partitions = partitions;
-		}
-	}
-
-	/**
-	 * Track the upstream tasks to determine whether all the upstream data of a checkpoint
-	 * has been received.
-	 */
-	private static class TaskTracker {
-
-		private final int numberOfTasks;
-
-		/**
-		 * Checkpoint id to notified tasks.
-		 */
-		private TreeMap<Long, Set<Integer>> notifiedTasks = new TreeMap<>();
-
-		private TaskTracker(int numberOfTasks) {
-			this.numberOfTasks = numberOfTasks;
-		}
-
-		/**
-		 * @return true, if this checkpoint id need be committed.
-		 */
-		private boolean add(long checkpointId, int task) {
-			Set<Integer> tasks = notifiedTasks.computeIfAbsent(checkpointId, (k) -> new HashSet<>());
-			tasks.add(task);
-			if (tasks.size() == numberOfTasks) {
-				notifiedTasks.headMap(checkpointId, true).clear();
-				return true;
-			}
-			return false;
-		}
-	}
-
-	private class PolicyContext implements PartitionCommitPolicy.Context {
+	private class CommitPolicyContextImpl implements PartitionCommitPolicy.Context {
 
 		private final List<String> partitionValues;
 		private final Path partitionPath;
 
-		private PolicyContext(List<String> partitionValues, Path partitionPath) {
+		private CommitPolicyContextImpl(List<String> partitionValues, Path partitionPath) {
 			this.partitionValues = partitionValues;
 			this.partitionPath = partitionPath;
 		}
