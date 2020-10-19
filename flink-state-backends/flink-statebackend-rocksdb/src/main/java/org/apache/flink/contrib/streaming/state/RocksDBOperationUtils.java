@@ -133,7 +133,8 @@ public class RocksDBOperationUtils {
 		RegisteredStateMetaInfoBase metaInfoBase,
 		RocksDB db,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager, Long writeBufferManagerCapacity) {
+		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+		@Nullable Long writeBufferManagerCapacity) {
 
 		ColumnFamilyDescriptor columnFamilyDescriptor = createColumnFamilyDescriptor(
 			metaInfoBase, columnFamilyOptionsFactory, ttlCompactFiltersManager, writeBufferManagerCapacity);
