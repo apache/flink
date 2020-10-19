@@ -202,8 +202,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	public void onStart() throws Exception {
 		try {
 			startDispatcherServices();
-		} catch (Exception e) {
-			final DispatcherException exception = new DispatcherException(String.format("Could not start the Dispatcher %s", getAddress()), e);
+		} catch (Throwable t) {
+			final DispatcherException exception = new DispatcherException(String.format("Could not start the Dispatcher %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
