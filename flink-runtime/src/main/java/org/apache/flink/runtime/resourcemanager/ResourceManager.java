@@ -189,8 +189,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public void onStart() throws Exception {
 		try {
 			startResourceManagerServices();
-		} catch (Exception e) {
-			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), e);
+		} catch (Throwable t) {
+			final ResourceManagerException exception = new ResourceManagerException(String.format("Could not start the ResourceManager %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
