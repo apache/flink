@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.Collection;
 import java.util.function.Function;
 
 /**
@@ -34,11 +35,13 @@ public class StandaloneDispatcher extends Dispatcher {
 	public StandaloneDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
 			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
 			fencingToken,
+			recoveredJobs,
 			dispatcherBootstrapFactory,
 			dispatcherServices);
 	}

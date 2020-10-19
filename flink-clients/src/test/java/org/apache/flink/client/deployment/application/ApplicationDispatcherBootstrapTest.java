@@ -33,7 +33,6 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -51,7 +50,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -235,18 +233,8 @@ public class ApplicationDispatcherBootstrapTest {
 				});
 
 		final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 2);
-
-		try {
-			applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-			fail("Expected exception but the execution went smoothly.");
-		} catch (Throwable e) {
-			Optional<ApplicationFailureException> expectedException =
-					ExceptionUtils.findThrowable(e, ApplicationFailureException.class);
-			if (!expectedException.isPresent()) {
-				throw e;
-			}
-			assertEquals(expectedException.get().getStatus(), ApplicationStatus.FAILED);
-		}
+		final ApplicationFailureException exception = assertException(applicationFuture, ApplicationFailureException.class);
+		assertEquals(exception.getStatus(), ApplicationStatus.FAILED);
 	}
 
 	@Test
@@ -366,6 +354,10 @@ public class ApplicationDispatcherBootstrapTest {
 		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
 				.setSubmitFunction(jobGraph -> {
 					throw new FlinkRuntimeException("Nope!");
+				})
+				.setClusterShutdownFunction(status -> {
+					fail("We should not call shutdownCluster()");
+					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
 		// we're "listening" on this to be completed to verify that the error handler is called.
@@ -374,8 +366,9 @@ public class ApplicationDispatcherBootstrapTest {
 		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
 				3, errorHandlerFuture::completeExceptionally);
 
+		final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
 		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherGateway, scheduledExecutor);
 
 		// we call the error handler
 		assertException(errorHandlerFuture, ApplicationExecutionException.class);
@@ -438,6 +431,56 @@ public class ApplicationDispatcherBootstrapTest {
 		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.FAILED));
 	}
 
+	@Test
+	public void testClusterShutdownWhenApplicationGetsCancelled() throws Exception {
+		// we're "listening" on this to be completed to verify that the cluster
+		// is being shut down from the ApplicationDispatcherBootstrap
+		final CompletableFuture<ApplicationStatus> externalShutdownFuture = new CompletableFuture<>();
+
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.CANCELED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createCancelledJobResult(jobId)))
+				.setClusterShutdownFunction((status) -> {
+					externalShutdownFuture.complete(status);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				});
+
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+
+		final CompletableFuture<Acknowledge> shutdownFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+
+		// wait until the bootstrap "thinks" it's done
+		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+		// verify that the dispatcher is actually being shut down
+		assertThat(externalShutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS), is(ApplicationStatus.CANCELED));
+	}
+
+	@Test
+	public void testClusterDoesNOTShutdownWhenApplicationStatusUknown() throws Exception {
+		// we're "listening" on this to be completed to verify that the cluster
+		// is being shut down from the ApplicationDispatcherBootstrap
+		final TestingDispatcherGateway.Builder dispatcherBuilder = new TestingDispatcherGateway.Builder()
+				.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FAILED))
+				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createUnknownJobResult(jobId)))
+				.setClusterShutdownFunction(status -> {
+					fail("We should not call shutdownCluster()");
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				});
+
+		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+
+		final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
+		final CompletableFuture<Acknowledge> applicationFuture =
+				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherGateway, scheduledExecutor);
+
+		final ApplicationFailureException exception = assertException(applicationFuture, ApplicationFailureException.class);
+		assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
+	}
+
 	private CompletableFuture<Void> runApplication(
 			TestingDispatcherGateway.Builder dispatcherBuilder,
 			int noOfJobs) throws FlinkException {
@@ -480,15 +523,8 @@ public class ApplicationDispatcherBootstrapTest {
 	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
 			int noOfJobs,
 			FatalErrorHandler errorHandler) throws FlinkException {
-		return createApplicationDispatcherBootstrap(noOfJobs, Collections.emptyList(), errorHandler);
-	}
-
-	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
-			int noOfJobs,
-			Collection<JobGraph> recoveredJobGraphs,
-			FatalErrorHandler errorHandler) throws FlinkException {
 		final PackagedProgram program = getProgram(noOfJobs);
-		return new ApplicationDispatcherBootstrap(program, recoveredJobGraphs, getConfiguration(), errorHandler);
+		return new ApplicationDispatcherBootstrap(program, Collections.emptyList(), getConfiguration(), errorHandler);
 	}
 
 	private PackagedProgram getProgram(int noOfJobs) throws FlinkException {
@@ -501,6 +537,15 @@ public class ApplicationDispatcherBootstrapTest {
 		} catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
 			throw new FlinkException("Could not load the provided entrypoint class.", e);
 		}
+	}
+
+	private static JobResult createUnknownJobResult(final JobID jobId) {
+		return new JobResult.Builder()
+				.jobId(jobId)
+				.netRuntime(2L)
+				.applicationStatus(ApplicationStatus.UNKNOWN)
+				.serializedThrowable(new SerializedThrowable(new JobExecutionException(jobId, "unknown bla bla bla")))
+				.build();
 	}
 
 	private static JobResult createFailedJobResult(final JobID jobId) {
@@ -531,7 +576,7 @@ public class ApplicationDispatcherBootstrapTest {
 				.build();
 	}
 
-	private static <T, E extends Throwable> void assertException(
+	private static <T, E extends Throwable> E assertException(
 			CompletableFuture<T> future,
 			Class<E> exceptionClass) throws Exception {
 
@@ -543,9 +588,9 @@ public class ApplicationDispatcherBootstrapTest {
 			if (!expectionException.isPresent()) {
 				throw e;
 			}
-			return;
+			return expectionException.get();
 		}
-		fail("Future should have completed exceptionally with " + exceptionClass.getCanonicalName() + ".");
+		throw new Exception("Future should have completed exceptionally with " + exceptionClass.getCanonicalName() + ".");
 	}
 
 	private Configuration getConfiguration() {

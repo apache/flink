@@ -34,6 +34,7 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -57,11 +58,13 @@ public class MiniDispatcher extends Dispatcher {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
+			JobGraph jobGraph,
 			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,
 			fencingToken,
+			Collections.singleton(jobGraph),
 			dispatcherBootstrapFactory,
 			dispatcherServices);
 

@@ -22,28 +22,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
-import java.util.Collection;
-import java.util.HashSet;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A {@link DispatcherBootstrap} which submits the provided {@link JobGraph job graphs}
  * for execution upon dispatcher initialization.
  */
 @Internal
-public class DefaultDispatcherBootstrap extends AbstractDispatcherBootstrap {
+public class NoOpDispatcherBootstrap implements DispatcherBootstrap {
 
-	private final Collection<JobGraph> recoveredJobs;
-
-	public DefaultDispatcherBootstrap(final Collection<JobGraph> recoveredJobsGraphs) {
-		this.recoveredJobs = new HashSet<>(checkNotNull(recoveredJobsGraphs));
+	public NoOpDispatcherBootstrap() {
 	}
 
 	@Override
-	public void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) {
-		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
-		recoveredJobs.clear();
+	public void initialize(final DispatcherGateway dispatcher, ScheduledExecutor scheduledExecutor) {
+
 	}
 
 	@Override

@@ -33,8 +33,6 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.dispatcher.AbstractDispatcherBootstrap;
-import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -43,6 +41,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * if it should submit a job for execution (in case of a new job) or the job was already recovered and is running.
  */
 @Internal
-public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap {
+public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ApplicationDispatcherBootstrap.class);
 
@@ -79,7 +78,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 	private final PackagedProgram application;
 
-	private final Collection<JobGraph> recoveredJobs;
+	private final Collection<JobID> recoveredJobIds;
 
 	private final Configuration configuration;
 
@@ -91,22 +90,21 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 	public ApplicationDispatcherBootstrap(
 			final PackagedProgram application,
-			final Collection<JobGraph> recoveredJobs,
+			final Collection<JobID> recoveredJobIds,
 			final Configuration configuration,
 			final FatalErrorHandler errorHandler) {
 		this.configuration = checkNotNull(configuration);
-		this.recoveredJobs = checkNotNull(recoveredJobs);
+		this.recoveredJobIds = checkNotNull(recoveredJobIds);
 		this.application = checkNotNull(application);
 		this.errorHandler = checkNotNull(errorHandler);
 	}
 
 	@Override
-	public void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) {
-		checkNotNull(dispatcher);
-		launchRecoveredJobGraphs(dispatcher, recoveredJobs);
+	public void initialize(final DispatcherGateway dispatcherGateway, ScheduledExecutor scheduledExecutor) {
+		checkNotNull(dispatcherGateway);
 
 		runApplicationAndShutdownClusterAsync(
-				dispatcher,
+				dispatcherGateway,
 				scheduledExecutor);
 	}
 
@@ -127,16 +125,15 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	}
 
 	/**
-	 * Runs the user program entrypoint using {@link #runApplicationAsync(DispatcherGateway,
-	 * ScheduledExecutor, boolean)} and shuts down the given dispatcher when the application
-	 * completes (either successfully or in case of failure).
+	 * Runs the user program entrypoint and shuts down the given dispatcherGateway when
+	 * the application completes (either successfully or in case of failure).
 	 */
 	@VisibleForTesting
 	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
-			final DispatcherGateway dispatcher,
+			final DispatcherGateway dispatcherGateway,
 			final ScheduledExecutor scheduledExecutor) {
 
-		applicationCompletionFuture = fixJobIdAndRunApplicationAsync(dispatcher, scheduledExecutor);
+		applicationCompletionFuture = fixJobIdAndRunApplicationAsync(dispatcherGateway, scheduledExecutor);
 
 		return applicationCompletionFuture
 				.handle((r, t) -> {
@@ -150,38 +147,38 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 
 							if (applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED) {
 								LOG.info("Application {}: ", applicationStatus, t);
-								return dispatcher.shutDownCluster(applicationStatus);
+								return dispatcherGateway.shutDownCluster(applicationStatus);
 							}
 						}
 
 						LOG.warn("Exiting with Application Status UNKNOWN: ", t);
-						this.errorHandler.onFatalError(t);
+						this.errorHandler.onFatalError(new FlinkException("Application failed unexpectedly.", t));
 
 						return FutureUtils.<Acknowledge>completedExceptionally(t);
 					}
 
 					LOG.info("Application completed SUCCESSFULLY");
-					return dispatcher.shutDownCluster(ApplicationStatus.SUCCEEDED);
+					return dispatcherGateway.shutDownCluster(ApplicationStatus.SUCCEEDED);
 				})
 				.thenCompose(Function.identity());
 	}
 
 	@VisibleForTesting
 	CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
-			final DispatcherGateway dispatcher,
+			final DispatcherGateway dispatcherGateway,
 			final ScheduledExecutor scheduledExecutor) {
 
 		final Optional<String> configuredJobId =
 				configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
 
 		if (!HighAvailabilityMode.isHighAvailabilityModeActivated(configuration) && !configuredJobId.isPresent()) {
-			return runApplicationAsync(dispatcher, scheduledExecutor, false);
+			return runApplicationAsync(dispatcherGateway, scheduledExecutor, false);
 		}
 
 		if (!configuredJobId.isPresent()) {
 			configuration.set(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, ZERO_JOB_ID.toHexString());
 		}
-		return runApplicationAsync(dispatcher, scheduledExecutor, true);
+		return runApplicationAsync(dispatcherGateway, scheduledExecutor, true);
 	}
 
 	/**
@@ -190,7 +187,7 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	 * succeeded. if any of them fails, or if job submission fails.
 	 */
 	private CompletableFuture<Void> runApplicationAsync(
-			final DispatcherGateway dispatcher,
+			final DispatcherGateway dispatcherGateway,
 			final ScheduledExecutor scheduledExecutor,
 			final boolean enforceSingleJobExecution) {
 		final CompletableFuture<List<JobID>> applicationExecutionFuture = new CompletableFuture<>();
@@ -200,14 +197,14 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 		applicationExecutionTask = scheduledExecutor.schedule(
 				() -> runApplicationEntryPoint(
 						applicationExecutionFuture,
-						dispatcher,
+						dispatcherGateway,
 						scheduledExecutor,
 						enforceSingleJobExecution),
 				0L,
 				TimeUnit.MILLISECONDS);
 
 		return applicationExecutionFuture.thenCompose(
-				jobIds -> getApplicationResult(dispatcher, jobIds, scheduledExecutor));
+				jobIds -> getApplicationResult(dispatcherGateway, jobIds, scheduledExecutor));
 	}
 
 	/**
@@ -218,16 +215,15 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 	 */
 	private void runApplicationEntryPoint(
 			final CompletableFuture<List<JobID>> jobIdsFuture,
-			final DispatcherGateway dispatcher,
+			final DispatcherGateway dispatcherGateway,
 			final ScheduledExecutor scheduledExecutor,
 			final boolean enforceSingleJobExecution) {
 		try {
-			final List<JobID> applicationJobIds =
-					new ArrayList<>(getRecoveredJobIds(recoveredJobs));
+			final List<JobID> applicationJobIds = new ArrayList<>(recoveredJobIds);
 
 			final PipelineExecutorServiceLoader executorServiceLoader =
 					new EmbeddedExecutorServiceLoader(
-							applicationJobIds, dispatcher, scheduledExecutor);
+							applicationJobIds, dispatcherGateway, scheduledExecutor);
 
 			ClientUtils.executeProgram(
 					executorServiceLoader,
@@ -287,12 +283,5 @@ public class ApplicationDispatcherBootstrap extends AbstractDispatcherBootstrap 
 					ApplicationFailureException.fromJobResult(
 							result, application.getUserCodeClassLoader()));
 		});
-	}
-
-	private List<JobID> getRecoveredJobIds(final Collection<JobGraph> recoveredJobs) {
-		return recoveredJobs
-				.stream()
-				.map(JobGraph::getJobID)
-				.collect(Collectors.toList());
 	}
 }
