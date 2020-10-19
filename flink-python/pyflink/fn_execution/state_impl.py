@@ -340,8 +340,6 @@ class InternalSynchronousMapRuntimeState(object):
         self._write_cache[map_key] = (True, map_value)
         self._is_empty = False
         if len(self._write_cache) >= self._max_write_cache_entries:
-            import pydevd
-            pydevd.settrace('localhost', port=5678, stdoutToServer=True, stderrToServer=True)
             self.commit()
 
     def put_all(self, dict_value):
@@ -349,8 +347,6 @@ class InternalSynchronousMapRuntimeState(object):
             self._write_cache[map_key] = (True, map_value)
         self._is_empty = False
         if len(self._write_cache) >= self._max_write_cache_entries:
-            import pydevd
-            pydevd.settrace('localhost', port=5678, stdoutToServer=True, stderrToServer=True)
             self.commit()
 
     def remove(self, map_key):
