@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -91,7 +92,10 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 
 /**
  * Factory for creating configured instances of {@link KafkaTableSourceBase}.
+ *
+ * @deprecated Use {@link KafkaDynamicTableFactory}.
  */
+@Deprecated
 public abstract class KafkaTableSourceSinkFactoryBase implements
 		StreamTableSourceFactory<Row>,
 		StreamTableSinkFactory<Row> {
