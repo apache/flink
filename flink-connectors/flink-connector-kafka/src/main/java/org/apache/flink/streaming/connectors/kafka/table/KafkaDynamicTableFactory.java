@@ -118,8 +118,6 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		// Validate the option values.
 		validateTableSourceOptions(tableOptions);
 
-		DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
-
 		final StartupOptions startupOptions = getStartupOptions(tableOptions);
 		final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
 		// add topic-partition discovery
@@ -129,8 +127,10 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 				.map(Duration::toMillis)
 				.orElse(FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED)));
 
+		final DataType physicalDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+
 		return createKafkaTableSource(
-			producedDataType,
+			physicalDataType,
 			KafkaOptions.getSourceTopics(tableOptions),
 			KafkaOptions.getSourceTopicPattern(tableOptions),
 			properties,
@@ -155,9 +155,10 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		// Validate the option data type.
 		helper.validateExcept(PROPERTIES_PREFIX);
 
-		DataType consumedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+		final DataType physicalDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+
 		return createKafkaTableSink(
-				consumedDataType,
+				physicalDataType,
 				tableOptions.get(TOPIC).get(0),
 				getKafkaProperties(context.getCatalogTable().getOptions()),
 				getFlinkKafkaPartitioner(tableOptions, context.getClassLoader()),
@@ -168,7 +169,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	// --------------------------------------------------------------------------------------------
 
 	protected KafkaDynamicSource createKafkaTableSource(
-			DataType producedDataType,
+			DataType physicalDataType,
 			@Nullable List<String> topics,
 			@Nullable Pattern topicPattern,
 			Properties properties,
@@ -177,7 +178,7 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
 		return new KafkaDynamicSource(
-				producedDataType,
+				physicalDataType,
 				topics,
 				topicPattern,
 				properties,
@@ -188,14 +189,14 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 	}
 
 	protected KafkaDynamicSink createKafkaTableSink(
-			DataType consumedDataType,
+			DataType physicalDataType,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<RowData>> partitioner,
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
 			KafkaSinkSemantic semantic) {
 		return new KafkaDynamicSink(
-				consumedDataType,
+				physicalDataType,
 				topic,
 				properties,
 				partitioner,
