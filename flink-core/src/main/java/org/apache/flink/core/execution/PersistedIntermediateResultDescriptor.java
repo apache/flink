@@ -16,10 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common;
+package org.apache.flink.core.execution;
 
 import org.apache.flink.util.AbstractID;
 
+/**
+ * Descriptor of a persisted intermediate result.
+ */
 public interface PersistedIntermediateResultDescriptor {
+
+	/**
+	 * Return the id of the persisted intermediate data set id.
+	 * @return id of the persisted intermediate data set id
+	 */
 	AbstractID getIntermediateDataSetId();
+
 }

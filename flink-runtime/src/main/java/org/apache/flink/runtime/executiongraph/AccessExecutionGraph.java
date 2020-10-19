@@ -21,7 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
+import org.apache.flink.core.execution.PersistedIntermediateResultDescriptor;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;

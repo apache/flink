@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
+import org.apache.flink.core.execution.PersistedIntermediateResultDescriptor;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -119,8 +119,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		boolean isStoppable,
 		@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 		@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
-		@Nullable String stateBackendName, Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor>
-			persistedIntermediateResult) {
+		@Nullable String stateBackendName,
+		@Nullable Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult) {
 
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.jobName = Preconditions.checkNotNull(jobName);

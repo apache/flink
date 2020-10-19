@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.core.execution.PersistedIntermediateResultDescriptor;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -69,6 +69,7 @@ public class JobResult implements Serializable {
 	@Nullable
 	private final SerializedThrowable serializedThrowable;
 
+	@Nullable
 	private Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult;
 
 	private JobResult(
@@ -77,7 +78,7 @@ public class JobResult implements Serializable {
 		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
 		final long netRuntime,
 		@Nullable final SerializedThrowable serializedThrowable,
-		Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult) {
+		@Nullable Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult) {
 		this.persistedIntermediateResult = persistedIntermediateResult;
 
 		checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");

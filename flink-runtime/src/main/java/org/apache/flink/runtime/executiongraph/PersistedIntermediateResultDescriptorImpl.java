@@ -18,38 +18,30 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.core.execution.PersistedIntermediateResultDescriptor;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.util.AbstractID;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Set;
 
-public class PersistedIntermediateResultDescriptorImpl implements PersistedIntermediateResultDescriptor {
-	private Collection<ClusterPartitionDescriptorImpl> clusterPartitionDescriptors = new ArrayList<>();
+public class PersistedIntermediateResultDescriptorImpl
+		implements PersistedIntermediateResultDescriptor {
 	private final IntermediateDataSetID intermediateDataSetID;
-	private final ResultPartitionType resultPartitionType;
+	private final Set<ShuffleDescriptor> shuffleDescriptors;
 
-	public PersistedIntermediateResultDescriptorImpl(IntermediateDataSetID intermediateDataSetID,
-													 ResultPartitionType resultPartitionType) {
+	public PersistedIntermediateResultDescriptorImpl(
+			IntermediateDataSetID intermediateDataSetID,
+			Set<ShuffleDescriptor> shuffleDescriptors) {
 		this.intermediateDataSetID = intermediateDataSetID;
-		this.resultPartitionType = resultPartitionType;
+		this.shuffleDescriptors = shuffleDescriptors;
 	}
 
-	public Collection<ClusterPartitionDescriptorImpl> getClusterPartitionDescriptors() {
-		return clusterPartitionDescriptors;
-	}
-
-	public ResultPartitionType getResultPartitionType() {
-		return resultPartitionType;
-	}
-
-	@Override
-	public IntermediateDataSetID getIntermediateDataSetId() {
+	public AbstractID getIntermediateDataSetId() {
 		return intermediateDataSetID;
 	}
 
-	public void addClusterPartitionDescriptor(ClusterPartitionDescriptorImpl clusterPartitionDescriptor) {
-		clusterPartitionDescriptors.add(clusterPartitionDescriptor);
+	public Set<ShuffleDescriptor> getShuffleDescriptors() {
+		return shuffleDescriptors;
 	}
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.PersistedIntermediateResultDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.PersistedIntermediateResultDescriptor;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
