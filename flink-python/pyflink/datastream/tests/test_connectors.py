@@ -34,6 +34,7 @@ class FlinkKafkaTest(PyFlinkTestCase):
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
         # Cache current ContextClassLoader, we will replace it with a temporary URLClassLoader to
         # load specific connector jars with given module path to do dependency isolation. And We
         # will change the ClassLoader back to the cached ContextClassLoader after the test case
