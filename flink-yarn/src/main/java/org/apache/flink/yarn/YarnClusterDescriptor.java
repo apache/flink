@@ -61,6 +61,7 @@ import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
+import org.apache.commons.collections4.ListUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -970,7 +971,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		if (UserGroupInformation.isSecurityEnabled()) {
 			// set HDFS delegation tokens when security is enabled
 			LOG.info("Adding delegation token to the AM container.");
-			Utils.setTokensFor(amContainer, fileUploader.getRemotePaths(), yarnConfiguration);
+			List<Path> yarnAccessList = ConfigUtils.decodeListFromConfig(configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
+			Utils.setTokensFor(amContainer,
+				ListUtils.union(yarnAccessList, fileUploader.getRemotePaths()), yarnConfiguration
+			);
 		}
 
 		amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
