@@ -103,6 +103,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.runtime.scheduler.ExecutionVertexSchedulingRequirementsMapper.getPhysicalSlotResourceProfile;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times
@@ -1251,61 +1252,61 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		processFail(t, isCallback, null, null, true, false);
 	}
 
-	private void processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean releasePartitions, boolean fromSchedulerNg) {
-		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
-		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
+	private void processFail(
+			Throwable t,
+			boolean isCallback,
+			Map<String, Accumulator<?, ?>> userAccumulators,
+			IOMetrics metrics,
+			boolean releasePartitions,
+			boolean fromSchedulerNg) {
 
-		// we may need to loop multiple times (in the presence of concurrent calls) in order to
-		// atomically switch to failed
 		assertRunningInJobMasterMainThread();
-		while (true) {
-			ExecutionState current = this.state;
 
-			if (current == FAILED) {
-				// already failed. It is enough to remember once that we failed (its sad enough)
-				return;
+		ExecutionState current = this.state;
+
+		if (current == FAILED) {
+			// already failed. It is enough to remember once that we failed (its sad enough)
+			return;
+		}
+
+		if (current == CANCELED || current == FINISHED) {
+			// we are already aborting or are already aborted or we are already finished
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Ignoring transition of vertex {} to {} while being {}.", getVertexWithAttempt(), FAILED, current);
 			}
+			return;
+		}
 
-			if (current == CANCELED || current == FINISHED) {
-				// we are already aborting or are already aborted or we are already finished
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Ignoring transition of vertex {} to {} while being {}.", getVertexWithAttempt(), FAILED, current);
-				}
-				return;
-			}
+		if (current == CANCELING) {
+			completeCancelling(userAccumulators, metrics, true);
+			return;
+		}
 
-			if (current == CANCELING) {
-				completeCancelling(userAccumulators, metrics, true);
-				return;
-			}
+		if (!fromSchedulerNg && !isLegacyScheduling()) {
+			vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(attemptId, t);
 
-			if (!fromSchedulerNg && !isLegacyScheduling()) {
-				vertex.getExecutionGraph().notifySchedulerNgAboutInternalTaskFailure(attemptId, t);
+			// HACK: We informed the new generation scheduler about an internally detected task
+			// failure. The scheduler will call processFail() again with releasePartitions
+			// always set to false, isCallback to true and fromSchedulerNg set to true.
+			// Because the original value of releasePartitions and isCallback will be lost,
+			// we may need to invoke partition release and remote canceling here.
+			maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
 
-				// HACK: We informed the new generation scheduler about an internally detected task
-				// failure. The scheduler will call processFail() again with releasePartitions
-				// always set to false, isCallback to true and fromSchedulerNg set to true.
-				// Because the original value of releasePartitions and isCallback will be lost,
-				// we may need to invoke partition release and remote canceling here.
-				maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
+			return;
+		}
 
-				return;
-			} else if (transitionState(current, FAILED, t)) {
-				// success (in a manner of speaking)
-				this.failureCause = t;
+		checkState(transitionState(current, FAILED, t));
 
-				updateAccumulatorsAndMetrics(userAccumulators, metrics);
+		// success (in a manner of speaking)
+		this.failureCause = t;
 
-				releaseAssignedResource(t);
-				vertex.getExecutionGraph().deregisterExecution(this);
+		updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
-				if (isLegacyScheduling()) {
-					maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
-				}
+		releaseAssignedResource(t);
+		vertex.getExecutionGraph().deregisterExecution(this);
 
-				// leave the loop
-				return;
-			}
+		if (isLegacyScheduling()) {
+			maybeReleasePartitionsAndSendCancelRpcCall(current, isCallback, releasePartitions);
 		}
 	}
 
