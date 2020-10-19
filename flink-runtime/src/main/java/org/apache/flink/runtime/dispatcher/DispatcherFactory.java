@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import java.util.function.Function;
 
 /**
  * {@link Dispatcher} factory interface.
@@ -29,8 +32,8 @@ public interface DispatcherFactory {
 	 * Create a {@link Dispatcher}.
 	 */
 	Dispatcher createDispatcher(
-		RpcService rpcService,
-		DispatcherId fencingToken,
-		DispatcherBootstrap dispatcherBootstrap,
-		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
+			RpcService rpcService,
+			DispatcherId fencingToken,
+			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 }

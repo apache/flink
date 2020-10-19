@@ -20,7 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import java.util.function.Function;
 
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
 
@@ -34,7 +37,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 	public MiniDispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			DispatcherBootstrap dispatcherBootstrap,
+			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
 		final String executionModeValue = configuration.getString(EXECUTION_MODE);
@@ -44,7 +47,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 			rpcService,
 			fencingToken,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
-			dispatcherBootstrap,
+			dispatcherBootstrapFactory,
 			executionMode);
 	}
 }

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -78,15 +77,12 @@ public class ApplicationDispatcherGatewayServiceFactory implements AbstractDispa
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {
 
-		final DispatcherBootstrap bootstrap =
-				new ApplicationDispatcherBootstrap(application, recoveredJobs, configuration);
-
 		final Dispatcher dispatcher;
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 					rpcService,
 					fencingToken,
-					bootstrap,
+					errorHandler -> new ApplicationDispatcherBootstrap(application, recoveredJobs, configuration, errorHandler),
 					PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);

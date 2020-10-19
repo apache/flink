@@ -66,7 +66,7 @@ class DefaultDispatcherGatewayServiceFactory implements AbstractDispatcherLeader
 			dispatcher = dispatcherFactory.createDispatcher(
 				rpcService,
 				fencingToken,
-				bootstrap,
+				errorHandler -> bootstrap,
 				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);

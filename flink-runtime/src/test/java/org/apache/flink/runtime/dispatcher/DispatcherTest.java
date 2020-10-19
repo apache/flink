@@ -111,6 +111,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -218,7 +219,8 @@ public class DispatcherTest extends TestLogger {
 	 */
 	public class TestingDispatcherBuilder {
 
-		private DispatcherBootstrap dispatcherBootstrap = new DefaultDispatcherBootstrap(Collections.emptyList());
+		private Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory =
+				errorHandler -> new DefaultDispatcherBootstrap(Collections.emptyList());
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -238,8 +240,9 @@ public class DispatcherTest extends TestLogger {
 			return this;
 		}
 
-		TestingDispatcherBuilder setDispatcherBootstrap(DispatcherBootstrap dispatcherBootstrap) {
-			this.dispatcherBootstrap = dispatcherBootstrap;
+		TestingDispatcherBuilder setDispatcherBootstrapFactory(
+				Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory) {
+			this.dispatcherBootstrapFactory = dispatcherBootstrapFactory;
 			return this;
 		}
 
@@ -261,7 +264,7 @@ public class DispatcherTest extends TestLogger {
 			return new TestingDispatcher(
 				rpcService,
 				DispatcherId.generate(),
-				dispatcherBootstrap,
+				dispatcherBootstrapFactory,
 				new DispatcherServices(
 					configuration,
 					haServices,
@@ -582,7 +585,7 @@ public class DispatcherTest extends TestLogger {
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setDispatcherBootstrap(new DefaultDispatcherBootstrap(Collections.singleton(failingJobGraph)))
+			.setDispatcherBootstrapFactory(errorHandler -> new DefaultDispatcherBootstrap(Collections.singleton(failingJobGraph)))
 			.build();
 
 		dispatcher.start();
@@ -737,7 +740,7 @@ public class DispatcherTest extends TestLogger {
 			.build();
 
 		dispatcher = new TestingDispatcherBuilder()
-			.setDispatcherBootstrap(new DefaultDispatcherBootstrap(Collections.singleton(jobGraph)))
+			.setDispatcherBootstrapFactory(errorHandler -> new DefaultDispatcherBootstrap(Collections.singleton(jobGraph)))
 			.setJobGraphWriter(testingJobGraphStore)
 			.build();
 		dispatcher.start();
