@@ -40,7 +40,7 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, a0], isBroadcast=[true], build=[right])
-   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
    :  +- Calc(select=[a], reuse_id=[1])
    :     +- Limit(offset=[0], fetch=[10], global=[true])
    :        +- Exchange(distribution=[single])
