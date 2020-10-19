@@ -598,7 +598,7 @@ conditions:
 {% highlight sql %}
 PATTERN (A B+)
 DEFINE
-  A AS A.price > 10,
+  A AS A.price >= 10,
   B AS B.price > A.price AND SUM(price) < 100 AND SUM(B.price) < 80
 {% endhighlight %}
 
@@ -745,7 +745,7 @@ conditions:
 {% highlight sql %}
 PATTERN (A B+)
 DEFINE
-  A AS A.price > 10,
+  A AS A.price >= 10,
   B AS (LAST(B.price, 1) IS NULL OR B.price > LAST(B.price, 1)) AND
        (LAST(B.price, 2) IS NULL OR B.price > 2 * LAST(B.price, 2))
 {% endhighlight %}
@@ -782,7 +782,7 @@ The table consists of the following columns:
       <td>-&gt; B</td>
       <td>null</td>
       <td>null</td>
-      <td>Notice that <code>LAST(A.price, 1)</code> is null because there is still nothing mapped
+      <td>Notice that <code>LAST(B.price, 1)</code> is null because there is still nothing mapped
           to <code>B</code>.</td>
     </tr>
     <tr>
