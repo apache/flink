@@ -35,11 +35,11 @@ public interface DispatcherBootstrap {
 	 *
 	 * @param dispatcher the dispatcher to be initialized.
 	 */
-	void initialize(final Dispatcher dispatcher, ScheduledExecutor scheduledExecutor) throws Exception;
+	void initialize(final DispatcherGateway dispatcher, ScheduledExecutor scheduledExecutor) throws Exception;
 
 	/**
 	 * Stops and frees any resources (e.g. threads) acquired
-	 * by the {@link #initialize(Dispatcher, ScheduledExecutor)}.
+	 * by the {@link #initialize(DispatcherGateway, ScheduledExecutor)}.
 	 */
 	void stop() throws Exception;
 }

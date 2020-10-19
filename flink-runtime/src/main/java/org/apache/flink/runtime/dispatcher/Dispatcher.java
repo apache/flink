@@ -119,6 +119,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, DispatcherJob> runningJobs;
 
+	private final Collection<JobGraph> recoveredJobs;
+
 	private final Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
@@ -150,6 +152,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	public Dispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
 			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
@@ -186,6 +189,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		this.shutDownFuture = new CompletableFuture<>();
 
 		this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
+
+		this.recoveredJobs = new HashSet<>(recoveredJobs);
 	}
 
 	//------------------------------------------------------
@@ -210,8 +215,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		this.dispatcherBootstrap = this.dispatcherBootstrapFactory.apply(shutDownFuture::completeExceptionally);
-		this.dispatcherBootstrap.initialize(this, this.getRpcService().getScheduledExecutor());
+		this.dispatcherBootstrap = this.dispatcherBootstrapFactory.apply(this::onFatalError);
+		startRecoveredJobs();
+		this.dispatcherBootstrap.initialize(getSelfGateway(DispatcherGateway.class), this.getRpcService().getScheduledExecutor());
 	}
 
 	private void startDispatcherServices() throws Exception {
@@ -222,7 +228,14 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		}
 	}
 
-	void runRecoveredJob(final JobGraph recoveredJob) {
+	private void startRecoveredJobs() {
+		for (JobGraph recoveredJob : recoveredJobs) {
+			runRecoveredJob(recoveredJob);
+		}
+		recoveredJobs.clear();
+	}
+
+	private void runRecoveredJob(final JobGraph recoveredJob) {
 		checkNotNull(recoveredJob);
 		try {
 			runJob(recoveredJob, ExecutionType.RECOVERY);
