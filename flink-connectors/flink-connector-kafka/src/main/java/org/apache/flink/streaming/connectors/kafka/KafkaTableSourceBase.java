@@ -25,6 +25,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSource;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sources.DefinedFieldMapping;
@@ -51,7 +53,10 @@ import java.util.Properties;
  *
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
+ *
+ * @deprecated Use {@link KafkaDynamicSource} via {@link KafkaDynamicTableFactory}.
  */
+@Deprecated
 @Internal
 public abstract class KafkaTableSourceBase implements
 		StreamTableSource<Row>,

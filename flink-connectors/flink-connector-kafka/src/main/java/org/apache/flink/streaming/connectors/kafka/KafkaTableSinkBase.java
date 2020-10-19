@@ -25,6 +25,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
@@ -43,7 +45,10 @@ import java.util.Properties;
  *
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
+ *
+ * @deprecated Use {@link KafkaDynamicSink} via {@link KafkaDynamicTableFactory}.
  */
+@Deprecated
 @Internal
 public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 
