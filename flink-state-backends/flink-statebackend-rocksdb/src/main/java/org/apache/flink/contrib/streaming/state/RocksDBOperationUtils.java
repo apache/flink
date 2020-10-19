@@ -177,7 +177,7 @@ public class RocksDBOperationUtils {
 	 * @param writeBufferSize the size of write buffer (bytes)
 	 * @param arenaBlockSizeConfigured the manually configured arena block size
 	 * @param writeBufferManagerCapacity the size of the write buffer manager (bytes)
-	 * @return true is sanity check passes, false otherwise
+	 * @return true if sanity check passes, false otherwise
 	 */
 	static boolean sanityCheckArenaBlockSize(
 		long writeBufferSize,
