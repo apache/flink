@@ -106,11 +106,23 @@ public class KubernetesUtils {
 	 * @return Task manager labels.
 	 */
 	public static Map<String, String> getTaskManagerLabels(String clusterId) {
-		final Map<String, String> labels = new HashMap<>();
-		labels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
-		labels.put(Constants.LABEL_APP_KEY, clusterId);
+		final Map<String, String> labels = getCommonLabels(clusterId);
 		labels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
 		return Collections.unmodifiableMap(labels);
+	}
+
+	/**
+	 * Get the common labels for Flink native clusters. All the Kubernetes resources will be set with these labels.
+	 *
+	 * @param clusterId cluster id
+	 * @return Return common labels map
+	 */
+	public static Map<String, String> getCommonLabels(String clusterId) {
+		final Map<String, String> commonLabels = new HashMap<>();
+		commonLabels.put(Constants.LABEL_TYPE_KEY, Constants.LABEL_TYPE_NATIVE_TYPE);
+		commonLabels.put(Constants.LABEL_APP_KEY, clusterId);
+
+		return commonLabels;
 	}
 
 	/**
