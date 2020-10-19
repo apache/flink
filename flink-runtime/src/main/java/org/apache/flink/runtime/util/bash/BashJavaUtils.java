@@ -36,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -105,7 +104,9 @@ public class BashJavaUtils {
 
 		logMasterConfiguration(jobManagerProcessSpec);
 
-		return Collections.singletonList(JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, configuration));
+		return Arrays.asList(
+				JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, configuration),
+				JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec));
 	}
 
 	private static void logMasterConfiguration(JobManagerProcessSpec spec) {

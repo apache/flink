@@ -524,10 +524,10 @@ extractLoggingOutputs() {
     echo "${output}" | grep -v ${EXECUTION_PREFIX}
 }
 
-parseJmJvmArgsAndExportLogs() {
+parseJmArgsAndExportLogs() {
   java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
-  jvm_params=$(extractExecutionResults "${java_utils_output}" 1)
+  params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
   if [[ $? -ne 0 ]]; then
     echo "[ERROR] Could not get JVM parameters and dynamic configurations properly."
@@ -536,7 +536,9 @@ parseJmJvmArgsAndExportLogs() {
     exit 1
   fi
 
+  jvm_params=$(echo "${params_output}" | head -n1)
   export JVM_ARGS="${JVM_ARGS} ${jvm_params}"
+  export DYNAMIC_PARAMETERS=$(IFS=" " echo "${params_output}" | tail -n1)
 
   export FLINK_INHERITED_LOGS="
 $FLINK_INHERITED_LOGS

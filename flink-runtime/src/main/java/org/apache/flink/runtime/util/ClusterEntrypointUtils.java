@@ -21,7 +21,12 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
+import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -33,8 +38,33 @@ import java.util.Optional;
  */
 public final class ClusterEntrypointUtils {
 
+	protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypointUtils.class);
+
 	private ClusterEntrypointUtils() {
 		throw new UnsupportedOperationException("This class should not be instantiated.");
+	}
+
+	/**
+	 * Parses passed String array using the parameter definitions of the passed {@code ParserResultFactory}.
+	 * The method will call {@code System.exit} and print the usage information to stdout in case of a parsing error.
+	 * @param args The String array that shall be parsed.
+	 * @param parserResultFactory The {@code ParserResultFactory} that collects the parameter parsing instructions.
+	 * @param mainClass The main class initiating the parameter parsing.
+	 * @param <T> The parsing result type.
+	 * @return The parsing result.
+	 */
+	public static <T> T parseParametersOrExit(String[] args, ParserResultFactory<T> parserResultFactory, Class<?> mainClass) {
+		final CommandLineParser<T> commandLineParser = new CommandLineParser<>(parserResultFactory);
+
+		try {
+			return commandLineParser.parse(args);
+		} catch (Exception e) {
+			LOG.error("Could not parse command line arguments {}.", args, e);
+			commandLineParser.printHelp(mainClass.getSimpleName());
+			System.exit(1);
+		}
+
+		return null;
 	}
 
 	/**
