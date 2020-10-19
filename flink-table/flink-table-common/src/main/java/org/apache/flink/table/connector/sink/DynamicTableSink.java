@@ -140,7 +140,7 @@ public interface DynamicTableSink {
 		 *
 		 * @see TableSchema#toPhysicalRowDataType()
 		 */
-		TypeInformation<?> createTypeInformation(DataType consumedDataType);
+		<T> TypeInformation<T> createTypeInformation(DataType consumedDataType);
 
 		/**
 		 * Creates a converter for mapping between Flink's internal data structures and objects specified

@@ -94,7 +94,7 @@ public interface DynamicTableSource {
 		 *
 		 * @see TableSchema#toPhysicalRowDataType()
 		 */
-		TypeInformation<?> createTypeInformation(DataType producedDataType);
+		<T> TypeInformation<T> createTypeInformation(DataType producedDataType);
 
 		/**
 		 * Creates a converter for mapping between objects specified by the given {@link DataType} and
