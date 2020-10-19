@@ -275,7 +275,9 @@ public class KafkaConsumerThread<T> extends Thread {
 		}
 		finally {
 			// make sure the handover is closed if it is not already closed or has an error
-			handover.close();
+			if(running) {
+				handover.close();
+			}
 
 			// make sure the KafkaConsumer is closed
 			try {
