@@ -251,7 +251,7 @@ public class MiniDispatcherTest extends TestLogger {
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
-			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
+			errorHandler -> new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 
