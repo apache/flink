@@ -119,7 +119,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Map<JobID, DispatcherJob> runningJobs;
 
-	private final DispatcherBootstrap dispatcherBootstrap;
+	private final Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
@@ -138,6 +138,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	protected final CompletableFuture<ApplicationStatus> shutDownFuture;
 
+	private DispatcherBootstrap dispatcherBootstrap;
+
 	/**
 	 * Enum to distinguish between initial job submission and re-submission for recovery.
 	 */
@@ -148,7 +150,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	public Dispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			DispatcherBootstrap dispatcherBootstrap,
+			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
 		checkNotNull(dispatcherServices);
@@ -183,7 +185,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 		this.shutDownFuture = new CompletableFuture<>();
 
-		this.dispatcherBootstrap = checkNotNull(dispatcherBootstrap);
+		this.dispatcherBootstrapFactory = checkNotNull(dispatcherBootstrapFactory);
 	}
 
 	//------------------------------------------------------
@@ -208,7 +210,8 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		dispatcherBootstrap.initialize(this, this.getRpcService().getScheduledExecutor());
+		this.dispatcherBootstrap = this.dispatcherBootstrapFactory.apply(shutDownFuture::completeExceptionally);
+		this.dispatcherBootstrap.initialize(this, this.getRpcService().getScheduledExecutor());
 	}
 
 	private void startDispatcherServices() throws Exception {

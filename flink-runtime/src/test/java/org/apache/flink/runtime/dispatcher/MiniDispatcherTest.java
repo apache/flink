@@ -253,7 +253,7 @@ public class MiniDispatcherTest extends TestLogger {
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory,
 				ForkJoinPool.commonPool()),
-			new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
+			errorHandler -> new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
 			executionMode);
 	}
 
