@@ -52,7 +52,6 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -251,7 +250,8 @@ public class MiniDispatcherTest extends TestLogger {
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
-			errorHandler -> new DefaultDispatcherBootstrap(Collections.singletonList(jobGraph)),
+			jobGraph,
+			errorHandler -> new NoOpDispatcherBootstrap(),
 			executionMode);
 	}
 
