@@ -25,24 +25,35 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -298,6 +309,80 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		topics.forEach(KafkaTestBase::deleteTestTopic);
 	}
 
+	@Test
+	public void testKafkaSourceSinkWithMetadata() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "metadata_topic_" + format;
+		createTestTopic(topic, 1, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `physical_1` STRING,\n"
+						+ "  `physical_2` INT,\n"
+						// metadata fields are out of order on purpose
+						+ "  `timestamp-type` STRING METADATA VIRTUAL,\n"
+						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
+						+ "  `offset` BIGINT METADATA VIRTUAL,\n"
+						+ "  `leader-epoch` INT METADATA VIRTUAL,\n"
+						+ "  `headers` MAP<STRING, BYTES> METADATA,\n"
+						+ "  `partition` INT METADATA VIRTUAL,\n"
+						+ "  `topic` STRING METADATA VIRTUAL,\n"
+						+ "  `physical_3` BOOLEAN\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  %s\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				formatOptions());
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
+				+ " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
+				+ " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+
+		final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+
+		final Map<String, byte[]> headers1 = new HashMap<>();
+		headers1.put("k1", new byte[]{(byte) 0xC0, (byte) 0xFF, (byte) 0xEE});
+		headers1.put("k2", new byte[]{(byte) 0xBA, (byte) 0xBE});
+
+		final Map<String, byte[]> headers3 = new HashMap<>();
+		headers3.put("k1", new byte[]{(byte) 0x10});
+		headers3.put("k2", new byte[]{(byte) 0x20});
+
+		final List<Row> expected = Arrays.asList(
+				Row.of("data 1", 1, "CreateTime", LocalDateTime.parse("2020-03-08T13:12:11.123"), 0L, 0, headers1, 0, topic, true),
+				Row.of("data 2", 2, "CreateTime", LocalDateTime.parse("2020-03-09T13:12:11.123"), 1L, 0, Collections.emptyMap(), 0, topic, false),
+				Row.of("data 3", 3, "CreateTime", LocalDateTime.parse("2020-03-10T13:12:11.123"), 2L, 0, headers3, 0, topic, true)
+		);
+
+		assertThat(result, deepEqualTo(expected));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
 	private String formatOptions() {
 		if (!isLegacyConnector) {
 			return String.format("'format' = '%s'", format);
@@ -351,4 +436,22 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		}
 	}
 
+	private static List<Row> collectRows(Table table, int expectedSize) throws Exception {
+		final TableResult result = table.execute();
+		final List<Row> collectedRows = new ArrayList<>();
+		try (CloseableIterator<Row> iterator = result.collect()) {
+			while (collectedRows.size() < expectedSize && iterator.hasNext()) {
+				collectedRows.add(iterator.next());
+			}
+		}
+		result.getJobClient().ifPresent(jc -> {
+			try {
+				jc.cancel().get(5, TimeUnit.SECONDS);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		});
+
+		return collectedRows;
+	}
 }
