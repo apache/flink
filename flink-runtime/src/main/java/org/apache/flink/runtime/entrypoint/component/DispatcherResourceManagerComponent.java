@@ -52,7 +52,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	private final DispatcherRunner dispatcherRunner;
 
 	@Nonnull
-	private final ResourceManager<?> resourceManager;
+	private final ResourceManagerService resourceManagerService;
 
 	@Nonnull
 	private final LeaderRetrievalService dispatcherLeaderRetrievalService;
@@ -71,12 +71,12 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
 	DispatcherResourceManagerComponent(
 			@Nonnull DispatcherRunner dispatcherRunner,
-			@Nonnull ResourceManager<?> resourceManager,
+			@Nonnull ResourceManagerService resourceManagerService,
 			@Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
 			@Nonnull LeaderRetrievalService resourceManagerRetrievalService,
 			@Nonnull AutoCloseableAsync webMonitorEndpoint) {
 		this.dispatcherRunner = dispatcherRunner;
-		this.resourceManager = resourceManager;
+		this.resourceManagerService = resourceManagerService;
 		this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
 		this.resourceManagerRetrievalService = resourceManagerRetrievalService;
 		this.webMonitorEndpoint = webMonitorEndpoint;
@@ -120,7 +120,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 			final ApplicationStatus applicationStatus,
 			final @Nullable String diagnostics) {
 
-		final ResourceManagerGateway selfGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+		final ResourceManagerGateway selfGateway = resourceManagerService.getGateway();
 		return selfGateway.deregisterApplication(applicationStatus, diagnostics).thenApply(ack -> null);
 	}
 
@@ -145,7 +145,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
 		terminationFutures.add(dispatcherRunner.closeAsync());
 
-		terminationFutures.add(resourceManager.closeAsync());
+		terminationFutures.add(resourceManagerService.closeAsync());
 
 		if (exception != null) {
 			terminationFutures.add(FutureUtils.completedExceptionally(exception));
@@ -167,5 +167,13 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	@Override
 	public CompletableFuture<Void> closeAsync() {
 		return deregisterApplicationAndClose(ApplicationStatus.CANCELED, "DispatcherResourceManagerComponent has been closed.");
+	}
+
+	/**
+	 * Service which gives access to a {@link ResourceManagerGateway}.
+	 */
+	interface ResourceManagerService extends AutoCloseableAsync {
+
+		ResourceManagerGateway getGateway();
 	}
 }
