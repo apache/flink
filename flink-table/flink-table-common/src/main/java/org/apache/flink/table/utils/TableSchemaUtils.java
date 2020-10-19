@@ -31,8 +31,10 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -72,9 +74,9 @@ public class TableSchemaUtils {
 	 * The new {@link TableSchema} doesn't contain any primary key or watermark information.
 	 *
 	 * <p>When extracting the fields from the origin schema, the fields may get name conflicts in the
-	 * new schema. Considering that the path to the fields is unique in schema, it's reasonable to
-	 * use the qualified path with `_` as delimiter as the new name of the extracted fields. For
-	 * example, the new name of the field `a.b` is ``a`_`b``.
+	 * new schema. Considering that the path to the fields is unique in schema, using the path as the
+	 * postfix to resolve the name conflicts in the new schema. For example, if field `f.a` gets name
+	 * conflict, the new name is `a@`f`.`a``.
 	 *
 	 * @see org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
 	 */
@@ -82,20 +84,33 @@ public class TableSchemaUtils {
 		checkArgument(containsPhysicalColumnsOnly(tableSchema), "Projection is only supported for physical columns.");
 		TableSchema.Builder schemaBuilder = TableSchema.builder();
 		List<TableColumn> tableColumns = tableSchema.getTableColumns();
+		Set<String> newNameDomain = new HashSet<>();
 		for (int[] fieldPath : projectedFields) {
 			TableColumn column = tableColumns.get(fieldPath[0]);
+			String newName;
 			if (fieldPath.length == 1) {
-				schemaBuilder.field(String.format("`%s`", column.getName()), column.getType());
+				newName = column.getName();
+				if (newNameDomain.contains(newName)) {
+					newName = String.format("%s@`%s`", newName, newName);
+				}
+				schemaBuilder.field(newName, column.getType());
 			} else {
 				DataType dataType = column.getType();
-				StringBuilder nameBuilder = new StringBuilder("`" + column.getName() + "`");
+				StringBuilder nameBuilder = new StringBuilder(column.getName());
+				StringBuilder qualifiedNameBuilder = new StringBuilder("`" + column.getName() + "`");
 				for (int i = 1; i < fieldPath.length; i++) {
 					RowType rowType = (RowType) dataType.getLogicalType();
-					nameBuilder.append("_`").append(rowType.getFieldNames().get(fieldPath[i])).append("`");
+					nameBuilder.append("_").append(rowType.getFieldNames().get(fieldPath[i]));
+					qualifiedNameBuilder.append(".`").append(rowType.getFieldNames().get(fieldPath[i])).append("`");
 					dataType = dataType.getChildren().get(fieldPath[i]);
 				}
-				schemaBuilder.field(nameBuilder.toString(), dataType);
+				newName = nameBuilder.toString();
+				if (newNameDomain.contains(newName)) {
+					newName = String.format("%s@%s", newName, qualifiedNameBuilder.toString());
+				}
+				schemaBuilder.field(newName, dataType);
 			}
+			newNameDomain.add(newName);
 		}
 		return schemaBuilder.build();
 	}

@@ -65,7 +65,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedSum=[+($3..value, $3
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1], nestedSum=[+($3, $2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[`id`, `deepNested`_`nested1`_`name`, `deepNestedWith.`_`nested`_`.value`, `deepNestedWith.`_`.value`]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNestedWith._nested_.value, deepNestedWith._.value]]])
 ]]>
     </Resource>
   </TestCase>
@@ -87,7 +87,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$3], nestedValue=[$4], nestedFlag=[$2], nestedNum=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[`id`, `deepNested`_`nested2`_`num`, `deepNested`_`nested2`_`flag`, `deepNested`_`nested1`_`name`, `nested`_`value`]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested2_num, deepNested_nested2_flag, deepNested_nested1_name, nested_value]]])
 ]]>
     </Resource>
   </TestCase>
@@ -123,7 +123,7 @@ LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[`a`, `c`]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]])
 ]]>
     </Resource>
   </TestCase>
@@ -140,7 +140,7 @@ LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, project=[`a`]]])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, project=[a]]])
 ]]>
     </Resource>
   </TestCase>
@@ -157,7 +157,7 @@ LogicalProject(a=[$0], d=[+($0, 1)])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], d=[+($0, 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, project=[`a`]]])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, project=[a]]])
 ]]>
     </Resource>
   </TestCase>
@@ -173,7 +173,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[`a`, `c`]]])
+LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]])
 ]]>
     </Resource>
   </TestCase>
