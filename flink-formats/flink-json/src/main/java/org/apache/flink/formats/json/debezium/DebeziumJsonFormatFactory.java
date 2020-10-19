@@ -64,7 +64,6 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 
 	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
@@ -80,7 +79,7 @@ public class DebeziumJsonFormatFactory implements DeserializationFormatFactory, 
 					DynamicTableSource.Context context, DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+						context.createTypeInformation(producedDataType);
 				return new DebeziumJsonDeserializationSchema(
 					rowType,
 					rowDataTypeInfo,
