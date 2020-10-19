@@ -271,7 +271,7 @@ Note: All the jars in the "$FLINK_HOME/usrlib" directory in the image will be ad
 ### Stop Flink Application
 
 When an application is stopped, all Flink cluster resources are automatically destroyed.
-As always, Jobs may stop when manually canceled or, in the case of bounded Jobs, complete.
+As always, Jobs may stop when manually cancelled or, in the case of bounded Jobs, complete.
 
 {% highlight bash %}
 $ ./bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=<ClusterID> <JobID>

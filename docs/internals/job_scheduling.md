@@ -86,7 +86,7 @@ In case that the user cancels the job, it will go into the *cancelling* state.
 This also entails the cancellation of all currently running tasks.
 Once all running tasks have reached a final state, the job transitions to the state *cancelled*.
 
-Unlike the states *finished*, *canceled* and *failed* which denote a globally terminal state and, thus, trigger the clean up of the job, the *suspended* state is only locally terminal.
+Unlike the states *finished*, *cancelled* and *failed* which denote a globally terminal state and, thus, trigger the clean up of the job, the *suspended* state is only locally terminal.
 Locally terminal means that the execution of the job has been terminated on the respective JobManager but another JobManager of the Flink cluster can retrieve the job from the persistent HA store and restart it.
 Consequently, a job which reaches the *suspended* state won't be completely cleaned up.
 

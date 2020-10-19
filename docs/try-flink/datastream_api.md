@@ -604,7 +604,7 @@ Let's see how we can modify our Job to comply with our new requirements:
 
 * Whenever the flag is set to `true`, also set a timer for 1 minute in the future.
 * When the timer fires, reset the flag by clearing its state.
-* If the flag is ever cleared the timer should be canceled.
+* If the flag is ever cleared the timer should be cancelled.
 
 To cancel a timer, you have to remember what time it is set for, and remembering implies state, so you will begin by creating a timer state along with your flag state.
 

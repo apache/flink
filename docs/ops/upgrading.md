@@ -45,7 +45,7 @@ It is recommended to periodically take savepoints in order to be able to restart
 {% highlight bash %}
 > ./bin/flink cancel -s [pathToSavepoint] <jobID>
 {% endhighlight %}
-This means that the application is canceled immediately after the savepoint completed, i.e., no other checkpoints are taken after the savepoint.
+This means that the application is cancelled immediately after the savepoint completed, i.e., no other checkpoints are taken after the savepoint.
 
 Given a savepoint taken from an application, the same or a compatible application (see [Application State Compatibility](#application-state-compatibility) section below) can be started from that savepoint. Starting an application from a savepoint means that the state of its operators is initialized with the operator state persisted in the savepoint. This is done by starting an application using a savepoint.
 {% highlight bash %}

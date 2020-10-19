@@ -41,7 +41,7 @@ Checkpoints are by default not retained and are only used to resume a
 job from failures. They are deleted when a program is cancelled.
 You can, however, configure periodic checkpoints to be retained.
 Depending on the configuration these *retained* checkpoints are *not*
-automatically cleaned up when the job fails or is canceled.
+automatically cleaned up when the job fails or is cancelled.
 This way, you will have a checkpoint around to resume from if your job fails.
 
 {% highlight java %}

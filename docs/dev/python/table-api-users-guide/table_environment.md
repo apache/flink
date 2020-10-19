@@ -387,7 +387,7 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         Triggers the program execution. The environment will execute all parts of the program.
         If you use the <strong>insert_into</strong> or <strong>sql_update</strong> method to emit data to sinks, you can use this
         method trigger the program execution.
-        This method will block the client program until the job is finished/canceled/failed.
+        This method will block the client program until the job is finished/cancelled/failed.
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.execute">link</a>
