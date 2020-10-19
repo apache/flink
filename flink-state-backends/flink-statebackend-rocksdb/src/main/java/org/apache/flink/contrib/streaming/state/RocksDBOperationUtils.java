@@ -195,7 +195,7 @@ public class RocksDBOperationUtils {
 					"RocksDB will flush memtable constantly, causing high IO and CPU. " +
 					"Typically the easiest fix is to increase task manager managed memory size. " +
 					"If running locally, see the parameter taskmanager.memory.managed.size. " +
-					"Details: arenaBlockSize {} < mutableLimit {} (writeBufferSize = {}, arenaBlockSizeConfigured = {}," +
+					"Details: arenaBlockSize {} > mutableLimit {} (writeBufferSize = {}, arenaBlockSizeConfigured = {}," +
 					" defaultArenaBlockSize = {}, writeBufferManagerCapacity = {})",
 				arenaBlockSize, mutableLimit, writeBufferSize, arenaBlockSizeConfigured,
 				defaultArenaBlockSize, writeBufferManagerCapacity);
