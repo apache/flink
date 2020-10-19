@@ -151,7 +151,7 @@ public class RocksDBResourceContainerTest {
 		final long cacheSize = 1024L, writeBufferSize = 512L;
 		final LRUCache cache = new LRUCache(cacheSize, -1, false, 0.1);
 		final WriteBufferManager wbm = new WriteBufferManager(writeBufferSize, cache);
-		RocksDBSharedResources rocksDBSharedResources = new RocksDBSharedResources(cache, wbm, 512L);
+		RocksDBSharedResources rocksDBSharedResources = new RocksDBSharedResources(cache, wbm, writeBufferSize);
 		return new OpaqueMemoryResource<>(rocksDBSharedResources, cacheSize, rocksDBSharedResources::close);
 	}
 
