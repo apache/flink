@@ -32,7 +32,7 @@ import org.junit.Test
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.Timestamp
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, OffsetDateTime, ZoneId, ZoneOffset}
 import java.util.TimeZone
 
 import scala.collection.JavaConversions._
@@ -672,7 +672,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
 
-    val expected = List(1, 2, 3, 4, 7, 8, 16)
+    val expected = List(1000, 2000, 3000, 4000, 7000, 8000, 16000)
     assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
 
     val sinkDDL2 =
@@ -695,20 +695,20 @@ class TableSinkITCase extends StreamingTestBase {
       """
         |INSERT INTO sink2
         |SELECT
-        |  TUMBLE_ROWTIME(ts, INTERVAL '0.005' SECOND),
+        |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
         |  SUM(b)
         |FROM src
-        |GROUP BY TUMBLE(ts, INTERVAL '0.005' SECOND)
+        |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
         |""".stripMargin
     ).await()
 
-    val expected2 = List(4, 9, 19)
+    val expected2 = List(4999, 9999, 19999)
     assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
   }
 
   // ------------------------------------------------------------------------------------------
 
-  private def localDateTime(ts: Long): LocalDateTime = {
-    new Timestamp(ts - TimeZone.getDefault.getOffset(ts)).toLocalDateTime
+  private def localDateTime(epochSecond: Long): LocalDateTime = {
+    LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }
 }
