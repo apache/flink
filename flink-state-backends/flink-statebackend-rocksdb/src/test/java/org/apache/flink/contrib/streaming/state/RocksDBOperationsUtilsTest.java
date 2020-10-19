@@ -96,7 +96,7 @@ public class RocksDBOperationsUtilsTest {
 			long writeBufferSize = test.getWriteBufferSize();
 			long arenaBlockSizeConfigured = test.getArenaBlockSizeConfigured();
 			long writeBufferManagerCapacity = test.getWriteBufferManagerCapacity();
-			boolean expected = test.isExpected();
+			boolean expected = test.getExpectedResult();
 
 			boolean sanityCheckResult = RocksDBOperationUtils.sanityCheckArenaBlockSize(writeBufferSize, arenaBlockSizeConfigured, writeBufferManagerCapacity);
 			assertThat(sanityCheckResult, is(expected));
@@ -107,13 +107,13 @@ public class RocksDBOperationsUtilsTest {
 		private final long writeBufferSize;
 		private final long arenaBlockSizeConfigured;
 		private final long writeBufferManagerCapacity;
-		private final boolean expected;
+		private final boolean expectedResult;
 
-		public TestData(long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity, boolean expected) {
+		public TestData(long writeBufferSize, long arenaBlockSizeConfigured, long writeBufferManagerCapacity, boolean expectedResult) {
 			this.writeBufferSize = writeBufferSize;
 			this.arenaBlockSizeConfigured = arenaBlockSizeConfigured;
 			this.writeBufferManagerCapacity = writeBufferManagerCapacity;
-			this.expected = expected;
+			this.expectedResult = expectedResult;
 		}
 
 		public long getWriteBufferSize() {
@@ -128,8 +128,8 @@ public class RocksDBOperationsUtilsTest {
 			return writeBufferManagerCapacity;
 		}
 
-		public boolean isExpected() {
-			return expected;
+		public boolean getExpectedResult() {
+			return expectedResult;
 		}
 	}
 
