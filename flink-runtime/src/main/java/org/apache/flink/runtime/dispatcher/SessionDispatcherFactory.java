@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import java.util.function.Function;
 
 /**
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}.
@@ -30,13 +33,13 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 	public StandaloneDispatcher createDispatcher(
 			RpcService rpcService,
 			DispatcherId fencingToken,
-			DispatcherBootstrap dispatcherBootstrap,
+			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			fencingToken,
-			dispatcherBootstrap,
+			dispatcherBootstrapFactory,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }
