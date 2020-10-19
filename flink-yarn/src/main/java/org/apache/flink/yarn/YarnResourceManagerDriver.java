@@ -317,10 +317,6 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 		return requestResourceFutures.values().stream().mapToInt(Queue::size).sum();
 	}
 
-	private int getNumRequestedNotAllocatedWorkersFor(TaskExecutorProcessSpec taskExecutorProcessSpec) {
-		return requestResourceFutures.getOrDefault(taskExecutorProcessSpec, new LinkedList<>()).size();
-	}
-
 	private void removeContainerRequest(AMRMClient.ContainerRequest pendingContainerRequest) {
 		log.info("Removing container request {}.", pendingContainerRequest);
 		resourceManagerClient.removeContainerRequest(pendingContainerRequest);
