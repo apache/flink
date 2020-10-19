@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 
@@ -87,10 +88,11 @@ public class Krb5ConfOverlay extends AbstractContainerOverlay {
 		 * <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/security/jgss/tutorials/KerberosReq.html">Java documentation</a>.
 		 * Note that the JRE doesn't support the KRB5_CONFIG environment variable (JDK-7045913).
 		 */
-		public Builder fromEnvironment(Configuration globalConfiguration) {
+		public Builder fromEnvironmentOrConfiguration(Configuration globalConfiguration) {
 
 			// check the system property
-			String krb5Config = System.getProperty(JAVA_SECURITY_KRB5_CONF);
+			String krb5Config = System.getProperty(JAVA_SECURITY_KRB5_CONF) != null ?
+					System.getProperty(JAVA_SECURITY_KRB5_CONF) : globalConfiguration.get(SecurityOptions.KERBEROS_KRB5_PATH);
 			if (krb5Config != null && krb5Config.length() != 0) {
 				krb5ConfPath = new File(krb5Config);
 				if (!krb5ConfPath.exists()) {

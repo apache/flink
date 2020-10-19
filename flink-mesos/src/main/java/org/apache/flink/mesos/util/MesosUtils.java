@@ -153,7 +153,7 @@ public class MesosUtils {
 			HadoopConfOverlay.newBuilder().fromEnvironment(configuration).build(),
 			HadoopUserOverlay.newBuilder().fromEnvironment(configuration).build(),
 			KeytabOverlay.newBuilder().fromEnvironment(configuration).build(),
-			Krb5ConfOverlay.newBuilder().fromEnvironment(configuration).build(),
+			Krb5ConfOverlay.newBuilder().fromEnvironmentOrConfiguration(configuration).build(),
 			SSLStoreOverlay.newBuilder().fromEnvironment(configuration).build()
 		);
 
