@@ -207,7 +207,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 
 			return new DispatcherResourceManagerComponent(
 				dispatcherRunner,
-				resourceManager,
+				DefaultResourceManagerService.createFor(resourceManager),
 				dispatcherLeaderRetrievalService,
 				resourceManagerRetrievalService,
 				webMonitorEndpoint);
