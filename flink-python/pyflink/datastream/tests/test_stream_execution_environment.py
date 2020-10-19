@@ -45,6 +45,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
         self.test_sink = DataStreamTestSinkFunction()
 
     def test_get_config(self):
