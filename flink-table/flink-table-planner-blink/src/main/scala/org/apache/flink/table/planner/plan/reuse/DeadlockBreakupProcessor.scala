@@ -149,18 +149,19 @@ class DeadlockBreakupProcessor extends DAGProcessor {
     private def rewriteTwoInputNode(
         node: ExecNode[_, _],
         leftPriority: Int,
+        rightPriority: Int,
         requiredShuffle: ExecEdge.RequiredShuffle): Unit = {
-      val (buildSideIndex, probeSideIndex) = if (leftPriority == 0) (0, 1) else (1, 0)
-      val buildNode = node.getInputNodes.get(buildSideIndex)
-      val probeNode = node.getInputNodes.get(probeSideIndex)
+      val (higherIndex, lowerIndex) = if (leftPriority < rightPriority) (0, 1) else (1, 0)
+      val higherNode = node.getInputNodes.get(higherIndex)
+      val lowerNode = node.getInputNodes.get(lowerIndex)
 
-      // 1. find all reused nodes in build side
-      val reusedNodesInBuildSide = findReusedNodesInBuildSide(buildNode, finder)
-      // 2. find all nodes from probe side
-      val inputPathsOfProbeSide = buildInputPathsOfProbeSide(
-        probeNode, reusedNodesInBuildSide, finder)
+      // 1. find all reused nodes in higher input
+      val reusedNodesInHigherInput = findReusedNodesInHigherInput(higherNode, finder)
+      // 2. find all nodes from lower input
+      val inputPathsOfLowerInput = buildInputPathsOfLowerInput(
+        lowerNode, reusedNodesInHigherInput, finder)
       // 3. check whether all input paths have a barrier node (e.g. agg, sort)
-      if (inputPathsOfProbeSide.nonEmpty && !hasBarrierNodeInInputPaths(inputPathsOfProbeSide)) {
+      if (inputPathsOfLowerInput.nonEmpty && !hasBarrierNodeInInputPaths(inputPathsOfLowerInput)) {
         // 4. sets Exchange node(if does not exist, add one) as BATCH mode to break up the deadlock
         val distribution = requiredShuffle.getType match {
           case ExecEdge.ShuffleType.HASH =>
@@ -173,21 +174,21 @@ class DeadlockBreakupProcessor extends DAGProcessor {
           case _ =>
             FlinkRelDistribution.ANY
         }
-        probeNode match {
+        lowerNode match {
           case e: BatchExecExchange =>
             // TODO create a cloned BatchExecExchange for PIPELINE output
             e.setRequiredShuffleMode(ShuffleMode.BATCH)
           case _ =>
-            val probeRel = probeNode.asInstanceOf[RelNode]
-            val traitSet = probeRel.getTraitSet.replace(distribution)
+            val lowerRel = lowerNode.asInstanceOf[RelNode]
+            val traitSet = lowerRel.getTraitSet.replace(distribution)
             val e = new BatchExecExchange(
-              probeRel.getCluster,
+              lowerRel.getCluster,
               traitSet,
-              probeRel,
+              lowerRel,
               distribution)
             e.setRequiredShuffleMode(ShuffleMode.BATCH)
             // replace node's input
-            node.asInstanceOf[BatchExecNode[_]].replaceInputNode(probeSideIndex, e)
+            node.asInstanceOf[BatchExecNode[_]].replaceInputNode(lowerIndex, e)
         }
       }
     }
@@ -204,33 +205,33 @@ class DeadlockBreakupProcessor extends DAGProcessor {
           inputEdges.get(1).getRequiredShuffle
         }
         if (leftPriority != rightPriority) {
-          rewriteTwoInputNode(node, leftPriority, requiredShuffle)
+          rewriteTwoInputNode(node, leftPriority, rightPriority, requiredShuffle)
         }
       }
     }
   }
 
   /**
-    * Find all reused nodes in build side.
+    * Find all reused nodes in higher input.
     */
-  private def findReusedNodesInBuildSide(
-      buildNode: ExecNode[_, _],
+  private def findReusedNodesInHigherInput(
+      higherNode: ExecNode[_, _],
       finder: ReuseNodeFinder): Set[ExecNode[_, _]] = {
-    val nodesInBuildSide = Sets.newIdentityHashSet[ExecNode[_, _]]()
-    buildNode.accept(new ExecNodeVisitorImpl {
+    val nodesInHigherInput = Sets.newIdentityHashSet[ExecNode[_, _]]()
+    higherNode.accept(new ExecNodeVisitorImpl {
       override def visit(node: ExecNode[_, _]): Unit = {
         if (finder.isReusedNode(node)) {
-          nodesInBuildSide.add(node)
+          nodesInHigherInput.add(node)
         }
         super.visit(node)
       }
     })
-    nodesInBuildSide.toSet
+    nodesInHigherInput.toSet
   }
 
   /**
-    * Visit all nodes in probe side until to the reused nodes
-    * which are in `reusedNodesInBuildSide` collection.
+    * Visit all nodes in lower input until to the reused nodes
+    * which are in `reusedNodesInHigherInput` collection.
     * e.g. (sub-plan reused is enabled)
     * {{{
     *            hash join
@@ -255,22 +256,22 @@ class DeadlockBreakupProcessor extends DAGProcessor {
     * }}}
     * the input-path of join's probe side is [calc2, scan].
     */
-  private def buildInputPathsOfProbeSide(
-      probeNode: ExecNode[_, _],
-      reusedNodesInBuildSide: Set[ExecNode[_, _]],
+  private def buildInputPathsOfLowerInput(
+      lowerNode: ExecNode[_, _],
+      reusedNodesInHigherInput: Set[ExecNode[_, _]],
       finder: ReuseNodeFinder): List[Array[ExecNode[_, _]]] = {
     val result = new mutable.ListBuffer[Array[ExecNode[_, _]]]()
     val stack = new mutable.Stack[ExecNode[_, _]]()
 
-    if (reusedNodesInBuildSide.isEmpty) {
+    if (reusedNodesInHigherInput.isEmpty) {
       return result.toList
     }
 
-    probeNode.accept(new ExecNodeVisitorImpl {
+    lowerNode.accept(new ExecNodeVisitorImpl {
       override def visit(node: ExecNode[_, _]): Unit = {
         stack.push(node)
         if (finder.isReusedNode(node) &&
-          isReusedNodeInBuildSide(node, reusedNodesInBuildSide)) {
+          isReusedNodeInHigherInput(node, reusedNodesInHigherInput)) {
           result.add(stack.toArray.reverse)
         } else {
           super.visit(node)
@@ -284,19 +285,19 @@ class DeadlockBreakupProcessor extends DAGProcessor {
   }
 
   /**
-    * Returns true if the given node is in `reusedNodesInBuildSide`, else false.
+    * Returns true if the given node is in `reusedNodesInHigherInput`, else false.
     * NOTES: We treat different [[BatchExecBoundedStreamScan]]s with same [[DataStream]]
     * object as the same.
     */
-  private def isReusedNodeInBuildSide(
+  private def isReusedNodeInHigherInput(
       execNode: ExecNode[_, _],
-      reusedNodesInBuildSide: Set[ExecNode[_, _]]): Boolean = {
-    if (reusedNodesInBuildSide.contains(execNode)) {
+      reusedNodesInHigherInput: Set[ExecNode[_, _]]): Boolean = {
+    if (reusedNodesInHigherInput.contains(execNode)) {
       true
     } else {
       execNode match {
         case scan: BatchExecBoundedStreamScan =>
-          reusedNodesInBuildSide.exists {
+          reusedNodesInHigherInput.exists {
             case reusedScan: BatchExecBoundedStreamScan =>
               reusedScan.boundedStreamTable.dataStream eq scan.boundedStreamTable.dataStream
             case _ => false
@@ -310,24 +311,24 @@ class DeadlockBreakupProcessor extends DAGProcessor {
     * Returns true if all input-paths have barrier node (e.g. agg, sort), otherwise false.
     */
   private def hasBarrierNodeInInputPaths(
-      inputPathsOfProbeSide: List[Array[ExecNode[_, _]]]): Boolean = {
-    require(inputPathsOfProbeSide.nonEmpty)
+      inputPathsOfLowerInput: List[Array[ExecNode[_, _]]]): Boolean = {
+    require(inputPathsOfLowerInput.nonEmpty)
 
-    /** Return true if the successor in the input-path is build node, otherwise false */
-    def checkBuildSide(
-        buildNode: ExecNode[_, _],
+    /** Return true if the successor in the input-path is also in higher input, otherwise false */
+    def checkHigherInput(
+        higherNode: ExecNode[_, _],
         idx: Int,
         inputPath: Array[ExecNode[_, _]]): Boolean = {
       if (idx < inputPath.length - 1) {
         val nextNode = inputPath(idx + 1)
-        // next node is build node
-        buildNode eq nextNode
+        // next node is higher input
+        higherNode eq nextNode
       } else {
         false
       }
     }
 
-    inputPathsOfProbeSide.forall {
+    inputPathsOfLowerInput.forall {
       inputPath =>
         var idx = 0
         var hasFullDamNode = false
@@ -344,9 +345,9 @@ class DeadlockBreakupProcessor extends DAGProcessor {
               val leftPriority = inputEdges.get(0).getPriority
               val rightPriority = inputEdges.get(1).getPriority
               if (leftPriority != rightPriority) {
-                val buildSideIndex = if (leftPriority == 0) 0 else 1
-                val buildNode = node.getInputNodes.get(buildSideIndex)
-                checkBuildSide(buildNode, idx, inputPath)
+                val higherIndex = if (leftPriority == 0) 0 else 1
+                val higherNode = node.getInputNodes.get(higherIndex)
+                checkHigherInput(higherNode, idx, inputPath)
               } else {
                 false
               }

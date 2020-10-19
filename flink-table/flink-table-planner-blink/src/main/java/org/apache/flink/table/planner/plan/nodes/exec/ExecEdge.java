@@ -36,6 +36,8 @@ public class ExecEdge {
 	// same integer indicates the same priority
 	private final int priority;
 
+	// TODO: add source node and target node member
+
 	private ExecEdge(RequiredShuffle requiredShuffle, DamBehavior damBehavior, int priority) {
 		this.requiredShuffle = requiredShuffle;
 		this.damBehavior = damBehavior;
@@ -94,6 +96,15 @@ public class ExecEdge {
 
 	/**
 	 * The required shuffle for records when passing this edge.
+	 *
+	 * <p>TODO: We would like to remove Exchange exec nodes in the future and this class
+	 * 	   will then describe the real, instead of the required, shuffle type of the edge,
+	 * 	   replacing the distribution property currently in Exchange node.
+	 *
+	 * <p>TODO: For example, hash joins <i>require</i> their inputs to be shuffled by hash
+	 *     keys, however if the records are already shuffled due to some previous operators
+	 *     such as hash aggregates, the real shuffle type of this edge will be a forwarding
+	 *     type. Class name might be changed too.
 	 */
 	public static class RequiredShuffle {
 
@@ -196,6 +207,10 @@ public class ExecEdge {
 	/**
 	 * Enumeration which describes how an output record from the source node
 	 * may trigger the output of the target node.
+	 *
+	 * <p>TODO: We would like to remove Exchange exec nodes in the future.
+	 *     The dam behavior will then not only be affected by the implementation of the operator
+	 *     but will also be affected by {@link org.apache.flink.streaming.api.transformations.ShuffleMode}.
 	 */
 	public enum DamBehavior {
 

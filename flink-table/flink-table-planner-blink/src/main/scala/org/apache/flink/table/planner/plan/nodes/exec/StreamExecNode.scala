@@ -23,6 +23,8 @@ import org.apache.flink.table.planner.utils.Logging
 
 import java.util
 
+import scala.collection.JavaConversions._
+
 /**
   * Base class for stream ExecNode.
   */
@@ -30,10 +32,6 @@ trait StreamExecNode[T] extends ExecNode[StreamPlanner, T] with Logging {
 
   def getInputEdges: util.List[ExecEdge] = {
     // TODO fill out the required shuffle for each stream exec node
-    val edges = new util.ArrayList[ExecEdge]()
-    for (_ <- 0 until getInputNodes.size()) {
-      edges.add(ExecEdge.DEFAULT)
-    }
-    edges
+    getInputNodes.map(_ => ExecEdge.DEFAULT)
   }
 }
