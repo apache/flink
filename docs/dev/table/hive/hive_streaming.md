@@ -74,7 +74,9 @@ and runs a batch query to read that data back out.
 SET table.sql-dialect=hive;
 CREATE TABLE hive_table (
   user_id STRING,
-  order_amount DOUBLE
+  order_amount DOUBLE,
+  dt STRING,
+  hr STRING
 ) PARTITIONED BY (dt STRING, hr STRING) STORED AS parquet TBLPROPERTIES (
   'partition.time-extractor.timestamp-pattern'='$dt $hr:00:00',
   'sink.partition-commit.trigger'='partition-time',
