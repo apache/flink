@@ -33,6 +33,9 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
@@ -98,5 +101,21 @@ public class JobManagerProcessUtils {
 		return ProcessMemoryUtils.generateJvmParametersStr(
 			processSpec,
 			configuration.getBoolean(JobManagerOptions.JVM_DIRECT_MEMORY_LIMIT_ENABLED));
+	}
+
+	public static String generateDynamicConfigsStr(final JobManagerProcessSpec jobManagerProcessSpec) {
+		final Map<String, String> config = new HashMap<>();
+
+		config.put(JobManagerOptions.JVM_HEAP_MEMORY.key(), jobManagerProcessSpec.getJvmHeapMemorySize().getBytes() + "b");
+		config.put(JobManagerOptions.OFF_HEAP_MEMORY.key(), jobManagerProcessSpec.getJvmDirectMemorySize().getBytes() + "b");
+
+		config.put(JobManagerOptions.JVM_METASPACE.key(), jobManagerProcessSpec.getJvmMetaspaceSize().getBytes() + "b");
+		config.put(JobManagerOptions.JVM_OVERHEAD_MIN.key(), jobManagerProcessSpec.getJvmOverheadSize().getBytes() + "b");
+		config.put(JobManagerOptions.JVM_OVERHEAD_MAX.key(), jobManagerProcessSpec.getJvmOverheadSize().getBytes() + "b");
+
+		return config.entrySet()
+				.stream()
+				.map(e -> String.format("-D %s=%s", e.getKey(), e.getValue()))
+				.collect(Collectors.joining(" "));
 	}
 }
