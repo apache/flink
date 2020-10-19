@@ -402,8 +402,6 @@ public final class Utils {
 
 		//To support Yarn Secure Integration Test Scenario
 		LocalResource yarnConfResource = null;
-		LocalResource krb5ConfResource = null;
-		boolean hasKrb5 = false;
 		if (remoteYarnConfPath != null) {
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
@@ -411,8 +409,11 @@ public final class Utils {
 			yarnConfResource = registerLocalResource(fs, yarnConfPath, LocalResourceType.FILE);
 		}
 
+		// register krb5.conf
+		LocalResource krb5ConfResource = null;
+		boolean hasKrb5 = false;
 		if (remoteKrb5Path != null) {
-			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
+			log.info("Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
 			Path krb5ConfPath = new Path(remoteKrb5Path);
 			FileSystem fs = krb5ConfPath.getFileSystem(yarnConfig);
 			krb5ConfResource = registerLocalResource(fs, krb5ConfPath, LocalResourceType.FILE);
