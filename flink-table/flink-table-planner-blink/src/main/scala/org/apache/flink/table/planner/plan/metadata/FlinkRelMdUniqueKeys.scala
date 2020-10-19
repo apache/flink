@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
+import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
@@ -556,6 +557,12 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
+      multipleInput: MultipleInputRel,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] =
+    mq.getUniqueKeys(multipleInput.outputRel, ignoreNulls)
+
+  def getUniqueKeys(
       subset: RelSubset,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
@@ -588,16 +595,6 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       rel: RelNode,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = null
-
-  private def toImmutableSet(array: Array[Int]): JSet[ImmutableBitSet] = {
-    if (array.nonEmpty) {
-      val keys = new JArrayList[Integer]()
-      array.foreach(keys.add(_))
-      ImmutableSet.of(ImmutableBitSet.of(keys))
-    } else {
-      null
-    }
-  }
 
 }
 

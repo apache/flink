@@ -2396,6 +2396,76 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable2")
     .minus(false).build()
 
+  // select * from
+  //  (select b, sum(e) from MyTable1 group by b) v1,
+  //  (select a, sum(c) from MyTable4 group by a) v2
+  //   where a = b
+  protected lazy val batchMultipleInput: RelNode = {
+    val leftInput = createGlobalAgg("MyTable1", "b", "e")
+    val rightInput = createGlobalAgg("MyTable4", "a", "c")
+    val join = new BatchExecHashJoin(
+      cluster,
+      batchPhysicalTraits,
+      leftInput,
+      rightInput,
+      rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
+        rexBuilder.makeInputRef(longType, 0),
+        rexBuilder.makeInputRef(longType, 2)),
+      JoinRelType.INNER,
+      leftIsBuild = true,
+      isBroadcast = false,
+      tryDistinctBuildRow = false
+    )
+   new BatchExecMultipleInputNode(
+      cluster,
+      batchPhysicalTraits,
+      Array(leftInput.getInput, rightInput.getInput),
+      join,
+      Array(0, 1)
+    )
+  }
+
+  private def createGlobalAgg(
+      table: String, groupBy: String, sum: String): BatchExecHashAggregate = {
+    val scan: BatchExecBoundedStreamScan =
+      createDataStreamScan(ImmutableList.of(table), batchPhysicalTraits)
+    relBuilder.push(scan)
+    val groupByField = relBuilder.field(groupBy)
+    val sumField = relBuilder.field(sum)
+    val hash = FlinkRelDistribution.hash(Array(groupByField.getIndex), requireStrict = true)
+
+    val exchange = new BatchExecExchange(cluster, batchPhysicalTraits.replace(hash), scan, hash)
+    relBuilder.push(exchange)
+
+    val logicalAgg = relBuilder.aggregate(
+      relBuilder.groupKey(groupBy),
+      relBuilder.aggregateCall(SqlStdOperatorTable.SUM, relBuilder.field(sum))
+    ).build().asInstanceOf[LogicalAggregate]
+    val aggCalls = logicalAgg.getAggCallList
+    val aggFunctionFactory = new AggFunctionFactory(
+      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+    val aggCallToAggFunction = aggCalls.zipWithIndex.map {
+      case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
+    }
+
+    val rowTypeOfGlobalAgg = typeFactory.builder
+      .add(groupByField.getName, groupByField.getType)
+      .add(sumField.getName, sumField.getType).build()
+
+    new BatchExecHashAggregate(
+      cluster,
+      relBuilder,
+      batchPhysicalTraits,
+      exchange,
+      rowTypeOfGlobalAgg,
+      exchange.getRowType,
+      exchange.getRowType,
+      Array(groupByField.getIndex),
+      auxGrouping = Array(),
+      aggCallToAggFunction,
+      isMerge = false)
+  }
+
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {
     val table = relBuilder

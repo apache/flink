@@ -22,9 +22,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecMultipleInputNode}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
@@ -115,6 +118,35 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     stmtSet.addInsert("sink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)
+  }
+
+  @Test
+  def testExplainMultipleInput(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sql =
+      """
+        |select * from
+        |   (select a, sum(b) from MyTable1 group by a) v1,
+        |   (select d, sum(e) from MyTable2 group by d) v2
+        |   where a = d
+        |""".stripMargin
+    // TODO use `util.verifyExplain` to verify the result
+    //  after supporting converting rel nodes to multiple input node
+    val relNode = TableTestUtil.toRelNode(util.tableEnv.sqlQuery(sql))
+    val batchRelNode = util.getPlanner.optimize(relNode).asInstanceOf[BatchExecHashJoin]
+    val firstInput = batchRelNode.getLeft.getInput(0).getInput(0)
+    val secondInput = batchRelNode.getRight.getInput(0).getInput(0)
+    val multipleInputRel = new BatchExecMultipleInputNode(
+      batchRelNode.getCluster,
+      batchRelNode.getTraitSet,
+      Array(firstInput, secondInput),
+      batchRelNode,
+      Array(0, 1)
+    )
+    val actual = FlinkRelOptUtil.toString(multipleInputRel)
+    val expected = TableTestUtil.readFromResource("/explain/testExplainMultipleInput.out")
+    assertEquals(expected, actual)
   }
 
 }
