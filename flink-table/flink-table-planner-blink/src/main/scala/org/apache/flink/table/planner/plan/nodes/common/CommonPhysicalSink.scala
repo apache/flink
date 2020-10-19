@@ -22,6 +22,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
@@ -29,14 +30,14 @@ import org.apache.flink.streaming.api.transformations.LegacySinkTransformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
-import org.apache.flink.table.connector.sink.{DynamicTableSink, OutputFormatProvider, SinkFunctionProvider}
+import org.apache.flink.table.connector.sink.{DataStreamSinkProvider, DynamicTableSink, OutputFormatProvider, SinkFunctionProvider}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.sinks.TableSinkUtils
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext
-import org.apache.flink.table.runtime.operators.sink.SinkOperator
+import org.apache.flink.table.runtime.operators.sink.{SinkNotNullEnforcer, SinkOperator}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
@@ -67,40 +68,43 @@ class CommonPhysicalSink (
     val inputTypeInfo = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getInput.getRowType))
     val runtimeProvider = tableSink.getSinkRuntimeProvider(
       new SinkRuntimeProviderContext(isBounded))
-    val sinkFunction = runtimeProvider match {
-      case provider: SinkFunctionProvider => provider.createSinkFunction()
-      case provider: OutputFormatProvider =>
-        val outputFormat = provider.createOutputFormat()
-        new OutputFormatSinkFunction(outputFormat)
-    }
-
-    sinkFunction match {
-      case itc: InputTypeConfigurable =>
-        // configure the type if needed
-        itc.setInputType(inputTypeInfo, env.getConfig)
-      case _ => // nothing to do
-    }
 
     val notNullEnforcer = tableConfig.getConfiguration
       .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER)
     val notNullFieldIndices = TableSinkUtils.getNotNullFieldIndices(catalogTable)
     val fieldNames = catalogTable.getSchema.toPhysicalRowDataType
-      .getLogicalType.asInstanceOf[RowType]
-      .getFieldNames
-      .toList.toArray
-    val operator = new SinkOperator(
-      env.clean(sinkFunction),
-      rowtimeFieldIndex,
-      notNullEnforcer,
-      notNullFieldIndices,
-      fieldNames
-    )
+        .getLogicalType.asInstanceOf[RowType]
+        .getFieldNames
+        .toList.toArray
+    val enforcer = new SinkNotNullEnforcer(notNullEnforcer, notNullFieldIndices, fieldNames)
 
-    new LegacySinkTransformation(
-      inputTransformation,
-      getRelDetailedDescription,
-      SimpleOperatorFactory.of(operator),
-      inputTransformation.getParallelism).asInstanceOf[Transformation[Any]]
+    runtimeProvider match {
+      case provider: DataStreamSinkProvider =>
+        val dataStream = new DataStream(env, inputTransformation).filter(enforcer)
+        provider.consumeDataStream(dataStream).getTransformation.asInstanceOf[Transformation[Any]]
+      case _ =>
+        val sinkFunction = runtimeProvider match {
+          case provider: SinkFunctionProvider => provider.createSinkFunction()
+          case provider: OutputFormatProvider =>
+            val outputFormat = provider.createOutputFormat()
+            new OutputFormatSinkFunction(outputFormat)
+        }
+
+        sinkFunction match {
+          case itc: InputTypeConfigurable =>
+            // configure the type if needed
+            itc.setInputType(inputTypeInfo, env.getConfig)
+          case _ => // nothing to do
+        }
+
+        val operator = new SinkOperator(env.clean(sinkFunction), rowtimeFieldIndex, enforcer)
+
+        new LegacySinkTransformation(
+          inputTransformation,
+          getRelDetailedDescription,
+          SimpleOperatorFactory.of(operator),
+          inputTransformation.getParallelism).asInstanceOf[Transformation[Any]]
+    }
   }
 
 }
