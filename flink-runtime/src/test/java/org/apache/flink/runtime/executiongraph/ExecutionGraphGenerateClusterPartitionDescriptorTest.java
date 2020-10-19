@@ -63,7 +63,7 @@ public class ExecutionGraphGenerateClusterPartitionDescriptorTest extends TestLo
 		final JobVertex sinkVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
 		operatorVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.POINTWISE,
-			ResultPartitionType.BLOCKING_PERSISTENT);
+			ResultPartitionType.BLOCKING);
 		sinkVertex.connectNewDataSetAsInput(operatorVertex, DistributionPattern.POINTWISE,
 			ResultPartitionType.BLOCKING_PERSISTENT);
 
@@ -80,7 +80,7 @@ public class ExecutionGraphGenerateClusterPartitionDescriptorTest extends TestLo
 
 		final Map<IntermediateDataSetID, PersistedIntermediateResultDescriptor> persistedIntermediateResult =
 			executionGraph.getPersistedIntermediateResult();
-		assertEquals(2, persistedIntermediateResult.size());
+		assertEquals(1, persistedIntermediateResult.size());
 	}
 
 	@Test
