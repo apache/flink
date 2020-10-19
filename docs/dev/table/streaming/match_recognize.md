@@ -598,7 +598,7 @@ conditions:
 {% highlight sql %}
 PATTERN (A B+)
 DEFINE
-  A AS A.price > 10,
+  A AS A.price >= 10,
   B AS B.price > A.price AND SUM(price) < 100 AND SUM(B.price) < 80
 {% endhighlight %}
 
@@ -745,7 +745,7 @@ conditions:
 {% highlight sql %}
 PATTERN (A B+)
 DEFINE
-  A AS A.price > 10,
+  A AS A.price >= 10,
   B AS (LAST(B.price, 1) IS NULL OR B.price > LAST(B.price, 1)) AND
        (LAST(B.price, 2) IS NULL OR B.price > 2 * LAST(B.price, 2))
 {% endhighlight %}
