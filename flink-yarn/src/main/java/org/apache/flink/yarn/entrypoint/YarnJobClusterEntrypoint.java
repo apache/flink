@@ -20,9 +20,11 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.DynamicParametersConfigurationParserFactory;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
+import org.apache.flink.runtime.util.ClusterEntrypointUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -82,7 +84,11 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			LOG.warn("Could not log YARN environment information.", e);
 		}
 
-		Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, env);
+		final Configuration dynamicParameters = ClusterEntrypointUtils.parseParametersOrExit(
+			args,
+			new DynamicParametersConfigurationParserFactory(),
+			YarnJobClusterEntrypoint.class);
+		final Configuration configuration = YarnEntrypointUtils.loadConfiguration(workingDirectory, dynamicParameters, env);
 
 		YarnJobClusterEntrypoint yarnJobClusterEntrypoint = new YarnJobClusterEntrypoint(configuration);
 

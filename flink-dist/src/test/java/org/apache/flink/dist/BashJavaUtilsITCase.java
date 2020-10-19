@@ -23,13 +23,20 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.util.bash.BashJavaUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
+import static org.hamcrest.collection.IsIn.isIn;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
@@ -72,7 +79,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
 	@Test
 	public void testGetJmResourceParams() throws Exception {
-		int expectedResultLines = 1;
+		int expectedResultLines = 2;
 		String[] commands = {
 			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
 			BashJavaUtils.Command.GET_JM_RESOURCE_PARAMS.toString(),
@@ -80,12 +87,15 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
 		assertThat(lines.size(), is(expectedResultLines));
-		ConfigurationUtils.parseJvmArgString(lines.get(0));
+
+		Map<String, String> jvmParams = ConfigurationUtils.parseJvmArgString(lines.get(0));
+		Map<String, String> dynamicParams = parseAndAssertDynamicParameters(lines.get(1));
+		assertJvmAndDynamicParametersMatch(jvmParams, dynamicParams);
 	}
 
 	@Test
 	public void testGetJmResourceParamsWithDynamicProperties() throws Exception {
-		int expectedResultLines = 1;
+		int expectedResultLines = 2;
 		long metaspace = 123456789L;
 		String[] commands = {
 			RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
@@ -95,8 +105,45 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 		List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
 		assertThat(lines.size(), is(expectedResultLines));
-		Map<String, String> params = ConfigurationUtils.parseJvmArgString(lines.get(0));
-		assertThat(Long.valueOf(params.get("-XX:MaxMetaspaceSize=")), is(metaspace));
+
+		Map<String, String> jvmParams = ConfigurationUtils.parseJvmArgString(lines.get(0));
+		Map<String, String> dynamicParams = parseAndAssertDynamicParameters(lines.get(1));
+		assertJvmAndDynamicParametersMatch(jvmParams, dynamicParams);
+		assertThat(Long.valueOf(jvmParams.get("-XX:MaxMetaspaceSize=")), is(metaspace));
+	}
+
+	private static Map<String, String> parseAndAssertDynamicParameters(String dynamicParametersStr) {
+		Set<String> expectedDynamicParameters = Sets.newHashSet(
+				JobManagerOptions.JVM_HEAP_MEMORY.key(),
+				JobManagerOptions.OFF_HEAP_MEMORY.key(),
+				JobManagerOptions.JVM_METASPACE.key(),
+				JobManagerOptions.JVM_OVERHEAD_MIN.key(),
+				JobManagerOptions.JVM_OVERHEAD_MAX.key()
+		);
+
+		Map<String, String> actualDynamicParameters = new HashMap<>();
+		String[] dynamicParameterTokens = dynamicParametersStr.split(" ");
+		assertThat(dynamicParameterTokens.length % 2, Matchers.is(0));
+		for (int i = 0; i < dynamicParameterTokens.length; ++i) {
+			String parameterKeyValueStr = dynamicParameterTokens[i];
+			if (i % 2 == 0) {
+				assertThat(parameterKeyValueStr, Matchers.is("-D"));
+			} else {
+				String[] parameterKeyValue = parameterKeyValueStr.split("=");
+				assertThat(parameterKeyValue, arrayWithSize(2));
+				assertThat(parameterKeyValue[0], isIn(expectedDynamicParameters));
+
+				actualDynamicParameters.put(parameterKeyValue[0], parameterKeyValue[1]);
+			}
+		}
+
+		return actualDynamicParameters;
+	}
+
+	private static void assertJvmAndDynamicParametersMatch(Map<String, String> jvmParams, Map<String, String> dynamicParams) {
+		assertThat(jvmParams.get("-Xmx") + "b", is(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key())));
+		assertThat(jvmParams.get("-Xms") + "b", is(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key())));
+		assertThat(jvmParams.get("-XX:MaxMetaspaceSize=") + "b", is(dynamicParams.get(JobManagerOptions.JVM_METASPACE.key())));
 	}
 
 	@Test

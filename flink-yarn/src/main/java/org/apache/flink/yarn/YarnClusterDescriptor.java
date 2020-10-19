@@ -1522,7 +1522,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		startCommandValues.put("redirects",
 			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err");
-		startCommandValues.put("args", "");
+		String dynamicParameterListStr = JobManagerProcessUtils.generateDynamicConfigsStr(processSpec);
+		startCommandValues.put("args", dynamicParameterListStr);
 
 		final String commandTemplate = flinkConfiguration
 				.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,

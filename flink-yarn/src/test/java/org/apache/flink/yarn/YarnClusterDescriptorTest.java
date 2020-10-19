@@ -167,6 +167,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		final JobManagerProcessSpec jobManagerProcessSpec = createDefaultJobManagerProcessSpec(1024);
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = JobManagerProcessUtils.generateJvmParametersStr(jobManagerProcessSpec, cfg);
+		final String dynamicParameters = JobManagerProcessUtils.generateDynamicConfigsStr(jobManagerProcessSpec);
 		final String jvmOpts = "-Djvm"; // if set
 		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
@@ -189,7 +190,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					"" + // jvmOpts
 					"" + // logging
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -201,7 +202,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
 					"" + // logging
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -215,7 +216,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					"" + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -228,7 +229,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -242,7 +243,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					"" + // jvmOpts
 					" " + logfile + " " + log4j +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -255,7 +256,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
 					" " + logfile + " " + log4j +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -269,7 +270,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					"" + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -282,7 +283,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + krb5 + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -299,7 +300,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + jvmOpts +
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -312,7 +313,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + krb5 + // jvmOpts
 					" " + logfile + " " + logback +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -328,7 +329,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + jmJvmOpts +
 					" " + logfile + " " + log4j +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -341,7 +342,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " " + jvmmem +
 					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" " + logfile + " " + log4j +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -358,7 +359,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				java + " 1 " + jvmmem +
 					" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" 3 " + logfile + " " + logback +
-					" 4 " + mainClass + " 5 6 " + redirects,
+					" 4 " + mainClass + " 5 " + dynamicParameters + " 6 " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
@@ -375,7 +376,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 					" " + logfile + " " + logback +
 					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 					" " + jvmmem +
-					" " + mainClass + " " + redirects,
+					" " + mainClass + " " + dynamicParameters + " " + redirects,
 				clusterDescriptor
 					.setupApplicationMasterContainer(
 						mainClass,
