@@ -67,7 +67,6 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 		.noDefaultValue()
 		.withDescription("Only read changelog rows which match the specific table (by comparing the \"table\" meta field in the record).");
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
@@ -84,7 +83,7 @@ public class CanalJsonFormatFactory implements DeserializationFormatFactory, Ser
 					DynamicTableSource.Context context, DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+						context.createTypeInformation(producedDataType);
 				return CanalJsonDeserializationSchema
 					.builder(rowType, rowDataTypeInfo)
 					.setIgnoreParseErrors(ignoreParseErrors)

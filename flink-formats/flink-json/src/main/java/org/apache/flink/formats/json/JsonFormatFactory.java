@@ -56,7 +56,6 @@ public class JsonFormatFactory implements
 
 	public static final String IDENTIFIER = "json";
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
 			DynamicTableFactory.Context context,
@@ -75,7 +74,7 @@ public class JsonFormatFactory implements
 					DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-						(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+						context.createTypeInformation(producedDataType);
 				return new JsonRowDataDeserializationSchema(
 						rowType,
 						rowDataTypeInfo,

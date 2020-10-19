@@ -599,11 +599,10 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			return changelogMode;
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
 		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-			TypeSerializer<RowData> serializer = (TypeSerializer<RowData>) runtimeProviderContext
-				.createTypeInformation(producedDataType)
+			TypeSerializer<RowData> serializer = runtimeProviderContext
+				.<RowData>createTypeInformation(producedDataType)
 				.createSerializer(new ExecutionConfig());
 			DataStructureConverter converter = runtimeProviderContext.createDataStructureConverter(producedDataType);
 			converter.open(RuntimeConverter.Context.create(TestValuesTableFactory.class.getClassLoader()));

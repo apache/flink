@@ -74,10 +74,9 @@ public class JdbcDynamicTableSink implements DynamicTableSink {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-		final TypeInformation<RowData> rowDataTypeInformation = (TypeInformation<RowData>) context
-			.createTypeInformation(tableSchema.toRowDataType());
+		final TypeInformation<RowData> rowDataTypeInformation =
+				context.createTypeInformation(tableSchema.toRowDataType());
 		final JdbcDynamicOutputFormatBuilder builder = new JdbcDynamicOutputFormatBuilder();
 
 		builder.setJdbcOptions(jdbcOptions);
