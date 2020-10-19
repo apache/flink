@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
@@ -35,7 +36,6 @@ import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMem
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * JobManager utils to calculate {@link JobManagerProcessSpec} and JVM args.
@@ -113,9 +113,6 @@ public class JobManagerProcessUtils {
 		config.put(JobManagerOptions.JVM_OVERHEAD_MIN.key(), jobManagerProcessSpec.getJvmOverheadSize().getBytes() + "b");
 		config.put(JobManagerOptions.JVM_OVERHEAD_MAX.key(), jobManagerProcessSpec.getJvmOverheadSize().getBytes() + "b");
 
-		return config.entrySet()
-				.stream()
-				.map(e -> String.format("-D %s=%s", e.getKey(), e.getValue()))
-				.collect(Collectors.joining(" "));
+		return ConfigurationUtils.assembleDynamicConfigsStr(config);
 	}
 }

@@ -87,7 +87,7 @@ public class JavaCmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBa
 		super.onSetup();
 
 		this.mainClassArgs = String.format(
-				"%s--configDir %s",
+				"%s --configDir %s",
 				TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec),
 			FLINK_CONF_DIR_IN_POD);
 
