@@ -150,7 +150,7 @@ public class RocksDBOperationUtils {
 		RegisteredStateMetaInfoBase metaInfoBase,
 		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
 		@Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-		Long writeBufferManagerCapacity) {
+		@Nullable Long writeBufferManagerCapacity) {
 
 		ColumnFamilyOptions options = createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
 		if (ttlCompactFiltersManager != null) {
