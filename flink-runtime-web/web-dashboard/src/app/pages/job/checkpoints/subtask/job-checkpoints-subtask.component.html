@@ -97,7 +97,7 @@
       <tr *ngFor="let subTask of listOfSubTaskCheckPoint">
         <td>{{ subTask['index'] + 1 }}</td>
         <ng-container *ngIf="subTask['status'] == 'completed'">
-          <td >{{ subTask['ack_timestamp'] | date:'HH:mm:ss' }}</td>
+          <td >{{ subTask['ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
           <td>{{ subTask['end_to_end_duration'] | humanizeDuration}}</td>
           <td>{{ subTask['state_size'] | humanizeBytes }}</td>
           <td>{{ subTask['checkpoint']['sync'] | humanizeDuration}}</td>

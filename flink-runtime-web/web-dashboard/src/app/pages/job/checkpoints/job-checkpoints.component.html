@@ -45,7 +45,7 @@
             <td *ngIf="checkPointStats['latest']['completed']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['completed']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['completed']['latest_ack_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['completed']['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>End to End Duration: </strong> {{ checkPointStats['latest']['completed']['end_to_end_duration'] | humanizeDuration}}</span>
               <nz-divider nzType="vertical"></nz-divider>
@@ -63,7 +63,7 @@
             <td *ngIf="checkPointStats['latest']['failed']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['failed']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Failure Time: </strong> {{ checkPointStats['latest']['failed']['failure_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Failure Time: </strong> {{ checkPointStats['latest']['failed']['failure_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong *ngIf="checkPointStats['latest']['failed']['failure_message']">Cause: </strong> {{ checkPointStats['latest']['failed']['failure_message'] }}</span>
               <span *ngIf="!checkPointStats['latest']['failed']['failure_message']"><strong>Cause:</strong> n/a</span>
@@ -80,7 +80,7 @@
             <td *ngIf="checkPointStats['latest']['savepoint']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['savepoint']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['savepoint']['latest_ack_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Completion Time: </strong> {{ checkPointStats['latest']['savepoint']['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span><strong>Checkpointed Data Size: </strong> {{ checkPointStats['latest']['savepoint']['state_size'] | humanizeBytes }}</span>
               <nz-divider nzType="vertical"></nz-divider>
@@ -98,7 +98,7 @@
             <td *ngIf="checkPointStats['latest']['restored']">
               <span><strong>ID: </strong> {{ checkPointStats['latest']['restored']['id'] }}</span>
               <nz-divider nzType="vertical"></nz-divider>
-              <span><strong>Restore Time: </strong> {{ checkPointStats['latest']['restored']['restore_timestamp'] | date:'HH:mm:ss' }}</span>
+              <span><strong>Restore Time: </strong> {{ checkPointStats['latest']['restored']['restore_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</span>
               <nz-divider nzType="vertical"></nz-divider>
               <span *ngIf="checkPointStats['latest']['restored']['is_savepoint']"><strong>Type:</strong> Savepoint</span>
               <span *ngIf="!checkPointStats['latest']['restored']['is_savepoint']"><strong>Type:</strong> Checkpoint</span>
@@ -145,8 +145,8 @@
               {{ checkpoint['num_acknowledged_subtasks'] }}/{{ checkpoint['num_subtasks'] }}
               <span *ngIf="checkpoint['status'] == 'IN_PROGRESS'">({{ (checkpoint['num_acknowledged_subtasks']/checkpoint['num_subtasks']) | percent }})</span>
             </td>
-            <td>{{ checkpoint['trigger_timestamp'] | date:'HH:mm:ss' }}</td>
-            <td *ngIf="checkpoint['latest_ack_timestamp'] >= 0">{{ checkpoint['latest_ack_timestamp'] | date:'HH:mm:ss' }}</td>
+            <td>{{ checkpoint['trigger_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+            <td *ngIf="checkpoint['latest_ack_timestamp'] >= 0">{{ checkpoint['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
             <td *ngIf="checkpoint['latest_ack_timestamp'] < 0">n/a</td>
             <td *ngIf="checkpoint['end_to_end_duration'] >= 0">{{ checkpoint['end_to_end_duration'] | humanizeDuration}}</td>
             <td *ngIf="checkpoint['end_to_end_duration'] <0">n/a</td>
