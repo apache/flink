@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.overlays;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -30,6 +31,9 @@ import static org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay
 import static org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay.TARGET_PATH;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Krb5ConfOverlay}.
+ */
 public class Krb5ConfOverlayTest extends ContainerOverlayTestBase {
 
 	@Rule
