@@ -61,7 +61,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	private final LeaderRetrievalService resourceManagerRetrievalService;
 
 	@Nonnull
-	private final WebMonitorEndpoint<?> webMonitorEndpoint;
+	private final AutoCloseableAsync webMonitorEndpoint;
 
 	private final CompletableFuture<Void> terminationFuture;
 
@@ -74,7 +74,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 			@Nonnull ResourceManager<?> resourceManager,
 			@Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
 			@Nonnull LeaderRetrievalService resourceManagerRetrievalService,
-			@Nonnull WebMonitorEndpoint<?> webMonitorEndpoint) {
+			@Nonnull AutoCloseableAsync webMonitorEndpoint) {
 		this.dispatcherRunner = dispatcherRunner;
 		this.resourceManager = resourceManager;
 		this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
