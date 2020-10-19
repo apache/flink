@@ -665,10 +665,45 @@ class TableSinkITCase extends StreamingTestBase {
 
     tEnv.executeSql(sourceDDL)
     tEnv.executeSql(sinkDDL)
+
+    //---------------------------------------------------------------------------------------
+    // Verify writing out a source directly with the rowtime attribute
+    //---------------------------------------------------------------------------------------
+
     tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
 
     val expected = List(1, 2, 3, 4, 7, 8, 16)
     assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+
+    val sinkDDL2 =
+      s"""
+         |CREATE TABLE sink2 (
+         |  window_rowtime TIMESTAMP(3),
+         |  b DOUBLE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'table-sink-class' = '${classOf[TestSinkContextTableSink].getName}'
+         |)
+      """.stripMargin
+    tEnv.executeSql(sinkDDL2)
+
+    //---------------------------------------------------------------------------------------
+    // Verify writing out with additional operator to generate a new rowtime attribute
+    //---------------------------------------------------------------------------------------
+
+    tEnv.executeSql(
+      """
+        |INSERT INTO sink2
+        |SELECT
+        |  TUMBLE_ROWTIME(ts, INTERVAL '0.005' SECOND),
+        |  SUM(b)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '0.005' SECOND)
+        |""".stripMargin
+    ).await()
+
+    val expected2 = List(4, 9, 19)
+    assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
   }
 
   // ------------------------------------------------------------------------------------------

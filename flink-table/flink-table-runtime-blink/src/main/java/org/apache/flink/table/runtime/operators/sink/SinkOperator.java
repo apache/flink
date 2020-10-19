@@ -141,7 +141,7 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 
 		@Override
 		public Long timestamp() {
-			if (rowtimeFieldIndex > 0) {
+			if (rowtimeFieldIndex >= 0) {
 				TimestampData timestamp = element.getValue().getTimestamp(rowtimeFieldIndex, 3);
 				if (timestamp != null) {
 					return timestamp.getMillisecond();

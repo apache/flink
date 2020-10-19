@@ -867,6 +867,9 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		}
 	}
 
+	/**
+	 * A TableSink used for testing the implementation of {@link SinkFunction.Context}.
+	 */
 	public static class TestSinkContextTableSink implements DynamicTableSink {
 
 		public static final List<Long> ROWTIMES = new ArrayList<>();
