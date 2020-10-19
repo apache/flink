@@ -360,8 +360,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void onStart() throws Exception {
 		try {
 			startTaskExecutorServices();
-		} catch (Exception e) {
-			final TaskManagerException exception = new TaskManagerException(String.format("Could not start the TaskExecutor %s", getAddress()), e);
+		} catch (Throwable t) {
+			final TaskManagerException exception = new TaskManagerException(String.format("Could not start the TaskExecutor %s", getAddress()), t);
 			onFatalError(exception);
 			throw exception;
 		}
