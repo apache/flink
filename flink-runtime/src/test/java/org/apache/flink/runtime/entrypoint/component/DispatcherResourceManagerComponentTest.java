@@ -62,10 +62,10 @@ public class DispatcherResourceManagerComponentTest extends TestLogger {
 			TestingFatalErrorHandler fatalErrorHandler,
 			TestingResourceManagerService resourceManagerService) {
 		return new DispatcherResourceManagerComponent(
-			TestingDispatcherRunner.newBuilder().build(),
+				TestingDispatcherRunner.newBuilder().build(),
 				resourceManagerService,
-			new SettableLeaderRetrievalService(),
-			new SettableLeaderRetrievalService(),
+				new SettableLeaderRetrievalService(),
+				new SettableLeaderRetrievalService(),
 				FutureUtils::completedVoidFuture,
 				fatalErrorHandler);
 	}
