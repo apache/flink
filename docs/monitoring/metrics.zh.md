@@ -860,7 +860,7 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
   </thead>
   <tbody>
     <tr>
-      <th rowspan="15"><strong>Job-/TaskManager</strong></th>
+      <th rowspan="17"><strong>Job-/TaskManager</strong></th>
       <td rowspan="15">Status.JVM.Memory</td>
       <td>Heap.Used</td>
       <td>The amount of heap memory currently used (in bytes).</td>
@@ -934,6 +934,17 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
     <tr>
       <td>Mapped.TotalCapacity</td>
       <td>The number of buffers in the mapped buffer pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td rowspan="2">Status.Flink.Memory</td>
+      <td>Managed.Used</td>
+      <td>The amount of managed memory currently used.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Managed.Total</td>
+      <td>The total amount of managed memory.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
