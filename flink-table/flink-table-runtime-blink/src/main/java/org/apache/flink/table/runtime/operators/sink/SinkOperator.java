@@ -32,6 +32,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.NotNullEnforcer;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 
 /**
  * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. This operator
@@ -140,8 +141,13 @@ public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction
 
 		@Override
 		public Long timestamp() {
-			if (rowtimeFieldIndex > 0) {
-				return element.getValue().getLong(rowtimeFieldIndex);
+			if (rowtimeFieldIndex >= 0) {
+				TimestampData timestamp = element.getValue().getTimestamp(rowtimeFieldIndex, 3);
+				if (timestamp != null) {
+					return timestamp.getMillisecond();
+				} else {
+					return null;
+				}
 			}
 			return null;
 		}
