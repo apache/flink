@@ -104,6 +104,13 @@ public class CheckpointConfig implements java.io.Serializable {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Disables checkpointing.
+	 */
+	public void disableCheckpointing() {
+		this.checkpointInterval = -1;
+	}
+
+	/**
 	 * Checks whether checkpointing is enabled.
 	 *
 	 * @return True if checkpointing is enables, false otherwise.

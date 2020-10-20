@@ -47,8 +47,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the detection of the {@link RuntimeExecutionMode runtime execution mode} during
@@ -63,6 +66,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 	public void testExecutionModePropagationFromEnvWithDefaultAndBoundedSource() {
 		final StreamExecutionEnvironment environment =
 				StreamExecutionEnvironment.getExecutionEnvironment();
+		environment.enableCheckpointing(100);
 
 		environment
 				.fromSource(
@@ -76,6 +80,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
 						ScheduleMode.EAGER,
+						true,
 						true));
 	}
 
@@ -96,7 +101,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
 						ScheduleMode.EAGER,
-						true));
+						true,
+						false));
 	}
 
 	@Test
@@ -106,6 +112,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
 		final StreamExecutionEnvironment environment =
 				StreamExecutionEnvironment.getExecutionEnvironment();
+		environment.enableCheckpointing(100L);
 		environment.configure(config, getClass().getClassLoader());
 
 		environment
@@ -115,11 +122,16 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 						"bounded-source")
 				.print();
 
+		assertTrue(environment.isChainingEnabled());
+		assertThat(environment.getCheckpointInterval(), is(equalTo(100L)));
+
+		final StreamGraph streamGraph = environment.getStreamGraph();
 		assertThat(
-				environment.getStreamGraph(),
+				streamGraph,
 				hasProperties(
 						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
 						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+						false,
 						false));
 	}
 
@@ -168,7 +180,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
 						ScheduleMode.EAGER,
-						true));
+						true,
+						false));
 	}
 
 	@Test
@@ -183,6 +196,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
 						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+						false,
 						false));
 	}
 
@@ -198,7 +212,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
 						ScheduleMode.EAGER,
-						true));
+						true,
+						false));
 	}
 
 	@Test
@@ -217,7 +232,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
 						ScheduleMode.EAGER,
-						true));
+						true,
+						false));
 	}
 
 	@Test
@@ -232,6 +248,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
 						ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+						false,
 						false));
 
 		final StreamGraph streamingGraph = generateStreamGraph(RuntimeExecutionMode.STREAMING, bounded);
@@ -240,7 +257,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 				hasProperties(
 						GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
 						ScheduleMode.EAGER,
-						true));
+						true,
+						false));
 	}
 
 	private StreamGraph generateStreamGraph(
@@ -272,14 +290,16 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 	private static TypeSafeMatcher<StreamGraph> hasProperties(
 			final GlobalDataExchangeMode exchangeMode,
 			final ScheduleMode scheduleMode,
-			final boolean allVerticesShareSameSlotGroup) {
+			final boolean allVerticesShareSameSlotGroup,
+			final boolean isCheckpointingEnable) {
 
 		return new TypeSafeMatcher<StreamGraph>() {
 			@Override
 			protected boolean matchesSafely(StreamGraph actualStreamGraph) {
 				return exchangeMode == actualStreamGraph.getGlobalDataExchangeMode()
 						&& scheduleMode == actualStreamGraph.getScheduleMode()
-						&& actualStreamGraph.isAllVerticesInSameSlotSharingGroupByDefault() == allVerticesShareSameSlotGroup;
+						&& actualStreamGraph.isAllVerticesInSameSlotSharingGroupByDefault() == allVerticesShareSameSlotGroup
+						&& actualStreamGraph.getCheckpointConfig().isCheckpointingEnabled() == isCheckpointingEnable;
 			}
 
 			@Override
