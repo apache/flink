@@ -36,6 +36,8 @@ class DefaultExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFact
 
 	@Override
 	public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
-		return new DefaultExecutionSlotAllocator(slotProvider, context::getPreferredLocations);
+		PreferredLocationsRetriever preferredLocationsRetriever =
+			new DefaultPreferredLocationsRetriever(context, context);
+		return new DefaultExecutionSlotAllocator(slotProvider, preferredLocationsRetriever);
 	}
 }

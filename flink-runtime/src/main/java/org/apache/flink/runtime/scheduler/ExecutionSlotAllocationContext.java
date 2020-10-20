@@ -31,7 +31,7 @@ import java.util.Set;
 /**
  * Context for slot allocation.
  */
-interface ExecutionSlotAllocationContext extends PreferredLocationsRetriever {
+interface ExecutionSlotAllocationContext extends InputsLocationsRetriever, StateLocationRetriever {
 
 	/**
 	 * Returns required resources for an execution vertex.
