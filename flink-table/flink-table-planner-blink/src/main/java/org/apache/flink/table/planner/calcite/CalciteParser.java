@@ -96,13 +96,13 @@ public class CalciteParser {
 		parser.setConformance(config.conformance());
 		switch (config.quoting()) {
 			case DOUBLE_QUOTE:
-				parser.switchTo("DQID");
+				parser.switchTo(SqlAbstractParserImpl.LexicalState.DQID);
 				break;
 			case BACK_TICK:
-				parser.switchTo("BTID");
+				parser.switchTo(SqlAbstractParserImpl.LexicalState.BTID);
 				break;
 			case BRACKET:
-				parser.switchTo("DEFAULT");
+				parser.switchTo(SqlAbstractParserImpl.LexicalState.DEFAULT);
 				break;
 		}
 

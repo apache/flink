@@ -51,8 +51,8 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
       "logical",
       FlinkVolcanoProgramBuilder.newBuilder
         .add(RuleSets.ofList(
-          FilterToCalcRule.INSTANCE,
-          ProjectToCalcRule.INSTANCE,
+          CoreRules.FILTER_TO_CALC,
+          CoreRules.PROJECT_TO_CALC,
           FlinkCalcMergeRule.INSTANCE,
           FlinkLogicalCalc.CONVERTER,
           FlinkLogicalLegacyTableSourceScan.CONVERTER

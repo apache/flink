@@ -23,6 +23,7 @@ import org.apache.flink.table.api.SqlParserException;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.util.SourceStringReader;
@@ -87,13 +88,13 @@ public class CalciteParser {
 		parser.setConformance(config.conformance());
 		switch (config.quoting()) {
 			case DOUBLE_QUOTE:
-				parser.switchTo("DQID");
+				parser.switchTo(SqlAbstractParserImpl.LexicalState.DQID);
 				break;
 			case BACK_TICK:
-				parser.switchTo("BTID");
+				parser.switchTo(SqlAbstractParserImpl.LexicalState.BTID);
 				break;
 			case BRACKET:
-				parser.switchTo("DEFAULT");
+				parser.switchTo(SqlAbstractParserImpl.LexicalState.DEFAULT);
 				break;
 		}
 

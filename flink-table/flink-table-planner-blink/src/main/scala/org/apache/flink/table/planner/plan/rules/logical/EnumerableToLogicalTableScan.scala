@@ -37,7 +37,7 @@ class EnumerableToLogicalTableScan(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val oldRel = call.rel(0).asInstanceOf[EnumerableTableScan]
     val table = oldRel.getTable
-    val newRel = LogicalTableScan.create(oldRel.getCluster, table)
+    val newRel = LogicalTableScan.create(oldRel.getCluster, table, oldRel.getHints)
     call.transformTo(newRel)
   }
 }
