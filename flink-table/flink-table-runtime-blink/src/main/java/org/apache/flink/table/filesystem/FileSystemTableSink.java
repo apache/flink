@@ -22,8 +22,6 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -33,7 +31,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
@@ -47,9 +44,8 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FileSystemFormatFactory;
-import org.apache.flink.table.filesystem.stream.StreamingFileCommitter;
-import org.apache.flink.table.filesystem.stream.StreamingFileCommitter.CommitMessage;
-import org.apache.flink.table.filesystem.stream.StreamingFileWriter;
+import org.apache.flink.table.filesystem.stream.PartitionCommitInfo;
+import org.apache.flink.table.filesystem.stream.StreamingSink;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
@@ -66,7 +62,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
@@ -121,7 +116,7 @@ public class FileSystemTableSink implements
 	}
 
 	@Override
-	public final DataStreamSink<RowData> consumeDataStream(DataStream<RowData> dataStream) {
+	public final DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
 		RowDataPartitionComputer computer = new RowDataPartitionComputer(
 				defaultPartName,
 				schema.getFieldNames(),
@@ -188,7 +183,7 @@ public class FileSystemTableSink implements
 		}
 	}
 
-	public static DataStreamSink<RowData> createStreamingSink(
+	public static DataStreamSink<?> createStreamingSink(
 			Configuration conf,
 			Path path,
 			List<String> partitionKeys,
@@ -203,27 +198,10 @@ public class FileSystemTableSink implements
 			throw new IllegalStateException("Streaming mode not support overwrite.");
 		}
 
-		StreamingFileWriter fileWriter = new StreamingFileWriter(
-				rollingCheckInterval,
-				bucketsBuilder);
-		DataStream<CommitMessage> writerStream = inputStream.transform(
-				StreamingFileWriter.class.getSimpleName(),
-				TypeExtractor.createTypeInfo(CommitMessage.class),
-				fileWriter).setParallelism(inputStream.getParallelism());
+		DataStream<PartitionCommitInfo> writer = StreamingSink.writer(
+				inputStream, rollingCheckInterval, bucketsBuilder);
 
-		DataStream<?> returnStream = writerStream;
-
-		// save committer when we don't need it.
-		if (partitionKeys.size() > 0 && conf.contains(SINK_PARTITION_COMMIT_POLICY_KIND)) {
-			StreamingFileCommitter committer = new StreamingFileCommitter(
-					path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
-			returnStream = writerStream
-					.transform(StreamingFileCommitter.class.getSimpleName(), Types.VOID, committer)
-					.setParallelism(1)
-					.setMaxParallelism(1);
-		}
-		//noinspection unchecked
-		return returnStream.addSink(new DiscardingSink()).setParallelism(1);
+		return StreamingSink.sink(writer, path, tableIdentifier, partitionKeys, msFactory, fsFactory, conf);
 	}
 
 	private Path toStagingPath() {
