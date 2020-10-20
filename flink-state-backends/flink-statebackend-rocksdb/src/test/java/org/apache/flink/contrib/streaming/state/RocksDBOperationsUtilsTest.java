@@ -83,11 +83,15 @@ public class RocksDBOperationsUtilsTest {
 
 	@Test
 	public void testSanityCheckArenaBlockSize() {
+		long testWriteBufferSize = 56 * 1024 * 1024L;
+		long testDefaultArenaSize = testWriteBufferSize / 8;
+		long testValidArenaSize = testWriteBufferSize / 7;
+		long testInvalidArenaSize = testWriteBufferSize / 7 - 8L;
 		List<TestData> tests = Arrays.asList(
-			new TestData(67108864, 0, 8388608, false),
-			new TestData(67108864, 8388608, 8388608, false),
-			new TestData(67108864, 0, 11184810, true),
-			new TestData(67108864, 8388608, 11184810, true)
+				new TestData(testWriteBufferSize, 0, testInvalidArenaSize, false),
+				new TestData(testWriteBufferSize, testDefaultArenaSize, testInvalidArenaSize, false),
+				new TestData(testWriteBufferSize, 0, testValidArenaSize, true),
+				new TestData(testWriteBufferSize, testDefaultArenaSize, testValidArenaSize, true)
 		);
 
 		for (TestData test : tests) {
