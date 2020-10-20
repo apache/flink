@@ -21,6 +21,8 @@
     <strong>Path:</strong> {{checkPointDetail?.external_path || '-'}}
     <nz-divider nzType="vertical"></nz-divider>
     <strong>Discarded:</strong> {{checkPointDetail?.discarded || '-'}}
+    <nz-divider nzType="vertical"></nz-divider>
+    <strong>Checkpoint Type:</strong> {{checkPointType}}
     <ng-container *ngIf="checkPointDetail?.failure_message">
       <nz-divider nzType="vertical"></nz-divider>
       <strong>Failure Message:</strong> {{checkPointDetail?.failure_message || '-' }}

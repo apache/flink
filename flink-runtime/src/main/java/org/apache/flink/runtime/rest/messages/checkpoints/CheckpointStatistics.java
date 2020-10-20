@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
@@ -87,6 +88,8 @@ public class CheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_TASKS = "tasks";
 
+	public static final String FIELD_NAME_CHECKPOINT_TYPE = "checkpoint_type";
+
 	@JsonProperty(FIELD_NAME_ID)
 	private final long id;
 
@@ -123,6 +126,9 @@ public class CheckpointStatistics implements ResponseBody {
 	@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS)
 	private final int numAckSubtasks;
 
+	@JsonProperty(FIELD_NAME_CHECKPOINT_TYPE)
+	private final CheckpointType checkpointType;
+
 	@JsonProperty(FIELD_NAME_TASKS)
 	@JsonSerialize(keyUsing = JobVertexIDKeySerializer.class)
 	private final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask;
@@ -141,6 +147,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
+			@JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
 		this.id = id;
 		this.status = Preconditions.checkNotNull(status);
@@ -154,6 +161,7 @@ public class CheckpointStatistics implements ResponseBody {
 		this.persistedData = persistedData;
 		this.numSubtasks = numSubtasks;
 		this.numAckSubtasks = numAckSubtasks;
+		this.checkpointType = Preconditions.checkNotNull(checkpointType);
 		this.checkpointStatisticsPerTask = Preconditions.checkNotNull(checkpointStatisticsPerTask);
 	}
 
@@ -193,6 +201,10 @@ public class CheckpointStatistics implements ResponseBody {
 		return numAckSubtasks;
 	}
 
+	public CheckpointType getCheckpointType() {
+		return checkpointType;
+	}
+
 	@Nullable
 	public Map<JobVertexID, TaskCheckpointStatistics> getCheckpointStatisticsPerTask() {
 		return checkpointStatisticsPerTask;
@@ -219,6 +231,7 @@ public class CheckpointStatistics implements ResponseBody {
 			numSubtasks == that.numSubtasks &&
 			numAckSubtasks == that.numAckSubtasks &&
 			status == that.status &&
+			Objects.equals(checkpointType, that.checkpointType) &&
 			Objects.equals(checkpointStatisticsPerTask, that.checkpointStatisticsPerTask);
 	}
 
@@ -237,6 +250,7 @@ public class CheckpointStatistics implements ResponseBody {
 			persistedData,
 			numSubtasks,
 			numAckSubtasks,
+			checkpointType,
 			checkpointStatisticsPerTask);
 	}
 
@@ -289,6 +303,7 @@ public class CheckpointStatistics implements ResponseBody {
 				completedCheckpointStats.getPersistedData(),
 				completedCheckpointStats.getNumberOfSubtasks(),
 				completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
+				completedCheckpointStats.getProperties().getCheckpointType(),
 				checkpointStatisticsPerTask,
 				completedCheckpointStats.getExternalPath(),
 				completedCheckpointStats.isDiscarded());
@@ -308,6 +323,7 @@ public class CheckpointStatistics implements ResponseBody {
 				failedCheckpointStats.getPersistedData(),
 				failedCheckpointStats.getNumberOfSubtasks(),
 				failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
+				failedCheckpointStats.getProperties().getCheckpointType(),
 				checkpointStatisticsPerTask,
 				failedCheckpointStats.getFailureTimestamp(),
 				failedCheckpointStats.getFailureMessage());
@@ -327,6 +343,7 @@ public class CheckpointStatistics implements ResponseBody {
 				pendingCheckpointStats.getPersistedData(),
 				pendingCheckpointStats.getNumberOfSubtasks(),
 				pendingCheckpointStats.getNumberOfAcknowledgedSubtasks(),
+				pendingCheckpointStats.getProperties().getCheckpointType(),
 				checkpointStatisticsPerTask
 			);
 		} else {
@@ -369,6 +386,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
+			@JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
 			@JsonProperty(FIELD_NAME_EXTERNAL_PATH) @Nullable String externalPath,
 			@JsonProperty(FIELD_NAME_DISCARDED) boolean discarded) {
@@ -385,6 +403,7 @@ public class CheckpointStatistics implements ResponseBody {
 				persistedData,
 				numSubtasks,
 				numAckSubtasks,
+				checkpointType,
 				checkpointingStatisticsPerTask);
 
 			this.externalPath = externalPath;
@@ -452,6 +471,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
+			@JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
 			@JsonProperty(FIELD_NAME_FAILURE_TIMESTAMP) long failureTimestamp,
 			@JsonProperty(FIELD_NAME_FAILURE_MESSAGE) @Nullable String failureMessage) {
@@ -468,6 +488,7 @@ public class CheckpointStatistics implements ResponseBody {
 				persistedData,
 				numSubtasks,
 				numAckSubtasks,
+				checkpointType,
 				checkpointingStatisticsPerTask);
 
 			this.failureTimestamp = failureTimestamp;
@@ -524,6 +545,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
+			@JsonProperty(FIELD_NAME_CHECKPOINT_TYPE) CheckpointType checkpointType,
 			@JsonDeserialize(keyUsing = JobVertexIDKeyDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask) {
 			super(
 				id,
@@ -538,6 +560,7 @@ public class CheckpointStatistics implements ResponseBody {
 				persistedData,
 				numSubtasks,
 				numAckSubtasks,
+				checkpointType,
 				checkpointingStatisticsPerTask);
 		}
 
