@@ -29,7 +29,7 @@ import org.junit.Test
 class JsonFunctionsTest extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(9)
+    val testData = new Row(10)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -39,21 +39,33 @@ class JsonFunctionsTest extends ExpressionTestBase {
     testData.setField(6, 4.6)
     testData.setField(7, 3)
     testData.setField(8, """{ "name" : "flink" }""")
+    testData.setField(9,
+      """{
+        | "info":{
+        |       "type":1,
+        |       "address":{
+        |         "town":"Bristol",
+        |         "county":"Avon",
+        |         "country":"England"
+        |       },
+        |       "tags":["Sport", "Water polo"]
+        |    },
+        |    "type":"Basic"
+        | }""".stripMargin)
     testData
   }
 
-  override def typeInfo: RowTypeInfo = {
-    new RowTypeInfo(
-      /* 0 */  Types.STRING,
-      /* 1 */  Types.BOOLEAN,
-      /* 2 */  Types.BYTE,
-      /* 3 */  Types.SHORT,
-      /* 4 */  Types.LONG,
-      /* 5 */  Types.FLOAT,
-      /* 6 */  Types.DOUBLE,
-      /* 7 */  Types.INT,
-      /* 8 */  Types.STRING)
-  }
+  override def typeInfo = new RowTypeInfo(
+    /* 0 */ Types.STRING,
+    /* 1 */ Types.BOOLEAN,
+    /* 2 */ Types.BYTE,
+    /* 3 */ Types.SHORT,
+    /* 4 */ Types.LONG,
+    /* 5 */ Types.FLOAT,
+    /* 6 */ Types.DOUBLE,
+    /* 7 */ Types.INT,
+    /* 8 */ Types.STRING,
+    /* 9 */ Types.STRING)
 
   @Test
   def testPredicates(): Unit = {
@@ -125,4 +137,43 @@ class JsonFunctionsTest extends ExpressionTestBase {
     }
   }
 
+  @Test
+  def testJsonExists(): Unit = {
+    testSqlApi("json_exists(f9, '$.info.type')", "false")
+
+    // lax json test
+    testSqlApi("json_exists(f9, 'lax $')", "true")
+    testSqlApi("json_exists(f9, 'lax $.info.type')", "true")
+    testSqlApi("json_exists(f9, 'lax $.info.address.town')", "true")
+    testSqlApi("json_exists(f9, 'lax $.info.\"address\"')", "false")
+    testSqlApi("json_exists(f9, 'lax $.info.tags')", "true")
+    testSqlApi("json_exists(f9, 'lax $.info.type[0]')", "false")
+    testSqlApi("json_exists(f9, 'lax $.info.none')", "false")
+    testSqlApi("json_exists(f9, 'lax $' error on error)", "true")
+
+    // strict + no error
+    testSqlApi("json_exists(f9, 'strict $.info.type')", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type1')", "false")
+    // strict + error
+    testSqlApi("json_exists(f9, 'strict $.info.type1' false on error)", "false")
+    testSqlApi("json_exists(f9, 'strict $.info.type1' true on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type' true on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type' false on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.type' unknown on error)", "true")
+    testSqlApi("json_exists(f9, 'strict $.info.\"type\"' unknown on error)", "null")
+    testSqlApi("json_exists(f9, 'strict $.info.type' error on error)", "true")
+
+    verifyJsonExistsException("json_exists(f7, 'lax aa')", classOf[ValidationException])
+  }
+
+  private def verifyJsonExistsException[T <: Exception](
+       sqlExpr: String,
+       expectedException: Class[T]
+     ): Unit = {
+    try {
+      testSqlApi(sqlExpr, "null")
+    } catch {
+      case e: Exception => assertEquals(e.getClass, expectedException)
+    }
+  }
 }
