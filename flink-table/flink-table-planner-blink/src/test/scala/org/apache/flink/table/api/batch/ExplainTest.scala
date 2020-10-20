@@ -22,11 +22,13 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecMultipleInputNode}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
+import org.apache.calcite.rel.RelNode
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -135,15 +137,28 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     //  after supporting converting rel nodes to multiple input node
     val relNode = TableTestUtil.toRelNode(util.tableEnv.sqlQuery(sql))
     val batchRelNode = util.getPlanner.optimize(relNode).asInstanceOf[BatchExecHashJoin]
-    val firstInput = batchRelNode.getLeft.getInput(0).getInput(0)
-    val secondInput = batchRelNode.getRight.getInput(0).getInput(0)
+    val firstBorder = batchRelNode.getInputNodes.get(0).getInputNodes.get(0)
+    val firstInput = firstBorder.getInputNodes.get(0)
+    val firstEdge = firstBorder.getInputEdges.get(0)
+    val secondBorder = batchRelNode.getInputNodes.get(1).getInputNodes.get(0)
+    val secondInput = secondBorder.getInputNodes.get(0)
+    val secondEdge = secondBorder.getInputEdges.get(0)
     val multipleInputRel = new BatchExecMultipleInputNode(
       batchRelNode.getCluster,
       batchRelNode.getTraitSet,
-      Array(firstInput, secondInput),
+      Array(firstInput.asInstanceOf[RelNode], secondInput.asInstanceOf[RelNode]),
       batchRelNode,
-      Array(0, 1)
-    )
+      Array(
+        ExecEdge.builder()
+          .requiredShuffle(firstEdge.getRequiredShuffle)
+          .damBehavior(firstEdge.getDamBehavior)
+          .priority(0)
+          .build(),
+        ExecEdge.builder()
+          .requiredShuffle(secondEdge.getRequiredShuffle)
+          .damBehavior(secondEdge.getDamBehavior)
+          .priority(1)
+          .build()))
     val actual = FlinkRelOptUtil.toString(multipleInputRel)
     val expected = TableTestUtil.readFromResource("/explain/testExplainMultipleInput.out")
     assertEquals(expected, actual)

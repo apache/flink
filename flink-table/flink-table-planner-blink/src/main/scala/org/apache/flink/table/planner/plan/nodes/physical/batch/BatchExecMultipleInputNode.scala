@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -38,29 +37,25 @@ import scala.collection.JavaConversions._
  * @param inputRels the input rels of multiple input rel,
  *                  which are not a part of the multiple input rel.
  * @param outputRel the root rel of the sub-graph of the multiple input rel.
- * @param readOrders the read order corresponding each input. The values is lower,
- *                   the read priority is higher. Note that, if a input has multiple output,
- *                   their read order should be same. so each read order corresponds to an input.
+ * @param inputEdges the [[ExecEdge]]s related to each input.
  */
 class BatchExecMultipleInputNode(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],
     outputRel: RelNode,
-    readOrders: Array[Int])
-  extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, readOrders)
+    inputEdges: Array[ExecEdge])
+  extends MultipleInputRel(cluster, traitSet, inputRels, outputRel, inputEdges.map(_.getPriority))
   with BatchExecNode[RowData]
   with BatchPhysicalRel {
-
-  override def getDamBehavior: DamBehavior = {
-    throw new UnsupportedOperationException()
-  }
 
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = {
     getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
   }
+
+  override def getInputEdges: util.List[ExecEdge] = inputEdges.toList
 
   override def replaceInputNode(
       ordinalInParent: Int,
