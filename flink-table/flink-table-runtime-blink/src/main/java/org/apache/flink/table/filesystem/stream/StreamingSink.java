@@ -41,6 +41,10 @@ public class StreamingSink {
 	private StreamingSink() {
 	}
 
+	/**
+	 * Create a file writer by input stream. This is similar to {@link StreamingFileSink},
+	 * in addition, it can emit {@link PartitionCommitInfo} to down stream.
+	 */
 	public static <T> DataStream<PartitionCommitInfo> writer(
 			DataStream<T> inputStream,
 			long bucketCheckInterval,
@@ -55,6 +59,10 @@ public class StreamingSink {
 				fileWriter).setParallelism(inputStream.getParallelism());
 	}
 
+	/**
+	 * Create a sink from file writer. Decide whether to add the node to commit partitions
+	 * according to options.
+	 */
 	public static DataStreamSink<?> sink(
 			DataStream<PartitionCommitInfo> writer,
 			Path locationPath,
