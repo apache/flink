@@ -43,7 +43,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -152,30 +151,6 @@ public class MetricUtilsTest extends TestLogger {
 			Thread.sleep(50);
 		}
 		Assert.fail("Heap usage metric never changed it's value.");
-	}
-
-	@Test
-	public void testNonHeapMetricUsageNotStatic() throws InterruptedException {
-		final InterceptingOperatorMetricGroup nonHeapMetrics = new InterceptingOperatorMetricGroup();
-
-		MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
-
-		@SuppressWarnings("unchecked")
-		final Gauge<Long> used = (Gauge<Long>) nonHeapMetrics.get(MetricNames.MEMORY_USED);
-
-		final long usedNonHeapInitially = used.getValue();
-
-		// check memory usage difference multiple times since other tests may affect memory usage as well
-		for (int x = 0; x < 10; x++) {
-			final ByteBuffer tmpByteBuffer = ByteBuffer.allocateDirect(1024 * 1024 * 8);
-			final long usedNonHeapAfterAllocation = used.getValue();
-
-			if (usedNonHeapInitially != usedNonHeapAfterAllocation) {
-				return;
-			}
-			Thread.sleep(50);
-		}
-		Assert.fail("Non-Heap usage metric never changed it's value.");
 	}
 
 	@Test
