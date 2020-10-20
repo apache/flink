@@ -106,13 +106,13 @@ class StateMapView(MapView):
         return self._map_state.contains(key)
 
     def items(self):
-        raise NotImplementedError
+        return self._map_state.items()
 
     def keys(self):
-        raise NotImplementedError
+        return self._map_state.keys()
 
     def values(self):
-        raise NotImplementedError
+        return self._map_state.values()
 
     def is_empty(self) -> bool:
         return self._map_state.is_empty()
@@ -422,6 +422,7 @@ class GroupAggFunction(object):
     def process_element(self, input_data: Row):
         key = self.key_selector.get_key(input_data)
         self.state_backend.set_current_key(key)
+        self.state_backend.clear_cached_iterators()
         accumulator_state = self.state_backend.get_value_state(
             "accumulators", self.state_value_coder)
         accumulators = accumulator_state.value()

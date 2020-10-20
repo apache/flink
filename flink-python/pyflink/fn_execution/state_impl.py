@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import collections
+from enum import Enum
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -149,6 +150,12 @@ class CachedMapState(LRUCache):
         return self._existed_keys
 
 
+class IterateType(Enum):
+    ITEMS = 0
+    KEYS = 1
+    VALUES = 2
+
+
 class CachingMapStateHandler(object):
     # GET request flags
     GET_FLAG = 0
@@ -170,6 +177,7 @@ class CachingMapStateHandler(object):
         self._underlying = caching_state_handler._underlying
         self._context = caching_state_handler._context
         self._max_cached_map_key_entries = max_cached_map_key_entries
+        self._cached_iterator_num = 0
 
     def _get_cache_token(self):
         if not self._state_cache.is_cache_enabled():
@@ -196,11 +204,41 @@ class CachingMapStateHandler(object):
         else:
             cached_value = cached_map_state.get(map_key)
             if cached_value is None:
+                if cached_map_state.is_all_data_cached():
+                    return False, None
                 exists, value = self._get_raw(state_key, map_key, map_key_coder, map_value_coder)
                 cached_map_state.put(map_key, (exists, value))
                 return exists, value
             else:
                 return cached_value
+
+    def iterate(self, state_key, iterate_type, iterator_token, map_key_coder, map_value_coder):
+        cache_token = self._get_cache_token()
+        if cache_token and iterator_token is None:
+            # check if the data in the read cache can be used
+            cache_state_key = self._convert_to_cache_key(state_key)
+            cached_map_state = self._state_cache.get(cache_state_key, cache_token)
+            if cached_map_state and cached_map_state.is_all_data_cached():
+                return cached_map_state, iterator_token
+        # request Java side
+        current_batch, response_token = self._iterate_raw(
+            state_key, iterate_type, iterator_token, map_key_coder, map_value_coder)
+        if len(response_token) == 0:
+            response_token = None
+        if iterator_token is None and response_token is not None:
+            self.inc_cached_iterators_num()
+        if cache_token and \
+            iterator_token is None and response_token is None and \
+            iterate_type != IterateType.KEYS and \
+                self._max_cached_map_key_entries >= len(current_batch):
+            # the data can be stored in read cache
+            cached_map_state = CachedMapState(self._max_cached_map_key_entries)
+            cache_state_key = self._convert_to_cache_key(state_key)
+            for key, value in current_batch.items():
+                cached_map_state.put(key, (True, value))
+            cached_map_state.set_all_data_cached()
+            self._state_cache.put(cache_state_key, cache_token, cached_map_state)
+        return current_batch, response_token
 
     def extend(self, state_key, items: List[Tuple[int, Any, Any]], map_key_coder, map_value_coder):
         cache_token = self._get_cache_token()
@@ -247,6 +285,15 @@ class CachingMapStateHandler(object):
             self._state_cache.evict(cache_key, cache_token)
         return self._underlying.clear(state_key)
 
+    def get_cached_iterators_num(self):
+        return self._cached_iterator_num
+
+    def inc_cached_iterators_num(self):
+        self._cached_iterator_num += 1
+
+    def reset_cached_iterators_num(self):
+        self._cached_iterator_num = 0
+
     def _check_empty_raw(self, state_key):
         output_stream = coder_impl.create_OutputStream()
         output_stream.write_byte(self.CHECK_EMPTY_FLAG)
@@ -276,6 +323,38 @@ class CachingMapStateHandler(object):
         else:
             raise Exception("Unknown response flag: " + str(result_flag))
 
+    def _iterate_raw(self, state_key, iterate_type, iterator_token, map_key_coder, map_value_coder):
+        output_stream = coder_impl.create_OutputStream()
+        output_stream.write_byte(self.ITERATE_FLAG)
+        output_stream.write_byte(iterate_type.value)
+        if iterator_token is not None:
+            output_stream.write_bigendian_int32(len(iterator_token))
+            output_stream.write(iterator_token)
+        else:
+            output_stream.write_bigendian_int32(0)
+        continuation_token = output_stream.get()
+        data, response_token = self._underlying.get_raw(state_key, continuation_token)
+        input_stream = coder_impl.create_InputStream(data)
+        if iterate_type == IterateType.ITEMS or iterate_type == IterateType.VALUES:
+            # decode both key and value
+            current_batch = {}
+            while input_stream.size() > 0:
+                key = map_key_coder.decode_from_stream(input_stream, True)
+                is_not_none = input_stream.read_byte()
+                if is_not_none:
+                    value = map_value_coder.decode_from_stream(input_stream, True)
+                else:
+                    value = None
+                current_batch[key] = value
+            return current_batch, response_token
+        else:
+            # only decode key
+            current_batch = []
+            while input_stream.size() > 0:
+                key = map_key_coder.decode_from_stream(input_stream, True)
+                current_batch.append(key)
+            return current_batch, response_token
+
     def _append_raw(self, state_key, items, map_key_coder, map_value_coder):
         output_stream = coder_impl.create_OutputStream()
         output_stream.write_bigendian_int32(len(items))
@@ -301,6 +380,124 @@ class CachingMapStateHandler(object):
         return state_key.SerializeToString()
 
 
+class RemovableIterator(collections.Iterator):
+
+    def __init__(self, internal_map_state, iterate_type):
+        self._internal_map_state = internal_map_state
+        self._mod_count = internal_map_state._mod_count
+        self._underlying = iter(self._internal_map_state._write_cache.items())
+        self._underlying_is_write_cache = True
+        self._underlying_is_read_cache = False
+        self._iterator_token = None
+        self._cached_map_state = None
+        self._last_key = None
+        self._iterate_type = iterate_type
+        self._removed_keys = set()
+        if self._iterate_type == IterateType.KEYS:
+            self._get_from_cache = self._get_key_from_cache
+            self._get_from_data = self._get_key_from_data
+        elif self._iterate_type == IterateType.VALUES:
+            self._get_from_cache = self._get_value_from_cache
+            self._get_from_data = self._get_value_from_data
+        else:
+            self._get_from_cache = self._get_item_from_cache
+            self._get_from_data = self._get_item_from_data
+
+    def __next__(self):
+        self._check_modification()
+        if self._underlying_is_write_cache:
+            # Iterate the data in write cache firstly
+            try:
+                key, existed_and_value = next(self._underlying)
+                while not existed_and_value[0]:
+                    key, existed_and_value = next(self._underlying)
+                return self._get_from_cache(key, existed_and_value)
+            except StopIteration:
+                self._underlying = self._next_batch()
+                self._underlying_is_write_cache = False
+        if self._underlying_is_read_cache:
+            # If the read cache contains all data (except the data in write cache) of the map state
+            self._last_key, existed_and_value = next(self._underlying)
+            while not existed_and_value[0] or \
+                    self._last_key in self._internal_map_state._write_cache:
+                key, existed_and_value = next(self._underlying)
+            return self._get_from_cache(self._last_key, existed_and_value)
+        else:
+            try:
+                # The data is from Java side
+                next_value = self._get_from_data(next(self._underlying))
+                while self._last_key in self._internal_map_state._write_cache:
+                    next_value = self._get_from_data(next(self._underlying))
+                return next_value
+            except StopIteration:
+                if self._iterator_token is None:
+                    raise
+                else:
+                    self._underlying = self._next_batch()
+                    return self.__next__()
+
+    def remove(self):
+        """
+        Remove the the last element returned by this iterator.
+        """
+        if self._last_key is None:
+            raise Exception("You need to call the '__next__' method before calling "
+                            "this method.")
+        self._check_modification()
+        # Bypass the 'remove' method of the map state to avoid triggering the commit of the write
+        # cache.
+        if self._internal_map_state._cleared:
+            del self._internal_map_state._write_cache[self._last_key]
+            self._mod_count += 1
+            self._internal_map_state._mod_count += 1
+        else:
+            self._internal_map_state._write_cache[self._last_key] = (False, None)
+            self._mod_count += 1
+            self._internal_map_state._mod_count += 1
+        self._last_key = None
+
+    def _check_modification(self):
+        if self._mod_count != self._internal_map_state._mod_count:
+            raise Exception("Concurrent modification detected. "
+                            "You can not modify the map state when iterating it except using the "
+                            "'remove' method of this iterator.")
+
+    def _next_batch(self):
+        data, self._iterator_token = self._internal_map_state._iterate_next_batch(
+            self._iterate_type, self._iterator_token)
+        if isinstance(data, CachedMapState):
+            self._underlying_is_read_cache = True
+            return iter(data._cache.items())
+        elif self._iterate_type == IterateType.KEYS:
+            return iter(data)
+        else:
+            return iter(data.items())
+
+    def _get_key_from_cache(self, key, existed_and_value):
+        self._last_key = key
+        return key
+
+    def _get_value_from_cache(self, key, existed_and_value):
+        self._last_key = key
+        return existed_and_value[1]
+
+    def _get_item_from_cache(self, key, existed_and_value):
+        self._last_key = key
+        return key, existed_and_value[1]
+
+    def _get_key_from_data(self, key):
+        self._last_key = key
+        return key
+
+    def _get_value_from_data(self, key_and_value):
+        self._last_key = key_and_value[0]
+        return key_and_value[1]
+
+    def _get_item_from_data(self, key_and_value):
+        self._last_key = key_and_value[0]
+        return key_and_value
+
+
 class InternalSynchronousMapRuntimeState(object):
 
     def __init__(self,
@@ -319,8 +516,11 @@ class InternalSynchronousMapRuntimeState(object):
         self._max_write_cache_entries = max_write_cache_entries
         self._is_empty = None
         self._cleared = False
+        self._mod_count = 0
 
     def get(self, map_key):
+        if self._is_empty:
+            raise KeyError("Map key %s not found!" % map_key)
         if map_key in self._write_cache:
             exists, value = self._write_cache[map_key]
             if exists:
@@ -339,6 +539,7 @@ class InternalSynchronousMapRuntimeState(object):
     def put(self, map_key, map_value):
         self._write_cache[map_key] = (True, map_value)
         self._is_empty = False
+        self._mod_count += 1
         if len(self._write_cache) >= self._max_write_cache_entries:
             self.commit()
 
@@ -346,16 +547,27 @@ class InternalSynchronousMapRuntimeState(object):
         for map_key, map_value in dict_value:
             self._write_cache[map_key] = (True, map_value)
         self._is_empty = False
+        self._mod_count += 1
         if len(self._write_cache) >= self._max_write_cache_entries:
             self.commit()
 
     def remove(self, map_key):
-        self._write_cache[map_key] = (False, None)
-        self._is_empty = None
+        if self._is_empty:
+            return
+        if self._cleared:
+            del self._write_cache[map_key]
+            if len(self._write_cache) == 0:
+                self._is_empty = True
+        else:
+            self._write_cache[map_key] = (False, None)
+            self._is_empty = None
+        self._mod_count += 1
         if len(self._write_cache) >= self._max_write_cache_entries:
             self.commit()
 
     def contains(self, map_key):
+        if self._is_empty:
+            return False
         try:
             self.get(map_key)
             return True
@@ -364,13 +576,25 @@ class InternalSynchronousMapRuntimeState(object):
 
     def is_empty(self):
         if self._is_empty is None:
+            if len(self._write_cache) > 0:
+                self.commit()
             self._is_empty = self._map_state_handler.check_empty(self._state_key)
         return self._is_empty
 
     def clear(self):
         self._cleared = True
         self._is_empty = True
+        self._mod_count += 1
         self._write_cache.clear()
+
+    def items(self):
+        return RemovableIterator(self, IterateType.ITEMS)
+
+    def keys(self):
+        return RemovableIterator(self, IterateType.KEYS)
+
+    def values(self):
+        return RemovableIterator(self, IterateType.VALUES)
 
     def commit(self):
         to_await = None
@@ -395,6 +619,17 @@ class InternalSynchronousMapRuntimeState(object):
         self._write_cache.clear()
         self._cleared = False
 
+    def _iterate_next_batch(self, iterate_type, iterator_token):
+        if self._cleared:
+            return [] if iterate_type == IterateType.KEYS else {}, None
+        else:
+            return self._map_state_handler.iterate(
+                self._state_key,
+                iterate_type,
+                iterator_token,
+                self._map_key_coder_impl,
+                self._map_value_coder_impl)
+
 
 class SynchronousMapRuntimeState(MapState):
 
@@ -417,13 +652,13 @@ class SynchronousMapRuntimeState(MapState):
         return self._internal_state.contains(key)
 
     def items(self):
-        raise NotImplementedError
+        return self._internal_state.items()
 
     def keys(self):
-        raise NotImplementedError
+        return self._internal_state.keys()
 
     def values(self):
-        raise NotImplementedError
+        return self._internal_state.values()
 
     def is_empty(self):
         return self._internal_state.is_empty()
@@ -465,6 +700,11 @@ class RemoteKeyedStateBackend(object):
             lambda key, value: self.commit_internal_state(value))
         self._current_key = None
         self._encoded_current_key = None
+        self._clear_iterator_mark = beam_fn_api_pb2.StateKey(
+            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                transform_id="clear_iterators",
+                side_input_id="clear_iterators",
+                key=self._encoded_current_key))
 
     def get_list_state(self, name, element_coder):
         if name in self._all_states:
@@ -597,6 +837,11 @@ class RemoteKeyedStateBackend(object):
         for name, state in self._all_states.items():
             if (name, self._encoded_current_key) not in self._internal_state_cache:
                 self.commit_internal_state(state._internal_state)
+
+    def clear_cached_iterators(self):
+        if self._map_state_handler.get_cached_iterators_num() > 0:
+            self._clear_iterator_mark.multimap_side_input.key = self._encoded_current_key
+            self._map_state_handler.clear(self._clear_iterator_mark)
 
     @staticmethod
     def commit_internal_state(internal_state):
