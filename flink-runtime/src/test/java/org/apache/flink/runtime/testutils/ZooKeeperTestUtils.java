@@ -73,7 +73,7 @@ public class ZooKeeperTestUtils {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperQuorum);
 
 		int connTimeout = 5000;
-		if (System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD")) {
+		if (runsOnCIInfrastructure()) {
 			// The regular timeout is to aggressive for Travis and connections are often lost.
 			LOG.info("Detected CI environment: Configuring connection and session timeout of 30 seconds");
 			connTimeout = 30000;
@@ -92,4 +92,10 @@ public class ZooKeeperTestUtils {
 		return config;
 	}
 
+	/**
+	 * @return true, if a CI environment is detected.
+	 */
+	public static boolean runsOnCIInfrastructure() {
+		return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
+	}
 }
