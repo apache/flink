@@ -23,6 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.testutils.SystemExitTrackingSecurityManager;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 
@@ -32,6 +33,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import javax.annotation.Nonnull;
+
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.util.CoreMatchers.willNotComplete;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -84,6 +91,57 @@ public class TaskManagerRunnerTest extends TestLogger {
 		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
 	}
 
+	@Test
+	public void testUnexpectedTaskManagerTerminationFailsRunnerFatally() throws Exception {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+		final TestingTaskExecutorService taskExecutorService = TestingTaskExecutorService.newBuilder()
+				.setTerminationFuture(terminationFuture)
+				.build();
+		final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(
+				createConfiguration(),
+				ResourceID.generate(),
+				createTaskExecutorServiceFactory(taskExecutorService));
+
+		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+
+		Integer statusCode = systemExitTrackingSecurityManager.getSystemExitFuture().get();
+		assertThat(statusCode, is(equalTo(TaskManagerRunner.RUNTIME_FAILURE_RETURN_CODE)));
+	}
+
+	@Test
+	public void testUnexpectedTaskManagerTerminationAfterRunnerCloseWillBeIgnored() throws Exception {
+		final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+		final TestingTaskExecutorService taskExecutorService = TestingTaskExecutorService.newBuilder()
+				.setTerminationFuture(terminationFuture)
+				.withManualTerminationFutureCompletion()
+				.build();
+		final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(
+				createConfiguration(),
+				ResourceID.generate(),
+				createTaskExecutorServiceFactory(taskExecutorService));
+
+		taskManagerRunner.closeAsync();
+
+		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+
+		assertThat(systemExitTrackingSecurityManager.getSystemExitFuture(), willNotComplete(Duration.ofMillis(10L)));
+	}
+
+	@Nonnull
+	private TaskManagerRunner.TaskExecutorServiceFactory createTaskExecutorServiceFactory(
+			TestingTaskExecutorService taskExecutorService) {
+		return (
+				configuration,
+				resourceID,
+				rpcService,
+				highAvailabilityServices,
+				heartbeatServices,
+				metricRegistry,
+				blobCacheService,
+				localCommunicationOnly,
+				fatalErrorHandler) -> taskExecutorService;
+	}
+
 	private static Configuration createConfiguration() {
 		final Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.ADDRESS, "localhost");
@@ -92,7 +150,11 @@ public class TaskManagerRunnerTest extends TestLogger {
 	}
 
 	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration) throws Exception {
-		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, ResourceID.generate());
+		return createTaskManagerRunner(configuration, ResourceID.generate(), TaskManagerRunner::createTaskExecutorService);
+	}
+
+	private static TaskManagerRunner createTaskManagerRunner(final Configuration configuration, ResourceID resourceId, TaskManagerRunner.TaskExecutorServiceFactory taskExecutorServiceFactory) throws Exception {
+		TaskManagerRunner taskManagerRunner = new TaskManagerRunner(configuration, resourceId, taskExecutorServiceFactory);
 		taskManagerRunner.start();
 		return taskManagerRunner;
 	}
