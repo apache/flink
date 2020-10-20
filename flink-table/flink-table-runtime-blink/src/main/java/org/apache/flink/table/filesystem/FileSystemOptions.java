@@ -185,4 +185,17 @@ public class FileSystemOptions {
 					.defaultValue("_SUCCESS")
 					.withDescription("The file name for success-file partition commit policy," +
 							" default is '_SUCCESS'.");
+
+	public static final ConfigOption<Boolean> AUTO_COMPACTION =
+			key("auto-compaction")
+					.booleanType()
+					.defaultValue(false)
+					.withDescription("Whether to enable automatic compaction in streaming sink or not." +
+							" If the compaction target size is too large, checkpoints may be delayed.");
+
+	public static final ConfigOption<MemorySize> COMPACTION_FILE_SIZE =
+			key("compaction.file-size")
+					.memoryType()
+					.noDefaultValue()
+					.withDescription("The compaction target file size, the default value is the rolling file size.");
 }
