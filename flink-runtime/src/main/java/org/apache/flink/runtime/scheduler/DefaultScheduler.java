@@ -67,6 +67,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -519,13 +520,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	private class DefaultExecutionSlotAllocationContext implements ExecutionSlotAllocationContext {
 
 		@Override
-		public CompletableFuture<Collection<TaskManagerLocation>> getPreferredLocations(
-				final ExecutionVertexID executionVertexId,
-				final Set<ExecutionVertexID> producersToIgnore) {
-			return getPreferredLocationsRetriever().getPreferredLocations(executionVertexId, producersToIgnore);
-		}
-
-		@Override
 		public ResourceProfile getResourceProfile(final ExecutionVertexID executionVertexId) {
 			return getExecutionVertex(executionVertexId).getResourceProfile();
 		}
@@ -548,6 +542,23 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		@Override
 		public Set<CoLocationGroupDesc> getCoLocationGroups() {
 			return getJobGraph().getCoLocationGroupDescriptors();
+		}
+
+		@Override
+		public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
+				ExecutionVertexID executionVertexId) {
+			return inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
+		}
+
+		@Override
+		public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(
+				ExecutionVertexID executionVertexId) {
+			return inputsLocationsRetriever.getTaskManagerLocation(executionVertexId);
+		}
+
+		@Override
+		public Optional<TaskManagerLocation> getStateLocation(ExecutionVertexID executionVertexId) {
+			return stateLocationRetriever.getStateLocation(executionVertexId);
 		}
 	}
 }
