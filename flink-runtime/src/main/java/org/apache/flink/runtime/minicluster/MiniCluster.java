@@ -37,6 +37,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -339,14 +340,12 @@ public class MiniCluster implements AutoCloseableAsync {
 					commonRpcService,
 					DispatcherGateway.class,
 					DispatcherId::fromUuid,
-					20,
-					Time.milliseconds(20L));
+					new ExponentialBackoffRetryStrategy(21, Time.milliseconds(5L), Time.milliseconds(20L)));
 				resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 					commonRpcService,
 					ResourceManagerGateway.class,
 					ResourceManagerId::fromUuid,
-					20,
-					Time.milliseconds(20L));
+					new ExponentialBackoffRetryStrategy(21, Time.milliseconds(5L), Time.milliseconds(20L)));
 				webMonitorLeaderRetriever = new LeaderRetriever();
 
 				resourceManagerLeaderRetriever.start(resourceManagerGatewayRetriever);
