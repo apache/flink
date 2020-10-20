@@ -179,12 +179,7 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 			throw new RuntimeException(e);
 		}
 
-		// Set the Hive Metastore DB driver
-		hiveConf.set("datanucleus.schema.autoCreateAll", "true");
-		hiveConf.set("hive.metastore.schema.verification", "false");
 		hiveConf.set("hive.metastore.uris", toHmsURI());
-		// No pooling needed. This will save us a lot of threads
-		hiveConf.set("datanucleus.connectionPoolingType", "None");
 
 		hiveConf.setBoolVar(METASTORE_VALIDATE_CONSTRAINTS, true);
 		hiveConf.setBoolVar(METASTORE_VALIDATE_COLUMNS, true);

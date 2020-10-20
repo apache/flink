@@ -38,11 +38,14 @@ import org.apache.flink.util.ArrayUtils;
 import org.apache.flink.util.CollectionUtil;
 
 import com.klarna.hiverunner.HiveShell;
+import com.klarna.hiverunner.annotations.HiveRunnerSetup;
 import com.klarna.hiverunner.annotations.HiveSQL;
+import com.klarna.hiverunner.config.HiveRunnerConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.lockmgr.DbTxnManager;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -62,6 +65,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_IN_TEST;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SUPPORT_CONCURRENCY;
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_TXN_MANAGER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -74,6 +80,17 @@ public class TableEnvHiveConnectorITCase {
 
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;
+
+	@HiveRunnerSetup
+	private static final HiveRunnerConfig CONFIG = new HiveRunnerConfig() {{
+		if (HiveShimLoader.getHiveVersion().startsWith("3.")) {
+			// hive-3.x requires a proper txn manager to create ACID table
+			getHiveConfSystemOverride().put(HIVE_TXN_MANAGER.varname, DbTxnManager.class.getName());
+			getHiveConfSystemOverride().put(HIVE_SUPPORT_CONCURRENCY.varname, "true");
+			// tell TxnHandler to prepare txn DB
+			getHiveConfSystemOverride().put(HIVE_IN_TEST.varname, "true");
+		}
+	}};
 
 	private static HiveCatalog hiveCatalog;
 	private static HiveMetastoreClientWrapper hmsClient;
