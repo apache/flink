@@ -59,6 +59,9 @@ public class TestingTaskExecutorService implements TaskManagerRunner.TaskExecuto
 		return new Builder();
 	}
 
+	/**
+	 * Builder for {@link TestingTaskExecutorService}.
+	 */
 	public static final class Builder {
 		private Runnable startRunnable = () -> {};
 		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
