@@ -19,11 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 
@@ -73,9 +72,9 @@ class BatchExecBoundedStreamScan(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior = DamBehavior.PIPELINED
-
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
+
+  override def getInputEdges: util.List[ExecEdge] = List()
 
   override def replaceInputNode(
       ordinalInParent: Int,

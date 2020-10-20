@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import java.util
-
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.memory.ManagedMemoryUseCase
-import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -38,7 +35,7 @@ import org.apache.flink.table.planner.expressions.{PlannerRowtimeAttribute, Plan
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupWindowAggregate.ARROW_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
@@ -49,6 +46,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -125,13 +124,13 @@ class BatchExecPythonGroupWindowAggregate(
   override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
     List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
 
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
+
   override def replaceInputNode(
       ordinalInParent: Int,
       newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
-
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {

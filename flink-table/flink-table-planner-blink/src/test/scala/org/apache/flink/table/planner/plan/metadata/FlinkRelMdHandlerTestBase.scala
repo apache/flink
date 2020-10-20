@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkR
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite._
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -52,6 +53,7 @@ import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.utils.CatalogManagerMocks
+
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -71,7 +73,9 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
 import org.junit.{Before, BeforeClass}
+
 import java.math.BigDecimal
+
 import java.util
 
 import scala.collection.JavaConversions._
@@ -2402,7 +2406,9 @@ class FlinkRelMdHandlerTestBase {
   //   where a = b
   protected lazy val batchMultipleInput: RelNode = {
     val leftInput = createGlobalAgg("MyTable1", "b", "e")
+    val leftEdge = leftInput.getInputEdges.get(0)
     val rightInput = createGlobalAgg("MyTable4", "a", "c")
+    val rightEdge = rightInput.getInputEdges.get(0)
     val join = new BatchExecHashJoin(
       cluster,
       batchPhysicalTraits,
@@ -2421,8 +2427,17 @@ class FlinkRelMdHandlerTestBase {
       batchPhysicalTraits,
       Array(leftInput.getInput, rightInput.getInput),
       join,
-      Array(0, 1)
-    )
+      Array(
+        ExecEdge.builder()
+          .requiredShuffle(leftEdge.getRequiredShuffle)
+          .damBehavior(leftEdge.getDamBehavior)
+          .priority(0)
+          .build(),
+        ExecEdge.builder()
+          .requiredShuffle(rightEdge.getRequiredShuffle)
+          .damBehavior(rightEdge.getDamBehavior)
+          .priority(1)
+          .build()))
   }
 
   private def createGlobalAgg(
