@@ -29,7 +29,9 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
@@ -91,9 +93,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -219,7 +223,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		this.functionUrn = Preconditions.checkNotNull(functionUrn);
 		this.jobOptions = Preconditions.checkNotNull(jobOptions);
 		this.flinkMetricContainer = flinkMetricContainer;
-		this.stateRequestHandler = getStateRequestHandler(keyedStateBackend, keySerializer);
+		this.stateRequestHandler = getStateRequestHandler(keyedStateBackend, keySerializer, jobOptions);
 		this.memoryManager = memoryManager;
 		this.managedMemoryFraction = managedMemoryFraction;
 		this.resultTuple = new Tuple2<>();
@@ -533,12 +537,57 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 	private static StateRequestHandler getStateRequestHandler(
 			KeyedStateBackend keyedStateBackend,
-			TypeSerializer keySerializer) {
+			TypeSerializer keySerializer,
+			Map<String, String> jobOptions) {
 		if (keyedStateBackend == null) {
 			return StateRequestHandler.unsupported();
 		} else {
 			assert keySerializer != null;
-			return new SimpleStateRequestHandler(keyedStateBackend, keySerializer);
+			return new SimpleStateRequestHandler(keyedStateBackend, keySerializer, jobOptions);
+		}
+	}
+
+	/**
+	 * The type of the Python map state iterate request.
+	 */
+	private enum IterateType {
+
+		/**
+		 * Equivalent to iterate {@link Map#entrySet() }.
+		 */
+		ITEMS((byte) 0),
+
+		/**
+		 * Equivalent to iterate {@link Map#keySet() }.
+		 */
+		KEYS((byte) 1),
+
+		/**
+		 * Equivalent to iterate {@link Map#values() }.
+		 */
+		VALUES((byte) 2);
+
+		private final byte ord;
+
+		IterateType(byte ord) {
+			this.ord = ord;
+		}
+
+		public byte getOrd() {
+			return ord;
+		}
+
+		public static IterateType fromOrd(byte ord) {
+			switch (ord) {
+				case 0:
+					return ITEMS;
+				case 1:
+					return KEYS;
+				case 2:
+					return VALUES;
+				default:
+					throw new RuntimeException("Unsupported ordinal: " + ord);
+			}
 		}
 	}
 
@@ -546,6 +595,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * A state request handler which handles the state request from Python side.
 	 */
 	private static class SimpleStateRequestHandler implements StateRequestHandler {
+
+		private static final String CLEAR_CACHED_ITERATOR_MARK = "clear_iterators";
 
 		// map state GET request flags
 		private static final byte GET_FLAG = 0;
@@ -588,22 +639,51 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		private final DataInputViewStreamWrapper baisWrapper;
 
 		/**
+		 * Reusable OutputStream used to holding the serialized input elements.
+		 */
+		private final ByteArrayOutputStreamWithPos baos;
+
+		/**
+		 * OutputStream Wrapper.
+		 */
+		private final DataOutputViewStreamWrapper baosWrapper;
+
+		/**
 		 * The cache of the stateDescriptors.
 		 */
-		final Map<String, StateDescriptor> stateDescriptorCache;
+		private final Map<String, StateDescriptor> stateDescriptorCache;
+
+		/**
+		 * The cache of the map state iterators.
+		 */
+		private final Map<ByteArrayWrapper, Iterator> mapStateIteratorCache;
+
+		private final int mapStateIterateResponseBatchSize;
 
 		private final ByteArrayWrapper reuseByteArrayWrapper = new ByteArrayWrapper(new byte[0]);
 
 		SimpleStateRequestHandler(
 			KeyedStateBackend keyedStateBackend,
-			TypeSerializer keySerializer) {
+			TypeSerializer keySerializer,
+			Map<String, String> config) {
 			this.keyedStateBackend = keyedStateBackend;
 			this.keySerializer = keySerializer;
 			this.valueSerializer = PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 				.createSerializer(new ExecutionConfig());
 			bais = new ByteArrayInputStreamWithPos();
 			baisWrapper = new DataInputViewStreamWrapper(bais);
+			baos = new ByteArrayOutputStreamWithPos();
+			baosWrapper = new DataOutputViewStreamWrapper(baos);
 			stateDescriptorCache = new HashMap<>();
+			mapStateIteratorCache = new HashMap<>();
+			mapStateIterateResponseBatchSize = Integer.valueOf(config.getOrDefault(
+				PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
+				PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.defaultValue().toString()));
+			if (mapStateIterateResponseBatchSize <= 0) {
+				throw new RuntimeException(String.format(
+					"The value of '%s' must be greater than 0!",
+					PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key()));
+			}
 		}
 
 		@Override
@@ -757,21 +837,40 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapGetRequest(BeamFnApi.StateRequest request)
 				throws Exception {
-			// The structure of get request bytes is:
-			// [flag(1 byte)][serialized map key(if needed)]
+			MapState<ByteArrayWrapper, byte[]> mapState = getMapState(request);
+			// The continuation token structure of GET request is:
+			// [flag (1 byte)][serialized map key]
+			// The continuation token structure of CHECK_EMPTY request is:
+			// [flag (1 byte)]
+			// The continuation token structure of ITERATE request is:
+			// [flag (1 byte)][iterate type (1 byte)][iterator token length (int32)][iterator token]
 			byte[] getRequest = request.getGet().getContinuationToken().toByteArray();
 			byte getFlag = getRequest[0];
-			reuseByteArrayWrapper.setData(getRequest);
-			reuseByteArrayWrapper.setOffset(1);
-			reuseByteArrayWrapper.setLimit(getRequest.length);
-			MapState<ByteArrayWrapper, byte[]> mapState = getMapState(request);
 			BeamFnApi.StateGetResponse.Builder response;
 			switch (getFlag) {
 				case GET_FLAG:
+					reuseByteArrayWrapper.setData(getRequest);
+					reuseByteArrayWrapper.setOffset(1);
+					reuseByteArrayWrapper.setLimit(getRequest.length);
 					response = handleMapGetValueRequest(reuseByteArrayWrapper, mapState);
 					break;
 				case CHECK_EMPTY_FLAG:
 					response = handleMapCheckEmptyRequest(mapState);
+					break;
+				case ITERATE_FLAG:
+					bais.setBuffer(getRequest, 1, getRequest.length - 1);
+					IterateType iterateType = IterateType.fromOrd(baisWrapper.readByte());
+					int iterateTokenLength = baisWrapper.readInt();
+					ByteArrayWrapper iterateToken;
+					if (iterateTokenLength > 0) {
+						reuseByteArrayWrapper.setData(getRequest);
+						reuseByteArrayWrapper.setOffset(bais.getPosition());
+						reuseByteArrayWrapper.setLimit(bais.getPosition() + iterateTokenLength);
+						iterateToken = reuseByteArrayWrapper;
+					} else {
+						iterateToken = null;
+					}
+					response = handleMapIterateRequest(mapState, iterateType, iterateToken);
 					break;
 				default:
 					throw new RuntimeException(String.format(
@@ -806,14 +905,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 						mapState.remove(reuseByteArrayWrapper);
 						break;
 					case SET_NONE:
-						mapState.put(reuseByteArrayWrapper, null);
+						mapState.put(reuseByteArrayWrapper.copy(), null);
 						break;
 					case SET_VALUE:
 						int valueLength = baisWrapper.readInt();
 						byte[] valueBytes = new byte[valueLength];
 						int readLength = baisWrapper.read(valueBytes);
 						assert valueLength == readLength;
-						mapState.put(reuseByteArrayWrapper, valueBytes);
+						mapState.put(reuseByteArrayWrapper.copy(), valueBytes);
 						break;
 					default:
 						throw new RuntimeException(String.format(
@@ -828,9 +927,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		private CompletionStage<BeamFnApi.StateResponse.Builder> handleMapClearRequest(BeamFnApi.StateRequest request)
 			throws Exception {
-			MapState<ByteArrayWrapper, byte[]> partitionedState = getMapState(request);
-
-			partitionedState.clear();
+			if (request.getStateKey().getMultimapSideInput().getTransformId().equals(CLEAR_CACHED_ITERATOR_MARK)) {
+				mapStateIteratorCache.clear();
+			} else {
+				MapState<ByteArrayWrapper, byte[]> partitionedState = getMapState(request);
+				partitionedState.clear();
+			}
 			return CompletableFuture.completedFuture(
 				BeamFnApi.StateResponse.newBuilder()
 					.setId(request.getId())
@@ -844,10 +946,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 				if (value == null) {
 					return IS_NONE_RESPONSE;
 				} else {
-					ByteString.Output output = ByteString.newOutput();
-					output.write(new byte[]{EXIST_FLAG});
-					output.write(value);
-					return BeamFnApi.StateGetResponse.newBuilder().setData(output.toByteString());
+					baos.reset();
+					baosWrapper.writeByte(EXIST_FLAG);
+					baosWrapper.write(value);
+					return BeamFnApi.StateGetResponse.newBuilder().setData(
+						ByteString.copyFrom(baos.toByteArray()));
 				}
 			} else {
 				return NOT_EXIST_RESPONSE;
@@ -861,6 +964,84 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			} else {
 				return NOT_EMPTY_RESPONSE;
 			}
+		}
+
+		private BeamFnApi.StateGetResponse.Builder handleMapIterateRequest(
+				MapState<ByteArrayWrapper, byte[]> mapState,
+				IterateType iterateType,
+				ByteArrayWrapper iteratorToken) throws Exception {
+			final Iterator iterator;
+			if (iteratorToken == null) {
+				switch (iterateType) {
+					case ITEMS:
+					case VALUES:
+						iterator = mapState.iterator();
+						break;
+					case KEYS:
+						iterator = mapState.keys().iterator();
+						break;
+					default:
+						throw new RuntimeException("Unsupported iterate type: " + iterateType);
+				}
+			} else {
+				iterator = mapStateIteratorCache.get(iteratorToken);
+				if (iterator == null) {
+					throw new RuntimeException("The cached iterator does not exist!");
+				}
+			}
+			baos.reset();
+			switch (iterateType) {
+				case ITEMS:
+				case VALUES:
+					Iterator<Map.Entry<ByteArrayWrapper, byte[]>> entryIterator = iterator;
+					for (int i = 0; i < mapStateIterateResponseBatchSize; i++) {
+						if (entryIterator.hasNext()) {
+							Map.Entry<ByteArrayWrapper, byte[]> entry = entryIterator.next();
+							ByteArrayWrapper key = entry.getKey();
+							baosWrapper.write(key.getData(), key.getOffset(), key.getLimit() - key.getOffset());
+							baosWrapper.writeBoolean(entry.getValue() != null);
+							if (entry.getValue() != null) {
+								baosWrapper.write(entry.getValue());
+							}
+						} else {
+							break;
+						}
+					}
+					break;
+				case KEYS:
+					Iterator<ByteArrayWrapper> keyIterator = iterator;
+					for (int i = 0; i < mapStateIterateResponseBatchSize; i++) {
+						if (keyIterator.hasNext()) {
+							ByteArrayWrapper key = keyIterator.next();
+							baosWrapper.write(key.getData(), key.getOffset(), key.getLimit() - key.getOffset());
+						} else {
+							break;
+						}
+					}
+					break;
+				default:
+					throw new RuntimeException("Unsupported iterate type: " + iterateType);
+			}
+			if (!iterator.hasNext()) {
+				if (iteratorToken != null) {
+					mapStateIteratorCache.remove(iteratorToken);
+				}
+				iteratorToken = null;
+			} else {
+				if (iteratorToken == null) {
+					iteratorToken = new ByteArrayWrapper(UUID.randomUUID().toString().getBytes());
+				}
+				mapStateIteratorCache.put(iteratorToken, iterator);
+			}
+			BeamFnApi.StateGetResponse.Builder responseBuilder =
+				BeamFnApi.StateGetResponse.newBuilder().setData(ByteString.copyFrom(baos.toByteArray()));
+			if (iteratorToken != null) {
+				responseBuilder.setContinuationToken(ByteString.copyFrom(
+					iteratorToken.getData(),
+					iteratorToken.getOffset(),
+					iteratorToken.getLimit() - iteratorToken.getOffset()));
+			}
+			return responseBuilder;
 		}
 
 		private MapState<ByteArrayWrapper, byte[]> getMapState(BeamFnApi.StateRequest request) throws Exception {
