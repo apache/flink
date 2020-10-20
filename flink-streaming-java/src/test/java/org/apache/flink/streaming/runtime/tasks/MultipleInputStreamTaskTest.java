@@ -828,6 +828,7 @@ public class MultipleInputStreamTaskTest {
 		return new StreamTaskMailboxTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
 			.modifyExecutionConfig(config -> config.enableObjectReuse())
 			.modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
+			.modifyStreamConfig(config -> config.setAlignmentTimeout(0))
 			.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 			.addSourceInput(
 				new SourceOperatorFactory<>(

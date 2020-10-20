@@ -25,7 +25,10 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
@@ -53,8 +56,6 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 	private static final int MAX_STEPS = 100;
 
 	private final CheckpointMetaData metaData = new CheckpointMetaData(1L, System.currentTimeMillis());
-	private final CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
-	private final CheckpointBarrier checkpointBarrier = new CheckpointBarrier(metaData.getCheckpointId(), metaData.getTimestamp(), options);
 
 	/**
 	 * In this scenario:
@@ -67,9 +68,10 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
 			testHarness.setAutoProcess(false);
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-			addRecordsAndBarriers(testHarness);
+			CheckpointBarrier barrier = createBarrier(testHarness);
+			addRecordsAndBarriers(testHarness, barrier);
 
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, options, false);
+			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
 			processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
 			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
@@ -80,7 +82,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
 			assertThat(actualOutput.subList(0, expectedOutput.size()), containsInAnyOrder(expectedOutput.toArray()));
-			assertThat(actualOutput.get(expectedOutput.size()), equalTo(checkpointBarrier));
+			assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
 		}
 	}
 
@@ -97,10 +99,11 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 			addRecords(testHarness);
 
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, options, false);
+			CheckpointBarrier barrier = createBarrier(testHarness);
+			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
 			processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
-			assertThat(testHarness.getOutput(), contains(checkpointBarrier));
+			assertThat(testHarness.getOutput(), contains(barrier));
 
 			testHarness.processAll();
 
@@ -126,11 +129,12 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
 			testHarness.setAutoProcess(false);
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-			addRecordsAndBarriers(testHarness);
+			CheckpointBarrier barrier = createBarrier(testHarness);
+			addRecordsAndBarriers(testHarness, barrier);
 
 			testHarness.processAll();
 
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, options, false);
+			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
 			processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
 			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
@@ -144,7 +148,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 
 			assertThat(actualOutput.subList(0, expectedOutput.size()), containsInAnyOrder(expectedOutput.toArray()));
-			assertThat(actualOutput.get(expectedOutput.size()), equalTo(checkpointBarrier));
+			assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
 		}
 	}
 
@@ -158,12 +162,14 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 	 */
 	@Test
 	public void testSourceCheckpointLastUnaligned() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(true)) {
+		boolean unaligned = true;
+		try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(unaligned)) {
 			testHarness.setAutoProcess(false);
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
 			addNetworkRecords(testHarness);
-			addBarriers(testHarness);
+			CheckpointBarrier barrier = createBarrier(testHarness);
+			addBarriers(testHarness, barrier);
 
 			testHarness.processAll();
 			addSourceRecords(testHarness, 1, 1337, 1337, 1337);
@@ -173,7 +179,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
 			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
 			expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(checkpointBarrier);
+			expectedOutput.add(barrier);
 
 			assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
 		}
@@ -198,21 +204,34 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 			processSingleStepUntil(testHarness, () -> !testHarness.getOutput().isEmpty());
 			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
 
-			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, options, false);
+			CheckpointBarrier barrier = createBarrier(testHarness);
+			Future<Boolean> checkpointFuture = testHarness.getStreamTask().triggerCheckpointAsync(metaData, barrier.getCheckpointOptions(), false);
 			processSingleStepUntil(testHarness, checkpointFuture::isDone);
 
 			ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
 			assertThat(actualOutput.subList(0, expectedOutput.size()), containsInAnyOrder(expectedOutput.toArray()));
-			assertThat(actualOutput.get(expectedOutput.size()), equalTo(checkpointBarrier));
+			assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
 		}
 	}
 
-	private void addRecordsAndBarriers(StreamTaskMailboxTestHarness<String> testHarness) throws Exception {
+	private void addRecordsAndBarriers(StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier) throws Exception {
 		addRecords(testHarness);
-		addBarriers(testHarness);
+		addBarriers(testHarness, checkpointBarrier);
 	}
 
-	private void addBarriers(StreamTaskMailboxTestHarness<String> testHarness) throws Exception {
+	private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
+		StreamConfig config = testHarness.getStreamTask().getConfiguration();
+		CheckpointOptions checkpointOptions = CheckpointOptions.create(
+				CheckpointType.CHECKPOINT,
+				CheckpointStorageLocationReference.getDefault(),
+				config.isExactlyOnceCheckpointMode(),
+				config.isUnalignedCheckpointsEnabled(),
+				config.getAlignmentTimeout());
+
+		return new CheckpointBarrier(metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
+	}
+
+	private void addBarriers(StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier) throws Exception {
 		testHarness.processEvent(checkpointBarrier, 0);
 		testHarness.processEvent(checkpointBarrier, 1);
 	}

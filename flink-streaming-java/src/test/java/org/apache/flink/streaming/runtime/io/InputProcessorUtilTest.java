@@ -84,7 +84,7 @@ public class InputProcessorUtilTest {
 			for (IndexedInputGate inputGate : allInputGates) {
 				for (int channelId = 0; channelId < inputGate.getNumberOfInputChannels(); channelId++) {
 					barrierHandler.processBarrier(
-						new CheckpointBarrier(1, 42, CheckpointOptions.forCheckpointWithDefaultLocation(true, true)),
+						new CheckpointBarrier(1, 42, CheckpointOptions.forCheckpointWithDefaultLocation(true, true, 0)),
 						new InputChannelInfo(inputGate.getGateIndex(), channelId));
 				}
 			}

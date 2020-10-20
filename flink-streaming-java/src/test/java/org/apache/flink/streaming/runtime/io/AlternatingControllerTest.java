@@ -84,6 +84,26 @@ public class AlternatingControllerTest {
 	}
 
 	@Test
+	public void testAlignedTimeoutableCheckpoint() throws Exception {
+		int numChannels = 2;
+		int bufferSize = 1000;
+		ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+		CheckpointedInputGate gate = buildGate(target, numChannels);
+
+		long checkpointCreationTime = System.currentTimeMillis();
+		// Aligned checkpoint that never times out
+		Buffer neverTimeoutableCheckpoint = barrier(1, CHECKPOINT, checkpointCreationTime, Long.MAX_VALUE);
+		send(neverTimeoutableCheckpoint, gate, 0);
+		sendBuffer(bufferSize, gate, 1);
+
+		assertEquals(0, target.getTriggeredCheckpointCounter());
+
+		send(neverTimeoutableCheckpoint, gate, 1);
+
+		assertEquals(1, target.getTriggeredCheckpointCounter());
+	}
+
+	@Test
 	public void testMetricsAlternation() throws Exception {
 		int numChannels = 2;
 		int bufferSize = 1000;
@@ -318,8 +338,12 @@ public class AlternatingControllerTest {
 	}
 
 	private void sendBarrier(long barrierId, long barrierCreationTime, CheckpointType type, CheckpointedInputGate gate, int channelId) throws Exception {
+		send(barrier(barrierId, type, barrierCreationTime), gate, channelId);
+	}
+
+	private void send(Buffer buffer, CheckpointedInputGate gate, int channelId) throws Exception {
 		TestInputChannel channel = (TestInputChannel) gate.getChannel(channelId);
-		channel.read(barrier(barrierId, type, barrierCreationTime).retainBuffer());
+		channel.read(buffer.retainBuffer());
 		while (gate.pollNext().isPresent()) {
 		}
 	}
@@ -353,12 +377,22 @@ public class AlternatingControllerTest {
 	}
 
 	private Buffer barrier(long barrierId, CheckpointType checkpointType, long barrierTimestamp) throws IOException {
+		return barrier(barrierId, checkpointType, barrierTimestamp, 0);
+	}
+
+	private Buffer barrier(long barrierId, CheckpointType checkpointType, long barrierTimestamp, long alignmentTimeout) throws IOException {
+		CheckpointOptions options = CheckpointOptions.create(
+			checkpointType,
+			CheckpointStorageLocationReference.getDefault(),
+			true,
+			true,
+			alignmentTimeout);
 		return toBuffer(
 			new CheckpointBarrier(
 				barrierId,
 				barrierTimestamp,
-				new CheckpointOptions(checkpointType, CheckpointStorageLocationReference.getDefault(), true, true)),
-			true);
+				options),
+			options.isUnalignedCheckpoint());
 	}
 
 	private static CheckpointedInputGate buildGate(AbstractInvokable target, int numChannels) {

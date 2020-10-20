@@ -79,6 +79,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Flag to enable unaligned checkpoints. */
 	private boolean unalignedCheckpointsEnabled;
 
+	private long alignmentTimeout = ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis();
+
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
@@ -116,6 +118,7 @@ public class CheckpointConfig implements java.io.Serializable {
 		this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
 		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
 		this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
+		this.alignmentTimeout = checkpointConfig.alignmentTimeout;
 		this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
 		this.forceCheckpointing = checkpointConfig.forceCheckpointing;
 		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
@@ -455,6 +458,29 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
+	 * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
+	 *
+	 * <p>If {@link #alignmentTimeout} has value equal to <code>0</code>, checkpoints will always start unaligned.
+	 *
+	 * <p>If {@link #alignmentTimeout} has value greater then <code>0</code>, checkpoints will start aligned.
+	 * If during checkpointing, checkpoint start delay exceeds this {@link #alignmentTimeout}, alignment
+	 * will timeout and checkpoint will start working as unaligned checkpoint.
+	 */
+	@PublicEvolving
+	public void setAlignmentTimeout(long alignmentTimeout) {
+		this.alignmentTimeout = alignmentTimeout;
+	}
+
+	/**
+	 * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(long)} or
+	 * {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+	 */
+	@PublicEvolving
+	public long getAlignmentTimeout() {
+		return alignmentTimeout;
+	}
+
+	/**
 	 * Returns the cleanup behaviour for externalized checkpoints.
 	 *
 	 * @return The cleanup behaviour for externalized checkpoints or
@@ -543,5 +569,7 @@ public class CheckpointConfig implements java.io.Serializable {
 			.ifPresent(this::enableExternalizedCheckpoints);
 		configuration.getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
 			.ifPresent(this::enableUnalignedCheckpoints);
+		configuration.getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
+			.ifPresent(timeout -> setAlignmentTimeout(timeout.toMillis()));
 	}
 }

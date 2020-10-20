@@ -443,6 +443,16 @@ public class StreamConfig implements Serializable {
 		return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
 	}
 
+	public long getAlignmentTimeout() {
+		return config.getLong(
+				ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(),
+				ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis());
+	}
+
+	public void setAlignmentTimeout(long alignmentTimeout) {
+		config.setLong(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(), alignmentTimeout);
+	}
+
 	public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
 		try {
 			InstantiationUtil.writeObjectToConfig(outEdgeList, this.config, EDGES_IN_ORDER);
