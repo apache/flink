@@ -51,6 +51,11 @@ class DefaultDispatcherGatewayService implements AbstractDispatcherLeaderProcess
 	}
 
 	@Override
+	public CompletableFuture<Void> getTerminationFuture() {
+		return dispatcher.getTerminationFuture();
+	}
+
+	@Override
 	public CompletableFuture<Void> closeAsync() {
 		return dispatcher.closeAsync();
 	}

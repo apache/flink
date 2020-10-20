@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -172,6 +173,16 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		dispatcherService = createdDispatcherService;
 		dispatcherGatewayFuture.complete(createdDispatcherService.getGateway());
 		FutureUtils.forward(createdDispatcherService.getShutDownFuture(), shutDownFuture);
+		handleUnexpectedDispatcherServiceTermination(createdDispatcherService);
+	}
+
+	private void handleUnexpectedDispatcherServiceTermination(DispatcherGatewayService createdDispatcherService) {
+		createdDispatcherService.getTerminationFuture().whenComplete(
+				(ignored, throwable) -> {
+					runIfStateIs(State.RUNNING, () -> {
+						handleError(new FlinkException("Unexpected termination of DispatcherService.", throwable));
+					});
+				});
 	}
 
 	final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
@@ -220,13 +231,20 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		}
 
 		if (throwable != null) {
-			closeAsync();
-			fatalErrorHandler.onFatalError(throwable);
+			handleError(throwable);
 		}
 
 		return null;
 	}
 
+	private void handleError(Throwable throwable) {
+		closeAsync();
+		fatalErrorHandler.onFatalError(throwable);
+	}
+
+	/**
+	 * The state of the {@link DispatcherLeaderProcess}.
+	 */
 	protected enum State {
 		CREATED,
 		RUNNING,
@@ -250,5 +268,7 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
 
 		CompletableFuture<ApplicationStatus> getShutDownFuture();
+
+		CompletableFuture<Void> getTerminationFuture();
 	}
 }
