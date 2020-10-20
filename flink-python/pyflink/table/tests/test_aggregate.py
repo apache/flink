@@ -15,14 +15,17 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import collections
 import datetime
 
 import pandas as pd
 from pandas.util.testing import assert_frame_equal
 
 from pyflink.common import Row
+from pyflink.fn_execution.state_impl import RemovableConcatIterator
 from pyflink.table import DataTypes
 from pyflink.table.data_view import ListView, MapView
+from pyflink.table.expressions import col
 from pyflink.table.udf import AggregateFunction, udaf
 from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 
@@ -137,6 +140,73 @@ class CountDistinctAggregateFunction(AggregateFunction):
         return DataTypes.BIGINT()
 
 
+class TestIterateAggregateFunction(AggregateFunction):
+
+    def get_value(self, accumulator):
+        # test iterate keys
+        key_set = [i for i in accumulator[0]]
+        key_set.sort()
+        # test iterate values
+        value_set = [str(i) for i in accumulator[0].values()]
+        value_set.sort()
+        item_set = {}
+        # test iterate items
+        for key, value in accumulator[0].items():
+            item_set[key] = value
+        ordered_item_set = collections.OrderedDict()
+        for key in key_set:
+            ordered_item_set[key] = str(item_set[key])
+        try:
+            # test auto clear the cached iterators
+            next(iter(accumulator[0].items()))
+        except StopIteration:
+            pass
+        return Row(",".join(key_set),
+                   ','.join(value_set),
+                   ",".join([":".join(item) for item in ordered_item_set.items()]),
+                   accumulator[1])
+
+    def create_accumulator(self):
+        return Row(MapView(), 0)
+
+    def accumulate(self, accumulator, *args):
+        input_str = args[0]
+        if input_str not in accumulator[0]:
+            accumulator[0][input_str] = 1
+            accumulator[1] += 1
+        else:
+            accumulator[0][input_str] += 1
+
+    def retract(self, accumulator, *args):
+        input_str = args[0]
+        if input_str not in accumulator[0]:
+            return
+        accumulator[0][input_str] -= 1
+        if accumulator[0][input_str] == 0:
+            # test removable iterator
+            key_iter = iter(accumulator[0].keys())  # type: RemovableConcatIterator
+            while True:
+                try:
+                    key = next(key_iter)
+                    if key == input_str:
+                        key_iter.remove()
+                except StopIteration:
+                    break
+            accumulator[1] -= 1
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.MAP_VIEW(DataTypes.STRING(), DataTypes.BIGINT())),
+            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.STRING()),
+            DataTypes.FIELD("f1", DataTypes.STRING()),
+            DataTypes.FIELD("f2", DataTypes.STRING()),
+            DataTypes.FIELD("f3", DataTypes.BIGINT())])
+
+
 class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_double_aggregate(self):
@@ -148,7 +218,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
         self.t_env.get_config().get_configuration().set_string(
-            "python.state.cache.size", "1")
+            "python.state.cache-size", "1")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
                                       (3, 'Hi2', 'hi'),
@@ -176,7 +246,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
         self.t_env.get_config().get_configuration().set_string(
-            "python.state.cache.size", "2")
+            "python.state.cache-size", "2")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
                                       (3, 'Hi2', 'hi'),
@@ -199,11 +269,11 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
         self.t_env.get_config().get_configuration().set_string(
-            "python.state.cache.size", "1")
+            "python.state.cache-size", "1")
         self.t_env.get_config().get_configuration().set_string(
-            "python.map-state.read.cache.size", "1")
+            "python.map-state.read-cache-size", "1")
         self.t_env.get_config().get_configuration().set_string(
-            "python.map-state.write.cache.size", "1")
+            "python.map-state.write-cache-size", "1")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
              (1, 'Hi', 'hi'),
@@ -233,7 +303,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
         self.t_env.get_config().get_configuration().set_string(
-            "python.state.cache.size", "1")
+            "python.state.cache-size", "1")
         t = self.t_env.from_elements(
             [(2, 'hello', 'hello'),
              (4, 'clear', 'hello'),
@@ -242,6 +312,51 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         result = t.group_by(t.c).select(my_count(t.b).alias("a"), t.c)
         assert_frame_equal(result.to_pandas(),
                            pd.DataFrame([[2, "hello"]], columns=['a', 'c']))
+
+    def test_map_view_iterate(self):
+        test_iterate = udaf(TestIterateAggregateFunction())
+        self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "2")
+        # trigger the cache eviction in a bundle.
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache-size", "2")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.map-state.read-cache-size", "2")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.map-state.write-cache-size", "2")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.map-state.iterate-response-batch-size", "2")
+        t = self.t_env.from_elements(
+            [(1, 'Hi_', 'hi'),
+             (1, 'Hi', 'hi'),
+             (2, 'hello', 'hello'),
+             (3, 'Hi_', 'hi'),
+             (3, 'Hi', 'hi'),
+             (4, 'hello', 'hello'),
+             (5, 'Hi2_', 'hi'),
+             (5, 'Hi2', 'hi'),
+             (6, 'hello2', 'hello'),
+             (7, 'Hi', 'hi'),
+             (8, 'hello', 'hello'),
+             (9, 'Hi2', 'hi'),
+             (13, 'Hi3', 'hi')], ['a', 'b', 'c'])
+        self.t_env.create_temporary_view("source", t)
+        table_with_retract_message = self.t_env.sql_query(
+            "select LAST_VALUE(b) as b, LAST_VALUE(c) as c from source group by a")
+        result = table_with_retract_message.group_by(t.c) \
+            .select(test_iterate(t.b).alias("a"), t.c) \
+            .select(col("a").get(0).alias("a"),
+                    col("a").get(1).alias("b"),
+                    col("a").get(2).alias("c"),
+                    col("a").get(3).alias("d"),
+                    t.c.alias("e"))
+        assert_frame_equal(
+            result.to_pandas(),
+            pd.DataFrame([
+                ["hello,hello2", "1,3", 'hello:3,hello2:1', 2, "hello"],
+                ["Hi,Hi2,Hi3", "1,2,3", "Hi:3,Hi2:2,Hi3:1", 3, "hi"]],
+                columns=['a', 'b', 'c', 'd', 'e']))
 
 
 if __name__ == '__main__':

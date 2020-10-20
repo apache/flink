@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * A wrapper of the byte array. This class is used to calculate a deterministic hash code of a byte array.
@@ -108,5 +109,9 @@ public class ByteArrayWrapper implements Serializable {
 		} else {
 			return false;
 		}
+	}
+
+	public ByteArrayWrapper copy() {
+		return new ByteArrayWrapper(Arrays.copyOfRange(data, offset, limit));
 	}
 }
