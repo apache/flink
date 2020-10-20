@@ -209,6 +209,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.stringType()
 		.defaultValue("DEFAULT"); // class path which implements DynamicTableSource
 
+	private static final ConfigOption<String> TABLE_SINK_CLASS = ConfigOptions
+		.key("table-sink-class")
+		.stringType()
+		.defaultValue("DEFAULT"); // class path which implements DynamicTableSink
+
 	private static final ConfigOption<String> LOOKUP_FUNCTION_CLASS  = ConfigOptions
 		.key("lookup-function-class")
 		.stringType()
@@ -315,15 +320,28 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	public DynamicTableSink createDynamicTableSink(Context context) {
 		FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 		helper.validate();
+		String sinkClass = helper.getOptions().get(TABLE_SINK_CLASS);
+
 		boolean isInsertOnly = helper.getOptions().get(SINK_INSERT_ONLY);
 		String runtimeSink = helper.getOptions().get(RUNTIME_SINK);
 		int expectedNum = helper.getOptions().get(SINK_EXPECTED_MESSAGES_NUM);
 		TableSchema schema = context.getCatalogTable().getSchema();
-		return new TestValuesTableSink(
-			schema,
-			context.getObjectIdentifier().getObjectName(),
-			isInsertOnly,
-			runtimeSink, expectedNum);
+		if (sinkClass.equals("DEFAULT")) {
+			return new TestValuesTableSink(
+				schema,
+				context.getObjectIdentifier().getObjectName(),
+				isInsertOnly,
+				runtimeSink, expectedNum);
+		} else {
+			try {
+				return InstantiationUtil.instantiate(
+					sinkClass,
+					DynamicTableSink.class,
+					Thread.currentThread().getContextClassLoader());
+			} catch (FlinkException e) {
+				throw new TableException("Can't instantiate class " + sinkClass, e);
+			}
+		}
 	}
 
 	@Override
@@ -342,6 +360,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			LOOKUP_FUNCTION_CLASS,
 			ASYNC_ENABLED,
 			TABLE_SOURCE_CLASS,
+			TABLE_SINK_CLASS,
 			SINK_INSERT_ONLY,
 			RUNTIME_SINK,
 			SINK_EXPECTED_MESSAGES_NUM,
@@ -845,6 +864,47 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		@Override
 		public String asSummaryString() {
 			return "TestValues";
+		}
+	}
+
+	/**
+	 * A TableSink used for testing the implementation of {@link SinkFunction.Context}.
+	 */
+	public static class TestSinkContextTableSink implements DynamicTableSink {
+
+		public static final List<Long> ROWTIMES = new ArrayList<>();
+
+		@Override
+		public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+			return ChangelogMode.insertOnly();
+		}
+
+		@Override
+		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+			// clear ROWTIMES first
+			synchronized (ROWTIMES) {
+				ROWTIMES.clear();
+			}
+			SinkFunction<RowData> sinkFunction = new SinkFunction<RowData>() {
+				private static final long serialVersionUID = -4871941979714977824L;
+				@Override
+				public void invoke(RowData value, Context context) throws Exception {
+					synchronized (ROWTIMES) {
+						ROWTIMES.add(context.timestamp());
+					}
+				}
+			};
+			return SinkFunctionProvider.of(sinkFunction);
+		}
+
+		@Override
+		public DynamicTableSink copy() {
+			return new TestSinkContextTableSink();
+		}
+
+		@Override
+		public String asSummaryString() {
+			return "TestSinkContextTableSink";
 		}
 	}
 }
