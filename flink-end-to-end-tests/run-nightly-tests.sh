@@ -40,6 +40,11 @@ if [ ! -z "$TF_BUILD" ] ; then
 	export ARTIFACTS_DIR="${END_TO_END_DIR}/artifacts"
 	mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
 
+	function run_on_exit {
+		collect_coredumps $(pwd) $ARTIFACTS_DIR
+		compress_logs
+	}
+
 	# compress and register logs for publication on exit
 	function compress_logs {
 		echo "COMPRESSING build artifacts."
@@ -48,7 +53,7 @@ if [ ! -z "$TF_BUILD" ] ; then
 		tar -zcvf compressed-archive-dir/${COMPRESSED_ARCHIVE} -C $ARTIFACTS_DIR .
 		echo "##vso[task.setvariable variable=ARTIFACT_DIR]$(pwd)/compressed-archive-dir"
 	}
-	on_exit compress_logs
+	on_exit run_on_exit
 fi
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
