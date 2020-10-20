@@ -31,7 +31,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.filesystem.stream.StreamingFileCommitter.CommitMessage;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -66,7 +65,7 @@ public class StreamingFileWriterTest {
 	@Test
 	public void testFailover() throws Exception {
 		OperatorSubtaskState state;
-		try (OneInputStreamOperatorTestHarness<RowData, CommitMessage> harness = create()) {
+		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
 			harness.setup();
 			harness.initializeEmptyState();
 			harness.open();
@@ -82,7 +81,7 @@ public class StreamingFileWriterTest {
 		}
 
 		// first retry, no partition {1, 2} records
-		try (OneInputStreamOperatorTestHarness<RowData, CommitMessage> harness = create()) {
+		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
 			harness.setup();
 			harness.initializeState(state);
 			harness.open();
@@ -95,7 +94,7 @@ public class StreamingFileWriterTest {
 		}
 
 		// second retry, partition {4} repeat
-		try (OneInputStreamOperatorTestHarness<RowData, CommitMessage> harness = create()) {
+		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
 			harness.setup();
 			harness.initializeState(state);
 			harness.open();
@@ -108,7 +107,7 @@ public class StreamingFileWriterTest {
 		}
 
 		// third retry, multiple snapshots
-		try (OneInputStreamOperatorTestHarness<RowData, CommitMessage> harness = create()) {
+		try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
 			harness.setup();
 			harness.initializeState(state);
 			harness.open();
@@ -131,14 +130,14 @@ public class StreamingFileWriterTest {
 	}
 
 	private static List<String> collect(
-			OneInputStreamOperatorTestHarness<RowData, CommitMessage> harness) {
+			OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness) {
 		List<String> parts = new ArrayList<>();
-		harness.extractOutputValues().forEach(m -> parts.addAll(m.partitions));
+		harness.extractOutputValues().forEach(m -> parts.addAll(m.getPartitions()));
 		return parts;
 	}
 
-	private OneInputStreamOperatorTestHarness<RowData, CommitMessage> create() throws Exception {
-		StreamingFileWriter writer = new StreamingFileWriter(1000, StreamingFileSink.forRowFormat(
+	private OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> create() throws Exception {
+		StreamingFileWriter<RowData> writer = new StreamingFileWriter<>(1000, StreamingFileSink.forRowFormat(
 				path, (Encoder<RowData>) (element, stream) ->
 						stream.write((element.getString(0) + "\n").getBytes(StandardCharsets.UTF_8)))
 				.withBucketAssigner(new BucketAssigner<RowData, String>() {
@@ -153,7 +152,7 @@ public class StreamingFileWriterTest {
 					}
 				})
 				.withRollingPolicy(OnCheckpointRollingPolicy.build()));
-		OneInputStreamOperatorTestHarness<RowData, CommitMessage> harness = new OneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = new OneInputStreamOperatorTestHarness<>(
 				writer, 1, 1, 0);
 		harness.getStreamConfig().setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		return harness;
