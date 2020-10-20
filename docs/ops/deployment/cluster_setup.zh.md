@@ -60,7 +60,7 @@ Flink 需要 master 和所有 worker 节点设置 `JAVA_HOME` 环境变量，并
 
 ## Flink 设置
 
-前往 [下载页面]({{ site.download_url }}) 获取可运行的软件包。请确保选择的 Flink 软件包**与你的 Hadoop 版本匹配**。如果你不准备使用 Hadoop，可以选择任意版本。
+前往 [下载页面]({{ site.zh_download_url }}) 获取可运行的软件包。请确保选择的 Flink 软件包**与你的 Hadoop 版本匹配**。如果你不准备使用 Hadoop，可以选择任意版本。
 
 在下载完最新的发布版本后，复制压缩文件到 master 节点并解压：
 
@@ -73,11 +73,11 @@ cd flink-*
 
 ### 配置 Flink
 
-在解压完系统文件后，你需要编辑 *conf/flink-conf.yaml* 文件来为集群配置 Flink。
+在解压完文件后，你需要编辑 *conf/flink-conf.yaml* 文件来为集群配置 Flink。
 
 设置 `jobmanager.rpc.address` 键指向 master 节点。你也应该通过设置 `jobmanager.memory.process.size` 和 `taskmanager.memory.process.size` 键来定义 Flink 允许在每个节点上分配的最大内存值。
 
-这些值是以单位为 MB 所给出的。如果一些 worker 节点上有你想分配到 Flink 系统的多余内存，你可以在这些特定节点的 *conf/flink-conf.yaml* 文件中重写 `taskmanager.memory.process.size` 或 `taskmanager.memory.flink.size` 的默认值。
+这些值是以 MB 为单位所给出的。如果一些 worker 节点上有你想分配到 Flink 系统的多余内存，你可以在这些特定节点的 *conf/flink-conf.yaml* 文件中重写 `taskmanager.memory.process.size` 或 `taskmanager.memory.flink.size` 的默认值。
 
 最后，你必须提供集群上会被用作为 worker 节点的所有节点列表，也就是运行 TaskManager 的节点。编辑文件 *conf/workers* 并输入每个 worker 节点的 IP 或主机名。
 
@@ -105,7 +105,7 @@ cd flink-*
 </div>
 </div>
 
-Flink 目录必须放在所有 worker 的相同目录下。你可以使用共享的 NFS 目录，或将 Flink 目录复制到每个 worker 节点上。
+Flink 目录必须放在所有 worker 节点的相同目录下。你可以使用共享的 NFS 目录，或将 Flink 目录复制到每个 worker 节点上。
 
 请参考 [配置参数页面]({% link ops/config.zh.md %}) 获取更多细节以及额外的配置项。
 
