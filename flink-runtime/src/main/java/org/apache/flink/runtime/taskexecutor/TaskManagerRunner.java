@@ -398,6 +398,11 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			ioExecutor,
 			fatalErrorHandler);
 
+		MetricUtils.instantiateFlinkMemoryMetricGroup(
+			taskManagerMetricGroup.f1,
+			taskManagerServices.getTaskSlotTable(),
+			taskManagerServices::getManagedMemorySize);
+
 		TaskManagerConfiguration taskManagerConfiguration =
 			TaskManagerConfiguration.fromConfiguration(configuration, taskExecutorResourceSpec, externalAddress);
 
