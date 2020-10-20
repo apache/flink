@@ -165,6 +165,9 @@ public class StreamingFileSink<IN>
 		}
 
 		@Internal
+		public abstract BucketWriter<IN, BucketID> createBucketWriter() throws IOException;
+
+		@Internal
 		public abstract Buckets<IN, BucketID> createBuckets(final int subtaskIndex) throws IOException;
 	}
 
@@ -253,12 +256,18 @@ public class StreamingFileSink<IN>
 
 		@Internal
 		@Override
+		public BucketWriter<IN, BucketID> createBucketWriter() throws IOException {
+			return new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder);
+		}
+
+		@Internal
+		@Override
 		public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 			return new Buckets<>(
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new RowWiseBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), encoder),
+					createBucketWriter(),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
@@ -364,12 +373,18 @@ public class StreamingFileSink<IN>
 
 		@Internal
 		@Override
+		public BucketWriter<IN, BucketID> createBucketWriter() throws IOException {
+			return new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory);
+		}
+
+		@Internal
+		@Override
 		public Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
 			return new Buckets<>(
 					basePath,
 					bucketAssigner,
 					bucketFactory,
-					new BulkBucketWriter<>(FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory),
+					createBucketWriter(),
 					rollingPolicy,
 					subtaskIndex,
 					outputFileConfig);
