@@ -36,6 +36,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import javax.annotation.Nonnull;
+
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -156,16 +158,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 				.build();
 		final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(
 				createConfiguration(),
-				(configuration,
-				resourceID,
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				metricRegistry,
-				blobCacheService,
-				localCommunicationOnly,
-				externalResourceInfoProvider,
-				fatalErrorHandler) -> taskExecutorService);
+				createTaskExecutorServiceFactory(taskExecutorService));
 
 		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
 
@@ -182,7 +175,20 @@ public class TaskManagerRunnerTest extends TestLogger {
 				.build();
 		final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(
 				createConfiguration(),
-				(configuration,
+				createTaskExecutorServiceFactory(taskExecutorService));
+
+		taskManagerRunner.closeAsync();
+
+		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
+
+		assertThat(systemExitTrackingSecurityManager.getSystemExitFuture(), willNotComplete(Duration.ofMillis(10L)));
+	}
+
+	@Nonnull
+	private TaskManagerRunner.TaskExecutorServiceFactory createTaskExecutorServiceFactory(
+			TestingTaskExecutorService taskExecutorService) {
+		return (
+				configuration,
 				resourceID,
 				rpcService,
 				highAvailabilityServices,
@@ -191,13 +197,7 @@ public class TaskManagerRunnerTest extends TestLogger {
 				blobCacheService,
 				localCommunicationOnly,
 				externalResourceInfoProvider,
-				fatalErrorHandler) -> taskExecutorService);
-
-		taskManagerRunner.closeAsync();
-
-		terminationFuture.completeExceptionally(new FlinkException("Test exception."));
-
-		assertThat(systemExitTrackingSecurityManager.getSystemExitFuture(), willNotComplete(Duration.ofMillis(10L)));
+				fatalErrorHandler) -> taskExecutorService;
 	}
 
 	private static Configuration createConfiguration() {
