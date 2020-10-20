@@ -179,14 +179,35 @@ public class FutureUtils {
 			final Time retryDelay,
 			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
+		return retryWithDelay(
+				operation,
+				new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())),
+				retryPredicate,
+				scheduledExecutor);
+	}
+
+		/**
+		 * Retry the given operation with the given delay in between failures.
+		 *
+		 * @param operation to retry
+		 * @param retryStrategy the RetryStrategy
+		 * @param retryPredicate Predicate to test whether an exception is retryable
+		 * @param scheduledExecutor executor to be used for the retry operation
+		 * @param <T> type of the result
+		 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+		 */
+	public static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final RetryStrategy retryStrategy,
+			final Predicate<Throwable> retryPredicate,
+			final ScheduledExecutor scheduledExecutor) {
 
 		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
 
 		retryOperationWithDelay(
 			resultFuture,
 			operation,
-			retries,
-			retryDelay,
+			retryStrategy,
 			retryPredicate,
 			scheduledExecutor);
 
@@ -209,11 +230,29 @@ public class FutureUtils {
 			final Time retryDelay,
 			final ScheduledExecutor scheduledExecutor) {
 		return retryWithDelay(
-			operation,
-			retries,
-			retryDelay,
-			(throwable) -> true,
-			scheduledExecutor);
+				operation,
+				new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())),
+				scheduledExecutor);
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between failures.
+	 *
+	 * @param operation to retry
+	 * @param retryStrategy the RetryStrategy
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+	 */
+	public static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final RetryStrategy retryStrategy,
+			final ScheduledExecutor scheduledExecutor) {
+		return retryWithDelay(
+				operation,
+				retryStrategy,
+				(throwable) -> true,
+				scheduledExecutor);
 	}
 
 	/**
@@ -274,8 +313,7 @@ public class FutureUtils {
 	private static <T> void retryOperationWithDelay(
 			final CompletableFuture<T> resultFuture,
 			final Supplier<CompletableFuture<T>> operation,
-			final int retries,
-			final Time retryDelay,
+			final RetryStrategy retryStrategy,
 			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
@@ -291,10 +329,11 @@ public class FutureUtils {
 							throwable = ExceptionUtils.stripExecutionException(throwable);
 							if (!retryPredicate.test(throwable)) {
 								resultFuture.completeExceptionally(throwable);
-							} else if (retries > 0) {
+							} else if (retryStrategy.getNumRemainingRetries() > 0) {
+								long retryDelayMillis = retryStrategy.getRetryDelay().toMillis();
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
-									retryDelay.toMilliseconds(),
+									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retryStrategy.getNextRetryStrategy(), retryPredicate, scheduledExecutor),
+									retryDelayMillis,
 									TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
