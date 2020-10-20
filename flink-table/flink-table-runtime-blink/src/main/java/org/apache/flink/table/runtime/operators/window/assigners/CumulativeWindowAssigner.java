@@ -148,12 +148,12 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow> im
 	 * Creates a new {@link CumulativeWindowAssigner} that assigns
 	 * elements to cumulative time windows based on the element timestamp.
 	 *
-	 * @param size  The max size of the generated windows.
+	 * @param maxSize  The max size of the generated windows.
 	 * @param step The step interval for window size to increase of the generated windows.
 	 * @return The time policy.
 	 */
-	public static CumulativeWindowAssigner of(Duration size, Duration step) {
-		return new CumulativeWindowAssigner(size.toMillis(), step.toMillis(), 0, true);
+	public static CumulativeWindowAssigner of(Duration maxSize, Duration step) {
+		return new CumulativeWindowAssigner(maxSize.toMillis(), step.toMillis(), 0, true);
 	}
 
 	public CumulativeWindowAssigner withOffset(Duration offset) {
