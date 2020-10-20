@@ -477,7 +477,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 	// ------------------------------------------------------------------------
 
 	private void blockSubpartitionByCheckpoint(int numNotifications) throws IOException, InterruptedException {
-		subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER));
+		subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER));
 
 		assertEquals(numNotifications, availablityListener.getNumNotifications());
 		assertNextEvent(readView, BUFFER_SIZE, null, false, 0, false, true);
