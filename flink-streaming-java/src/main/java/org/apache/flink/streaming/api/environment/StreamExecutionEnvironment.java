@@ -833,7 +833,10 @@ public class StreamExecutionEnvironment {
 	 * @param to
 	 * 		The number to stop at (inclusive)
 	 * @return A data stream, containing all number in the [from, to] interval
+	 * @deprecated Use {@link #fromSequence(long, long)} instead to create a new data stream
+	 * that contains {@link org.apache.flink.api.connector.source.lib.NumberSequenceSource}.
 	 */
+	@Deprecated
 	public DataStreamSource<Long> generateSequence(long from, long to) {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
@@ -842,21 +845,22 @@ public class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a new data stream that contains a sequence of numbers (longs). This is a parallel {@link Source},
-	 * if you manually set the parallelism to {@code 1}
-	 * (using {@link org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator#setParallelism(int)})
-	 * the produced sequence of elements is in order.
+	 * Creates a new data stream that contains {@link org.apache.flink.api.connector.source.lib.NumberSequenceSource}
+	 * which produces a sequence of numbers (longs) and is useful for testing and for cases that just need a stream of N events
+	 * of any kind.
 	 *
-	 * <p>The result will always be a bounded data stream (that produces parallel sequences covering the range).
+	 * <p>The generated source splits the sequence into as many parallel sub-sequences as there are parallel source readers.
+	 * Each sub-sequence will be produced in order. If the parallelism is limited to one, the source will produce one sequence in order.
 	 *
-	 * <p>This method splits the sequence into as multiple parallel sub-sequences, which sub-sequence will be
-	 * produced in order. With the parallelism limited to one, this produced one sequence is in order.
+	 * <p>This source of the new data stream is always bounded. For very long sequences (for example over the entire domain
+	 * of long integer values), user considers executing the application in a streaming manner because of the end bound that is
+	 * pretty far away.
 	 *
 	 * @param from
 	 *    The number to start at (inclusive)
 	 * @param to
 	 *    The number to stop at (inclusive)
-	 * @return A data stream, containing all number in the [from, to] interval
+	 * @return A data stream, containing parallel sequences covering the range [from, to] (both boundaries are inclusive)
 	 */
 	@Experimental
 	public DataStreamSource<Long> fromSequence(long from, long to) {

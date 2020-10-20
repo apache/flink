@@ -25,6 +25,7 @@ import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFor
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.{Source, SourceSplit}
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
@@ -440,7 +441,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
    * Creates a new DataStream that contains a sequence of numbers. This source is a parallel source.
    * If you manually set the parallelism to `1` the emitted elements are in order.
+   *
+   * @deprecated Use [[fromSequence(long, long)]] instead to create a new data stream
+   *             that contains [[NumberSequenceSource]].
    */
+  @deprecated
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
     new DataStream[java.lang.Long](javaEnv.generateSequence(from, to))
       .asInstanceOf[DataStream[Long]]
