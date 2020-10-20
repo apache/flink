@@ -122,9 +122,9 @@ public class RocksDBMemoryControllerUtils {
 	 * RocksDB starts flushing the active memtable constantly in the case when the arena block size is greater than
 	 * mutable limit (as calculated in {@link #calculateRocksDBMutableLimit(long)}).
 	 *
-	 * <p>This happens because in such a case the check here
-	 * <a href="https://github.com/dataArtisans/frocksdb/blob/958f191d3f7276ae59b270f9db8390034d549ee0/include/rocksdb/write_buffer_manager.h#L47"/>
-	 * is always true.
+	 * <p>This happens because in such a case the check
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/958f191d3f7276ae59b270f9db8390034d549ee0/include/rocksdb/write_buffer_manager.h#L47">
+	 * here</a> is always true.
 	 *
 	 * <p>This method checks that arena block size is smaller than mutable limit.
 	 *
