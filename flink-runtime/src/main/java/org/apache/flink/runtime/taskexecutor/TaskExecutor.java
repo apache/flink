@@ -1427,7 +1427,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		// 2. Move the active slots to state allocated (possible to time out again)
-		Set<AllocationID> activeSlotAllocationIDs = taskSlotTable.getActiveTaskAllocationIdsPerJob(jobId);
+		Set<AllocationID> activeSlotAllocationIDs = taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId);
 
 		final FlinkException freeingCause = new FlinkException("Slot could not be marked inactive.");
 
@@ -1696,7 +1696,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void freeNoLongerUsedSlots(AllocatedSlotReport allocatedSlotReport) {
-		final Set<AllocationID> activeSlots = taskSlotTable.getActiveTaskAllocationIdsPerJob(allocatedSlotReport.getJobId());
+		final Set<AllocationID> activeSlots = taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(allocatedSlotReport.getJobId());
 		final Set<AllocationID> reportedSlots = allocatedSlotReport.getAllocatedSlotInfos().stream()
 				.map(AllocatedSlotInfo::getAllocationId).collect(Collectors.toSet());
 

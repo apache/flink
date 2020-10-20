@@ -75,7 +75,7 @@ public interface TaskSlotTable<T extends TaskSlotPayload> extends TimeoutListene
 	 * {@link TaskSlot}s shall be returned.
 	 * @return A set of {@code AllocationID}s that belong to active {@code TaskSlot}s having the passed {@code JobID}.
 	 */
-	Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId);
+	Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId);
 
 	SlotReport createSlotReport(ResourceID resourceId);
 

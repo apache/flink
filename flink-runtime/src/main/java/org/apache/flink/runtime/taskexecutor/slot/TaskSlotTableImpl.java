@@ -207,7 +207,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	@Override
-	public Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId) {
+	public Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId) {
 		return createAllocationIdSet(new TaskSlotIterator(jobId, TaskSlotState.ACTIVE));
 	}
 
