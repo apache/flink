@@ -83,7 +83,7 @@ public class AlternatingController implements CheckpointBarrierBehaviourControll
 	}
 
 	private boolean isAligned(CheckpointBarrier barrier) {
-		return !barrier.isCheckpoint();
+		return barrier.getCheckpointOptions().needsAlignment();
 	}
 
 	private CheckpointBarrierBehaviourController chooseController(CheckpointBarrier barrier) {
