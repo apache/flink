@@ -144,7 +144,9 @@ class TableFunctionRowCoderImpl(StreamCoderImpl):
     def encode_to_stream(self, iter_value, out_stream, nested):
         for value in iter_value:
             if value:
-                if self._field_count == 1:
+                if isinstance(value, tuple):
+                    value = [value]
+                elif self._field_count == 1:
                     value = self._create_tuple_result(value)
                 self._flatten_row_coder.encode_to_stream(value, out_stream, nested)
             out_stream.write_var_int64(1)
