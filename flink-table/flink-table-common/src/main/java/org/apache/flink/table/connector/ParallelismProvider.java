@@ -24,7 +24,8 @@ import java.util.Optional;
 
 /**
  * Parallelism provider for connector providers.
- * Now only works on {@code SinkFunctionProvider} and {@code OutputFormatProvider}.
+ * 
+ * <p>Note: currently, it only supports to work with {@code SinkFunctionProvider} and {@code OutputFormatProvider}.
  */
 @PublicEvolving
 public interface ParallelismProvider {
