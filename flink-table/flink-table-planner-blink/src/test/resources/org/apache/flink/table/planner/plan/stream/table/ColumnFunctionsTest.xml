@@ -166,7 +166,7 @@ Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc0$9f62966fe1
   <TestCase name="testOver">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, CAST($1):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
+LogicalProject(c=[$2], mycount=[AS(countFun($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'mycount')], wAvg=[AS(weightAvgFun($0, CAST($1):BIGINT) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')], countDist=[AS(countDist($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'countDist')])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>

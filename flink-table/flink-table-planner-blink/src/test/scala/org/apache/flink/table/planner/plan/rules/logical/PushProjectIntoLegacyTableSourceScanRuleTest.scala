@@ -111,6 +111,9 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
+    // Regression by: CALCITE-4220,
+    // the constant project was removed,
+    // so that the rule can not be matched.
     util.verifyPlan("SELECT COUNT(1) FROM MyTable")
   }
 

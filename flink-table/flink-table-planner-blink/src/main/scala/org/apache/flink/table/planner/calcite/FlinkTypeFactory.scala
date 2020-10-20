@@ -416,6 +416,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 }
 
 object FlinkTypeFactory {
+  val INSTANCE = new FlinkTypeFactory(new FlinkTypeSystem)
 
   def isTimeIndicatorType(t: LogicalType): Boolean = t match {
     case t: TimestampType

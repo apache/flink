@@ -101,7 +101,7 @@ class CalcTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(sourceTable),
       term("select", "a", "b"),
-      term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
+      term("where", "AND(>(a, 0), AND(<(b, 2), =(MOD(a, 2), 1)))")
     )
 
     util.verifyTable(resultTable, expected)
@@ -114,11 +114,13 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable.select('a, 'b, 'c)
       .where((1 to 30).map($"b" === _).reduce((ex1, ex2) => ex1 || ex2) && ($"c" === "xx"))
 
+    val operands = "Sarg[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, " +
+        "19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]), SEARCH(c, Sarg['xx']:CHAR(2)"
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(sourceTable),
       term("select", "a", "b", "c"),
-      term("where", s"AND(IN(b, ${(1 to 30).mkString(", ")}), =(c, 'xx'))")
+      term("where", s"AND(SEARCH(b, $operands))")
     )
 
     util.verifyTable(resultTable, expected)
@@ -131,11 +133,16 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable.select('a, 'b, 'c)
       .where((1 to 30).map($"b" !== _).reduce((ex1, ex2) => ex1 && ex2) || ($"c" !== "xx"))
 
+    val inOperands = "Sarg[(-∞..1), (1..2), (2..3), (3..4), (4..5), (5..6), " +
+        "(6..7), (7..8), (8..9), (9..10), (10..11), (11..12), (12..13), (13..14), " +
+        "(14..15), (15..16), (16..17), (17..18), (18..19), (19..20), (20..21), " +
+        "(21..22), (22..23), (23..24), (24..25), (25..26), (26..27), (27..28), (28..29), " +
+        "(29..30), (30..+∞)]), SEARCH(c, Sarg[(-∞..'xx'), ('xx'..+∞)]:CHAR(2)"
     val expected = unaryNode(
       "DataStreamCalc",
       streamTableNode(sourceTable),
       term("select", "a", "b", "c"),
-      term("where", s"OR(NOT IN(b, ${(1 to 30).mkString(", ")}), <>(c, 'xx'))")
+      term("where", s"OR(SEARCH(b, $inOperands))")
     )
 
     util.verifyTable(resultTable, expected)

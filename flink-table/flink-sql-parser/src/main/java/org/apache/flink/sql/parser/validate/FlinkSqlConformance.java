@@ -36,6 +36,11 @@ public enum FlinkSqlConformance implements SqlConformance {
 	}
 
 	@Override
+	public boolean allowCharLiteralAlias() {
+		return false;
+	}
+
+	@Override
 	public boolean isGroupByAlias() {
 		return false;
 	}
@@ -83,6 +88,16 @@ public enum FlinkSqlConformance implements SqlConformance {
 	}
 
 	@Override
+	public boolean splitQuotedTableName() {
+		return false;
+	}
+
+	@Override
+	public boolean allowHyphenInUnquotedTableName() {
+		return false;
+	}
+
+	@Override
 	public boolean isBangEqualAllowed() {
 		return false;
 	}
@@ -104,6 +119,11 @@ public enum FlinkSqlConformance implements SqlConformance {
 
 	@Override
 	public boolean isInsertSubsetColumnsAllowed() {
+		return false;
+	}
+
+	@Override
+	public boolean allowAliasUnnestItems() {
 		return false;
 	}
 

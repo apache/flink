@@ -817,20 +817,23 @@ class SelectivityEstimatorTest {
     val estimator = new SelectivityEstimator(scan, mq)
 
     // name in ("abc", "def")
-    val predicate1 = createCall(IN,
+    val predicate1 = rexBuilder.makeIn(
       createInputRef(name_idx),
-      createStringLiteral("abc"),
-      createStringLiteral("def"))
+      util.Arrays.asList(createStringLiteral("abc"),
+        createStringLiteral("def")))
     // test with unsupported type
     assertEquals(Some(estimator.defaultEqualsSelectivity.get * 2), estimator.evaluate(predicate1))
 
     // tests with supported type
-    val predicate2 = createCall(IN,
+    val predicate2 = rexBuilder.makeIn(
       createInputRef(amount_idx),
-      createNumericLiteral(10.0),
-      createNumericLiteral(20.0),
-      createNumericLiteral(30.0),
-      createNumericLiteral(40.0))
+      util.Arrays.asList(
+        createNumericLiteral(10.0),
+        createNumericLiteral(20.0),
+        createNumericLiteral(30.0),
+        createNumericLiteral(40.0))
+      )
+
     // test without statistics
     assertEquals(Some(estimator.defaultEqualsSelectivity.get * 4), estimator.evaluate(predicate2))
 

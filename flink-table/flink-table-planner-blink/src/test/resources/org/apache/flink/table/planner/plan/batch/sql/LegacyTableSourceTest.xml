@@ -244,15 +244,15 @@ Calc(select=[id, name, part1, part2], where=[>(id, 2)])
     <Resource name="planBefore">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-+- LogicalProject($f0=[1])
++- LogicalProject($f0=[0])
    +- LogicalTableScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0])
+   +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, ProjectableTable, source: [TestSource(physical fields: )]]], fields=[])
 ]]>
     </Resource>

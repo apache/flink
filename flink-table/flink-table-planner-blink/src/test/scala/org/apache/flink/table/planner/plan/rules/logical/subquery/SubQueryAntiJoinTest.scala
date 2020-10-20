@@ -613,7 +613,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     util.verifyPlanNotExpected(sqlQuery4, "joinType=[anti]")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
   def testNotExistsWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
     // TODO Calcite decorrelateRel error
     val sqlQuery = "SELECT * FROM l WHERE NOT EXISTS " +
@@ -727,7 +727,7 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     // TODO some bugs in SubQueryRemoveRule
     //  the result RelNode (LogicalJoin(condition=[=($1, $11)], joinType=[left]))
     //  after SubQueryRemoveRule is unexpected
-    thrown.expect(classOf[RuntimeException])
+    thrown.expect(classOf[AssertionError])
 
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT c FROM l WHERE (" +

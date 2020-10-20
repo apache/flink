@@ -105,7 +105,12 @@ public class FlinkSemiAntiJoinProjectTransposeRule extends RelOptRule {
 		// pulled up
 		RexNode newCondition = adjustCondition(project, join);
 		Join newJoin = LogicalJoin.create(
-				project.getInput(), join.getRight(), newCondition, join.getVariablesSet(), join.getJoinType());
+			project.getInput(),
+			join.getRight(),
+			join.getHints(),
+			newCondition,
+			join.getVariablesSet(),
+			join.getJoinType());
 
 		// Create the new projection. Note that the projection expressions
 		// are the same as the original because they only reference the LHS

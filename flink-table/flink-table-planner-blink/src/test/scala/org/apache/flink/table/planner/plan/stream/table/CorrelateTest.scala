@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.expressions.utils.Func13
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.planner.utils._
 
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
@@ -149,9 +149,9 @@ class CorrelateTest extends TableTestBase {
     programs.getFlinkRuleSetProgram(FlinkStreamProgram.LOGICAL)
       .get.remove(
       RuleSets.ofList(
-        CalcMergeRule.INSTANCE,
-        FilterCalcMergeRule.INSTANCE,
-        ProjectCalcMergeRule.INSTANCE))
+        CoreRules.CALC_MERGE,
+        CoreRules.FILTER_CALC_MERGE,
+        CoreRules.PROJECT_CALC_MERGE))
     // removing
     util.replaceStreamProgram(programs)
 

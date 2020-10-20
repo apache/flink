@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.codegen.calls
 import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.runtime.functions._
 
-import org.apache.calcite.avatica.util.TimeUnitRange
+import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
 
@@ -458,19 +458,15 @@ object BuiltInMethods {
   val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[DecimalData], classOf[Int])
 
-  // TODO: remove if CALCITE-3199 fixed
-  //  https://issues.apache.org/jira/browse/CALCITE-3199
-  val UNIX_DATE_CEIL = Types.lookupMethod(classOf[SqlDateTimeUtils], "unixDateCeil",
+  val UNIX_DATE_CEIL = Types.lookupMethod(classOf[DateTimeUtils], "unixDateCeil",
     classOf[TimeUnitRange], classOf[Int])
 
   val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[SqlDateTimeUtils], "truncate",
     classOf[TimestampData], classOf[Int])
 
-  // TODO: remove ADD_MONTHS and SUBTRACT_MONTHS if CALCITE-3881 fixed
-  //  https://issues.apache.org/jira/browse/CALCITE-3881
-  val ADD_MONTHS = Types.lookupMethod(classOf[SqlFunctionUtils], "addMonths",
+  val ADD_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "addMonths",
     classOf[Long], classOf[Int])
 
-  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[SqlFunctionUtils], "subtractMonths",
+  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "subtractMonths",
     classOf[Long], classOf[Long])
 }

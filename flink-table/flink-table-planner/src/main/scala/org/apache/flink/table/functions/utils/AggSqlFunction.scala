@@ -21,11 +21,11 @@ package org.apache.flink.table.functions.utils
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
+import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandMetadata, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionRequirement, ImperativeAggregateFunction, TableAggregateFunction}
 
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
@@ -34,6 +34,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
 
 import java.util
+import java.util.Collections
 
 /**
   * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
@@ -56,16 +57,16 @@ class AggSqlFunction(
     requiresOver: Boolean)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
+    SqlKind.OTHER_FUNCTION,
     createReturnTypeInference(returnType, typeFactory),
     createOperandTypeInference(aggregateFunction, typeFactory, accType),
-    createOperandTypeChecker(aggregateFunction, accType),
+    createOperandMetadata(aggregateFunction, accType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
     requiresOver,
-    Optionality.FORBIDDEN,
-    typeFactory
+    Optionality.FORBIDDEN
   ) {
 
   def getFunction: ImperativeAggregateFunction[_, _] = aggregateFunction
@@ -158,17 +159,17 @@ object AggSqlFunction {
     }
   }
 
-  private[flink] def createOperandTypeChecker(
+  private[flink] def createOperandMetadata(
       aggregateFunction: ImperativeAggregateFunction[_, _],
       accType: TypeInformation[_])
-    : SqlOperandTypeChecker = {
+    : SqlOperandMetadata = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
     /**
       * Operand type checker based on [[AggregateFunction]] given information.
       */
-    new SqlOperandTypeChecker {
+    new SqlOperandMetadata {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
         s"$opName[${signaturesToString(aggregateFunction, "accumulate")}]"
       }
@@ -224,6 +225,16 @@ object AggSqlFunction {
 
       override def getConsistency: Consistency = Consistency.NONE
 
+      override def paramNames(): util.List[String] = {
+        // Does not support named parameters.
+        Collections.emptyList()
+      }
+
+      override def paramTypes(typeFactory: RelDataTypeFactory): util.List[RelDataType] = {
+        // This should be never invoked.
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes "
+            + "of AggSqlFunction should never be invoked")
+      }
     }
   }
 }

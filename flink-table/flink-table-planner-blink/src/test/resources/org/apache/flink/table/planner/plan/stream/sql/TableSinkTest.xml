@@ -98,6 +98,11 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, total_min],
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertMismatchTypeForEmptyChar">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO my_sink SELECT a, '', '' FROM MyTable]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractAndUpsertSink">
     <Resource name="planBefore">
       <![CDATA[
@@ -138,7 +143,7 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[b, cnt], chan
 +- Reused(reference_id=[2])
 
 Sink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt], changelogMode=[NONE])
-+- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], changelogMode=[I,UB,UA])
++- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
    +- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.upsertSink], fields=[b, cnt], changelogMode=[NONE])

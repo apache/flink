@@ -18,16 +18,18 @@
 
 package org.apache.flink.table.expressions
 
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.rex.{RexNode, RexSubQuery}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.rex.{RexNode, RexSubQuery}
+import org.apache.calcite.tools.RelBuilder
+
+import scala.collection.JavaConversions._
 
 case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
   extends PlannerExpression  {
@@ -46,7 +48,8 @@ case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
           ImmutableList.of(expression.toRexNode))
 
       case _ =>
-        relBuilder.call(SqlStdOperatorTable.IN, children.map(_.toRexNode): _*)
+        val operands = children.map(_.toRexNode)
+        relBuilder.getRexBuilder.makeIn(operands.head, operands.slice(1, operands.length))
     }
   }
 

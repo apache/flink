@@ -31,7 +31,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -134,7 +134,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -170,7 +170,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -206,7 +206,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalProject(currency=[$0], rate=[$1], proctime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], proctime=[PROCTIME()], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY PROCTIME() DESC NULLS LAST)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, RatesOnly, source: [CollectionTableSource(currency, rate)]]])
 ]]>
     </Resource>
@@ -241,7 +241,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -278,7 +278,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -315,7 +315,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.rowtime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -353,7 +353,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -499,7 +499,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>
@@ -572,7 +572,7 @@ LogicalProject(amount=[$0], currency=[$1], rowtime=[$2], proctime=[$3], currency
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
             +- LogicalFilter(condition=[=($3, 1)])
-               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+               +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
                      +- LogicalTableScan(table=[[default_catalog, default_database, RatesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
 ]]>

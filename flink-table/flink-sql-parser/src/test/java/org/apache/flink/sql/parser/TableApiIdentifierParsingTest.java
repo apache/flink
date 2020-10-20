@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.util.SourceStringReader;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -117,7 +118,7 @@ public class TableApiIdentifierParsingTest {
 		parser.setQuotedCasing(Lex.JAVA.quotedCasing);
 		parser.setIdentifierMaxLength(256);
 		parser.setConformance(FlinkSqlConformance.DEFAULT);
-		parser.switchTo("BTID");
+		parser.switchTo(SqlAbstractParserImpl.LexicalState.BTID);
 
 		return parser;
 	}

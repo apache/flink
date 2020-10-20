@@ -32,7 +32,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
-import org.apache.calcite.util.{ImmutableBitSet, TimeString}
+import org.apache.calcite.util.{ImmutableBitSet, Sarg, TimeString}
 
 import scala.collection.JavaConversions._
 
@@ -108,7 +108,17 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     }
   }
 
-  override def visitCall(call: RexCall): Option[Double] = {
+  def isNonPointsSearchCall(call: RexCall): Boolean = {
+    require(call.getKind == SqlKind.SEARCH)
+    !call.getOperands.get(1)
+        .asInstanceOf[RexLiteral]
+        .getValueAs(classOf[Sarg[_]])
+        .isPoints
+  }
+
+  override def visitCall(oriCall: RexCall): Option[Double] = {
+    val call = FlinkRexUtil.expandSearch(rexBuilder, oriCall, isNonPointsSearchCall)
+        .asInstanceOf[RexCall]
     call.getOperator match {
       case AND =>
         val predicates = splitAndPredicate(call)
@@ -125,7 +135,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
         val predicates = splitOrPredicate(call)
         if (predicates.size == 1) {
           predicates.head match {
-            case c: RexCall if c.getOperator == IN => estimateSinglePredicate(c)
+            case c: RexCall if c.getOperator == SEARCH => estimateSinglePredicate(c)
             case _ => estimateOrPredicate(call)
           }
         } else {
@@ -187,8 +197,8 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
       case IS_NOT_NULL =>
         estimateIsNotNull(operands.head)
 
-      case IN =>
-        estimateIn(operands.head, operands.slice(1, operands.size))
+      case SEARCH =>
+        estimateIn(operands.head, operands.get(1).asInstanceOf[RexLiteral])
 
       case RelMdUtil.ARTIFICIAL_SELECTIVITY_FUNC =>
         Option(RelMdUtil.getSelectivityValue(singlePredicate))
@@ -285,7 +295,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
       if (equalsNodes.size > 1) {
         val inputRef = equalsNodes.head.asInstanceOf[RexCall].getOperands.head
         val valuesNode = equalsNodes.map(_.asInstanceOf[RexCall].getOperands.last)
-        val inNode = rexBuilder.makeCall(IN, List(inputRef) ++ valuesNode)
+        val inNode = rexBuilder.makeIn(inputRef, valuesNode)
         if (nonEqualsNodes.isEmpty) {
           Seq(inNode)
         } else {
@@ -903,11 +913,16 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
     * Returns a percentage of rows meeting "IN" operator expression.
     *
     * @param input a RexNode
-    * @param inSet a set of literal values
+    * @param sargLiteral sarg of literal values
     * @return an optional double value to show the percentage of rows meeting a given condition
     *         It returns None if no statistics exists for a given column.
     */
-  private def estimateIn(input: RexNode, inSet: Seq[RexNode]): Option[Double] = {
+  private def estimateIn(input: RexNode, sargLiteral: RexLiteral): Option[Double] = {
+    val sarg = sargLiteral.getValueAs(classOf[Sarg[_]])
+    require(sarg.isPoints)
+    val inSet = sarg.rangeSet.asRanges().map(range =>
+      rexBuilder.makeLiteral(range.lowerEndpoint(), sargLiteral.getType, false))
+        .toSeq
     val inputRef = convertToRexInputRef(input)
     checkInSet(inSet)
 
@@ -922,7 +937,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
       return if (ndv == null) {
         defaultInSelectivity
       } else {
-        Some(inSet.size / ndv)
+        Some(sarg.pointCount / ndv)
       }
     }
 

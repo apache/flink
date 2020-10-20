@@ -151,11 +151,9 @@ class CalciteConfigBuilderTest {
 
   @Test
   def testReplaceSqlToRelConverterConfig(): Unit = {
-    val config = SqlToRelConverter.configBuilder()
+    val config = SqlToRelConverter.config()
       .withTrimUnusedFields(false)
-      .withConvertTableAccess(false)
       .withExpand(false)
-      .build()
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .replaceSqlToRelConverterConfig(config)
@@ -189,11 +187,9 @@ class CalciteConfigBuilderTest {
     assertTrue(config1.getSqlParserConfig.isEmpty)
     assertTrue(config1.getSqlToRelConverterConfig.isEmpty)
 
-    val sqlToRelConvertConfig = SqlToRelConverter.configBuilder()
+    val sqlToRelConvertConfig = SqlToRelConverter.config()
       .withTrimUnusedFields(false)
-      .withConvertTableAccess(false)
       .withExpand(false)
-      .build()
     builder.replaceSqlToRelConverterConfig(sqlToRelConvertConfig)
     val baseConfig2 = builder.build()
     val builder2 = CalciteConfig.createBuilder(baseConfig2)

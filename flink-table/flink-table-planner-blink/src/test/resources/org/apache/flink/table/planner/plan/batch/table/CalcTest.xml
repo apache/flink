@@ -85,9 +85,9 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1])
+HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1])
 +- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_SUM(a) AS sum$0, Partial_MAX(b) AS max$1])
+   +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0, Partial_MAX(b) AS max$1])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>

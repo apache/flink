@@ -364,6 +364,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.verifyPlan(sql)
   }
 
+  // TODO: fix the plan regression when FLINK-19668 is fixed.
   @Test
   def testReturnTypeInferenceForWindowAgg() = {
 

@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
-import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
+import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Test;
 
@@ -57,7 +57,7 @@ public class PushPartitionIntoTableSourceScanRuleTest extends PushPartitionIntoL
 			FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
 				.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
 				.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-				.add(RuleSets.ofList(FilterProjectTransposeRule.INSTANCE,
+				.add(RuleSets.ofList(CoreRules.FILTER_PROJECT_TRANSPOSE,
 					PushPartitionIntoTableSourceScanRule.INSTANCE))
 				.build());
 

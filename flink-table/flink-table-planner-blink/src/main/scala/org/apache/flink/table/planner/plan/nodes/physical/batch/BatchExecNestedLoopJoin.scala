@@ -93,7 +93,13 @@ class BatchExecNestedLoopJoin(
       (buildRowSize + BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES) * shuffleBuildCount(mq)
     val cpuCost = leftRowCnt * rightRowCnt
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
-    costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
+    val cost = costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
+    if (singleRowJoin) {
+      // Make single row join more preferable than non-single row join.
+      cost.multiplyBy(0.99)
+    } else {
+      cost
+    }
   }
 
   private def shuffleBuildCount(mq: RelMetadataQuery): Int = {

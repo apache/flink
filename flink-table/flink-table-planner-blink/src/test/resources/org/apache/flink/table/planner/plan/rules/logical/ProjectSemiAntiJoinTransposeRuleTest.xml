@@ -33,7 +33,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
@@ -57,7 +57,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(EXPR$0=[+($1, 1)], c=[$2])
-+- LogicalJoin(condition=[OR(=($0, $3), IS NULL($0), IS NULL($3))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f)]]])
@@ -82,7 +82,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(c=[$2])
-+- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), =($1, $4))], joinType=[anti])
++- LogicalJoin(condition=[AND(OR(IS NULL($0), IS NULL($3), =($0, $3)), =($1, $4))], joinType=[anti])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0], e=[$1])
       +- LogicalFilter(condition=[true])
@@ -180,7 +180,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalJoin(condition=[OR(=($0, $1), IS NULL($0), IS NULL($1))], joinType=[anti])
+LogicalJoin(condition=[OR(IS NULL($0), IS NULL($1), =($0, $1))], joinType=[anti])
 :- LogicalProject(a=[$0])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 +- LogicalProject(d=[$0])
@@ -205,7 +205,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 1)])
-+- LogicalJoin(condition=[OR(=($0, $1), IS NULL($0), IS NULL($1))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($1), =($0, $1))], joinType=[anti])
    :- LogicalProject(a=[$0])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0])
@@ -229,7 +229,7 @@ LogicalProject(d=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
+LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
 :- LogicalProject(a=[$0], b=[$1])
 :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 +- LogicalProject(d=[$0])
@@ -254,7 +254,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(b=[$1], a=[$0])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalProject(a=[$0], b=[$1])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(d=[$0])
@@ -282,7 +282,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(d=[$1])
-+- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($2), =($0, $2))], joinType=[anti])
    :- LogicalProject(a=[$0], d=[$3])
    :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
    :     +- LogicalJoin(condition=[true], joinType=[inner])

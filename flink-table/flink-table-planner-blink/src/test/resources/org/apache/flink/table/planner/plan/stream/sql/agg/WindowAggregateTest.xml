@@ -91,7 +91,7 @@ SELECT COUNT(*),
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
-      +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
+      +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -120,7 +120,7 @@ FROM MyTable
       <![CDATA[
 LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], wAvg=[weightedAvg($1, $2)])
-   +- LogicalProject($f0=[HOP($3, 900000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], c=[$2], $f2=[CAST($0):BIGINT])
+   +- LogicalProject($f0=[$HOP($3, 900000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], c=[$2], $f2=[CAST($0):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -172,7 +172,7 @@ group by HOP(c, INTERVAL '1' SECOND, INTERVAL '1' MINUTE)
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$1=[MAX($2)])
-   +- LogicalProject($f0=[HOP(PROCTIME(), 1000:INTERVAL SECOND, 60000:INTERVAL MINUTE)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP(PROCTIME(), 1000:INTERVAL SECOND, 60000:INTERVAL MINUTE)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]])
 ]]>
     </Resource>
@@ -234,11 +234,11 @@ LogicalProject(hs1=[$0], he1=[$1], c1=[$2], s1=[$3], hs2=[$4], he2=[$5], c2=[$6]
    +- LogicalJoin(condition=[=($1, $5)], joinType=[inner])
       :- LogicalProject(hs1=[HOP_START($0)], he1=[HOP_END($0)], c1=[$1], s1=[$2])
       :  +- LogicalAggregate(group=[{0}], c1=[COUNT()], s1=[SUM($1)])
-      :     +- LogicalProject($f0=[HOP($4, 60000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], c=[$2])
+      :     +- LogicalProject($f0=[$HOP($4, 60000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], c=[$2])
       :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(hs2=[HOP_START($0)], he2=[HOP_END($0)], c2=[$1], s2=[$2])
          +- LogicalAggregate(group=[{0}], c2=[COUNT()], s2=[SUM($1)])
-            +- LogicalProject($f0=[HOP($4, 60000:INTERVAL MINUTE, 86400000:INTERVAL DAY)], c=[$2])
+            +- LogicalProject($f0=[$HOP($4, 60000:INTERVAL MINUTE, 86400000:INTERVAL DAY)], c=[$2])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -279,7 +279,7 @@ GROUP BY TUMBLE(zzzzz, INTERVAL '0.004' SECOND)
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_ROWTIME($0)], EXPR$1=[TUMBLE_END($0)], a=[$1])
 +- LogicalAggregate(group=[{0}], a=[COUNT()])
-   +- LogicalProject($f0=[$TUMBLE(TUMBLE_ROWTIME($0), 4:INTERVAL SECOND)], a=[$1])
+   +- LogicalProject($f0=[$TUMBLE(TUMBLE_ROWTIME($0), 4:INTERVAL SECOND)])
       +- LogicalAggregate(group=[{0}], a=[COUNT($1)])
          +- LogicalProject($f0=[$TUMBLE($4, 2:INTERVAL SECOND)], a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -290,7 +290,7 @@ LogicalProject(EXPR$0=[TUMBLE_ROWTIME($0)], EXPR$1=[TUMBLE_END($0)], a=[$1])
 Calc(select=[w$rowtime AS EXPR$0, w$end AS EXPR$1, a])
 +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, $f0, 4)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
-      +- Calc(select=[w$rowtime AS $f0, a])
+      +- Calc(select=[w$rowtime AS $f0])
          +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 2)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(a) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
             +- Exchange(distribution=[single])
                +- Calc(select=[rowtime, a])
@@ -359,8 +359,8 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[CAST(CASE(=($f1, 0), null:INTEGER, s)) AS s, CAST(CAST(/(CASE(=($f1, 0), null:INTEGER, s), $f1))) AS a, w$start AS wStart])
-+- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[$SUM0($f1) AS s, COUNT(*) AS $f1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[SUM($f1) AS s, AVG($f1) AS a, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[single])
       +- Calc(select=[rowtime, CASE(=(a, 1), 1, 99) AS $f1])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -382,7 +382,7 @@ FROM MyTable
       <![CDATA[
 LogicalProject(EXPR$0=[$1], wAvg=[$2], EXPR$2=[SESSION_START($0)], EXPR$3=[SESSION_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], wAvg=[weightedAvg($1, $2)])
-   +- LogicalProject($f0=[SESSION($3, 900000:INTERVAL MINUTE)], c=[$2], $f2=[CAST($0):BIGINT])
+   +- LogicalProject($f0=[$SESSION($3, 900000:INTERVAL MINUTE)], c=[$2], $f2=[CAST($0):BIGINT])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -408,7 +408,7 @@ group by SESSION(c, INTERVAL '1' MINUTE)
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$1=[MAX($2)])
-   +- LogicalProject($f0=[SESSION(PROCTIME(), 60000:INTERVAL MINUTE)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$SESSION(PROCTIME(), 60000:INTERVAL MINUTE)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [CollectionTableSource(a, b)]]])
 ]]>
     </Resource>
@@ -577,11 +577,11 @@ GROUP BY HOP(rowtime, INTERVAL '1' MINUTE, INTERVAL '1' DAY)
 LogicalUnion(all=[true])
 :- LogicalProject(EXPR$0=[HOP_START($0)], EXPR$1=[HOP_END($0)], EXPR$2=[$1], EXPR$3=[$2])
 :  +- LogicalAggregate(group=[{0}], EXPR$2=[COUNT()], EXPR$3=[SUM($1)])
-:     +- LogicalProject($f0=[HOP($4, 60000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], c=[$2])
+:     +- LogicalProject($f0=[$HOP($4, 60000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], c=[$2])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 +- LogicalProject(EXPR$0=[HOP_START($0)], EXPR$1=[HOP_END($0)], EXPR$2=[$1], EXPR$3=[$2])
    +- LogicalAggregate(group=[{0}], EXPR$2=[COUNT()], EXPR$3=[SUM($1)])
-      +- LogicalProject($f0=[HOP($4, 60000:INTERVAL MINUTE, 86400000:INTERVAL DAY)], c=[$2])
+      +- LogicalProject($f0=[$HOP($4, 60000:INTERVAL MINUTE, 86400000:INTERVAL DAY)], c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
@@ -699,11 +699,11 @@ UNION ALL
 LogicalUnion(all=[true])
 :- LogicalProject(EXPR$0=[1])
 :  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:     +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 +- LogicalProject(EXPR$0=[1])
    +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+      +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>

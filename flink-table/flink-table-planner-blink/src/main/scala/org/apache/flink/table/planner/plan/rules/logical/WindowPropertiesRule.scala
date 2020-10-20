@@ -136,9 +136,7 @@ object WindowPropertiesRules {
 
     // replace window auxiliary function in filter by access to window properties
     filter.foreach { f =>
-      builder.filter(
-        f.getChildExps.map(expr => replaceGroupAuxiliaries(expr, w, builder))
-      )
+      builder.filter(replaceGroupAuxiliaries(f.getCondition, w, builder))
     }
 
     // replace window auxiliary unctions in projection by access to window properties

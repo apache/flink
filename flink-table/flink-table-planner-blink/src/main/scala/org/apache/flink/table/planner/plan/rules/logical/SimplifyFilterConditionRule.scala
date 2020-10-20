@@ -47,7 +47,7 @@ class SimplifyFilterConditionRule(
     newFilter match {
       case Some(f) =>
         call.transformTo(f)
-        call.getPlanner.setImportance(filter, 0.0)
+        call.getPlanner.prune(filter)
       case _ => // do nothing
     }
   }
