@@ -147,7 +147,8 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherGatewayService.newBuilder()
-				.setTerminationFutureSupplier(() -> dispatcherServiceTerminationFuture)
+				.setTerminationFuture(dispatcherServiceTerminationFuture)
+				.withManualTerminationFutureCompletion()
 				.build())
 			.build();
 

@@ -26,13 +26,8 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
-
-	private final Object lock = new Object();
-
-	private final Supplier<CompletableFuture<Void>> terminationFutureSupplier;
 
 	private final Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction;
 
@@ -40,17 +35,20 @@ class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess
 
 	private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
-	private CompletableFuture<Void> terminationFuture;
+	private final CompletableFuture<Void> terminationFuture;
+	private final boolean completeTerminationFutureOnClose;
 
 	private TestingDispatcherGatewayService(
-			Supplier<CompletableFuture<Void>> terminationFutureSupplier,
+			CompletableFuture<Void> terminationFuture,
 			Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
 			DispatcherGateway dispatcherGateway,
-			CompletableFuture<ApplicationStatus> shutDownFuture) {
-		this.terminationFutureSupplier = terminationFutureSupplier;
+			CompletableFuture<ApplicationStatus> shutDownFuture,
+			boolean completeTerminationFutureOnClose) {
+		this.terminationFuture = terminationFuture;
 		this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
 		this.dispatcherGateway = dispatcherGateway;
 		this.shutDownFuture = shutDownFuture;
+		this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
 	}
 
 	@Override
@@ -68,15 +66,17 @@ class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess
 		return shutDownFuture;
 	}
 
+	public CompletableFuture<Void> getTerminationFuture() {
+		return terminationFuture;
+	}
+
 	@Override
 	public CompletableFuture<Void> closeAsync() {
-		synchronized (lock) {
-			if (terminationFuture == null) {
-				terminationFuture = terminationFutureSupplier.get();
-			}
-
-			return terminationFuture;
+		if (completeTerminationFutureOnClose) {
+			terminationFuture.complete(null);
 		}
+
+		return terminationFuture;
 	}
 
 	public static Builder newBuilder() {
@@ -85,7 +85,7 @@ class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess
 
 	public static class Builder {
 
-		private Supplier<CompletableFuture<Void>> terminationFutureSupplier = FutureUtils::completedVoidFuture;
+		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
 		private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction = ignored -> FutureUtils.completedVoidFuture();
 
@@ -93,10 +93,12 @@ class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess
 
 		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 
+		private boolean completeTerminationFutureOnClose = true;
+
 		private Builder() {}
 
-		public Builder setTerminationFutureSupplier(Supplier<CompletableFuture<Void>> terminationFutureSupplier) {
-			this.terminationFutureSupplier = terminationFutureSupplier;
+		public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
+			this.terminationFuture = terminationFuture;
 			return this;
 		}
 
@@ -115,8 +117,13 @@ class TestingDispatcherGatewayService implements AbstractDispatcherLeaderProcess
 			return this;
 		}
 
+		public Builder withManualTerminationFutureCompletion() {
+			completeTerminationFutureOnClose = false;
+			return this;
+		}
+
 		public TestingDispatcherGatewayService build() {
-			return new TestingDispatcherGatewayService(terminationFutureSupplier, onRemovedJobGraphFunction, dispatcherGateway, shutDownFuture);
+			return new TestingDispatcherGatewayService(terminationFuture, onRemovedJobGraphFunction, dispatcherGateway, shutDownFuture, completeTerminationFutureOnClose);
 		}
 	}
 }

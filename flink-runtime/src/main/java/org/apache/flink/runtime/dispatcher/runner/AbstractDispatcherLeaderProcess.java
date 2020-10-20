@@ -139,6 +139,8 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 	private void closeInternal() {
 		log.info("Stopping {}.", getClass().getSimpleName());
 
+		state = State.STOPPED;
+
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = closeDispatcherService();
 
 		final CompletableFuture<Void> onCloseTerminationFuture = FutureUtils.composeAfterwards(
@@ -148,8 +150,6 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
 		FutureUtils.forward(
 			onCloseTerminationFuture,
 			this.terminationFuture);
-
-		state = State.STOPPED;
 	}
 
 	private CompletableFuture<Void> closeDispatcherService() {
