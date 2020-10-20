@@ -52,6 +52,9 @@ public class TestingDispatcherRunner implements DispatcherRunner {
 		return new Builder();
 	}
 
+	/**
+	 * Builder for {@link TestingDispatcherRunner}.
+	 */
 	public static final class Builder {
 		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 		private Supplier<CompletableFuture<Void>> closeAsyncSupplier = FutureUtils::completedVoidFuture;
