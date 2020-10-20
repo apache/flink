@@ -41,6 +41,11 @@ public class DefaultResourceManagerService implements DispatcherResourceManagerC
 	}
 
 	@Override
+	public CompletableFuture<Void> getTerminationFuture() {
+		return resourceManager.getTerminationFuture();
+	}
+
+	@Override
 	public CompletableFuture<Void> closeAsync() {
 		return resourceManager.closeAsync();
 	}
