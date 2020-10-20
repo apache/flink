@@ -520,4 +520,25 @@ public class CheckpointConfig implements java.io.Serializable {
 		configuration.getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
 			.ifPresent(this::enableUnalignedCheckpoints);
 	}
+
+	/**
+	 * Creates a deep copy of the provided {@link CheckpointConfig}.
+	 * @param checkpointConfig the config to copy.
+	 * @return the newly created copy.
+	 */
+	public static CheckpointConfig copyOf(final CheckpointConfig checkpointConfig) {
+		checkNotNull(checkpointConfig);
+
+		final CheckpointConfig config = new CheckpointConfig();
+		config.checkpointInterval = checkpointConfig.checkpointInterval;
+		config.checkpointingMode = checkpointConfig.checkpointingMode;
+		config.checkpointTimeout = checkpointConfig.checkpointTimeout;
+		config.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
+		config.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
+		config.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
+		config.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+		config.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
+		config.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
+		return config;
+	}
 }

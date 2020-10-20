@@ -194,7 +194,7 @@ public class StreamGraphGenerator {
 			ReadableConfig configuration) {
 		this.transformations = checkNotNull(transformations);
 		this.executionConfig = checkNotNull(executionConfig);
-		this.checkpointConfig = checkNotNull(checkpointConfig);
+		this.checkpointConfig = CheckpointConfig.copyOf(checkpointConfig);
 		this.configuration = checkNotNull(configuration);
 	}
 
