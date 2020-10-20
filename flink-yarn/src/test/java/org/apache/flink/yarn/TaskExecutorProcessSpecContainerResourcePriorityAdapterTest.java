@@ -26,6 +26,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -121,6 +122,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	@Test
+	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResource() {
 		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
 
@@ -135,6 +137,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	@Test(expected = IllegalStateException.class)
+	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResourceFailExceedMax() {
 		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
 
@@ -142,6 +145,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	@Test(expected = IllegalStateException.class)
+	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResourceFailResourceTypeNotSupported() {
 		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
 
@@ -149,6 +153,7 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	@Test(expected = IllegalStateException.class)
+	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResourceFailHadoopVersionNotSupported() {
 		assumeTrue(!HadoopUtils.isMinHadoopVersion(2, 10));
 
