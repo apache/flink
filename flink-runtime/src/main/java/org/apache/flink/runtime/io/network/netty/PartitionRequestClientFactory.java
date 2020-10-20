@@ -37,8 +37,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.completeFromCallable;
-
 /**
  * Factory for {@link NettyPartitionRequestClient} instances.
  *
@@ -75,12 +73,24 @@ class PartitionRequestClientFactory {
 				return new CompletableFuture<>();
 			});
 			if (isTheFirstOne.get()) {
-				completeFromCallable(clientFuture, () -> connectWithRetries(connectionId));
+				try {
+					clientFuture.complete(connectWithRetries(connectionId));
+				} catch (InterruptedException e) {
+					clientFuture.complete(null); // let others waiting know that they should retry
+					throw e;
+				} catch (Exception e) {
+					clientFuture.completeExceptionally(e);
+				}
 			}
 
 			final NettyPartitionRequestClient client;
 			try {
 				client = clientFuture.get();
+				if (client == null) {
+					// computation failed in another thread - cleanup the map and restart the loop
+					clients.remove(connectionId, clientFuture);
+					continue;
+				}
 			} catch (ExecutionException e) {
 				throw new IOException(e);
 			}
@@ -94,7 +104,7 @@ class PartitionRequestClientFactory {
 		}
 	}
 
-	private NettyPartitionRequestClient connectWithRetries(ConnectionID connectionId) {
+	private NettyPartitionRequestClient connectWithRetries(ConnectionID connectionId) throws InterruptedException {
 		int tried = 0;
 		while (true) {
 			try {
@@ -109,11 +119,13 @@ class PartitionRequestClientFactory {
 		}
 	}
 
-	private NettyPartitionRequestClient connect(ConnectionID connectionId) throws RemoteTransportException {
+	private NettyPartitionRequestClient connect(ConnectionID connectionId) throws RemoteTransportException, InterruptedException {
 		try {
 			Channel channel = nettyClient.connect(connectionId.getAddress()).await().channel();
 			NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
 			return new NettyPartitionRequestClient(channel, clientHandler, connectionId, this);
+		} catch (InterruptedException e) {
+			throw e;
 		} catch (Exception e) {
 			throw new RemoteTransportException(
 				"Connecting to remote task manager '" + connectionId.getAddress() +
