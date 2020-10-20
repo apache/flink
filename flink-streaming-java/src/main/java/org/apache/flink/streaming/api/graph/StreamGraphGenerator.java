@@ -194,7 +194,7 @@ public class StreamGraphGenerator {
 			ReadableConfig configuration) {
 		this.transformations = checkNotNull(transformations);
 		this.executionConfig = checkNotNull(executionConfig);
-		this.checkpointConfig = checkNotNull(checkpointConfig);
+		this.checkpointConfig = new CheckpointConfig(checkpointConfig);
 		this.configuration = checkNotNull(configuration);
 	}
 
@@ -266,6 +266,12 @@ public class StreamGraphGenerator {
 		graph.setJobName(jobName);
 
 		if (shouldExecuteInBatchMode) {
+
+			if (checkpointConfig.isCheckpointingEnabled()) {
+				LOG.info("Disabled Checkpointing. Checkpointing is not supported and not needed when executing jobs in BATCH mode.");
+				checkpointConfig.disableCheckpointing();
+			}
+
 			graph.setAllVerticesInSameSlotSharingGroupByDefault(false);
 			graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED);
 			graph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
