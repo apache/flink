@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -201,8 +202,16 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	@Override
+	public Set<AllocationID> getActiveTaskSlotAllocationIds() {
+		return createAllocationIdSet(new TaskSlotIterator(TaskSlotState.ACTIVE));
+	}
+
+	@Override
 	public Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId) {
-		Iterator<TaskSlot<T>> taskSlotIterator = new TaskSlotIterator(jobId, TaskSlotState.ACTIVE);
+		return createAllocationIdSet(new TaskSlotIterator(jobId, TaskSlotState.ACTIVE));
+	}
+
+	private Set<AllocationID> createAllocationIdSet(Iterator<TaskSlot<T>> taskSlotIterator) {
 		Set<AllocationID> allocationIds = new HashSet<>();
 		while (taskSlotIterator.hasNext()) {
 			allocationIds.add(taskSlotIterator.next().getAllocationId());
@@ -641,18 +650,22 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
 		private TaskSlot<T> currentSlot;
 
+		private TaskSlotIterator(TaskSlotState state) {
+			this(slotsPerJob.values()
+					.stream()
+					.flatMap(Collection::stream)
+					.collect(Collectors.toSet())
+					.iterator(),
+				state);
+		}
+
 		private TaskSlotIterator(JobID jobId, TaskSlotState state) {
+			this(slotsPerJob.get(jobId) == null ? Collections.emptyIterator() : slotsPerJob.get(jobId).iterator(), state);
+		}
 
-			Set<AllocationID> allocationIds = slotsPerJob.get(jobId);
-
-			if (allocationIds == null || allocationIds.isEmpty()) {
-				allSlots = Collections.emptyIterator();
-			} else {
-				allSlots = allocationIds.iterator();
-			}
-
+		private TaskSlotIterator(Iterator<AllocationID> allocationIDIterator, TaskSlotState state) {
+			this.allSlots = Preconditions.checkNotNull(allocationIDIterator);
 			this.state = Preconditions.checkNotNull(state);
-
 			this.currentSlot = null;
 		}
 

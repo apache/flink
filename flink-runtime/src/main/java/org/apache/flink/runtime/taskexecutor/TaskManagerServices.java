@@ -113,7 +113,7 @@ public class TaskManagerServices {
 	//  Getter/Setter
 	// --------------------------------------------------------------------------------------------
 
-	long getManagedMemorySize() {
+	public long getManagedMemorySize() {
 		return managedMemorySize;
 	}
 

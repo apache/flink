@@ -58,6 +58,7 @@ public class TaskManagerServicesBuilder {
 	private TaskEventDispatcher taskEventDispatcher;
 	private ExecutorService ioExecutor;
 	private LibraryCacheManager libraryCacheManager;
+	private long managedMemorySize;
 
 	public TaskManagerServicesBuilder() {
 		unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
@@ -72,6 +73,7 @@ public class TaskManagerServicesBuilder {
 		taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
 		ioExecutor = TestingUtils.defaultExecutor();
 		libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
+		managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
 	}
 
 	public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(UnresolvedTaskManagerLocation unresolvedTaskManagerLocation) {
@@ -129,10 +131,15 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
+	public TaskManagerServicesBuilder setManagedMemorySize(long managedMemorySize) {
+		this.managedMemorySize = managedMemorySize;
+		return this;
+	}
+
 	public TaskManagerServices build() {
 		return new TaskManagerServices(
 			unresolvedTaskManagerLocation,
-			MemoryManager.MIN_PAGE_SIZE,
+			managedMemorySize,
 			ioManager,
 			shuffleEnvironment,
 			kvStateService,
