@@ -91,7 +91,7 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 	}
 
 	@Override
-	public Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId) {
+	public Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId) {
 		return activeSlotAllocationIdsForJobFunction.apply(jobId);
 	}
 
