@@ -24,20 +24,21 @@ import java.util.Optional;
 
 /**
  * Parallelism provider for connector providers.
- * 
- * <p>Note: currently, it only supports to work with {@code SinkFunctionProvider} and {@code OutputFormatProvider}.
+ *
+ * <p>Note: currently, it only supports to work with {@code SinkFunctionProvider} and
+ * {@code OutputFormatProvider}.
  */
 @PublicEvolving
 public interface ParallelismProvider {
 
-  /**
-   * Gets the parallelism for this contract instance. The parallelism denotes how many parallel
-   * instances of the user source/sink will be spawned during the execution.
-   *
-   * @return empty if the connector does not want to provide parallelism, then the planner will
-   * decide the number of parallel instances by itself.
-   */
-  default Optional<Integer> getParallelism() {
-     return Optional.empty();
-  }
+	/**
+	 * Gets the parallelism for this contract instance. The parallelism denotes how many parallel
+	 * instances of the user source/sink will be spawned during the execution.
+	 *
+	 * @return empty if the connector does not want to provide parallelism, then the planner will
+	 * decide the number of parallel instances by itself.
+	 */
+	default Optional<Integer> getParallelism() {
+		return Optional.empty();
+	}
 }
