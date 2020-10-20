@@ -109,7 +109,8 @@ public class RocksDBMemoryControllerUtils {
 
 	/**
 	 * Calculate {@code mutable_limit_} as RocksDB calculates it in
-	 * <a href="https://github.com/dataArtisans/frocksdb/blob/FRocksDB-5.17.2/memtable/write_buffer_manager.cc#L54"/>.
+	 * <a href="https://github.com/dataArtisans/frocksdb/blob/FRocksDB-5.17.2/memtable/write_buffer_manager.cc#L54">
+	 * here</a>.
 	 *
 	 * @param bufferSize write buffer size
 	 * @return mutableLimit
