@@ -36,6 +36,7 @@ class DataStreamTests(PyFlinkTestCase):
 
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
         getConfigurationMethod = invoke_java_object_method(
             self.env._j_stream_execution_environment, "getConfiguration")
         getConfigurationMethod.setString("akka.ask.timeout", "20 s")

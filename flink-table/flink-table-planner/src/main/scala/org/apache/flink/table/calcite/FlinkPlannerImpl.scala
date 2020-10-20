@@ -29,6 +29,7 @@ import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
+import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlExplain, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
@@ -65,7 +66,8 @@ class FlinkPlannerImpl(
       operatorTable,
       catalogReaderSupplier.apply(true), // ignore cases for lenient completion
       typeFactory,
-      config.getParserConfig.conformance())
+      SqlValidator.Config.DEFAULT
+          .withSqlConformance(config.getParserConfig.conformance()))
     val advisor = new SqlAdvisor(advisorValidator, config.getParserConfig)
     val replaced = Array[String](null)
     val hints = advisor.getCompletionHints(sql, cursor, replaced)
@@ -94,10 +96,11 @@ class FlinkPlannerImpl(
     val validator = new FlinkCalciteSqlValidator(
       operatorTable,
       catalogReader,
-      typeFactory)
-    validator.setIdentifierExpansion(true)
-    // Disable implicit type coercion for now.
-    validator.setEnableTypeCoercion(false)
+      typeFactory,
+      SqlValidator.Config.DEFAULT
+          .withIdentifierExpansion(true)
+          // Disable implicit type coercion for now.
+          .withTypeCoercionEnabled(false))
     validator
   }
 

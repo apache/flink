@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.LOGICAL_REWRITE
+import org.apache.flink.table.planner.plan.optimize.program._
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.{LOGICAL_REWRITE, PHYSICAL, PHYSICAL_REWRITE}
-import org.apache.flink.table.planner.plan.optimize.program._
-import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
-
 import org.junit.{Before, Test}
 
 /**

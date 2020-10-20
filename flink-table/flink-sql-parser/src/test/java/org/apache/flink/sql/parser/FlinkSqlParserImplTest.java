@@ -29,6 +29,7 @@ import org.apache.calcite.sql.parser.SqlParserTest;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -60,7 +61,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	/**
 	 * Here we override the super method to avoid test error from `describe schema` supported in original calcite.
 	 */
-	@Override
+	@Ignore
+	@Test
 	public void testDescribeSchema() {
 	}
 
@@ -188,7 +190,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	/**
 	 * Here we override the super method to avoid test error from `describe statement` supported in original calcite.
 	 */
-	@Override
+	@Ignore
+	@Test
 	public void testDescribeStatement() {
 	}
 
@@ -784,6 +787,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithNoColumns() {
+		final String sql = "create table source_table with (\n" +
+				"  'x' = 'y',\n" +
+				"  'abc' = 'def'\n" +
+				")";
+		final String expected = "CREATE TABLE `SOURCE_TABLE` WITH (\n" +
+				"  'x' = 'y',\n" +
+				"  'abc' = 'def'\n" +
+				")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testDropTable() {
 		final String sql = "DROP table catalog1.db1.tbl1";
 		final String expected = "DROP TABLE `CATALOG1`.`DB1`.`TBL1`";
@@ -994,7 +1010,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
 	// Override the test because our ROW field type default is nullable,
 	// which is different with Calcite.
-	@Override
+	@Test
 	public void testCastAsRowType() {
 		final String expr = "cast(a as row(f0 int, f1 varchar))";
 		final String expected = "CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))";

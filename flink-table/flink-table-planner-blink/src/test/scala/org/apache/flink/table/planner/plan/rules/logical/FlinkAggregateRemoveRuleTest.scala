@@ -59,12 +59,12 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
       // rel.getCluster.getPlanner is volcano planner used in FlinkAggregateRemoveRule
       FlinkVolcanoProgramBuilder.newBuilder
         .add(RuleSets.ofList(
-          ReduceExpressionsRule.FILTER_INSTANCE,
+          CoreRules.FILTER_REDUCE_EXPRESSIONS,
           FlinkAggregateExpandDistinctAggregatesRule.INSTANCE,
-          FilterCalcMergeRule.INSTANCE,
-          ProjectCalcMergeRule.INSTANCE,
-          FilterToCalcRule.INSTANCE,
-          ProjectToCalcRule.INSTANCE,
+          CoreRules.FILTER_CALC_MERGE,
+          CoreRules.PROJECT_CALC_MERGE,
+          CoreRules.FILTER_TO_CALC,
+          CoreRules.PROJECT_TO_CALC,
           FlinkCalcMergeRule.INSTANCE,
           FlinkAggregateRemoveRule.INSTANCE,
           DecomposeGroupingSetsRule.INSTANCE,

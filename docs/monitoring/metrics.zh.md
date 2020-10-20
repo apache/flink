@@ -846,6 +846,8 @@ Thus, in order to infer the metric identifier:
 </table>
 
 ### Memory
+The memory-related metrics require Oracle's memory management (also included in OpenJDK's Hotspot implementation) to be in place. 
+Some metrics might not be exposed when using other JVM implementations (e.g. IBM's J9).
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -858,8 +860,8 @@ Thus, in order to infer the metric identifier:
   </thead>
   <tbody>
     <tr>
-      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="12">Status.JVM.Memory</td>
+      <th rowspan="15"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="15">Status.JVM.Memory</td>
       <td>Heap.Used</td>
       <td>The amount of heap memory currently used (in bytes).</td>
       <td>Gauge</td>
@@ -887,6 +889,21 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>NonHeap.Max</td>
       <td>The maximum amount of non-heap memory that can be used for memory management (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Metaspace.Used</td>
+      <td>The amount of memory currently used in the Metaspace memory pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Metaspace.Committed</td>
+      <td>The amount of memory guaranteed to be available to the JVM in the Metaspace memory pool (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>Metaspace.Max</td>
+      <td>The maximum amount of memory that can be used in the Metaspace memory pool (in bytes).</td>
       <td>Gauge</td>
     </tr>
     <tr>

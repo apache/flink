@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -32,6 +33,10 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -80,6 +85,22 @@ public class MetricUtilsTest extends TestLogger {
 	}
 
 	@Test
+	public void testMetaspaceCompleteness() {
+		final InterceptingOperatorMetricGroup metaspaceMetrics = new InterceptingOperatorMetricGroup() {
+			@Override
+			public MetricGroup addGroup(String name) {
+				return this;
+			}
+		};
+
+		MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
+
+		Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_USED));
+		Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED));
+		Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_MAX));
+	}
+
+	@Test
 	public void testHeapMetricsCompleteness() {
 		final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
@@ -97,7 +118,7 @@ public class MetricUtilsTest extends TestLogger {
 	 * the functionality in general.
 	 */
 	@Test
-	public void testHeapMetrics() throws Exception {
+	public void testHeapMetricUsageNotStatic() throws Exception {
 		final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
 		MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
@@ -118,5 +139,62 @@ public class MetricUtilsTest extends TestLogger {
 			Thread.sleep(50);
 		}
 		Assert.fail("Heap usage metric never changed it's value.");
+	}
+
+	@Test
+	public void testNonHeapMetricUsageNotStatic() throws InterruptedException {
+		final InterceptingOperatorMetricGroup nonHeapMetrics = new InterceptingOperatorMetricGroup();
+
+		MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
+
+		@SuppressWarnings("unchecked")
+		final Gauge<Long> used = (Gauge<Long>) nonHeapMetrics.get(MetricNames.MEMORY_USED);
+
+		final long usedNonHeapInitially = used.getValue();
+
+		// check memory usage difference multiple times since other tests may affect memory usage as well
+		for (int x = 0; x < 10; x++) {
+			final ByteBuffer tmpByteBuffer = ByteBuffer.allocateDirect(1024 * 1024 * 8);
+			final long usedNonHeapAfterAllocation = used.getValue();
+
+			if (usedNonHeapInitially != usedNonHeapAfterAllocation) {
+				return;
+			}
+			Thread.sleep(50);
+		}
+		Assert.fail("Non-Heap usage metric never changed it's value.");
+	}
+
+	@Test
+	public void testMetaspaceMetricUsageNotStatic() throws InterruptedException {
+		final InterceptingOperatorMetricGroup metaspaceMetrics = new InterceptingOperatorMetricGroup() {
+			@Override
+			public MetricGroup addGroup(String name) {
+				return this;
+			}
+		};
+
+		MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
+
+		@SuppressWarnings("unchecked")
+		final Gauge<Long> used = (Gauge<Long>) metaspaceMetrics.get(MetricNames.MEMORY_USED);
+
+		final long usedMetaspaceInitially = used.getValue();
+
+		// check memory usage difference multiple times since other tests may affect memory usage as well
+		for (int x = 0; x < 10; x++) {
+			List<Runnable> consumerList = new ArrayList<>();
+			for (int i = 0; i < 10; i++) {
+				consumerList.add(() -> {});
+			}
+
+			final long usedMetaspaceAfterAllocation = used.getValue();
+
+			if (usedMetaspaceInitially != usedMetaspaceAfterAllocation) {
+				return;
+			}
+			Thread.sleep(50);
+		}
+		Assert.fail("Metaspace usage metric never changed it's value.");
 	}
 }

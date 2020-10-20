@@ -19,24 +19,23 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, TableAggregateFunction, ImperativeAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionIdentifier, ImperativeAggregateFunction, TableAggregateFunction}
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
-import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction.{createOperandMetadata, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
-
-import java.util
 
 /**
   * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
@@ -62,18 +61,17 @@ class AggSqlFunction(
     returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(identifier.toList, SqlParserPos.ZERO),
+    SqlKind.OTHER_FUNCTION,
     returnTypeInfer.getOrElse(createReturnTypeInference(
       fromDataTypeToLogicalType(externalResultType), typeFactory)),
     createOperandTypeInference(displayName, aggregateFunction, typeFactory, externalAccType),
-    createOperandTypeChecker(displayName, aggregateFunction, externalAccType),
+    createOperandMetadata(displayName, aggregateFunction, externalAccType),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregation function
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
     requiresOver,
-    Optionality.FORBIDDEN,
-    typeFactory
-  ) {
+    Optionality.FORBIDDEN) {
 
   /**
     * This is temporary solution for hive udf and should be removed once FLIP-65 is finished,
@@ -87,7 +85,7 @@ class AggSqlFunction(
 
   override def toString: String = displayName
 
-  override def getParamTypes: util.List[RelDataType] = null
+  override def getParamTypes: JList[RelDataType] = null
 }
 
 object AggSqlFunction {
@@ -165,18 +163,30 @@ object AggSqlFunction {
     }
   }
 
-  private[flink] def createOperandTypeChecker(
+  private[flink] def createOperandMetadata(
       name: String,
       aggregateFunction: ImperativeAggregateFunction[_, _],
       externalAccType: DataType)
-    : SqlOperandTypeChecker = {
+    : SqlOperandMetadata = {
 
     val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
     /**
       * Operand type checker based on [[AggregateFunction]] given information.
       */
-    new SqlOperandTypeChecker {
+    new SqlOperandMetadata {
+      override def paramNames(): JList[String] = {
+        // This should be never invoked.
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramNames "
+            + "should never be invoked")
+      }
+
+      override def paramTypes(typeFactory: RelDataTypeFactory): JList[RelDataType] = {
+        // This should be never invoked.
+        throw new UnsupportedOperationException("SqlOperandMetadata.paramTypes "
+            + "should never be invoked")
+      }
+
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
         s"$opName[${signaturesToString(aggregateFunction, "accumulate")}]"
       }

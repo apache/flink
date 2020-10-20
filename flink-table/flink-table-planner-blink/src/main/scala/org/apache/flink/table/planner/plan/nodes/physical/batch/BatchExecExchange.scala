@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalExchange
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -40,8 +40,6 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}
 
 import java.util
-
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 
 import scala.collection.JavaConversions._
 
@@ -102,20 +100,32 @@ class BatchExecExchange(
     }
   }
 
-  override def getDamBehavior: DamBehavior = {
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
+
+  override def getInputEdges: util.List[ExecEdge] = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     val shuffleMode = getShuffleMode(tableConfig.getConfiguration)
     if (shuffleMode eq ShuffleMode.BATCH) {
-      return DamBehavior.FULL_DAM
-    }
-    distribution.getType match {
-      case RelDistribution.Type.RANGE_DISTRIBUTED => DamBehavior.FULL_DAM
-      case _ => DamBehavior.PIPELINED
+      List(
+        ExecEdge.builder()
+          .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+          .build())
+    } else {
+      distribution.getType match {
+        case RelDistribution.Type.RANGE_DISTRIBUTED =>
+          List(
+            ExecEdge.builder()
+              .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+              .build())
+        case _ =>
+          List(
+            ExecEdge.builder()
+              .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+              .build())
+      }
     }
   }
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,

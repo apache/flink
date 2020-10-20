@@ -39,6 +39,7 @@ import org.junit.Assert._
 import org.junit.Test
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -482,7 +483,8 @@ class FlinkRelMdSelectivityTest extends FlinkRelMdHandlerTestBase {
       relBuilder.call(GREATER_THAN, relBuilder.field(2, 1, 1), relBuilder.literal(0.1D))
     ), true)
     val join = LogicalJoin.create(
-      ts, right, joinCondition, Set.empty[CorrelationId], JoinRelType.INNER)
+      ts, right, Collections.emptyList(),
+      joinCondition, Set.empty[CorrelationId], JoinRelType.INNER)
 
     relBuilder.push(join)
     val pred1 = relBuilder.call(LESS_THAN_OR_EQUAL, relBuilder.field(0), relBuilder.literal(0))

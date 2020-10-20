@@ -74,7 +74,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b,
    +- Reused(reference_id=[3])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
-+- Calc(select=[b, cnt], where=[AND(>=(b, 4), <(b, 6))], changelogMode=[I,UB,UA])
++- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
    +- Reused(reference_id=[3])
 ]]>
     </Resource>
@@ -263,9 +263,9 @@ Calc(select=[a, b, c], where=[>=(a, 0)], changelogMode=[I], reuse_id=[2])
 +- Reused(reference_id=[1])
 
 Calc(select=[a1, b, c AS c2], changelogMode=[I], reuse_id=[3])
-+- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
-   :- Exchange(distribution=[hash[a]], changelogMode=[I])
-   :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
++- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
+   :- Exchange(distribution=[hash[a1]], changelogMode=[I])
+   :  +- Calc(select=[a AS a1, b], where=[<=(a, 10)], changelogMode=[I])
    :     +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[a2]], changelogMode=[I])
       +- Calc(select=[a AS a2, c], where=[>=(b, 5)], changelogMode=[I])
@@ -742,9 +742,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1,
       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I], reuse_id=[1])
       +- Exchange(distribution=[hash[a1]], changelogMode=[I])
          +- Calc(select=[a1, b, c AS c2], changelogMode=[I])
-            +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
-               :- Exchange(distribution=[hash[a]], changelogMode=[I])
-               :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
+            +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
+               :- Exchange(distribution=[hash[a1]], changelogMode=[I])
+               :  +- Calc(select=[a AS a1, b], where=[<=(a, 10)], changelogMode=[I])
                :     +- Reused(reference_id=[1])
                +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                   +- Calc(select=[a AS a2, c], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
@@ -907,7 +907,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
    +- LogicalFilter(condition=[>($0, 6)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[$3])
          +- LogicalFilter(condition=[<=($3, 10)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, b])
@@ -915,7 +915,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
    +- LogicalFilter(condition=[<($0, 6)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[$3])
          +- LogicalFilter(condition=[<=($3, 10)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -970,7 +970,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a, b, c, rank_num])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[$3])
    +- LogicalFilter(condition=[<=($3, 10)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, b])
