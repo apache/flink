@@ -50,13 +50,17 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
 
     cpdef encode_to_stream(self, input_stream_and_function_wrapper, OutputStream out_stream,
                            bint nested):
+        cdef bint is_tuple = False
         self._prepare_encode(input_stream_and_function_wrapper, out_stream)
         while self._input_buffer_size > self._input_pos:
             self._decode_next_row()
             result = self.func(self.row)
             if result:
+                if isinstance(result, tuple):
+                    result = [result]
+                    is_tuple = True
                 for value in result:
-                    if self._output_field_count == 1:
+                    if self._output_field_count == 1 and not is_tuple:
                         value = (value,)
                     self._encode_one_row(value)
                     self._maybe_flush(out_stream)

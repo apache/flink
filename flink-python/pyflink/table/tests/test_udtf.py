@@ -33,6 +33,7 @@ class UserDefinedTableFunctionTests(object):
         self.t_env.register_function(
             "multi_emit", udtf(MultiEmit(), [DataTypes.BIGINT(), DataTypes.BIGINT()],
                                [DataTypes.BIGINT(), DataTypes.BIGINT()]))
+        self.t_env.register_function("identity", identity)
 
         self.t_env.register_function("condition_multi_emit", condition_multi_emit)
 
@@ -44,6 +45,8 @@ class UserDefinedTableFunctionTests(object):
         t = t.join_lateral("multi_emit(a, multi_num(b)) as (x, y)") \
             .left_outer_join_lateral("condition_multi_emit(x, y) as m") \
             .select("x, y, m")
+        t = t.left_outer_join_lateral("identity(m) as n") \
+            .select("x, y, n")
         actual = self._get_output(t)
         self.assert_equals(actual,
                            ["1,0,null", "1,1,null", "2,0,null", "2,1,null", "3,0,0", "3,0,1",
@@ -113,6 +116,13 @@ class MultiEmit(TableFunction, unittest.TestCase):
         self.assertEqual(self.counter_sum, self.counter.get_count())
         for i in range(y):
             yield x, i
+
+
+@udtf(input_types=DataTypes.BIGINT(), result_types=[DataTypes.BIGINT()])
+def identity(x):
+    if x is not None:
+        from pyflink.table import Row
+        return Row(x)
 
 
 @udtf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
