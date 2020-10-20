@@ -38,38 +38,35 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow> im
 
 	private static final long serialVersionUID = 4895551155814656518L;
 
-	private final long size;
+	private final long maxSize;
 
 	private final long step;
 
 	private final long offset;
 
-	private final long paneSize;
-
 	private final boolean isEventTime;
 
-	protected CumulativeWindowAssigner(long size, long step, long offset, boolean isEventTime) {
-		if (size <= 0 || step <= 0) {
+	protected CumulativeWindowAssigner(long maxSize, long step, long offset, boolean isEventTime) {
+		if (maxSize <= 0 || step <= 0) {
 			throw new IllegalArgumentException(
 				"CumulativeWindowAssigner parameters must satisfy step > 0 and size > 0");
 		}
-		if (size % step != 0) {
+		if (maxSize % step != 0) {
 			throw new IllegalArgumentException(
 				"CumulativeWindowAssigner requires size must be an integral multiple of step.");
 		}
 
-		this.size = size;
+		this.maxSize = maxSize;
 		this.step = step;
 		this.offset = offset;
 		this.isEventTime = isEventTime;
-		this.paneSize = step;
 	}
 
 	@Override
 	public Collection<TimeWindow> assignWindows(RowData element, long timestamp) {
 		List<TimeWindow> windows = new ArrayList<>();
-		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, size);
-		long lastEnd = start + size;
+		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, maxSize);
+		long lastEnd = start + maxSize;
 		long firstEnd = TimeWindow.getWindowStartWithOffset(timestamp, offset, step) + step;
 		for (long end = firstEnd; end <= lastEnd; end += step) {
 			windows.add(new TimeWindow(start, end));
@@ -79,20 +76,20 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow> im
 
 	@Override
 	public TimeWindow assignPane(Object element, long timestamp) {
-		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, paneSize);
-		return new TimeWindow(start, start + paneSize);
+		long start = TimeWindow.getWindowStartWithOffset(timestamp, offset, step);
+		return new TimeWindow(start, start + step);
 	}
 
 	@Override
 	public Iterable<TimeWindow> splitIntoPanes(TimeWindow window) {
-		return new PanesIterable(window.getStart(), window.getEnd(), paneSize);
+		return new PanesIterable(window.getStart(), window.getEnd(), step);
 	}
 
 	@Override
 	public TimeWindow getLastWindow(TimeWindow pane) {
-		long windowStart = TimeWindow.getWindowStartWithOffset(pane.getStart(), offset, size);
+		long windowStart = TimeWindow.getWindowStartWithOffset(pane.getStart(), offset, maxSize);
 		// the last window is the max size window
-		return new TimeWindow(windowStart, windowStart + size);
+		return new TimeWindow(windowStart, windowStart + maxSize);
 	}
 
 	@Override
@@ -107,7 +104,7 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow> im
 
 	@Override
 	public String toString() {
-		return "CumulativeWindow(" + size + ", " + step + ")";
+		return "CumulativeWindow(" + maxSize + ", " + step + ")";
 	}
 
 	private static class PanesIterable implements IterableIterator<TimeWindow> {
@@ -160,14 +157,14 @@ public class CumulativeWindowAssigner extends PanedWindowAssigner<TimeWindow> im
 	}
 
 	public CumulativeWindowAssigner withOffset(Duration offset) {
-		return new CumulativeWindowAssigner(size, step, offset.toMillis(), isEventTime);
+		return new CumulativeWindowAssigner(maxSize, step, offset.toMillis(), isEventTime);
 	}
 
 	public CumulativeWindowAssigner withEventTime() {
-		return new CumulativeWindowAssigner(size, step, offset, true);
+		return new CumulativeWindowAssigner(maxSize, step, offset, true);
 	}
 
 	public CumulativeWindowAssigner withProcessingTime() {
-		return new CumulativeWindowAssigner(size, step, offset, false);
+		return new CumulativeWindowAssigner(maxSize, step, offset, false);
 	}
 }

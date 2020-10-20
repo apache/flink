@@ -376,6 +376,58 @@ public class WindowOperatorTest {
 	}
 
 	@Test
+	public void testEventTimeCumulativeWindowsWithLateArrival() throws Exception {
+		WindowOperator operator = WindowOperatorBuilder
+			.builder()
+			.withInputFields(inputFieldTypes)
+			.cumulative(Duration.ofSeconds(3), Duration.ofSeconds(1))
+			.withEventTime(2)
+			.withAllowedLateness(Duration.ofMillis(500))
+			.produceUpdates()
+			.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
+
+		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(operator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		testHarness.open();
+
+		testHarness.processElement(insertRecord("key2", 1, 500L));
+		testHarness.processWatermark(new Watermark(1500));
+
+		expectedOutput.add(insertRecord("key2", 1L, 1L, 0L, 1000L, 999L));
+		expectedOutput.add(new Watermark(1500));
+
+		testHarness.processElement(insertRecord("key2", 1, 1300L));
+		testHarness.processWatermark(new Watermark(2300));
+
+		expectedOutput.add(insertRecord("key2", 2L, 2L, 0L, 2000L, 1999L));
+		expectedOutput.add(new Watermark(2300));
+
+		// this will not be dropped because window.maxTimestamp() + allowedLateness > currentWatermark
+		testHarness.processElement(insertRecord("key2", 1, 1997L));
+		testHarness.processWatermark(new Watermark(6000));
+
+		// this is 1 and not 3 because the trigger fires and purges
+		expectedOutput.add(updateBeforeRecord("key2", 2L, 2L, 0L, 2000L, 1999L));
+		expectedOutput.add(updateAfterRecord("key2", 3L, 3L, 0L, 2000L, 1999L));
+		expectedOutput.add(insertRecord("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(new Watermark(6000));
+
+		// this will be dropped because window.maxTimestamp() + allowedLateness < currentWatermark
+		testHarness.processElement(insertRecord("key2", 1, 1998L));
+		testHarness.processWatermark(new Watermark(7000));
+
+		expectedOutput.add(new Watermark(7000));
+
+		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		assertEquals(1, operator.getNumLateRecordsDropped().getCount());
+
+		testHarness.close();
+	}
+
+	@Test
 	public void testProcessingTimeCumulativeWindows() throws Throwable {
 		closeCalled.set(0);
 
