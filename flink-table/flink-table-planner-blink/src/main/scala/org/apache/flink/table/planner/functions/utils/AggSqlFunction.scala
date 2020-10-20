@@ -37,8 +37,6 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
 import org.apache.calcite.util.Optionality
 
-import java.util.Collections
-
 /**
   * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
   * an [[AggregateFunction]] or a [[TableAggregateFunction]]

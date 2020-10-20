@@ -62,18 +62,6 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
-      rel: TableFunctionScan,
-      mq: RelMetadataQuery,
-      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
-    if (rel.getInputs.size() == 1
-        && rel.getCall.asInstanceOf[RexCall].getOperator.isInstanceOf[SqlWindowTableFunction]) {
-      mq.getUniqueKeys(rel.getInput(0), ignoreNulls)
-    } else {
-      null
-    }
-  }
-
-  def getUniqueKeys(
       rel: FlinkLogicalLegacyTableSourceScan,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
