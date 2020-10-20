@@ -318,6 +318,7 @@ public class BucketStateSerializerTest {
 			0,
 			createBucketWriter(),
 			DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
+			null,
 			OutputFileConfig.builder().build());
 	}
 
@@ -328,6 +329,7 @@ public class BucketStateSerializerTest {
 			createBucketWriter(),
 			DefaultRollingPolicy.builder().withMaxPartSize(10).build(),
 			bucketState,
+			null,
 			OutputFileConfig.builder().build());
 	}
 

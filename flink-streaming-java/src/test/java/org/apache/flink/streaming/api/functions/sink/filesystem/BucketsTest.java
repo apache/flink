@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -385,6 +386,7 @@ public class BucketsTest {
 			path,
 			rollOnProcessingTimeCountingPolicy,
 			bucketLifeCycleListener,
+			null,
 			0,
 			OutputFileConfig.builder().build());
 		ListState<byte[]> bucketStateContainer = new MockListState<>();
@@ -422,6 +424,7 @@ public class BucketsTest {
 			path,
 			rollOnProcessingTimeCountingPolicy,
 			bucketLifeCycleListener,
+			null,
 			0,
 			OutputFileConfig.builder().build());
 		ListState<byte[]> bucketStateContainer = new MockListState<>();
@@ -440,6 +443,7 @@ public class BucketsTest {
 			path,
 			rollOnProcessingTimeCountingPolicy,
 			bucketLifeCycleListener,
+			null,
 			0,
 			bucketStateContainer,
 			partCounterContainer,
@@ -476,6 +480,50 @@ public class BucketsTest {
 		}
 	}
 
+	@Test
+	public void testFileLifeCycleListener() throws Exception {
+		File outDir = TEMP_FOLDER.newFolder();
+		Path path = new Path(outDir.toURI());
+
+		OnProcessingTimePolicy<String, String> rollOnProcessingTimeCountingPolicy =
+				new OnProcessingTimePolicy<>(2L);
+
+		TestFileLifeCycleListener fileLifeCycleListener = new TestFileLifeCycleListener();
+		Buckets<String, String> buckets = createBuckets(
+				path,
+				rollOnProcessingTimeCountingPolicy,
+				null,
+				fileLifeCycleListener,
+				0,
+				OutputFileConfig.builder().build());
+
+		buckets.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 2L));
+		buckets.onElement("test2", new TestUtils.MockSinkContext(null, 1L, 3L));
+
+		// Will close the part file writer of the bucket "test1". Now bucket "test1" have only
+		// one pending file while bucket "test2" has an on-writing in-progress file.
+		buckets.onProcessingTime(4);
+
+		buckets.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 5L));
+		buckets.onElement("test2", new TestUtils.MockSinkContext(null, 1L, 6L));
+
+		Assert.assertEquals(2, fileLifeCycleListener.files.size());
+		Assert.assertEquals(
+				Arrays.asList("part-0-0", "part-0-1"), fileLifeCycleListener.files.get("test1"));
+		Assert.assertEquals(
+				Collections.singletonList("part-0-1"), fileLifeCycleListener.files.get("test2"));
+	}
+
+	private static class TestFileLifeCycleListener implements FileLifeCycleListener<String> {
+
+		private final Map<String, List<String>> files = new HashMap<>();
+
+		@Override
+		public void onPartFileOpened(String bucket, Path newPath) {
+			files.computeIfAbsent(bucket, k -> new ArrayList<>()).add(newPath.getName());
+		}
+	}
+
 	// ------------------------------- Utility Methods --------------------------------
 
 	private static Buckets<String, String> createBuckets(
@@ -486,6 +534,7 @@ public class BucketsTest {
 				basePath,
 				rollingPolicy,
 				null,
+				null,
 				subtaskIdx,
 				OutputFileConfig.builder().build());
 	}
@@ -494,6 +543,7 @@ public class BucketsTest {
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
 			final BucketLifeCycleListener<String, String> bucketLifeCycleListener,
+			final FileLifeCycleListener<String> fileLifeCycleListener,
 			final int subtaskIdx,
 			final OutputFileConfig outputFileConfig) throws IOException {
 		Buckets<String, String> buckets = new Buckets<>(
@@ -509,6 +559,10 @@ public class BucketsTest {
 			buckets.setBucketLifeCycleListener(bucketLifeCycleListener);
 		}
 
+		if (fileLifeCycleListener != null) {
+			buckets.setFileLifeCycleListener(fileLifeCycleListener);
+		}
+
 		return buckets;
 	}
 
@@ -522,6 +576,7 @@ public class BucketsTest {
 				basePath,
 				rollingPolicy,
 				null,
+				null,
 				subtaskIdx,
 				bucketState,
 				partCounterState,
@@ -532,6 +587,7 @@ public class BucketsTest {
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
 			final BucketLifeCycleListener<String, String> bucketLifeCycleListener,
+			final FileLifeCycleListener<String> fileLifeCycleListener,
 			final int subtaskIdx,
 			final ListState<byte[]> bucketState,
 			final ListState<Long> partCounterState,
@@ -540,6 +596,7 @@ public class BucketsTest {
 			basePath,
 			rollingPolicy,
 			bucketLifeCycleListener,
+			fileLifeCycleListener,
 			subtaskIdx,
 			outputFileConfig);
 		restoredBuckets.initializeState(bucketState, partCounterState);
