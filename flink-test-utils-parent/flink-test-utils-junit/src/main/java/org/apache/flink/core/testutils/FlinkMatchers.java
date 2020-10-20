@@ -19,6 +19,7 @@
 package org.apache.flink.core.testutils;
 
 import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 
 import java.io.PrintWriter;
@@ -77,6 +78,13 @@ public class FlinkMatchers {
 	 */
 	public static <T> FutureWillFailMatcher<T> futureWillCompleteExceptionally(Duration timeout) {
 		return futureWillCompleteExceptionally(Throwable.class, timeout);
+	}
+
+	/**
+	 * Checks that a {@link CompletableFuture} won't complete within the given timeout.
+	 */
+	public static Matcher<CompletableFuture<?>> willNotComplete(Duration timeout) {
+		return new WillNotCompleteMatcher(timeout);
 	}
 
 	// ------------------------------------------------------------------------
@@ -199,6 +207,43 @@ public class FlinkMatchers {
 		public void describeTo(Description description) {
 			description.appendText("A CompletableFuture that will have failed within " +
 				timeout.toMillis() + " milliseconds with: " + validationDescription);
+		}
+	}
+
+	private static final class WillNotCompleteMatcher extends TypeSafeDiagnosingMatcher<CompletableFuture<?>> {
+
+		private final Duration timeout;
+
+		private WillNotCompleteMatcher(Duration timeout) {
+			this.timeout = timeout;
+		}
+
+		@Override
+		protected boolean matchesSafely(
+				CompletableFuture<?> item,
+				Description mismatchDescription) {
+
+			try {
+				final Object value = item.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+				mismatchDescription.appendText("The given future completed with ")
+						.appendValue(value);
+			} catch (TimeoutException timeoutException) {
+				return true;
+			} catch (InterruptedException e) {
+				mismatchDescription.appendText("The waiting thread was interrupted.");
+			} catch (ExecutionException e) {
+				mismatchDescription.appendText("The given future was completed exceptionally: ")
+						.appendValue(e);
+			}
+
+			return false;
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("The given future should not complete within ")
+					.appendValue(timeout.toMillis())
+					.appendText(" ms.");
 		}
 	}
 }
