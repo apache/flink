@@ -784,6 +784,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithNoColumns() {
+		final String sql = "create table source_table with (\n" +
+				"  'x' = 'y',\n" +
+				"  'abc' = 'def'\n" +
+				")";
+		final String expected = "CREATE TABLE `SOURCE_TABLE` WITH (\n" +
+				"  'x' = 'y',\n" +
+				"  'abc' = 'def'\n" +
+				")";
+		sql(sql).ok(expected);
+	}
+
+	@Test
 	public void testDropTable() {
 		final String sql = "DROP table catalog1.db1.tbl1";
 		final String expected = "DROP TABLE `CATALOG1`.`DB1`.`TBL1`";
