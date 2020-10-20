@@ -25,9 +25,11 @@ import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,21 +71,35 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
 	private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
+	private final FatalErrorHandler fatalErrorHandler;
+
 	DispatcherResourceManagerComponent(
 			@Nonnull DispatcherRunner dispatcherRunner,
 			@Nonnull ResourceManagerService resourceManagerService,
 			@Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
 			@Nonnull LeaderRetrievalService resourceManagerRetrievalService,
-			@Nonnull AutoCloseableAsync webMonitorEndpoint) {
+			@Nonnull AutoCloseableAsync webMonitorEndpoint,
+			@Nonnull FatalErrorHandler fatalErrorHandler) {
 		this.dispatcherRunner = dispatcherRunner;
 		this.resourceManagerService = resourceManagerService;
 		this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
 		this.resourceManagerRetrievalService = resourceManagerRetrievalService;
 		this.webMonitorEndpoint = webMonitorEndpoint;
+		this.fatalErrorHandler = fatalErrorHandler;
 		this.terminationFuture = new CompletableFuture<>();
 		this.shutDownFuture = new CompletableFuture<>();
 
 		registerShutDownFuture();
+		handleUnexpectedResourceManagerTermination();
+	}
+
+	private void handleUnexpectedResourceManagerTermination() {
+		resourceManagerService.getTerminationFuture().whenComplete(
+				(ignored, throwable) -> {
+					if (isRunning.get()) {
+						fatalErrorHandler.onFatalError(new FlinkException("Unexpected termination of ResourceManager.", throwable));
+					}
+				});
 	}
 
 	private void registerShutDownFuture() {
@@ -175,5 +191,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 	interface ResourceManagerService extends AutoCloseableAsync {
 
 		ResourceManagerGateway getGateway();
+
+		CompletableFuture<Void> getTerminationFuture();
 	}
 }
