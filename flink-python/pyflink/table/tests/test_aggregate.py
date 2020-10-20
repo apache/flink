@@ -109,7 +109,8 @@ class CountDistinctAggregateFunction(AggregateFunction):
 
     def accumulate(self, accumulator, *args):
         input_str = args[0]
-        if accumulator[0].is_empty() or input_str not in accumulator[0]:
+        if accumulator[0].is_empty() or input_str not in accumulator[0] \
+                or accumulator[0][input_str] is None:
             accumulator[0][input_str] = 1
             accumulator[1] += 1
         else:
@@ -125,7 +126,7 @@ class CountDistinctAggregateFunction(AggregateFunction):
         accumulator[0].put_all({input_str: accumulator[0][input_str] - 1})
         if accumulator[0][input_str] <= 0:
             accumulator[1] -= 1
-            del accumulator[0][input_str]
+            accumulator[0][input_str] = None
 
     def get_accumulator_type(self):
         return DataTypes.ROW([

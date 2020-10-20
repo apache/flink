@@ -140,10 +140,10 @@ class CachedMapState(LRUCache):
     def is_all_data_cached(self):
         return self._all_data_cached
 
-    def put(self, key, existed_and_value):
-        if existed_and_value[0]:
+    def put(self, key, exists_and_value):
+        if exists_and_value[0]:
             self._existed_keys.add(key)
-        super(CachedMapState, self).put(key, existed_and_value)
+        super(CachedMapState, self).put(key, exists_and_value)
 
     def get_cached_existed_keys(self):
         return self._existed_keys
@@ -188,17 +188,17 @@ class CachingMapStateHandler(object):
         cache_state_key = self._convert_to_cache_key(state_key)
         cached_map_state = self._state_cache.get(cache_state_key, cache_token)
         if cached_map_state is None:
-            existed, value = self._get_raw(state_key, map_key, map_key_coder, map_value_coder)
+            exists, value = self._get_raw(state_key, map_key, map_key_coder, map_value_coder)
             cached_map_state = CachedMapState(self._max_cached_map_key_entries)
-            cached_map_state.put(map_key, (existed, value))
+            cached_map_state.put(map_key, (exists, value))
             self._state_cache.put(cache_state_key, cache_token, cached_map_state)
-            return existed, value
+            return exists, value
         else:
             cached_value = cached_map_state.get(map_key)
             if cached_value is None:
-                existed, value = self._get_raw(state_key, map_key, map_key_coder, map_value_coder)
-                cached_map_state.put(map_key, (existed, value))
-                return existed, value
+                exists, value = self._get_raw(state_key, map_key, map_key_coder, map_value_coder)
+                cached_map_state.put(map_key, (exists, value))
+                return exists, value
             else:
                 return cached_value
 
@@ -322,19 +322,19 @@ class InternalSynchronousMapRuntimeState(object):
 
     def get(self, map_key):
         if map_key in self._write_cache:
-            existed_and_value = self._write_cache[map_key]
-            if existed_and_value[0]:
-                return existed_and_value[1]
+            exists, value = self._write_cache[map_key]
+            if exists:
+                return value
             else:
-                raise KeyError("Mapping key %s not found!" % map_key)
+                raise KeyError("Map key %s not found!" % map_key)
         if self._cleared:
-            raise KeyError("Mapping key %s not found!" % map_key)
-        existed, value = self._map_state_handler.blocking_get(
+            raise KeyError("Map key %s not found!" % map_key)
+        exists, value = self._map_state_handler.blocking_get(
             self._state_key, map_key, self._map_key_coder_impl, self._map_value_coder_impl)
-        if existed:
+        if exists:
             return value
         else:
-            raise KeyError("Mapping key %s not found!" % map_key)
+            raise KeyError("Map key %s not found!" % map_key)
 
     def put(self, map_key, map_value):
         self._write_cache[map_key] = (True, map_value)
@@ -378,11 +378,11 @@ class InternalSynchronousMapRuntimeState(object):
             to_await = self._map_state_handler.clear(self._state_key)
         if self._write_cache:
             append_items = []
-            for map_key, existed_and_value in self._write_cache.items():
-                if existed_and_value[0]:
-                    if existed_and_value[1] is not None:
+            for map_key, (exists, value) in self._write_cache.items():
+                if exists:
+                    if value is not None:
                         append_items.append(
-                            (CachingMapStateHandler.SET_VALUE, map_key, existed_and_value[1]))
+                            (CachingMapStateHandler.SET_VALUE, map_key, value))
                     else:
                         append_items.append((CachingMapStateHandler.SET_NONE, map_key, None))
                 else:
@@ -461,7 +461,8 @@ class RemoteKeyedStateBackend(object):
         self._map_state_write_cache_size = map_state_write_cache_size
         self._all_states = {}
         self._internal_state_cache = LRUCache(self._state_cache_size, None)
-        self._internal_state_cache.set_on_evict(self.commit_internal_state)
+        self._internal_state_cache.set_on_evict(
+            lambda key, value: self.commit_internal_state(value))
         self._current_key = None
         self._encoded_current_key = None
 
@@ -592,13 +593,13 @@ class RemoteKeyedStateBackend(object):
 
     def commit(self):
         for internal_state in self._internal_state_cache:
-            self.commit_internal_state(None, internal_state)
+            self.commit_internal_state(internal_state)
         for name, state in self._all_states.items():
             if (name, self._encoded_current_key) not in self._internal_state_cache:
-                self.commit_internal_state(None, state._internal_state)
+                self.commit_internal_state(state._internal_state)
 
     @staticmethod
-    def commit_internal_state(key, internal_state):
+    def commit_internal_state(internal_state):
         internal_state.commit()
         # reset the status of the internal state to reuse the object cross bundle
         if isinstance(internal_state, SynchronousBagRuntimeState):

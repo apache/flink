@@ -84,7 +84,8 @@ class PythonAggregateTest extends TableTestBase {
       new MapViewSpec(
         "agg0$f2",
         2,
-        DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()).bridgedTo(classOf[java.util.Map[_, _]]),
+        DataTypes.MAP(
+          DataTypes.STRING(), DataTypes.BIGINT()).bridgedTo(classOf[java.util.Map[_, _]]),
         false))
 
     assertEquals(expected(0).getClass, specs(0).getClass)

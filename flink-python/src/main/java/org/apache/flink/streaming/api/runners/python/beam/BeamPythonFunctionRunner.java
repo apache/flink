@@ -40,8 +40,8 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.typeutils.ByteArrayWrapper;
-import org.apache.flink.streaming.api.typeutils.ByteArrayWrapperSerializer;
+import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
+import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.util.Preconditions;
@@ -538,7 +538,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		 */
 		final Map<String, StateDescriptor> stateDescriptorCache;
 
-		private transient ByteArrayWrapper reuseByteArrayWrapper;
+		private final ByteArrayWrapper reuseByteArrayWrapper = new ByteArrayWrapper(new byte[0]);
 
 		SimpleStateRequestHandler(
 			KeyedStateBackend keyedStateBackend,
@@ -707,13 +707,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			// [flag(1 byte)][serialized map key(if needed)]
 			byte[] getRequest = request.getGet().getContinuationToken().toByteArray();
 			byte getFlag = getRequest[0];
-			if (reuseByteArrayWrapper == null) {
-				reuseByteArrayWrapper = new ByteArrayWrapper(getRequest, 1);
-			} else {
-				reuseByteArrayWrapper.setData(getRequest);
-				reuseByteArrayWrapper.setOffset(1);
-				reuseByteArrayWrapper.setLimit(getRequest.length);
-			}
+			reuseByteArrayWrapper.setData(getRequest);
+			reuseByteArrayWrapper.setOffset(1);
+			reuseByteArrayWrapper.setLimit(getRequest.length);
 			MapState<ByteArrayWrapper, byte[]> mapState = getMapState(request);
 			BeamFnApi.StateGetResponse.Builder response;
 			switch (getFlag) {

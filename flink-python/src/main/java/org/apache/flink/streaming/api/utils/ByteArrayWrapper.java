@@ -16,13 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.typeutils;
+package org.apache.flink.streaming.api.utils;
+
+import org.apache.flink.annotation.Internal;
 
 import java.io.Serializable;
 
 /**
  * A wrapper of the byte array. This class is used to calculate a deterministic hash code of a byte array.
  */
+@Internal
 public class ByteArrayWrapper implements Serializable {
 
 	private static final long serialVersionUID = 1L;

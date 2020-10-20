@@ -139,7 +139,7 @@ public class PythonStreamGroupAggregateOperator
 	private final int stateCacheSize;
 
 	/**
-	 * The maximum number of cached items which read from Java side in a Python MapState.
+	 * The maximum number of cached entries in a single Python MapState.
 	 */
 	private final int mapStateReadCacheSize;
 

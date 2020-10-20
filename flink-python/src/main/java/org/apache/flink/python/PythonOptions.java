@@ -181,8 +181,8 @@ public class PythonOptions {
 	public static final ConfigOption<Integer> MAP_STATE_READ_CACHE_SIZE = ConfigOptions
 		.key("python.map-state.read.cache.size")
 		.defaultValue(1000)
-		.withDescription("The maximum number of cached items which read from Java side in a Python MapState. "
-			+ "Note that this is an experimental flag and might not be available in future releases.");
+		.withDescription("The maximum number of cached entries for a single in a Python MapState. " +
+			"Note that this is an experimental flag and might not be available in future releases.");
 
 	/**
 	 * The maximum number of write requests cached in a Python MapState.
@@ -191,6 +191,9 @@ public class PythonOptions {
 	public static final ConfigOption<Integer> MAP_STATE_WRITE_CACHE_SIZE = ConfigOptions
 		.key("python.map-state.write.cache.size")
 		.defaultValue(1000)
-		.withDescription("The maximum number of write requests cached in a Python MapState. Note that this " +
-			"is an experimental flag and might not be available in future releases.");
+		.withDescription("The maximum number of cached write requests for a single Python " +
+			"MapState. The write requests will be flushed to the state backend (managed in " +
+			"the Java operator) when the number of cached write requests exceed this limit. " +
+			"Note that this is an experimental flag and might not be available in future " +
+			"releases.");
 }

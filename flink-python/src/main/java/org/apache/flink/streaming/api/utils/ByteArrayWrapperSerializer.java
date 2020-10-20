@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.typeutils;
+package org.apache.flink.streaming.api.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
@@ -30,6 +31,7 @@ import java.util.Arrays;
 /**
  * The serializer of {@link ByteArrayWrapper}.
  */
+@Internal
 public class ByteArrayWrapperSerializer extends TypeSerializerSingleton<ByteArrayWrapper> {
 
 	public static final ByteArrayWrapperSerializer INSTANCE = new ByteArrayWrapperSerializer();
