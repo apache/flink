@@ -271,7 +271,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
 			// Start the task manager process
 			for (int i = 0; i < numberOfTaskManagers; i++) {
-				taskManagerRunners[i] = new TaskManagerRunner(config, ResourceID.generate());
+				taskManagerRunners[i] = new TaskManagerRunner(config, ResourceID.generate(), TaskManagerRunner::createTaskExecutorService);
 				taskManagerRunners[i].start();
 			}
 
