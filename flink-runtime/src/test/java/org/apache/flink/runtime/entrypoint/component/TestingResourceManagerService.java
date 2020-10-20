@@ -63,6 +63,9 @@ public class TestingResourceManagerService implements DispatcherResourceManagerC
 		return new Builder();
 	}
 
+	/**
+	 * Builder for {@link TestingResourceManagerService}.
+	 */
 	public static final class Builder {
 		private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
