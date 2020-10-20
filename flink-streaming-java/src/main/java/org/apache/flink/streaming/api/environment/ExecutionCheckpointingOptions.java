@@ -143,4 +143,20 @@ public class ExecutionCheckpointingOptions {
 					TextElement.code(CheckpointingMode.EXACTLY_ONCE.toString()),
 					TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
 				.build());
+
+	public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
+		ConfigOptions.key("execution.checkpointing.alignment-timeout")
+			.durationType()
+			.defaultValue(Duration.ofSeconds(30))
+			.withDescription(Description.builder()
+				.text("Only relevant if %s is enabled.", TextElement.code(ENABLE_UNALIGNED.key()))
+				.linebreak()
+				.linebreak()
+				.text("If timeout is 0, checkpoints will always start unaligned.")
+				.linebreak()
+				.linebreak()
+				.text("If timeout has a positive value, checkpoints will start aligned. " +
+					"If during checkpointing, checkpoint start delay exceeds this timeout, alignment " +
+					"will timeout and checkpoint barrier will start working as unaligned checkpoint.")
+				.build());
 }

@@ -91,7 +91,9 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					// TODO -   source's trigger message, but do a handshake in this task between the trigger
 					// TODO -   message from the master, and the source's trigger notification
 					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation(
-						configuration.isExactlyOnceCheckpointMode(), configuration.isUnalignedCheckpointsEnabled());
+						configuration.isExactlyOnceCheckpointMode(),
+						configuration.isUnalignedCheckpointsEnabled(),
+						configuration.getAlignmentTimeout());
 					final long timestamp = System.currentTimeMillis();
 
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);

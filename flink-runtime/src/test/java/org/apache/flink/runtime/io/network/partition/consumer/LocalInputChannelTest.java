@@ -475,7 +475,7 @@ public class LocalInputChannelTest {
 		inputGate.setChannelStateWriter(stateWriter);
 
 		final CheckpointStorageLocationReference location = CheckpointStorageLocationReference.getDefault();
-		CheckpointOptions options = new CheckpointOptions(CheckpointType.CHECKPOINT, location, true, true);
+		CheckpointOptions options = new CheckpointOptions(CheckpointType.CHECKPOINT, location, true, true, 0);
 		stateWriter.start(0, options);
 
 		final CheckpointBarrier barrier = new CheckpointBarrier(0, 123L, options);
