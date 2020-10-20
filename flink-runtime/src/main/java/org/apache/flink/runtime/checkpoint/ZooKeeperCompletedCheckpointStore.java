@@ -36,7 +36,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -144,6 +146,10 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		int numberOfInitialCheckpoints = initialCheckpoints.size();
 
 		LOG.info("Found {} checkpoints in ZooKeeper.", numberOfInitialCheckpoints);
+		if (haveAllDownloaded(initialCheckpoints)) {
+			LOG.info("All {} checkpoints found are already downloaded.", numberOfInitialCheckpoints);
+			return;
+		}
 
 		// Try and read the state handles from storage. We try until we either successfully read
 		// all of them or when we reach a stable state, i.e. when we successfully read the same set
@@ -202,6 +208,19 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 				completedCheckpoints.size(),
 				numberOfInitialCheckpoints);
 		}
+	}
+
+	private boolean haveAllDownloaded(List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointPointers) {
+		if (completedCheckpoints.size() != checkpointPointers.size()) {
+			return false;
+		}
+		Set<Long> localIds = completedCheckpoints.stream().map(CompletedCheckpoint::getCheckpointID).collect(Collectors.toSet());
+		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> initialCheckpoint : checkpointPointers) {
+			if (!localIds.contains(pathToCheckpointId(initialCheckpoint.f1))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
