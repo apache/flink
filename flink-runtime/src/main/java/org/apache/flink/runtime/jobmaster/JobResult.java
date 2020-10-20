@@ -227,7 +227,7 @@ public class JobResult implements Serializable {
 
 		builder.applicationStatus(ApplicationStatus.fromJobStatus(accessExecutionGraph.getState()));
 
-		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.CREATED);
+		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING);
 		// guard against clock changes
 		final long guardedNetRuntime = Math.max(netRuntime, 0L);
 		builder.netRuntime(guardedNetRuntime);

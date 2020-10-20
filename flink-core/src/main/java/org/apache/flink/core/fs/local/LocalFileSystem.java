@@ -35,15 +35,10 @@ import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
@@ -61,8 +56,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class LocalFileSystem extends FileSystem {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
-
 	/** The URI representing the local file system. */
 	private static final URI LOCAL_URI = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
 
@@ -77,32 +70,22 @@ public class LocalFileSystem extends FileSystem {
 	 * Because Paths are not immutable, we cannot cache the proper path here. */
 	private final URI homeDir;
 
-	/** The host name of this machine. */
-	private final String hostName;
-
 	/**
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
 		this.workingDir = new File(System.getProperty("user.dir")).toURI();
 		this.homeDir = new File(System.getProperty("user.home")).toURI();
-
-		String tmp = "unknownHost";
-		try {
-			tmp = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			LOG.error("Could not resolve local host", e);
-		}
-		this.hostName = tmp;
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
-		return new BlockLocation[] {
-				new LocalBlockLocation(hostName, file.getLen())
-		};
+		if (file instanceof LocalFileStatus) {
+			return ((LocalFileStatus) file).getBlockLocations();
+		}
+		throw new IOException("File status does not belong to the LocalFileSystem: " + file);
 	}
 
 	@Override

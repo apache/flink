@@ -74,10 +74,8 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -103,7 +101,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.net.MalformedURLException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -125,9 +122,11 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRA
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
+import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
 import static org.apache.flink.table.utils.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * A catalog implementation for Hive.
@@ -152,14 +151,22 @@ public class HiveCatalog extends AbstractCatalog {
 	HiveMetastoreClientWrapper client;
 
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir) {
-		this(catalogName, defaultDatabase, hiveConfDir, HiveShimLoader.getHiveVersion());
+		this(catalogName, defaultDatabase, hiveConfDir, null);
 	}
 
 	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir, String hiveVersion) {
+		this(catalogName, defaultDatabase, hiveConfDir, null, hiveVersion);
+	}
+
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir, @Nullable String hadoopConfDir, @Nullable String hiveVersion) {
+		this(catalogName, defaultDatabase, createHiveConf(hiveConfDir, hadoopConfDir), hiveVersion);
+	}
+
+	public HiveCatalog(String catalogName, @Nullable String defaultDatabase, @Nullable HiveConf hiveConf, @Nullable String hiveVersion) {
 		this(catalogName,
 			defaultDatabase == null ? DEFAULT_DB : defaultDatabase,
-			createHiveConf(hiveConfDir),
-			hiveVersion,
+			hiveConf,
+			isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion,
 			false);
 	}
 
@@ -168,13 +175,13 @@ public class HiveCatalog extends AbstractCatalog {
 			boolean allowEmbedded) {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
-		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
+		this.hiveConf = hiveConf == null ? createHiveConf(null, null) : hiveConf;
 		if (!allowEmbedded) {
-			checkArgument(!StringUtils.isNullOrWhitespaceOnly(this.hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS)),
+			checkArgument(!isEmbeddedMetastore(this.hiveConf),
 					"Embedded metastore is not allowed. Make sure you have set a valid value for " +
 							HiveConf.ConfVars.METASTOREURIS.toString());
 		}
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		this.hiveVersion = hiveVersion;
 		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		// add this to hiveConf to make sure table factory and source/sink see the same Hive version as HiveCatalog
@@ -183,7 +190,7 @@ public class HiveCatalog extends AbstractCatalog {
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
 
-	private static HiveConf createHiveConf(@Nullable String hiveConfDir) {
+	private static HiveConf createHiveConf(@Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
 		LOG.info("Setting hive conf dir as {}", hiveConfDir);
 
 		try {
@@ -195,18 +202,19 @@ public class HiveCatalog extends AbstractCatalog {
 				String.format("Failed to get hive-site.xml from %s", hiveConfDir), e);
 		}
 
-		// create HiveConf from hadoop configuration
-		Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration());
-
-		// Add mapred-site.xml. We need to read configurations like compression codec.
-		for (String possibleHadoopConfPath : HadoopUtils.possibleHadoopConfPaths(new org.apache.flink.configuration.Configuration())) {
-			File mapredSite = new File(new File(possibleHadoopConfPath), "mapred-site.xml");
-			if (mapredSite.exists()) {
-				hadoopConf.addResource(new Path(mapredSite.getAbsolutePath()));
-				break;
+		// create HiveConf from hadoop configuration with hadoop conf directory configured.
+		Configuration hadoopConf = null;
+		if (isNullOrWhitespaceOnly(hadoopConfDir)) {
+			for (String possibleHadoopConfPath : HadoopUtils.possibleHadoopConfPaths(new org.apache.flink.configuration.Configuration())) {
+				hadoopConf = getHadoopConfiguration(possibleHadoopConfPath);
+				if (hadoopConf != null) {
+					break;
+				}
 			}
+		} else {
+			hadoopConf = getHadoopConfiguration(hadoopConfDir);
 		}
-		return new HiveConf(hadoopConf, HiveConf.class);
+		return new HiveConf(hadoopConf == null ? new Configuration() : hadoopConf, HiveConf.class);
 	}
 
 	@VisibleForTesting
@@ -275,7 +283,7 @@ public class HiveCatalog extends AbstractCatalog {
 	@Override
 	public void createDatabase(String databaseName, CatalogDatabase database, boolean ignoreIfExists)
 			throws DatabaseAlreadyExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(database, "database cannot be null");
 
 		Database hiveDatabase = HiveDatabaseUtil.instantiateHiveDatabase(databaseName, database);
@@ -294,7 +302,7 @@ public class HiveCatalog extends AbstractCatalog {
 	@Override
 	public void alterDatabase(String databaseName, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
 			throws DatabaseNotExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 		checkNotNull(newDatabase, "newDatabase cannot be null");
 
 		// client.alterDatabase doesn't throw any exception if there is no existing database
@@ -447,7 +455,7 @@ public class HiveCatalog extends AbstractCatalog {
 	public void renameTable(ObjectPath tablePath, String newTableName, boolean ignoreIfNotExists)
 			throws TableNotExistException, TableAlreadyExistException, CatalogException {
 		checkNotNull(tablePath, "tablePath cannot be null");
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(newTableName), "newTableName cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(newTableName), "newTableName cannot be null or empty");
 
 		try {
 			// alter_table() doesn't throw a clear exception when target table doesn't exist.
@@ -547,7 +555,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public List<String> listTables(String databaseName) throws DatabaseNotExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
 		try {
 			return client.getAllTables(databaseName);
@@ -561,7 +569,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public List<String> listViews(String databaseName) throws DatabaseNotExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
 		try {
 			return client.getViews(databaseName);
@@ -915,7 +923,7 @@ public class HiveCatalog extends AbstractCatalog {
 			partitionSpec, partCols, new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()));
 		// validate partition values
 		for (int i = 0; i < partCols.size(); i++) {
-			if (StringUtils.isNullOrWhitespaceOnly(partValues.get(i))) {
+			if (isNullOrWhitespaceOnly(partValues.get(i))) {
 				throw new PartitionSpecInvalidException(getName(), partCols,
 					new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName()), partitionSpec);
 			}
@@ -1116,7 +1124,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	@Override
 	public List<String> listFunctions(String databaseName) throws DatabaseNotExistException, CatalogException {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
+		checkArgument(!isNullOrWhitespaceOnly(databaseName), "databaseName cannot be null or empty");
 
 		// client.getFunctions() returns empty list when the database doesn't exist
 		// thus we need to explicitly check whether the database exists or not
@@ -1468,5 +1476,10 @@ public class HiveCatalog extends AbstractCatalog {
 			default:
 				throw new CatalogException("Unsupported alter table operation " + alterOp);
 		}
+	}
+
+	@VisibleForTesting
+	public static boolean isEmbeddedMetastore(HiveConf hiveConf) {
+		return isNullOrWhitespaceOnly(hiveConf.getVar(HiveConf.ConfVars.METASTOREURIS));
 	}
 }

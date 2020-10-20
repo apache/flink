@@ -30,6 +30,7 @@ import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
 
 import java.sql.Timestamp
+import java.time.Duration
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
@@ -129,8 +130,8 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.addTableWithWatermark("T4", util.tableEnv.from("T2"), "rowtime", 0)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
+    util.tableEnv.getConfig.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(3))
     val table = util.tableEnv.sqlQuery(
       """
         |SELECT id1, T3.rowtime AS ts, text

@@ -316,7 +316,7 @@ abstract class BatchTableEnvImpl(
     try {
       val jobClient = executePipeline(plan)
       if (execEnv.getConfiguration.getBoolean(DeploymentOptions.ATTACHED)) {
-        jobClient.getJobExecutionResult(execEnv.getUserCodeClassLoader).get
+        jobClient.getJobExecutionResult().get
       } else {
         new DetachedJobExecutionResult(jobClient.getJobID)
       }

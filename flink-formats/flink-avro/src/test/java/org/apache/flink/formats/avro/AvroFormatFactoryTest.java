@@ -110,7 +110,8 @@ public class AvroFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock source"),
 				new Configuration(),
-				AvroFormatFactoryTest.class.getClassLoader());
+				AvroFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -119,6 +120,7 @@ public class AvroFormatFactoryTest extends TestLogger {
 				ObjectIdentifier.of("default", "default", "t1"),
 				new CatalogTableImpl(SCHEMA, options, "mock sink"),
 				new Configuration(),
-				AvroFormatFactoryTest.class.getClassLoader());
+				AvroFormatFactoryTest.class.getClassLoader(),
+				false);
 	}
 }

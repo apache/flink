@@ -17,11 +17,16 @@
 
 package org.apache.flink.streaming.examples.sideoutput;
 
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -55,8 +60,6 @@ public class SideOutputExample {
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
 
@@ -71,6 +74,11 @@ public class SideOutputExample {
 			// get default test text data
 			text = env.fromElements(WordCountData.WORDS);
 		}
+
+		// We assign the WatermarkStrategy after creating the source. In a real-world job you
+		// should integrate the WatermarkStrategy in the source. The Kafka source allows this,
+		// for example.
+		text.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
 
 		SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized = text
 				.keyBy(new KeySelector<String, Integer>() {
@@ -146,6 +154,31 @@ public class SideOutputExample {
 				}
 			}
 
+		}
+	}
+
+	/**
+	 * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
+	 * In a real use case you should use proper timestamps and an appropriate {@link
+	 * WatermarkStrategy}.
+	 */
+	private static class IngestionTimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
+
+		private IngestionTimeWatermarkStrategy() {
+		}
+
+		public static <T> IngestionTimeWatermarkStrategy<T> create() {
+			return new IngestionTimeWatermarkStrategy<>();
+		}
+
+		@Override
+		public WatermarkGenerator<T> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
+			return new AscendingTimestampsWatermarks<>();
+		}
+
+		@Override
+		public TimestampAssigner<T> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
+			return (event, timestamp) -> System.currentTimeMillis();
 		}
 	}
 }

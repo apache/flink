@@ -28,7 +28,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -57,9 +56,7 @@ public class UtilsTest extends TestLogger {
 			assertThat(files.count(), equalTo(1L));
 		}
 
-		Utils.deleteApplicationFiles(Collections.singletonMap(
-			YarnConfigKeys.FLINK_YARN_FILES,
-			applicationFilesDir.toString()));
+		Utils.deleteApplicationFiles(applicationFilesDir.toString());
 		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
 			assertThat(files.count(), equalTo(0L));
 		}

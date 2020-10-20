@@ -51,11 +51,14 @@ import javax.management.ReflectionException;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
@@ -69,6 +72,7 @@ public class MetricUtils {
 
 	static final String METRIC_GROUP_HEAP_NAME = "Heap";
 	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
+	static final String METRIC_GROUP_METASPACE_NAME = "Metaspace";
 
 	private MetricUtils() {
 	}
@@ -172,6 +176,7 @@ public class MetricUtils {
 	private static void instantiateMemoryMetrics(MetricGroup metrics) {
 		instantiateHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_HEAP_NAME));
 		instantiateNonHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_NONHEAP_NAME));
+		instantiateMetaspaceMemoryMetrics(metrics);
 
 		final MBeanServer con = ManagementFactory.getPlatformMBeanServer();
 
@@ -212,6 +217,29 @@ public class MetricUtils {
 	@VisibleForTesting
 	static void instantiateNonHeapMemoryMetrics(final MetricGroup metricGroup) {
 		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage());
+	}
+
+	@VisibleForTesting
+	static void instantiateMetaspaceMemoryMetrics(final MetricGroup parentMetricGroup) {
+		final List<MemoryPoolMXBean> memoryPoolMXBeans = ManagementFactory.getMemoryPoolMXBeans()
+			.stream()
+			.filter(bean -> "Metaspace".equals(bean.getName()))
+			.collect(Collectors.toList());
+
+		if (memoryPoolMXBeans.isEmpty()) {
+			LOG.info("The '{}' metrics will not be exposed because no pool named 'Metaspace' could be found. This might be caused by the used JVM.", METRIC_GROUP_METASPACE_NAME);
+			return;
+		}
+
+		final MetricGroup metricGroup = parentMetricGroup.addGroup(METRIC_GROUP_METASPACE_NAME);
+		final Iterator<MemoryPoolMXBean> beanIterator = memoryPoolMXBeans.iterator();
+
+		final MemoryPoolMXBean firstPool = beanIterator.next();
+		instantiateMemoryUsageMetrics(metricGroup, firstPool::getUsage);
+
+		if (beanIterator.hasNext()) {
+			LOG.debug("More than one memory pool named 'Metaspace' is present. Only the first pool was used for instantiating the '{}' metrics.", METRIC_GROUP_METASPACE_NAME);
+		}
 	}
 
 	private static void instantiateMemoryUsageMetrics(final MetricGroup metricGroup, final Supplier<MemoryUsage> memoryUsageSupplier) {

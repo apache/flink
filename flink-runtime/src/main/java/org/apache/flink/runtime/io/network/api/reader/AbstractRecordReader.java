@@ -26,9 +26,12 @@ import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpa
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -44,6 +47,8 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 	private final Map<InputChannelInfo, RecordDeserializer<T>> recordDeserializers;
 
 	private RecordDeserializer<T> currentRecordDeserializer;
+
+	private boolean finishedStateReading;
 
 	private boolean requestedPartitions;
 
@@ -72,7 +77,17 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 		// The action of partition request was removed from InputGate#setup since FLINK-16536, and this is the only
 		// unified way for launching partition request for batch jobs. In order to avoid potential performance concern,
 		// we might consider migrating this action back to the setup based on some condition judgement future.
+		if (!finishedStateReading) {
+			inputGate.finishReadRecoveredState();
+			finishedStateReading = true;
+		}
+
 		if (!requestedPartitions) {
+			CompletableFuture<Void> stateConsumedFuture = inputGate.getStateConsumedFuture();
+			while (!stateConsumedFuture.isDone()) {
+				Optional<BufferOrEvent> polled = inputGate.pollNext();
+				Preconditions.checkState(!polled.isPresent());
+			}
 			inputGate.requestPartitions();
 			requestedPartitions = true;
 		}

@@ -123,7 +123,7 @@ public class JdbcTypeUtil {
 		TableSchema.Builder physicalSchemaBuilder = TableSchema.builder();
 		schema.getTableColumns()
 			.forEach(c -> {
-				if (!c.isGenerated()) {
+				if (c.isPhysical()) {
 					final DataType type = DataTypeUtils.transform(c.getType(), TypeTransformations.timeToSqlTypes());
 					physicalSchemaBuilder.field(c.getName(), type);
 				}

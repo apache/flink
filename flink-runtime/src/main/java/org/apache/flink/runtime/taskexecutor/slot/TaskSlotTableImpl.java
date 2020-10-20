@@ -200,6 +200,17 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		}
 	}
 
+	@Override
+	public Set<AllocationID> getActiveTaskAllocationIdsPerJob(JobID jobId) {
+		Iterator<TaskSlot<T>> taskSlotIterator = new TaskSlotIterator(jobId, TaskSlotState.ACTIVE);
+		Set<AllocationID> allocationIds = new HashSet<>();
+		while (taskSlotIterator.hasNext()) {
+			allocationIds.add(taskSlotIterator.next().getAllocationId());
+		}
+
+		return allocationIds;
+	}
+
 	// ---------------------------------------------------------------------
 	// Slot report methods
 	// ---------------------------------------------------------------------
@@ -463,11 +474,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 	}
 
 	@Override
-	public Iterator<AllocationID> getActiveSlots(JobID jobId) {
-		return new AllocationIDIterator(jobId, TaskSlotState.ACTIVE);
-	}
-
-	@Override
 	@Nullable
 	public JobID getOwningJob(AllocationID allocationId) {
 		final TaskSlot<T> taskSlot = getTaskSlot(allocationId);
@@ -622,37 +628,6 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
 		public TaskSlot<T> getTaskSlot() {
 			return taskSlot;
-		}
-	}
-
-	/**
-	 * Iterator over {@link AllocationID} of the {@link TaskSlot} of a given job. Additionally,
-	 * the task slots identified by the allocation ids are in the given state.
-	 */
-	private final class AllocationIDIterator implements Iterator<AllocationID> {
-		private final Iterator<TaskSlot<T>> iterator;
-
-		private AllocationIDIterator(JobID jobId, TaskSlotState state) {
-			iterator = new TaskSlotIterator(jobId, state);
-		}
-
-		@Override
-		public boolean hasNext() {
-			return iterator.hasNext();
-		}
-
-		@Override
-		public AllocationID next() {
-			try {
-				return iterator.next().getAllocationId();
-			} catch (NoSuchElementException e) {
-				throw new NoSuchElementException("No more allocation ids.");
-			}
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException("Cannot remove allocation ids via this iterator.");
 		}
 	}
 

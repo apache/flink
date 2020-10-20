@@ -395,7 +395,7 @@ public class ExecutionContext<ClusterID> {
 							tableEnv.getCurrentDatabase(),
 							name),
 					CatalogTableImpl.fromProperties(sourceProperties),
-					tableEnv.getConfig().getConfiguration()));
+					tableEnv.getConfig().getConfiguration(), true));
 		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
 				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
@@ -415,7 +415,7 @@ public class ExecutionContext<ClusterID> {
 							name),
 					CatalogTableImpl.fromProperties(sinkProperties),
 					tableEnv.getConfig().getConfiguration(),
-					!environment.getExecution().inStreamingMode()));
+					!environment.getExecution().inStreamingMode(), true));
 		} else if (environment.getExecution().isBatchPlanner()) {
 			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
@@ -550,7 +550,9 @@ public class ExecutionContext<ClusterID> {
 				Time.milliseconds(execution.getMinStateRetention()),
 				Time.milliseconds(execution.getMaxStateRetention()));
 
-		conf.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism());
+		if (execution.getParallelism().isPresent()) {
+			conf.set(CoreOptions.DEFAULT_PARALLELISM, execution.getParallelism().get());
+		}
 		conf.set(PipelineOptions.MAX_PARALLELISM, execution.getMaxParallelism());
 		conf.set(StreamPipelineOptions.TIME_CHARACTERISTIC, execution.getTimeCharacteristic());
 		if (execution.getTimeCharacteristic() == TimeCharacteristic.EventTime) {
@@ -691,7 +693,7 @@ public class ExecutionContext<ClusterID> {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// for TimeCharacteristic validation in StreamTableEnvironmentImpl
 		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
-		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+		if (environment.getExecution().getTimeCharacteristic() == TimeCharacteristic.EventTime) {
 			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
 		}
 		return env;

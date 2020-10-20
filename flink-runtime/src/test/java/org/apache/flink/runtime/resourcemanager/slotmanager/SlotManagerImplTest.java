@@ -175,13 +175,13 @@ public class SlotManagerImplTest extends TestLogger {
 			TaskManagerSlot slot1 = slotManager.getSlot(slotId1);
 			TaskManagerSlot slot2 = slotManager.getSlot(slotId2);
 
-			assertTrue(slot1.getState() == TaskManagerSlot.State.ALLOCATED);
-			assertTrue(slot2.getState() == TaskManagerSlot.State.FREE);
+			assertTrue(slot1.getState() == SlotState.ALLOCATED);
+			assertTrue(slot2.getState() == SlotState.FREE);
 
 			assertTrue(slotManager.registerSlotRequest(slotRequest));
 
-			assertFalse(slot2.getState() == TaskManagerSlot.State.FREE);
-			assertTrue(slot2.getState() == TaskManagerSlot.State.PENDING);
+			assertFalse(slot2.getState() == SlotState.FREE);
+			assertTrue(slot2.getState() == SlotState.PENDING);
 
 			PendingSlotRequest pendingSlotRequest = slotManager.getSlotRequest(allocationId2);
 
@@ -330,14 +330,14 @@ public class SlotManagerImplTest extends TestLogger {
 
 			assertNotNull(slotManager.getSlotRequest(allocationId));
 
-			assertTrue(slot.getState() == TaskManagerSlot.State.PENDING);
+			assertTrue(slot.getState() == SlotState.PENDING);
 
 			slotManager.unregisterSlotRequest(allocationId);
 
 			assertNull(slotManager.getSlotRequest(allocationId));
 
 			slot = slotManager.getSlot(slotId);
-			assertTrue(slot.getState() == TaskManagerSlot.State.FREE);
+			assertTrue(slot.getState() == SlotState.FREE);
 		}
 	}
 
@@ -428,12 +428,12 @@ public class SlotManagerImplTest extends TestLogger {
 			// this should be ignored since the allocation id does not match
 			slotManager.freeSlot(slotId, new AllocationID());
 
-			assertTrue(slot.getState() == TaskManagerSlot.State.ALLOCATED);
+			assertTrue(slot.getState() == SlotState.ALLOCATED);
 			assertEquals("The slot has not been allocated to the expected allocation id.", allocationId, slot.getAllocationId());
 
 			slotManager.freeSlot(slotId, allocationId);
 
-			assertTrue(slot.getState() == TaskManagerSlot.State.FREE);
+			assertTrue(slot.getState() == SlotState.FREE);
 			assertNull(slot.getAllocationId());
 		}
 	}
@@ -573,7 +573,7 @@ public class SlotManagerImplTest extends TestLogger {
 			slotManager.freeSlot(slotId, allocationId);
 
 			// check that the slot has been freed
-			assertTrue(slot.getState() == TaskManagerSlot.State.FREE);
+			assertTrue(slot.getState() == SlotState.FREE);
 			assertNull(slot.getAllocationId());
 
 			assertTrue(slotManager.registerSlotRequest(slotRequest2));
@@ -650,8 +650,8 @@ public class SlotManagerImplTest extends TestLogger {
 
 			assertTrue(2 == slotManager.getNumberRegisteredSlots());
 
-			assertTrue(slot1.getState() == TaskManagerSlot.State.FREE);
-			assertTrue(slot2.getState() == TaskManagerSlot.State.FREE);
+			assertTrue(slot1.getState() == SlotState.FREE);
+			assertTrue(slot2.getState() == SlotState.FREE);
 
 			assertTrue(slotManager.reportSlotStatus(taskManagerConnection.getInstanceID(), slotReport2));
 
@@ -767,11 +767,11 @@ public class SlotManagerImplTest extends TestLogger {
 
 			TaskManagerSlot slot = slotManager.getSlot(secondSlotId);
 
-			assertTrue(slot.getState() == TaskManagerSlot.State.ALLOCATED);
+			assertTrue(slot.getState() == SlotState.ALLOCATED);
 			assertEquals(allocationId, slot.getAllocationId());
 
 			if (!failedSlot.getSlotId().equals(slot.getSlotId())) {
-				assertTrue(failedSlot.getState() == TaskManagerSlot.State.FREE);
+				assertTrue(failedSlot.getState() == SlotState.FREE);
 			}
 		}
 	}
@@ -939,7 +939,7 @@ public class SlotManagerImplTest extends TestLogger {
 
 			TaskManagerSlot slot = slotFuture.get();
 
-			assertTrue(slot.getState() == TaskManagerSlot.State.ALLOCATED);
+			assertTrue(slot.getState() == SlotState.ALLOCATED);
 			assertEquals(allocationId, slot.getAllocationId());
 
 			CompletableFuture<Boolean> idleFuture2 = CompletableFuture.runAsync(
@@ -1100,7 +1100,7 @@ public class SlotManagerImplTest extends TestLogger {
 			secondManualSlotRequestResponse.complete(Acknowledge.get());
 
 			final TaskManagerSlot slot = slotManager.getSlot(secondRequest.f0);
-			assertThat(slot.getState(), equalTo(TaskManagerSlot.State.ALLOCATED));
+			assertThat(slot.getState(), equalTo(SlotState.ALLOCATED));
 			assertThat(slot.getAllocationId(), equalTo(secondRequest.f2));
 		}
 	}
@@ -1163,7 +1163,7 @@ public class SlotManagerImplTest extends TestLogger {
 			secondManualSlotRequestResponse.complete(Acknowledge.get());
 
 			final TaskManagerSlot slot = slotManager.getSlot(secondRequest.f0);
-			assertThat(slot.getState(), equalTo(TaskManagerSlot.State.ALLOCATED));
+			assertThat(slot.getState(), equalTo(SlotState.ALLOCATED));
 			assertThat(slot.getAllocationId(), equalTo(firstRequest.f2));
 
 			assertThat(slotManager.getNumberRegisteredSlots(), is(1));

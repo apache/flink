@@ -21,14 +21,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.ClassLoaderUtil;
+import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -44,8 +49,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -87,13 +95,26 @@ public class StreamConfig implements Serializable {
 	private static final String CHECKPOINT_MODE = "checkpointMode";
 
 	private static final String STATE_BACKEND = "statebackend";
+	private static final String TIMER_SERVICE_PROVIDER = "timerservice";
 	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
 
 	private static final String TIME_CHARACTERISTIC = "timechar";
 
-	private static final String MANAGED_MEMORY_FRACTION = "managedMemFraction";
+	private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
+	private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY = ConfigOptions
+		.key("statebackend.useManagedMemory")
+		.booleanType()
+		.noDefaultValue()
+		.withDescription("If state backend is specified, whether it uses managed memory.");
+
+	private static final ConfigOption<Boolean> SORTED_INPUTS =
+		ConfigOptions.key("sorted-inputs")
+			.booleanType()
+			.defaultValue(false)
+			.withDescription(
+				"A flag to enable/disable sorting inputs of keyed operators.");
 
 	// ------------------------------------------------------------------------
 	//  Default Values
@@ -129,16 +150,45 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
 
-	public void setManagedMemoryFraction(double managedMemFraction) {
-		checkArgument(
-			managedMemFraction >= 0.0 && managedMemFraction <= 1.0,
-			String.format("managedMemFraction should be in range [0.0, 1.0], but was: %s", managedMemFraction));
+	/**
+	 * Fraction of managed memory reserved for the given use case that this operator should use.
+	 */
+	public void setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase managedMemoryUseCase, double fraction) {
+		final ConfigOption<Double> configOption = getManagedMemoryFractionConfigOption(managedMemoryUseCase);
 
-		config.setDouble(MANAGED_MEMORY_FRACTION, managedMemFraction);
+		checkArgument(
+			fraction >= 0.0 && fraction <= 1.0,
+			String.format("%s should be in range [0.0, 1.0], but was: %s", configOption.key(), fraction));
+
+		config.setDouble(configOption, fraction);
 	}
 
-	public double getManagedMemoryFraction() {
-		return config.getDouble(MANAGED_MEMORY_FRACTION, DEFAULT_MANAGED_MEMORY_FRACTION);
+	/**
+	 * Fraction of total managed memory in the slot that this operator should use for the given use case.
+	 */
+	public double getManagedMemoryFractionOperatorUseCaseOfSlot(
+			ManagedMemoryUseCase managedMemoryUseCase, Configuration taskManagerConfig, ClassLoader cl) {
+		return ManagedMemoryUtils.convertToFractionOfSlot(
+			managedMemoryUseCase,
+			config.getDouble(getManagedMemoryFractionConfigOption(managedMemoryUseCase)),
+			getAllManagedMemoryUseCases(),
+			taskManagerConfig,
+			config.getOptional(STATE_BACKEND_USE_MANAGED_MEMORY),
+			cl);
+	}
+
+	private static ConfigOption<Double> getManagedMemoryFractionConfigOption(ManagedMemoryUseCase managedMemoryUseCase) {
+		return ConfigOptions
+				.key(MANAGED_MEMORY_FRACTION_PREFIX + checkNotNull(managedMemoryUseCase))
+				.doubleType()
+				.defaultValue(DEFAULT_MANAGED_MEMORY_FRACTION);
+	}
+
+	private Set<ManagedMemoryUseCase> getAllManagedMemoryUseCases() {
+		return config.keySet().stream()
+			.filter((key) -> key.startsWith(MANAGED_MEMORY_FRACTION_PREFIX))
+			.map((key) -> ManagedMemoryUseCase.valueOf(key.replaceFirst(MANAGED_MEMORY_FRACTION_PREFIX, "")))
+			.collect(Collectors.toSet());
 	}
 
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
@@ -468,10 +518,16 @@ public class StreamConfig implements Serializable {
 		if (backend != null) {
 			try {
 				InstantiationUtil.writeObjectToConfig(backend, this.config, STATE_BACKEND);
+				setStateBackendUsesManagedMemory(backend.useManagedMemory());
 			} catch (Exception e) {
 				throw new StreamTaskException("Could not serialize stateHandle provider.", e);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
+		this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
 	}
 
 	public StateBackend getStateBackend(ClassLoader cl) {
@@ -479,6 +535,24 @@ public class StreamConfig implements Serializable {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+		}
+	}
+
+	public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
+		if (timerServiceProvider != null) {
+			try {
+				InstantiationUtil.writeObjectToConfig(timerServiceProvider, this.config, TIMER_SERVICE_PROVIDER);
+			} catch (Exception e) {
+				throw new StreamTaskException("Could not serialize timer service provider.", e);
+			}
+		}
+	}
+
+	public InternalTimeServiceManager.Provider getTimerServiceProvider(ClassLoader cl) {
+		try {
+			return InstantiationUtil.readObjectFromConfig(this.config, TIMER_SERVICE_PROVIDER, cl);
+		} catch (Exception e) {
+			throw new StreamTaskException("Could not instantiate timer service provider.", e);
 		}
 	}
 
@@ -490,7 +564,7 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
+	public <IN, K extends Serializable> KeySelector<IN, K> getStatePartitioner(int input, ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
 		} catch (Exception e) {
@@ -569,6 +643,14 @@ public class StreamConfig implements Serializable {
 		}
 
 		return builder.toString();
+	}
+
+	public void setShouldSortInputs(boolean sortInputs) {
+		config.set(SORTED_INPUTS, sortInputs);
+	}
+
+	public boolean shouldSortInputs() {
+		return config.get(SORTED_INPUTS);
 	}
 
 	/**

@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Utility class that contains helper methods to create a TableSource from
@@ -72,6 +73,20 @@ public final class PythonBridgeUtils {
 			}
 		}
 		return unpickledData;
+	}
+
+	public static List<?> readPythonObjects(String fileName) throws IOException {
+		List<byte[]> data = readPickledBytes(fileName);
+		Unpickler unpickle = new Unpickler();
+		initialize();
+		return data.stream().map(pickledData -> {
+			try {
+				Object obj = unpickle.loads(pickledData);
+				return obj.getClass().isArray() || obj instanceof List ? getObjectArrayFromUnpickledData(obj) : obj;
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}).collect(Collectors.toList());
 	}
 
 	public static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName) {

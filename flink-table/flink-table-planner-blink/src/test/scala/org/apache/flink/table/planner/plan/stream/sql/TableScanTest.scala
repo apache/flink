@@ -270,6 +270,23 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testWatermarkAndChangelogSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts TIMESTAMP(3),
+        |  a INT,
+        |  b DOUBLE,
+        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'I,UB,UA,D'
+        |)
+      """.stripMargin)
+    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testUnsupportedWindowAggregateOnChangelogSource(): Unit = {
     util.addTable(
       """
@@ -332,26 +349,6 @@ class TableScanTest extends TableTestBase {
     thrown.expectMessage("Currently, ScanTableSource doesn't support producing " +
       "ChangelogMode which contains UPDATE_AFTER but no UPDATE_BEFORE. " +
       "Please adapt the implementation of 'TestValues' source.")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
-  def testUnsupportedWatermarkAndChangelogSource(): Unit = {
-    util.addTable(
-      """
-        |CREATE TABLE src (
-        |  ts TIMESTAMP(3),
-        |  a INT,
-        |  b DOUBLE,
-        |  WATERMARK FOR `ts` AS `ts` - INTERVAL '5' SECOND
-        |) WITH (
-        |  'connector' = 'values',
-        |  'changelog-mode' = 'I,UB,UA,D'
-        |)
-      """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
-    thrown.expectMessage(
-      "Currently, defining WATERMARK on a changelog source is not supported.")
     util.verifyPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
   }
 

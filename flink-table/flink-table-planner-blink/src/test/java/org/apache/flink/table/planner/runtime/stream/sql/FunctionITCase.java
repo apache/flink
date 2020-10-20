@@ -40,6 +40,7 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.Test;
@@ -767,7 +768,8 @@ public class FunctionITCase extends StreamingTestBase {
 
 		tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 		tEnv().executeSql(
-				"INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable, LATERAL TABLE(RowTableFunction(s)) t")
+				"INSERT INTO SinkTable SELECT t.s, t.sa FROM SourceTable source, "
+						+ "LATERAL TABLE(RowTableFunction(source.s)) t")
 				.await();
 
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
@@ -922,9 +924,33 @@ public class FunctionITCase extends StreamingTestBase {
 		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
 	}
 
+	@Test
+	public void testTimestampNotNull() {
+		List<Row> sourceData = Arrays.asList(
+				Row.of(1),
+				Row.of(2));
+		TestCollectionTableFactory.reset();
+		TestCollectionTableFactory.initData(sourceData);
+
+		tEnv().executeSql(
+				"CREATE TABLE SourceTable(i INT, ts AS LOCALTIMESTAMP, WATERMARK FOR ts AS ts) " +
+						"WITH ('connector' = 'COLLECTION')");
+		tEnv().executeSql("CREATE FUNCTION MyYear AS '" + MyYear.class.getName() + "'");
+		CollectionUtil.iteratorToList(tEnv().executeSql("SELECT MyYear(ts) FROM SourceTable").collect());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Test functions
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * A YEAR function that takes a NOT NULL parameter.
+	 */
+	public static class MyYear extends ScalarFunction {
+		public int eval(@DataTypeHint("TIMESTAMP(3) NOT NULL") LocalDateTime timestamp) {
+			return timestamp.getYear();
+		}
+	}
 
 	/**
 	 * Function that takes and returns primitives.

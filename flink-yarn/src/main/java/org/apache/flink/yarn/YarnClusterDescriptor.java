@@ -468,9 +468,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				final Path applicationDir = YarnApplicationFileUploader
 						.getApplicationDirPath(getStagingDir(fs), applicationId);
 
-				Utils.deleteApplicationFiles(Collections.singletonMap(
-						YarnConfigKeys.FLINK_YARN_FILES,
-						applicationDir.toUri().toString()));
+				Utils.deleteApplicationFiles(applicationDir.toUri().toString());
 			}
 
 		} catch (YarnException | IOException e) {

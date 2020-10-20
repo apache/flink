@@ -49,6 +49,11 @@ public class TaskExecutorRegistration implements Serializable {
 	private final int dataPort;
 
 	/**
+	 * Port used for JMX RMI.
+	 */
+	private final int jmxPort;
+
+	/**
 	 * HardwareDescription of the registering TaskExecutor.
 	 */
 	private final HardwareDescription hardwareDescription;
@@ -72,6 +77,7 @@ public class TaskExecutorRegistration implements Serializable {
 			final String taskExecutorAddress,
 			final ResourceID resourceId,
 			final int dataPort,
+			final int jmxPort,
 			final HardwareDescription hardwareDescription,
 			final TaskExecutorMemoryConfiguration memoryConfiguration,
 			final ResourceProfile defaultSlotResourceProfile,
@@ -79,6 +85,7 @@ public class TaskExecutorRegistration implements Serializable {
 		this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
 		this.resourceId = checkNotNull(resourceId);
 		this.dataPort = dataPort;
+		this.jmxPort = jmxPort;
 		this.hardwareDescription = checkNotNull(hardwareDescription);
 		this.memoryConfiguration = checkNotNull(memoryConfiguration);
 		this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
@@ -95,6 +102,10 @@ public class TaskExecutorRegistration implements Serializable {
 
 	public int getDataPort() {
 		return dataPort;
+	}
+
+	public int getJmxPort() {
+		return jmxPort;
 	}
 
 	public HardwareDescription getHardwareDescription() {

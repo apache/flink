@@ -106,6 +106,12 @@ public class DataGenTableSourceFactoryTest {
 
 		List<RowData> results = runGenerator(schema, descriptor);
 		Assert.assertEquals("Failed to generate all rows", 10, results.size());
+
+		for (RowData row : results) {
+			for (int i = 0; i < row.getArity(); i++) {
+				Assert.assertFalse("Column " + schema.getFieldNames()[i] + " should not be null", row.isNullAt(i));
+			}
+		}
 	}
 
 	@Test
@@ -324,7 +330,8 @@ public class DataGenTableSourceFactoryTest {
 				ObjectIdentifier.of("", "", ""),
 				new CatalogTableImpl(schema, options, ""),
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	private static class TestContext implements SourceFunction.SourceContext<RowData> {

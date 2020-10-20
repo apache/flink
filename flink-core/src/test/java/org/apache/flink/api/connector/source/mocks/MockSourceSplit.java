@@ -34,6 +34,9 @@ import java.util.concurrent.LinkedBlockingQueue;
  * polled out of the queue since the creation of this split.
  */
 public class MockSourceSplit implements SourceSplit, Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private final int id;
 	private final BlockingQueue<Integer> records;
 	private final int endIndex;

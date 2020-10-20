@@ -70,7 +70,8 @@ public class DynamoDBStreamsDataFetcher<T> extends KinesisDataFetcher<T> {
 			new ArrayList<>(),
 			createInitialSubscribedStreamsToLastDiscoveredShardsState(streams),
 			// use DynamoDBStreamsProxy
-			DynamoDBStreamsProxy::create);
+			DynamoDBStreamsProxy::create,
+			null);
 	}
 
 	@Override

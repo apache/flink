@@ -166,7 +166,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 					writer.flushAll();
 				}
 				finally {
-					writer.clearBuffers();
+					writer.close();
 				}
 			}
 		}

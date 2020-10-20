@@ -30,11 +30,11 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 /**
@@ -58,7 +58,6 @@ public class PeriodicStreamingJob {
 		int offset = params.getInt("offsetInSecond", 0);
 
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-		sEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		sEnv.enableCheckpointing(4000);
 		sEnv.getConfig().setAutoWatermarkInterval(1000);
 
@@ -69,7 +68,7 @@ public class PeriodicStreamingJob {
 
 		DataStream<Tuple> result = rows
 			.keyBy(1)
-			.timeWindow(Time.seconds(5))
+			.window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
 			.sum(0);
 
 		result.writeAsText(outputPath + "/result.txt", FileSystem.WriteMode.OVERWRITE)

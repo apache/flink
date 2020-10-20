@@ -19,6 +19,8 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 
 import java.util.List;
 import java.util.Map;
@@ -33,7 +35,12 @@ import java.util.Map;
  * <p>A partition is represented as a {@code Map<String, String>} which maps from partition
  * field name to partition value. Since the map is NOT ordered, the correct order of partition
  * fields should be obtained via partition keys of catalog table.
+ *
+ * @deprecated This interface will not be supported in the new source design around {@link DynamicTableSource}
+ *             which only works with the Blink planner. Use {@link SupportsPartitionPushDown} instead.
+ *             See FLIP-95 for more information.
  */
+@Deprecated
 @Experimental
 public interface PartitionableTableSource {
 

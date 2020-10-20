@@ -32,6 +32,7 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
@@ -250,6 +251,22 @@ public final class AvroTestUtils {
 		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
 
 		new GenericDatumWriter<>(schema).write(record, encoder);
+		encoder.flush();
+		return stream.toByteArray();
+	}
+
+	/**
+	 * Writes given specific record.
+	 * @param record record to serialize
+	 * @return serialized record
+	 */
+	public static <T extends SpecificRecord> byte[] writeRecord(T record) throws IOException {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+
+		@SuppressWarnings("unchecked")
+		SpecificDatumWriter<T> writer = new SpecificDatumWriter<>((Class<T>) record.getClass());
+		writer.write(record, encoder);
 		encoder.flush();
 		return stream.toByteArray();
 	}

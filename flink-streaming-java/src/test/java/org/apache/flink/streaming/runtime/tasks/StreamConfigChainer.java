@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -139,6 +140,8 @@ public class StreamConfigChainer<OWNER> {
 		if (createKeyedStateBackend) {
 			// used to test multiple stateful operators chained in a single task.
 			tailConfig.setStateKeySerializer(inputSerializer);
+			tailConfig.setStateBackendUsesManagedMemory(true);
+			tailConfig.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
 		}
 		tailConfig.setChainIndex(chainIndex);
 
@@ -208,5 +211,10 @@ public class StreamConfigChainer<OWNER> {
 		headConfig.setTypeSerializerOut(outputSerializer);
 
 		return owner;
+	}
+
+	public StreamConfigChainer<OWNER> name(String name) {
+		tailConfig.setOperatorName(name);
+		return this;
 	}
 }

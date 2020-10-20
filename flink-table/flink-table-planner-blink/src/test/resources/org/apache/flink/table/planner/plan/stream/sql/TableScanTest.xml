@@ -32,7 +32,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT_RETRACT(*) AS EXPR$0], changelogMode=[I,UA,D])
 +- Exchange(distribution=[single], changelogMode=[I,UB,UA])
-   +- Calc(select=[0 AS $f0], where=[>(a, 1)], changelogMode=[I,UB,UA])
+   +- Calc(select=[a], where=[>(a, 1)], changelogMode=[I,UB,UA])
       +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[a]]], fields=[a], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
@@ -280,6 +280,26 @@ LogicalProject(a=[$0], b=[$1], time=[$2], mytime=[$3], current_time=[$4], json_r
 WatermarkAssigner(rowtime=[timestamp], watermark=[timestamp])
 +- Calc(select=[a, b, time, time AS mytime, CURRENT_TIME() AS current_time, json_row, json_row.timestamp AS timestamp])
    +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b, time, json_row])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkAndChangelogSource">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM src WHERE a > 1]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(ts=[$0], a=[$1], b=[$2])
++- LogicalFilter(condition=[>($1, 1)])
+   +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($0, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[ts, a, b], where=[>(a, 1)], changelogMode=[I,UB,UA,D])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 5000:INTERVAL SECOND)], changelogMode=[I,UB,UA,D])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[ts, a, b], changelogMode=[I,UB,UA,D])
 ]]>
     </Resource>
   </TestCase>

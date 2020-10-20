@@ -32,7 +32,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -90,7 +89,6 @@ public class WindowTranslationTest {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		source
 			.keyBy(0)
@@ -116,7 +114,6 @@ public class WindowTranslationTest {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		source
 				.keyBy(0)
@@ -194,7 +191,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testMergingWindowsWithEvictor() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Integer> source = env.fromElements(1, 2);
 
@@ -228,7 +224,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -252,7 +247,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -276,7 +270,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithWindowFunctionEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -315,7 +308,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithWindowFunctionProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -352,7 +344,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithProcesWindowFunctionEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -391,7 +382,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithProcessWindowFunctionProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -431,7 +421,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testApplyWithPreReducerEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -473,7 +462,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testApplyWithPreReducerAndEvictor() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -517,7 +505,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -548,7 +535,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -579,7 +565,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateWithWindowFunctionEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -612,7 +597,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateWithWindowFunctionProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -643,7 +627,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateWithProcessWindowFunctionEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -674,7 +657,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateWithProcessWindowFunctionProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -710,7 +692,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testApplyEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -746,7 +727,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testApplyProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -783,7 +763,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testProcessEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -819,7 +798,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testProcessProcessingTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -856,7 +834,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithCustomTrigger() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -883,7 +860,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testApplyWithCustomTrigger() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -920,7 +896,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testProcessWithCustomTrigger() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -957,7 +932,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithEvictor() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -985,7 +959,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testReduceWithEvictorAndProcessFunction() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -1025,7 +998,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateWithEvictor() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -1057,7 +1029,6 @@ public class WindowTranslationTest {
 	@Test
 	public void testAggregateWithEvictorAndProcessFunction() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple3<String, String, Integer>> source = env.fromElements(
 			Tuple3.of("hello", "hallo", 1),
@@ -1092,7 +1063,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testApplyWithEvictor() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
@@ -1131,7 +1101,6 @@ public class WindowTranslationTest {
 	@SuppressWarnings("rawtypes")
 	public void testProcessWithEvictor() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
 		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 

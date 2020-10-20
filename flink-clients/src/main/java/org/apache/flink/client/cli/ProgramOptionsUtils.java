@@ -18,13 +18,17 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
+import org.apache.flink.configuration.Configuration;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -92,5 +96,25 @@ public enum ProgramOptionsUtils {
 				"Python command line option detected but the flink-python module seems to be missing " +
 					"or not working as expected.", e);
 		}
+	}
+
+	public static void configurePythonExecution(Configuration configuration, PackagedProgram packagedProgram) throws CliArgsException, NoSuchFieldException, IllegalAccessException {
+			final Options commandOptions = CliFrontendParser.getRunCommandOptions();
+			final CommandLine commandLine = CliFrontendParser.parse(commandOptions, packagedProgram.getArguments(),
+				true);
+			final ProgramOptions programOptions = createPythonProgramOptions(commandLine);
+
+			//Extract real program args by eliminating the PyFlink dependency options
+			String[] programArgs = programOptions.extractProgramArgs(commandLine);
+			//Set the real program args to the packaged program
+			Field argsField = packagedProgram.getClass().getDeclaredField("args");
+			argsField.setAccessible(true);
+			argsField.set(packagedProgram, programArgs);
+
+			//PyFlink dependency configurations are set in the pythonConfiguration when constructing the program option,
+			// we need to get the python configuration and merge with the execution configuration.
+			Field pythonConfiguration = programOptions.getClass().getDeclaredField("pythonConfiguration");
+			pythonConfiguration.setAccessible(true);
+			configuration.addAll((Configuration) pythonConfiguration.get(programOptions));
 	}
 }

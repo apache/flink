@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -312,6 +314,9 @@ public class PipelinedSubpartitionWithReadViewTest {
 
 	@Test
 	public void testBarrierOvertaking() throws Exception {
+		final RecordingChannelStateWriter channelStateWriter = new RecordingChannelStateWriter();
+		subpartition.setChannelStateWriter(channelStateWriter);
+
 		subpartition.add(createFilledFinishedBufferConsumer(1));
 		assertEquals(0, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
@@ -320,7 +325,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertEquals(1, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
 
-		BufferConsumer eventBuffer = EventSerializer.toBufferConsumer(EndOfSuperstepEvent.INSTANCE);
+		BufferConsumer eventBuffer = EventSerializer.toBufferConsumer(EndOfSuperstepEvent.INSTANCE, false);
 		subpartition.add(eventBuffer);
 		assertEquals(1, availablityListener.getNumNotifications());
 		assertEquals(0, availablityListener.getNumPriorityEvents());
@@ -334,12 +339,13 @@ public class PipelinedSubpartitionWithReadViewTest {
 			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
 			true,
 			true);
-		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options));
-		subpartition.add(barrierBuffer, true);
-		assertEquals(2, availablityListener.getNumNotifications());
-		assertEquals(0, availablityListener.getNumPriorityEvents());
+		channelStateWriter.start(0, options);
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+		subpartition.add(barrierBuffer);
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
 
-		List<Buffer> inflight = subpartition.requestInflightBufferSnapshot();
+		final List<Buffer> inflight = channelStateWriter.getAddedOutput().get(subpartition.getSubpartitionInfo());
 		assertEquals(Arrays.asList(1, 2, 4), inflight.stream().map(Buffer::getSize).collect(Collectors.toList()));
 		inflight.forEach(Buffer::recycleBuffer);
 
@@ -348,6 +354,34 @@ public class PipelinedSubpartitionWithReadViewTest {
 		assertNextBuffer(readView, 2, true, 0, true, true);
 		assertNextEvent(readView, eventBuffer.getWrittenBytes(), EndOfSuperstepEvent.class, false, 0, false, true);
 		assertNextBuffer(readView, 4, false, 0, false, true);
+		assertNoNextBuffer(readView);
+	}
+
+	@Test
+	public void testAvailabilityAfterPriority() throws Exception {
+		subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+
+		CheckpointOptions options = new CheckpointOptions(
+			CheckpointType.CHECKPOINT,
+			new CheckpointStorageLocationReference(new byte[]{0, 1, 2}),
+			true,
+			true);
+		BufferConsumer barrierBuffer = EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);
+		subpartition.add(barrierBuffer);
+		assertEquals(1, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(1));
+		assertEquals(2, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		subpartition.add(createFilledFinishedBufferConsumer(2));
+		assertEquals(2, availablityListener.getNumNotifications());
+		assertEquals(1, availablityListener.getNumPriorityEvents());
+
+		assertNextEvent(readView, barrierBuffer.getWrittenBytes(), CheckpointBarrier.class, true, 1, false, true);
+		assertNextBuffer(readView, 1, false, 0, false, true);
+		assertNextBuffer(readView, 2, false, 0, false, true);
 		assertNoNextBuffer(readView);
 	}
 

@@ -93,7 +93,8 @@ public class OperatorChainTest {
 
 			// build the reverse operators array
 			for (int i = 0; i < operators.length; i++) {
-				OneInputStreamOperator<T, T> op = operators[operators.length - i - 1];
+				int operatorIndex = operators.length - i - 1;
+				OneInputStreamOperator<T, T> op = operators[operatorIndex];
 				if (op instanceof SetupableStreamOperator) {
 					((SetupableStreamOperator) op).setup(containingTask, cfg, lastWriter);
 				}
@@ -106,7 +107,8 @@ public class OperatorChainTest {
 				operatorWrappers.add(new StreamOperatorWrapper<>(
 					op,
 					Optional.ofNullable(processingTimeService),
-					containingTask.getMailboxExecutorFactory().createExecutor(i)));
+					containingTask.getMailboxExecutorFactory().createExecutor(i),
+					operatorIndex == 0));
 			}
 
 			@SuppressWarnings("unchecked")

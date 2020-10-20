@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -25,6 +26,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.JoinedRowData;
 import org.apache.flink.table.data.RowData;
@@ -86,6 +88,17 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 
 	private transient AggsHandleFunction function;
 
+	// ------------------------------------------------------------------------
+	// Metrics
+	// ------------------------------------------------------------------------
+	private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+	private transient Counter numLateRecordsDropped;
+
+	@VisibleForTesting
+	protected Counter getCounter() {
+		return numLateRecordsDropped;
+	}
+
 	public RowTimeRangeBoundedPrecedingFunction(
 			GeneratedAggsHandleFunction genAggsHandler,
 			LogicalType[] accTypes,
@@ -130,6 +143,9 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 			Types.LONG
 		);
 		this.cleanupTsState = getRuntimeContext().getState(cleanupTsStateDescriptor);
+
+		// metrics
+		this.numLateRecordsDropped = getRuntimeContext().getMetricGroup().counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
 	}
 
 	@Override
@@ -159,6 +175,8 @@ public class RowTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctio
 				ctx.timerService().registerEventTimeTimer(triggeringTs);
 			}
 			registerCleanupTimer(ctx, triggeringTs);
+		} else {
+			numLateRecordsDropped.inc();
 		}
 	}
 

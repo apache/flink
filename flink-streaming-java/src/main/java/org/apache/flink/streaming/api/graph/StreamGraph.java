@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -39,6 +40,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
@@ -112,6 +115,7 @@ public class StreamGraph implements Pipeline {
 	protected Map<Integer, Long> vertexIDtoLoopTimeout;
 	private StateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
+	private InternalTimeServiceManager.Provider timerServiceProvider;
 
 	public StreamGraph(ExecutionConfig executionConfig, CheckpointConfig checkpointConfig, SavepointRestoreSettings savepointRestoreSettings) {
 		this.executionConfig = checkNotNull(executionConfig);
@@ -170,6 +174,14 @@ public class StreamGraph implements Pipeline {
 
 	public StateBackend getStateBackend() {
 		return this.stateBackend;
+	}
+
+	public InternalTimeServiceManager.Provider getTimerServiceProvider() {
+		return timerServiceProvider;
+	}
+
+	public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
+		this.timerServiceProvider = checkNotNull(timerServiceProvider);
 	}
 
 	public ScheduleMode getScheduleMode() {
@@ -274,6 +286,9 @@ public class StreamGraph implements Pipeline {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
+		if (operatorFactory instanceof OutputFormatOperatorFactory) {
+			setOutputFormat(vertexID, ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
+		}
 		sinks.add(vertexID);
 	}
 
@@ -557,9 +572,12 @@ public class StreamGraph implements Pipeline {
 		}
 	}
 
-	public void setManagedMemoryWeight(int vertexID, int managedMemoryWeight) {
+	public void setManagedMemoryUseCaseWeights(
+			int vertexID,
+			Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights,
+			Set<ManagedMemoryUseCase> slotScopeUseCases) {
 		if (getStreamNode(vertexID) != null) {
-			getStreamNode(vertexID).setManagedMemoryWeight(managedMemoryWeight);
+			getStreamNode(vertexID).setManagedMemoryUseCaseWeights(operatorScopeUseCaseWeights, slotScopeUseCases);
 		}
 	}
 
@@ -625,6 +643,10 @@ public class StreamGraph implements Pipeline {
 
 	public void setOutputFormat(Integer vertexID, OutputFormat<?> outputFormat) {
 		getStreamNode(vertexID).setOutputFormat(outputFormat);
+	}
+
+	void setSortedInputs(int vertexId, boolean shouldSort) {
+		getStreamNode(vertexId).setSortedInputs(shouldSort);
 	}
 
 	void setTransformationUID(Integer nodeId, String transformationId) {

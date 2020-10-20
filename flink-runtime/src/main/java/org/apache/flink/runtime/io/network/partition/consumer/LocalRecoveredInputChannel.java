@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -28,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * via {@link ChannelStateReader} and then converts into {@link LocalInputChannel} finally.
+ * and then converts into {@link LocalInputChannel} finally.
  */
 public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 	private final ResultPartitionManager partitionManager;
@@ -42,16 +41,25 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 			TaskEventPublisher taskEventPublisher,
 			int initialBackOff,
 			int maxBackoff,
+			int networkBuffersPerChannel,
 			InputChannelMetrics metrics) {
-		super(inputGate, channelIndex, partitionId, initialBackOff, maxBackoff, metrics.getNumBytesInLocalCounter(), metrics.getNumBuffersInLocalCounter());
+		super(
+			inputGate,
+			channelIndex,
+			partitionId,
+			initialBackOff,
+			maxBackoff,
+			metrics.getNumBytesInLocalCounter(),
+			metrics.getNumBuffersInLocalCounter(),
+			networkBuffersPerChannel);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventPublisher = checkNotNull(taskEventPublisher);
 	}
 
 	@Override
-	public InputChannel toInputChannel() {
-		return new LocalInputChannel(
+	protected InputChannel toInputChannelInternal() {
+		final LocalInputChannel localInputChannel = new LocalInputChannel(
 			inputGate,
 			getChannelIndex(),
 			partitionId,
@@ -61,5 +69,9 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 			maxBackoff,
 			numBytesIn,
 			numBytesIn);
+		if (channelStateWriter != null) {
+			localInputChannel.setChannelStateWriter(channelStateWriter);
+		}
+		return localInputChannel;
 	}
 }

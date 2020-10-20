@@ -234,6 +234,7 @@ public class RocksDBOperationUtils {
 	public static OpaqueMemoryResource<RocksDBSharedResources> allocateSharedCachesIfConfigured(
 			RocksDBMemoryConfiguration memoryConfig,
 			MemoryManager memoryManager,
+			double memoryFraction,
 			Logger logger) throws IOException {
 
 		if (!memoryConfig.isUsingFixedMemoryPerSlot() && !memoryConfig.isUsingManagedMemory()) {
@@ -256,7 +257,7 @@ public class RocksDBOperationUtils {
 			}
 			else {
 				logger.info("Getting managed memory shared cache for RocksDB.");
-				return memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, allocator);
+				return memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, allocator, memoryFraction);
 			}
 		}
 		catch (Exception e) {

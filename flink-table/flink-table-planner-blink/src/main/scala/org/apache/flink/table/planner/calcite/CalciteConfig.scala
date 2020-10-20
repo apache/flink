@@ -25,7 +25,7 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.config.{CalciteConnectionConfig, CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql.util.SqlOperatorTables
 import org.apache.calcite.sql2rel.SqlToRelConverter
 
 import java.util.Properties
@@ -137,7 +137,7 @@ class CalciteConfigBuilder {
       case h :: Nil => Some(h)
       case _ =>
         // chain operator tables
-        Some(operatorTables.reduce((x, y) => ChainedSqlOperatorTable.of(x, y)))
+        Some(operatorTables.reduce((x, y) => SqlOperatorTables.chain(x, y)))
     },
     this.replaceOperatorTable,
     replaceSqlParserConfig,

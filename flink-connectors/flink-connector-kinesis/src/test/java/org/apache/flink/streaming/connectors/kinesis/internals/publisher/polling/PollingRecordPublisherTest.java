@@ -18,22 +18,16 @@
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordBatch;
-import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordBatchConsumer;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
-import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.TestConsumer;
 
-import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
@@ -62,9 +56,9 @@ public class PollingRecordPublisherTest {
 		TestConsumer consumer = new TestConsumer();
 		recordPublisher.run(consumer);
 
-		assertEquals(1, consumer.recordBatches.size());
-		assertEquals(5, consumer.recordBatches.get(0).getDeaggregatedRecordSize());
-		assertEquals(100L, consumer.recordBatches.get(0).getMillisBehindLatest(), 0);
+		assertEquals(1, consumer.getRecordBatches().size());
+		assertEquals(5, consumer.getRecordBatches().get(0).getDeaggregatedRecordSize());
+		assertEquals(100L, consumer.getRecordBatches().get(0).getMillisBehindLatest(), 0);
 	}
 
 	@Test
@@ -146,20 +140,4 @@ public class PollingRecordPublisherTest {
 			500L);
 	}
 
-	private static class TestConsumer implements RecordBatchConsumer {
-		private final List<RecordBatch> recordBatches = new ArrayList<>();
-		private String latestSequenceNumber;
-
-		@Override
-		public SequenceNumber accept(final RecordBatch batch) {
-			recordBatches.add(batch);
-
-			if (batch.getDeaggregatedRecordSize() > 0) {
-				List<UserRecord> records = batch.getDeaggregatedRecords();
-				latestSequenceNumber = records.get(records.size() - 1).getSequenceNumber();
-			}
-
-			return new SequenceNumber(latestSequenceNumber);
-		}
-	}
 }

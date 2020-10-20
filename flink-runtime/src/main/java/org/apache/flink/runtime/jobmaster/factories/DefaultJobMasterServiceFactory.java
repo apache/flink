@@ -87,7 +87,8 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 	public JobMaster createJobMasterService(
 			JobGraph jobGraph,
 			OnCompletionActions jobCompletionActions,
-			ClassLoader userCodeClassloader) throws Exception {
+			ClassLoader userCodeClassloader,
+			long initializationTimestamp) throws Exception {
 
 		return new JobMaster(
 			rpcService,
@@ -110,6 +111,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
 				lookup
 			),
 			new DefaultExecutionDeploymentTracker(),
-			DefaultExecutionDeploymentReconciler::new);
+			DefaultExecutionDeploymentReconciler::new,
+			initializationTimestamp);
 	}
 }

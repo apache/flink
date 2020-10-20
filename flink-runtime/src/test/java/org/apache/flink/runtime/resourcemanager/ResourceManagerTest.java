@@ -83,6 +83,8 @@ public class ResourceManagerTest extends TestLogger {
 
 	private static final int dataPort = 1234;
 
+	private static final int jmxPort = 23456;
+
 	private static TestingRpcService rpcService;
 
 	private TestingHighAvailabilityServices highAvailabilityServices;
@@ -157,6 +159,7 @@ public class ResourceManagerTest extends TestLogger {
 		assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
 		assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
 		assertEquals(dataPort, taskManagerInfo.getDataPort());
+		assertEquals(jmxPort, taskManagerInfo.getJmxPort());
 		assertEquals(0, taskManagerInfo.getNumberSlots());
 		assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
 	}
@@ -166,6 +169,7 @@ public class ResourceManagerTest extends TestLogger {
 			taskExecutorAddress,
 			taskExecutorId,
 			dataPort,
+			jmxPort,
 			hardwareDescription,
 			new TaskExecutorMemoryConfiguration(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
 			ResourceProfile.ZERO,

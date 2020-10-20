@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.operations;
 
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
@@ -27,6 +29,7 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -77,15 +80,15 @@ public class MergeTableLikeUtilTest {
 	);
 
 	@Test
-	public void mergeBasicColumns() {
+	public void mergePhysicalColumns() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.STRING())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("two", DataTypes.STRING()))
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("three", DataTypes.INT()),
-				tableColumn("four", DataTypes.STRING()));
+				regularColumn("three", DataTypes.INT()),
+				regularColumn("four", DataTypes.STRING()));
 
 		TableSchema mergedSchema = util.mergeTables(
 				getDefaultMergingStrategies(),
@@ -95,10 +98,10 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.STRING())
-				.field("three", DataTypes.INT())
-				.field("four", DataTypes.STRING())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("two", DataTypes.STRING()))
+				.add(TableColumn.physical("three", DataTypes.INT()))
+				.add(TableColumn.physical("four", DataTypes.STRING()))
 				.build();
 
 		assertThat(mergedSchema, equalTo(expectedSchema));
@@ -107,12 +110,12 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeWithIncludeFailsOnDuplicateColumn() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
+				.add(TableColumn.physical("one", DataTypes.INT()))
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("one", DataTypes.INT()),
-				tableColumn("four", DataTypes.STRING()));
+				regularColumn("one", DataTypes.INT()),
+				regularColumn("four", DataTypes.STRING()));
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("A column named 'one' already exists in the base table.");
@@ -127,13 +130,13 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeGeneratedColumns() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("three", DataTypes.INT()),
-				tableColumn("four", plus("one", "3")));
+				regularColumn("three", DataTypes.INT()),
+				computedColumn("four", plus("one", "3")));
 
 		TableSchema mergedSchema = util.mergeTables(
 				getDefaultMergingStrategies(),
@@ -143,10 +146,38 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
-				.field("three", DataTypes.INT())
-				.field("four", DataTypes.INT(), "`one` + 3")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+				.add(TableColumn.physical("three", DataTypes.INT()))
+				.add(TableColumn.computed("four", DataTypes.INT(), "`one` + 3"))
+				.build();
+
+		assertThat(mergedSchema, equalTo(expectedSchema));
+	}
+
+	@Test
+	public void mergeMetadataColumns() {
+		TableSchema sourceSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.INT(), false))
+				.build();
+
+		List<SqlNode> derivedColumns = Arrays.asList(
+				regularColumn("three", DataTypes.INT()),
+				metadataColumn("four", DataTypes.INT(), true));
+
+		TableSchema mergedSchema = util.mergeTables(
+				getDefaultMergingStrategies(),
+				sourceSchema,
+				derivedColumns,
+				Collections.emptyList(),
+				null);
+
+		TableSchema expectedSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.INT(), false))
+				.add(TableColumn.physical("three", DataTypes.INT()))
+				.add(TableColumn.metadata("four", DataTypes.INT(), true))
 				.build();
 
 		assertThat(mergedSchema, equalTo(expectedSchema));
@@ -155,12 +186,12 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeIncludingGeneratedColumnsFailsOnDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				computedColumn("two", plus("one", "3")));
 
 		thrown.expect(ValidationException.class);
 		thrown.expectMessage("A generated column named 'two' already exists in the base table. You " +
@@ -174,14 +205,35 @@ public class MergeTableLikeUtilTest {
 	}
 
 	@Test
-	public void mergeExcludingGeneratedColumnsDuplicate() {
+	public void mergeIncludingMetadataColumnsFailsOnDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.INT()))
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				metadataColumn("two", DataTypes.INT(), false));
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("A metadata column named 'two' already exists in the base table. You " +
+				"might want to specify EXCLUDING METADATA or OVERWRITING METADATA");
+		util.mergeTables(
+				getDefaultMergingStrategies(),
+				sourceSchema,
+				derivedColumns,
+				Collections.emptyList(),
+				null);
+	}
+
+	@Test
+	public void mergeExcludingGeneratedColumnsDuplicate() {
+		TableSchema sourceSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+				.build();
+
+		List<SqlNode> derivedColumns = Collections.singletonList(
+				computedColumn("two", plus("one", "3")));
 
 		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
 		mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.EXCLUDING);
@@ -194,8 +246,36 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "`one` + 3")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "`one` + 3"))
+				.build();
+
+		assertThat(mergedSchema, equalTo(expectedSchema));
+	}
+
+	@Test
+	public void mergeExcludingMetadataColumnsDuplicate() {
+		TableSchema sourceSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.INT()))
+				.build();
+
+		List<SqlNode> derivedColumns = Collections.singletonList(
+				metadataColumn("two", DataTypes.BOOLEAN(), false));
+
+		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
+		mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.EXCLUDING);
+
+		TableSchema mergedSchema = util.mergeTables(
+				mergingStrategies,
+				sourceSchema,
+				derivedColumns,
+				Collections.emptyList(),
+				null);
+
+		TableSchema expectedSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.BOOLEAN()))
 				.build();
 
 		assertThat(mergedSchema, equalTo(expectedSchema));
@@ -204,12 +284,12 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeOverwritingGeneratedColumnsDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				computedColumn("two", plus("one", "3")));
 
 		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
 		mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
@@ -222,29 +302,81 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "`one` + 3")
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "`one` + 3"))
 				.build();
 
 		assertThat(mergedSchema, equalTo(expectedSchema));
 	}
 
 	@Test
-	public void mergeOverwritingPhysicalFieldWithGeneratedColumn() {
+	public void mergeOverwritingMetadataColumnsDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.INT()))
 				.build();
 
 		List<SqlNode> derivedColumns = Collections.singletonList(
-				tableColumn("two", plus("one", "3")));
+				metadataColumn("two", DataTypes.BOOLEAN(), true));
+
+		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
+		mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
+
+		TableSchema mergedSchema = util.mergeTables(
+				mergingStrategies,
+				sourceSchema,
+				derivedColumns,
+				Collections.emptyList(),
+				null);
+
+		TableSchema expectedSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.metadata("two", DataTypes.BOOLEAN(), true))
+				.build();
+
+		assertThat(mergedSchema, equalTo(expectedSchema));
+	}
+
+	@Test
+	public void mergeOverwritingPhysicalColumnWithGeneratedColumn() {
+		TableSchema sourceSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("two", DataTypes.INT()))
+				.build();
+
+		List<SqlNode> derivedColumns = Collections.singletonList(
+				computedColumn("two", plus("one", "3")));
 
 		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
 		mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
 
 		thrown.expect(ValidationException.class);
-		thrown.expectMessage("A physical column named 'two' already exists in the base table." +
-			" Computed columns cannot overwrite physical fields");
+		thrown.expectMessage("A column named 'two' already exists in the base table." +
+			" Computed columns can only overwrite other computed columns.");
+		util.mergeTables(
+				mergingStrategies,
+				sourceSchema,
+				derivedColumns,
+				Collections.emptyList(),
+				null);
+	}
+
+	@Test
+	public void mergeOverwritingComputedColumnWithMetadataColumn() {
+		TableSchema sourceSchema = TableSchema.builder()
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 3"))
+				.build();
+
+		List<SqlNode> derivedColumns = Collections.singletonList(
+				metadataColumn("two", DataTypes.BOOLEAN(), false));
+
+		Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
+		mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
+
+		thrown.expect(ValidationException.class);
+		thrown.expectMessage("A column named 'two' already exists in the base table." +
+			" Metadata columns can only overwrite other metadata columns.");
 		util.mergeTables(
 				mergingStrategies,
 				sourceSchema,
@@ -256,9 +388,9 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeWatermarks() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"timestamp - INTERVAL '5' SECOND",
@@ -266,8 +398,8 @@ public class MergeTableLikeUtilTest {
 				.build();
 
 		List<SqlNode> derivedColumns = Arrays.asList(
-				tableColumn("three", DataTypes.INT()),
-				tableColumn("four", plus("one", "3")));
+				regularColumn("three", DataTypes.INT()),
+				computedColumn("four", plus("one", "3")));
 
 		TableSchema mergedSchema = util.mergeTables(
 				getDefaultMergingStrategies(),
@@ -277,15 +409,15 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("two", DataTypes.INT(), "one + 1")
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.computed("two", DataTypes.INT(), "one + 1"))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"timestamp - INTERVAL '5' SECOND",
 						DataTypes.TIMESTAMP())
-				.field("three", DataTypes.INT())
-				.field("four", DataTypes.INT(), "`one` + 3")
+				.add(TableColumn.physical("three", DataTypes.INT()))
+				.add(TableColumn.computed("four", DataTypes.INT(), "`one` + 3"))
 				.build();
 
 		assertThat(mergedSchema, equalTo(expectedSchema));
@@ -294,8 +426,8 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeIncludingWatermarksFailsOnDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"timestamp - INTERVAL '5' SECOND",
@@ -323,8 +455,8 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeExcludingWatermarksDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"timestamp - INTERVAL '5' SECOND",
@@ -349,8 +481,8 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"`timestamp` - INTERVAL '10' SECOND",
@@ -363,8 +495,8 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeOverwritingWatermarksDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"timestamp - INTERVAL '5' SECOND",
@@ -389,8 +521,8 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT())
-				.field("timestamp", DataTypes.TIMESTAMP())
+				.add(TableColumn.physical("one", DataTypes.INT()))
+				.add(TableColumn.physical("timestamp", DataTypes.TIMESTAMP()))
 				.watermark(
 						"timestamp",
 						"`timestamp` - INTERVAL '10' SECOND",
@@ -403,9 +535,9 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeConstraintsFromBaseTable() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT()))
 				.primaryKey("constraint-42", new String[]{"one", "two"})
 				.build();
 
@@ -417,9 +549,9 @@ public class MergeTableLikeUtilTest {
 				null);
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT()))
 				.primaryKey("constraint-42", new String[]{"one", "two"})
 				.build();
 
@@ -429,9 +561,9 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeConstraintsFromDerivedTable() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT()))
 				.build();
 
 		TableSchema mergedSchema = util.mergeTables(
@@ -442,9 +574,9 @@ public class MergeTableLikeUtilTest {
 				primaryKey("one", "two"));
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT()))
 				.primaryKey("PK_3531879", new String[]{"one", "two"})
 				.build();
 
@@ -454,9 +586,9 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeIncludingConstraintsFailsOnDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT()))
 				.primaryKey("constraint-42", new String[]{"one", "two"})
 				.build();
 
@@ -474,9 +606,9 @@ public class MergeTableLikeUtilTest {
 	@Test
 	public void mergeExcludingConstraintsOnDuplicate() {
 		TableSchema sourceSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT().notNull())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT().notNull()))
 				.primaryKey("constraint-42", new String[]{"one", "two", "three"})
 				.build();
 
@@ -491,9 +623,9 @@ public class MergeTableLikeUtilTest {
 				primaryKey("one", "two"));
 
 		TableSchema expectedSchema = TableSchema.builder()
-				.field("one", DataTypes.INT().notNull())
-				.field("two", DataTypes.STRING().notNull())
-				.field("three", DataTypes.FLOAT().notNull())
+				.add(TableColumn.physical("one", DataTypes.INT().notNull()))
+				.add(TableColumn.physical("two", DataTypes.STRING().notNull()))
+				.add(TableColumn.physical("three", DataTypes.FLOAT().notNull()))
 				.primaryKey("PK_3531879", new String[]{"one", "two"})
 				.build();
 
@@ -691,6 +823,7 @@ public class MergeTableLikeUtilTest {
 		assertThat(mergingStrategies.get(FeatureOption.PARTITIONS), is(MergingStrategy.EXCLUDING));
 		assertThat(mergingStrategies.get(FeatureOption.CONSTRAINTS), is(MergingStrategy.INCLUDING));
 		assertThat(mergingStrategies.get(FeatureOption.GENERATED), is(MergingStrategy.EXCLUDING));
+		assertThat(mergingStrategies.get(FeatureOption.METADATA), is(MergingStrategy.EXCLUDING));
 		assertThat(mergingStrategies.get(FeatureOption.WATERMARKS), is(MergingStrategy.EXCLUDING));
 	}
 
@@ -698,24 +831,40 @@ public class MergeTableLikeUtilTest {
 		return util.computeMergingStrategies(Collections.emptyList());
 	}
 
-	private SqlNode tableColumn(String name, DataType type) {
+	private SqlNode regularColumn(String name, DataType type) {
 		LogicalType logicalType = type.getLogicalType();
-		return new SqlTableColumn(
-			new SqlIdentifier(name, SqlParserPos.ZERO),
+		return new SqlRegularColumn(
+			SqlParserPos.ZERO,
+			identifier(name),
+			null,
 			SqlTypeUtil.convertTypeToSpec(typeFactory.createFieldTypeFromLogicalType(logicalType))
 				.withNullable(logicalType.isNullable()),
-			null,
-			null,
-			SqlParserPos.ZERO
+			null
 		);
 	}
 
-	private SqlNode tableColumn(String name, SqlNode expression) {
-		return new SqlTableColumn (
+	private SqlNode computedColumn(String name, SqlNode expression) {
+		return new SqlComputedColumn(
+			SqlParserPos.ZERO,
 			identifier(name),
-			expression,
 			null,
-			SqlParserPos.ZERO
+			expression
+		);
+	}
+
+	private SqlNode metadataColumn(
+			String name,
+			DataType type,
+			boolean isVirtual) {
+		final LogicalType logicalType = type.getLogicalType();
+		return new SqlMetadataColumn(
+			SqlParserPos.ZERO,
+			identifier(name),
+			null,
+			SqlTypeUtil.convertTypeToSpec(typeFactory.createFieldTypeFromLogicalType(logicalType))
+				.withNullable(logicalType.isNullable()),
+			null,
+			isVirtual
 		);
 	}
 

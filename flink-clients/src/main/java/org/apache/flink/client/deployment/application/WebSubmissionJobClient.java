@@ -73,12 +73,12 @@ public class WebSubmissionJobClient implements JobClient {
 	}
 
 	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators() {
 		throw new FlinkRuntimeException("The Accumulators cannot be fetched through the Job Client when in Web Submission.");
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(ClassLoader userClassloader) {
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
 		throw new FlinkRuntimeException("The Job Result cannot be fetched through the Job Client when in Web Submission.");
 	}
 }

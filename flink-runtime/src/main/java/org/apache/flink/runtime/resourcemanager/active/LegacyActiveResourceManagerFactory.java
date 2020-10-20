@@ -34,6 +34,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.Executor;
+
 /**
  * Resource manager factory which creates active {@link ResourceManager} implementations.
  *
@@ -56,7 +58,8 @@ public abstract class LegacyActiveResourceManagerFactory<T extends ResourceIDRet
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl,
 			MetricRegistry metricRegistry,
-			String hostname) throws Exception {
+			String hostname,
+			Executor ioExecutor) throws Exception {
 		return super.createResourceManager(
 			createActiveResourceManagerConfiguration(configuration),
 			resourceId,
@@ -67,7 +70,8 @@ public abstract class LegacyActiveResourceManagerFactory<T extends ResourceIDRet
 			clusterInformation,
 			webInterfaceUrl,
 			metricRegistry,
-			hostname);
+			hostname,
+			ioExecutor);
 	}
 
 	private Configuration createActiveResourceManagerConfiguration(Configuration originalConfiguration) {

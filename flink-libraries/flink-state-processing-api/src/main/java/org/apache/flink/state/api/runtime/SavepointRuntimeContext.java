@@ -124,6 +124,11 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 	}
 
 	@Override
+	public void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+		ctx.registerUserCodeClassLoaderReleaseHookIfAbsent(releaseHookName, releaseHook);
+	}
+
+	@Override
 	public <V, A extends Serializable> void addAccumulator(
 		String name, Accumulator<V, A> accumulator) {
 		ctx.addAccumulator(name, accumulator);

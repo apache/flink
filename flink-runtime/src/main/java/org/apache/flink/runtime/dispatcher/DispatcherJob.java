@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -89,18 +88,20 @@ public final class DispatcherJob implements AutoCloseableAsync {
 	static DispatcherJob createFor(
 			CompletableFuture<JobManagerRunner> jobManagerRunnerFuture,
 			JobID jobId,
-			String jobName) {
-		return new DispatcherJob(jobManagerRunnerFuture, jobId, jobName);
+			String jobName,
+			long initializationTimestamp) {
+		return new DispatcherJob(jobManagerRunnerFuture, jobId, jobName, initializationTimestamp);
 	}
 
 	private DispatcherJob(
 			CompletableFuture<JobManagerRunner> jobManagerRunnerFuture,
 			JobID jobId,
-			String jobName) {
+			String jobName,
+			long initializationTimestamp) {
 		this.jobManagerRunnerFuture = jobManagerRunnerFuture;
 		this.jobId = jobId;
 		this.jobName = jobName;
-		this.initializationTimestamp = System.currentTimeMillis();
+		this.initializationTimestamp = initializationTimestamp;
 		this.jobResultFuture = new CompletableFuture<>();
 
 		FutureUtils.assertNoException(this.jobManagerRunnerFuture.handle((jobManagerRunner, throwable) -> {
@@ -136,19 +137,9 @@ public final class DispatcherJob implements AutoCloseableAsync {
 	}
 
 	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-		return requestJobStatus(timeout).thenApply(status -> {
-			int[] tasksPerState = new int[ExecutionState.values().length];
+		return requestJob(timeout).thenApply(executionGraph -> {
 			synchronized (lock) {
-				return new JobDetails(
-					jobId,
-					jobName,
-					initializationTimestamp,
-					0,
-					0,
-					status,
-					0,
-					tasksPerState,
-					0);
+				return JobDetails.createDetailsForJob(executionGraph);
 			}
 		});
 	}

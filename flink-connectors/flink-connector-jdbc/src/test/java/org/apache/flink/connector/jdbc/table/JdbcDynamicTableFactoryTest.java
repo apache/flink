@@ -115,6 +115,7 @@ public class JdbcDynamicTableFactoryTest {
 		properties.put("scan.partition.upper-bound", "100");
 		properties.put("scan.partition.num", "10");
 		properties.put("scan.fetch-size", "20");
+		properties.put("scan.auto-commit", "false");
 
 		DynamicTableSource actual = createTableSource(properties);
 
@@ -128,6 +129,7 @@ public class JdbcDynamicTableFactoryTest {
 			.setPartitionUpperBound(100)
 			.setNumPartitions(10)
 			.setFetchSize(20)
+			.setAutoCommit(false)
 			.build();
 		JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder()
 			.setCacheMaxSize(-1)
@@ -296,7 +298,8 @@ public class JdbcDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock source"),
 			new Configuration(),
-			JdbcDynamicTableFactoryTest.class.getClassLoader());
+			JdbcDynamicTableFactoryTest.class.getClassLoader(),
+			false);
 	}
 
 	private static DynamicTableSink createTableSink(Map<String, String> options) {
@@ -305,6 +308,7 @@ public class JdbcDynamicTableFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(JdbcDynamicTableFactoryTest.schema, options, "mock sink"),
 			new Configuration(),
-			JdbcDynamicTableFactoryTest.class.getClassLoader());
+			JdbcDynamicTableFactoryTest.class.getClassLoader(),
+			false);
 	}
 }

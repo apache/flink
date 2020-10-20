@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 import org.apache.flink.yarn.util.TestUtils;
 
 import org.apache.hadoop.fs.Path;
@@ -32,6 +33,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -103,7 +105,11 @@ public class UtilsTest extends TestLogger {
 			System.currentTimeMillis(),
 			LocalResourceVisibility.APPLICATION,
 			LocalResourceType.FILE).toString());
+		env.put(YarnConfigKeys.FLINK_YARN_FILES, "");
+		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 		env = Collections.unmodifiableMap(env);
+
+		final YarnResourceManagerDriverConfiguration yarnResourceManagerDriverConfiguration = new YarnResourceManagerDriverConfiguration(env, "localhost", null);
 
 		File credentialFile = temporaryFolder.newFile("container_tokens");
 		final Text amRmTokenKind = AMRMTokenIdentifier.KIND_NAME;
@@ -131,7 +137,7 @@ public class UtilsTest extends TestLogger {
 			Map<String, String> systemEnv = new HashMap<>(originalEnv);
 			systemEnv.put("HADOOP_TOKEN_FILE_LOCATION", credentialFile.getAbsolutePath());
 			CommonTestUtils.setEnv(systemEnv);
-			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
+			ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, yarnResourceManagerDriverConfiguration, tmParams,
 				"", workingDirectory, taskManagerMainClass, LOG);
 		} finally {
 			CommonTestUtils.setEnv(originalEnv);

@@ -137,8 +137,13 @@ public class TaskManagerDetailsHandler extends AbstractResourceManagerHandler<Re
 		long mappedUsed = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.MemoryUsed", "0"));
 		long mappedMax = Long.valueOf(tmMetrics.getMetric("Status.JVM.Memory.Mapped.TotalCapacity", "0"));
 
-		long memorySegmentsAvailable = Long.valueOf(tmMetrics.getMetric("Status.Network.AvailableMemorySegments", "0"));
-		long memorySegmentsTotal = Long.valueOf(tmMetrics.getMetric("Status.Network.TotalMemorySegments", "0"));
+		long networkMemorySegmentsAvailable = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.AvailableMemorySegments", "0"));
+		long networkMemorySegmentsUsed = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.UsedMemorySegments", "0"));
+		long networkMemorySegmentsTotal = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.TotalMemorySegments", "0"));
+
+		long networkMemoryAvailable = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.AvailableMemory", "0"));
+		long networkMemoryUsed = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.UsedMemory", "0"));
+		long networkMemoryTotal = Long.valueOf(tmMetrics.getMetric("Status.Shuffle.Netty.TotalMemory", "0"));
 
 		final List<TaskManagerMetricsInfo.GarbageCollectorInfo> garbageCollectorInfo = createGarbageCollectorInfo(tmMetrics);
 
@@ -155,8 +160,12 @@ public class TaskManagerDetailsHandler extends AbstractResourceManagerHandler<Re
 			mappedCount,
 			mappedUsed,
 			mappedMax,
-			memorySegmentsAvailable,
-			memorySegmentsTotal,
+			networkMemorySegmentsAvailable,
+			networkMemorySegmentsUsed,
+			networkMemorySegmentsTotal,
+			networkMemoryAvailable,
+			networkMemoryUsed,
+			networkMemoryTotal,
 			garbageCollectorInfo);
 	}
 

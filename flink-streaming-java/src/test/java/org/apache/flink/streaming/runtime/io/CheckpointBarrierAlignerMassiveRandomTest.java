@@ -18,18 +18,17 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferReceivedListener;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
+import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 
 import org.junit.Test;
 
@@ -39,7 +38,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -69,7 +67,8 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 			CheckpointedInputGate checkpointedInputGate =
 				new CheckpointedInputGate(
 					myIG,
-					new CheckpointBarrierAligner("Testing: No task associated", new DummyCheckpointInvokable(), myIG));
+					new CheckpointBarrierAligner("Testing: No task associated", new DummyCheckpointInvokable(), myIG),
+					new SyncMailboxExecutor());
 
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = checkpointedInputGate.pollNext().get();
@@ -129,7 +128,7 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 	}
 
-	private static class RandomGeneratingInputGate extends InputGate {
+	private static class RandomGeneratingInputGate extends IndexedInputGate {
 
 		private final int numberOfChannels;
 		private final BufferPool[] bufferPools;
@@ -228,8 +227,12 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 
 		@Override
-		public CompletableFuture<?> readRecoveredState(ExecutorService executor, ChannelStateReader reader) {
+		public CompletableFuture<Void> getStateConsumedFuture() {
 			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public void finishReadRecoveredState() {
 		}
 
 		@Override
@@ -241,7 +244,8 @@ public class CheckpointBarrierAlignerMassiveRandomTest {
 		}
 
 		@Override
-		public void registerBufferReceivedListener(BufferReceivedListener listener) {
+		public int getGateIndex() {
+			return 0;
 		}
 	}
 }

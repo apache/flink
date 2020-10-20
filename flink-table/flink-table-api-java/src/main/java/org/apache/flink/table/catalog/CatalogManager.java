@@ -187,8 +187,8 @@ public final class CatalogManager {
 			throw new CatalogException(format("Catalog %s already exists.", catalogName));
 		}
 
-		catalogs.put(catalogName, catalog);
 		catalog.open();
+		catalogs.put(catalogName, catalog);
 	}
 
 	/**

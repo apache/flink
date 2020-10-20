@@ -62,9 +62,9 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
 	}
 
 	@Test
-	public void testCreatingLegacySchedulingStrategyFactoryByDefault() {
+	public void testCreatingPipelinedRegionSchedulingStrategyFactoryByDefault() {
 		final DefaultSchedulerComponents components = createSchedulerComponents(new Configuration());
-		assertThat(components.getSchedulingStrategyFactory(), instanceOf(LazyFromSourcesSchedulingStrategy.Factory.class));
+		assertThat(components.getSchedulingStrategyFactory(), instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
 	}
 
 	private static DefaultSchedulerComponents createSchedulerComponents(final Configuration configuration) {

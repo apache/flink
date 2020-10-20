@@ -45,25 +45,29 @@ The easiest way to monitor checkpoint behavior is via the UI's checkpoint sectio
 for [checkpoint monitoring](../../monitoring/checkpoint_monitoring.html) shows how to access the available checkpoint
 metrics.
 
-The two numbers that are of particular interest when scaling up checkpoints are:
+The two numbers (both exposed via Task level [metrics](../../monitoring/metrics.html#checkpointing)
+and in the [web interface](../../monitoring/checkpoint_monitoring.html)) that are of particular interest when scaling
+up checkpoints are:
 
-  - The time until operators start their checkpoint: This time is currently not exposed directly, but corresponds
-    to:
-    
-    `checkpoint_start_delay = end_to_end_duration - synchronous_duration - asynchronous_duration`
-
+  - The time until operators receive their first checkpoint barrier
     When the time to trigger the checkpoint is constantly very high, it means that the *checkpoint barriers* need a long
     time to travel from the source to the operators. That typically indicates that the system is operating under a
     constant backpressure.
 
-  - The amount of data buffered during alignments. For exactly-once semantics, Flink *aligns* the streams at
-    operators that receive multiple input streams, buffering some data for that alignment.
-    The buffered data volume is ideally low - higher amounts means that checkpoint barriers are received at
-    very different times from the different input streams.
+  - The alignment duration, which is defined as the time between receiving first and the last checkpoint barrier.
+    During unaligned `exactly-once` checkpoints and `at-least-once` checkpoints subtasks are processing all of the
+    data from the upstream subtasks without any interruptions. However with aligned `exatcly-once` checkpoints,
+    the channels that have already received a checkpoint barrier are blocked from sending further data until
+    all of the remaining channels catch up and receive theirs checkpoint barriers (alignment time).
 
-Note that when the here indicated numbers can be occasionally high in the presence of transient backpressure, data skew,
-or network issues. However, if the numbers are constantly very high, it means that Flink puts many resources into checkpointing.
+Both of those values should ideally be low - higher amounts means that checkpoint barriers traveling through the job graph
+slowly, due to some back-pressure (not enough resources to process the incoming records). This can also be observed
+via increased end-to-end latency of processed records. Note that those numbers can be occasionally high in the presence of
+a transient backpressure, data skew, or network issues.
 
+[Unaligned checkpoints](../../ops/state/checkpoints.html#unaligned-checkpoints) can be used to speed up the propagation time
+of the checkpoint barriers. However please note, that this does not solve the underlying problem that's causing the backpressure
+in the first place (and end-to-end records latency will remain high).
 
 ## Tuning Checkpointing
 

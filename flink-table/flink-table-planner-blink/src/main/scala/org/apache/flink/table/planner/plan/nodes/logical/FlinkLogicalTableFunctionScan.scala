@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.functions.TemporalTableFunction
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRuleCall, RelTraitSet}
+
+import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
@@ -29,10 +31,11 @@ import org.apache.calcite.rel.core.TableFunctionScan
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelColumnMapping
 import org.apache.calcite.rex.{RexCall, RexNode}
+
 import java.lang.reflect.Type
 import java.util
 
-import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import scala.collection.JavaConversions._
 
 /**
   * Sub-class of [[TableFunctionScan]] that is a relational expression
@@ -107,11 +110,12 @@ class FlinkLogicalTableFunctionScanConverter
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[LogicalTableFunctionScan]
     val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val newInputs = scan.getInputs.map(input => RelOptRule.convert(input, FlinkConventions.LOGICAL))
 
     new FlinkLogicalTableFunctionScan(
       scan.getCluster,
       traitSet,
-      scan.getInputs,
+      newInputs,
       scan.getCall,
       scan.getElementType,
       scan.getRowType,

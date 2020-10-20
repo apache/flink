@@ -51,8 +51,8 @@ import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableOb
 import org.apache.flink.runtime.operators.shipping.OutputCollector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
-import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
+import org.apache.flink.runtime.operators.sort.Sorter;
+import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -64,6 +64,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -938,11 +939,18 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				break;
 			case SORT:
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				UnilateralSortMerger<?> sorter = new UnilateralSortMerger(getMemoryManager(), getIOManager(),
-					this.inputIterators[inputNum], this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.config.getUseLargeRecordHandler(),
-					this.getExecutionConfig().isObjectReuseEnabled());
+				Sorter<?> sorter =
+					ExternalSorter.newBuilder(
+							getMemoryManager(),
+							this,
+							this.inputSerializers[inputNum].getSerializer(),
+							getLocalStrategyComparator(inputNum))
+						.maxNumFileHandles(this.config.getFilehandlesInput(inputNum))
+						.enableSpilling(getIOManager(), this.config.getSpillingThresholdInput(inputNum))
+						.memoryFraction(this.config.getRelativeMemoryInput(inputNum))
+						.objectReuse(this.getExecutionConfig().isObjectReuseEnabled())
+						.largeRecords(this.getTaskConfig().getUseLargeRecordHandler())
+						.build((MutableObjectIterator) this.inputIterators[inputNum]);
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
 				this.localStrategies[inputNum] = sorter;
@@ -974,13 +982,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
-					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
-					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
-					this.config.getSpillingThresholdInput(inputNum), this.getTaskConfig().getUseLargeRecordHandler(),
-					this.getExecutionConfig().isObjectReuseEnabled());
-				cSorter.setUdfConfiguration(this.config.getStubParameters());
+				Sorter<?> cSorter =
+					ExternalSorter.newBuilder(
+							getMemoryManager(),
+							this,
+							this.inputSerializers[inputNum].getSerializer(),
+							getLocalStrategyComparator(inputNum))
+						.maxNumFileHandles(this.config.getFilehandlesInput(inputNum))
+						.withCombiner((GroupCombineFunction) localStub, this.config.getStubParameters())
+						.enableSpilling(getIOManager(), this.config.getSpillingThresholdInput(inputNum))
+						.memoryFraction(this.config.getRelativeMemoryInput(inputNum))
+						.objectReuse(this.getExecutionConfig().isObjectReuseEnabled())
+						.largeRecords(this.getTaskConfig().getUseLargeRecordHandler())
+						.build(this.inputIterators[inputNum]);
 
 				// set the input to null such that it will be lazily fetched from the input strategy
 				this.inputs[inputNum] = null;
@@ -1023,18 +1037,16 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
-		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
-
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
-		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
+		this.output = initOutputs(this, getEnvironment().getUserCodeClassLoader(), this.config, this.chainedTasks, this.eventualOutputs,
 				this.getExecutionConfig(), this.accumulatorMap);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics, env.getExternalResourceInfoProvider());
 	}
 
@@ -1272,13 +1284,14 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 * The output collector applies the configured shipping strategy.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> Collector<T> initOutputs(AbstractInvokable containingTask, ClassLoader cl, TaskConfig config,
-										List<ChainedDriver<?, ?>> chainedTasksTarget,
-										List<RecordWriter<?>> eventualOutputs,
-										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulatorMap)
-	throws Exception
-	{
+	public static <T> Collector<T> initOutputs(
+			AbstractInvokable containingTask,
+			UserCodeClassLoader cl,
+			TaskConfig config,
+			List<ChainedDriver<?, ?>> chainedTasksTarget,
+			List<RecordWriter<?>> eventualOutputs,
+			ExecutionConfig executionConfig,
+			Map<String, Accumulator<?,?>> accumulatorMap) throws Exception {
 		final int numOutputs = config.getNumOutputs();
 
 		// check whether we got any chained tasks
@@ -1310,7 +1323,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(containingTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(containingTask, chainedStubConf, cl.asClassLoader(), eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
 				ct.setup(chainedStubConf, taskName, previous, containingTask, cl, executionConfig, accumulatorMap);
@@ -1328,7 +1341,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(containingTask , config, cl, eventualOutputs, 0, numOutputs);
+		return getOutputCollector(containingTask , config, cl.asClassLoader(), eventualOutputs, 0, numOutputs);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -1471,7 +1484,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 	public static void clearWriters(List<RecordWriter<?>> writers) {
 		for (RecordWriter<?> writer : writers) {
-			writer.clearBuffers();
+			writer.close();
 		}
 	}
 

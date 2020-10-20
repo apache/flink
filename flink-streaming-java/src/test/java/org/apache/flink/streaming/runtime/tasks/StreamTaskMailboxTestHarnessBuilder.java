@@ -100,6 +100,11 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 		return this;
 	}
 
+	public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyStreamConfig(Consumer<StreamConfig> action) {
+		action.accept(streamConfig);
+		return this;
+	}
+
 	public StreamTaskMailboxTestHarnessBuilder<OUT> addInput(TypeInformation<?> inputType) {
 		return addInput(inputType, 1);
 	}

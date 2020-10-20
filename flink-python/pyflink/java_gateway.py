@@ -153,6 +153,9 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.python.util.PythonDependencyUtils")
     java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")
     java_import(gateway.jvm, "org.apache.flink.client.python.PythonGatewayServer")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.functions.python.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.typeinfo.python.*")
 
 
 class PythonFunctionFactory(object):
@@ -162,7 +165,7 @@ class PythonFunctionFactory(object):
 
     def getPythonFunction(self, moduleName, objectName):
         udf_wrapper = getattr(importlib.import_module(moduleName), objectName)
-        return udf_wrapper._create_judf()
+        return udf_wrapper.java_user_defined_function()
 
     class Java:
         implements = ["org.apache.flink.client.python.PythonFunctionFactory"]

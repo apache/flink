@@ -45,14 +45,6 @@ Flink 明确支持以下三种时间语义:
 <a name="working-with-event-time"></a>
 ### 使用 Event Time
 
-Flink 在默认情况下是使用处理时间。也可以通过下面配置来告诉 Flink 选择哪种时间语义:
-
-{% highlight java %}
-final StreamExecutionEnvironment env =
-    StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-{% endhighlight %}
-
 如果想要使用事件时间，需要额外给 Flink 提供一个时间戳提取器和 Watermark 生成器，Flink 将使用它们来跟踪事件时间的进度。这将在选节[使用 Watermarks]({% link learn-flink/streaming_analytics.zh.md %}#working-with-watermarks) 中介绍，但是首先我们需要解释一下 watermarks 是什么。
 
 ### Watermarks
@@ -360,9 +352,9 @@ Flink 的窗口 API 某些方面有一些奇怪的行为，可能和我们预期
 {% highlight java %}
 stream
     .keyBy(t -> t.key)
-    .timeWindow(<time specification>)
+    .window(<window assigner>)
     .reduce(<reduce function>)
-    .timeWindowAll(<same time specification>)
+    .windowAll(<same window assigner>)
     .reduce(<same reduce function>)
 {% endhighlight %}
 

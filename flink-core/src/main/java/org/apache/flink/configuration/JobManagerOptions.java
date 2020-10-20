@@ -348,7 +348,7 @@ public class JobManagerOptions {
 	public static final ConfigOption<String> SCHEDULING_STRATEGY =
 		key("jobmanager.scheduler.scheduling-strategy")
 			.stringType()
-			.defaultValue("legacy")
+			.defaultValue("region")
 			.withDescription(Description.builder()
 				.text("Determines which scheduling strategy is used to schedule tasks. Accepted values are:")
 				.list(

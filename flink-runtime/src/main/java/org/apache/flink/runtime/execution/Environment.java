@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -148,7 +149,7 @@ public interface Environment {
 	/**
 	 * Returns the user code class loader
 	 */
-	ClassLoader getUserClassLoader();
+	UserCodeClassLoader getUserCodeClassLoader();
 
 	Map<String, Future<Path>> getDistributedCacheEntries();
 

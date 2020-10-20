@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -84,9 +85,10 @@ public class StreamGraphGeneratorTest extends TestLogger {
 	@Test
 	public void generatorForwardsSavepointRestoreSettings() {
 		StreamGraphGenerator streamGraphGenerator =
-				new StreamGraphGenerator(Collections.emptyList(),
-				new ExecutionConfig(),
-				new CheckpointConfig());
+				new StreamGraphGenerator(
+					Collections.emptyList(),
+					new ExecutionConfig(),
+					new CheckpointConfig());
 
 		streamGraphGenerator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("hello"));
 
@@ -467,7 +469,9 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 		// all stream nodes share default group by default
 		StreamGraph streamGraph = new StreamGraphGenerator(
-				transformations, env.getConfig(), env.getCheckpointConfig())
+				transformations,
+				env.getConfig(),
+				env.getCheckpointConfig())
 			.generate();
 
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
@@ -478,21 +482,23 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
 	@Test
 	public void testSetManagedMemoryWeight() {
+		final int weight = 123;
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
-		source.getTransformation().setManagedMemoryWeight(123);
+		source.getTransformation().declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, weight);
 		source.print().name("sink");
 
 		final StreamGraph streamGraph = env.getStreamGraph();
 		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
-			final int expectedWeight = streamNode.getOperatorName().contains("source")
-				? 123
-				: Transformation.DEFAULT_MANAGED_MEMORY_WEIGHT;
-			assertEquals(expectedWeight, streamNode.getManagedMemoryWeight());
+			if (streamNode.getOperatorName().contains("source")) {
+				assertThat(streamNode.getManagedMemoryOperatorScopeUseCaseWeights().get(ManagedMemoryUseCase.BATCH_OP), is(weight));
+			} else {
+				assertThat(streamNode.getManagedMemoryOperatorScopeUseCaseWeights().size(), is(0));
+			}
 		}
 	}
 
-	private static class OutputTypeConfigurableOperationWithTwoInputs
+	static class OutputTypeConfigurableOperationWithTwoInputs
 			extends AbstractStreamOperator<Integer>
 			implements TwoInputStreamOperator<Integer, Integer, Integer>, OutputTypeConfigurable<Integer> {
 		private static final long serialVersionUID = 1L;

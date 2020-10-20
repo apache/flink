@@ -57,6 +57,8 @@ mvn clean install -DskipTests
 mvn clean install -DskipTests -Dfast
 {% endhighlight %}
 
+<a name="build-pyflink"/>
+
 ## 构建 PyFlink
 
 #### 先决条件

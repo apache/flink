@@ -101,9 +101,9 @@ public interface RuntimeContext {
 	int getAttemptNumber();
 
 	/**
-	 * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)",
+	 * Returns the name of the task, appended with the subtask indicator, such as "MyTask (3/6)#1",
 	 * where 3 would be ({@link #getIndexOfThisSubtask()} + 1), and 6 would be
-	 * {@link #getNumberOfParallelSubtasks()}.
+	 * {@link #getNumberOfParallelSubtasks()}, and 1 would be {@link #getAttemptNumber()}.
 	 *
 	 * @return The name of the task, with subtask indicator.
 	 */
@@ -122,6 +122,18 @@ public interface RuntimeContext {
 	 * @return The ClassLoader for user code classes.
 	 */
 	ClassLoader getUserCodeClassLoader();
+
+	/**
+	 * Registers a custom hook for the user code class loader release.
+	 *
+	 * <p>The release hook is executed just before the user code class loader is being released.
+	 * Registration only happens if no hook has been registered under this name already.
+	 *
+	 * @param releaseHookName name of the release hook.
+	 * @param releaseHook release hook which is executed just before the user code class loader is being released
+	 */
+	@PublicEvolving
+	void registerUserCodeClassLoaderReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook);
 
 	// --------------------------------------------------------------------------------------------
 

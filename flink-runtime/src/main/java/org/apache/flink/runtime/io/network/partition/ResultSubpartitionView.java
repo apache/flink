@@ -46,6 +46,9 @@ public interface ResultSubpartitionView {
 
 	void notifyDataAvailable();
 
+	default void notifyPriorityEvent(int priorityBufferNumber) {
+	}
+
 	void releaseAllResources() throws IOException;
 
 	boolean isReleased();
@@ -57,4 +60,5 @@ public interface ResultSubpartitionView {
 	boolean isAvailable(int numCreditsAvailable);
 
 	int unsynchronizedGetNumberOfQueuedBuffers();
+
 }

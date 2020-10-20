@@ -31,7 +31,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
 import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
@@ -606,46 +606,29 @@ public class SqlToOperationConverter {
 	}
 
 	/**
-	 * Create a table schema from {@link SqlCreateTable}. This schema contains computed column
-	 * fields, say, we have a create table DDL statement:
-	 * <blockquote><pre>
-	 *   create table t(
-	 *     a int,
-	 *     b varchar,
-	 *     c as to_timestamp(b))
-	 *   with (
-	 *     'connector' = 'csv',
-	 *     'k1' = 'v1')
-	 * </pre></blockquote>
-	 *
-	 * <p>The returned table schema contains columns (a:int, b:varchar, c:timestamp).
-	 *
-	 * @param sqlCreateTable sql create table node.
-	 * @return TableSchema
+	 * Creates a {@link TableSchema} from {@link SqlCreateTable}.
 	 */
 	private TableSchema createTableSchema(SqlCreateTable sqlCreateTable) {
-		// setup table columns
-		SqlNodeList columnList = sqlCreateTable.getColumnList();
-		TableSchema physicalSchema = null;
-		TableSchema.Builder builder = new TableSchema.Builder();
-		// collect the physical table schema first.
-		final List<SqlNode> physicalColumns = columnList.getList().stream()
-			.filter(n -> !((SqlTableColumn) n).isGenerated()).collect(Collectors.toList());
-		for (SqlNode node : physicalColumns) {
-			SqlTableColumn column = (SqlTableColumn) node;
-			final RelDataType relType = column.getType()
+		if (!sqlCreateTable.hasRegularColumnsOnly()) {
+			throw new TableException(
+				"Only regular columns are supported in the DDL of the old planner.");
+		}
+
+		final TableSchema.Builder builder = new TableSchema.Builder();
+		final SqlNodeList columnList = sqlCreateTable.getColumnList();
+		final List<SqlRegularColumn> physicalColumns = columnList.getList().stream()
+			.filter(SqlRegularColumn.class::isInstance)
+			.map(SqlRegularColumn.class::cast)
+			.collect(Collectors.toList());
+		for (SqlRegularColumn regularColumn : physicalColumns) {
+			final RelDataType relType = regularColumn.getType()
 				.deriveType(
 					flinkPlanner.getOrCreateSqlValidator(),
-					column.getType().getNullable());
-			builder.field(column.getName().getSimple(),
+					regularColumn.getType().getNullable());
+			builder.field(regularColumn.getName().getSimple(),
 				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
-			physicalSchema = builder.build();
 		}
-		assert physicalSchema != null;
-		if (sqlCreateTable.containsComputedColumn()) {
-			throw new SqlConversionException("Computed columns for DDL is not supported yet!");
-		}
-		return physicalSchema;
+		return builder.build();
 	}
 
 	/**

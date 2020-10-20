@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertNotNull;
@@ -30,6 +33,8 @@ import static org.junit.Assert.assertTrue;
  * Tests for the destruction of a {@link LocalBufferPool}.
  */
 public class LocalBufferPoolDestroyTest {
+	@Rule
+	public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
 	/**
 	 * Tests that a blocking request fails properly if the buffer pool is
@@ -41,7 +46,7 @@ public class LocalBufferPoolDestroyTest {
 	 * request Thread threw the expected Exception.
 	 */
 	@Test
-	public void testDestroyWhileBlockingRequest() throws Exception {
+	public void testDestroyWhileBlockingRequest() throws InterruptedException {
 		AtomicReference<Exception> asyncException = new AtomicReference<>();
 
 		NetworkBufferPool networkBufferPool = null;

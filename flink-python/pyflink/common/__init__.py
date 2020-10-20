@@ -32,6 +32,7 @@ from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
+from pyflink.common.types import Row, RowKind
 
 __all__ = [
     'CompletableFuture',
@@ -45,4 +46,6 @@ __all__ = [
     'JobStatus',
     'RestartStrategies',
     'RestartStrategyConfiguration',
+    "Row",
+    "RowKind"
 ]

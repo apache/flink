@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.checkpoint.channel.ChannelStateReader;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -46,7 +45,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * {@link #onConsumedSubpartition(int)}) then the partition as a whole is disposed and all buffers are
  * freed.
  */
-public class PipelinedResultPartition extends ResultPartition implements CheckpointedResultPartition {
+public class PipelinedResultPartition extends BufferWritingResultPartition
+		implements CheckpointedResultPartition, ChannelStateHolder {
 
 	/** The lock that guard release operations (which can be asynchronously propagated from the
 	 * networks threads. */
@@ -71,7 +71,7 @@ public class PipelinedResultPartition extends ResultPartition implements Checkpo
 			int numTargetKeyGroups,
 			ResultPartitionManager partitionManager,
 			@Nullable BufferCompressor bufferCompressor,
-			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
+			SupplierWithException<BufferPool, IOException> bufferPoolFactory) {
 
 		super(
 			owningTaskName,
@@ -86,6 +86,15 @@ public class PipelinedResultPartition extends ResultPartition implements Checkpo
 
 		this.consumedSubpartitions = new boolean[subpartitions.length];
 		this.numUnconsumedSubpartitions = subpartitions.length;
+	}
+
+	@Override
+	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+		for (final ResultSubpartition subpartition : subpartitions) {
+			if (subpartition instanceof ChannelStateHolder) {
+				((PipelinedSubpartition) subpartition).setChannelStateWriter(channelStateWriter);
+			}
+		}
 	}
 
 	/**
@@ -123,16 +132,17 @@ public class PipelinedResultPartition extends ResultPartition implements Checkpo
 
 	@Override
 	public CheckpointedResultSubpartition getCheckpointedSubpartition(int subpartitionIndex) {
-		return (CheckpointedResultSubpartition) getAllPartitions()[subpartitionIndex];
+		return (CheckpointedResultSubpartition) subpartitions[subpartitionIndex];
 	}
 
 	@Override
-	public void readRecoveredState(ChannelStateReader stateReader) throws IOException, InterruptedException {
-		for (ResultSubpartition subPar : getAllPartitions()) {
-			((PipelinedSubpartition) subPar).readRecoveredState(stateReader);
-		}
+	public void flushAll() {
+		flushAllSubpartitions(false);
+	}
 
-		LOG.debug("{}: Finished reading recovered state.", this);
+	@Override
+	public void flush(int targetSubpartition) {
+		flushSubpartition(targetSubpartition, false);
 	}
 
 	@Override

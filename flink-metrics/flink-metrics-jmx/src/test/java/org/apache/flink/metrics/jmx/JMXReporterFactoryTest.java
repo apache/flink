@@ -18,11 +18,14 @@
 package org.apache.flink.metrics.jmx;
 
 import org.apache.flink.metrics.util.MetricReporterTestUtils;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.allOf;
@@ -33,6 +36,11 @@ import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
  * Tests for the {@link JMXReporterFactory}.
  */
 public class JMXReporterFactoryTest extends TestLogger {
+
+	@After
+	public void shutdownService() throws IOException {
+		JMXService.stopInstance();
+	}
 
 	@Test
 	public void testPortRangeArgument() {

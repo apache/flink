@@ -41,7 +41,8 @@ from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
     _to_java_data_type
-from pyflink.table.udf import UserDefinedFunctionWrapper
+from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
+    UserDefinedAggregateFunctionWrapper
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import utils
 from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
@@ -208,7 +209,8 @@ class TableEnvironment(object):
         self._j_tenv.createTemporarySystemFunction(name, java_function)
 
     def create_temporary_system_function(self, name: str,
-                                         function: UserDefinedFunctionWrapper):
+                                         function: Union[UserDefinedFunctionWrapper,
+                                                         AggregateFunction]):
         """
         Registers a python user defined function class as a temporary system function.
 
@@ -244,6 +246,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.12.0
         """
+        function = self._wrap_aggregate_function_if_needed(function)
         java_function = function.java_user_defined_function()
         self._j_tenv.createTemporarySystemFunction(name, java_function)
 
@@ -342,7 +345,8 @@ class TableEnvironment(object):
             .loadClass(function_class_name)
         self._j_tenv.createTemporaryFunction(path, java_function)
 
-    def create_temporary_function(self, path: str, function: UserDefinedFunctionWrapper):
+    def create_temporary_function(self, path: str, function: Union[UserDefinedFunctionWrapper,
+                                                                   AggregateFunction]):
         """
         Registers a python user defined function class as a temporary catalog function.
 
@@ -380,6 +384,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 1.12.0
         """
+        function = self._wrap_aggregate_function_if_needed(function)
         java_function = function.java_user_defined_function()
         self._j_tenv.createTemporaryFunction(path, java_function)
 
@@ -1113,12 +1118,17 @@ class TableEnvironment(object):
         """
         warnings.warn("Deprecated in 1.12. Use :func:`create_temporary_system_function` "
                       "instead.", DeprecationWarning)
+        function = self._wrap_aggregate_function_if_needed(function)
         java_function = function.java_user_defined_function()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if self._is_blink_planner and isinstance(self, BatchTableEnvironment) and \
-                self._is_table_function(java_function):
-            self._register_table_function(name, java_function)
+        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+            if self._is_table_function(java_function):
+                self._register_table_function(name, java_function)
+            elif self._is_aggregate_function(java_function):
+                self._register_aggregate_function(name, java_function)
+            else:
+                self._j_tenv.registerFunction(name, java_function)
         else:
             self._j_tenv.registerFunction(name, java_function)
 
@@ -1602,6 +1612,17 @@ class TableEnvironment(object):
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
 
+    def _wrap_aggregate_function_if_needed(self, function):
+        if isinstance(function, (AggregateFunction, UserDefinedAggregateFunctionWrapper)):
+            if not self._is_blink_planner:
+                raise Exception("Python UDAF is only supported in blink planner")
+        if isinstance(function, AggregateFunction):
+            function = udaf(function,
+                            result_type=function.get_result_type(),
+                            accumulator_type=function.get_accumulator_type(),
+                            name=str(function.__class__.__name__))
+        return function
+
 
 class StreamTableEnvironment(TableEnvironment):
 
@@ -1726,7 +1747,7 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
 
-    def from_data_stream(self, data_stream: DataStream, fields: List[str] = None) -> Table:
+    def from_data_stream(self, data_stream: DataStream, *fields: Union[str, Expression]) -> Table:
         """
         Converts the given DataStream into a Table with specified field names.
 
@@ -1748,12 +1769,21 @@ class StreamTableEnvironment(TableEnvironment):
         :param fields: The fields expressions to map original fields of the DataStream to the fields
                        of the Table
         :return: The converted Table.
+
+        .. versionadded:: 1.12.0
         """
-        if fields is not None:
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream, fields)
-        else:
-            j_table = self._j_tenv.fromDataStream(data_stream._j_data_stream)
-        return Table(j_table=j_table, t_env=self._j_tenv)
+        j_data_stream = data_stream._j_data_stream
+        if len(fields) == 0:
+            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
+        elif all(isinstance(f, Expression) for f in fields):
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, to_expression_jarray(fields)), t_env=self)
+        elif len(fields) == 1 and isinstance(fields[0], str):
+            warnings.warn(
+                "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
+                DeprecationWarning)
+            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream, fields[0]), t_env=self)
+        raise ValueError("Invalid arguments for 'fields': %r" % fields)
 
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
@@ -1767,6 +1797,8 @@ class StreamTableEnvironment(TableEnvironment):
         :param table: The Table to convert.
         :param type_info: The TypeInformation that specifies the type of the DataStream.
         :return: The converted DataStream.
+
+        .. versionadded:: 1.12.0
         """
         j_data_stream = self._j_tenv.toAppendStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
@@ -1785,6 +1817,8 @@ class StreamTableEnvironment(TableEnvironment):
         :param table: The Table to convert.
         :param type_info: The TypeInformation of the requested record type.
         :return: The converted DataStream.
+
+        .. versionadded:: 1.12.0
         """
         j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)

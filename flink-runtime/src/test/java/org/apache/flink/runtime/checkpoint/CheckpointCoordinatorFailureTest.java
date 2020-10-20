@@ -86,7 +86,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		PendingCheckpoint pendingCheckpoint = coord.getPendingCheckpoints().values().iterator().next();
 
-		assertFalse(pendingCheckpoint.isDiscarded());
+		assertFalse(pendingCheckpoint.isDisposed());
 
 		final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
@@ -121,7 +121,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		}
 
 		// make sure that the pending checkpoint has been discarded after we could not complete it
-		assertTrue(pendingCheckpoint.isDiscarded());
+		assertTrue(pendingCheckpoint.isDisposed());
 
 		// make sure that the subtask state has been discarded after we could not complete it.
 		verify(operatorSubtaskState).discardState();
@@ -141,7 +141,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		}
 
 		@Override
-		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
+		public void addCheckpoint(CompletedCheckpoint checkpoint, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 			throw new Exception("The failing completed checkpoint store failed again... :-(");
 		}
 
@@ -151,7 +151,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		}
 
 		@Override
-		public void shutdown(JobStatus jobStatus) throws Exception {
+		public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner, Runnable postCleanup) throws Exception {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 

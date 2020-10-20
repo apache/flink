@@ -170,6 +170,9 @@ Common causes for class leaks and suggested fixes:
   - *Interners*: Avoid caching objects in special structures that live beyond the lifetime of the functions/sources/sinks. Examples are Guava's
     interners, or Avro's class/object caches in the serializers.
 
+  - *JDBC*: JDBC drivers leak references outside the user code classloader. To ensure that these classes are only loaded once
+   you should either add the driver jars to Flink's `lib/` folder, or add the driver classes to the list of parent-first loaded class via [`classloader.parent-first-patterns-additional`](../ops/config.html#classloader-parent-first-patterns-additional).
+
 
 ## Resolving Dependency Conflicts with Flink using the maven-shade-plugin.
 

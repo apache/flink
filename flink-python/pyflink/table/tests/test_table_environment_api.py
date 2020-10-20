@@ -32,6 +32,7 @@ from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, Envir
     Module, ResultKind
 from pyflink.table.descriptors import FileSystem, OldCsv, Schema
 from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.expressions import col
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
@@ -409,6 +410,14 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
         t_env.execute("test_from_data_stream")
         result = source_sink_utils.results()
         expected = ['1,Hi,Hello', '2,Hello,Hi']
+        self.assert_equals(result, expected)
+
+        table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
+        t_env.register_table_sink("ExprSink",
+                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.insert_into("ExprSink", table)
+        t_env.execute("test_from_data_stream_with_expr")
+        result = source_sink_utils.results()
         self.assert_equals(result, expected)
 
     def test_to_append_stream(self):

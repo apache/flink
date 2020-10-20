@@ -58,7 +58,6 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   def setup(): Unit = {
     StreamITCase.clear
     env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setStateBackend(getStateBackend)
     env.setParallelism(1)
 

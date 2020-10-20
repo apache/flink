@@ -92,15 +92,15 @@ public class EmbeddedExecutor implements PipelineExecutor {
 				.map(JobID::fromHexString);
 
 		if (optJobId.isPresent() && submittedJobIds.contains(optJobId.get())) {
-			return getJobClientFuture(optJobId.get());
+			return getJobClientFuture(optJobId.get(), userCodeClassloader);
 		}
 
 		return submitAndGetJobClientFuture(pipeline, configuration, userCodeClassloader);
 	}
 
-	private CompletableFuture<JobClient> getJobClientFuture(final JobID jobId) {
+	private CompletableFuture<JobClient> getJobClientFuture(final JobID jobId, final ClassLoader userCodeClassloader) {
 		LOG.info("Job {} was recovered successfully.", jobId);
-		return CompletableFuture.completedFuture(jobClientCreator.getJobClient(jobId));
+		return CompletableFuture.completedFuture(jobClientCreator.getJobClient(jobId, userCodeClassloader));
 	}
 
 	private CompletableFuture<JobClient> submitAndGetJobClientFuture(final Pipeline pipeline, final Configuration configuration, final ClassLoader userCodeClassloader) throws MalformedURLException {
@@ -130,7 +130,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
 						userCodeClassloader);
 					return jobId;
 				}))
-				.thenApplyAsync(jobID -> jobClientCreator.getJobClient(actualJobId));
+				.thenApplyAsync(jobID -> jobClientCreator.getJobClient(actualJobId, userCodeClassloader));
 	}
 
 	private static CompletableFuture<JobID> submitJob(

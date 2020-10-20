@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -54,19 +55,15 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 	}
 
 	@Override
-	public final boolean addBufferConsumer(BufferConsumer bufferConsumer, int subpartitionIndex) throws IOException {
-		return addBufferConsumer(bufferConsumer, subpartitionIndex, false);
+	public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
 	}
 
 	@Override
-	public boolean addBufferConsumer(BufferConsumer bufferConsumer,	int targetChannel, boolean isPriorityEvent) throws IOException {
-		bufferConsumer.close();
-		return true;
+	public void broadcastRecord(ByteBuffer record) throws IOException {
 	}
 
 	@Override
-	public BufferBuilder getBufferBuilder(int targetChannel) throws IOException, InterruptedException {
-		throw new UnsupportedOperationException();
+	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
 	}
 
 	@Override
@@ -74,8 +71,8 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 		throw new UnsupportedOperationException();
 	}
 
-	public BufferBuilder tryGetBufferBuilder(int targetChannel) throws IOException {
-		throw new UnsupportedOperationException();
+	@Override
+	public void setMetricGroup(TaskIOMetricGroup metrics) {
 	}
 
 	@Override
@@ -92,6 +89,20 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 
 	@Override
 	public void finish() {
+	}
+
+	@Override
+	public boolean isFinished() {
+		return false;
+	}
+
+	@Override
+	public void release(Throwable cause) {
+	}
+
+	@Override
+	public boolean isReleased() {
+		return false;
 	}
 
 	@Override

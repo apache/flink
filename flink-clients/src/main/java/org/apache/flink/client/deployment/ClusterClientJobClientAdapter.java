@@ -51,9 +51,12 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, Coor
 
 	private final JobID jobID;
 
-	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID) {
+	private final ClassLoader classLoader;
+
+	public ClusterClientJobClientAdapter(final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID, final ClassLoader classLoader) {
 		this.jobID = checkNotNull(jobID);
 		this.clusterClientProvider = checkNotNull(clusterClientProvider);
+		this.classLoader = classLoader;
 	}
 
 	@Override
@@ -92,7 +95,7 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, Coor
 	}
 
 	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators(ClassLoader classLoader) {
+	public CompletableFuture<Map<String, Object>> getAccumulators() {
 		checkNotNull(classLoader);
 
 		return bridgeClientRequest(
@@ -102,8 +105,8 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, Coor
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(final ClassLoader userClassloader) {
-		checkNotNull(userClassloader);
+	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
+		checkNotNull(classLoader);
 
 		return bridgeClientRequest(
 				clusterClientProvider,
@@ -111,7 +114,7 @@ public class ClusterClientJobClientAdapter<ClusterID> implements JobClient, Coor
 					.requestJobResult(jobID)
 					.thenApply((jobResult) -> {
 						try {
-							return jobResult.toJobExecutionResult(userClassloader);
+							return jobResult.toJobExecutionResult(classLoader);
 						} catch (Throwable t) {
 							throw new CompletionException(
 									new ProgramInvocationException("Job failed", jobID, t));

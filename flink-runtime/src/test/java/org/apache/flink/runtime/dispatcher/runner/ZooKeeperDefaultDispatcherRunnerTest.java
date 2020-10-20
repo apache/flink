@@ -71,6 +71,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.is;
@@ -152,7 +153,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 				new MemoryArchivedExecutionGraphStore(),
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				null);
+				null,
+				ForkJoinPool.commonPool());
 
 			final JobGraph jobGraph = createJobGraphWithBlobs();
 

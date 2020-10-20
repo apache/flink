@@ -40,17 +40,6 @@ under the License.
 		<elasticsearch.version>5.3.3</elasticsearch.version>
 	</properties>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- Bump version to 1.25 to make it work with Jackson dependencies (2.10.1) -->
-			<dependency>
-				<groupId>org.yaml</groupId>
-				<artifactId>snakeyaml</artifactId>
-				<version>1.25</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 
 		<!-- core dependencies -->

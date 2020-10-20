@@ -61,7 +61,8 @@ public class BlackHoleSinkFactoryTest {
 				ObjectIdentifier.of("", "", ""),
 				new CatalogTableImpl(TEST_SCHEMA, properties, ""),
 				new Configuration(),
-				Thread.currentThread().getContextClassLoader());
+				Thread.currentThread().getContextClassLoader(),
+				false);
 	}
 
 	@Test

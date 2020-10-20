@@ -76,8 +76,6 @@ public class SQLClientKafkaITCase extends TestLogger {
 	@Parameterized.Parameters(name = "{index}: kafka-version:{0} kafka-sql-version:{1}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-				{"0.10.2.2", "0.10", "kafka-0.10", ".*kafka-0.10.jar"},
-				{"0.11.0.2", "0.11", "kafka-0.11", ".*kafka-0.11.jar"},
 				{"2.4.1", "universal", "kafka", ".*kafka.jar"}
 		});
 	}

@@ -37,7 +37,7 @@ import org.apache.flink.table.utils.EncodingUtils
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Test}
+import org.junit.{Assume, Before, Test}
 
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.sql.Timestamp
@@ -75,6 +75,19 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
           |  'connector' = 'values'
           |)
           |""".stripMargin)
+
+      util.addTable(
+        """
+          |CREATE TABLE LookupTableWithComputedColumn (
+          |  `id` INT,
+          |  `name` STRING,
+          |  `age` INT,
+          |  `nominal_age` as age + 1
+          |) WITH (
+          |  'connector' = 'values',
+          |  'bounded' = 'true'
+          |)
+          |""".stripMargin)
     }
   }
 
@@ -85,14 +98,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "SELECT * FROM MyTable AS T JOIN LookupTable T.proctime AS D ON T.a = D.id",
       "SQL parse failed",
       classOf[SqlParserException])
-
-    // can't as of non-proctime field
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN LookupTable " +
-        "FOR SYSTEM_TIME AS OF T.rowtime AS D ON T.a = D.id",
-      "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' " +
-        "left table's proctime field",
-      classOf[TableException])
 
     // can't query a dim table directly
     expectExceptionThrown(
@@ -123,7 +128,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
         "FOR SYSTEM_TIME AS OF PROCTIME() AS D ON T.a = D.id",
       "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' " +
-        "left table's proctime field, doesn't support 'PROCTIME()'",
+        "left table's time attribute field, doesn't support 'PROCTIME()'",
       classOf[TableException]
     )
   }
@@ -246,16 +251,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
     util.verifyPlan("SELECT * FROM MyTable AS T JOIN LookupTable "
       + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
-  }
-
-  @Test
-  def testJoinInvalidNonTemporalTable(): Unit = {
-    // can't follow a period specification
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T JOIN nonTemporal " +
-        "FOR SYSTEM_TIME AS OF T.rowtime AS D ON T.a = D.id",
-      "Temporal table join only support join on a LookupTableSource",
-      classOf[TableException])
   }
 
   @Test
@@ -426,6 +421,36 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE CONCAT('Hello-', D.name) = 'Hello-Jark'
       """.stripMargin
 
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumn(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id
+        |""".stripMargin
+    util.verifyPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
+    //Computed column do not support in legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id and D.nominal_age > 12
+        |""".stripMargin
     util.verifyPlan(sql)
   }
 

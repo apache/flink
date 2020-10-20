@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.util.Preconditions;
 
@@ -38,6 +39,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
 
 	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+
+	private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
 	private TestingJobManagerRunner(JobID jobId,
 			boolean blockingTermination,
@@ -76,7 +79,12 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 			terminationFuture.complete(null);
 		}
 
+		closeAsyncCalledLatch.trigger();
 		return terminationFuture;
+	}
+
+	public OneShotLatch getCloseAsyncCalledLatch() {
+		return closeAsyncCalledLatch;
 	}
 
 	public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {

@@ -98,7 +98,7 @@ public class JarUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testUploadJar() throws Exception {
-		final Path uploadedFile = Files.createFile(jarDir.resolve("Kafka010Example.jar"));
+		final Path uploadedFile = Files.createFile(jarDir.resolve("FooBazzleExample.jar"));
 		final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request = createRequest(uploadedFile);
 
 		final JarUploadResponseBody jarUploadResponseBody = jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
@@ -111,7 +111,7 @@ public class JarUploadHandlerTest extends TestLogger {
 
 	@Test
 	public void testFailedUpload() throws Exception {
-		final Path uploadedFile = jarDir.resolve("Kafka010Example.jar");
+		final Path uploadedFile = jarDir.resolve("FooBazzleExample.jar");
 		final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request = createRequest(uploadedFile);
 
 		try {

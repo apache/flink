@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -64,6 +65,10 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 		this.source = checkNotNull(source);
 		this.watermarkStrategy = checkNotNull(watermarkStrategy);
 		this.numCoordinatorWorkerThread = numCoordinatorWorkerThread;
+	}
+
+	public Boundedness getBoundedness() {
+		return source.getBoundedness();
 	}
 
 	@Override

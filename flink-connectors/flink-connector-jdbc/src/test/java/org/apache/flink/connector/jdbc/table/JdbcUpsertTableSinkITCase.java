@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connector.jdbc.JdbcTestFixture;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
@@ -131,7 +130,6 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 	public void testReal() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().enableObjectReuse();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 		tEnv.executeSql(
@@ -151,7 +149,6 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 	public void testUpsert() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().enableObjectReuse();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 		Table t = tEnv.fromDataStream(get4TupleDataStream(env).assignTimestampsAndWatermarks(

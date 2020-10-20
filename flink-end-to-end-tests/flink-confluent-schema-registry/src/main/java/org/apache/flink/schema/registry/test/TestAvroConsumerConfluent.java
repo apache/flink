@@ -25,8 +25,8 @@ import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSer
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 
 import example.avro.User;
 import org.apache.avro.specific.SpecificRecordBase;
@@ -61,7 +61,7 @@ public class TestAvroConsumerConfluent {
 
 		DataStreamSource<User> input = env
 			.addSource(
-				new FlinkKafkaConsumer010<>(
+				new FlinkKafkaConsumer<>(
 					parameterTool.getRequired("input-topic"),
 					ConfluentRegistryAvroDeserializationSchema.forSpecific(User.class, schemaRegistryUrl),
 					config).setStartFromEarliest());
@@ -69,18 +69,18 @@ public class TestAvroConsumerConfluent {
 		SingleOutputStreamOperator<String> mapToString = input
 			.map((MapFunction<User, String>) SpecificRecordBase::toString);
 
-		FlinkKafkaProducer010<String> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010<>(
+		FlinkKafkaProducer<String> stringFlinkKafkaProducer = new FlinkKafkaProducer<>(
 			parameterTool.getRequired("output-string-topic"),
 			new SimpleStringSchema(),
 			config);
-		mapToString.addSink(stringFlinkKafkaProducer010);
+		mapToString.addSink(stringFlinkKafkaProducer);
 
-		FlinkKafkaProducer010<User> avroFlinkKafkaProducer010 = new FlinkKafkaProducer010<>(
+		FlinkKafkaProducer<User> avroFlinkKafkaProducer = new FlinkKafkaProducer<>(
 				parameterTool.getRequired("output-avro-topic"),
 				ConfluentRegistryAvroSerializationSchema.forSpecific(User.class, parameterTool.getRequired("output-subject"), schemaRegistryUrl),
 				config);
-		input.addSink(avroFlinkKafkaProducer010);
+		input.addSink(avroFlinkKafkaProducer);
 
-		env.execute("Kafka 0.10 Confluent Schema Registry AVRO Example");
+		env.execute("Kafka Confluent Schema Registry AVRO Example");
 	}
 }

@@ -24,6 +24,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsComputedColumnP
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.types.RowKind;
 
@@ -51,6 +52,7 @@ import java.io.Serializable;
  *     <li>{@link SupportsFilterPushDown}
  *     <li>{@link SupportsProjectionPushDown}
  *     <li>{@link SupportsPartitionPushDown}
+ *     <li>{@link SupportsReadingMetadata}
  * </ul>
  *
  * <p>In the last step, the planner will call {@link #getScanRuntimeProvider(ScanContext)} for obtaining a

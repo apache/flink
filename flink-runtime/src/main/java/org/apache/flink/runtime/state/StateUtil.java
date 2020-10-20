@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.util.LambdaUtil;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +42,7 @@ public class StateUtil {
 	}
 
 	/**
-	 * Returns the size of a state object
+	 * Returns the size of a state object.
 	 *
 	 * @param handle The handle to the retrieved state
 	 */
@@ -87,5 +89,37 @@ public class StateUtil {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Creates an {@link RuntimeException} that signals that an operation did not get the type of
+	 * {@link StateObject} that was expected. This can mostly happen when a different {@link
+	 * StateBackend} from the one that was used for taking a checkpoint/savepoint is used when
+	 * restoring.
+	 */
+	@SuppressWarnings("unchecked")
+	public static RuntimeException unexpectedStateHandleException(
+			Class<? extends StateObject> expectedStateHandleClass,
+			Class<? extends StateObject> actualStateHandleClass) {
+		return unexpectedStateHandleException(
+				new Class[]{expectedStateHandleClass},
+				actualStateHandleClass);
+	}
+
+	/**
+	 * Creates a {@link RuntimeException} that signals that an operation did not get the type of
+	 * {@link StateObject} that was expected. This can mostly happen when a different {@link
+	 * StateBackend} from the one that was used for taking a checkpoint/savepoint is used when
+	 * restoring.
+	 */
+	public static RuntimeException unexpectedStateHandleException(
+			Class<? extends StateObject>[] expectedStateHandleClasses,
+			Class<? extends StateObject> actualStateHandleClass) {
+
+		return new IllegalStateException("Unexpected state handle type, expected one of: " +
+				Joiner.on(", ").join(expectedStateHandleClasses)
+				+ ", but found: " + actualStateHandleClass + ". "
+				+ "This can mostly happen when a different StateBackend from the one "
+				+ "that was used for taking a checkpoint/savepoint is used when restoring.");
 	}
 }

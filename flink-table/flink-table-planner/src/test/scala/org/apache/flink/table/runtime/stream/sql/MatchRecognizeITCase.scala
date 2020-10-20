@@ -42,6 +42,7 @@ import scala.collection.mutable
 class MatchRecognizeITCase extends StreamingWithStateTestBase {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
   env.setParallelism(1)
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
@@ -139,6 +140,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   @Test
   def testCodeSplitsAreProperlyGenerated(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
@@ -518,6 +520,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   @Test
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
@@ -580,6 +583,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   @Test
   def testAggregatesWithNullInputs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
@@ -671,6 +675,7 @@ class MatchRecognizeITCase extends StreamingWithStateTestBase {
   @Test
   def testUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)

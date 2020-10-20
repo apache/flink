@@ -23,19 +23,10 @@ import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.entrypoint.ClusterInformation;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerImpl;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
-import org.apache.flink.runtime.resourcemanager.active.LegacyActiveResourceManagerFactory;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
+import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFactory;
+import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.util.ConfigurationException;
 
 import org.slf4j.Logger;
@@ -45,9 +36,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * {@link ResourceManagerFactory} which creates a {@link MesosResourceManager}.
+ * {@link ActiveResourceManagerFactory} implementation which creates {@link ActiveResourceManager} with {@link MesosResourceManagerDriver}.
  */
-public class MesosResourceManagerFactory extends LegacyActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
+public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MesosResourceManagerFactory.class);
 
@@ -63,38 +54,18 @@ public class MesosResourceManagerFactory extends LegacyActiveResourceManagerFact
 	}
 
 	@Override
-	public ResourceManager<RegisteredMesosWorkerNode> createResourceManager(
-			Configuration configuration,
-			ResourceID resourceId,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			FatalErrorHandler fatalErrorHandler,
-			ClusterInformation clusterInformation,
-			@Nullable String webInterfaceUrl,
-			ResourceManagerMetricGroup resourceManagerMetricGroup,
-			ResourceManagerRuntimeServices resourceManagerRuntimeServices) throws Exception {
-
+	protected ResourceManagerDriver<RegisteredMesosWorkerNode> createResourceManagerDriver(
+			Configuration configuration, @Nullable String webInterfaceUrl, String rpcAddress) throws Exception {
 		final MesosTaskManagerParameters taskManagerParameters = MesosUtils.createTmParameters(configuration, LOG);
 		final ContainerSpecification taskManagerContainerSpec = MesosUtils.createContainerSpec(configuration);
 
-		return new MesosResourceManager(
-			rpcService,
-			resourceId,
-			highAvailabilityServices,
-			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManager(),
-			ResourceManagerPartitionTrackerImpl::new,
-			resourceManagerRuntimeServices.getJobLeaderIdService(),
-			clusterInformation,
-			fatalErrorHandler,
-			configuration,
-			mesosServices,
-			schedulerConfiguration,
-			taskManagerParameters,
-			taskManagerContainerSpec,
-			webInterfaceUrl,
-			resourceManagerMetricGroup);
+		return new MesosResourceManagerDriver(
+				configuration,
+				mesosServices,
+				schedulerConfiguration,
+				taskManagerParameters,
+				taskManagerContainerSpec,
+				webInterfaceUrl);
 	}
 
 	@Override

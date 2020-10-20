@@ -24,8 +24,8 @@ import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFun
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalJoin
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalJoinConditionCall, makeRowTimeTemporalJoinConditionCall}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLegacyTemporalJoin
+import org.apache.flink.table.planner.plan.utils.LegacyTemporalJoinUtil.{makeProcTimeTemporalJoinConditionCall, makeRowTimeTemporalJoinConditionCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
 import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
@@ -43,7 +43,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
   * The initial temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) is
   * a correlate. Rewrite it into a Join with a special temporal join condition wraps time
   * attribute and primary key information. The join will be translated into
-  * [[StreamExecTemporalJoin]] in physical.
+  * [[StreamExecLegacyTemporalJoin]] in physical.
   */
 class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   extends RelOptRule(
@@ -98,7 +98,7 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
 
         val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema(leftNode))
         val temporalTable: RelNode = relBuilder.queryOperation(underlyingHistoryTable).build()
-        // expand QueryOperationCatalogViewTable in TableScan
+        // expand QueryOperationCatalogViewTable in Table Scan
         val shuttle = new ExpandTableScanShuttle
         val rightNode = temporalTable.accept(shuttle)
 

@@ -67,6 +67,7 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimplePatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "barfoo", 1.0),
@@ -124,6 +125,7 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimpleKeyedPatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(2);
 
 		DataStream<Event> input = env.fromElements(
@@ -196,7 +198,6 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimplePatternEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
@@ -275,7 +276,6 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimpleKeyedPatternEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(2);
 
 		// (Event, timestamp)
@@ -365,6 +365,8 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimplePatternWithSingleState() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
 		DataStream<Tuple2<Integer, Integer>> input = env.fromElements(
 			new Tuple2<>(0, 1),
 			new Tuple2<>(0, 2));
@@ -397,6 +399,7 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testProcessingTimeWithWindow() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(1);
 
 		DataStream<Integer> input = env.fromElements(1, 2);
@@ -421,7 +424,6 @@ public class CEPITCase extends AbstractTestBase {
 	public void testTimeoutHandling() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
@@ -515,6 +517,7 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimpleOrFilterPatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "start", 1.0),
@@ -593,7 +596,6 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimplePatternEventTimeWithComparator() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
@@ -689,6 +691,8 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testSimpleAfterMatchSkip() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
 		DataStream<Tuple2<Integer, String>> input = env.fromElements(
 			new Tuple2<>(1, "a"),
 			new Tuple2<>(2, "a"),
@@ -727,6 +731,7 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testRichPatternFlatSelectFunction() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "barfoo", 1.0),
@@ -802,6 +807,7 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testRichPatternSelectFunction() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(2);
 
 		DataStream<Event> input = env.fromElements(
@@ -890,6 +896,8 @@ public class CEPITCase extends AbstractTestBase {
 	@Test
 	public void testFlatSelectSerializationWithAnonymousClass() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
 		DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 		OutputTag<Integer> outputTag = new OutputTag<Integer>("AAA") {};
 		CEP.pattern(elements, Pattern.begin("A")).flatSelect(

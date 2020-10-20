@@ -34,8 +34,6 @@ import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
 
-import java.util.concurrent.Executor;
-
 /**
  * {@link MesosServices} implementation for the ZooKeeper high availability based mode.
  */
@@ -50,7 +48,7 @@ public class ZooKeeperMesosServices extends AbstractMesosServices {
 	}
 
 	@Override
-	public MesosWorkerStore createMesosWorkerStore(Configuration configuration, Executor executor) throws Exception {
+	public MesosWorkerStore createMesosWorkerStore(Configuration configuration) throws Exception {
 		RetrievableStateStorageHelper<MesosWorkerStore.Worker> stateStorageHelper =
 			ZooKeeperUtils.createFileSystemStateStorage(configuration, "mesosWorkerStore");
 

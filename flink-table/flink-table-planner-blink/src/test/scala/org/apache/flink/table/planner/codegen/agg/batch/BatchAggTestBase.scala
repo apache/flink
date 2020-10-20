@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.OperatorID
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
@@ -30,7 +31,6 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.function.FunctionWithException
 import org.junit.Assert
-
 import java.util
 
 import scala.collection.JavaConverters._
@@ -74,7 +74,7 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
     val streamConfig = testHarness.getStreamConfig
     streamConfig.setStreamOperatorFactory(args._1)
     streamConfig.setOperatorID(new OperatorID)
-    streamConfig.setManagedMemoryFraction(0.99)
+    streamConfig.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, .99)
 
     testHarness.invoke()
     testHarness.waitForTaskRunning()

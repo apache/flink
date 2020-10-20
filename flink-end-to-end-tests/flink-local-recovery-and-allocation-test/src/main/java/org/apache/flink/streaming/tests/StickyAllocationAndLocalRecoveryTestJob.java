@@ -314,6 +314,8 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 
 			StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
 			String allocationID = runtimeContext.getAllocationIDAsString();
+			// Pattern of the name: "Flat Map -> Sink: Unnamed (4/4)#0". Remove "#0" part:
+			String taskNameWithSubtasks = runtimeContext.getTaskNameWithSubtasks().split("#")[0];
 
 			final int thisJvmPid = getJvmPid();
 			final Set<Integer> killedJvmPids = new HashSet<>();
@@ -321,7 +323,6 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 			// here we check if the sticky scheduling worked as expected
 			if (functionInitializationContext.isRestored()) {
 				Iterable<MapperSchedulingAndFailureInfo> iterable = schedulingAndFailureState.get();
-				String taskNameWithSubtasks = runtimeContext.getTaskNameWithSubtasks();
 
 				MapperSchedulingAndFailureInfo infoForThisTask = null;
 				List<MapperSchedulingAndFailureInfo> completeInfo = new ArrayList<>();
@@ -347,7 +348,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 						"Sticky allocation test failed: Subtask %s in attempt %d was rescheduled from allocation %s " +
 							"on JVM with PID %d to unexpected allocation %s on JVM with PID %d.\n" +
 							"Complete information from before the crash: %s.",
-						runtimeContext.getTaskNameWithSubtasks(),
+						taskNameWithSubtasks,
 						runtimeContext.getAttemptNumber(),
 						infoForThisTask.allocationId,
 						infoForThisTask.jvmPid,
@@ -365,7 +366,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 				failingTask,
 				failingTask && killTaskOnFailure,
 				thisJvmPid,
-				runtimeContext.getTaskNameWithSubtasks(),
+				taskNameWithSubtasks,
 				allocationID);
 
 			schedulingAndFailureState.clear();

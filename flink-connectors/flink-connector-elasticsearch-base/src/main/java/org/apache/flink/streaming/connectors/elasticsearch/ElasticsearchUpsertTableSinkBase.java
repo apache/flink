@@ -116,7 +116,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			RequestFactory requestFactory) {
 
 		this.isAppendOnly = isAppendOnly;
-		this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
+		this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
 		this.hosts = Preconditions.checkNotNull(hosts);
 		this.index = Preconditions.checkNotNull(index);
 		this.keyDelimiter = Preconditions.checkNotNull(keyDelimiter);

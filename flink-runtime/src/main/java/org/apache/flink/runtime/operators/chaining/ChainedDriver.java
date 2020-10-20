@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
 
@@ -63,12 +64,12 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
-			AbstractInvokable parent, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
+			AbstractInvokable parent, UserCodeClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
 			Map<String, Accumulator<?,?>> accumulatorMap)
 	{
 		this.config = config;
 		this.taskName = taskName;
-		this.userCodeClassLoader = userCodeClassLoader;
+		this.userCodeClassLoader = userCodeClassLoader.asClassLoader();
 		this.metrics = parent.getEnvironment().getMetricGroup().getOrAddOperator(taskName);
 		this.numRecordsIn = this.metrics.getIOMetricGroup().getNumRecordsInCounter();
 		this.numRecordsOut = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();

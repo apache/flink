@@ -21,6 +21,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexNode}
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.utils.TableSqlFunction
@@ -100,7 +101,7 @@ class DataStreamPythonCorrelate(
       pythonUdtfInputOffsets,
       joinType)
 
-    inputDataStream
+    val ret = inputDataStream
       .transform(
         correlateOpName(
           inputSchema.relDataType,
@@ -112,5 +113,10 @@ class DataStreamPythonCorrelate(
         pythonOperator)
       // keep parallelism to ensure order of accumulate and retract messages
       .setParallelism(inputDataStream.getParallelism)
+
+    if (isPythonWorkerUsingManagedMemory(planner.getConfig.getConfiguration)) {
+      ret.getTransformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
+    }
+    ret
   }
 }

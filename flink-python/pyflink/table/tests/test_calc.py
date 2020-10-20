@@ -20,7 +20,8 @@ import array
 import datetime
 from decimal import Decimal
 
-from pyflink.table import DataTypes, Row, BatchTableEnvironment, EnvironmentSettings
+from pyflink.common import Row
+from pyflink.table import DataTypes, BatchTableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import row
 from pyflink.table.tests.test_types import ExamplePoint, PythonOnlyPoint, ExamplePointUDT, \
     PythonOnlyUDT

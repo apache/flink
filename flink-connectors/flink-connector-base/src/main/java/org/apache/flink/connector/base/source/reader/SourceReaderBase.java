@@ -24,12 +24,11 @@ import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.base.source.reader.fetcher.SplitFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 import org.apache.flink.core.io.InputStatus;
 
 import org.slf4j.Logger;
@@ -43,7 +42,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -62,11 +60,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		implements SourceReader<T, SplitT> {
 	private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBase.class);
 
-	/** A future notifier to notify when this reader requires attention. */
-	private final FutureNotifier futureNotifier;
-
 	/** A queue to buffer the elements fetched by the fetcher thread. */
-	private final BlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
+	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
 
 	/** The state of the splits. */
 	private final Map<String, SplitContext<T, SplitStateT>> splitStates;
@@ -95,13 +90,11 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	private boolean noMoreSplitsAssignment;
 
 	public SourceReaderBase(
-			FutureNotifier futureNotifier,
 			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
 			SplitFetcherManager<E, SplitT> splitFetcherManager,
 			RecordEmitter<E, T, SplitStateT> recordEmitter,
 			Configuration config,
 			SourceReaderContext context) {
-		this.futureNotifier = futureNotifier;
 		this.elementsQueue = elementsQueue;
 		this.splitFetcherManager = splitFetcherManager;
 		this.recordEmitter = recordEmitter;
@@ -117,12 +110,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	@Override
 	public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
-		splitFetcherManager.checkErrors();
-
 		// make sure we have a fetch we are working on, or move to the next
-		final RecordsWithSplitIds<E> recordsWithSplitId = getCurrentOrNewFetch(output);
+		RecordsWithSplitIds<E> recordsWithSplitId = this.currentFetch;
 		if (recordsWithSplitId == null) {
-			return trace(finishedOrAvailableLater());
+			recordsWithSplitId = getNextFetch(output);
+			if (recordsWithSplitId == null) {
+				return trace(finishedOrAvailableLater());
+			}
 		}
 
 		// we need to loop here, because we may have to go across splits
@@ -133,10 +127,19 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 				// emit the record.
 				recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
 				LOG.trace("Emitted record: {}", record);
+
+				// We always emit MORE_AVAILABLE here, even though we do not strictly know whether
+				// more is available. If nothing more is available, the next invocation will find
+				// this out and return the correct status.
+				// That means we emit the occasional 'false positive' for availability, but this
+				// saves us doing checks for every record. Ultimately, this is cheaper.
 				return trace(InputStatus.MORE_AVAILABLE);
 			}
 			else if (!moveToNextSplit(recordsWithSplitId, output)) {
-				return trace(finishedOrAvailableLater());
+				// The fetch is done and we just discovered that and have not emitted anything, yet.
+				// We need to move to the next fetch. As a shortcut, we call pollNext() here again,
+				// rather than emitting nothing and waiting for the caller to call us again.
+				return pollNext(output);
 			}
 			// else fall through the loop
 		}
@@ -148,13 +151,11 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	}
 
 	@Nullable
-	private RecordsWithSplitIds<E> getCurrentOrNewFetch(final ReaderOutput<T> output) {
-		RecordsWithSplitIds<E> recordsWithSplitId = this.currentFetch;
-		if (recordsWithSplitId != null) {
-			return recordsWithSplitId;
-		}
+	private RecordsWithSplitIds<E> getNextFetch(final ReaderOutput<T> output) {
+		splitFetcherManager.checkErrors();
 
-		recordsWithSplitId = elementsQueue.poll();
+		LOG.trace("Getting next source data batch from queue");
+		final RecordsWithSplitIds<E> recordsWithSplitId = elementsQueue.poll();
 		if (recordsWithSplitId == null || !moveToNextSplit(recordsWithSplitId, output)) {
 			// No element available, set to available later if needed.
 			return null;
@@ -171,6 +172,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 		final Set<String> finishedSplits = fetch.finishedSplits();
 		if (!finishedSplits.isEmpty()) {
+			LOG.info("Finished reading split(s) {}", finishedSplits);
 			for (String finishedSplitId : finishedSplits) {
 				splitStates.remove(finishedSplitId);
 				output.releaseOutputForSplit(finishedSplitId);
@@ -184,6 +186,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	private boolean moveToNextSplit(RecordsWithSplitIds<E> recordsWithSplitIds, ReaderOutput<T> output) {
 		final String nextSplitId = recordsWithSplitIds.nextSplit();
 		if (nextSplitId == null) {
+			LOG.trace("Current fetch is finished.");
 			finishCurrentFetch(recordsWithSplitIds, output);
 			return false;
 		}
@@ -191,23 +194,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 		currentSplitContext = splitStates.get(nextSplitId);
 		checkState(currentSplitContext != null, "Have records for a split that was not registered");
 		currentSplitOutput = currentSplitContext.getOrCreateSplitOutput(output);
+		LOG.trace("Emitting records from fetch for split {}", nextSplitId);
 		return true;
 	}
 
 	@Override
 	public CompletableFuture<Void> isAvailable() {
-		// The order matters here. We first get the future. After this point, if the queue
-		// is empty or there is no error in the split fetcher manager, we can ensure that
-		// the future will be completed by the fetcher once it put an element into the element queue,
-		// or it will be completed when an error occurs.
-		CompletableFuture<Void> future = futureNotifier.future();
-		splitFetcherManager.checkErrors();
-		if (!elementsQueue.isEmpty()) {
-			// The fetcher got the new elements after the last poll, or their is a finished split.
-			// Simply complete the future and return;
-			futureNotifier.notifyComplete();
-		}
-		return future;
+		return currentFetch != null ? FutureCompletingBlockingQueue.AVAILABLE : elementsQueue.getAvailabilityFuture();
 	}
 
 	@Override
@@ -219,7 +212,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
 	@Override
 	public void addSplits(List<SplitT> splits) {
-		LOG.trace("Adding splits {}", splits);
+		LOG.info("Adding split(s) to reader: {}", splits);
 		// Initialize the state for each split.
 		splits.forEach(s -> splitStates.put(s.splitId(), new SplitContext<>(s.splitId(), initializedState(s))));
 		// Hand over the splits to the split fetcher to start fetch.
@@ -230,8 +223,9 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	public void handleSourceEvents(SourceEvent sourceEvent) {
 		LOG.trace("Handling source event: {}", sourceEvent);
 		if (sourceEvent instanceof NoMoreSplitsEvent) {
+			LOG.info("Reader received NoMoreSplits event.");
 			noMoreSplitsAssignment = true;
-			futureNotifier.notifyComplete();
+			elementsQueue.notifyAvailable();
 		}
 	}
 
@@ -267,12 +261,14 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 	// ------------------ private helper methods ---------------------
 
 	private InputStatus finishedOrAvailableLater() {
-		boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
-		boolean allElementsEmitted = elementsQueue.isEmpty();
-		if (noMoreSplitsAssignment && allFetchersHaveShutdown && allElementsEmitted) {
+		final boolean allFetchersHaveShutdown = splitFetcherManager.maybeShutdownFinishedFetchers();
+		if (!(noMoreSplitsAssignment && allFetchersHaveShutdown)) {
+			return InputStatus.NOTHING_AVAILABLE;
+		}
+		if (elementsQueue.isEmpty()) {
 			return InputStatus.END_OF_INPUT;
 		} else {
-			return InputStatus.NOTHING_AVAILABLE;
+			throw new IllegalStateException("Called 'finishedOrAvailableLater()' with shut-down fetchers but non-empty queue");
 		}
 	}
 

@@ -23,6 +23,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
+import java.time.Duration
+
 import org.junit.{Before, Test}
 
 class DeduplicateTest extends TableTestBase {
@@ -70,7 +72,7 @@ class DeduplicateTest extends TableTestBase {
   def testLastRowWithWindowOnRowtime(): Unit = {
     // lastRow on rowtime followed by group window is not supported now.
     util.tableEnv.getConfig.getConfiguration
-      .setString(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "500 ms")
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(500))
     util.addTable(
       """
         |CREATE TABLE T (

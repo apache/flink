@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -100,15 +101,16 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
-		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
+		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
-		Assert.assertEquals(false, stateContext.isRestored());
+		Assert.assertFalse("Expected the context to NOT be restored", stateContext.isRestored());
 		Assert.assertNotNull(operatorStateBackend);
 		Assert.assertNotNull(keyedStateBackend);
 		Assert.assertNotNull(timeServiceManager);
@@ -211,15 +213,16 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry,
-			new UnregisteredMetricsGroup());
+			new UnregisteredMetricsGroup(),
+			1.0);
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
-		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
+		CheckpointableKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
 		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
-		Assert.assertEquals(true, stateContext.isRestored());
+		Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
 
 		Assert.assertNotNull(operatorStateBackend);
 		Assert.assertNotNull(keyedStateBackend);
@@ -282,16 +285,19 @@ public class StreamTaskStateInitializerImplTest {
 		} else {
 			return new StreamTaskStateInitializerImpl(
 				dummyEnvironment,
-				stateBackend) {
-				@Override
-				protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
-					AbstractKeyedStateBackend<K> keyedStatedBackend,
-					KeyContext keyContext,
-					ProcessingTimeService processingTimeService,
-					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
-					return null;
-				}
-			};
+				stateBackend,
+				TtlTimeProvider.DEFAULT,
+				new InternalTimeServiceManager.Provider() {
+					@Override
+					public <K> InternalTimeServiceManager<K> create(
+							CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+							ClassLoader userClassloader,
+							KeyContext keyContext,
+							ProcessingTimeService processingTimeService,
+							Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+						return null;
+					}
+				});
 		}
 	}
 }

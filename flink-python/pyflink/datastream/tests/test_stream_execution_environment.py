@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
+import decimal
 import glob
 import json
 import os
@@ -43,6 +45,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
         self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
         self.test_sink = DataStreamTestSinkFunction()
 
     def test_get_config(self):
@@ -178,13 +181,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         default_time_characteristic = self.env.get_stream_time_characteristic()
 
-        self.assertEqual(default_time_characteristic, TimeCharacteristic.ProcessingTime)
+        self.assertEqual(default_time_characteristic, TimeCharacteristic.EventTime)
 
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
 
         time_characteristic = self.env.get_stream_time_characteristic()
 
-        self.assertEqual(time_characteristic, TimeCharacteristic.EventTime)
+        self.assertEqual(time_characteristic, TimeCharacteristic.ProcessingTime)
 
     @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):
@@ -237,15 +240,52 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(expected, results)
 
     def test_from_collection_with_data_types(self):
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
-                                      type_info=Types.ROW([Types.INT(),
-                                                           Types.STRING(),
-                                                           Types.STRING()]))
+        # verify from_collection for the collection with single object.
+        ds = self.env.from_collection(['Hi', 'Hello'], type_info=Types.STRING())
         ds.add_sink(self.test_sink)
-        self.env.execute("test from collection")
+        self.env.execute("test from collection with single object")
+        results = self.test_sink.get_results(False)
+        expected = ['Hello', 'Hi']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
+        # verify from_collection for the collection with multiple objects like tuple.
+        ds = self.env.from_collection([(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                                        bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
+                                        datetime.time(hour=12, minute=0, second=0,
+                                                      microsecond=123000),
+                                        datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
+                                        decimal.Decimal('1000000000000000000.05'),
+                                        decimal.Decimal('1000000000000000000.0599999999999'
+                                                        '9999899999999999')),
+                                       (2, None, 2, True, 43878, 9147483648, 9.87, 2.98936,
+                                        bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
+                                        datetime.time(hour=11, minute=2, second=2,
+                                                      microsecond=234500),
+                                        datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
+                                        decimal.Decimal('2000000000000000000.74'),
+                                        decimal.Decimal('2000000000000000000.061111111111111'
+                                                        '11111111111111'))],
+                                      type_info=Types.ROW(
+                                          [Types.LONG(), Types.LONG(), Types.SHORT(),
+                                           Types.BOOLEAN(), Types.SHORT(), Types.INT(),
+                                           Types.FLOAT(), Types.DOUBLE(), Types.BYTE(),
+                                           Types.STRING(), Types.SQL_DATE(), Types.SQL_TIME(),
+                                           Types.SQL_TIMESTAMP(),
+                                           Types.BASIC_ARRAY(Types.LONG()), Types.BIG_DEC(),
+                                           Types.BIG_DEC()]))
+        ds.add_sink(self.test_sink)
+        self.env.execute("test from collection with tuple object")
         results = self.test_sink.get_results(False)
         # if user specifies data types of input data, the collected result should be in row format.
-        expected = ['1,Hi,Hello', '2,Hello,Hi']
+        expected = [
+            '1,null,1,true,32767,-2147483648,1.23,1.98932,null,pyflink,2014-09-13,12:00:00,'
+            '2018-03-11 03:00:00.123,[1, 2, 3],1000000000000000000.05,'
+            '1000000000000000000.05999999999999999899999999999',
+            '2,null,2,true,-21658,557549056,9.87,2.98936,null,pyflink,2015-10-14,11:02:02,'
+            '2020-04-15 08:02:06.235,[2, 4, 6],2000000000000000000.74,'
+            '2000000000000000000.06111111111111111111111111111']
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)

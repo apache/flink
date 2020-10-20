@@ -128,12 +128,12 @@ public abstract class OrcSplitReader<T, BATCH> implements Closeable {
 	private boolean ensureBatch() throws IOException {
 
 		if (nextRow >= rowsInBatch) {
-			// No more rows available in the Rows array.
-			nextRow = 0;
 			// Try to read the next batch if rows from the ORC file.
 			boolean moreRows = shim.nextBatch(orcRowsReader, rowBatchWrapper.getBatch());
 
 			if (moreRows) {
+				// No more rows available in the Rows array.
+				nextRow = 0;
 				// Load the data into the Rows array.
 				rowsInBatch = fillRows();
 			}

@@ -50,6 +50,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -62,6 +64,7 @@ import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -419,6 +422,37 @@ public class HiveTableUtil {
 		if (tableIsTransactional != null && tableIsTransactional.equalsIgnoreCase("true")) {
 			throw new FlinkHiveException(String.format("Reading or writing ACID table %s is not supported.", tablePath));
 		}
+	}
+
+	/**
+	 * Returns a new Hadoop Configuration object using the path to the hadoop conf configured.
+	 *
+	 * @param hadoopConfDir Hadoop conf directory path.
+	 * @return A Hadoop configuration instance.
+	 */
+	public static Configuration getHadoopConfiguration(String hadoopConfDir) {
+		if (new File(hadoopConfDir).exists()) {
+			Configuration hadoopConfiguration = new Configuration();
+			File coreSite = new File(hadoopConfDir, "core-site.xml");
+			if (coreSite.exists()) {
+				hadoopConfiguration.addResource(new Path(coreSite.getAbsolutePath()));
+			}
+			File hdfsSite = new File(hadoopConfDir, "hdfs-site.xml");
+			if (hdfsSite.exists()) {
+				hadoopConfiguration.addResource(new Path(hdfsSite.getAbsolutePath()));
+			}
+			File yarnSite = new File(hadoopConfDir, "yarn-site.xml");
+			if (yarnSite.exists()) {
+				hadoopConfiguration.addResource(new Path(yarnSite.getAbsolutePath()));
+			}
+			// Add mapred-site.xml. We need to read configurations like compression codec.
+			File mapredSite = new File(hadoopConfDir, "mapred-site.xml");
+			if (mapredSite.exists()) {
+				hadoopConfiguration.addResource(new Path(mapredSite.getAbsolutePath()));
+			}
+			return hadoopConfiguration;
+		}
+		return null;
 	}
 
 	private static class ExpressionExtractor implements ExpressionVisitor<String> {

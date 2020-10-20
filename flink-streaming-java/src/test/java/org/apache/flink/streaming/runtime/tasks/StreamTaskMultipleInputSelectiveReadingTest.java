@@ -157,7 +157,7 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 			testHarness.endInput();
 
 			if (!autoProcess) {
-				testHarness.process();
+				testHarness.processAll();
 			}
 			testHarness.waitForTaskCompletion();
 
@@ -182,6 +182,8 @@ public class StreamTaskMultipleInputSelectiveReadingTest {
 					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
 					.setupOutputForSingletonOperatorChain(new TestInputStarvationMultipleInputOperatorFactory())
 					.build()) {
+
+			testHarness.processAll(); // request partitions
 
 			Queue<StreamRecord> expectedOutput = new ArrayDeque<>();
 

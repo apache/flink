@@ -75,7 +75,8 @@ class SetOperatorsTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(t),
-      term("select", "IN(b, 1972-02-22 07:12:00.333:TIMESTAMP(3)) AS b2")
+      term("select",
+        "SEARCH(b, Sarg[1972-02-22 07:12:00.333:TIMESTAMP(3)]:TIMESTAMP(3)) AS b2")
     )
 
     util.verifyTable(in, expected)
@@ -230,20 +231,16 @@ class SetOperatorsTest extends TableTestBase {
                  .unionAll(right.select('a, 'b, 'c))
                  .select('b, 'c)
 
-    val expected = binaryNode(
-      "DataSetUnion",
-      unaryNode(
-        "DataSetCalc",
+    val expected = unaryNode(
+      "DataSetCalc",
+      binaryNode(
+        "DataSetUnion",
         batchTableNode(left),
-        term("select", "b", "c")
-      ),
-      unaryNode(
-        "DataSetCalc",
         batchTableNode(right),
-        term("select", "b", "c")
+        term("all", "true"),
+        term("union", "a, b, c")
       ),
-      term("all", "true"),
-      term("union", "b", "c")
+      term("select", "b, c")
     )
 
     util.verifyTable(result, expected)

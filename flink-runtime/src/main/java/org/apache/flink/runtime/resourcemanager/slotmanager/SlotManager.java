@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
 import java.util.Map;
@@ -85,13 +85,22 @@ public interface SlotManager extends AutoCloseable {
 	void suspend();
 
 	/**
+	 * Notifies the slot manager about the resource requirements of a job.
+	 *
+	 * @param resourceRequirements resource requirements of a job
+	 */
+	void processResourceRequirements(ResourceRequirements resourceRequirements);
+
+	/**
 	 * Requests a slot with the respective resource profile.
 	 *
 	 * @param slotRequest specifying the requested slot specs
 	 * @return true if the slot request was registered; false if the request is a duplicate
 	 * @throws ResourceManagerException if the slot request failed (e.g. not enough resources left)
 	 */
-	boolean registerSlotRequest(SlotRequest slotRequest) throws ResourceManagerException;
+	default boolean registerSlotRequest(SlotRequest slotRequest) throws ResourceManagerException {
+		throw new UnsupportedOperationException();
+	}
 
 	/**
 	 * Cancels and removes a pending slot request with the given allocation id. If there is no such
@@ -100,7 +109,9 @@ public interface SlotManager extends AutoCloseable {
 	 * @param allocationId identifying the pending slot request
 	 * @return True if a pending slot request was found; otherwise false
 	 */
-	boolean unregisterSlotRequest(AllocationID allocationId);
+	default boolean unregisterSlotRequest(AllocationID allocationId) {
+		throw new UnsupportedOperationException();
+	}
 
 	/**
 	 * Registers a new task manager at the slot manager. This will make the task managers slots
@@ -141,7 +152,4 @@ public interface SlotManager extends AutoCloseable {
 	void freeSlot(SlotID slotId, AllocationID allocationId);
 
 	void setFailUnfulfillableRequest(boolean failUnfulfillableRequest);
-
-	@VisibleForTesting
-	void unregisterTaskManagersAndReleaseResources();
 }

@@ -41,7 +41,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
-import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
+import org.apache.flink.runtime.operators.sort.Sorter;
+import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
@@ -167,15 +168,18 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					}
 					
 					// initialize sorter
-					UnilateralSortMerger<IT> sorter = new UnilateralSortMerger<IT>(
-							getEnvironment().getMemoryManager(), 
-							getEnvironment().getIOManager(),
-							this.reader, this, this.inputTypeSerializerFactory, compFact.createComparator(),
-							this.config.getRelativeMemoryInput(0), this.config.getFilehandlesInput(0),
-							this.config.getSpillingThresholdInput(0),
-							this.config.getUseLargeRecordHandler(),
-							this.getExecutionConfig().isObjectReuseEnabled());
-					
+					Sorter<IT> sorter =
+						ExternalSorter.newBuilder(
+								getEnvironment().getMemoryManager(),
+								this,
+								this.inputTypeSerializerFactory.getSerializer(),
+								compFact.createComparator())
+							.maxNumFileHandles(this.config.getFilehandlesInput(0))
+							.enableSpilling(getEnvironment().getIOManager(), this.config.getSpillingThresholdInput(0))
+							.memoryFraction(this.config.getRelativeMemoryInput(0))
+							.objectReuse(this.getExecutionConfig().isObjectReuseEnabled())
+							.largeRecords(this.config.getUseLargeRecordHandler())
+							.build(this.reader);
 					this.localStrategy = sorter;
 					input1 = sorter.getIterator();
 				} catch (Exception e) {
@@ -413,7 +417,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	public DistributedRuntimeUDFContext createRuntimeContext() {
 		Environment env = getEnvironment();
 
-		return new DistributedRuntimeUDFContext(env.getTaskInfo(), getUserCodeClassLoader(),
+		return new DistributedRuntimeUDFContext(env.getTaskInfo(), env.getUserCodeClassLoader(),
 				getExecutionConfig(), env.getDistributedCacheEntries(), env.getAccumulatorRegistry().getUserMap(), 
 				getEnvironment().getMetricGroup().getOrAddOperator(getEnvironment().getTaskInfo().getTaskName()), env.getExternalResourceInfoProvider());
 	}

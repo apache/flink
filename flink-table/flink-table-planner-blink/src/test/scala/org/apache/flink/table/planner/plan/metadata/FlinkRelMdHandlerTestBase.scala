@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunction
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowReference, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkR
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite._
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -71,10 +72,10 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
-
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
+
 import java.util
 
 import scala.collection.JavaConversions._
@@ -244,6 +245,21 @@ class FlinkRelMdHandlerTestBase {
     val calc = createLogicalCalc(
       studentLogicalScan, logicalProject.getRowType, logicalProject.getProjects, List(expr))
     (filter, calc)
+  }
+
+  protected lazy val logicalWatermarkAssigner = {
+    val scan = relBuilder.scan("TemporalTable2").build()
+    val flinkContext = cluster
+      .getPlanner
+      .getContext
+      .unwrap(classOf[FlinkContext])
+    val watermarkRexNode = flinkContext
+      .getSqlExprToRexConverterFactory
+      .create(scan.getTable.getRowType)
+      .convertToRexNode("rowtime - INTERVAL '10' SECOND")
+
+    relBuilder.push(scan)
+    relBuilder.watermark(4, watermarkRexNode).build()
   }
 
   // id, name, score, age, height, sex, class, 1
@@ -673,6 +689,27 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (calcOfFirstRow, calcOfLastRow)
+  }
+
+  // equivalent SQL is
+  // select a, b, c from (
+  //  select a, b, c, rowtime
+  //  ROW_NUMBER() over (partition by b order by rowtime) rn from TemporalTable3
+  // ) t where rn <= 1
+  protected lazy val rowtimeDeduplicate = {
+    val temporalLogicalScan: LogicalTableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable3"), logicalTraits)
+    new FlinkLogicalRank(
+      cluster,
+      flinkLogicalTraits,
+      temporalLogicalScan,
+      ImmutableBitSet.of(5),
+      RelCollations.of(4),
+      RankType.ROW_NUMBER,
+      new ConstantRankRange(1, 1),
+      new RelDataTypeFieldImpl("rk", 6, longType),
+      outputRankNumber = false
+    )
   }
 
   // equivalent SQL is
@@ -2362,6 +2399,87 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable1")
     .scan("MyTable2")
     .minus(false).build()
+
+  // select * from
+  //  (select b, sum(e) from MyTable1 group by b) v1,
+  //  (select a, sum(c) from MyTable4 group by a) v2
+  //   where a = b
+  protected lazy val batchMultipleInput: RelNode = {
+    val leftInput = createGlobalAgg("MyTable1", "b", "e")
+    val leftEdge = leftInput.getInputEdges.get(0)
+    val rightInput = createGlobalAgg("MyTable4", "a", "c")
+    val rightEdge = rightInput.getInputEdges.get(0)
+    val join = new BatchExecHashJoin(
+      cluster,
+      batchPhysicalTraits,
+      leftInput,
+      rightInput,
+      rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
+        rexBuilder.makeInputRef(longType, 0),
+        rexBuilder.makeInputRef(longType, 2)),
+      JoinRelType.INNER,
+      leftIsBuild = true,
+      isBroadcast = false,
+      tryDistinctBuildRow = false
+    )
+   new BatchExecMultipleInputNode(
+      cluster,
+      batchPhysicalTraits,
+      Array(leftInput.getInput, rightInput.getInput),
+      join,
+      Array(
+        ExecEdge.builder()
+          .requiredShuffle(leftEdge.getRequiredShuffle)
+          .damBehavior(leftEdge.getDamBehavior)
+          .priority(0)
+          .build(),
+        ExecEdge.builder()
+          .requiredShuffle(rightEdge.getRequiredShuffle)
+          .damBehavior(rightEdge.getDamBehavior)
+          .priority(1)
+          .build()))
+  }
+
+  private def createGlobalAgg(
+      table: String, groupBy: String, sum: String): BatchExecHashAggregate = {
+    val scan: BatchExecBoundedStreamScan =
+      createDataStreamScan(ImmutableList.of(table), batchPhysicalTraits)
+    relBuilder.push(scan)
+    val groupByField = relBuilder.field(groupBy)
+    val sumField = relBuilder.field(sum)
+    val hash = FlinkRelDistribution.hash(Array(groupByField.getIndex), requireStrict = true)
+
+    val exchange = new BatchExecExchange(cluster, batchPhysicalTraits.replace(hash), scan, hash)
+    relBuilder.push(exchange)
+
+    val logicalAgg = relBuilder.aggregate(
+      relBuilder.groupKey(groupBy),
+      relBuilder.aggregateCall(SqlStdOperatorTable.SUM, relBuilder.field(sum))
+    ).build().asInstanceOf[LogicalAggregate]
+    val aggCalls = logicalAgg.getAggCallList
+    val aggFunctionFactory = new AggFunctionFactory(
+      studentBatchScan.getRowType, Array.empty[Int], Array.fill(aggCalls.size())(false))
+    val aggCallToAggFunction = aggCalls.zipWithIndex.map {
+      case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
+    }
+
+    val rowTypeOfGlobalAgg = typeFactory.builder
+      .add(groupByField.getName, groupByField.getType)
+      .add(sumField.getName, sumField.getType).build()
+
+    new BatchExecHashAggregate(
+      cluster,
+      relBuilder,
+      batchPhysicalTraits,
+      exchange,
+      rowTypeOfGlobalAgg,
+      exchange.getRowType,
+      exchange.getRowType,
+      Array(groupByField.getIndex),
+      auxGrouping = Array(),
+      aggCallToAggFunction,
+      isMerge = false)
+  }
 
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {

@@ -39,8 +39,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.env.beam.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonStatelessFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
@@ -48,7 +47,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -286,24 +284,6 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 		}
 	}
 
-	FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {
-		FlinkFnApi.UserDefinedFunction.Builder builder = FlinkFnApi.UserDefinedFunction.newBuilder();
-		builder.setPayload(ByteString.copyFrom(pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
-		for (Object input : pythonFunctionInfo.getInputs()) {
-			FlinkFnApi.UserDefinedFunction.Input.Builder inputProto =
-				FlinkFnApi.UserDefinedFunction.Input.newBuilder();
-			if (input instanceof PythonFunctionInfo) {
-				inputProto.setUdf(getUserDefinedFunctionProto((PythonFunctionInfo) input));
-			} else if (input instanceof Integer) {
-				inputProto.setInputOffset((Integer) input);
-			} else {
-				inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
-			}
-			builder.addInputs(inputProto);
-		}
-		return builder.build();
-	}
-
 	protected FlinkMetricContainer getFlinkMetricContainer() {
 		return this.config.isMetricEnabled() ?
 			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
@@ -329,7 +309,7 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 	}
 
 	private PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-		return new BeamTablePythonStatelessFunctionRunner(
+		return new BeamTableStatelessPythonFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			createPythonEnvironmentManager(),
 			userDefinedFunctionInputType,
@@ -338,7 +318,9 @@ public abstract class AbstractPythonStatelessFunctionFlatMap
 			getUserDefinedFunctionsProto(),
 			getInputOutputCoderUrn(),
 			jobOptions,
-			getFlinkMetricContainer());
+			getFlinkMetricContainer(),
+			null,
+			0.0);
 	}
 
 	private Map<String, String> buildJobOptions(Configuration config) {

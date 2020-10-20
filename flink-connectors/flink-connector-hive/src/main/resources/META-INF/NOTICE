@@ -6,8 +6,8 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- org.apache.parquet:parquet-hadoop:1.10.0
+- org.apache.parquet:parquet-hadoop:1.11.1
 - org.apache.parquet:parquet-format:2.4.0
-- org.apache.parquet:parquet-column:1.10.0
-- org.apache.parquet:parquet-common:1.10.0
-- org.apache.parquet:parquet-encoding:1.10.0
+- org.apache.parquet:parquet-column:1.11.1
+- org.apache.parquet:parquet-common:1.11.1
+- org.apache.parquet:parquet-encoding:1.11.1

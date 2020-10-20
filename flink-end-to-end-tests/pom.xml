@@ -79,8 +79,6 @@ under the License.
 		<module>flink-connector-gcp-pubsub-emulator-tests</module>
 		<module>flink-streaming-kafka-test-base</module>
 		<module>flink-streaming-kafka-test</module>
-		<module>flink-streaming-kafka011-test</module>
-		<module>flink-streaming-kafka010-test</module>
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
 		<module>flink-streaming-kinesis-test</module>

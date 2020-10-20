@@ -413,14 +413,31 @@ Action "run" compiles and runs a program.
                                           shutdown when the CLI is terminated
                                           abruptly, e.g., in response to a user
                                           interrupt, such as typing Ctrl + C.
+  Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
+                           also available with the "Application Mode".
+                           The name of the executor to be used for executing the
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session",
+                           "yarn-per-job", "yarn-session", "yarn-application"
+                           and "kubernetes-application".
+
   Options for yarn-cluster mode:
      -d,--detached                        If present, runs the job in detached
                                           mode
-     -m,--jobmanager <arg>                Address of the JobManager to
-                                          which to connect. Use this flag to
-                                          connect to a different JobManager than
-                                          the one specified in the
-                                          configuration.
+     -m,--jobmanager <arg>                Set to yarn-cluster to use YARN
+                                          execution mode.
      -yat,--yarnapplicationType <arg>     Set a custom application type for the
                                           application on YARN
      -yD <property=value>                 use value for given property
@@ -449,23 +466,13 @@ Action "run" compiles and runs a program.
      -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
                                           sub-paths for high availability mode
 
-  Options for Generic CLI mode:
-       -D <property=value>   Generic configuration options for
-                             execution/deployment and for the configured executor.
-                             The available options can be found at
-                             https://ci.apache.org/projects/flink/flink-docs-stabl
-                             e/ops/config.html
-       -t,--target <arg>     The deployment target for the given application,
-                             which is equivalent to the "execution.target" config
-                             option. The currently available targets are:
-                             "remote", "local", "kubernetes-session", "yarn-per-job",
-                             "yarn-session", "yarn-application" and "kubernetes-application".
-
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager to which
-                                     to connect. Use this flag to connect to a
+     -m,--jobmanager <arg>           Address of the JobManager to which to
+                                     connect. Use this flag to connect to a
                                      different JobManager than the one specified
-                                     in the configuration.
+                                     in the configuration. Attention: This
+                                     option is respected only if the
+                                     high-availability configuration is NONE.
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
                                      for high availability mode
 
@@ -492,32 +499,40 @@ Action "list" lists running and scheduled programs.
      -a,--all         Show all programs and their JobIDs
      -r,--running     Show only running programs and their JobIDs
      -s,--scheduled   Show only scheduled programs and their JobIDs
+  Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
+                           also available with the "Application Mode".
+                           The name of the executor to be used for executing the
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session",
+                           "yarn-per-job", "yarn-session", "yarn-application"
+                           and "kubernetes-application".
+
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager to
-                                      which to connect. Use this flag to connect
-                                      to a different JobManager than the one
-                                      specified in the configuration.
+     -m,--jobmanager <arg>            Set to yarn-cluster to use YARN execution
+                                      mode.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for Generic CLI mode:
-         -D <property=value>   Generic configuration options for
-                               execution/deployment and for the configured executor.
-                               The available options can be found at
-                               https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
-         -t,--target <arg>     The deployment target for the given application,
-                               which is equivalent to the "execution.target" config
-                               option. The currently available targets are:
-                               "remote", "local", "kubernetes-session", "yarn-per-job",
-                               "yarn-session", "yarn-application" and "kubernetes-application".
-
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager to which
-                                     to connect. Use this flag to connect to a
+     -m,--jobmanager <arg>           Address of the JobManager to which to
+                                     connect. Use this flag to connect to a
                                      different JobManager than the one specified
-                                     in the configuration.
+                                     in the configuration. Attention: This
+                                     option is respected only if the
+                                     high-availability configuration is NONE.
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
                                      for high availability mode
 
@@ -534,32 +549,40 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                                           directory is specified, the configured
                                           default will be used
                                           ("state.savepoints.dir").
+  Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
+                           also available with the "Application Mode".
+                           The name of the executor to be used for executing the
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session",
+                           "yarn-per-job", "yarn-session", "yarn-application"
+                           and "kubernetes-application".
+
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager to
-                                      which to connect. Use this flag to connect
-                                      to a different JobManager than the one
-                                      specified in the configuration.
+     -m,--jobmanager <arg>            Set to yarn-cluster to use YARN execution
+                                      mode.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for Generic CLI mode:
-         -D <property=value>   Generic configuration options for
-                               execution/deployment and for the configured executor.
-                               The available options can be found at
-                               https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
-         -t,--target <arg>     The deployment target for the given application,
-                               which is equivalent to the "execution.target" config
-                               option. The currently available targets are:
-                               "remote", "local", "kubernetes-session", "yarn-per-job",
-                               "yarn-session", "yarn-application" and "kubernetes-application".
-
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager to which
-                                     to connect. Use this flag to connect to a
+     -m,--jobmanager <arg>           Address of the JobManager to which to
+                                     connect. Use this flag to connect to a
                                      different JobManager than the one specified
-                                     in the configuration.
+                                     in the configuration. Attention: This
+                                     option is respected only if the
+                                     high-availability configuration is NONE.
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
                                      for high availability mode
 
@@ -577,32 +600,40 @@ Action "cancel" cancels a running program.
                                             no directory is specified, the
                                             configured default directory
                                             (state.savepoints.dir) is used.
+  Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
+                           also available with the "Application Mode".
+                           The name of the executor to be used for executing the
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session",
+                           "yarn-per-job", "yarn-session", "yarn-application"
+                           and "kubernetes-application".
+
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager to
-                                      which to connect. Use this flag to connect
-                                      to a different JobManager than the one
-                                      specified in the configuration.
+     -m,--jobmanager <arg>            Set to yarn-cluster to use YARN execution
+                                      mode.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for Generic CLI mode:
-         -D <property=value>   Generic configuration options for
-                               execution/deployment and for the configured executor.
-                               The available options can be found at
-                               https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
-         -t,--target <arg>     The deployment target for the given application,
-                               which is equivalent to the "execution.target" config
-                               option. The currently available targets are:
-                               "remote", "local", "kubernetes-session", "yarn-per-job",
-                               "yarn-session", "yarn-application" and "kubernetes-application".
-
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager to which
-                                     to connect. Use this flag to connect to a
+     -m,--jobmanager <arg>           Address of the JobManager to which to
+                                     connect. Use this flag to connect to a
                                      different JobManager than the one specified
-                                     in the configuration.
+                                     in the configuration. Attention: This
+                                     option is respected only if the
+                                     high-availability configuration is NONE.
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
                                      for high availability mode
 
@@ -614,32 +645,40 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
   "savepoint" action options:
      -d,--dispose <arg>       Path of savepoint to dispose.
      -j,--jarfile <jarfile>   Flink program JAR file.
+  Options for Generic CLI mode:
+     -D <property=value>   Generic configuration options for
+                           execution/deployment and for the configured executor.
+                           The available options can be found at
+                           https://ci.apache.org/projects/flink/flink-docs-stabl
+                           e/ops/config.html
+     -e,--executor <arg>   DEPRECATED: Please use the -t option instead which is
+                           also available with the "Application Mode".
+                           The name of the executor to be used for executing the
+                           given job, which is equivalent to the
+                           "execution.target" config option. The currently
+                           available executors are: "remote", "local",
+                           "kubernetes-session", "yarn-per-job", "yarn-session".
+     -t,--target <arg>     The deployment target for the given application,
+                           which is equivalent to the "execution.target" config
+                           option. The currently available targets are:
+                           "remote", "local", "kubernetes-session",
+                           "yarn-per-job", "yarn-session", "yarn-application"
+                           and "kubernetes-application".
+
   Options for yarn-cluster mode:
-     -m,--jobmanager <arg>            Address of the JobManager to
-                                      which to connect. Use this flag to connect
-                                      to a different JobManager than the one
-                                      specified in the configuration.
+     -m,--jobmanager <arg>            Set to yarn-cluster to use YARN execution
+                                      mode.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for Generic CLI mode:
-         -D <property=value>   Generic configuration options for
-                               execution/deployment and for the configured executor.
-                               The available options can be found at
-                               https://ci.apache.org/projects/flink/flink-docs-stabl
-                               e/ops/config.html
-         -t,--target <arg>     The deployment target for the given application,
-                               which is equivalent to the "execution.target" config
-                               option. The currently available targets are:
-                               "remote", "local", "kubernetes-session", "yarn-per-job",
-                               "yarn-session", "yarn-application" and "kubernetes-application".
-
   Options for default mode:
-     -m,--jobmanager <arg>           Address of the JobManager to which
-                                     to connect. Use this flag to connect to a
+     -m,--jobmanager <arg>           Address of the JobManager to which to
+                                     connect. Use this flag to connect to a
                                      different JobManager than the one specified
-                                     in the configuration.
+                                     in the configuration. Attention: This
+                                     option is respected only if the
+                                     high-availability configuration is NONE.
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
                                      for high availability mode
 {% endhighlight %}
