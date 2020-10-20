@@ -396,7 +396,7 @@ public class PartitionRequestQueueTest {
 	@Test
 	public void testEnqueueReaderByResumingConsumption() throws Exception {
 		PipelinedSubpartition subpartition = PipelinedSubpartitionTest.createPipelinedSubpartition();
-		Buffer.DataType dataType1 = Buffer.DataType.ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER;
+		Buffer.DataType dataType1 = Buffer.DataType.ALIGNED_CHECKPOINT_BARRIER;
 		Buffer.DataType dataType2 = Buffer.DataType.DATA_BUFFER;
 		subpartition.add(createEventBufferConsumer(4096, dataType1));
 		subpartition.add(createEventBufferConsumer(4096, dataType2));

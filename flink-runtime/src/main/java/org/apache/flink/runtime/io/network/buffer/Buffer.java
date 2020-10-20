@@ -245,19 +245,19 @@ public interface Buffer {
 	 */
 	enum DataType {
 		/**
-		 * Flag value indicating that there is no buffer.
+		 * {@link #NONE} indicates that there is no buffer.
 		 */
 		NONE(false, false, false, false),
 
 		/**
-		 * DATA_BUFFER indicates that this buffer represents a non-event data buffer.
+		 * {@link #DATA_BUFFER} indicates that this buffer represents a non-event data buffer.
 		 */
 		DATA_BUFFER(true, false, false, false),
 
 		/**
-		 * EVENT_BUFFER indicates that this buffer represents serialized data of an event.
+		 * {@link #EVENT_BUFFER} indicates that this buffer represents serialized data of an event.
 		 * Note that this type can be further divided into more fine-grained event types
-		 * like {@link #ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER} and etc.
+		 * like {@link #ALIGNED_CHECKPOINT_BARRIER} and etc.
 		 */
 		EVENT_BUFFER(false, true, false, false),
 
@@ -267,10 +267,10 @@ public interface Buffer {
 		PRIORITIZED_EVENT_BUFFER(false, true, false, true),
 
 		/**
-		 * ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER indicates that this buffer represents a
+		 * {@link #ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a
 		 * serialized checkpoint barrier of aligned exactly-once checkpoint mode.
 		 */
-		ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER(false, true, true, false);
+		ALIGNED_CHECKPOINT_BARRIER(false, true, true, false);
 
 		private final boolean isBuffer;
 		private final boolean isEvent;
@@ -305,7 +305,7 @@ public interface Buffer {
 				return PRIORITIZED_EVENT_BUFFER;
 			}
 			return event instanceof CheckpointBarrier && ((CheckpointBarrier) event).getCheckpointOptions().needsAlignment() ?
-					ALIGNED_EXACTLY_ONCE_CHECKPOINT_BARRIER :
+					ALIGNED_CHECKPOINT_BARRIER :
 					EVENT_BUFFER;
 		}
 	}
