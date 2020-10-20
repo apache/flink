@@ -15,11 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import ast
+
 from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType
+    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType
 from pyflink.util.utils import to_jarray
 import datetime
 import pickle
@@ -89,24 +91,35 @@ def java_to_python_converter(data, field_type):
         data = zip(list(data[1:]), field_type.field_types())
         fields = []
         for d, d_type in data:
-            d = pickle.loads(d)
             fields.append(java_to_python_converter(d, d_type))
         result_row = Row(fields)
         result_row.set_row_kind(row_kind)
         return result_row
-    elif isinstance(field_type, TimeType):
-        seconds, microseconds = divmod(data, 10 ** 6)
-        minutes, seconds = divmod(seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        return datetime.time(hours, minutes, seconds, microseconds)
-    elif isinstance(field_type, DateType):
-        return field_type.from_sql_type(data)
-    elif isinstance(field_type, ArrayType):
-        return list(data)
-    elif isinstance(field_type, MapType):
-        key_type = field_type.key_type
-        value_type = field_type.value_type
-        return dict((java_to_python_converter(k, key_type), java_to_python_converter(v, value_type))
-                    for k, v in data.items())
     else:
-        return field_type.from_sql_type(data)
+        data = pickle.loads(data)
+        if isinstance(field_type, TimeType):
+            seconds, microseconds = divmod(data, 10 ** 6)
+            minutes, seconds = divmod(seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            return datetime.time(hours, minutes, seconds, microseconds)
+        elif isinstance(field_type, DateType):
+            return field_type.from_sql_type(data)
+        elif isinstance(field_type, TimestampType):
+            return field_type.from_sql_type(int(data.timestamp() * 10**6))
+        elif isinstance(field_type, MapType):
+            key_type = field_type.key_type
+            value_type = field_type.value_type
+            zip_kv = zip(data[0], data[1])
+            return dict((java_to_python_converter(k, key_type),
+                         java_to_python_converter(v, value_type))
+                        for k, v in zip_kv)
+        elif isinstance(field_type, FloatType):
+            return field_type.from_sql_type(ast.literal_eval(data))
+        elif isinstance(field_type, ArrayType):
+            element_type = field_type.element_type
+            elements = []
+            for element_bytes in data:
+                elements.append(java_to_python_converter(element_bytes, element_type))
+            return elements
+        else:
+            return field_type.from_sql_type(data)

@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import pickle
 
 from py4j.java_gateway import get_method
 from pyflink.common.types import RowKind
@@ -248,7 +247,6 @@ class CloseableIterator(object):
             if len(data) == 0:
                 fields.append(None)
             else:
-                data = pickle.loads(data)
                 fields.append(java_to_python_converter(data, field_type))
         result_row = Row(fields)
         result_row.set_row_kind(row_kind)

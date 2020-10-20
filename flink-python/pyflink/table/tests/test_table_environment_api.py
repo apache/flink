@@ -16,6 +16,7 @@
 # # limitations under the License.
 ################################################################################
 import datetime
+import decimal
 import glob
 import os
 import pathlib
@@ -459,57 +460,126 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
 
     def test_collect_for_all_data_types(self):
 
-        def collect_from_source(element_data, expected_output):
-            source = self.t_env.from_elements(element_data, ["a"])
+        def collect_from_source(t_env, expected_result):
+            source = t_env.from_elements([(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                                           bytearray(b'pyflink'), 'pyflink',
+                                           datetime.date(2014, 9, 13),
+                                           datetime.time(hour=12, minute=0, second=0,
+                                                         microsecond=123000),
+                                           datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                                           [Row(['pyflink']), Row(['pyflink']), Row(['pyflink'])],
+                                           {1: Row(['flink']), 2: Row(['pyflink'])},
+                                           decimal.Decimal('1000000000000000000.05'),
+                                           decimal.Decimal('1000000000000000000.0599999999999999989'
+                                                           '9999999999'))],
+                                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                                        DataTypes.FIELD("b", DataTypes.BIGINT()),
+                                                        DataTypes.FIELD("c", DataTypes.TINYINT()),
+                                                        DataTypes.FIELD("d", DataTypes.BOOLEAN()),
+                                                        DataTypes.FIELD("e", DataTypes.SMALLINT()),
+                                                        DataTypes.FIELD("f", DataTypes.INT()),
+                                                        DataTypes.FIELD("g", DataTypes.FLOAT()),
+                                                        DataTypes.FIELD("h", DataTypes.DOUBLE()),
+                                                        DataTypes.FIELD("i", DataTypes.BYTES()),
+                                                        DataTypes.FIELD("j", DataTypes.STRING()),
+                                                        DataTypes.FIELD("k", DataTypes.DATE()),
+                                                        DataTypes.FIELD("l", DataTypes.TIME()),
+                                                        DataTypes.FIELD("m",
+                                                                        DataTypes.TIMESTAMP(3)),
+                                                        DataTypes.FIELD("n", DataTypes.ARRAY(
+                                                            DataTypes.ROW([DataTypes.FIELD('ss2',
+                                                                           DataTypes.STRING())]))),
+                                                        DataTypes.FIELD("o", DataTypes.MAP(
+                                                            DataTypes.BIGINT(), DataTypes.ROW(
+                                                                [DataTypes.FIELD('ss',
+                                                                 DataTypes.STRING())]))),
+                                                        DataTypes.FIELD("p",
+                                                                        DataTypes.DECIMAL(38, 18)),
+                                                        DataTypes.FIELD("q",
+                                                        DataTypes.DECIMAL(38, 18))]))
             table_result = source.execute()
             with table_result.collect() as result:
                 collected_result = []
                 for i in result:
                     collected_result.append(i)
-                self.assertEqual(expected_output, collected_result)
+                self.assertEqual(expected_result, collected_result)
 
-        data_in_different_types = [True, 1, "a", u"a", datetime.date(1970, 1, 1),
-                                   datetime.time(0, 0, 0), 1.0, [1], (1,), {"a": 1}, bytearray(1),
-                                   [1, None, 2, None, 3]]
-        expected_results = [Row([True]), Row([1]), Row(['a']), Row(['a']),
-                            Row([datetime.date(1970, 1, 1)]), Row([datetime.time(0, 0)]),
-                            Row([1.0]), Row([[1]]), Row([Row([1])]), Row([{'a': 1}]),
-                            Row([bytearray(b'\x00')]), Row([[1, None, 2, None, 3]])]
-        zipped_data = zip(data_in_different_types, expected_results)
-        for data, expected_data in zipped_data:
-            element_data = [(data,) for _ in range(2)]
-            expected_output = [expected_data for _ in range(2)]
-            collect_from_source(element_data, expected_output)
+        legacy_planer_t_env = self.t_env
+        expected_result_legacy_planner = [Row([1, None, 1, True, 32767, -2147483648, 1.23,
+                                          1.98932, bytearray(b'pyflink'), 'pyflink',
+                                          datetime.date(2014, 9, 13), datetime.time(12, 0),
+                                          datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                                          [Row(['[pyflink]']), Row(['[pyflink]']),
+                                           Row(['[pyflink]'])],
+                                          {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                                          decimal.Decimal('1000000000000000000.05'),
+                                          decimal.Decimal('1000000000000000000.05999999999999999899'
+                                                          '999999999')])]
+        collect_from_source(legacy_planer_t_env, expected_result_legacy_planner)
+
+        blink_planer_t_env = StreamTableEnvironment.create(
+            StreamExecutionEnvironment.get_execution_environment(),
+            environment_settings=EnvironmentSettings.new_instance()
+            .in_streaming_mode().use_blink_planner().build())
+        blink_planer_t_env.get_config().get_configuration().set_string(
+            "taskmanager.memory.task.off-heap.size", "80mb")
+        expected_result_blink_planner = [Row([1, None, 1, True, 32767, -2147483648, 1.23,
+                                         1.98932, bytearray(b'pyflink'), 'pyflink',
+                                         datetime.date(2014, 9, 13),
+                                              datetime.time(12, 0, 0, 123000),
+                                         datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                                         [Row(['[pyflink]']), Row(['[pyflink]']),
+                                          Row(['[pyflink]'])],
+                                         {1: Row(['[flink]']), 2: Row(['[pyflink]'])},
+                                         decimal.Decimal('1000000000000000000.050000000000000000'),
+                                         decimal.Decimal('1000000000000000000.059999999999999999')])
+                                         ]
+        collect_from_source(blink_planer_t_env, expected_result_blink_planner)
 
     def test_collect_with_retract(self):
-        element_data = [(1, 2, 'a'),
-                        (3, 4, 'b'),
-                        (5, 6, 'a'),
-                        (7, 8, 'b')]
 
-        source = self.t_env.from_elements(element_data, ["a", "b", "c"])
-        table_result = self.t_env.execute_sql("SELECT SUM(a), c FROM %s group by c" % source)
-        with table_result.collect() as result:
-            collected_result = []
-            for i in result:
-                collected_result.append(i)
-            # The result contains one delete row and an insert row in retract operation for each
-            # key.
-            row_kinds = [RowKind.INSERT, RowKind.DELETE, RowKind.INSERT, RowKind.INSERT,
-                         RowKind.DELETE,
-                         RowKind.INSERT]
-            expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
-                               Row([3, 'b']), Row([10, 'b'])]
+        def collect_retract_result_with(t_env, expected_row_kinds):
+            element_data = [(1, 2, 'a'),
+                            (3, 4, 'b'),
+                            (5, 6, 'a'),
+                            (7, 8, 'b')]
+            field_names = ['a', 'b', 'c']
+            source = t_env.from_elements(element_data, field_names)
+            table_result = t_env.execute_sql(
+                "SELECT SUM(a), c FROM %s group by c" % source)
+            with table_result.collect() as result:
+                collected_result = []
+                for i in result:
+                    collected_result.append(i)
 
-            for i in range(len(expected_result)):
-                expected_result[i] = str(expected_result[i]) + ',' + str(row_kinds[i])
-            collected_result = [str(result) + ',' + str(result.get_row_kind())
-                                for result in collected_result]
-            expected_result.sort()
-            collected_result.sort()
-            self.assertEqual(expected_result, collected_result)
+                collected_result = [str(result) + ',' + str(result.get_row_kind())
+                                    for result in collected_result]
+                expected_result = [Row([1, 'a']), Row([1, 'a']), Row([6, 'a']), Row([3, 'b']),
+                                   Row([3, 'b']), Row([10, 'b'])]
+                for i in range(len(expected_result)):
+                    expected_result[i] = str(expected_result[i]) + ',' + str(expected_row_kinds[i])
+                expected_result.sort()
+                collected_result.sort()
+                self.assertEqual(expected_result, collected_result)
 
-    def test_collect_null_result(self):
+        expected_row_kinds_legacy = [RowKind.INSERT, RowKind.DELETE, RowKind.INSERT, RowKind.INSERT,
+                                     RowKind.DELETE, RowKind.INSERT]
+
+        # Test legacy planner
+        collect_retract_result_with(self.t_env, expected_row_kinds_legacy)
+
+        # Test blink planner
+        blink_planer_t_env = StreamTableEnvironment.create(
+            StreamExecutionEnvironment.get_execution_environment(),
+            environment_settings=EnvironmentSettings.new_instance()
+            .in_streaming_mode().use_blink_planner().build())
+        blink_planer_t_env.get_config().get_configuration().set_string(
+            "taskmanager.memory.task.off-heap.size", "80mb")
+        expected_row_kinds_blink = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
+                                    RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER]
+        collect_retract_result_with(blink_planer_t_env, expected_row_kinds_blink)
+
+    def test_collect_null_value_result(self):
         element_data = [(1, None, 'a'),
                         (3, 4, 'b'),
                         (5, None, 'a'),

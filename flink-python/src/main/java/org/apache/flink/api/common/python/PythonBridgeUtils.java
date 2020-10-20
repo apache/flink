@@ -20,10 +20,14 @@ package org.apache.flink.api.common.python;
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.types.Row;
 
 import net.razorvine.pickle.Pickler;
@@ -38,12 +42,17 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 /**
  * Utility class that contains helper methods to create a TableSource from
@@ -187,39 +196,81 @@ public final class PythonBridgeUtils {
 		return objs;
 	}
 
-	private static List<byte[]> getPickledBytesFromRow(Row row, LogicalType[] dataTypes) throws IOException {
-		List<byte[]> pickledRowBytes = new ArrayList<>(row.getArity());
-		pickledRowBytes.add(new byte[]{row.getKind().toByteValue()});
+	private static Object getPickledBytesFromJavaObject(Object obj, LogicalType dataType) throws IOException {
 		Pickler pickler = new Pickler();
 		initialize();
-		for (int i = 0; i < row.getArity(); i++) {
-			Object fieldData = row.getField(i);
-			if (fieldData == null) {
-				pickledRowBytes.add(new byte[0]);
-			} else {
-				if (dataTypes[i] instanceof DateType) {
-					long time = ((Date) fieldData).toLocalDate().toEpochDay();
-					pickledRowBytes.add(pickler.dumps(time));
-				} else if (dataTypes[i] instanceof TimeType) {
-					long time = ((Time) fieldData).toLocalTime().toNanoOfDay();
-					time = time / 1000;
-					pickledRowBytes.add(pickler.dumps(time));
-				} else if (dataTypes[i] instanceof RowType) {
-					Row tmpRow = (Row) fieldData;
-					LogicalType[] tmpRowFieldTypes = ((RowType) dataTypes[i]).getChildren().toArray(new LogicalType[0]);
-					List<byte[]> rowFieldBytes = getPickledBytesFromRow(tmpRow, tmpRowFieldTypes);
-					pickledRowBytes.add(pickler.dumps(rowFieldBytes));
+		if (obj == null) {
+			return new byte[0];
+		} else {
+			if (dataType instanceof DateType) {
+				long time;
+				if (obj instanceof LocalDate) {
+					time = ((LocalDate) (obj)).toEpochDay();
 				} else {
-					pickledRowBytes.add(pickler.dumps(row.getField(i)));
+					time = ((Date) obj).toLocalDate().toEpochDay();
 				}
+				return pickler.dumps(time);
+			} else if (dataType instanceof TimeType) {
+				long time;
+				if (obj instanceof LocalTime) {
+					time = ((LocalTime) obj).toNanoOfDay();
+				} else {
+					time = ((Time) obj).toLocalTime().toNanoOfDay();
+				}
+				time = time / 1000;
+				return pickler.dumps(time);
+			} else if (dataType instanceof TimestampType) {
+				if (obj instanceof LocalDateTime) {
+					return pickler.dumps(Timestamp.valueOf((LocalDateTime) obj));
+				} else {
+					return pickler.dumps(obj);
+				}
+			} else if (dataType instanceof RowType) {
+				Row tmpRow = (Row) obj;
+				LogicalType[] tmpRowFieldTypes = ((RowType) dataType).getChildren().toArray(new LogicalType[0]);
+				List<Object> rowFieldBytes = new ArrayList<>(tmpRow.getArity() + 1);
+				rowFieldBytes.add(new byte[]{tmpRow.getKind().toByteValue()});
+				for (int i = 0; i < tmpRow.getArity(); i++) {
+					rowFieldBytes.add(getPickledBytesFromJavaObject(tmpRow.getField(i), tmpRowFieldTypes[i]));
+				}
+				return rowFieldBytes;
+			} else if (dataType instanceof MapType) {
+				List<List<Object>> serializedMapKV = new ArrayList<>(2);
+				MapType mapType = (MapType) dataType;
+				LogicalType keyType = mapType.getKeyType();
+				LogicalType valueType = mapType.getValueType();
+				List<Object> keyBytesList = new ArrayList<>();
+				List<Object> valueBytesList = new ArrayList<>();
+				Map<Object, Object> mapObj = (Map) obj;
+				for (Map.Entry entry : mapObj.entrySet()) {
+					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), keyType));
+					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), valueType));
+				}
+				serializedMapKV.add(keyBytesList);
+				serializedMapKV.add(valueBytesList);
+				return pickler.dumps(serializedMapKV);
+			} else if (dataType instanceof ArrayType) {
+				List<Object> serializedElements = new ArrayList<>();
+				Object[] objects = (Object[]) obj;
+				ArrayType arrayType = (ArrayType) dataType;
+				LogicalType elementType = arrayType.getElementType();
+				for (Object object : objects) {
+					serializedElements.add(getPickledBytesFromJavaObject(object, elementType));
+				}
+				return pickler.dumps(serializedElements);
+			}
+			if (dataType instanceof FloatType) {
+				return pickler.dumps(String.valueOf(obj));
+			} else {
+				return pickler.dumps(obj);
 			}
 		}
-		return pickledRowBytes;
 	}
 
-	public static List<byte[]> getPickledBytesFromRow(Row row, DataType[] dataTypes) throws IOException {
+	public static Object getPickledBytesFromRow(Row row, DataType[] dataTypes) throws IOException {
 		LogicalType[] logicalTypes = Arrays.stream(dataTypes).map(f -> f.getLogicalType()).toArray(LogicalType[]::new);
-		return getPickledBytesFromRow(row, logicalTypes);
+
+		return getPickledBytesFromJavaObject(row, RowType.of(logicalTypes));
 	}
 
 	private static boolean initialized = false;
