@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.reuse;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
+
 import org.junit.Assert;
 import org.junit.Test;
 

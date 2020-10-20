@@ -336,7 +336,7 @@ public class InputPriorityConflictResolver {
 				nodes.put(execNode, result);
 				return result;
 			} else {
-				return nodes.compute(execNode, (k, v) -> v == null ? new TopologyNode() : v);
+				return nodes.computeIfAbsent(execNode, k -> new TopologyNode());
 			}
 		}
 	}

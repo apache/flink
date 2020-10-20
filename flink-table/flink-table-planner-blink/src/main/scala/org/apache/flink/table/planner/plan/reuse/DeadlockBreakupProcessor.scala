@@ -33,8 +33,9 @@ import scala.collection.JavaConversions._
  */
 class DeadlockBreakupProcessor extends DAGProcessor {
 
-  def process(rootNodes: util.List[ExecNode[_, _]],
-              context: DAGProcessContext): util.List[ExecNode[_, _]] = {
+  def process(
+      rootNodes: util.List[ExecNode[_, _]],
+      context: DAGProcessContext): util.List[ExecNode[_, _]] = {
     if (!rootNodes.forall(_.isInstanceOf[BatchExecNode[_]])) {
       throw new TableException("Only BatchExecNode DAG is supported now")
     }
