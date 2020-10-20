@@ -101,6 +101,30 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * */
 	private int tolerableCheckpointFailureNumber = UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER;
 
+	/**
+	 * Creates a deep copy of the provided {@link CheckpointConfig}.
+	 * @param checkpointConfig the config to copy.
+	 */
+	public CheckpointConfig(final CheckpointConfig checkpointConfig) {
+		checkNotNull(checkpointConfig);
+
+		this.checkpointInterval = checkpointConfig.checkpointInterval;
+		this.checkpointingMode = checkpointConfig.checkpointingMode;
+		this.checkpointTimeout = checkpointConfig.checkpointTimeout;
+		this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
+		this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
+		this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
+		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+		this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
+		this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
+		this.forceCheckpointing = checkpointConfig.forceCheckpointing;
+		this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
+	}
+
+	public CheckpointConfig() {
+
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -519,26 +543,5 @@ public class CheckpointConfig implements java.io.Serializable {
 			.ifPresent(this::enableExternalizedCheckpoints);
 		configuration.getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
 			.ifPresent(this::enableUnalignedCheckpoints);
-	}
-
-	/**
-	 * Creates a deep copy of the provided {@link CheckpointConfig}.
-	 * @param checkpointConfig the config to copy.
-	 * @return the newly created copy.
-	 */
-	public static CheckpointConfig copyOf(final CheckpointConfig checkpointConfig) {
-		checkNotNull(checkpointConfig);
-
-		final CheckpointConfig config = new CheckpointConfig();
-		config.checkpointInterval = checkpointConfig.checkpointInterval;
-		config.checkpointingMode = checkpointConfig.checkpointingMode;
-		config.checkpointTimeout = checkpointConfig.checkpointTimeout;
-		config.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
-		config.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
-		config.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
-		config.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
-		config.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
-		config.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
-		return config;
 	}
 }

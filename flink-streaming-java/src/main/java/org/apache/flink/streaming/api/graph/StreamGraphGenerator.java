@@ -194,7 +194,7 @@ public class StreamGraphGenerator {
 			ReadableConfig configuration) {
 		this.transformations = checkNotNull(transformations);
 		this.executionConfig = checkNotNull(executionConfig);
-		this.checkpointConfig = CheckpointConfig.copyOf(checkpointConfig);
+		this.checkpointConfig = new CheckpointConfig(checkpointConfig);
 		this.configuration = checkNotNull(configuration);
 	}
 
@@ -268,7 +268,7 @@ public class StreamGraphGenerator {
 		if (shouldExecuteInBatchMode) {
 
 			if (checkpointConfig.isCheckpointingEnabled()) {
-				LOG.info("Disabled Checkpointing. Checkpointing is not supported when executing jobs in BATCH mode.");
+				LOG.info("Disabled Checkpointing. Checkpointing is not supported and not needed when executing jobs in BATCH mode.");
 				checkpointConfig.disableCheckpointing();
 			}
 
