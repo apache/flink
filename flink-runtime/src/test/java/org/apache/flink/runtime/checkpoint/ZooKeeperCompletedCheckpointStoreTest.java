@@ -44,7 +44,9 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.checkpoint.CompletedCheckpointStoreTest.createCheckpoint;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
 import static org.junit.Assert.assertEquals;
@@ -78,6 +80,37 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 			} catch (Exception exception) {
 				findThrowable(exception, ExpectedTestException.class).ifPresent(ExceptionUtils::rethrow);
 				rethrow(exception);
+			}
+		});
+	}
+
+	@Test
+	public void testNoDownloadIfCheckpointsNotChanged() throws Exception {
+		testDownloadInternal((store, checkpointsInZk, sharedStateRegistry) -> {
+			try {
+				checkpointsInZk.add(createHandle(1, id -> {
+					throw new AssertionError("retrieveState was attempted for checkpoint " + id);
+				}));
+				store.addCheckpoint(createCheckpoint(1, sharedStateRegistry), new CheckpointsCleaner(), () -> { /*no op*/});
+				store.recover(); // will fail in case of attempt to retrieve state
+			} catch (Exception exception) {
+				throw new RuntimeException(exception);
+			}
+		});
+	}
+
+	@Test
+	public void testDownloadIfCheckpointsChanged() throws Exception {
+		testDownloadInternal((store, checkpointsInZk, sharedStateRegistry) -> {
+			try {
+				int lastInZk = 10;
+				IntStream.range(0, lastInZk + 1).forEach(i -> checkpointsInZk.add(createHandle(i, id -> createCheckpoint(id, sharedStateRegistry))));
+				store.addCheckpoint(createCheckpoint(1, sharedStateRegistry), new CheckpointsCleaner(), () -> { /*no op*/});
+				store.addCheckpoint(createCheckpoint(5, sharedStateRegistry), new CheckpointsCleaner(), () -> { /*no op*/});
+				store.recover();
+				assertEquals(lastInZk, store.getLatestCheckpoint(false).getCheckpointID());
+			} catch (Exception exception) {
+				throw new RuntimeException(exception);
 			}
 		});
 	}
