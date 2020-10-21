@@ -103,6 +103,8 @@ jobs:
         module: tests
       misc:
         module: misc
+      legacy_slot_management:
+        module: legacy_slot_management
   steps:
   # if on Azure, free up disk space
   - script: ./tools/azure-pipelines/free_disk_space.sh
