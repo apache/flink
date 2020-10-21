@@ -48,12 +48,19 @@ public class ColumnarRowIterator extends RecyclableIterator<RowData> {
 
 	/**
 	 * @param num number rows in this batch.
-	 * @param rowsReturned The number of rows that have been returned before this batch.
+	 * @param recordSkipCount The number of rows that have been returned before this batch.
 	 */
-	public void set(final int num, final long rowsReturned) {
+	public void set(final int num, final long recordSkipCount) {
+		set(num, CheckpointedPosition.NO_OFFSET, recordSkipCount);
+	}
+
+	/**
+	 * Set number rows in this batch and updates the position.
+	 */
+	public void set(final int num, final long offset, final long recordSkipCount) {
 		this.num = num;
 		this.pos = 0;
-		this.recordAndPosition.set(null, CheckpointedPosition.NO_OFFSET, rowsReturned);
+		this.recordAndPosition.set(null, offset, recordSkipCount);
 	}
 
 	@Nullable
