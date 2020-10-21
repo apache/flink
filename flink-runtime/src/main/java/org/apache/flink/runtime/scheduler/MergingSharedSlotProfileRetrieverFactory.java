@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
@@ -31,7 +30,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -39,12 +37,12 @@ import java.util.stream.Collectors;
  * Factory for {@link MergingSharedSlotProfileRetriever}.
  */
 class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory {
-	private final PreferredLocationsRetriever preferredLocationsRetriever;
+	private final SyncPreferredLocationsRetriever preferredLocationsRetriever;
 
 	private final Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever;
 
 	MergingSharedSlotProfileRetrieverFactory(
-			PreferredLocationsRetriever preferredLocationsRetriever,
+			SyncPreferredLocationsRetriever preferredLocationsRetriever,
 			Function<ExecutionVertexID, AllocationID> priorAllocationIdRetriever) {
 		this.preferredLocationsRetriever = Preconditions.checkNotNull(preferredLocationsRetriever);
 		this.priorAllocationIdRetriever = Preconditions.checkNotNull(priorAllocationIdRetriever);
@@ -96,33 +94,24 @@ class MergingSharedSlotProfileRetrieverFactory implements SharedSlotProfileRetri
 		 *
 		 * @param executionSlotSharingGroup executions sharing the slot.
 		 * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
-		 * @return a future of the {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
+		 * @return {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
 		 */
 		@Override
-		public CompletableFuture<SlotProfile> getSlotProfileFuture(
+		public SlotProfile getSlotProfile(
 				ExecutionSlotSharingGroup executionSlotSharingGroup,
 				ResourceProfile physicalSlotResourceProfile) {
 			Collection<AllocationID> priorAllocations = new HashSet<>();
-			Collection<CompletableFuture<Collection<TaskManagerLocation>>> preferredLocationsPerExecution = new ArrayList<>();
+			Collection<TaskManagerLocation> preferredLocations = new ArrayList<>();
 			for (ExecutionVertexID execution : executionSlotSharingGroup.getExecutionVertexIds()) {
 				priorAllocations.add(priorAllocationIdRetriever.apply(execution));
-				preferredLocationsPerExecution.add(preferredLocationsRetriever
-					.getPreferredLocations(execution, producersToIgnore));
+				preferredLocations.addAll(preferredLocationsRetriever.getPreferredLocations(execution, producersToIgnore));
 			}
-
-			CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = FutureUtils
-				.combineAll(preferredLocationsPerExecution)
-				.thenApply(executionPreferredLocations ->
-					executionPreferredLocations.stream().flatMap(Collection::stream).collect(Collectors.toList()));
-
-			return preferredLocationsFuture.thenApply(
-				preferredLocations ->
-					SlotProfile.priorAllocation(
-						physicalSlotResourceProfile,
-						physicalSlotResourceProfile,
-						preferredLocations,
-						priorAllocations,
-						allBulkPriorAllocationIds));
+			return SlotProfile.priorAllocation(
+				physicalSlotResourceProfile,
+				physicalSlotResourceProfile,
+				preferredLocations,
+				priorAllocations,
+				allBulkPriorAllocationIds);
 		}
 	}
 }

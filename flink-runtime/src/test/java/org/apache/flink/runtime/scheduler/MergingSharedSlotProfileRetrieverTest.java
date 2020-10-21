@@ -39,7 +39,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -54,8 +53,8 @@ import static org.junit.Assert.assertThat;
  */
 public class MergingSharedSlotProfileRetrieverTest {
 
-	private static final PreferredLocationsRetriever EMPTY_PREFERRED_LOCATIONS_RETRIEVER =
-		(executionVertexId, producersToIgnore) -> CompletableFuture.completedFuture(Collections.emptyList());
+	private static final SyncPreferredLocationsRetriever EMPTY_PREFERRED_LOCATIONS_RETRIEVER =
+		(executionVertexId, producersToIgnore) -> Collections.emptyList();
 
 	@Test
 	public void testGetEmptySlotProfile() throws ExecutionException, InterruptedException {
@@ -65,8 +64,7 @@ public class MergingSharedSlotProfileRetrieverTest {
 		).createFromBulk(Collections.emptySet());
 
 		SlotProfile slotProfile = sharedSlotProfileRetriever
-			.getSlotProfileFuture(new ExecutionSlotSharingGroup(), ResourceProfile.ZERO)
-			.get();
+			.getSlotProfile(new ExecutionSlotSharingGroup(), ResourceProfile.ZERO);
 
 		assertThat(slotProfile.getTaskResourceProfile(), is(ResourceProfile.ZERO));
 		assertThat(slotProfile.getPhysicalSlotResourceProfile(), is(ResourceProfile.ZERO));
@@ -107,7 +105,7 @@ public class MergingSharedSlotProfileRetrieverTest {
 		SlotProfile slotProfile = getSlotProfile(
 			(executionVertexId, producersToIgnore) -> {
 				assertThat(producersToIgnore, containsInAnyOrder(executions.toArray()));
-				return CompletableFuture.completedFuture(locations.get(executionVertexId));
+				return locations.get(executionVertexId);
 			},
 			executions,
 			ResourceProfile.ZERO,
@@ -147,7 +145,7 @@ public class MergingSharedSlotProfileRetrieverTest {
 	}
 
 	private static SlotProfile getSlotProfile(
-			PreferredLocationsRetriever preferredLocationsRetriever,
+			SyncPreferredLocationsRetriever preferredLocationsRetriever,
 			List<ExecutionVertexID> executions,
 			ResourceProfile resourceProfile,
 			List<AllocationID> prevAllocationIDs,
@@ -159,7 +157,7 @@ public class MergingSharedSlotProfileRetrieverTest {
 
 		ExecutionSlotSharingGroup executionSlotSharingGroup = new ExecutionSlotSharingGroup();
 		executions.stream().limit(executionSlotSharingGroupSize).forEach(executionSlotSharingGroup::addVertex);
-		return sharedSlotProfileRetriever.getSlotProfileFuture(executionSlotSharingGroup, resourceProfile).get();
+		return sharedSlotProfileRetriever.getSlotProfile(executionSlotSharingGroup, resourceProfile);
 	}
 
 	private static TaskManagerLocation createTaskManagerLocation() {

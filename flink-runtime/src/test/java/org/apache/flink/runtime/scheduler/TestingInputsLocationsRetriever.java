@@ -75,6 +75,28 @@ class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
 		});
 	}
 
+	void failTaskManagerLocation(final ExecutionVertexID executionVertexId, final Throwable cause) {
+		taskManagerLocationsByVertex.compute(executionVertexId, (key, future) -> {
+			CompletableFuture<TaskManagerLocation> futureToFail = future;
+			if (futureToFail == null) {
+				futureToFail = new CompletableFuture<>();
+			}
+			futureToFail.completeExceptionally(cause);
+			return futureToFail;
+		});
+	}
+
+	void cancelTaskManagerLocation(final ExecutionVertexID executionVertexId) {
+		taskManagerLocationsByVertex.compute(executionVertexId, (key, future) -> {
+			CompletableFuture<TaskManagerLocation> futureToCancel = future;
+			if (futureToCancel == null) {
+				futureToCancel = new CompletableFuture<>();
+			}
+			futureToCancel.cancel(true);
+			return futureToCancel;
+		});
+	}
+
 	static class Builder {
 
 		private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer = new HashMap<>();
