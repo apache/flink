@@ -69,7 +69,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
 	@After
 	public void after() throws Exception {
-		stopTestServer();
+		closeTestServer();
 
 		if (zooKeeperClient != null) {
 			zooKeeperClient.close();
@@ -88,7 +88,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
 		assertThat("No results are expected, yet, since no leader was elected.", firstAddress, is(nullValue()));
 
-		stopTestServer();
+		closeTestServer();
 
 		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
 		assertThat("No result is expected since there was no leader elected before stopping the server, yet.", secondAddress, is(nullValue()));
@@ -110,16 +110,16 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
 		assertThat("The first result is expected to be the initially set leader address.", firstAddress.get(), is(leaderAddress));
 
-		stopTestServer();
+		closeTestServer();
 
 		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
 		assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
 		assertThat("The next result is expected to be null.", secondAddress.get(), is(nullValue()));
 	}
 
-	private void stopTestServer() throws IOException {
+	private void closeTestServer() throws IOException {
 		if (testingServer != null) {
-			testingServer.stop();
+			testingServer.close();
 			testingServer = null;
 		}
 	}
