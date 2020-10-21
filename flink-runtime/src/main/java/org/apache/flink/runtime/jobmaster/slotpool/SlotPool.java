@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -192,6 +193,13 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile);
+
+	/**
+	 * Notifies that not enough resources are available to fulfill the resource requirements.
+	 *
+	 * @param acquiredResources the resources that have been acquired
+	 */
+	default void notifyNotEnoughResourcesAvailable(Collection<ResourceRequirement> acquiredResources) {}
 
 	/**
 	 * Disables batch slot request timeout check. Invoked when someone else wants to
