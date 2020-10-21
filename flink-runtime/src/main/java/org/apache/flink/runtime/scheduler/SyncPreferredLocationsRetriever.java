@@ -18,30 +18,26 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Collection;
 import java.util.Set;
 
 /**
- * Computes a {@link SlotProfile} to allocate a slot for executions, sharing the slot.
+ * Component to retrieve the preferred locations of an execution vertex.
  */
 @FunctionalInterface
-interface SharedSlotProfileRetriever {
-	/**
-	 * Computes a {@link SlotProfile} of an execution slot sharing group.
-	 *
-	 * @param executionSlotSharingGroup executions sharing the slot.
-	 * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
-	 * @return {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
-	 */
-	SlotProfile getSlotProfile(
-		ExecutionSlotSharingGroup executionSlotSharingGroup,
-		ResourceProfile physicalSlotResourceProfile);
+public interface SyncPreferredLocationsRetriever {
 
-	@FunctionalInterface
-	interface SharedSlotProfileRetrieverFactory {
-		SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk);
-	}
+	/**
+	 * Returns preferred locations of an execution vertex.
+	 *
+	 * @param executionVertexId id of the execution vertex
+	 * @param producersToIgnore producer vertices to ignore when calculating input locations
+	 * @return future of preferred locations
+	 */
+	Collection<TaskManagerLocation> getPreferredLocations(
+		ExecutionVertexID executionVertexId,
+		Set<ExecutionVertexID> producersToIgnore);
 }
