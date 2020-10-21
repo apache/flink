@@ -19,10 +19,12 @@ package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * A special {@link ChannelSelector} for use in streaming programs.
@@ -45,4 +47,33 @@ public abstract class StreamPartitioner<T> implements
 	}
 
 	public abstract StreamPartitioner<T> copy();
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final StreamPartitioner<?> that = (StreamPartitioner<?>) o;
+		return numberOfChannels == that.numberOfChannels;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(numberOfChannels);
+	}
+
+	/**
+	 * Defines the behavior of this partitioner, when upstream rescaled during recovery of in-flight data.
+	 */
+	public SubtaskStateMapper getUpstreamSubtaskStateMapper() {
+		return SubtaskStateMapper.ARBITRARY;
+	}
+
+	/**
+	 * Defines the behavior of this partitioner, when downstream rescaled during recovery of in-flight data.
+	 */
+	public abstract SubtaskStateMapper getDownstreamSubtaskStateMapper();
 }
