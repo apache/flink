@@ -56,7 +56,7 @@ public class SpanningWrapperTest {
 		File canNotEecutableFile = folder.newFolder();
 		canNotEecutableFile.setExecutable(false);
 		// Always pick 'canNotEecutableFile' first as the Spilling Channel TmpDir. Thus trigger an IOException.
-		SpanningWrapper spanningWrapper = new SpanningWrapper(new String[]{folder.newFolder().getAbsolutePath(),canNotEecutableFile.getAbsolutePath() + File.separator + "pathdonotexit"}, spillingThreshold, recordLen);
+		SpanningWrapper spanningWrapper = new SpanningWrapper(new String[]{folder.newFolder().getAbsolutePath(), canNotEecutableFile.getAbsolutePath() + File.separator + "pathdonotexit"}, spillingThreshold, recordLen);
 		spanningWrapper.transferFrom(wrapNonSpanning(record1, firstChunk), recordLen);
 		spanningWrapper.addNextChunkFromMemorySegment(wrap(record1), firstChunk, recordLen - firstChunk + LENGTH_BYTES);
 		spanningWrapper.addNextChunkFromMemorySegment(wrap(record2), 0, record2.length);

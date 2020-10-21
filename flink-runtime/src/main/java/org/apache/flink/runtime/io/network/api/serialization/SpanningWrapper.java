@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.flink.core.fs.RefCountedFile;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,6 +30,8 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.StringUtils;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -301,11 +302,11 @@ final class SpanningWrapper {
 				}
 			} catch (IOException e) {
 				// if there is no tempDir left to try
-				if(tempDirs.length <= 1) {
+				if (tempDirs.length <= 1) {
 					throw e;
 				}
 				LOG.warn("Caught an IOException when creating spill file: " + directory + ". Attempt " + attempt, e);
-				tempDirs = (String[]) ArrayUtils.remove(tempDirs,dirIndex);
+				tempDirs = (String[]) ArrayUtils.remove(tempDirs, dirIndex);
 			}
 		}
 
