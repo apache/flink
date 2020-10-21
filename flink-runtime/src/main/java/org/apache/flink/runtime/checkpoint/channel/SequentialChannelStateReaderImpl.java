@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.state.AbstractChannelStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -41,6 +40,7 @@ import java.util.stream.Stream;
 import static java.util.Comparator.comparingLong;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link SequentialChannelStateReader} implementation.
@@ -107,7 +107,7 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
 	private static <Info, Handle extends AbstractChannelStateHandle<Info>> Consumer<Handle> validate() {
 		Set<Info> seen = new HashSet<>();
 		// expect each channel to be described only once; otherwise, buffers in channel could be re-ordered
-		return handle -> Preconditions.checkState(seen.add(handle.getInfo()), "duplicate channel info: %s");
+		return handle -> checkState(seen.add(handle.getInfo()), "duplicate channel info: %s");
 	}
 
 	private static <Info, Handle extends AbstractChannelStateHandle<Info>> List<Tuple2<Long, Info>> extractOffsetsSorted(List<Handle> channelStateHandles) {
