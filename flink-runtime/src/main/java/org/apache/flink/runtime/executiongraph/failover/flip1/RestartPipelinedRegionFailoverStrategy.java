@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -121,7 +122,12 @@ public class RestartPipelinedRegionFailoverStrategy implements FailoverStrategy 
 		// calculate the tasks to restart based on the result of regions to restart
 		Set<ExecutionVertexID> tasksToRestart = new HashSet<>();
 		for (SchedulingPipelinedRegion region : getRegionsToRestart(failedRegion)) {
-			region.getVertices().forEach(vertex -> tasksToRestart.add(vertex.getId()));
+			for (SchedulingExecutionVertex vertex : region.getVertices()) {
+				// we do not need to restart tasks which are already in the initial state
+				if (vertex.getState() != ExecutionState.CREATED) {
+					tasksToRestart.add(vertex.getId());
+				}
+			}
 		}
 
 		// the previous failed partition will be recovered. remove its failed state from the checker

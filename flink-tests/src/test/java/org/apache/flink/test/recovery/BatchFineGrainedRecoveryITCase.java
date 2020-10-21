@@ -154,13 +154,10 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		.map(i ->
 			// exception failure:
 				1 + // this mapper
-				i + // previous mappers
 			// TM failure:
 				(MAP_NUMBER - i - 1) + // subsequent mappers after PartitionNotFoundException
 				1 + // this mapper
-				1 + // this mapper after PartitionNotFoundException
-				i + // previous mappers
-				i) // previous mappers after PartitionNotFoundException
+				1) // this mapper after PartitionNotFoundException
 		.toArray();
 
 	private static final String TASK_NAME_PREFIX = "Test partition mapper ";
