@@ -115,6 +115,20 @@ class TemporalJoinTest extends TableTestBase {
       """.stripMargin)
 
     util.addTable(
+      """
+        |CREATE TABLE RatesHistoryLegacy (
+        | currency STRING,
+        | rate INT,
+        | rowtime TIMESTAMP(3),
+        | WATERMARK FOR rowtime AS rowtime,
+        | PRIMARY KEY(currency) NOT ENFORCED
+        |) WITH (
+        | 'connector' = 'COLLECTION',
+        | 'is-bounded' = 'false'
+        |)
+      """.stripMargin)
+
+    util.addTable(
       " CREATE VIEW rates_last_row_rowtime AS SELECT currency, rate, rowtime FROM " +
         "  (SELECT *, " +
         "          ROW_NUMBER() OVER (PARTITION BY currency ORDER BY rowtime DESC) AS rowNum " +
@@ -133,6 +147,26 @@ class TemporalJoinTest extends TableTestBase {
     util.addTable("CREATE VIEW rates_last_value AS SELECT currency, LAST_VALUE(rate) AS rate " +
       "FROM RatesHistory " +
       "GROUP BY currency ")
+  }
+
+  @Test
+  def testEventTimeTemporalJoinOnLegacySource(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryLegacy FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcTimeTemporalJoinOnLegacySource(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryLegacy FOR SYSTEM_TIME AS OF o.proctime AS r " +
+      "ON o.currency = r.currency"
+
+    util.verifyPlan(sqlQuery)
   }
 
   @Test
