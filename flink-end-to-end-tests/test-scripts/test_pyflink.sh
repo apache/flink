@@ -90,8 +90,6 @@ pip install dist/*
 
 cd dev
 
-conda install -y -q zip=3.0
-
 rm -rf .conda/pkgs
 
 zip -q -r "${TEST_DATA_DIR}/venv.zip" .conda
