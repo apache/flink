@@ -18,9 +18,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobEdge;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -35,6 +44,9 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -45,13 +57,20 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
+import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests to verify state assignment operation.
@@ -301,13 +320,13 @@ public class StateAssignmentOperationTest extends TestLogger {
 	 * Check that channel and operator states are assigned to the same tasks on recovery.
 	 */
 	@Test
-	public void testChannelStateAssignmentStability() {
+	public void testChannelStateAssignmentStability() throws JobException, JobExecutionException {
 		int numOperators = 10; // note: each operator is places into a separate vertex
 		int numSubTasks = 100;
 
-		Set<OperatorID> operatorIds = buildOperatorIds(numOperators);
+		List<OperatorID> operatorIds = buildOperatorIds(numOperators);
+		Map<OperatorID, ExecutionJobVertex> vertices = buildVertices(operatorIds, numSubTasks, RANGE, ROUND_ROBIN);
 		Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, numSubTasks);
-		Map<OperatorID, ExecutionJobVertex> vertices = buildVertices(operatorIds, numSubTasks);
 
 		new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false).assignStates();
 
@@ -321,11 +340,70 @@ public class StateAssignmentOperationTest extends TestLogger {
 	}
 
 	@Test
+	public void testChannelStateAssignmentDownscaling() throws JobException, JobExecutionException {
+		List<OperatorID> operatorIds = buildOperatorIds(2);
+		Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 3);
+
+		Map<OperatorID, ExecutionJobVertex> vertices = buildVertices(operatorIds, 2, RANGE, ROUND_ROBIN);
+
+		new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false).assignStates();
+
+		for (OperatorID operatorId : operatorIds) {
+			// input is range partitioned, so there is an overlap
+			assertState(vertices, operatorId, states, 0, OperatorSubtaskState::getInputChannelState, 0, 1);
+			assertState(vertices, operatorId, states, 1, OperatorSubtaskState::getInputChannelState, 1, 2);
+			// output is round robin redistributed
+			assertState(vertices, operatorId, states, 0, OperatorSubtaskState::getResultSubpartitionState, 0, 2);
+			assertState(vertices, operatorId, states, 1, OperatorSubtaskState::getResultSubpartitionState, 1);
+		}
+
+		assertEquals(
+			new InflightDataRescalingDescriptor(set(0, 2), singletonMap(0, mapping(set(0, 1), set(1, 2)))),
+			getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 0).getOutputRescalingDescriptor());
+		assertEquals(
+			new InflightDataRescalingDescriptor(set(1), singletonMap(0, mapping(set(0, 1), set(1, 2)))),
+			getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 1).getOutputRescalingDescriptor());
+
+		assertEquals(
+			new InflightDataRescalingDescriptor(set(0, 1), singletonMap(0, mapping(set(0, 2), set(1)))),
+			getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0).getInputRescalingDescriptor());
+		assertEquals(
+			new InflightDataRescalingDescriptor(set(1, 2), singletonMap(0, mapping(set(0, 2), set(1)))),
+			getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 1).getInputRescalingDescriptor());
+	}
+
+	@Nonnull
+	private RescaledChannelsMapping mapping(Set<Integer>... channelMappings) {
+		Map<Integer, Set<Integer>> mappings = new HashMap<>();
+		for (int newChannelIndex = 0; newChannelIndex < channelMappings.length; newChannelIndex++) {
+			mappings.put(newChannelIndex, channelMappings[newChannelIndex]);
+		}
+		return new RescaledChannelsMapping(mappings);
+	}
+
+	private Set<Integer> set(int... indexes) {
+		return IntStream.of(indexes).boxed().collect(Collectors.toSet());
+	}
+
+	private void assertState(
+			Map<OperatorID, ExecutionJobVertex> vertices,
+			OperatorID operatorId,
+			Map<OperatorID, OperatorState> states,
+			int newSubtaskIndex,
+			Function<OperatorSubtaskState, StateObjectCollection<?>> extractor,
+			int... oldSubtaskIndexes) {
+		final OperatorSubtaskState subState = getAssignedState(vertices.get(operatorId), operatorId, newSubtaskIndex);
+		assertThat(extractor.apply(subState),
+			containsInAnyOrder(Arrays.stream(oldSubtaskIndexes).boxed()
+				.flatMap(oldIndex -> extractor.apply(states.get(operatorId).getState(oldIndex)).stream()).toArray()));
+	}
+
+	@Test
 	public void assigningStatesShouldWorkWithUserDefinedOperatorIdsAsWell() {
 		int numSubTasks = 1;
 		OperatorID operatorId = new OperatorID();
 		OperatorID userDefinedOperatorId = new OperatorID();
-		Set<OperatorID> operatorIds = Collections.singleton(userDefinedOperatorId);
+		List<OperatorID> operatorIds = singletonList(userDefinedOperatorId);
 
 		ExecutionJobVertex executionJobVertex = buildExecutionJobVertex(operatorId, userDefinedOperatorId, 1);
 		Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, numSubTasks);
@@ -335,17 +413,16 @@ public class StateAssignmentOperationTest extends TestLogger {
 		Assert.assertEquals(states.get(userDefinedOperatorId).getState(0), getAssignedState(executionJobVertex, operatorId, 0));
 	}
 
-	private Set<OperatorID> buildOperatorIds(int operators) {
-		Set<OperatorID> set = new HashSet<>();
-		for (int j = 0; j < operators; j++) {
-			set.add(new OperatorID());
-		}
-		return set;
+	private List<OperatorID> buildOperatorIds(int numOperators) {
+		return IntStream.range(0, numOperators)
+			.mapToObj(j -> new OperatorID())
+			.collect(Collectors.toList());
 	}
 
-	private Map<OperatorID, OperatorState> buildOperatorStates(Set<OperatorID> operators, int numSubTasks) {
+	private Map<OperatorID, OperatorState> buildOperatorStates(List<OperatorID> operatorIDs, int numSubTasks) {
 		Random random = new Random();
-		return operators.stream().collect(Collectors.toMap(Function.identity(), operatorID -> {
+		final OperatorID lastId = operatorIDs.get(operatorIDs.size() - 1);
+		return operatorIDs.stream().collect(Collectors.toMap(Function.identity(), operatorID -> {
 			OperatorState state = new OperatorState(operatorID, numSubTasks, numSubTasks);
 			for (int i = 0; i < numSubTasks; i++) {
 				state.putState(
@@ -361,31 +438,55 @@ public class StateAssignmentOperationTest extends TestLogger {
 							createNewKeyedStateHandle(KeyGroupRange.of(i, i))))
 						.setRawKeyedState(StateObjectCollection.singleton(
 							createNewKeyedStateHandle(KeyGroupRange.of(i, i))))
-						.setInputChannelState(new StateObjectCollection<>(asList(
-							createNewInputChannelStateHandle(10, random),
-							createNewInputChannelStateHandle(10, random))))
-						.setResultSubpartitionState(new StateObjectCollection<>(asList(
-							createNewResultSubpartitionStateHandle(10, random),
-							createNewResultSubpartitionStateHandle(10, random))))
+						.setInputChannelState(operatorID == operatorIDs.get(0) ? StateObjectCollection.empty() :
+							new StateObjectCollection<>(asList(
+								createNewInputChannelStateHandle(10, random),
+								createNewInputChannelStateHandle(10, random))))
+						.setResultSubpartitionState(operatorID == lastId ? StateObjectCollection.empty() :
+							new StateObjectCollection<>(asList(
+								createNewResultSubpartitionStateHandle(10, random),
+								createNewResultSubpartitionStateHandle(10, random))))
 						.build());
 			}
 			return state;
 		}));
 	}
 
-	private Map<OperatorID, ExecutionJobVertex> buildVertices(Set<OperatorID> operators, int parallelism) {
-		return operators.stream()
-			.collect(Collectors.toMap(Function.identity(), operatorID -> {
-				try {
-					return buildExecutionJobVertex(operatorID, operatorID, parallelism);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			}));
+	private Map<OperatorID, ExecutionJobVertex> buildVertices(
+			List<OperatorID> operatorIds,
+			int parallelism,
+			SubtaskStateMapper downstreamRescaler,
+			SubtaskStateMapper upstreamRescaler) throws JobException, JobExecutionException {
+		final JobVertex[] jobVertices = operatorIds.stream()
+			.map(id -> {
+				final JobVertex jobVertex = createJobVertex(id, id, parallelism);
+				return jobVertex;
+			})
+			.toArray(JobVertex[]::new);
+		for (int index = 1; index < jobVertices.length; index++) {
+			final JobEdge jobEdge = jobVertices[index].connectNewDataSetAsInput(
+				jobVertices[index - 1],
+				DistributionPattern.ALL_TO_ALL,
+				ResultPartitionType.PIPELINED);
+			jobEdge.setDownstreamSubtaskStateMapper(downstreamRescaler);
+			jobEdge.setUpstreamSubtaskStateMapper(upstreamRescaler);
+		}
+
+		JobGraph jobGraph = new JobGraph("Pointwise job", jobVertices);
+		ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
+		return Arrays.stream(jobVertices)
+			.collect(Collectors.toMap(
+				jobVertex -> jobVertex.getOperatorIDs().get(0).getGeneratedOperatorID(),
+				jobVertex -> {
+					try {
+						return eg.getJobVertex(jobVertex.getID());
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				}));
 	}
 
-	private ExecutionJobVertex buildExecutionJobVertex(
-			OperatorID operatorID,
+	private ExecutionJobVertex buildExecutionJobVertex(OperatorID operatorID,
 			OperatorID userDefinedOperatorId,
 			int parallelism) {
 		try {
