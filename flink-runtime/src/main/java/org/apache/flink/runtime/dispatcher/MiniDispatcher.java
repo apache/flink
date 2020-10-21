@@ -27,7 +27,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
 
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -59,7 +57,7 @@ public class MiniDispatcher extends Dispatcher {
 			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
 			JobGraph jobGraph,
-			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,

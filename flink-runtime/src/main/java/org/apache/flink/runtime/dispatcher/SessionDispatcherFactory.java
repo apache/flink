@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.Collection;
-import java.util.function.Function;
 
 /**
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}.
@@ -36,7 +34,7 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(

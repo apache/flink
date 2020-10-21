@@ -18,23 +18,18 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rpc.RpcService;
-
-import java.util.Collection;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 /**
- * {@link Dispatcher} factory interface.
+ * A factory to create a {@link DispatcherBootstrap}.
  */
-public interface DispatcherFactory {
+@Internal
+public interface DispatcherBootstrapFactory {
 
-	/**
-	 * Create a {@link Dispatcher}.
-	 */
-	Dispatcher createDispatcher(
-			RpcService rpcService,
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			DispatcherBootstrapFactory dispatcherBootstrapFactory,
-			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
+	DispatcherBootstrap create(
+			final DispatcherGateway dispatcher,
+			final ScheduledExecutor scheduledExecutor,
+			final FatalErrorHandler errorHandler) throws Exception;
 }

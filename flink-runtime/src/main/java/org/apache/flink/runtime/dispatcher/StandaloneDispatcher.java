@@ -20,11 +20,9 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.Collection;
-import java.util.function.Function;
 
 /**
  * Dispatcher implementation which spawns a {@link JobMaster} for each
@@ -36,7 +34,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
