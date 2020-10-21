@@ -111,7 +111,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
@@ -221,8 +220,8 @@ public class DispatcherTest extends TestLogger {
 
 		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
 
-		private Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory =
-				errorHandler -> new NoOpDispatcherBootstrap();
+		private DispatcherBootstrapFactory dispatcherBootstrapFactory =
+				(dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap();
 
 		private HeartbeatServices heartbeatServices = DispatcherTest.this.heartbeatServices;
 
@@ -248,7 +247,7 @@ public class DispatcherTest extends TestLogger {
 		}
 
 		TestingDispatcherBuilder setDispatcherBootstrapFactory(
-				Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory) {
+				DispatcherBootstrapFactory dispatcherBootstrapFactory) {
 			this.dispatcherBootstrapFactory = dispatcherBootstrapFactory;
 			return this;
 		}

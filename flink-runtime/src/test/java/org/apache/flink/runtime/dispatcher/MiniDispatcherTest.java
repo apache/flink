@@ -253,7 +253,7 @@ public class MiniDispatcherTest extends TestLogger {
 				testingJobManagerRunnerFactory,
 				ForkJoinPool.commonPool()),
 			jobGraph,
-			errorHandler -> new NoOpDispatcherBootstrap(),
+			(dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap(),
 			executionMode);
 	}
 
