@@ -181,7 +181,7 @@ public class PythonOptions {
 	public static final ConfigOption<Integer> MAP_STATE_READ_CACHE_SIZE = ConfigOptions
 		.key("python.map-state.read.cache.size")
 		.defaultValue(1000)
-		.withDescription("The maximum number of cached entries for a single in a Python MapState. " +
+		.withDescription("The maximum number of cached entries for a single Python MapState. " +
 			"Note that this is an experimental flag and might not be available in future releases.");
 
 	/**
