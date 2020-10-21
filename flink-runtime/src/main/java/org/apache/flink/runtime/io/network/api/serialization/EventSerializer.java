@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -64,6 +65,8 @@ public class EventSerializer {
 
 	private static final int END_OF_CHANNEL_STATE_EVENT = 5;
 
+	private static final int ANNOUNCEMENT_EVENT = 6;
+
 	private static final int CHECKPOINT_TYPE_CHECKPOINT = 0;
 
 	private static final int CHECKPOINT_TYPE_SAVEPOINT = 1;
@@ -95,6 +98,18 @@ public class EventSerializer {
 			buf.putInt(0, CANCEL_CHECKPOINT_MARKER_EVENT);
 			buf.putLong(4, marker.getCheckpointId());
 			return buf;
+		}
+		else if (eventClass == EventAnnouncement.class) {
+			EventAnnouncement announcement = (EventAnnouncement) event;
+			ByteBuffer serializedAnnouncedEvent = toSerializedEvent(announcement.getAnnouncedEvent());
+			ByteBuffer serializedAnnouncement = ByteBuffer.allocate(2 * Integer.BYTES + serializedAnnouncedEvent.capacity());
+
+			serializedAnnouncement.putInt(0, ANNOUNCEMENT_EVENT);
+			serializedAnnouncement.putInt(4, announcement.getSequenceNumber());
+			serializedAnnouncement.position(8);
+			serializedAnnouncement.put(serializedAnnouncedEvent);
+			serializedAnnouncement.flip();
+			return serializedAnnouncement;
 		}
 		else {
 			try {
@@ -136,6 +151,11 @@ public class EventSerializer {
 			else if (type == CANCEL_CHECKPOINT_MARKER_EVENT) {
 				long id = buffer.getLong();
 				return new CancelCheckpointMarker(id);
+			}
+			else if (type == ANNOUNCEMENT_EVENT) {
+				int sequenceNumber = buffer.getInt();
+				AbstractEvent announcedEvent = fromSerializedEvent(buffer, classLoader);
+				return new EventAnnouncement(announcedEvent, sequenceNumber);
 			}
 			else if (type == OTHER_EVENT) {
 				try {
@@ -179,7 +199,7 @@ public class EventSerializer {
 		final byte[] locationBytes = checkpointOptions.getTargetLocation().isDefaultReference() ?
 				null : checkpointOptions.getTargetLocation().getReferenceBytes();
 
-		final ByteBuffer buf = ByteBuffer.allocate(30 + (locationBytes == null ? 0 : locationBytes.length));
+		final ByteBuffer buf = ByteBuffer.allocate(38 + (locationBytes == null ? 0 : locationBytes.length));
 
 		// we do not use checkpointType.ordinal() here to make the serialization robust
 		// against changes in the enum (such as changes in the order of the values)
