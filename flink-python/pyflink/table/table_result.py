@@ -156,7 +156,7 @@ class TableResult(object):
         """
         return ResultKind._from_j_result_kind(self._j_table_result.getResultKind())
 
-    def collect(self):
+    def collect(self) -> 'CloseableIterator':
         """
         Get the result contents as a closeable row iterator.
 
@@ -167,7 +167,7 @@ class TableResult(object):
         CloseableIterator#close method. Calling CloseableIterator#close method will cancel the job
         and release related resources.
 
-        For DML operation, Flink dose not support getting the real affected row count now. So the
+        For DML operation, Flink does not support getting the real affected row count now. So the
         affected row count is always -1 (unknown) for every sink, and them will be returned until
         the job is finished.
         Calling CloseableIterator#close method will cancel the job.

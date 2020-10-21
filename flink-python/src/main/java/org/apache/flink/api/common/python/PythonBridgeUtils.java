@@ -273,7 +273,6 @@ public final class PythonBridgeUtils {
 	}
 
 	private static boolean initialized = false;
-
 	private static void initialize() {
 		synchronized (PythonBridgeUtils.class) {
 			if (!initialized) {
