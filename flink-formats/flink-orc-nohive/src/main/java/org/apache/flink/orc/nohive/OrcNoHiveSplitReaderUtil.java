@@ -20,6 +20,7 @@ package org.apache.flink.orc.nohive;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
+import org.apache.flink.orc.OrcFilters;
 import org.apache.flink.orc.OrcSplitReader;
 import org.apache.flink.orc.nohive.shim.OrcNoHiveShim;
 import org.apache.flink.table.data.vector.ColumnVector;
@@ -54,7 +55,7 @@ public class OrcNoHiveSplitReaderUtil {
 			DataType[] fullFieldTypes,
 			Map<String, Object> partitionSpec,
 			int[] selectedFields,
-			List<OrcSplitReader.Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			int batchSize,
 			Path path,
 			long splitStart,

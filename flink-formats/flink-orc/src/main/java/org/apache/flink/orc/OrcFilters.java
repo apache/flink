@@ -30,15 +30,20 @@ import org.apache.flink.util.function.TriFunction;
 
 import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableMap;
 
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
+import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -49,8 +54,8 @@ public class OrcFilters {
 
 	private static final Logger LOG = LoggerFactory.getLogger(OrcFileSystemFormatFactory.class);
 
-	private static final ImmutableMap<FunctionDefinition, Function<CallExpression, OrcSplitReader.Predicate>> FILTERS =
-			new ImmutableMap.Builder<FunctionDefinition, Function<CallExpression, OrcSplitReader.Predicate>>()
+	private static final ImmutableMap<FunctionDefinition, Function<CallExpression, Predicate>> FILTERS =
+			new ImmutableMap.Builder<FunctionDefinition, Function<CallExpression, Predicate>>()
 					.put(BuiltInFunctionDefinitions.IS_NULL, OrcFilters::convertIsNull)
 					.put(BuiltInFunctionDefinitions.IS_NOT_NULL, OrcFilters::convertIsNotNull)
 					.put(BuiltInFunctionDefinitions.NOT, OrcFilters::convertNot)
@@ -82,7 +87,7 @@ public class OrcFilters {
 		);
 	}
 
-	private static OrcSplitReader.Predicate convertIsNull(CallExpression callExp) {
+	private static Predicate convertIsNull(CallExpression callExp) {
 		if (!isUnaryValid(callExp)) {
 			// not a valid predicate
 			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
@@ -98,43 +103,43 @@ public class OrcFilters {
 
 		String colName = getColumnName(callExp);
 
-		return new OrcSplitReader.IsNull(colName, colType);
+		return new IsNull(colName, colType);
 	}
 
-	private static OrcSplitReader.Predicate convertIsNotNull(CallExpression callExp) {
-		return new OrcSplitReader.Not(convertIsNull(callExp));
+	private static Predicate convertIsNotNull(CallExpression callExp) {
+		return new Not(convertIsNull(callExp));
 	}
 
-	private static OrcSplitReader.Predicate convertNot(CallExpression callExp) {
+	private static Predicate convertNot(CallExpression callExp) {
 		if (callExp.getChildren().size() != 1) {
 			// not a valid predicate
 			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
 			return null;
 		}
 
-		OrcSplitReader.Predicate c = toOrcPredicate(callExp.getChildren().get(0));
-		return c == null ? null : new OrcSplitReader.Not(c);
+		Predicate c = toOrcPredicate(callExp.getChildren().get(0));
+		return c == null ? null : new Not(c);
 	}
 
-	private static OrcSplitReader.Predicate convertOr(CallExpression callExp) {
+	private static Predicate convertOr(CallExpression callExp) {
 		if (callExp.getChildren().size() < 2) {
 			return null;
 		}
 		Expression left = callExp.getChildren().get(0);
 		Expression right = callExp.getChildren().get(1);
 
-		OrcSplitReader.Predicate c1 = toOrcPredicate(left);
-		OrcSplitReader.Predicate c2 = toOrcPredicate(right);
+		Predicate c1 = toOrcPredicate(left);
+		Predicate c2 = toOrcPredicate(right);
 		if (c1 == null || c2 == null) {
 			return null;
 		} else {
-			return new OrcSplitReader.Or(c1, c2);
+			return new Or(c1, c2);
 		}
 	}
 
-	public static OrcSplitReader.Predicate convertBinary(CallExpression callExp,
-			TriFunction<String, PredicateLeaf.Type, Serializable, OrcSplitReader.Predicate> func,
-			TriFunction<String, PredicateLeaf.Type, Serializable, OrcSplitReader.Predicate> reverseFunc) {
+	public static Predicate convertBinary(CallExpression callExp,
+			TriFunction<String, PredicateLeaf.Type, Serializable, Predicate> func,
+			TriFunction<String, PredicateLeaf.Type, Serializable, Predicate> reverseFunc) {
 		if (!isBinaryValid(callExp)) {
 			// not a valid predicate
 			LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcFileSystemFormatFactory.", callExp);
@@ -168,33 +173,33 @@ public class OrcFilters {
 		return literalOnRight(callExp) ? func.apply(colName, litType, literal) : reverseFunc.apply(colName, litType, literal);
 	}
 
-	private static OrcSplitReader.Predicate convertEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
-		return new OrcSplitReader.Equals(colName, litType, literal);
+	private static Predicate convertEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new Equals(colName, litType, literal);
 	}
 
-	private static OrcSplitReader.Predicate convertNotEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
-		return new OrcSplitReader.Not(convertEquals(colName, litType, literal));
+	private static Predicate convertNotEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new Not(convertEquals(colName, litType, literal));
 	}
 
-	private static OrcSplitReader.Predicate convertGreaterThan(String colName, PredicateLeaf.Type litType, Serializable literal) {
-		return new OrcSplitReader.Not(
-				new OrcSplitReader.LessThanEquals(colName, litType, literal));
+	private static Predicate convertGreaterThan(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new Not(
+				new LessThanEquals(colName, litType, literal));
 	}
 
-	private static OrcSplitReader.Predicate convertGreaterThanEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
-		return new OrcSplitReader.Not(
-				new OrcSplitReader.LessThan(colName, litType, literal));
+	private static Predicate convertGreaterThanEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new Not(
+				new LessThan(colName, litType, literal));
 	}
 
-	private static OrcSplitReader.Predicate convertLessThan(String colName, PredicateLeaf.Type litType, Serializable literal) {
-		return new OrcSplitReader.LessThan(colName, litType, literal);
+	private static Predicate convertLessThan(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new LessThan(colName, litType, literal);
 	}
 
-	private static OrcSplitReader.Predicate convertLessThanEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
-		return new OrcSplitReader.LessThanEquals(colName, litType, literal);
+	private static Predicate convertLessThanEquals(String colName, PredicateLeaf.Type litType, Serializable literal) {
+		return new LessThanEquals(colName, litType, literal);
 	}
 
-	public static OrcSplitReader.Predicate toOrcPredicate(Expression expression) {
+	public static Predicate toOrcPredicate(Expression expression) {
 		if (expression instanceof CallExpression) {
 			CallExpression callExp = (CallExpression) expression;
 			if (FILTERS.get(callExp.getFunctionDefinition()) == null) {
@@ -293,6 +298,356 @@ public class OrcFilters {
 				return PredicateLeaf.Type.DECIMAL;
 			default:
 				return null;
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Classes to define predicates
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * A filter predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public abstract static class Predicate implements Serializable {
+		public abstract SearchArgument.Builder add(SearchArgument.Builder builder);
+	}
+
+	abstract static class ColumnPredicate extends Predicate {
+		final String columnName;
+		final PredicateLeaf.Type literalType;
+
+		ColumnPredicate(String columnName, PredicateLeaf.Type literalType) {
+			this.columnName = columnName;
+			this.literalType = literalType;
+		}
+
+		Object castLiteral(Serializable literal) {
+
+			switch (literalType) {
+				case LONG:
+					if (literal instanceof Byte) {
+						return new Long((Byte) literal);
+					} else if (literal instanceof Short) {
+						return new Long((Short) literal);
+					} else if (literal instanceof Integer) {
+						return new Long((Integer) literal);
+					} else if (literal instanceof Long) {
+						return literal;
+					} else {
+						throw new IllegalArgumentException("A predicate on a LONG column requires an integer " +
+								"literal, i.e., Byte, Short, Integer, or Long.");
+					}
+				case FLOAT:
+					if (literal instanceof Float) {
+						return new Double((Float) literal);
+					} else if (literal instanceof Double) {
+						return literal;
+					} else if (literal instanceof BigDecimal) {
+						return ((BigDecimal) literal).doubleValue();
+					} else {
+						throw new IllegalArgumentException("A predicate on a FLOAT column requires a floating " +
+								"literal, i.e., Float or Double.");
+					}
+				case STRING:
+					if (literal instanceof String) {
+						return literal;
+					} else {
+						throw new IllegalArgumentException("A predicate on a STRING column requires a floating " +
+								"literal, i.e., Float or Double.");
+					}
+				case BOOLEAN:
+					if (literal instanceof Boolean) {
+						return literal;
+					} else {
+						throw new IllegalArgumentException("A predicate on a BOOLEAN column requires a Boolean literal.");
+					}
+				case DATE:
+					if (literal instanceof Date) {
+						return literal;
+					} else {
+						throw new IllegalArgumentException("A predicate on a DATE column requires a java.sql.Date literal.");
+					}
+				case TIMESTAMP:
+					if (literal instanceof Timestamp) {
+						return literal;
+					} else {
+						throw new IllegalArgumentException("A predicate on a TIMESTAMP column requires a java.sql.Timestamp literal.");
+					}
+				case DECIMAL:
+					if (literal instanceof BigDecimal) {
+						return new HiveDecimalWritable(HiveDecimal.create((BigDecimal) literal));
+					} else {
+						throw new IllegalArgumentException("A predicate on a DECIMAL column requires a BigDecimal literal.");
+					}
+				default:
+					throw new IllegalArgumentException("Unknown literal type " + literalType);
+			}
+		}
+	}
+
+	abstract static class BinaryPredicate extends ColumnPredicate {
+		final Serializable literal;
+
+		BinaryPredicate(String columnName, PredicateLeaf.Type literalType, Serializable literal) {
+			super(columnName, literalType);
+			this.literal = literal;
+		}
+	}
+
+	/**
+	 * An EQUALS predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class Equals extends BinaryPredicate {
+		/**
+		 * Creates an EQUALS predicate.
+		 *
+		 * @param columnName The column to check.
+		 * @param literalType The type of the literal.
+		 * @param literal The literal value to check the column against.
+		 */
+		public Equals(String columnName, PredicateLeaf.Type literalType, Serializable literal) {
+			super(columnName, literalType, literal);
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return builder.equals(columnName, literalType, castLiteral(literal));
+		}
+
+		@Override
+		public String toString() {
+			return columnName + " = " + literal;
+		}
+	}
+
+	/**
+	 * An EQUALS predicate that can be evaluated with Null safety by the OrcInputFormat.
+	 */
+	public static class NullSafeEquals extends BinaryPredicate {
+		/**
+		 * Creates a null-safe EQUALS predicate.
+		 *
+		 * @param columnName The column to check.
+		 * @param literalType The type of the literal.
+		 * @param literal The literal value to check the column against.
+		 */
+		public NullSafeEquals(String columnName, PredicateLeaf.Type literalType, Serializable literal) {
+			super(columnName, literalType, literal);
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return builder.nullSafeEquals(columnName, literalType, castLiteral(literal));
+		}
+
+		@Override
+		public String toString() {
+			return columnName + " = " + literal;
+		}
+	}
+
+	/**
+	 * A LESS_THAN predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class LessThan extends BinaryPredicate {
+		/**
+		 * Creates a LESS_THAN predicate.
+		 *
+		 * @param columnName The column to check.
+		 * @param literalType The type of the literal.
+		 * @param literal The literal value to check the column against.
+		 */
+		public LessThan(String columnName, PredicateLeaf.Type literalType, Serializable literal) {
+			super(columnName, literalType, literal);
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return builder.lessThan(columnName, literalType, castLiteral(literal));
+		}
+
+		@Override
+		public String toString() {
+			return columnName + " < " + literal;
+		}
+	}
+
+	/**
+	 * A LESS_THAN_EQUALS predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class LessThanEquals extends BinaryPredicate {
+		/**
+		 * Creates a LESS_THAN_EQUALS predicate.
+		 *
+		 * @param columnName The column to check.
+		 * @param literalType The type of the literal.
+		 * @param literal The literal value to check the column against.
+		 */
+		public LessThanEquals(String columnName, PredicateLeaf.Type literalType, Serializable literal) {
+			super(columnName, literalType, literal);
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return builder.lessThanEquals(columnName, literalType, castLiteral(literal));
+		}
+
+		@Override
+		public String toString() {
+			return columnName + " <= " + literal;
+		}
+	}
+
+	/**
+	 * An IS_NULL predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class IsNull extends ColumnPredicate {
+		/**
+		 * Creates an IS_NULL predicate.
+		 *
+		 * @param columnName The column to check for null.
+		 * @param literalType The type of the column to check for null.
+		 */
+		public IsNull(String columnName, PredicateLeaf.Type literalType) {
+			super(columnName, literalType);
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return builder.isNull(columnName, literalType);
+		}
+
+		@Override
+		public String toString() {
+			return columnName + " IS NULL";
+		}
+	}
+
+	/**
+	 * An BETWEEN predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class Between extends ColumnPredicate {
+		private Serializable lowerBound;
+		private Serializable upperBound;
+
+		/**
+		 * Creates an BETWEEN predicate.
+		 *
+		 * @param columnName The column to check.
+		 * @param literalType The type of the literals.
+		 * @param lowerBound The literal value of the (inclusive) lower bound to check the column against.
+		 * @param upperBound The literal value of the (inclusive) upper bound to check the column against.
+		 */
+		public Between(String columnName, PredicateLeaf.Type literalType, Serializable lowerBound, Serializable upperBound) {
+			super(columnName, literalType);
+			this.lowerBound = lowerBound;
+			this.upperBound = upperBound;
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return builder.between(columnName, literalType, castLiteral(lowerBound), castLiteral(upperBound));
+		}
+
+		@Override
+		public String toString() {
+			return lowerBound + " <= " + columnName + " <= " + upperBound;
+		}
+	}
+
+	/**
+	 * An IN predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class In extends ColumnPredicate {
+		private Serializable[] literals;
+
+		/**
+		 * Creates an IN predicate.
+		 *
+		 * @param columnName The column to check.
+		 * @param literalType The type of the literals.
+		 * @param literals The literal values to check the column against.
+		 */
+		public In(String columnName, PredicateLeaf.Type literalType, Serializable... literals) {
+			super(columnName, literalType);
+			this.literals = literals;
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			Object[] castedLiterals = new Object[literals.length];
+			for (int i = 0; i < literals.length; i++) {
+				castedLiterals[i] = castLiteral(literals[i]);
+			}
+			return builder.in(columnName, literalType, (Object[]) castedLiterals);
+		}
+
+		@Override
+		public String toString() {
+			return columnName + " IN " + Arrays.toString(literals);
+		}
+	}
+
+	/**
+	 * A NOT predicate to negate a predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class Not extends Predicate {
+		private final Predicate pred;
+
+		/**
+		 * Creates a NOT predicate.
+		 *
+		 * @param predicate The predicate to negate.
+		 */
+		public Not(Predicate predicate) {
+			this.pred = predicate;
+		}
+
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			return pred.add(builder.startNot()).end();
+		}
+
+		protected Predicate child() {
+			return pred;
+		}
+
+		@Override
+		public String toString() {
+			return "NOT(" + pred.toString() + ")";
+		}
+	}
+
+	/**
+	 * An OR predicate that can be evaluated by the OrcInputFormat.
+	 */
+	public static class Or extends Predicate {
+		private final Predicate[] preds;
+
+		/**
+		 * Creates an OR predicate.
+		 *
+		 * @param predicates The disjunctive predicates.
+		 */
+		public Or(Predicate... predicates) {
+			this.preds = predicates;
+		}
+
+		@Override
+		public SearchArgument.Builder add(SearchArgument.Builder builder) {
+			SearchArgument.Builder withOr = builder.startOr();
+			for (Predicate p : preds) {
+				withOr = p.add(withOr);
+			}
+			return withOr.end();
+		}
+
+		protected Iterable<Predicate> children() {
+			return Arrays.asList(preds);
+		}
+
+		@Override
+		public String toString() {
+			return "OR(" + Arrays.toString(preds) + ")";
 		}
 	}
 }

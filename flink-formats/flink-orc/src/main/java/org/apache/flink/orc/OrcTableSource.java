@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.orc.OrcSplitReader.Predicate;
+import org.apache.flink.orc.OrcFilters.Predicate;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Attribute;
 import org.apache.flink.table.expressions.BinaryComparison;
@@ -160,7 +160,7 @@ public class OrcTableSource
 			orcIF.selectFields(selectedFields);
 		}
 		if (predicates != null) {
-			for (OrcSplitReader.Predicate pred : predicates) {
+			for (OrcFilters.Predicate pred : predicates) {
 				orcIF.addPredicate(pred);
 			}
 		}
@@ -236,14 +236,14 @@ public class OrcTableSource
 			if (c1 == null || c2 == null) {
 				return null;
 			} else {
-				return new OrcSplitReader.Or(c1, c2);
+				return new OrcFilters.Or(c1, c2);
 			}
 		} else if (pred instanceof Not) {
 			Predicate c = toOrcPredicate(((Not) pred).child());
 			if (c == null) {
 				return null;
 			} else {
-				return new OrcSplitReader.Not(c);
+				return new OrcFilters.Not(c);
 			}
 		} else if (pred instanceof BinaryComparison) {
 
@@ -279,37 +279,37 @@ public class OrcTableSource
 			}
 
 			if (pred instanceof EqualTo) {
-				return new OrcSplitReader.Equals(colName, litType, literal);
+				return new OrcFilters.Equals(colName, litType, literal);
 			} else if (pred instanceof NotEqualTo) {
-				return new OrcSplitReader.Not(
-					new OrcSplitReader.Equals(colName, litType, literal));
+				return new OrcFilters.Not(
+					new OrcFilters.Equals(colName, litType, literal));
 			} else if (pred instanceof GreaterThan) {
 				if (literalOnRight) {
-					return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThanEquals(colName, litType, literal));
+					return new OrcFilters.Not(
+						new OrcFilters.LessThanEquals(colName, litType, literal));
 				} else {
-					return new OrcSplitReader.LessThan(colName, litType, literal);
+					return new OrcFilters.LessThan(colName, litType, literal);
 				}
 			} else if (pred instanceof GreaterThanOrEqual) {
 				if (literalOnRight) {
-					return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThan(colName, litType, literal));
+					return new OrcFilters.Not(
+						new OrcFilters.LessThan(colName, litType, literal));
 				} else {
-					return new OrcSplitReader.LessThanEquals(colName, litType, literal);
+					return new OrcFilters.LessThanEquals(colName, litType, literal);
 				}
 			} else if (pred instanceof LessThan) {
 				if (literalOnRight) {
-					return new OrcSplitReader.LessThan(colName, litType, literal);
+					return new OrcFilters.LessThan(colName, litType, literal);
 				} else {
-					return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThanEquals(colName, litType, literal));
+					return new OrcFilters.Not(
+						new OrcFilters.LessThanEquals(colName, litType, literal));
 				}
 			} else if (pred instanceof LessThanOrEqual) {
 				if (literalOnRight) {
-					return new OrcSplitReader.LessThanEquals(colName, litType, literal);
+					return new OrcFilters.LessThanEquals(colName, litType, literal);
 				} else {
-					return new OrcSplitReader.Not(
-						new OrcSplitReader.LessThan(colName, litType, literal));
+					return new OrcFilters.Not(
+						new OrcFilters.LessThan(colName, litType, literal));
 				}
 			} else {
 				// unsupported predicate
@@ -334,10 +334,10 @@ public class OrcTableSource
 			String colName = getColumnName(unary);
 
 			if (pred instanceof IsNull) {
-				return new OrcSplitReader.IsNull(colName, colType);
+				return new OrcFilters.IsNull(colName, colType);
 			} else if (pred instanceof IsNotNull) {
-				return new OrcSplitReader.Not(
-					new OrcSplitReader.IsNull(colName, colType));
+				return new OrcFilters.Not(
+					new OrcFilters.IsNull(colName, colType));
 			} else {
 				// unsupported predicate
 				LOG.debug("Unsupported predicate [{}] cannot be pushed into OrcTableSource.", pred);

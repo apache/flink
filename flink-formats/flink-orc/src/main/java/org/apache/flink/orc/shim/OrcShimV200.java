@@ -20,7 +20,7 @@ package org.apache.flink.orc.shim;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.orc.OrcSplitReader.Predicate;
+import org.apache.flink.orc.OrcFilters.Predicate;
 import org.apache.flink.orc.vector.HiveOrcBatchWrapper;
 
 import org.apache.hadoop.conf.Configuration;

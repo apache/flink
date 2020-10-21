@@ -86,10 +86,10 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 
 	@Override
 	public InputFormat<RowData, ?> createReader(ReaderContext context) {
-		List<OrcSplitReader.Predicate> orcPredicates = new ArrayList<>();
+		List<OrcFilters.Predicate> orcPredicates = new ArrayList<>();
 
 		for (Expression pred : context.getPushedDownFilters()) {
-			OrcSplitReader.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
+			OrcFilters.Predicate orcPred = OrcFilters.toOrcPredicate(pred);
 			if (orcPred != null) {
 				orcPredicates.add(orcPred);
 			}
@@ -139,7 +139,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 		private final DataType[] fullFieldTypes;
 		private final int[] selectedFields;
 		private final String partDefaultName;
-		private List<OrcSplitReader.Predicate> pushedDownFilters;
+		private List<OrcFilters.Predicate> pushedDownFilters;
 		private final Properties properties;
 		private final long limit;
 
@@ -152,7 +152,7 @@ public class OrcFileSystemFormatFactory implements FileSystemFormatFactory {
 				DataType[] fullFieldTypes,
 				int[] selectedFields,
 				String partDefaultName,
-				List<OrcSplitReader.Predicate> pushedDownFilters,
+				List<OrcFilters.Predicate> pushedDownFilters,
 				long limit,
 				Properties properties) {
 			super.setFilePaths(paths);

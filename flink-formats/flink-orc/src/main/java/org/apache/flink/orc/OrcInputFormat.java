@@ -21,10 +21,10 @@ package org.apache.flink.orc;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.orc.OrcSplitReader.ColumnPredicate;
-import org.apache.flink.orc.OrcSplitReader.Not;
-import org.apache.flink.orc.OrcSplitReader.Or;
-import org.apache.flink.orc.OrcSplitReader.Predicate;
+import org.apache.flink.orc.OrcFilters.ColumnPredicate;
+import org.apache.flink.orc.OrcFilters.Not;
+import org.apache.flink.orc.OrcFilters.Or;
+import org.apache.flink.orc.OrcFilters.Predicate;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.TypeDescription;

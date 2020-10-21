@@ -62,7 +62,7 @@ public class OrcSplitReaderUtil {
 			DataType[] fullFieldTypes,
 			Map<String, Object> partitionSpec,
 			int[] selectedFields,
-			List<OrcSplitReader.Predicate> conjunctPredicates,
+			List<OrcFilters.Predicate> conjunctPredicates,
 			int batchSize,
 			Path path,
 			long splitStart,
