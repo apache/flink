@@ -584,15 +584,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final Exception cause) {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
-			internalFailAllocation(allocationId, cause);
+			internalFailAllocation(taskManagerId, allocationId, cause);
 		} else {
 			log.warn("Cannot fail slot " + allocationId + " because the TaskManager " +
 			taskManagerId + " is unknown.");
 		}
 	}
 
-	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
-		final Optional<ResourceID> resourceIdOptional = slotPool.failAllocation(allocationId, cause);
+	private void internalFailAllocation(@Nullable ResourceID resourceId, AllocationID allocationId, Exception cause) {
+		final Optional<ResourceID> resourceIdOptional = slotPool.failAllocation(resourceId, allocationId, cause);
 		resourceIdOptional.ifPresent(taskManagerId -> {
 			if (!partitionTracker.isTrackingPartitionsFor(taskManagerId)) {
 				releaseEmptyTaskManager(taskManagerId);
@@ -738,7 +738,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		internalFailAllocation(allocationID, cause);
+		internalFailAllocation(null, allocationID, cause);
 	}
 
 	@Override
