@@ -25,6 +25,10 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * A row is a fixed-length, null-aware composite type for storing multiple values in a deterministic
@@ -273,5 +277,123 @@ public final class Row implements Serializable {
 		}
 
 		return joinedRow;
+	}
+
+	/**
+	 * Compares two {@link Row}s for deep equality. This method supports all conversion classes of the
+	 * table ecosystem.
+	 *
+	 * <p>The current implementation of {@link Row#equals(Object)} is not able to compare all deeply
+	 * nested row structures that might be created in the table ecosystem. For example, it does not
+	 * support comparing arrays stored in the values of a map. We might update the {@link #equals(Object)}
+	 * with this implementation in future versions.
+	 */
+	public static boolean deepEquals(Row row1, Row row2) {
+		return deepEqualsInternal(row1, row2);
+	}
+
+	/**
+	 * Compares two {@link List}s of {@link Row} for deep equality. This method supports all conversion
+	 * classes of the table ecosystem.
+	 *
+	 * <p>The current implementation of {@link Row#equals(Object)} is not able to compare all deeply
+	 * nested row structures that might be created in the table ecosystem. For example, it does not
+	 * support comparing arrays stored in the values of a map. We might update the {@link #equals(Object)}
+	 * with this implementation in future versions.
+	 */
+	public static boolean deepEquals(List<Row> l1, List<Row> l2) {
+		return deepEqualsInternal(l1, l2);
+	}
+
+	private static boolean deepEqualsInternal(Object o1, Object o2) {
+		if (o1 == o2) {
+			return true;
+		} else if (o1 == null || o2 == null) {
+			return false;
+		} else if (o1 instanceof Row && o2 instanceof Row) {
+			return deepEqualsRow((Row) o1, (Row) o2);
+		} else if (o1 instanceof Object[] && o2 instanceof Object[]) {
+			return deepEqualsArray((Object[]) o1, (Object[]) o2);
+		} else if (o1 instanceof Map && o2 instanceof Map) {
+			return deepEqualsMap((Map<?, ?>) o1, (Map<?, ?>) o2);
+		} else if (o1 instanceof List && o2 instanceof List) {
+			return deepEqualsList((List<?>) o1, (List<?>) o2);
+		}
+		return Objects.deepEquals(o1, o2);
+	}
+
+	private static boolean deepEqualsRow(Row row1, Row row2) {
+		if (row1.getKind() != row2.getKind()) {
+			return false;
+		}
+		if (row1.getArity() != row2.getArity()) {
+			return false;
+		}
+		for (int pos = 0; pos < row1.getArity(); pos++) {
+			final Object f1 = row1.getField(pos);
+			final Object f2 = row2.getField(pos);
+			if (!deepEqualsInternal(f1, f2)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static boolean deepEqualsArray(Object[] a1, Object[] a2) {
+		if (a1.getClass() != a2.getClass()) {
+			return false;
+		}
+		if (a1.length != a2.length) {
+			return false;
+		}
+		for (int pos = 0; pos < a1.length; pos++) {
+			final Object e1 = a1[pos];
+			final Object e2 = a2[pos];
+			if (!deepEqualsInternal(e1, e2)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static <K, V> boolean deepEqualsMap(Map<K, V> m1, Map<?, ?> m2) {
+		// copied from HashMap.equals but with deepEquals comparision
+		if (m1.size() != m2.size()) {
+			return false;
+		}
+		try {
+			for (Map.Entry<K, V> e : m1.entrySet()) {
+				K key = e.getKey();
+				V value = e.getValue();
+				if (value == null) {
+					if (!(m2.get(key) == null && m2.containsKey(key))) {
+						return false;
+					}
+				} else {
+					if (!deepEqualsInternal(value, m2.get(key))) {
+						return false;
+					}
+				}
+			}
+		} catch (ClassCastException | NullPointerException unused) {
+			return false;
+		}
+		return true;
+	}
+
+	private static <E> boolean deepEqualsList(List<E> l1, List<?> l2) {
+		if (l1.size() != l2.size()) {
+			return false;
+		}
+		final Iterator<E> i1 = l1.iterator();
+		final Iterator<?> i2 = l2.iterator();
+		while (i1.hasNext() && i2.hasNext()) {
+			final E o1 = i1.next();
+			final Object o2 = i2.next();
+			if (!deepEqualsInternal(o1, o2)) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

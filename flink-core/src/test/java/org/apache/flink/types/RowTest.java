@@ -18,9 +18,16 @@
 package org.apache.flink.types;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class RowTest {
@@ -102,5 +109,93 @@ public class RowTest {
 		expected.setField(3, new Tuple2<>(2, "hi"));
 		expected.setField(4, "hello world");
 		assertEquals(expected, joinedRow);
+	}
+
+	@Test
+	public void testDeepEquals() {
+		final Map<String, byte[]> originalMap = new HashMap<>();
+		originalMap.put("k1", new byte[]{1, 2, 3});
+		originalMap.put("k2", new byte[]{3, 4, 6});
+
+		final Row originalRow = Row.of(
+				RowKind.INSERT,
+				true,
+				new Integer[]{1, null, 3},
+				Arrays.asList(1, null, 3),
+				originalMap,
+				Collections.emptyMap(),
+				new int[][]{{1, 2, 3}, {}, {4, 5}},
+				1.44
+		);
+		assertTrue(Row.deepEquals(originalRow, originalRow));
+
+		{
+			// no diff
+			final Row row = Row.of(
+					RowKind.INSERT,
+					true,
+					new Integer[]{1, null, 3},
+					Arrays.asList(1, null, 3),
+					originalMap,
+					Collections.emptyMap(),
+					new int[][]{{1, 2, 3}, {}, {4, 5}},
+					1.44
+			);
+			assertTrue(Row.deepEquals(row, originalRow));
+		}
+
+		{
+			final Map<String, byte[]> map = new HashMap<>();
+			map.put("k1", new byte[]{1, 2, 3});
+			map.put("k2", new byte[]{3, 4, 6});
+
+			final Row row = Row.of(
+					RowKind.INSERT,
+					true,
+					new Integer[]{1, null, 3, 99}, // diff here
+					Arrays.asList(1, null, 3),
+					map,
+					Collections.emptyMap(),
+					new int[][]{{1, 2, 3}, {}, {4, 5}},
+					1.44
+			);
+			assertFalse(Row.deepEquals(row, originalRow));
+		}
+
+		{
+			final Map<String, byte[]> map = new HashMap<>();
+			map.put("k1", new byte[]{1, 2, 2}); // diff here
+			map.put("k2", new byte[]{3, 4, 6});
+
+			final Row row = Row.of(
+					RowKind.INSERT,
+					true,
+					new Integer[]{1, null, 3},
+					Arrays.asList(1, null, 3),
+					map,
+					Collections.emptyMap(),
+					new int[][]{{1, 2, 3}, {}, {4, 5}},
+					1.44
+			);
+			assertFalse(Row.deepEquals(row, originalRow));
+		}
+
+		{
+			final Map<String, byte[]> map = new HashMap<>();
+			map.put("k1", new byte[]{1, 2, 3});
+			map.put("k2", new byte[]{3, 4, 6});
+
+			final Row row = Row.of(
+					RowKind.INSERT,
+					true,
+					new Integer[]{1, null, 3},
+					Arrays.asList(1, null, 3),
+					map,
+					Collections.emptyMap(),
+					new Integer[][]{{1, 2, 3}, {}, {4, 5}}, // diff here
+					1.44
+			);
+			assertFalse(Row.deepEquals(row, originalRow));
+		}
 	}
 }
