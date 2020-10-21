@@ -142,28 +142,28 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 	private CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(final DispatcherGateway dispatcherGateway) {
 		return applicationCompletionFuture
 				.handle((r, t) -> {
-					if (t != null) {
 
-						final Optional<ApplicationFailureException> exception =
-								ExceptionUtils.findThrowable(t, ApplicationFailureException.class);
-
-						if (exception.isPresent()) {
-							final ApplicationStatus applicationStatus = exception.get().getStatus();
-
-							if (applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED) {
-								LOG.info("Application {}: ", applicationStatus, t);
-								return dispatcherGateway.shutDownCluster(applicationStatus);
-							}
-						}
-
-						LOG.warn("Exiting with Application Status UNKNOWN: ", t);
-						this.errorHandler.onFatalError(new FlinkException("Application failed unexpectedly.", t));
-
-						return FutureUtils.<Acknowledge>completedExceptionally(t);
+					if (t == null) {
+						LOG.info("Application completed SUCCESSFULLY");
+						return dispatcherGateway.shutDownCluster(ApplicationStatus.SUCCEEDED);
 					}
 
-					LOG.info("Application completed SUCCESSFULLY");
-					return dispatcherGateway.shutDownCluster(ApplicationStatus.SUCCEEDED);
+					final Optional<ApplicationFailureException> exception =
+							ExceptionUtils.findThrowable(t, ApplicationFailureException.class);
+
+					if (exception.isPresent()) {
+						final ApplicationStatus applicationStatus = exception.get().getStatus();
+
+						if (applicationStatus == ApplicationStatus.CANCELED || applicationStatus == ApplicationStatus.FAILED) {
+							LOG.info("Application {}: ", applicationStatus, t);
+							return dispatcherGateway.shutDownCluster(applicationStatus);
+						}
+					}
+
+					LOG.warn("Application failed unexpectedly: ", t);
+					this.errorHandler.onFatalError(new FlinkException("Application failed unexpectedly.", t));
+
+					return FutureUtils.<Acknowledge>completedExceptionally(t);
 				})
 				.thenCompose(Function.identity());
 	}
