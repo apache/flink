@@ -26,7 +26,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -36,6 +35,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -122,9 +122,8 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	@Test
-	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResource() {
-		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
+		assumeTrue(isExternalResourceSupported());
 
 		final long amount = 1;
 		final TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter =
@@ -137,25 +136,22 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 	}
 
 	@Test(expected = IllegalStateException.class)
-	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResourceFailExceedMax() {
-		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
+		assumeTrue(isExternalResourceSupported());
 
 		getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_MAX + 1);
 	}
 
 	@Test(expected = IllegalStateException.class)
-	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResourceFailResourceTypeNotSupported() {
-		assumeTrue(HadoopUtils.isMinHadoopVersion(2, 10));
+		assumeTrue(isExternalResourceSupported());
 
 		getAdapterWithExternalResources("testing-unsupported-resource", 1);
 	}
 
 	@Test(expected = IllegalStateException.class)
-	@Ignore("Test disabled until we fix FLINK-19689.")
 	public void testExternalResourceFailHadoopVersionNotSupported() {
-		assumeTrue(!HadoopUtils.isMinHadoopVersion(2, 10));
+		assumeFalse(isExternalResourceSupported());
 
 		getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, 100);
 	}
@@ -181,5 +177,10 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 
 	private static Priority getPriority(TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter, TaskExecutorProcessSpec spec) {
 		return adapter.getPriorityAndResource(spec).get().getPriority();
+	}
+
+	private static boolean isExternalResourceSupported() {
+		return HadoopUtils.isMinHadoopVersion(2, 10) &&
+			ClassLoader.getSystemResource("resource-types.xml") != null;
 	}
 }
