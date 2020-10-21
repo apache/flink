@@ -193,7 +193,8 @@ public class SlotPoolImplTest extends TestLogger {
 
 			Optional<PhysicalSlot> physicalSlot = slotPool.allocateAvailableSlot(
 				new SlotRequestId(),
-				allocationId);
+				allocationId,
+				ResourceProfile.ANY);
 
 			assertTrue(physicalSlot.isPresent());
 			assertEquals(0, slotPool.getAvailableSlots().size());
@@ -635,9 +636,9 @@ public class SlotPoolImplTest extends TestLogger {
 			final List<AllocationID> firstTaskManagersSlots = registerAndOfferSlots(firstTaskManagerLocation, slotPool, 4);
 			final List<AllocationID> secondTaskManagersSlots = registerAndOfferSlots(secondTaskManagerLocation, slotPool, 4);
 
-			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(0));
-			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(1));
-			slotPool.allocateAvailableSlot(new SlotRequestId(), secondTaskManagersSlots.get(3));
+			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(0), ResourceProfile.ANY);
+			slotPool.allocateAvailableSlot(new SlotRequestId(), firstTaskManagersSlots.get(1), ResourceProfile.ANY);
+			slotPool.allocateAvailableSlot(new SlotRequestId(), secondTaskManagersSlots.get(3), ResourceProfile.ANY);
 
 			final Collection<SlotInfoWithUtilization> availableSlotsInformation = slotPool.getAvailableSlotsInformation();
 

@@ -226,7 +226,8 @@ public class SchedulerImpl implements Scheduler {
 		return selectedAvailableSlot.flatMap(slotInfoAndLocality -> {
 			Optional<PhysicalSlot> optionalAllocatedSlot = slotPool.allocateAvailableSlot(
 				slotRequestId,
-				slotInfoAndLocality.getSlotInfo().getAllocationId());
+				slotInfoAndLocality.getSlotInfo().getAllocationId(),
+				slotProfile.getPhysicalSlotResourceProfile());
 
 			return optionalAllocatedSlot.map(
 				allocatedSlot -> new SlotAndLocality(allocatedSlot, slotInfoAndLocality.getLocality()));

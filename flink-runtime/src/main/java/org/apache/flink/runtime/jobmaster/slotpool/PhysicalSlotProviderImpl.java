@@ -82,7 +82,8 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 		return selectedAvailableSlot.flatMap(
 			slotInfoAndLocality -> slotPool.allocateAvailableSlot(
 				slotRequestId,
-				slotInfoAndLocality.getSlotInfo().getAllocationId())
+				slotInfoAndLocality.getSlotInfo().getAllocationId(),
+				slotProfile.getPhysicalSlotResourceProfile())
 		);
 	}
 
