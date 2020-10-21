@@ -19,14 +19,17 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Test;
 
@@ -48,7 +51,17 @@ public class EventSerializerTest {
 		EndOfSuperstepEvent.INSTANCE,
 		new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
 		new TestTaskEvent(Math.random(), 12361231273L),
-		new CancelCheckpointMarker(287087987329842L)
+		new CancelCheckpointMarker(287087987329842L),
+		new EventAnnouncement(new CheckpointBarrier(
+			42L,
+			1337L,
+			CheckpointOptions.create(
+				CheckpointType.CHECKPOINT,
+				CheckpointStorageLocationReference.getDefault(),
+				true,
+				true,
+				10)),
+			44)
 	};
 
 	@Test
