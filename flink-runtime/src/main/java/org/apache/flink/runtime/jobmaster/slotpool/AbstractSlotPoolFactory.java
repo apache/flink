@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,33 +18,36 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
 
 /**
- * Default slot pool factory.
+ * Abstract SlotPoolFactory.
  */
-public class DefaultSlotPoolFactory extends AbstractSlotPoolFactory {
+public abstract class AbstractSlotPoolFactory implements SlotPoolFactory {
 
-	public DefaultSlotPoolFactory(
+	@Nonnull
+	protected final Clock clock;
+
+	@Nonnull
+	protected final Time rpcTimeout;
+
+	@Nonnull
+	protected final Time slotIdleTimeout;
+
+	@Nonnull
+	protected final Time batchSlotTimeout;
+
+	protected AbstractSlotPoolFactory(
 			@Nonnull Clock clock,
 			@Nonnull Time rpcTimeout,
 			@Nonnull Time slotIdleTimeout,
 			@Nonnull Time batchSlotTimeout) {
-		super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
-	}
-
-	@Override
-	@Nonnull
-	public SlotPool createSlotPool(@Nonnull JobID jobId) {
-		return new SlotPoolImpl(
-			jobId,
-			clock,
-			rpcTimeout,
-			slotIdleTimeout,
-			batchSlotTimeout);
+		this.clock = clock;
+		this.rpcTimeout = rpcTimeout;
+		this.slotIdleTimeout = slotIdleTimeout;
+		this.batchSlotTimeout = batchSlotTimeout;
 	}
 }
