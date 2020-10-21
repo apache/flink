@@ -142,11 +142,10 @@ public class StateInitializationContextImplTest {
 			operatorStateHandles.add(operatorStateHandle);
 		}
 
-		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			StateObjectCollection.empty(),
-			new StateObjectCollection<>(operatorStateHandles),
-			StateObjectCollection.empty(),
-			new StateObjectCollection<>(keyedStateHandles));
+		OperatorSubtaskState operatorSubtaskState = OperatorSubtaskState.builder()
+			.setRawOperatorState(new StateObjectCollection<>(operatorStateHandles))
+			.setRawKeyedState(new StateObjectCollection<>(keyedStateHandles))
+			.build();
 
 		OperatorID operatorID = new OperatorID();
 		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();

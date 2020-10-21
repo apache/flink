@@ -2116,13 +2116,13 @@ public class JobMasterTest extends TestLogger {
 
 		for (OperatorID operatorId : operatorIds) {
 			final OperatorState operatorState = new OperatorState(operatorId, 1, 42);
-			final OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-				new OperatorStreamStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("foobar", new byte[0])),
-				null,
-				null,
-				null,
-				singleton(createNewInputChannelStateHandle(10, random)),
-				singleton(createNewResultSubpartitionStateHandle(10, random)));
+			final OperatorSubtaskState subtaskState = OperatorSubtaskState.builder()
+				.setManagedOperatorState(new OperatorStreamStateHandle(
+					Collections.emptyMap(),
+					new ByteStreamStateHandle("foobar", new byte[0])))
+				.setInputChannelState(singleton(createNewInputChannelStateHandle(10, random)))
+				.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, random)))
+				.build();
 			operatorState.putState(0, subtaskState);
 			operatorStates.add(operatorState);
 		}

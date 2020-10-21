@@ -2335,8 +2335,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
 		TaskStateSnapshot taskOperatorSubtaskStates1 = new TaskStateSnapshot();
 		TaskStateSnapshot taskOperatorSubtaskStates2 = new TaskStateSnapshot();
-		OperatorSubtaskState subtaskState1 = new OperatorSubtaskState();
-		OperatorSubtaskState subtaskState2 = new OperatorSubtaskState();
+		OperatorSubtaskState subtaskState1 = OperatorSubtaskState.builder().build();
+		OperatorSubtaskState subtaskState2 = OperatorSubtaskState.builder().build();
 		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID1, subtaskState1);
 		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID2, subtaskState2);
 
@@ -2458,8 +2458,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		OperatorID opID2 = OperatorID.fromJobVertexID(vertex2.getJobvertexId());
 		TaskStateSnapshot taskOperatorSubtaskStates1 = new TaskStateSnapshot();
 		TaskStateSnapshot taskOperatorSubtaskStates2 = new TaskStateSnapshot();
-		OperatorSubtaskState subtaskState1 = new OperatorSubtaskState();
-		OperatorSubtaskState subtaskState2 = new OperatorSubtaskState();
+		OperatorSubtaskState subtaskState1 = OperatorSubtaskState.builder().build();
+		OperatorSubtaskState subtaskState2 = OperatorSubtaskState.builder().build();
 		taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID1, subtaskState1);
 		taskOperatorSubtaskStates2.putSubtaskStateByOperatorID(opID2, subtaskState2);
 
@@ -2742,11 +2742,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 					spy(new ByteStreamStateHandle("meta", new byte[]{'m'}))));
 
 			OperatorSubtaskState operatorSubtaskState =
-				spy(new OperatorSubtaskState(
-					StateObjectCollection.empty(),
-					StateObjectCollection.empty(),
-					StateObjectCollection.singleton(managedState),
-					StateObjectCollection.empty()));
+				spy(OperatorSubtaskState.builder().setManagedKeyedState(managedState).build());
 
 			Map<OperatorID, OperatorSubtaskState> opStates = new HashMap<>();
 

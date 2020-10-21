@@ -213,16 +213,10 @@ public class SequentialChannelStateReaderImplTest {
 	}
 
 	private TaskStateSnapshot buildSnapshot(Tuple2<List<InputChannelStateHandle>, List<ResultSubpartitionStateHandle>> handles) {
-		return new TaskStateSnapshot(
-			Collections.singletonMap(new OperatorID(), new OperatorSubtaskState(
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				new StateObjectCollection<>(handles.f0),
-				new StateObjectCollection<>(handles.f1)
-			))
-		);
+		return new TaskStateSnapshot(Collections.singletonMap(new OperatorID(), OperatorSubtaskState.builder()
+			.setInputChannelState(new StateObjectCollection<>(handles.f0))
+			.setResultSubpartitionState(new StateObjectCollection<>(handles.f1))
+			.build()));
 	}
 
 	private <T> Map<T, List<byte[]>> generateState(BiFunction<Integer, Integer, T> descriptorCreator) {
