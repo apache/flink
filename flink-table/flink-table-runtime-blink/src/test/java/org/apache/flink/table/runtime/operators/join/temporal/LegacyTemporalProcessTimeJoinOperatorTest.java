@@ -35,35 +35,37 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /**
- * Test for {@link LegacyTemporalProcessTimeJoinOperator}.
+ * Harness tests for {@link LegacyTemporalProcessTimeJoinOperator}.
  */
 public class LegacyTemporalProcessTimeJoinOperatorTest extends LegacyTemporalTimeJoinOperatorTestBase {
-	private int keyIdx = 0;
 
+	private int keyIdx = 0;
 	private InternalTypeInfo<RowData> rowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH));
+		new BigIntType(),
+		new VarCharType(VarCharType.MAX_LENGTH));
 	private TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(
-			new int[]{keyIdx},
-			rowType.toRowFieldTypes());
+		new int[]{keyIdx},
+		rowType.toRowFieldTypes());
 	private InternalTypeInfo<RowData> outputRowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH));
+		new BigIntType(),
+		new VarCharType(VarCharType.MAX_LENGTH),
+		new BigIntType(),
+		new VarCharType(VarCharType.MAX_LENGTH));
 	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
 
-	/** test proctime temporal join when non state clear. **/
+	/**
+	 * Test proctime temporal join.
+	 */
 	@Test
 	public void testProcTimeTemporalJoin() throws Exception {
 		LegacyTemporalProcessTimeJoinOperator joinOperator = new LegacyTemporalProcessTimeJoinOperator(
-				rowType,
-				joinCondition,
-				0,
-				0);
+			rowType,
+			joinCondition,
+			0,
+			0);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
-				joinOperator);
+			joinOperator);
 		testHarness.open();
 		testHarness.setProcessingTime(1);
 		testHarness.processElement1(insertRecord(1L, "1a1"));
@@ -87,18 +89,20 @@ public class LegacyTemporalProcessTimeJoinOperatorTest extends LegacyTemporalTim
 		testHarness.close();
 	}
 
-	/** test proctime temporal join when set state clear. **/
+	/**
+	 * Test proctime temporal join when set idle state retention.
+	 */
 	@Test
-	public void testStateCleanUp() throws Exception {
+	public void testProcTimeTemporalJoinWithStateRetention() throws Exception {
 		final int minRetentionTime = 10;
-		final int maxRententionTime = minRetentionTime * 3 / 2;
+		final int maxRetentionTime = minRetentionTime * 3 / 2;
 		LegacyTemporalProcessTimeJoinOperator joinOperator = new LegacyTemporalProcessTimeJoinOperator(
-				rowType,
-				joinCondition,
-				minRetentionTime,
-				maxRententionTime);
+			rowType,
+			joinCondition,
+			minRetentionTime,
+			maxRetentionTime);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
-				joinOperator);
+			joinOperator);
 		testHarness.open();
 		testHarness.setProcessingTime(1);
 		testHarness.processElement1(insertRecord(1L, "1a1"));
@@ -109,7 +113,7 @@ public class LegacyTemporalProcessTimeJoinOperatorTest extends LegacyTemporalTim
 		testHarness.setProcessingTime(3);
 		testHarness.processElement1(insertRecord(2L, "2a3"));
 
-		testHarness.setProcessingTime(3 + maxRententionTime);
+		testHarness.setProcessingTime(3 + maxRetentionTime);
 		testHarness.processElement1(insertRecord(2L, "1a5"));
 
 		List<Object> expectedOutput = new ArrayList<>();
@@ -120,14 +124,12 @@ public class LegacyTemporalProcessTimeJoinOperatorTest extends LegacyTemporalTim
 	}
 
 	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
-			LegacyTemporalProcessTimeJoinOperator temporalJoinOperator)
-			throws Exception {
+		LegacyTemporalProcessTimeJoinOperator temporalJoinOperator) throws Exception {
 
 		return new KeyedTwoInputStreamOperatorTestHarness<>(
-				temporalJoinOperator,
-				keySelector,
-				keySelector,
-				keyType);
+			temporalJoinOperator,
+			keySelector,
+			keySelector,
+			keyType);
 	}
 }
-

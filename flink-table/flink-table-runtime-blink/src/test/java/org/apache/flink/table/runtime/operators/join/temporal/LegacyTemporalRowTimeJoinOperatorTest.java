@@ -36,41 +36,43 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /**
- * Test for {@link LegacyTemporalRowTimeJoinOperator}.
+ * Harness tests for {@link LegacyTemporalRowTimeJoinOperator}.
  */
 public class LegacyTemporalRowTimeJoinOperatorTest extends LegacyTemporalTimeJoinOperatorTestBase {
 	private InternalTypeInfo<RowData> rowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH));
+		new BigIntType(),
+		new VarCharType(VarCharType.MAX_LENGTH),
+		new VarCharType(VarCharType.MAX_LENGTH));
 
 	private InternalTypeInfo<RowData> outputRowType = InternalTypeInfo.ofFields(
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new BigIntType(),
-			new VarCharType(VarCharType.MAX_LENGTH),
-			new VarCharType(VarCharType.MAX_LENGTH));
+		new BigIntType(),
+		new VarCharType(VarCharType.MAX_LENGTH),
+		new VarCharType(VarCharType.MAX_LENGTH),
+		new BigIntType(),
+		new VarCharType(VarCharType.MAX_LENGTH),
+		new VarCharType(VarCharType.MAX_LENGTH));
 	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
 	private int keyIdx = 1;
 	private BinaryRowDataKeySelector keySelector = new BinaryRowDataKeySelector(
-			new int[]{keyIdx},
-			rowType.toRowFieldTypes());
+		new int[]{keyIdx},
+		rowType.toRowFieldTypes());
 	private TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
 
-	/** test rowtime temporal join when non state clear. **/
+	/**
+	 * Test rowtime temporal join.
+	 */
 	@Test
 	public void testRowTimeTemporalJoin() throws Exception {
 		LegacyTemporalRowTimeJoinOperator joinOperator = new LegacyTemporalRowTimeJoinOperator(
-				rowType,
-				rowType,
-				joinCondition,
-				0,
-				0,
-				0,
-				0);
+			rowType,
+			rowType,
+			joinCondition,
+			0,
+			0,
+			0,
+			0);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
-				joinOperator);
+			joinOperator);
 
 		testHarness.open();
 
@@ -112,21 +114,23 @@ public class LegacyTemporalRowTimeJoinOperatorTest extends LegacyTemporalTimeJoi
 		testHarness.close();
 	}
 
-	/** test rowtime temporal join when set state clear. **/
+	/**
+	 * Test rowtime temporal join when set idle state retention.
+	 */
 	@Test
-	public void testStateCleanUp() throws Exception {
+	public void testRowTimeTemporalJoinWithStateRetention() throws Exception {
 		final int minRetentionTime = 4;
-		final int maxRententionTime = minRetentionTime * 3 / 2;
+		final int maxRetentionTime = minRetentionTime * 3 / 2;
 		LegacyTemporalRowTimeJoinOperator joinOperator = new LegacyTemporalRowTimeJoinOperator(
-				rowType,
-				rowType,
-				joinCondition,
-				0,
-				0,
-				minRetentionTime,
-				maxRententionTime);
+			rowType,
+			rowType,
+			joinCondition,
+			0,
+			0,
+			minRetentionTime,
+			maxRetentionTime);
 		KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness = createTestHarness(
-				joinOperator);
+			joinOperator);
 		testHarness.open();
 
 		testHarness.setProcessingTime(3);
@@ -143,7 +147,7 @@ public class LegacyTemporalRowTimeJoinOperatorTest extends LegacyTemporalTimeJoi
 		testHarness.processWatermark1(new Watermark(13));
 		testHarness.processWatermark2(new Watermark(13));
 
-		testHarness.setProcessingTime(9 + maxRententionTime);
+		testHarness.setProcessingTime(9 + maxRetentionTime);
 		testHarness.processElement1(insertRecord(15L, "k1", "13a15"));
 
 		testHarness.processWatermark1(new Watermark(16));
@@ -160,14 +164,12 @@ public class LegacyTemporalRowTimeJoinOperatorTest extends LegacyTemporalTimeJoi
 	}
 
 	private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> createTestHarness(
-			LegacyTemporalRowTimeJoinOperator temporalJoinOperator)
-			throws Exception {
+		LegacyTemporalRowTimeJoinOperator temporalJoinOperator) throws Exception {
 
 		return new KeyedTwoInputStreamOperatorTestHarness<>(
-				temporalJoinOperator,
-				keySelector,
-				keySelector,
-				keyType);
+			temporalJoinOperator,
+			keySelector,
+			keySelector,
+			keyType);
 	}
 }
-
