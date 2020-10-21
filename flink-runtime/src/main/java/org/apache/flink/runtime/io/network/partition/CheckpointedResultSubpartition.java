@@ -33,5 +33,5 @@ public interface CheckpointedResultSubpartition {
 
 	BufferBuilder requestBufferBuilderBlocking() throws IOException, RuntimeException, InterruptedException;
 
-	boolean add(BufferConsumer bufferConsumer);
+	boolean add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException;
 }
