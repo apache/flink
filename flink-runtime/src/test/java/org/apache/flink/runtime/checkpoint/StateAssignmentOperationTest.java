@@ -68,12 +68,12 @@ public class StateAssignmentOperationTest extends TestLogger {
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap1 = new HashMap<>(1);
 		metaInfoMap1.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[30]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
+		operatorState.putState(0, OperatorSubtaskState.builder().setManagedOperatorState(osh1).build());
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(1);
 		metaInfoMap2.put("t-2", new OperatorStateHandle.StateMetaInfo(new long[]{0, 15}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[40]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
+		operatorState.putState(1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
 
 		verifyOneKindPartitionableStateRescale(operatorState, operatorID);
 	}
@@ -87,12 +87,12 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap1.put("t-3", new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.UNION));
 		metaInfoMap1.put("t-4", new OperatorStateHandle.StateMetaInfo(new long[]{22, 44}, OperatorStateHandle.Mode.UNION));
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[50]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
+		operatorState.putState(0, OperatorSubtaskState.builder().setManagedOperatorState(osh1).build());
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(1);
 		metaInfoMap2.put("t-3", new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.UNION));
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[20]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
+		operatorState.putState(1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
 
 		verifyOneKindPartitionableStateRescale(operatorState, operatorID);
 	}
@@ -106,13 +106,13 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap1.put("t-5", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.BROADCAST));
 		metaInfoMap1.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.BROADCAST));
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[60]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
+		operatorState.putState(0, OperatorSubtaskState.builder().setManagedOperatorState(osh1).build());
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(2);
 		metaInfoMap2.put("t-5", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.BROADCAST));
 		metaInfoMap2.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.BROADCAST));
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[60]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
+		operatorState.putState(1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
 
 		verifyOneKindPartitionableStateRescale(operatorState, operatorID);
 	}
@@ -134,7 +134,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap1.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{101, 123, 127}, OperatorStateHandle.Mode.BROADCAST));
 
 		OperatorStateHandle osh1 = new OperatorStreamStateHandle(metaInfoMap1, new ByteStreamStateHandle("test1", new byte[130]));
-		operatorState.putState(0, new OperatorSubtaskState(osh1, null, null, null, null, null));
+		operatorState.putState(0, OperatorSubtaskState.builder().setManagedOperatorState(osh1).build());
 
 		Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(3);
 		metaInfoMap2.put("t-1", new OperatorStateHandle.StateMetaInfo(new long[]{0}, OperatorStateHandle.Mode.UNION));
@@ -143,7 +143,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 		metaInfoMap2.put("t-6", new OperatorStateHandle.StateMetaInfo(new long[]{57, 79, 83}, OperatorStateHandle.Mode.BROADCAST));
 
 		OperatorStateHandle osh2 = new OperatorStreamStateHandle(metaInfoMap2, new ByteStreamStateHandle("test2", new byte[86]));
-		operatorState.putState(1, new OperatorSubtaskState(osh2, null, null, null, null, null));
+		operatorState.putState(1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
 
 		// rescale up case, parallelism 2 --> 3
 		verifyCombinedPartitionableStateRescale(operatorState, operatorID, 2, 3);
@@ -350,13 +350,26 @@ public class StateAssignmentOperationTest extends TestLogger {
 		return operators.stream().collect(Collectors.toMap(Function.identity(), operatorID -> {
 			OperatorState state = new OperatorState(operatorID, numSubTasks, numSubTasks);
 			for (int i = 0; i < numSubTasks; i++) {
-				state.putState(i, new OperatorSubtaskState(
-					new StateObjectCollection<>(asList(createNewOperatorStateHandle(10, random), createNewOperatorStateHandle(10, random))),
-					new StateObjectCollection<>(asList(createNewOperatorStateHandle(10, random), createNewOperatorStateHandle(10, random))),
-					StateObjectCollection.singleton(createNewKeyedStateHandle(KeyGroupRange.of(i, i))),
-					StateObjectCollection.singleton(createNewKeyedStateHandle(KeyGroupRange.of(i, i))),
-					new StateObjectCollection<>(asList(createNewInputChannelStateHandle(10, random), createNewInputChannelStateHandle(10, random))),
-					new StateObjectCollection<>(asList(createNewResultSubpartitionStateHandle(10, random), createNewResultSubpartitionStateHandle(10, random)))));
+				state.putState(
+					i,
+					OperatorSubtaskState.builder()
+						.setManagedOperatorState(new StateObjectCollection<>(asList(
+							createNewOperatorStateHandle(10, random),
+							createNewOperatorStateHandle(10, random))))
+						.setRawOperatorState(new StateObjectCollection<>(asList(
+							createNewOperatorStateHandle(10, random),
+							createNewOperatorStateHandle(10, random))))
+						.setManagedKeyedState(StateObjectCollection.singleton(
+							createNewKeyedStateHandle(KeyGroupRange.of(i, i))))
+						.setRawKeyedState(StateObjectCollection.singleton(
+							createNewKeyedStateHandle(KeyGroupRange.of(i, i))))
+						.setInputChannelState(new StateObjectCollection<>(asList(
+							createNewInputChannelStateHandle(10, random),
+							createNewInputChannelStateHandle(10, random))))
+						.setResultSubpartitionState(new StateObjectCollection<>(asList(
+							createNewResultSubpartitionStateHandle(10, random),
+							createNewResultSubpartitionStateHandle(10, random))))
+						.build());
 			}
 			return state;
 		}));

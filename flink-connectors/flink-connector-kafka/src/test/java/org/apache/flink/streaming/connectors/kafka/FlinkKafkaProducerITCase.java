@@ -395,7 +395,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
 		OperatorSubtaskState operatorSubtaskState = repartitionAndExecute(
 			topic,
-			new OperatorSubtaskState(),
+			OperatorSubtaskState.builder().build(),
 			parallelism1,
 			parallelism1,
 			maxParallelism,

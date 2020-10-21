@@ -234,7 +234,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 			final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
 			checkpointStateHandles.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),
-				new OperatorSubtaskState());
+				OperatorSubtaskState.builder().build());
 
 			getEnvironment().acknowledgeCheckpoint(
 				checkpointMetaData.getCheckpointId(),

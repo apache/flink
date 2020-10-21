@@ -485,9 +485,10 @@ public class CheckpointCoordinatorTestingUtils {
 		KeyGroupsStateHandle partitionedKeyGroupState = generateKeyGroupState(jobVertexID, keyGroupRange, false);
 
 		TaskStateSnapshot subtaskStates = spy(new TaskStateSnapshot());
-		OperatorSubtaskState subtaskState = spy(new OperatorSubtaskState(
-			partitionableState, null, partitionedKeyGroupState, null, null, null)
-		);
+		OperatorSubtaskState subtaskState = spy(OperatorSubtaskState.builder()
+			.setManagedOperatorState(partitionableState)
+			.setManagedKeyedState(partitionedKeyGroupState)
+			.build());
 
 		subtaskStates.putSubtaskStateByOperatorID(OperatorID.fromJobVertexID(jobVertexID), subtaskState);
 

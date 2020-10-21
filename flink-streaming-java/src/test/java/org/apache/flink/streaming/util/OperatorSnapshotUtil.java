@@ -179,13 +179,14 @@ public class OperatorSnapshotUtil {
 					MetadataV3Serializer.INSTANCE.deserializeResultSubpartitionStateHandle(dis) :
 					StateObjectCollection.empty();
 
-			return new OperatorSubtaskState(
-				new StateObjectCollection<>(managedOperatorState),
-				new StateObjectCollection<>(rawOperatorState),
-				new StateObjectCollection<>(managedKeyedState),
-				new StateObjectCollection<>(rawKeyedState),
-				inputChannelStateHandles,
-				resultSubpartitionStateHandles);
+			return OperatorSubtaskState.builder()
+				.setManagedOperatorState(new StateObjectCollection<>(managedOperatorState))
+				.setRawOperatorState(new StateObjectCollection<>(rawOperatorState))
+				.setManagedKeyedState(new StateObjectCollection<>(managedKeyedState))
+				.setRawKeyedState(new StateObjectCollection<>(rawKeyedState))
+				.setInputChannelState(inputChannelStateHandles)
+				.setResultSubpartitionState(resultSubpartitionStateHandles)
+				.build();
 		}
 	}
 }

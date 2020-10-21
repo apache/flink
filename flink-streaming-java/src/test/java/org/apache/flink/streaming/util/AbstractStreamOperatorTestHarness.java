@@ -496,11 +496,12 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			localRawOperatorState = Collections.emptyList();
 		}
 
-		return new OperatorSubtaskState(
-			new StateObjectCollection<>(nullToEmptyCollection(localManagedOperatorState)),
-			new StateObjectCollection<>(nullToEmptyCollection(localRawOperatorState)),
-			new StateObjectCollection<>(nullToEmptyCollection(localManagedKeyGroupState)),
-			new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupState)));
+		return OperatorSubtaskState.builder()
+			.setManagedOperatorState(new StateObjectCollection<>(nullToEmptyCollection(localManagedOperatorState)))
+			.setRawOperatorState(new StateObjectCollection<>(nullToEmptyCollection(localRawOperatorState)))
+			.setManagedKeyedState(new StateObjectCollection<>(nullToEmptyCollection(localManagedKeyGroupState)))
+			.setRawKeyedState(new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupState)))
+			.build();
 	}
 
 	/**
@@ -595,11 +596,12 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			mergedRawKeyedState.addAll(rawKeyedState);
 		}
 
-		return new OperatorSubtaskState(
-			new StateObjectCollection<>(mergedManagedOperatorState),
-			new StateObjectCollection<>(mergedRawOperatorState),
-			new StateObjectCollection<>(mergedManagedKeyedState),
-			new StateObjectCollection<>(mergedRawKeyedState));
+		return OperatorSubtaskState.builder()
+			.setManagedOperatorState(new StateObjectCollection<>(mergedManagedOperatorState))
+			.setRawOperatorState(new StateObjectCollection<>(mergedRawOperatorState))
+			.setManagedKeyedState(new StateObjectCollection<>(mergedManagedKeyedState))
+			.setRawKeyedState(new StateObjectCollection<>(mergedRawKeyedState))
+			.build();
 	}
 
 	/**

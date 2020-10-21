@@ -97,13 +97,14 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		InputChannelStateHandle inputChannelStateHandle = new InputChannelStateHandle(new InputChannelInfo(0, 1), mock(StreamStateHandle.class), Collections.singletonList(1L));
 		ResultSubpartitionStateHandle resultSubpartitionStateHandle = new ResultSubpartitionStateHandle(new ResultSubpartitionInfo(0, 1), mock(StreamStateHandle.class), Collections.singletonList(1L));
 
-		final OperatorSubtaskState operatorSubtaskState = spy(new OperatorSubtaskState(
-			managedOpHandle,
-			rawOpHandle,
-			managedKeyedHandle,
-			rawKeyedHandle,
-			StateObjectCollection.singleton(inputChannelStateHandle),
-			StateObjectCollection.singleton(resultSubpartitionStateHandle)));
+		final OperatorSubtaskState operatorSubtaskState = spy(OperatorSubtaskState.builder()
+			.setManagedOperatorState(managedOpHandle)
+			.setRawOperatorState(rawOpHandle)
+			.setManagedKeyedState(managedKeyedHandle)
+			.setRawKeyedState(rawKeyedHandle)
+			.setInputChannelState(StateObjectCollection.singleton(inputChannelStateHandle))
+			.setResultSubpartitionState(StateObjectCollection.singleton(resultSubpartitionStateHandle))
+			.build());
 
 		TaskStateSnapshot subtaskState = spy(new TaskStateSnapshot());
 		subtaskState.putSubtaskStateByOperatorID(new OperatorID(), operatorSubtaskState);

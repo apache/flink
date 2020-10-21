@@ -40,6 +40,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -263,13 +265,21 @@ public class StateAssignmentOperation {
 		if (!subManagedKeyedState.containsKey(instanceID)) {
 			checkState(!subRawKeyedState.containsKey(instanceID));
 		}
-		return new OperatorSubtaskState(
-			new StateObjectCollection<>(subManagedOperatorState.getOrDefault(instanceID, emptyList())),
-			new StateObjectCollection<>(subRawOperatorState.getOrDefault(instanceID, emptyList())),
-			new StateObjectCollection<>(subManagedKeyedState.getOrDefault(instanceID, emptyList())),
-			new StateObjectCollection<>(subRawKeyedState.getOrDefault(instanceID, emptyList())),
-			new StateObjectCollection<>(inputChannelStates.getOrDefault(instanceID, emptyList())),
-			new StateObjectCollection<>(resultSubpartitionStates.getOrDefault(instanceID, emptyList())));
+		return OperatorSubtaskState.builder()
+			.setManagedOperatorState(getState(instanceID, subManagedOperatorState))
+			.setRawOperatorState(getState(instanceID, subRawOperatorState))
+			.setManagedKeyedState(getState(instanceID, subManagedKeyedState))
+			.setRawKeyedState(getState(instanceID, subRawKeyedState))
+			.setInputChannelState(getState(instanceID, inputChannelStates))
+			.setResultSubpartitionState(getState(instanceID, resultSubpartitionStates))
+			.build();
+	}
+
+	@Nonnull
+	private static <T extends StateObject> StateObjectCollection<T> getState(
+			OperatorInstanceID instanceID,
+			Map<OperatorInstanceID, List<T>> subManagedOperatorState) {
+		return new StateObjectCollection<>(subManagedOperatorState.getOrDefault(instanceID,	emptyList()));
 	}
 
 	public void checkParallelismPreconditions(Collection<OperatorState> operatorStates,

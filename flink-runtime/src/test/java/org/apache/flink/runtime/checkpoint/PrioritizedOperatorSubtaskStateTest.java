@@ -186,7 +186,12 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 							createNewKeyedStateHandle(keyGroupRange1),
 							createNewKeyedStateHandle(keyGroupRange2)));
 
-		return new OperatorSubtaskState(s1, s2, s3, s4);
+		return OperatorSubtaskState.builder()
+			.setManagedOperatorState(s1)
+			.setRawOperatorState(s2)
+			.setManagedKeyedState(s3)
+			.setRawKeyedState(s4)
+			.build();
 	}
 
 	private enum CreateAltSubtaskStateMode {
@@ -196,14 +201,14 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 		ONE_VALID_STATE_HANDLE(0) {
 			@Override
 			public OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal) {
-				return new OperatorSubtaskState(
-					deepCopyFirstElement(primaryOriginal.getManagedOperatorState()),
-					deepCopyFirstElement(primaryOriginal.getRawOperatorState()),
-					deepCopyFirstElement(primaryOriginal.getManagedKeyedState()),
-					deepCopyFirstElement(primaryOriginal.getRawKeyedState()),
-					deepCopy(primaryOriginal.getInputChannelState()),
-					deepCopy(primaryOriginal.getResultSubpartitionState()));
-
+				return OperatorSubtaskState.builder()
+					.setManagedOperatorState(deepCopyFirstElement(primaryOriginal.getManagedOperatorState()))
+					.setRawOperatorState(deepCopyFirstElement(primaryOriginal.getRawOperatorState()))
+					.setManagedKeyedState(deepCopyFirstElement(primaryOriginal.getManagedKeyedState()))
+					.setRawKeyedState(deepCopyFirstElement(primaryOriginal.getRawKeyedState()))
+					.setInputChannelState(deepCopy(primaryOriginal.getInputChannelState()))
+					.setResultSubpartitionState(deepCopy(primaryOriginal.getResultSubpartitionState()))
+					.build();
 			}
 		},
 		/**
@@ -212,7 +217,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 		EMPTY_STATE_HANDLE_COLLECTION(1) {
 			@Override
 			public OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal) {
-				return new OperatorSubtaskState();
+				return OperatorSubtaskState.builder().build();
 			}
 		},
 		/**
@@ -224,14 +229,14 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 			public OperatorSubtaskState createAlternativeSubtaskState(OperatorSubtaskState primaryOriginal) {
 				KeyGroupRange otherRange = new KeyGroupRange(8, 16);
 				int numNamedStates = 2;
-				return new OperatorSubtaskState(
-					createNewOperatorStateHandle(numNamedStates, RANDOM),
-					createNewOperatorStateHandle(numNamedStates, RANDOM),
-					createNewKeyedStateHandle(otherRange),
-					createNewKeyedStateHandle(otherRange),
-					singleton(createNewInputChannelStateHandle(10, RANDOM)),
-					singleton(createNewResultSubpartitionStateHandle(10, RANDOM)));
-
+				return OperatorSubtaskState.builder()
+					.setManagedOperatorState(createNewOperatorStateHandle(numNamedStates, RANDOM))
+					.setRawOperatorState(createNewOperatorStateHandle(numNamedStates, RANDOM))
+					.setManagedKeyedState(createNewKeyedStateHandle(otherRange))
+					.setRawKeyedState(createNewKeyedStateHandle(otherRange))
+					.setInputChannelState(singleton(createNewInputChannelStateHandle(10, RANDOM)))
+					.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, RANDOM)))
+					.build();
 			}
 		};
 
@@ -313,12 +318,11 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 	/**
 	 * Creates a deep copy of the first state object in the given collection, or null if the collection is empy.
 	 */
-	private static  <T extends StateObject> T deepCopyFirstElement(StateObjectCollection<T> original) {
+	private static  <T extends StateObject> StateObjectCollection<T> deepCopyFirstElement(StateObjectCollection<T> original) {
 		if (original.isEmpty()) {
-			return null;
+			return StateObjectCollection.empty();
 		}
-		//noinspection unchecked
-		return (T) deepCopy(original.iterator().next());
+		return StateObjectCollection.singleton(deepCopy(original.iterator().next()));
 	}
 
 	/**
@@ -328,19 +332,19 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
 		if (original == null || original.isEmpty()) {
 			return StateObjectCollection.empty();
 		}
-		//noinspection unchecked
-		return new StateObjectCollection<>((List<T>) original.stream().map(PrioritizedOperatorSubtaskStateTest::deepCopy).collect(Collectors.toList()));
+		return new StateObjectCollection<>(original.stream().map(PrioritizedOperatorSubtaskStateTest::deepCopy).collect(Collectors.toList()));
 	}
 
-	private static StateObject deepCopy(StateObject stateObject) {
+	@SuppressWarnings("unchecked")
+	private static <T extends StateObject> T deepCopy(T stateObject) {
 		if (stateObject instanceof OperatorStreamStateHandle) {
-			return deepDummyCopy((OperatorStateHandle) stateObject);
+			return (T) deepDummyCopy((OperatorStateHandle) stateObject);
 		} else if (stateObject instanceof KeyedStateHandle) {
-			return deepDummyCopy((KeyedStateHandle) stateObject);
+			return (T) deepDummyCopy((KeyedStateHandle) stateObject);
 		} else if (stateObject instanceof InputChannelStateHandle) {
-			return deepDummyCopy((InputChannelStateHandle) stateObject);
+			return (T) deepDummyCopy((InputChannelStateHandle) stateObject);
 		} else if (stateObject instanceof ResultSubpartitionStateHandle) {
-			return deepDummyCopy((ResultSubpartitionStateHandle) stateObject);
+			return (T) deepDummyCopy((ResultSubpartitionStateHandle) stateObject);
 		} else {
 			throw new IllegalStateException();
 		}

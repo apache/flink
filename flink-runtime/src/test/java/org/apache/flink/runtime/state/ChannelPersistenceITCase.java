@@ -233,16 +233,12 @@ public class ChannelPersistenceITCase {
 	}
 
 	private TaskStateSnapshot toTaskStateSnapshot(ChannelStateWriteResult t) throws Exception {
-		return new TaskStateSnapshot(singletonMap(new OperatorID(),
-			new OperatorSubtaskState(
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				new StateObjectCollection<>(t.getInputChannelStateHandles().get()),
-				new StateObjectCollection<>(t.getResultSubpartitionStateHandles().get())
-			)
-		));
+		return new TaskStateSnapshot(singletonMap(
+			new OperatorID(),
+			OperatorSubtaskState.builder()
+				.setInputChannelState(new StateObjectCollection<>(t.getInputChannelStateHandles().get()))
+				.setResultSubpartitionState(new StateObjectCollection<>(t.getResultSubpartitionStateHandles().get()))
+				.build()));
 	}
 
 	private static int sizeOfBytes(Map<?, byte[]> map) {

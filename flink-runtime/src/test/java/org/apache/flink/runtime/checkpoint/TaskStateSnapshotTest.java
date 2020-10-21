@@ -43,9 +43,9 @@ public class TaskStateSnapshotTest extends TestLogger {
 
 		OperatorID operatorID_1 = new OperatorID();
 		OperatorID operatorID_2 = new OperatorID();
-		OperatorSubtaskState operatorSubtaskState_1 = new OperatorSubtaskState();
-		OperatorSubtaskState operatorSubtaskState_2 = new OperatorSubtaskState();
-		OperatorSubtaskState operatorSubtaskState_1_replace = new OperatorSubtaskState();
+		OperatorSubtaskState operatorSubtaskState_1 = OperatorSubtaskState.builder().build();
+		OperatorSubtaskState operatorSubtaskState_2 = OperatorSubtaskState.builder().build();
+		OperatorSubtaskState operatorSubtaskState_1_replace = OperatorSubtaskState.builder().build();
 
 		Assert.assertNull(taskStateSnapshot.getSubtaskStateByOperatorID(operatorID_1));
 		Assert.assertNull(taskStateSnapshot.getSubtaskStateByOperatorID(operatorID_2));
@@ -63,20 +63,15 @@ public class TaskStateSnapshotTest extends TestLogger {
 		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
 		Assert.assertFalse(taskStateSnapshot.hasState());
 
-		OperatorSubtaskState emptyOperatorSubtaskState = new OperatorSubtaskState();
+		OperatorSubtaskState emptyOperatorSubtaskState = OperatorSubtaskState.builder().build();
 		Assert.assertFalse(emptyOperatorSubtaskState.hasState());
 		taskStateSnapshot.putSubtaskStateByOperatorID(new OperatorID(), emptyOperatorSubtaskState);
 		Assert.assertFalse(taskStateSnapshot.hasState());
 
 		OperatorStateHandle stateHandle = StateHandleDummyUtil.createNewOperatorStateHandle(2, random);
-		OperatorSubtaskState nonEmptyOperatorSubtaskState = new OperatorSubtaskState(
-			stateHandle,
-			null,
-			null,
-			null,
-			null,
-			null
-		);
+		OperatorSubtaskState nonEmptyOperatorSubtaskState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(stateHandle)
+			.build();
 
 		Assert.assertTrue(nonEmptyOperatorSubtaskState.hasState());
 		taskStateSnapshot.putSubtaskStateByOperatorID(new OperatorID(), nonEmptyOperatorSubtaskState);
@@ -106,31 +101,21 @@ public class TaskStateSnapshotTest extends TestLogger {
 		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
 		Assert.assertEquals(0, taskStateSnapshot.getStateSize());
 
-		OperatorSubtaskState emptyOperatorSubtaskState = new OperatorSubtaskState();
+		OperatorSubtaskState emptyOperatorSubtaskState = OperatorSubtaskState.builder().build();
 		Assert.assertFalse(emptyOperatorSubtaskState.hasState());
 		taskStateSnapshot.putSubtaskStateByOperatorID(new OperatorID(), emptyOperatorSubtaskState);
 		Assert.assertEquals(0, taskStateSnapshot.getStateSize());
 
 
 		OperatorStateHandle stateHandle_1 = StateHandleDummyUtil.createNewOperatorStateHandle(2, random);
-		OperatorSubtaskState nonEmptyOperatorSubtaskState_1 = new OperatorSubtaskState(
-			stateHandle_1,
-			null,
-			null,
-			null,
-			null,
-			null
-		);
+		OperatorSubtaskState nonEmptyOperatorSubtaskState_1 = OperatorSubtaskState.builder()
+			.setManagedOperatorState(stateHandle_1)
+			.build();
 
 		OperatorStateHandle stateHandle_2 = StateHandleDummyUtil.createNewOperatorStateHandle(2, random);
-		OperatorSubtaskState nonEmptyOperatorSubtaskState_2 = new OperatorSubtaskState(
-			null,
-			stateHandle_2,
-			null,
-			null,
-			null,
-			null
-		);
+		OperatorSubtaskState nonEmptyOperatorSubtaskState_2 = OperatorSubtaskState.builder()
+			.setRawOperatorState(stateHandle_2)
+			.build();
 
 		taskStateSnapshot.putSubtaskStateByOperatorID(new OperatorID(), nonEmptyOperatorSubtaskState_1);
 		taskStateSnapshot.putSubtaskStateByOperatorID(new OperatorID(), nonEmptyOperatorSubtaskState_2);
@@ -146,13 +131,10 @@ public class TaskStateSnapshotTest extends TestLogger {
 		ResultSubpartitionStateHandle resultSubpartitionStateHandle = createNewResultSubpartitionStateHandle(10, random);
 		final TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(Collections.singletonMap(
 			new OperatorID(),
-			new OperatorSubtaskState(
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				StateObjectCollection.empty(),
-				singleton(inputChannelStateHandle),
-				singleton(resultSubpartitionStateHandle))));
+			OperatorSubtaskState.builder()
+				.setInputChannelState(singleton(inputChannelStateHandle))
+				.setResultSubpartitionState(singleton(resultSubpartitionStateHandle))
+				.build()));
 		Assert.assertEquals(inputChannelStateHandle.getStateSize() + resultSubpartitionStateHandle.getStateSize(), taskStateSnapshot.getStateSize());
 		Assert.assertTrue(taskStateSnapshot.hasState());
 	}
