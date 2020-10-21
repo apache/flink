@@ -298,7 +298,7 @@ public class YarnConfigOptions {
 		key("yarn.access.hadoopFileSystems")
 			.stringType()
 			.asList()
-			.noDefaultValue()
+			.defaultValue()
 			.withDescription("If you have extra Hadoop filesystems and enabled security, list all of those URLs.");
 
 	/** Defines the configuration key of that external resource in Yarn. This is used as a suffix in an actual config. */
