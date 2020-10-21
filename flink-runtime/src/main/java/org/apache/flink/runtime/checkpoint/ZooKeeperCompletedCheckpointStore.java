@@ -158,6 +158,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		// of checkpoints that we don't read due to transient storage outages.
 		List<CompletedCheckpoint> lastTryRetrievedCheckpoints = new ArrayList<>(numberOfInitialCheckpoints);
 		List<CompletedCheckpoint> retrievedCheckpoints = new ArrayList<>(numberOfInitialCheckpoints);
+		Exception retrieveException = null;
 		do {
 			LOG.info("Trying to fetch {} checkpoints from storage.", numberOfInitialCheckpoints);
 
@@ -177,6 +178,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 					}
 				} catch (Exception e) {
 					LOG.warn("Could not retrieve checkpoint, not adding to list of recovered checkpoints.", e);
+					retrieveException = e;
 				}
 			}
 
@@ -191,7 +193,8 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		if (completedCheckpoints.isEmpty() && numberOfInitialCheckpoints > 0) {
 			throw new FlinkException(
-				"Could not read any of the " + numberOfInitialCheckpoints + " checkpoints from storage.");
+				"Could not read any of the " + numberOfInitialCheckpoints + " checkpoints from storage.",
+				retrieveException);
 		} else if (completedCheckpoints.size() != numberOfInitialCheckpoints) {
 			LOG.warn(
 				"Could only fetch {} of {} checkpoints from storage.",

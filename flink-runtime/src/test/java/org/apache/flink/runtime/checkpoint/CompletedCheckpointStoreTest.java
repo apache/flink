@@ -30,7 +30,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -203,9 +202,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
 	// ---------------------------------------------------------------------------------------------
 
-	public static TestCompletedCheckpoint createCheckpoint(
-		int id,
-		SharedStateRegistry sharedStateRegistry) throws IOException {
+	public static TestCompletedCheckpoint createCheckpoint(long id, SharedStateRegistry sharedStateRegistry) {
 
 		int numberOfStates = 4;
 		CheckpointProperties props = CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION);
