@@ -29,6 +29,7 @@ import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -93,7 +94,7 @@ public class ResourceInformationReflectorTest extends TestLogger {
 
 		// make sure that Resource has at least two associated resources (cpu and memory)
 		final Map<String, Long> resourcesResult = ResourceInformationReflector.INSTANCE.getAllResourceInfos(resource);
-		assertThat(resourcesResult.size(), is(2));
+		assertThat(resourcesResult.size(), greaterThanOrEqualTo(2));
 	}
 
 	@Test
