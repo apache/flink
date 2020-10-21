@@ -53,8 +53,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -245,11 +243,6 @@ public class ChannelPersistenceITCase {
 				new StateObjectCollection<>(t.getResultSubpartitionStateHandles().get())
 			)
 		));
-	}
-
-	@SuppressWarnings("unchecked")
-	private <C> List<C> collectBytes(Collection<StateObject> handles, Class<C> clazz) {
-		return handles.stream().filter(clazz::isInstance).map(h -> (C) h).collect(Collectors.toList());
 	}
 
 	private static int sizeOfBytes(Map<?, byte[]> map) {
