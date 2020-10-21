@@ -45,6 +45,9 @@ public class MetastoreCommitPolicy implements PartitionCommitPolicy {
 	public void commit(Context context) throws Exception {
 		LinkedHashMap<String, String> partitionSpec = context.partitionSpec();
 		metaStore.createOrAlterPartition(partitionSpec, context.partitionPath());
+		if (metaStore.getPartition(partitionSpec).isPresent()) {
+			LOG.warn("partition {} has existed before current commit, this partition will be altered instead of being created", partitionSpec);
+		}
 		LOG.info("Committed partition {} to metastore", partitionSpec);
 	}
 }
