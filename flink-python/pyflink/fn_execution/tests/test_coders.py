@@ -146,12 +146,12 @@ class CodersTest(PyFlinkTestCase):
         field_coder = BigIntCoder()
         field_count = 10
         coder = FlattenRowCoder([field_coder for _ in range(field_count)]).get_impl()
-        v = [[None if i % 2 == 0 else i for i in range(field_count)]]
+        v = [None if i % 2 == 0 else i for i in range(field_count)]
         generator_result = coder.decode(coder.encode(v))
         result = []
         for item in generator_result:
             result.append(item)
-        self.assertEqual(v, result)
+        self.assertEqual([v], result)
 
     def test_row_coder(self):
         from pyflink.common import Row, RowKind
