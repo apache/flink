@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -32,7 +34,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -115,6 +119,97 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
 		assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
 		assertThat("The next result is expected to be null.", secondAddress.get(), is(nullValue()));
+	}
+
+	@Test
+	public void testSameLeaderAfterReconnectTriggersListenerNotification() throws Exception {
+		final String retrievalPath = "/testSameLeaderAfterReconnectTriggersListenerNotification/leaderAddress";
+		final ZooKeeperLeaderRetrievalService leaderRetrievalService = new ZooKeeperLeaderRetrievalService(zooKeeperClient, retrievalPath);
+
+		final QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2);
+		leaderRetrievalService.start(queueLeaderElectionListener);
+
+		final String leaderAddress = "foobar";
+		final UUID sessionId = UUID.randomUUID();
+		writeLeaderInformationToZooKeeper(retrievalPath, leaderAddress, sessionId);
+
+		// pop new leader
+		queueLeaderElectionListener.next();
+
+		testingServer.stop();
+
+		final CompletableFuture<String> connectionSuspension = queueLeaderElectionListener.next();
+
+		// wait until the ZK connection is suspended
+		connectionSuspension.join();
+
+		testingServer.restart();
+
+		// new old leader information should be announced
+		final CompletableFuture<String> connectionReconnect = queueLeaderElectionListener.next();
+		assertThat(connectionReconnect.get(), is(leaderAddress));
+	}
+
+	private void writeLeaderInformationToZooKeeper(
+			String retrievalPath,
+			String leaderAddress,
+			UUID sessionId) throws Exception {
+		final byte[] data = createLeaderInformation(leaderAddress, sessionId);
+		if (zooKeeperClient.checkExists().forPath(retrievalPath) != null) {
+			zooKeeperClient.setData().forPath(retrievalPath, data);
+		} else {
+			zooKeeperClient.create().creatingParentsIfNeeded().forPath(retrievalPath, data);
+		}
+	}
+
+	private byte[] createLeaderInformation(String leaderAddress, UUID sessionId) throws IOException {
+		try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+
+			oos.writeUTF(leaderAddress);
+			oos.writeObject(sessionId);
+
+			oos.flush();
+
+			return baos.toByteArray();
+		}
+	}
+
+	@Test
+	public void testNewLeaderAfterReconnectTriggersListenerNotification() throws Exception {
+		final String retrievalPath = "/testNewLeaderAfterReconnectTriggersListenerNotification/leaderAddress";
+		final ZooKeeperLeaderRetrievalService leaderRetrievalService = new ZooKeeperLeaderRetrievalService(zooKeeperClient, retrievalPath);
+
+		final QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2);
+		leaderRetrievalService.start(queueLeaderElectionListener);
+
+		final String leaderAddress = "foobar";
+		final UUID sessionId = UUID.randomUUID();
+		writeLeaderInformationToZooKeeper(retrievalPath, leaderAddress, sessionId);
+
+		// pop new leader
+		queueLeaderElectionListener.next();
+
+		testingServer.stop();
+
+		final CompletableFuture<String> connectionSuspension = queueLeaderElectionListener.next();
+
+		// wait until the ZK connection is suspended
+		connectionSuspension.join();
+
+		testingServer.restart();
+
+		final String newLeaderAddress = "barfoo";
+		final UUID newSessionId = UUID.randomUUID();
+		writeLeaderInformationToZooKeeper(retrievalPath, newLeaderAddress, newSessionId);
+
+		// check that we find the new leader information eventually
+		CommonTestUtils.waitUntilCondition(
+				() -> {
+					final CompletableFuture<String> afterConnectionReconnect = queueLeaderElectionListener.next();
+					return afterConnectionReconnect.get().equals(newLeaderAddress);
+				},
+				Deadline.fromNow(Duration.ofSeconds(30L)));
 	}
 
 	private void closeTestServer() throws IOException {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -138,7 +139,11 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	}
 
 	@Override
-	public void nodeChanged() throws Exception {
+	public void nodeChanged() {
+		retrieveLeaderInformationFromZooKeeper();
+	}
+
+	private void retrieveLeaderInformationFromZooKeeper() {
 		synchronized (lock) {
 			if (running) {
 				try {
@@ -170,7 +175,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 					notifyIfNewLeaderAddress(leaderAddress, leaderSessionID);
 				} catch (Exception e) {
 					leaderListener.handleError(new Exception("Could not handle node changed event.", e));
-					throw e;
+					ExceptionUtils.checkInterrupted(e);
 				}
 			} else {
 				LOG.debug("Ignoring node change notification since the service has already been stopped.");
@@ -192,6 +197,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 				break;
 			case RECONNECTED:
 				LOG.info("Connection to ZooKeeper was reconnected. Leader retrieval can be restarted.");
+				onReconnectedConnectionState();
 				break;
 			case LOST:
 				LOG.warn("Connection to ZooKeeper lost. Can no longer retrieve the leader from " +
@@ -201,6 +207,11 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 				}
 				break;
 		}
+	}
+
+	private void onReconnectedConnectionState() {
+		// check whether we find some new leader information in ZooKeeper
+		retrieveLeaderInformationFromZooKeeper();
 	}
 
 	@Override
