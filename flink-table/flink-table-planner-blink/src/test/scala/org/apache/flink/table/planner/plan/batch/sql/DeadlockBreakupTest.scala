@@ -199,4 +199,21 @@ class DeadlockBreakupTest extends TableTestBase {
          |""".stripMargin
     util.verifyPlan(sqlQuery)
   }
+
+  @Test
+  def testSubplanReuse_AddSingletonExchange(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    val sqlQuery =
+      s"""
+         |WITH
+         |  T1 AS (SELECT COUNT(*) AS cnt FROM x),
+         |  T2 AS (SELECT cnt FROM T1 WHERE cnt > 3),
+         |  T3 AS (SELECT cnt FROM T1 WHERE cnt < 5)
+         |SELECT * FROM T2 FULL JOIN T3 ON T2.cnt <> T3.cnt
+         |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.reuse;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.TestingExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
 
 import org.junit.Assert;
@@ -36,13 +36,13 @@ import java.util.List;
  */
 public class InputPriorityConflictResolverTest {
 
-	private Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingExecNode[]> buildTopologyGraph() {
+	private Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> buildTopologyGraph() {
 		// 0 -> 1 -> 2 --------> 5
 		//       \-> 3 -> 4 -/
 		//            \-> 6 -> 7
-		TestingExecNode[] nodes = new TestingExecNode[8];
+		TestingBatchExecNode[] nodes = new TestingBatchExecNode[8];
 		for (int i = 0; i < nodes.length; i++) {
-			nodes[i] = new TestingExecNode();
+			nodes[i] = new TestingBatchExecNode();
 		}
 		nodes[1].addInput(nodes[0]);
 		nodes[2].addInput(nodes[1]);
@@ -60,9 +60,9 @@ public class InputPriorityConflictResolverTest {
 
 	@Test
 	public void testTopologyGraphCanReach() {
-		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingExecNode[]> tuple2 = buildTopologyGraph();
+		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
 		InputPriorityConflictResolver.TopologyGraph graph = tuple2.f0;
-		TestingExecNode[] nodes = tuple2.f1;
+		TestingBatchExecNode[] nodes = tuple2.f1;
 
 		String[] canReach = new String[] {
 			"11111111",
@@ -86,9 +86,9 @@ public class InputPriorityConflictResolverTest {
 
 	@Test
 	public void testTopologyGraphLink() {
-		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingExecNode[]> tuple2 = buildTopologyGraph();
+		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
 		InputPriorityConflictResolver.TopologyGraph graph = tuple2.f0;
-		TestingExecNode[] nodes = tuple2.f1;
+		TestingBatchExecNode[] nodes = tuple2.f1;
 
 		Assert.assertTrue(graph.link(nodes[2], nodes[4]));
 		Assert.assertTrue(graph.link(nodes[3], nodes[5]));
@@ -100,9 +100,9 @@ public class InputPriorityConflictResolverTest {
 
 	@Test
 	public void testTopologyGraphUnlink() {
-		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingExecNode[]> tuple2 = buildTopologyGraph();
+		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
 		InputPriorityConflictResolver.TopologyGraph graph = tuple2.f0;
-		TestingExecNode[] nodes = tuple2.f1;
+		TestingBatchExecNode[] nodes = tuple2.f1;
 
 		graph.unlink(nodes[2], nodes[5]);
 		Assert.assertTrue(graph.canReach(nodes[0], nodes[5]));
@@ -114,13 +114,15 @@ public class InputPriorityConflictResolverTest {
 
 	@Test
 	public void testCalculateAncestors() {
+		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+		//
 		// 0 ------P----> 1 -E--> 2
 		//   \-----P----> 3 -P-/
 		// 4 -E-> 5 -P-/ /
 		// 6 -----E-----/
-		TestingExecNode[] nodes = new TestingExecNode[7];
+		TestingBatchExecNode[] nodes = new TestingBatchExecNode[7];
 		for (int i = 0; i < nodes.length; i++) {
-			nodes[i] = new TestingExecNode();
+			nodes[i] = new TestingBatchExecNode();
 		}
 		nodes[1].addInput(nodes[0]);
 		nodes[2].addInput(nodes[1], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
@@ -139,6 +141,9 @@ public class InputPriorityConflictResolverTest {
 
 	@Test
 	public void testDetectAndResolve() {
+		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+		// P100 = PIPELINED + priority 100
+		//
 		// 0 --------(P0)----> 1 --(P0)-----------> 7
 		//  \                    \-(P0)-> 2 -(P0)--/
 		//   \-------(P0)----> 3 --(P1)-----------/
@@ -148,9 +153,9 @@ public class InputPriorityConflictResolverTest {
 		//       \            \               /
 		//        \--(E0)----> 5 --(P10)-----/
 		// 6 ---------(P100)----------------/
-		TestingExecNode[] nodes = new TestingExecNode[9];
+		TestingBatchExecNode[] nodes = new TestingBatchExecNode[9];
 		for (int i = 0; i < nodes.length; i++) {
-			nodes[i] = new TestingExecNode();
+			nodes[i] = new TestingBatchExecNode();
 		}
 		nodes[1].addInput(nodes[0], ExecEdge.builder().priority(0).build());
 		nodes[2].addInput(nodes[1], ExecEdge.builder().priority(0).build());

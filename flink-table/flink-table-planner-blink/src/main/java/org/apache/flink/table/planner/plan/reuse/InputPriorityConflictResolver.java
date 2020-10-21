@@ -96,20 +96,20 @@ import java.util.TreeMap;
 @Internal
 public class InputPriorityConflictResolver {
 
-	private final List<ExecNode<?, ?>> sinks;
+	private final List<ExecNode<?, ?>> roots;
 
 	private TopologyGraph graph;
 
-	public InputPriorityConflictResolver(List<ExecNode<?, ?>> sinks) {
+	public InputPriorityConflictResolver(List<ExecNode<?, ?>> roots) {
 		Preconditions.checkArgument(
-			sinks.stream().allMatch(sink -> sink instanceof BatchExecNode),
+			roots.stream().allMatch(root -> root instanceof BatchExecNode),
 			"InputPriorityConflictResolver can only be used for batch jobs.");
-		this.sinks = sinks;
+		this.roots = roots;
 	}
 
 	public void detectAndResolve() {
 		// build an initial topology graph
-		graph = new TopologyGraph(sinks);
+		graph = new TopologyGraph(roots);
 
 		// check and resolve conflicts about input priorities
 		AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor = new AbstractExecNodeExactlyOnceVisitor() {
@@ -119,7 +119,7 @@ public class InputPriorityConflictResolver {
 				checkInputPriorities(node);
 			}
 		};
-		sinks.forEach(n -> n.accept(inputPriorityVisitor));
+		roots.forEach(n -> n.accept(inputPriorityVisitor));
 	}
 
 	private void checkInputPriorities(ExecNode<?, ?> node) {
@@ -129,7 +129,7 @@ public class InputPriorityConflictResolver {
 			node.getInputNodes().size() == node.getInputEdges().size(),
 			"Number of inputs nodes does not equal to number of input edges for node " +
 				node.getClass().getName() + ". This is a bug.");
-		for (int i = 0; i < node.getInputNodes().size(); i++) {
+		for (int i = 0; i < node.getInputEdges().size(); i++) {
 			int priority = node.getInputEdges().get(i).getPriority();
 			inputPriorityGroupMap.computeIfAbsent(priority, k -> new ArrayList<>()).add(i);
 		}
@@ -237,11 +237,9 @@ public class InputPriorityConflictResolver {
 	@VisibleForTesting
 	static class TopologyGraph {
 		private final Map<ExecNode<?, ?>, TopologyNode> nodes;
-		private int visitTag;
 
-		TopologyGraph(List<ExecNode<?, ?>> sinks) {
+		TopologyGraph(List<ExecNode<?, ?>> roots) {
 			this.nodes = new HashMap<>();
-			this.visitTag = 0;
 
 			// we first link all edges in the original exec node graph
 			AbstractExecNodeExactlyOnceVisitor visitor = new AbstractExecNodeExactlyOnceVisitor() {
@@ -253,7 +251,7 @@ public class InputPriorityConflictResolver {
 					visitInputs(node);
 				}
 			};
-			sinks.forEach(n -> n.accept(visitor));
+			roots.forEach(n -> n.accept(visitor));
 		}
 
 		/**
@@ -294,8 +292,9 @@ public class InputPriorityConflictResolver {
 		}
 
 		private boolean canReach(TopologyNode from, TopologyNode to) {
+			Set<TopologyNode> visited = new HashSet<>();
+			visited.add(from);
 			Queue<TopologyNode> queue = new LinkedList<>();
-			from.tag = --visitTag;
 			queue.offer(from);
 
 			while (!queue.isEmpty()) {
@@ -305,10 +304,10 @@ public class InputPriorityConflictResolver {
 				}
 
 				for (TopologyNode next : node.outputs) {
-					if (next.tag == visitTag) {
+					if (visited.contains(next)) {
 						continue;
 					}
-					next.tag = visitTag;
+					visited.add(next);
 					queue.offer(next);
 				}
 			}
@@ -347,7 +346,5 @@ public class InputPriorityConflictResolver {
 	private static class TopologyNode {
 		private final Set<TopologyNode> inputs = new HashSet<>();
 		private final Set<TopologyNode> outputs = new HashSet<>();
-
-		private int tag;
 	}
 }
