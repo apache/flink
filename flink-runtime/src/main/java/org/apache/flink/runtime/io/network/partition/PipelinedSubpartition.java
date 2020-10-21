@@ -114,7 +114,7 @@ public class PipelinedSubpartition extends ResultSubpartition
 	}
 
 	@Override
-	public boolean add(BufferConsumer bufferConsumer) {
+	public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) {
 		return add(bufferConsumer, false);
 	}
 
