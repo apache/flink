@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -78,6 +79,26 @@ public class InputSpec implements Serializable {
 
 	public int getOutputOpInputId() {
 		return outputOpInputId;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		InputSpec inputSpec = (InputSpec) o;
+		return multipleInputId == inputSpec.multipleInputId &&
+				readOrder == inputSpec.readOrder &&
+				outputOpInputId == inputSpec.outputOpInputId &&
+				output.equals(inputSpec.output);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(multipleInputId, readOrder, output, outputOpInputId);
 	}
 
 	@Override

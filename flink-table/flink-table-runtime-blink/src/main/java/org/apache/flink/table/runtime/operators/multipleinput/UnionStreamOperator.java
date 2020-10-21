@@ -32,6 +32,7 @@ public class UnionStreamOperator extends StreamMap<RowData, RowData> implements 
 	private static final long serialVersionUID = 1L;
 
 	public UnionStreamOperator() {
+		// use MapFunction to combine the input data
 		super((MapFunction<RowData, RowData>) value -> value);
 	}
 

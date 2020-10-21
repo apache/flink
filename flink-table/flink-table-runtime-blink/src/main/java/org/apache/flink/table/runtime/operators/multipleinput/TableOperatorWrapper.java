@@ -32,6 +32,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -130,19 +131,19 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 		endedInputCount++;
 		if (wrapped instanceof BoundedOneInput) {
 			((BoundedOneInput) wrapped).endInput();
-			endOperatorInputForOutput();
+			propagateEndOperatorInput();
 		} else if (wrapped instanceof BoundedMultiInput) {
 			((BoundedMultiInput) wrapped).endInput(inputId);
 			if (endedInputCount >= allInputTypes.size()) {
-				endOperatorInputForOutput();
+				propagateEndOperatorInput();
 			}
 		} else {
 			// some batch operators do not extend from BoundedOneInput, such as BatchCalc
-			endOperatorInputForOutput();
+			propagateEndOperatorInput();
 		}
 	}
 
-	private void endOperatorInputForOutput() throws Exception {
+	private void propagateEndOperatorInput() throws Exception {
 		for (Edge edge : outputEdges) {
 			edge.target.endOperatorInput(edge.inputId);
 		}
@@ -220,12 +221,51 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 	}
 
 	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		TableOperatorWrapper<?> other = (TableOperatorWrapper<?>) o;
+		boolean b = Double.compare(other.managedMemoryFraction, managedMemoryFraction) == 0 &&
+				factory.equals(other.factory) &&
+				operatorName.equals(other.operatorName) &&
+				allInputTypes.equals(other.allInputTypes) &&
+				outputType.equals(other.outputType) &&
+				inputEdges.size() == other.inputEdges.size() &&
+				outputEdges.size() == other.outputEdges.size();
+		if (b) {
+			return true;
+		}
+		// compare with string value to avoid dead loop between inputEdge and its target
+		for (int i = 0; i < inputEdges.size(); ++i) {
+			if (!inputEdges.get(i).toString().equals(other.inputEdges.get(i).toString())) {
+				return false;
+			}
+		}
+		// compare with string value to avoid dead loop between outputEdge and its source
+		for (int i = 0; i < outputEdges.size(); ++i) {
+			if (!outputEdges.get(i).toString().equals(other.outputEdges.get(i).toString())) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(factory, operatorName, allInputTypes, outputType, managedMemoryFraction, inputEdges);
+	}
+
+	@Override
 	public String toString() {
 		return operatorName;
 	}
 
 	/**
-	 * The edge connects two {@link TableOperatorWrapper}s.
+	 * The edge connecting two {@link TableOperatorWrapper}s.
 	 */
 	public static class Edge implements Serializable {
 		private static final long serialVersionUID = 1L;
@@ -244,8 +284,8 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 				TableOperatorWrapper<?> source,
 				TableOperatorWrapper<?> target,
 				int inputId) {
-			this.source = source;
-			this.target = target;
+			this.source = checkNotNull(source);
+			this.target = checkNotNull(target);
 			this.inputId = inputId;
 		}
 
@@ -259,6 +299,25 @@ public class TableOperatorWrapper<OP extends StreamOperator<RowData>> implements
 
 		public int getInputId() {
 			return inputId;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			Edge edge = (Edge) o;
+			return inputId == edge.inputId &&
+					source.equals(edge.source) &&
+					target.equals(edge.target);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(source, target, inputId);
 		}
 
 		@Override

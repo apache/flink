@@ -19,36 +19,27 @@
 package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedMultiInput;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * A {@link TwoInputStreamOperator} for testing.
+ * A {@link OneInputStreamOperator} for testing.
  */
-public class TestTwoInputStreamOperator extends AbstractStreamOperator<RowData>
-		implements TwoInputStreamOperator<RowData, RowData, RowData>, BoundedMultiInput {
-
-	private final List<Integer> endInputs = new ArrayList<>();
+public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowData>
+		implements OneInputStreamOperator<RowData, RowData>, BoundedOneInput {
+	private boolean isEnd = false;
 	private boolean isClosed = false;
 
 	@Override
-	public void processElement1(StreamRecord<RowData> element) throws Exception {
+	public void processElement(StreamRecord<RowData> element) throws Exception {
 
 	}
 
 	@Override
-	public void processElement2(StreamRecord<RowData> element) throws Exception {
-
-	}
-
-	@Override
-	public void endInput(int inputId) throws Exception {
-		endInputs.add(inputId);
+	public void endInput() throws Exception {
+		isEnd = true;
 	}
 
 	@Override
@@ -56,8 +47,8 @@ public class TestTwoInputStreamOperator extends AbstractStreamOperator<RowData>
 		isClosed = true;
 	}
 
-	public List<Integer> getEndInputs() {
-		return endInputs;
+	public boolean isEnd() {
+		return isEnd;
 	}
 
 	public boolean isClosed() {

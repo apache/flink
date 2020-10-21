@@ -47,42 +47,42 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link TableOperatorWrapper}.
  */
-public class TableOperatorWrapperTest extends TableOperatorWrapperTestBase {
+public class TableOperatorWrapperTest {
 
 	@Test
 	public void testBasicInfo() {
-		TestOneInputStreamOperator inOperator1 = new TestOneInputStreamOperator();
-		TestOneInputStreamOperator inOperator2 = new TestOneInputStreamOperator();
-		TestTwoInputStreamOperator outOperator = new TestTwoInputStreamOperator();
-		TableOperatorWrapper<TestOneInputStreamOperator> wrapper1 =
+		TestingOneInputStreamOperator inOperator1 = new TestingOneInputStreamOperator();
+		TestingOneInputStreamOperator inOperator2 = new TestingOneInputStreamOperator();
+		TestingTwoInputStreamOperator outOperator = new TestingTwoInputStreamOperator();
+		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper1 =
 				createOneInputOperatorWrapper(inOperator1, "test1");
 
-		TableOperatorWrapper<TestOneInputStreamOperator> wrapper2 =
+		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper2 =
 				createOneInputOperatorWrapper(inOperator2, "test2");
 
-		TableOperatorWrapper<TestTwoInputStreamOperator> wrapper3 =
+		TableOperatorWrapper<TestingTwoInputStreamOperator> wrapper3 =
 				createTwoInputOperatorWrapper(outOperator, "test3");
 		wrapper3.addInput(wrapper1, 1);
 		wrapper3.addInput(wrapper2, 2);
 
 		assertTrue(wrapper1.getInputEdges().isEmpty());
 		assertTrue(wrapper1.getInputWrappers().isEmpty());
-		assertWrapperEquals(Collections.singletonList(wrapper3), wrapper1.getOutputWrappers());
-		assertEdgeEquals(
+		assertEquals(Collections.singletonList(wrapper3), wrapper1.getOutputWrappers());
+		assertEquals(
 				Collections.singletonList(new Edge(wrapper1, wrapper3, 1)),
 				wrapper1.getOutputEdges());
 
 		assertTrue(wrapper2.getInputEdges().isEmpty());
 		assertTrue(wrapper2.getInputWrappers().isEmpty());
-		assertWrapperEquals(Collections.singletonList(wrapper3), wrapper2.getOutputWrappers());
-		assertEdgeEquals(Collections.singletonList(
+		assertEquals(Collections.singletonList(wrapper3), wrapper2.getOutputWrappers());
+		assertEquals(Collections.singletonList(
 				new Edge(wrapper2, wrapper3, 2)),
 				wrapper2.getOutputEdges());
 
 		assertTrue(wrapper3.getOutputEdges().isEmpty());
 		assertTrue(wrapper3.getOutputWrappers().isEmpty());
-		assertWrapperEquals(Arrays.asList(wrapper1, wrapper2), wrapper3.getInputWrappers());
-		assertEdgeEquals(Arrays.asList(
+		assertEquals(Arrays.asList(wrapper1, wrapper2), wrapper3.getInputWrappers());
+		assertEquals(Arrays.asList(
 				new Edge(wrapper1, wrapper3, 1),
 				new Edge(wrapper2, wrapper3, 2)),
 				wrapper3.getInputEdges());
@@ -90,8 +90,8 @@ public class TableOperatorWrapperTest extends TableOperatorWrapperTestBase {
 
 	@Test
 	public void testCreateOperator() throws Exception {
-		TestOneInputStreamOperator operator = new TestOneInputStreamOperator();
-		TableOperatorWrapper<TestOneInputStreamOperator> wrapper =
+		TestingOneInputStreamOperator operator = new TestingOneInputStreamOperator();
+		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper =
 				createOneInputOperatorWrapper(operator, "test");
 		StreamOperatorParameters<RowData> parameters = createStreamOperatorParameters();
 		wrapper.createOperator(parameters);
@@ -110,18 +110,18 @@ public class TableOperatorWrapperTest extends TableOperatorWrapperTestBase {
 	@Test
 	public void testEndInput() throws Exception {
 		StreamOperatorParameters<RowData> parameters = createStreamOperatorParameters();
-		TestOneInputStreamOperator inOperator1 = new TestOneInputStreamOperator();
-		TestOneInputStreamOperator inOperator2 = new TestOneInputStreamOperator();
-		TestTwoInputStreamOperator outOperator = new TestTwoInputStreamOperator();
-		TableOperatorWrapper<TestOneInputStreamOperator> wrapper1 =
+		TestingOneInputStreamOperator inOperator1 = new TestingOneInputStreamOperator();
+		TestingOneInputStreamOperator inOperator2 = new TestingOneInputStreamOperator();
+		TestingTwoInputStreamOperator outOperator = new TestingTwoInputStreamOperator();
+		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper1 =
 				createOneInputOperatorWrapper(inOperator1, "test1");
 		wrapper1.createOperator(parameters);
 
-		TableOperatorWrapper<TestOneInputStreamOperator> wrapper2 =
+		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper2 =
 				createOneInputOperatorWrapper(inOperator2, "test2");
 		wrapper2.createOperator(parameters);
 
-		TableOperatorWrapper<TestTwoInputStreamOperator> wrapper3 =
+		TableOperatorWrapper<TestingTwoInputStreamOperator> wrapper3 =
 				createTwoInputOperatorWrapper(outOperator, "test3");
 		wrapper3.addInput(wrapper1, 1);
 		wrapper3.addInput(wrapper2, 2);
@@ -153,8 +153,8 @@ public class TableOperatorWrapperTest extends TableOperatorWrapperTestBase {
 
 	@Test
 	public void testClose() throws Exception {
-		TestOneInputStreamOperator operator = new TestOneInputStreamOperator();
-		TableOperatorWrapper<TestOneInputStreamOperator> wrapper =
+		TestingOneInputStreamOperator operator = new TestingOneInputStreamOperator();
+		TableOperatorWrapper<TestingOneInputStreamOperator> wrapper =
 				createOneInputOperatorWrapper(operator, "test");
 		StreamOperatorParameters<RowData> parameters = createStreamOperatorParameters();
 		wrapper.createOperator(parameters);
@@ -184,8 +184,8 @@ public class TableOperatorWrapperTest extends TableOperatorWrapperTestBase {
 		);
 	}
 
-	private TableOperatorWrapper<TestOneInputStreamOperator> createOneInputOperatorWrapper(
-			TestOneInputStreamOperator operator, String name) {
+	private TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(
+			TestingOneInputStreamOperator operator, String name) {
 		return new TableOperatorWrapper<>(
 				SimpleOperatorFactory.of(operator),
 				name,
@@ -194,8 +194,8 @@ public class TableOperatorWrapperTest extends TableOperatorWrapperTestBase {
 		);
 	}
 
-	private TableOperatorWrapper<TestTwoInputStreamOperator> createTwoInputOperatorWrapper(
-			TestTwoInputStreamOperator operator, String name) {
+	private TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(
+			TestingTwoInputStreamOperator operator, String name) {
 		return new TableOperatorWrapper<>(
 				SimpleOperatorFactory.of(operator),
 				name,

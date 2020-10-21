@@ -77,17 +77,18 @@ class BatchExecMultipleInputNode(
     val generator = new TableOperatorWrapperGenerator(inputTransforms, tailTransform, readOrders)
     generator.generate()
 
+    val inputTransformAndInputSpecPairs = generator.getInputTransformAndInputSpecPairs
     val multipleInputTransform = new MultipleInputTransformation[RowData](
       getRelDetailedDescription,
       new BatchMultipleInputStreamOperatorFactory(
-        generator.getInputSpecs,
+        inputTransformAndInputSpecPairs.map(_.getValue),
         generator.getHeadWrappers,
         generator.getTailWrapper),
       outputType,
       generator.getParallelism)
 
     // add inputs as the order of input specs
-    generator.getOrderedInputTransforms.foreach(input => multipleInputTransform.addInput(input))
+    inputTransformAndInputSpecPairs.foreach(input => multipleInputTransform.addInput(input.getKey))
 
     if (generator.getMaxParallelism > 0) {
       multipleInputTransform.setMaxParallelism(generator.getMaxParallelism)

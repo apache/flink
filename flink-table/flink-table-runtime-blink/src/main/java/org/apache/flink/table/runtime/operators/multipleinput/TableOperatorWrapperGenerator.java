@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -61,14 +62,9 @@ public class TableOperatorWrapperGenerator {
 	private final int[] readOrders;
 
 	/**
-	 * Reordered input transformations which order corresponds to the order of {@link #inputSpecs}.
+	 * The list of {@link Transformation} together with their {@link InputSpec}.
 	 */
-	private final List<Transformation<?>> orderedInputTransforms;
-
-	/**
-	 * The input specs which order corresponds to the order of {@link #orderedInputTransforms}.
-	 */
-	private final List<InputSpec> inputSpecs;
+	private final List<Pair<Transformation<?>, InputSpec>> inputTransformAndInputSpecPairs;
 
 	/**
 	 * The head (leaf) operator wrappers of the operator-graph in {@link MultipleInputStreamOperator}.
@@ -111,9 +107,8 @@ public class TableOperatorWrapperGenerator {
 		this.inputTransforms = inputTransforms;
 		this.tailTransform = tailTransform;
 		this.readOrders = readOrders;
-		this.inputSpecs = new ArrayList<>();
+		this.inputTransformAndInputSpecPairs = new ArrayList<>();
 		this.headWrappers = new ArrayList<>();
-		this.orderedInputTransforms = new ArrayList<>();
 		this.visitedTransforms = new IdentityHashMap<>();
 
 		this.parallelism = -1;
@@ -122,17 +117,12 @@ public class TableOperatorWrapperGenerator {
 
 	public void generate() {
 		tailWrapper = visit(tailTransform);
-		checkState(orderedInputTransforms.size() == inputTransforms.size());
-		checkState(orderedInputTransforms.size() == inputSpecs.size());
+		checkState(inputTransforms.size() == inputTransformAndInputSpecPairs.size());
 		calculateManagedMemoryFraction();
 	}
 
-	public List<Transformation<?>> getOrderedInputTransforms() {
-		return orderedInputTransforms;
-	}
-
-	public List<InputSpec> getInputSpecs() {
-		return inputSpecs;
+	public List<Pair<Transformation<?>, InputSpec>> getInputTransformAndInputSpecPairs() {
+		return inputTransformAndInputSpecPairs;
 	}
 
 	public List<TableOperatorWrapper<?>> getHeadWrappers() {
@@ -164,30 +154,21 @@ public class TableOperatorWrapperGenerator {
 	}
 
 	private TableOperatorWrapper<?> visit(Transformation<?> transform) {
-		// ignore UnionTransformation because it's not a really operator
+		// ignore UnionTransformation because it's not a real operator
 		if (!(transform instanceof UnionTransformation)) {
 			calcParallelismAndResource(transform);
 		}
 
-		final TableOperatorWrapper<?> wrapper;
-		if (visitedTransforms.containsKey(transform)) {
-			wrapper = visitedTransforms.get(transform);
-		} else {
-			wrapper = visitTransformation(transform);
-			visitedTransforms.put(transform, wrapper);
-		}
-		return wrapper;
+		return visitedTransforms.computeIfAbsent(transform, this::visitTransformation);
 	}
 
 	private void calcParallelismAndResource(Transformation<?> transform) {
-		int currentParallelism = transform.getParallelism();
-		if (parallelism < 0) {
-			parallelism = currentParallelism;
-		} else {
-			checkState(
-					currentParallelism < 0 || parallelism == currentParallelism,
-					"Parallelism of a transformation in MultipleInputNode is different from others. This is a bug.");
-		}
+		// do not check the parallelisms in multiple-input node are same,
+		// because we should consider the following case:
+		// Source1(100 parallelism) -> Calc(100 parallelism) -\
+		//                                                     -> union -> join -> ...
+		// Source2(50 parallelism)  -> Calc(50 parallelism) -/
+		parallelism = Math.max(parallelism, transform.getParallelism());
 
 		int currentMaxParallelism = transform.getMaxParallelism();
 		if (maxParallelism < 0) {
@@ -211,15 +192,15 @@ public class TableOperatorWrapperGenerator {
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private TableOperatorWrapper<?> visitTransformation(Transformation<?> transform) {
 		if (transform instanceof OneInputTransformation) {
 			return visitOneInputTransformation((OneInputTransformation) transform);
 		} else if (transform instanceof TwoInputTransformation) {
 			return visitTwoInputTransformation((TwoInputTransformation) transform);
-		} else  if (transform instanceof UnionTransformation) {
+		} else if (transform instanceof UnionTransformation) {
 			return visitUnionTransformation((UnionTransformation) transform);
-		} else  {
+		} else {
 			throw new RuntimeException("Unsupported Transformation: " + transform);
 		}
 	}
@@ -237,8 +218,7 @@ public class TableOperatorWrapperGenerator {
 
 		int inputIdx = inputTransforms.indexOf(input);
 		if (inputIdx >= 0) {
-			orderedInputTransforms.add(input);
-			inputSpecs.add(createInputSpec(readOrders[inputIdx], wrapper, 1));
+			processInput(input, inputIdx, wrapper, 1);
 			headWrappers.add(wrapper);
 		} else {
 			TableOperatorWrapper<?> inputWrapper = visit(input);
@@ -261,22 +241,20 @@ public class TableOperatorWrapperGenerator {
 				transform.getOutputType());
 
 		if (inputIdx1 >= 0 && inputIdx2 >= 0) {
-			orderedInputTransforms.add(input1);
-			inputSpecs.add(createInputSpec(readOrders[inputIdx1], wrapper, 1));
-			orderedInputTransforms.add(input2);
-			inputSpecs.add(createInputSpec(readOrders[inputIdx2], wrapper, 2));
+			processInput(input1, inputIdx1, wrapper, 1);
+			processInput(input2, inputIdx2, wrapper, 2);
 			headWrappers.add(wrapper);
 		} else if (inputIdx1 >= 0) {
 			TableOperatorWrapper<?> inputWrapper = visit(input2);
 			wrapper.addInput(inputWrapper, 2);
-			orderedInputTransforms.add(input1);
-			inputSpecs.add(createInputSpec(readOrders[inputIdx1], wrapper, 1));
+
+			processInput(input1, inputIdx1, wrapper, 1);
 			headWrappers.add(wrapper);
 		} else if (inputIdx2 >= 0) {
 			TableOperatorWrapper<?> inputWrapper = visit(input1);
 			wrapper.addInput(inputWrapper, 1);
-			orderedInputTransforms.add(input2);
-			inputSpecs.add(createInputSpec(readOrders[inputIdx2], wrapper, 2));
+
+			processInput(input2, inputIdx2, wrapper, 2);
 			headWrappers.add(wrapper);
 		} else {
 			TableOperatorWrapper<?> inputWrapper1 = visit(input1);
@@ -290,7 +268,6 @@ public class TableOperatorWrapperGenerator {
 
 	private TableOperatorWrapper<?> visitUnionTransformation(
 			UnionTransformation<RowData> transform) {
-		// use MapFunction to combine the input data
 		TableOperatorWrapper<?> wrapper = new TableOperatorWrapper<>(
 				SimpleOperatorFactory.of(new UnionStreamOperator()),
 				genSubOperatorName(transform),
@@ -301,9 +278,8 @@ public class TableOperatorWrapperGenerator {
 		for (Transformation<?> input : transform.getInputs()) {
 			int inputIdx = inputTransforms.indexOf(input);
 			if (inputIdx >= 0) {
-				numberOfHeadInput ++;
-				orderedInputTransforms.add(input);
-				inputSpecs.add(createInputSpec(readOrders[inputIdx], wrapper, 1)); // always 1 here
+				numberOfHeadInput++;
+				processInput(input, inputIdx, wrapper, 1); // always 1 here
 			} else {
 				TableOperatorWrapper<?> inputWrapper = visit(input);
 				wrapper.addInput(inputWrapper, 1); // always 1 here
@@ -316,10 +292,14 @@ public class TableOperatorWrapperGenerator {
 		return wrapper;
 	}
 
-	private InputSpec createInputSpec(int readOrder, TableOperatorWrapper<?> outputWrapper, int inputIndex) {
-		checkNotNull(outputWrapper);
-		int inputId = inputSpecs.size() + 1;
-		return new InputSpec(inputId, readOrder, outputWrapper, inputIndex);
+	private void processInput(
+			Transformation<?> input,
+			int inputIdx,
+			TableOperatorWrapper<?> outputWrapper,
+			int outputOpInputId) {
+		int inputId = inputTransformAndInputSpecPairs.size() + 1;
+		InputSpec inputSpec = new InputSpec(inputId, readOrders[inputIdx], outputWrapper, outputOpInputId);
+		inputTransformAndInputSpecPairs.add(Pair.of(input, inputSpec));
 	}
 
 	/**
