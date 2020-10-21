@@ -33,6 +33,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -263,10 +264,11 @@ public class ApplicationDispatcherBootstrapTest {
 				})
 				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createCancelledJobResult(jobId)));
 
-		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
+				3, dispatcherBuilder.build(), scheduledExecutor);
 
 		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+				bootstrap.getClusterShutdownFuture();
 
 		// wait until the bootstrap "thinks" it's done, also makes sure that we don't
 		// fail the future exceptionally with a JobCancelledException
@@ -282,10 +284,10 @@ public class ApplicationDispatcherBootstrapTest {
 				.setRequestJobStatusFunction(jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
 				.setRequestJobResultFunction(jobId -> CompletableFuture.completedFuture(createSuccessfulJobResult(jobId)));
 
-		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
+				3, dispatcherBuilder.build(), scheduledExecutor);
 
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
@@ -306,10 +308,9 @@ public class ApplicationDispatcherBootstrapTest {
 		// In production, this will shut down the cluster with an exception.
 		final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
 		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
-				3, errorHandlerFuture::completeExceptionally);
+				3, dispatcherBuilder.build(), scheduledExecutor, errorHandlerFuture::completeExceptionally);
 
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		ScheduledFuture<?> applicationExecutionFuture = bootstrap.getApplicationExecutionFuture();
 
@@ -335,10 +336,9 @@ public class ApplicationDispatcherBootstrapTest {
 		// In production, this will shut down the cluster with an exception.
 		final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
 		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
-				2, errorHandlerFuture::completeExceptionally);
+				2, dispatcherBuilder.build(), scheduledExecutor, errorHandlerFuture::completeExceptionally);
 
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		bootstrap.stop();
 
@@ -363,12 +363,11 @@ public class ApplicationDispatcherBootstrapTest {
 		// we're "listening" on this to be completed to verify that the error handler is called.
 		// In production, this will shut down the cluster with an exception.
 		final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
-		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
-				3, errorHandlerFuture::completeExceptionally);
-
 		final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherGateway, scheduledExecutor);
+		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
+				3, dispatcherGateway, scheduledExecutor, errorHandlerFuture::completeExceptionally);
+
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		// we call the error handler
 		assertException(errorHandlerFuture, ApplicationExecutionException.class);
@@ -392,10 +391,10 @@ public class ApplicationDispatcherBootstrapTest {
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
-		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
+				3, dispatcherBuilder.build(), scheduledExecutor);
 
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		// wait until the bootstrap "thinks" it's done
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -419,10 +418,10 @@ public class ApplicationDispatcherBootstrapTest {
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
-		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(
+				3, dispatcherBuilder.build(), scheduledExecutor);
 
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		// wait until the bootstrap "thinks" it's done
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -446,10 +445,10 @@ public class ApplicationDispatcherBootstrapTest {
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
-		ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
+		ApplicationDispatcherBootstrap bootstrap =
+				createApplicationDispatcherBootstrap(3, dispatcherBuilder.build(), scheduledExecutor);
 
-		final CompletableFuture<Acknowledge> shutdownFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherBuilder.build(), scheduledExecutor);
+		final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
 		// wait until the bootstrap "thinks" it's done
 		shutdownFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -471,11 +470,11 @@ public class ApplicationDispatcherBootstrapTest {
 					return CompletableFuture.completedFuture(Acknowledge.get());
 				});
 
-		final ApplicationDispatcherBootstrap bootstrap = createApplicationDispatcherBootstrap(3);
-
 		final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
-		final CompletableFuture<Acknowledge> applicationFuture =
-				bootstrap.runApplicationAndShutdownClusterAsync(dispatcherGateway, scheduledExecutor);
+		final ApplicationDispatcherBootstrap bootstrap =
+				createApplicationDispatcherBootstrap(3, dispatcherGateway, scheduledExecutor);
+
+		final CompletableFuture<Acknowledge> applicationFuture = bootstrap.getClusterShutdownFuture();
 
 		final ApplicationFailureException exception = assertException(applicationFuture, ApplicationFailureException.class);
 		assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
@@ -509,22 +508,31 @@ public class ApplicationDispatcherBootstrapTest {
 
 		final ApplicationDispatcherBootstrap bootstrap =
 				new ApplicationDispatcherBootstrap(
-						program, Collections.emptyList(), configuration, exception -> {});
+						program,
+						Collections.emptyList(),
+						configuration,
+						dispatcherBuilder.build(),
+						scheduledExecutor,
+						exception -> {});
 
-		return bootstrap.fixJobIdAndRunApplicationAsync(
-				dispatcherBuilder.build(),
-				scheduledExecutor);
-	}
-
-	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(int noOfJobs) throws FlinkException {
-		return createApplicationDispatcherBootstrap(noOfJobs, exception -> {});
+		return bootstrap.getApplicationCompletionFuture();
 	}
 
 	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
-			int noOfJobs,
-			FatalErrorHandler errorHandler) throws FlinkException {
+			final int noOfJobs,
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor scheduledExecutor) throws FlinkException {
+		return createApplicationDispatcherBootstrap(noOfJobs, dispatcherGateway, scheduledExecutor, exception -> {});
+	}
+
+	private ApplicationDispatcherBootstrap createApplicationDispatcherBootstrap(
+			final int noOfJobs,
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor scheduledExecutor,
+			final FatalErrorHandler errorHandler) throws FlinkException {
 		final PackagedProgram program = getProgram(noOfJobs);
-		return new ApplicationDispatcherBootstrap(program, Collections.emptyList(), getConfiguration(), errorHandler);
+		return new ApplicationDispatcherBootstrap(
+				program, Collections.emptyList(), getConfiguration(), dispatcherGateway, scheduledExecutor, errorHandler);
 	}
 
 	private PackagedProgram getProgram(int noOfJobs) throws FlinkException {

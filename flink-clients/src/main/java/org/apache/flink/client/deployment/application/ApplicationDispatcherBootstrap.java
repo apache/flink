@@ -84,7 +84,9 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 
 	private final FatalErrorHandler errorHandler;
 
-	private CompletableFuture<Void> applicationCompletionFuture;
+	private final CompletableFuture<Void> applicationCompletionFuture;
+
+	private final CompletableFuture<Acknowledge> clusterShutdownFuture;
 
 	private ScheduledFuture<?> applicationExecutionTask;
 
@@ -92,20 +94,19 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 			final PackagedProgram application,
 			final Collection<JobID> recoveredJobIds,
 			final Configuration configuration,
+			final DispatcherGateway dispatcherGateway,
+			final ScheduledExecutor scheduledExecutor,
 			final FatalErrorHandler errorHandler) {
 		this.configuration = checkNotNull(configuration);
 		this.recoveredJobIds = checkNotNull(recoveredJobIds);
 		this.application = checkNotNull(application);
 		this.errorHandler = checkNotNull(errorHandler);
-	}
 
-	@Override
-	public void initialize(final DispatcherGateway dispatcherGateway, ScheduledExecutor scheduledExecutor) {
-		checkNotNull(dispatcherGateway);
+		this.applicationCompletionFuture =
+				fixJobIdAndRunApplicationAsync(dispatcherGateway, scheduledExecutor);
 
-		runApplicationAndShutdownClusterAsync(
-				dispatcherGateway,
-				scheduledExecutor);
+		this.clusterShutdownFuture =
+				runApplicationAndShutdownClusterAsync(dispatcherGateway);
 	}
 
 	@Override
@@ -124,17 +125,21 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 		return applicationExecutionTask;
 	}
 
+	@VisibleForTesting
+	CompletableFuture<Void> getApplicationCompletionFuture() {
+		return applicationCompletionFuture;
+	}
+
+	@VisibleForTesting
+	CompletableFuture<Acknowledge> getClusterShutdownFuture() {
+		return clusterShutdownFuture;
+	}
+
 	/**
 	 * Runs the user program entrypoint and shuts down the given dispatcherGateway when
 	 * the application completes (either successfully or in case of failure).
 	 */
-	@VisibleForTesting
-	CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
-			final DispatcherGateway dispatcherGateway,
-			final ScheduledExecutor scheduledExecutor) {
-
-		applicationCompletionFuture = fixJobIdAndRunApplicationAsync(dispatcherGateway, scheduledExecutor);
-
+	private CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(final DispatcherGateway dispatcherGateway) {
 		return applicationCompletionFuture
 				.handle((r, t) -> {
 					if (t != null) {
@@ -163,8 +168,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 				.thenCompose(Function.identity());
 	}
 
-	@VisibleForTesting
-	CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
+	private CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
 			final DispatcherGateway dispatcherGateway,
 			final ScheduledExecutor scheduledExecutor) {
 
