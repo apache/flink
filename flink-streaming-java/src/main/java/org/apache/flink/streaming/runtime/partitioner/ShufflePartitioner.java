@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -39,6 +40,11 @@ public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 	@Override
 	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
 		return random.nextInt(numberOfChannels);
+	}
+
+	@Override
+	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+		return SubtaskStateMapper.ROUND_ROBIN;
 	}
 
 	@Override

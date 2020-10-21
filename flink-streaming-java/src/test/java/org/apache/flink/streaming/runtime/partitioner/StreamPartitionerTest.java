@@ -20,9 +20,13 @@ package org.apache.flink.streaming.runtime.partitioner;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
+import org.junit.Test;
+
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -51,5 +55,11 @@ public abstract class StreamPartitionerTest extends TestLogger {
 	protected void assertSelectedChannelWithSetup(int expectedChannel, int numberOfChannels) {
 		streamPartitioner.setup(numberOfChannels);
 		assertSelectedChannel(expectedChannel);
+	}
+
+	@Test
+	public void testSerializable() throws IOException, ClassNotFoundException {
+		final StreamPartitioner<Tuple> clone = InstantiationUtil.clone(streamPartitioner);
+		assertEquals(streamPartitioner, clone);
 	}
 }

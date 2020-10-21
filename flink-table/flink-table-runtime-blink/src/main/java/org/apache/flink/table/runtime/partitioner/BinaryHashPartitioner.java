@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.partitioner;
 
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -53,6 +54,11 @@ public class BinaryHashPartitioner extends StreamPartitioner<RowData> {
 	public int selectChannel(SerializationDelegate<StreamRecord<RowData>> record) {
 		return MathUtils.murmurHash(
 				getHashFunc().hashCode(record.getInstance().getValue())) % numberOfChannels;
+	}
+
+	@Override
+	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+		return SubtaskStateMapper.FULL;
 	}
 
 	private HashFunction getHashFunc() {
