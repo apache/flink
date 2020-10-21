@@ -251,7 +251,7 @@ public class MiniDispatcherTest extends TestLogger {
 				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
 			jobGraph,
-			errorHandler -> new NoOpDispatcherBootstrap(),
+			(dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap(),
 			executionMode);
 	}
 

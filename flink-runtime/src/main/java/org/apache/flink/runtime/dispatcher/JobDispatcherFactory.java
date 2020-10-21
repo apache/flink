@@ -21,13 +21,11 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Collection;
-import java.util.function.Function;
 
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
 
@@ -42,7 +40,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
 

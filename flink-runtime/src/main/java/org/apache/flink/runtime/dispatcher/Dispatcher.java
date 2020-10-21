@@ -122,7 +122,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 	private final Collection<JobGraph> recoveredJobs;
 
-	private final Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory;
+	private final DispatcherBootstrapFactory dispatcherBootstrapFactory;
 
 	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
 
@@ -145,7 +145,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
 		checkNotNull(dispatcherServices);
@@ -206,9 +206,11 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			throw exception;
 		}
 
-		this.dispatcherBootstrap = this.dispatcherBootstrapFactory.apply(this::onFatalError);
 		startRecoveredJobs();
-		this.dispatcherBootstrap.initialize(getSelfGateway(DispatcherGateway.class), this.getRpcService().getScheduledExecutor());
+		this.dispatcherBootstrap = this.dispatcherBootstrapFactory.create(
+				getSelfGateway(DispatcherGateway.class),
+				this.getRpcService().getScheduledExecutor() ,
+				this::onFatalError);
 	}
 
 	private void startDispatcherServices() throws Exception {

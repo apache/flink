@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nonnull;
@@ -42,7 +41,7 @@ class TestingDispatcher extends Dispatcher {
 			RpcService rpcService,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			Function<FatalErrorHandler, DispatcherBootstrap> dispatcherBootstrapFactory,
+			DispatcherBootstrapFactory dispatcherBootstrapFactory,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,

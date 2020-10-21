@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
@@ -30,11 +29,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 public class NoOpDispatcherBootstrap implements DispatcherBootstrap {
 
 	public NoOpDispatcherBootstrap() {
-	}
-
-	@Override
-	public void initialize(final DispatcherGateway dispatcher, ScheduledExecutor scheduledExecutor) {
-
 	}
 
 	@Override
