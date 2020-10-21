@@ -178,10 +178,11 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 			.computeIfAbsent(executionSlotSharingGroup, group -> {
 				SlotRequestId physicalSlotRequestId = new SlotRequestId();
 				ResourceProfile physicalSlotResourceProfile = getPhysicalSlotResourceProfile(group);
-				CompletableFuture<PhysicalSlot> physicalSlotFuture = sharedSlotProfileRetriever
-					.getSlotProfileFuture(group, physicalSlotResourceProfile)
-					.thenCompose(slotProfile -> slotProvider.allocatePhysicalSlot(
-						new PhysicalSlotRequest(physicalSlotRequestId, slotProfile, slotWillBeOccupiedIndefinitely)))
+				SlotProfile slotProfile = sharedSlotProfileRetriever.getSlotProfile(group, physicalSlotResourceProfile);
+				PhysicalSlotRequest physicalSlotRequest =
+					new PhysicalSlotRequest(physicalSlotRequestId, slotProfile, slotWillBeOccupiedIndefinitely);
+				CompletableFuture<PhysicalSlot> physicalSlotFuture = slotProvider
+					.allocatePhysicalSlot(physicalSlotRequest)
 					.thenApply(PhysicalSlotRequest.Result::getPhysicalSlot);
 				return new SharedSlot(
 					physicalSlotRequestId,
