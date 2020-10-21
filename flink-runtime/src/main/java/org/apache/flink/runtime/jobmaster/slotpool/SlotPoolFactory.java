@@ -42,7 +42,13 @@ public interface SlotPoolFactory {
 		final Time batchSlotTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 
 		if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
-			throw new UnsupportedOperationException("Declarative slot pool is not yet implemented.");
+
+			return new DeclarativeSlotPoolBridgeFactory(
+				SystemClock.getInstance(),
+				rpcTimeout,
+				slotIdleTimeout,
+				batchSlotTimeout
+			);
 		} else {
 			return new DefaultSlotPoolFactory(
 				SystemClock.getInstance(),

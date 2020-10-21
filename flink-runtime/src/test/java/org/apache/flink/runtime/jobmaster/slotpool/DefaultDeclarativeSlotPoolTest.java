@@ -431,7 +431,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 	}
 
 	@Nonnull
-	private static Collection<SlotOffer> offerSlots(DeclarativeSlotPool slotPool, Collection<SlotOffer> slotOffers) {
+	static Collection<SlotOffer> offerSlots(DeclarativeSlotPool slotPool, Collection<SlotOffer> slotOffers) {
 		return slotPool.offerSlots(slotOffers, new LocalTaskManagerLocation(), createTaskManagerGateway(null), 0);
 	}
 
