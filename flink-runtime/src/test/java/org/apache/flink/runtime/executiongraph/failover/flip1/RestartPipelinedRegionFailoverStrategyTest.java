@@ -260,6 +260,33 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
 				.restarts(v1, v2, v3, v4, v5, v6);
 	}
 
+	/**
+	 * Tests region failover does not restart vertexes which are already in initial CREATED state.
+	 * <pre>
+	 *     (v1) --|--> (v2)
+	 *
+	 *            ^
+	 *            |
+	 *       (blocking)
+	 * </pre>
+	 * Component 1: 1,2; component 2: 3,4; component 3: 5,6
+	 */
+	@Test
+	public void testRegionFailoverDoesNotRestartCreatedExecutions() {
+		TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+		TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.CREATED);
+		TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.CREATED);
+
+		topology.connect(v1, v2, ResultPartitionType.BLOCKING);
+
+		FailoverStrategy strategy = new RestartPipelinedRegionFailoverStrategy(topology);
+
+		verifyThatFailedExecution(strategy, v2).restarts();
+		TestingSchedulingResultPartition v1out = v2.getConsumedResults().iterator().next();
+		verifyThatFailedExecution(strategy, v2).partitionConnectionCause(v1out).restarts();
+	}
+
 	private static VerificationContext verifyThatFailedExecution(
 			FailoverStrategy strategy,
 			SchedulingExecutionVertex executionVertex) {
