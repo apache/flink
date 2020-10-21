@@ -22,12 +22,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_DEFAULT_NAME;
 import static org.apache.flink.table.filesystem.FileSystemOptions.PATH;
@@ -58,5 +63,15 @@ abstract class AbstractFileSystemTable {
 
 	ReadableConfig formatOptions(String identifier) {
 		return new DelegatingConfiguration(tableOptions, identifier + ".");
+	}
+
+	DataType getFormatDataType() {
+		TableSchema.Builder builder = TableSchema.builder();
+		schema.getTableColumns().forEach(column -> {
+			if (!partitionKeys.contains(column.getName())) {
+				builder.add(column);
+			}
+		});
+		return builder.build().toRowDataType();
 	}
 }

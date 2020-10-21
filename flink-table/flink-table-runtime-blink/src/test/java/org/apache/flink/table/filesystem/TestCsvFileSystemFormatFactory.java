@@ -80,21 +80,21 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 				context.getPushedDownLimit());
 	}
 
-	private boolean useBulkWriter(WriterContext context) {
-		return context.getFormatOptions().get(USE_BULK_WRITER);
-	}
+//	private boolean useBulkWriter(WriterContext context) {
+//		return context.getFormatOptions().get(USE_BULK_WRITER);
+//	}
 
-	@Override
-	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
-		if (useBulkWriter(context)) {
-			return Optional.empty();
-		}
-
-		DataType[] types = context.getFormatFieldTypes();
-		return Optional.of((rowData, stream) -> {
-			writeCsvToStream(types, rowData, stream);
-		});
-	}
+//	@Override
+//	public Optional<Encoder<RowData>> createEncoder(WriterContext context) {
+//		if (useBulkWriter(context)) {
+//			return Optional.empty();
+//		}
+//
+//		DataType[] types = context.getFormatFieldTypes();
+//		return Optional.of((rowData, stream) -> {
+//			writeCsvToStream(types, rowData, stream);
+//		});
+//	}
 
 	private static void writeCsvToStream(
 			DataType[] types,
@@ -122,15 +122,15 @@ public class TestCsvFileSystemFormatFactory implements FileSystemFormatFactory {
 		stream.write(DEFAULT_LINE_DELIMITER.getBytes(StandardCharsets.UTF_8));
 	}
 
-	@Override
-	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
-		if (!useBulkWriter(context)) {
-			return Optional.empty();
-		}
-
-		DataType[] types = context.getFormatFieldTypes();
-		return Optional.of(out -> new CsvBulkWriter(types, out));
-	}
+//	@Override
+//	public Optional<BulkWriter.Factory<RowData>> createBulkWriterFactory(WriterContext context) {
+//		if (!useBulkWriter(context)) {
+//			return Optional.empty();
+//		}
+//
+//		DataType[] types = context.getFormatFieldTypes();
+//		return Optional.of(out -> new CsvBulkWriter(types, out));
+//	}
 
 	private static class CsvBulkWriter implements BulkWriter<RowData> {
 

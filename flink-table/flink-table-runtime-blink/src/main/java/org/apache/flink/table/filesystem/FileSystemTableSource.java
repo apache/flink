@@ -105,7 +105,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 			// When this table has no partition, just return a empty source.
 			return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
 		} else if (bulkReaderFormat != null) {
-			return sourceProvider(bulkReaderFormat, scanContext);
+			if (bulkReaderFormat instanceof BulkDecodingFormat && filters != null && filters.size() > 0) {
+				((BulkDecodingFormat<RowData>) bulkReaderFormat).applyFilters(filters);
+			}
+			BulkFormat<RowData, FileSourceSplit> bulkFormat = bulkReaderFormat.createRuntimeDecoder(
+					scanContext, getProducedDataType());
+			return createSourceProvider(bulkFormat);
 		} else if (formatFactory != null) {
 			// The ContinuousFileMonitoringFunction can not accept multiple paths. Default
 			// StreamEnv.createInput will create continuous function.
@@ -116,21 +121,18 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 							InternalTypeInfo.of(getProducedDataType().getLogicalType())),
 					true);
 		} else if (deserializationFormat != null) {
-			throw new UnsupportedOperationException("The deserializationFormat is under developing.");
-			// TODO wrap deserializationFormat to bulk format
+			// NOTE, we need pass full format types to deserializationFormat
+			DeserializationSchema<RowData> decoder = deserializationFormat.createRuntimeDecoder(
+					scanContext, getFormatDataType());
+			return createSourceProvider(new DeserializationSchemaAdapter(
+					decoder, schema, readFields(), partitionKeys, defaultPartName));
 			// return sourceProvider(wrapDeserializationFormat(deserializationFormat), scanContext);
 		} else {
 			throw new TableException("Can not find format factory.");
 		}
 	}
 
-	private SourceProvider sourceProvider(
-			DecodingFormat<BulkFormat<RowData, FileSourceSplit>> decodingFormat, ScanContext scanContext) {
-		if (decodingFormat instanceof BulkDecodingFormat && filters != null && filters.size() > 0) {
-			((BulkDecodingFormat<RowData>) decodingFormat).applyFilters(filters);
-		}
-		BulkFormat<RowData, FileSourceSplit> bulkFormat = decodingFormat.createRuntimeDecoder(
-				scanContext, getProducedDataType());
+	private SourceProvider createSourceProvider(BulkFormat<RowData, FileSourceSplit> bulkFormat) {
 		FileSource.FileSourceBuilder<RowData> builder = FileSource.forBulkFileFormat(
 				LimitableBulkFormat.create(bulkFormat, limit),
 				paths());
@@ -196,7 +198,15 @@ public class FileSystemTableSource extends AbstractFileSystemTable implements
 
 	@Override
 	public ChangelogMode getChangelogMode() {
-		return ChangelogMode.insertOnly();
+		if (bulkReaderFormat != null) {
+			return bulkReaderFormat.getChangelogMode();
+		} else if (formatFactory != null) {
+			return ChangelogMode.insertOnly();
+		} else if (deserializationFormat != null) {
+			return deserializationFormat.getChangelogMode();
+		} else {
+			throw new TableException("Can not find format factory.");
+		}
 	}
 
 	@Override
