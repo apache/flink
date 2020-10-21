@@ -356,7 +356,7 @@ public class OrcRowInputFormatTest {
 
 		rowOrcInputFormat.selectFields(0, 4, 1);
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("_col1", PredicateLeaf.Type.STRING, "M"));
+			new OrcFilters.Equals("_col1", PredicateLeaf.Type.STRING, "M"));
 
 		byte[] bytes = InstantiationUtil.serializeObject(rowOrcInputFormat);
 		OrcRowInputFormat copy = InstantiationUtil.deserializeObject(bytes, getClass().getClassLoader());
@@ -384,31 +384,31 @@ public class OrcRowInputFormatTest {
 
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("boolean1", PredicateLeaf.Type.BOOLEAN, false));
+			new OrcFilters.Equals("boolean1", PredicateLeaf.Type.BOOLEAN, false));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.LessThan("byte1", PredicateLeaf.Type.LONG, 1));
+			new OrcFilters.LessThan("byte1", PredicateLeaf.Type.LONG, 1));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.LessThanEquals("short1", PredicateLeaf.Type.LONG, 1024));
+			new OrcFilters.LessThanEquals("short1", PredicateLeaf.Type.LONG, 1024));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Between("int1", PredicateLeaf.Type.LONG, -1, 65536));
+			new OrcFilters.Between("int1", PredicateLeaf.Type.LONG, -1, 65536));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("long1", PredicateLeaf.Type.LONG, 9223372036854775807L));
+			new OrcFilters.Equals("long1", PredicateLeaf.Type.LONG, 9223372036854775807L));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("float1", PredicateLeaf.Type.FLOAT, 1.0));
+			new OrcFilters.Equals("float1", PredicateLeaf.Type.FLOAT, 1.0));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("double1", PredicateLeaf.Type.FLOAT, -15.0));
+			new OrcFilters.Equals("double1", PredicateLeaf.Type.FLOAT, -15.0));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.IsNull("string1", PredicateLeaf.Type.STRING));
+			new OrcFilters.IsNull("string1", PredicateLeaf.Type.STRING));
 		// boolean pred
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("string1", PredicateLeaf.Type.STRING, "hello"));
+			new OrcFilters.Equals("string1", PredicateLeaf.Type.STRING, "hello"));
 
 		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(1);
 		rowOrcInputFormat.openInputFormat();
@@ -449,11 +449,11 @@ public class OrcRowInputFormatTest {
 
 		rowOrcInputFormat.addPredicate(
 			// OR
-			new OrcSplitReader.Or(
+			new OrcFilters.Or(
 				// timestamp pred
-				new OrcSplitReader.Equals("time", PredicateLeaf.Type.TIMESTAMP, Timestamp.valueOf("1900-05-05 12:34:56.100")),
+				new OrcFilters.Equals("time", PredicateLeaf.Type.TIMESTAMP, Timestamp.valueOf("1900-05-05 12:34:56.100")),
 				// date pred
-				new OrcSplitReader.Equals("date", PredicateLeaf.Type.DATE, Date.valueOf("1900-12-25")))
+				new OrcFilters.Equals("date", PredicateLeaf.Type.DATE, Date.valueOf("1900-12-25")))
 			);
 
 		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(1);
@@ -481,9 +481,9 @@ public class OrcRowInputFormatTest {
 			new OrcRowInputFormat(getPath(TEST_FILE_DECIMAL), TEST_SCHEMA_DECIMAL, new Configuration());
 
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Not(
+			new OrcFilters.Not(
 				// decimal pred
-				new OrcSplitReader.Equals("_col0", PredicateLeaf.Type.DECIMAL, BigDecimal.valueOf(-1000.5))));
+				new OrcFilters.Equals("_col0", PredicateLeaf.Type.DECIMAL, BigDecimal.valueOf(-1000.5))));
 
 		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(1);
 		rowOrcInputFormat.openInputFormat();
@@ -509,7 +509,7 @@ public class OrcRowInputFormatTest {
 			new OrcRowInputFormat(getPath(TEST_FILE_NESTED), TEST_SCHEMA_NESTED, new Configuration());
 
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("unknown", PredicateLeaf.Type.LONG, 42));
+			new OrcFilters.Equals("unknown", PredicateLeaf.Type.LONG, 42));
 	}
 
 	@Test
@@ -963,13 +963,13 @@ public class OrcRowInputFormatTest {
 
 		// read head and tail of file
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Or(
-				new OrcSplitReader.LessThan("_col0", PredicateLeaf.Type.LONG, 10L),
-				new OrcSplitReader.Not(
-					new OrcSplitReader.LessThanEquals("_col0", PredicateLeaf.Type.LONG, 1920000L))
+			new OrcFilters.Or(
+				new OrcFilters.LessThan("_col0", PredicateLeaf.Type.LONG, 10L),
+				new OrcFilters.Not(
+					new OrcFilters.LessThanEquals("_col0", PredicateLeaf.Type.LONG, 1920000L))
 			));
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.Equals("_col1", PredicateLeaf.Type.STRING, "M"));
+			new OrcFilters.Equals("_col1", PredicateLeaf.Type.STRING, "M"));
 
 		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
@@ -999,7 +999,7 @@ public class OrcRowInputFormatTest {
 		rowOrcInputFormat.selectFields(3, 0, 2);
 
 		rowOrcInputFormat.addPredicate(
-			new OrcSplitReader.LessThan("_col0", PredicateLeaf.Type.LONG, 10L));
+			new OrcFilters.LessThan("_col0", PredicateLeaf.Type.LONG, 10L));
 
 		FileInputSplit[] splits = rowOrcInputFormat.createInputSplits(1);
 		assertEquals(1, splits.length);
