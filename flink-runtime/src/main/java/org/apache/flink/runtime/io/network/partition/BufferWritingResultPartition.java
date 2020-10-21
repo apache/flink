@@ -56,7 +56,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	protected final ResultSubpartition[] subpartitions;
 
 	/** For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be null. */
-	private final BufferBuilder[] subpartitionBufferBuilders;
+	private final BufferBuilder[] unicastBufferBuilders;
 
 	/** For broadcast mode, a single BufferBuilder is shared by all subpartitions. */
 	private BufferBuilder broadcastBufferBuilder;
@@ -86,7 +86,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 			bufferPoolFactory);
 
 		this.subpartitions = checkNotNull(subpartitions);
-		this.subpartitionBufferBuilders = new BufferBuilder[subpartitions.length];
+		this.unicastBufferBuilders = new BufferBuilder[subpartitions.length];
 	}
 
 	@Override
@@ -109,7 +109,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	protected void flushSubpartition(int targetSubpartition, boolean finishProducers) {
 		if (finishProducers) {
 			finishBroadcastBufferBuilder();
-			finishSubpartitionBufferBuilder(targetSubpartition);
+			finishUnicastBufferBuilder(targetSubpartition);
 		}
 
 		subpartitions[targetSubpartition].flush();
@@ -118,7 +118,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	protected void flushAllSubpartitions(boolean finishProducers) {
 		if (finishProducers) {
 			finishBroadcastBufferBuilder();
-			finishSubpartitionBufferBuilders();
+			finishUnicastBufferBuilders();
 		}
 
 		for (ResultSubpartition subpartition : subpartitions) {
@@ -132,13 +132,13 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
 		while (record.hasRemaining()) {
 			// full buffer, partial record
-			finishSubpartitionBufferBuilder(targetSubpartition);
+			finishUnicastBufferBuilder(targetSubpartition);
 			buffer = appendUnicastDataForRecordContinuation(record, targetSubpartition);
 		}
 
 		if (buffer.isFull()) {
 			// full buffer, full record
-			finishSubpartitionBufferBuilder(targetSubpartition);
+			finishUnicastBufferBuilder(targetSubpartition);
 		}
 
 		// partial buffer, full record
@@ -166,7 +166,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
 		checkInProduceState();
 		finishBroadcastBufferBuilder();
-		finishSubpartitionBufferBuilders();
+		finishUnicastBufferBuilders();
 
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event, isPriorityEvent)) {
 			for (ResultSubpartition subpartition : subpartitions) {
@@ -200,7 +200,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	@Override
 	public void finish() throws IOException {
 		finishBroadcastBufferBuilder();
-		finishSubpartitionBufferBuilders();
+		finishUnicastBufferBuilders();
 
 		for (ResultSubpartition subpartition : subpartitions) {
 			subpartition.finish();
@@ -226,7 +226,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	private BufferBuilder appendUnicastDataForNewRecord(
 			final ByteBuffer record,
 			final int targetSubpartition) throws IOException {
-		BufferBuilder buffer = subpartitionBufferBuilders[targetSubpartition];
+		BufferBuilder buffer = unicastBufferBuilders[targetSubpartition];
 
 		if (buffer == null) {
 			buffer = requestNewUnicastBufferBuilder(targetSubpartition);
@@ -290,7 +290,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		checkInProduceState();
 		ensureUnicastMode();
 		final BufferBuilder bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
-		subpartitionBufferBuilders[targetSubpartition] = bufferBuilder;
+		unicastBufferBuilders[targetSubpartition] = bufferBuilder;
 
 		return bufferBuilder;
 	}
@@ -320,18 +320,18 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 		}
 	}
 
-	private void finishSubpartitionBufferBuilder(int targetSubpartition) {
-		final BufferBuilder bufferBuilder = subpartitionBufferBuilders[targetSubpartition];
+	private void finishUnicastBufferBuilder(int targetSubpartition) {
+		final BufferBuilder bufferBuilder = unicastBufferBuilders[targetSubpartition];
 		if (bufferBuilder != null) {
 			numBytesOut.inc(bufferBuilder.finish());
 			numBuffersOut.inc();
-			subpartitionBufferBuilders[targetSubpartition] = null;
+			unicastBufferBuilders[targetSubpartition] = null;
 		}
 	}
 
-	private void finishSubpartitionBufferBuilders() {
+	private void finishUnicastBufferBuilders() {
 		for (int channelIndex = 0; channelIndex < numSubpartitions; channelIndex++) {
-			finishSubpartitionBufferBuilder(channelIndex);
+			finishUnicastBufferBuilder(channelIndex);
 		}
 	}
 
@@ -348,7 +348,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 	}
 
 	private void ensureBroadcastMode() {
-		finishSubpartitionBufferBuilders();
+		finishUnicastBufferBuilders();
 	}
 
 	@VisibleForTesting
