@@ -35,6 +35,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.calcite.rel.RelNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -97,29 +98,77 @@ import java.util.TreeMap;
 public class InputPriorityConflictResolver {
 
 	private final List<ExecNode<?, ?>> roots;
+	private final Set<ExecNode<?, ?>> boundaries;
+	private final ExecEdge.DamBehavior safeDamBehavior;
+	private final ShuffleMode shuffleMode;
 
 	private TopologyGraph graph;
 
-	public InputPriorityConflictResolver(List<ExecNode<?, ?>> roots) {
+	public InputPriorityConflictResolver(
+			List<ExecNode<?, ?>> roots,
+			Set<ExecNode<?, ?>> boundaries,
+			ExecEdge.DamBehavior safeDamBehavior,
+			ShuffleMode shuffleMode) {
 		Preconditions.checkArgument(
 			roots.stream().allMatch(root -> root instanceof BatchExecNode),
 			"InputPriorityConflictResolver can only be used for batch jobs.");
 		this.roots = roots;
+		this.boundaries = boundaries;
+		this.safeDamBehavior = safeDamBehavior;
+		this.shuffleMode = shuffleMode;
 	}
 
 	public void detectAndResolve() {
 		// build an initial topology graph
-		graph = new TopologyGraph(roots);
+		graph = new TopologyGraph(roots, boundaries);
 
 		// check and resolve conflicts about input priorities
 		AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
 			protected void visitNode(ExecNode<?, ?> node) {
-				visitInputs(node);
+				if (!boundaries.contains(node)) {
+					visitInputs(node);
+				}
 				checkInputPriorities(node);
 			}
 		};
 		roots.forEach(n -> n.accept(inputPriorityVisitor));
+	}
+
+	public Map<ExecNode<?, ?>, Integer> calculateInputOrder() {
+		// we first calculate the topological order of all nodes in the graph
+		detectAndResolve();
+		// check that no exchange is contained in the multiple input node
+		AbstractExecNodeExactlyOnceVisitor inputPriorityVisitor = new AbstractExecNodeExactlyOnceVisitor() {
+			@Override
+			protected void visitNode(ExecNode<?, ?> node) {
+				if (boundaries.contains(node)) {
+					return;
+				}
+				visitInputs(node);
+				Preconditions.checkState(
+					!(node instanceof BatchExecExchange),
+					"There is exchange in a multiple input node. This is a bug.");
+			}
+		};
+		roots.forEach(n -> n.accept(inputPriorityVisitor));
+
+		Map<ExecNode<?, ?>, Integer> orders = graph.calculateOrder();
+
+		// now extract only the orders of the boundaries and renumbering the orders
+		// so that the smallest order starts from 0
+		Set<Integer> boundaryOrderSet = new HashSet<>();
+		for (ExecNode<?, ?> boundary : boundaries) {
+			boundaryOrderSet.add(orders.getOrDefault(boundary, 0));
+		}
+		List<Integer> boundaryOrderList = new ArrayList<>(boundaryOrderSet);
+		Collections.sort(boundaryOrderList);
+
+		Map<ExecNode<?, ?>, Integer> results = new HashMap<>();
+		for (ExecNode<?, ?> boundary : boundaries) {
+			results.put(boundary, boundaryOrderList.indexOf(orders.get(boundary)));
+		}
+		return results;
 	}
 
 	private void checkInputPriorities(ExecNode<?, ?> node) {
@@ -162,7 +211,7 @@ public class InputPriorityConflictResolver {
 				// and revert all linked edges
 				if (lowerNode instanceof BatchExecExchange) {
 					BatchExecExchange exchange = (BatchExecExchange) lowerNode;
-					exchange.setRequiredShuffleMode(ShuffleMode.BATCH);
+					exchange.setRequiredShuffleMode(shuffleMode);
 				} else {
 					node.replaceInputNode(lowerInput, (ExecNode) createExchange(node, lowerInput));
 				}
@@ -184,16 +233,18 @@ public class InputPriorityConflictResolver {
 		AbstractExecNodeExactlyOnceVisitor ancestorVisitor = new AbstractExecNodeExactlyOnceVisitor() {
 			@Override
 			protected void visitNode(ExecNode<?, ?> node) {
-				List<ExecEdge> inputEdges = node.getInputEdges();
 				boolean hasAncestor = false;
 
-				for (int i = 0; i < inputEdges.size(); i++) {
-					// we only go through PIPELINED edges
-					if (inputEdges.get(i).getDamBehavior().stricterOrEqual(ExecEdge.DamBehavior.END_INPUT)) {
-						continue;
+				if (!boundaries.contains(node)) {
+					List<ExecEdge> inputEdges = node.getInputEdges();
+					for (int i = 0; i < inputEdges.size(); i++) {
+						// we only go through PIPELINED edges
+						if (inputEdges.get(i).getDamBehavior().stricterOrEqual(safeDamBehavior)) {
+							continue;
+						}
+						hasAncestor = true;
+						node.getInputNodes().get(i).accept(this);
 					}
-					hasAncestor = true;
-					node.getInputNodes().get(i).accept(this);
 				}
 
 				if (!hasAncestor) {
@@ -227,7 +278,7 @@ public class InputPriorityConflictResolver {
 			inputRel.getTraitSet().replace(distribution),
 			inputRel,
 			distribution);
-		exchange.setRequiredShuffleMode(ShuffleMode.BATCH);
+		exchange.setRequiredShuffleMode(shuffleMode);
 		return exchange;
 	}
 
@@ -239,12 +290,19 @@ public class InputPriorityConflictResolver {
 		private final Map<ExecNode<?, ?>, TopologyNode> nodes;
 
 		TopologyGraph(List<ExecNode<?, ?>> roots) {
+			this(roots, Collections.emptySet());
+		}
+
+		TopologyGraph(List<ExecNode<?, ?>> roots, Set<ExecNode<?, ?>> boundaries) {
 			this.nodes = new HashMap<>();
 
 			// we first link all edges in the original exec node graph
 			AbstractExecNodeExactlyOnceVisitor visitor = new AbstractExecNodeExactlyOnceVisitor() {
 				@Override
 				protected void visitNode(ExecNode<?, ?> node) {
+					if (boundaries.contains(node)) {
+						return;
+					}
 					for (ExecNode<?, ?> input : node.getInputNodes()) {
 						link(input, node);
 					}
@@ -282,6 +340,46 @@ public class InputPriorityConflictResolver {
 
 			fromNode.outputs.remove(toNode);
 			toNode.inputs.remove(fromNode);
+		}
+
+		/**
+		 * Calculate the topological order of the currently added nodes.
+		 * The smallest order is 0 and two equal integers indicate that
+		 * they're not comparable on a topology graph.
+		 */
+		Map<ExecNode<?, ?>, Integer> calculateOrder() {
+			Map<ExecNode<?, ?>, Integer> result = new HashMap<>();
+			Map<TopologyNode, Integer> inputsVisitedMap = new HashMap<>();
+
+			Queue<TopologyNode> queue = new LinkedList<>();
+			for (TopologyNode node : nodes.values()) {
+				if (node.inputs.size() == 0) {
+					queue.offer(node);
+				}
+			}
+
+			while (!queue.isEmpty()) {
+				TopologyNode node = queue.poll();
+				int order = -1;
+				for (TopologyNode input : node.inputs) {
+					order = Math.max(
+						order,
+						Preconditions.checkNotNull(
+							result.get(input.execNode),
+							"The topological order of an input node is not calculated. This is a bug."));
+				}
+				order++;
+				result.put(node.execNode, order);
+
+				for (TopologyNode output : node.outputs) {
+					int inputsVisited = inputsVisitedMap.compute(output, (k, v) -> v == null ? 1 : v + 1);
+					if (inputsVisited == output.inputs.size()) {
+						queue.offer(output);
+					}
+				}
+			}
+
+			return result;
 		}
 
 		@VisibleForTesting
@@ -331,11 +429,11 @@ public class InputPriorityConflictResolver {
 					}
 				}
 
-				TopologyNode result = new TopologyNode();
+				TopologyNode result = new TopologyNode(execNode);
 				nodes.put(execNode, result);
 				return result;
 			} else {
-				return nodes.computeIfAbsent(execNode, k -> new TopologyNode());
+				return nodes.computeIfAbsent(execNode, k -> new TopologyNode(execNode));
 			}
 		}
 	}
@@ -344,7 +442,14 @@ public class InputPriorityConflictResolver {
 	 * A node in the {@link TopologyGraph}.
 	 */
 	private static class TopologyNode {
-		private final Set<TopologyNode> inputs = new HashSet<>();
-		private final Set<TopologyNode> outputs = new HashSet<>();
+		private final ExecNode<?, ?> execNode;
+		private final Set<TopologyNode> inputs;
+		private final Set<TopologyNode> outputs;
+
+		private TopologyNode(ExecNode<?, ?> execNode) {
+			this.execNode = execNode;
+			this.inputs = new HashSet<>();
+			this.outputs = new HashSet<>();
+		}
 	}
 }

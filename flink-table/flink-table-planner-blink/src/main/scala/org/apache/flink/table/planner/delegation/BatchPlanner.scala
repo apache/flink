@@ -26,19 +26,19 @@ import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOper
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
+import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
-import org.apache.flink.table.planner.plan.reuse.DeadlockBreakupProcessor
+import org.apache.flink.table.planner.plan.reuse.{DeadlockBreakupProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.sinks.{BatchSelectTableSink, SelectTableSinkBase}
 import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
-
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 import org.apache.calcite.sql.SqlExplainLevel
-
 import java.util
+
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 
 import _root_.scala.collection.JavaConversions._
 
@@ -62,8 +62,17 @@ class BatchPlanner(
       optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
     val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
     val context = new DAGProcessContext(this)
-    // breakup deadlock
-    new DeadlockBreakupProcessor().process(execNodePlan, context)
+
+    val processors = new util.ArrayList[DAGProcessor]()
+    // deadlock breakup
+    processors.add(new DeadlockBreakupProcessor())
+    // multiple input creation
+    if (getTableConfig.getConfiguration.getBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+      processors.add(new MultipleInputNodeCreationProcessor(false))
+    }
+
+    processors.foldLeft(execNodePlan)(
+      (sinkNodes, processor) => processor.process(sinkNodes, context))
   }
 
   override protected def translateToPlan(

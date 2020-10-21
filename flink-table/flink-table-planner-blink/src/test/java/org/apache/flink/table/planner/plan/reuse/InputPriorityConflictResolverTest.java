@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.reuse;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
@@ -29,14 +30,16 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests for {@link InputPriorityConflictResolver}.
  */
 public class InputPriorityConflictResolverTest {
 
-	private Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> buildTopologyGraph() {
+	private TestingBatchExecNode[] buildLinkedNodes() {
 		// 0 -> 1 -> 2 --------> 5
 		//       \-> 3 -> 4 -/
 		//            \-> 6 -> 7
@@ -53,9 +56,26 @@ public class InputPriorityConflictResolverTest {
 		nodes[6].addInput(nodes[3]);
 		nodes[7].addInput(nodes[6]);
 
+		return nodes;
+	}
+
+	private Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> buildTopologyGraph() {
+		TestingBatchExecNode[] nodes = buildLinkedNodes();
+
 		return Tuple2.of(
 			new InputPriorityConflictResolver.TopologyGraph(Arrays.asList(nodes[5], nodes[7])),
 			nodes);
+	}
+
+	private Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> buildBoundedTopologyGraph() {
+		// bounded at nodes 2 and 3
+		TestingBatchExecNode[] nodes = buildLinkedNodes();
+
+		return Tuple2.of(
+				new InputPriorityConflictResolver.TopologyGraph(
+					Arrays.asList(nodes[5], nodes[7]),
+					new HashSet<>(Arrays.asList(nodes[2], nodes[3]))),
+				nodes);
 	}
 
 	@Test
@@ -113,6 +133,41 @@ public class InputPriorityConflictResolverTest {
 	}
 
 	@Test
+	public void testTopologyGraphCalculateOrder() {
+		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> tuple2 = buildTopologyGraph();
+		InputPriorityConflictResolver.TopologyGraph graph = tuple2.f0;
+		TestingBatchExecNode[] nodes = tuple2.f1;
+
+		Map<ExecNode<?, ?>, Integer> result = graph.calculateOrder();
+		Assert.assertEquals(8, result.size());
+		Assert.assertEquals(0, result.get(nodes[0]).intValue());
+		Assert.assertEquals(1, result.get(nodes[1]).intValue());
+		Assert.assertEquals(2, result.get(nodes[2]).intValue());
+		Assert.assertEquals(2, result.get(nodes[3]).intValue());
+		Assert.assertEquals(3, result.get(nodes[4]).intValue());
+		Assert.assertEquals(3, result.get(nodes[6]).intValue());
+		Assert.assertEquals(4, result.get(nodes[5]).intValue());
+		Assert.assertEquals(4, result.get(nodes[7]).intValue());
+	}
+
+	@Test
+	public void testBoundedTopologyGraphCalculateOrder() {
+		Tuple2<InputPriorityConflictResolver.TopologyGraph, TestingBatchExecNode[]> tuple2 =
+			buildBoundedTopologyGraph();
+		InputPriorityConflictResolver.TopologyGraph graph = tuple2.f0;
+		TestingBatchExecNode[] nodes = tuple2.f1;
+
+		Map<ExecNode<?, ?>, Integer> result = graph.calculateOrder();
+		Assert.assertEquals(6, result.size());
+		Assert.assertEquals(0, result.get(nodes[2]).intValue());
+		Assert.assertEquals(0, result.get(nodes[3]).intValue());
+		Assert.assertEquals(1, result.get(nodes[4]).intValue());
+		Assert.assertEquals(1, result.get(nodes[6]).intValue());
+		Assert.assertEquals(2, result.get(nodes[5]).intValue());
+		Assert.assertEquals(2, result.get(nodes[7]).intValue());
+	}
+
+	@Test
 	public void testCalculateAncestors() {
 		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
 		//
@@ -132,11 +187,40 @@ public class InputPriorityConflictResolverTest {
 		nodes[3].addInput(nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
 		nodes[5].addInput(nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
 
-		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(Collections.singletonList(nodes[2]));
+		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
+			Collections.singletonList(nodes[2]),
+			Collections.emptySet(),
+			ExecEdge.DamBehavior.END_INPUT,
+			ShuffleMode.BATCH);
 		List<ExecNode<?, ?>> ancestors = resolver.calculateAncestors(nodes[2]);
 		Assert.assertEquals(2, ancestors.size());
 		Assert.assertTrue(ancestors.contains(nodes[0]));
 		Assert.assertTrue(ancestors.contains(nodes[5]));
+	}
+
+	@Test
+	public void testCalculateBoundedAncestors() {
+		// P = ExecEdge.DamBehavior.PIPELINED, E = ExecEdge.DamBehavior.END_INPUT
+		//
+		// 0 -P-> 1 -P-> 2
+		// 3 -P-> 4 -E/
+		TestingBatchExecNode[] nodes = new TestingBatchExecNode[5];
+		for (int i = 0; i < nodes.length; i++) {
+			nodes[i] = new TestingBatchExecNode();
+		}
+		nodes[1].addInput(nodes[0]);
+		nodes[2].addInput(nodes[1]);
+		nodes[2].addInput(nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build());
+		nodes[4].addInput(nodes[3]);
+
+		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
+				Collections.singletonList(nodes[2]),
+				new HashSet<>(Collections.singleton(nodes[1])),
+				ExecEdge.DamBehavior.END_INPUT,
+				ShuffleMode.BATCH);
+		List<ExecNode<?, ?>> ancestors = resolver.calculateAncestors(nodes[2]);
+		Assert.assertEquals(1, ancestors.size());
+		Assert.assertTrue(ancestors.contains(nodes[1]));
 	}
 
 	@Test
@@ -171,7 +255,11 @@ public class InputPriorityConflictResolverTest {
 		nodes[7].addInput(nodes[5], ExecEdge.builder().priority(10).build());
 		nodes[7].addInput(nodes[6], ExecEdge.builder().priority(100).build());
 
-		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(Collections.singletonList(nodes[7]));
+		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
+			Collections.singletonList(nodes[7]),
+			Collections.emptySet(),
+			ExecEdge.DamBehavior.END_INPUT,
+			ShuffleMode.BATCH);
 		resolver.detectAndResolve();
 		Assert.assertEquals(nodes[1], nodes[7].getInputNodes().get(0));
 		Assert.assertEquals(nodes[2], nodes[7].getInputNodes().get(1));
@@ -181,5 +269,43 @@ public class InputPriorityConflictResolverTest {
 		Assert.assertEquals(nodes[4], nodes[7].getInputNodes().get(3).getInputNodes().get(0));
 		Assert.assertEquals(nodes[5], nodes[7].getInputNodes().get(4));
 		Assert.assertEquals(nodes[6], nodes[7].getInputNodes().get(5));
+	}
+
+	@Test
+	public void testCalculateInputOrder() {
+		// P = ExecEdge.DamBehavior.PIPELINED, B = ExecEdge.DamBehavior.BLOCKING
+		// P1 = PIPELINED + priority 1
+		//
+		// 0 -(P0)-> 3 -(B0)-\
+		//                    6 -(B0)-\
+		//            /-(P1)-/         \
+		// 1 -(P0)-> 4                  8
+		//            \-(B0)-\         /
+		//                    7 -(P1)-/
+		// 2 -(P0)-> 5 -(P1)-/
+		TestingBatchExecNode[] nodes = new TestingBatchExecNode[9];
+		for (int i = 0; i < nodes.length; i++) {
+			nodes[i] = new TestingBatchExecNode();
+		}
+		nodes[3].addInput(nodes[0], ExecEdge.builder().priority(1).build());
+		nodes[4].addInput(nodes[1], ExecEdge.builder().priority(1).build());
+		nodes[5].addInput(nodes[2], ExecEdge.builder().priority(1).build());
+		nodes[6].addInput(nodes[3], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).priority(0).build());
+		nodes[6].addInput(nodes[4], ExecEdge.builder().priority(1).build());
+		nodes[7].addInput(nodes[4], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).priority(0).build());
+		nodes[7].addInput(nodes[5], ExecEdge.builder().priority(1).build());
+		nodes[8].addInput(nodes[6], ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.BLOCKING).priority(0).build());
+		nodes[8].addInput(nodes[7], ExecEdge.builder().priority(1).build());
+
+		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
+			Collections.singletonList(nodes[8]),
+			new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5])),
+			ExecEdge.DamBehavior.BLOCKING,
+			ShuffleMode.PIPELINED);
+		Map<ExecNode<?, ?>, Integer> result = resolver.calculateInputOrder();
+		Assert.assertEquals(3, result.size());
+		Assert.assertEquals(0, result.get(nodes[3]).intValue());
+		Assert.assertEquals(1, result.get(nodes[1]).intValue());
+		Assert.assertEquals(2, result.get(nodes[5]).intValue());
 	}
 }

@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.plan.reuse
 
+import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
 
 import java.util
@@ -40,7 +41,11 @@ class DeadlockBreakupProcessor extends DAGProcessor {
       throw new TableException("Only BatchExecNode DAG is supported now")
     }
 
-    val resolver = new InputPriorityConflictResolver(rootNodes)
+    val resolver = new InputPriorityConflictResolver(
+      rootNodes,
+      Set[ExecNode[_, _]](),
+      ExecEdge.DamBehavior.END_INPUT,
+      ShuffleMode.BATCH)
     resolver.detectAndResolve()
     rootNodes
   }
