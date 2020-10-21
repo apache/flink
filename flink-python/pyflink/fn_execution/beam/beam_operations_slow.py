@@ -95,8 +95,9 @@ class StatelessFunctionOperation(Operation):
     def process(self, o: WindowedValue):
         with self.scoped_process_state:
             output_stream = self.consumer.output_stream
-            self._value_coder_impl.encode_to_stream(self.func(o.value), output_stream, True)
-            output_stream.maybe_flush()
+            for value in o.value:
+                self._value_coder_impl.encode_to_stream(self.func(value), output_stream, True)
+                output_stream.maybe_flush()
 
     def monitoring_infos(self, transform_id, tag_to_pcollection_id):
         """
@@ -137,8 +138,8 @@ class ScalarFunctionOperation(StatelessFunctionOperation):
                 dict(chain(x[1].items(), y[1].items())),
                 x[2] + y[2]),
             [operation_utils.extract_user_defined_function(udf) for udf in serialized_fn.udfs])
-        mapper = eval('lambda value: [%s]' % scalar_functions, variable_dict)
-        return lambda it: map(mapper, it), user_defined_funcs
+        generate_func = eval('lambda value: [%s]' % scalar_functions, variable_dict)
+        return generate_func, user_defined_funcs
 
 
 class TableFunctionOperation(StatelessFunctionOperation):
@@ -155,8 +156,8 @@ class TableFunctionOperation(StatelessFunctionOperation):
         """
         table_function, variable_dict, user_defined_funcs = \
             operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
-        mapper = eval('lambda value: %s' % table_function, variable_dict)
-        return lambda it: map(mapper, it), user_defined_funcs
+        generate_func = eval('lambda value: %s' % table_function, variable_dict)
+        return generate_func, user_defined_funcs
 
 
 class DataStreamStatelessFunctionOperation(StatelessFunctionOperation):
@@ -179,7 +180,7 @@ class DataStreamStatelessFunctionOperation(StatelessFunctionOperation):
 
     def generate_func(self, serialized_fn):
         func, user_defined_func = operation_utils.extract_data_stream_stateless_funcs(serialized_fn)
-        return lambda it: map(func, it), [user_defined_func]
+        return func, [user_defined_func]
 
 
 class PandasAggregateFunctionOperation(StatelessFunctionOperation):
@@ -196,8 +197,9 @@ class PandasAggregateFunctionOperation(StatelessFunctionOperation):
             [operation_utils.extract_user_defined_function(udf, True)
              for udf in serialized_fn.udfs])
         variable_dict['wrap_pandas_result'] = operation_utils.wrap_pandas_result
-        mapper = eval('lambda value: wrap_pandas_result([%s])' % pandas_functions, variable_dict)
-        return lambda it: map(mapper, it), user_defined_funcs
+        generate_func = eval('lambda value: wrap_pandas_result([%s])' %
+                             pandas_functions, variable_dict)
+        return generate_func, user_defined_funcs
 
 
 class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation):
@@ -235,76 +237,75 @@ class PandasBatchOverWindowAggregateFunctionOperation(StatelessFunctionOperation
             self.mapper.append(eval('lambda value: %s' % pandas_agg_function, variable_dict))
         return self.wrapped_over_window_function, user_defined_funcs
 
-    def wrapped_over_window_function(self, it):
+    def wrapped_over_window_function(self, boundaries_series):
         import pandas as pd
         OverWindow = flink_fn_execution_pb2.OverWindow
-        for boundaries_series in it:
-            input_series = boundaries_series[-1]
-            # the row number of the arrow format data
-            input_cnt = len(input_series[0])
-            results = []
-            # loop every agg func
-            for i in range(len(self.window_indexes)):
-                window_index = self.window_indexes[i]
-                # the over window which the agg function belongs to
-                window = self.windows[window_index]
-                window_type = window.window_type
-                func = self.mapper[i]
-                result = []
-                if self.is_bounded_range_window[window_index]:
-                    window_boundaries = boundaries_series[
-                        self.bounded_range_window_index[window_index]]
-                    if window_type is OverWindow.RANGE_UNBOUNDED_PRECEDING:
-                        # range unbounded preceding window
-                        for j in range(input_cnt):
-                            end = window_boundaries[j]
-                            series_slices = [s.iloc[:end] for s in input_series]
-                            result.append(func(series_slices))
-                    elif window_type is OverWindow.RANGE_UNBOUNDED_FOLLOWING:
-                        # range unbounded following window
-                        for j in range(input_cnt):
-                            start = window_boundaries[j]
-                            series_slices = [s.iloc[start:] for s in input_series]
-                            result.append(func(series_slices))
-                    else:
-                        # range sliding window
-                        for j in range(input_cnt):
-                            start = window_boundaries[j * 2]
-                            end = window_boundaries[j * 2 + 1]
-                            series_slices = [s.iloc[start:end] for s in input_series]
-                            result.append(func(series_slices))
+        input_series = boundaries_series[-1]
+        # the row number of the arrow format data
+        input_cnt = len(input_series[0])
+        results = []
+        # loop every agg func
+        for i in range(len(self.window_indexes)):
+            window_index = self.window_indexes[i]
+            # the over window which the agg function belongs to
+            window = self.windows[window_index]
+            window_type = window.window_type
+            func = self.mapper[i]
+            result = []
+            if self.is_bounded_range_window[window_index]:
+                window_boundaries = boundaries_series[
+                    self.bounded_range_window_index[window_index]]
+                if window_type is OverWindow.RANGE_UNBOUNDED_PRECEDING:
+                    # range unbounded preceding window
+                    for j in range(input_cnt):
+                        end = window_boundaries[j]
+                        series_slices = [s.iloc[:end] for s in input_series]
+                        result.append(func(series_slices))
+                elif window_type is OverWindow.RANGE_UNBOUNDED_FOLLOWING:
+                    # range unbounded following window
+                    for j in range(input_cnt):
+                        start = window_boundaries[j]
+                        series_slices = [s.iloc[start:] for s in input_series]
+                        result.append(func(series_slices))
                 else:
-                    # unbounded range window or unbounded row window
-                    if (window_type is OverWindow.RANGE_UNBOUNDED) or (
-                            window_type is OverWindow.ROW_UNBOUNDED):
-                        series_slices = [s.iloc[:] for s in input_series]
-                        func_result = func(series_slices)
-                        result = [func_result for _ in range(input_cnt)]
-                    elif window_type is OverWindow.ROW_UNBOUNDED_PRECEDING:
-                        # row unbounded preceding window
-                        window_end = window.upper_boundary
-                        for j in range(input_cnt):
-                            end = min(j + window_end + 1, input_cnt)
-                            series_slices = [s.iloc[: end] for s in input_series]
-                            result.append(func(series_slices))
-                    elif window_type is OverWindow.ROW_UNBOUNDED_FOLLOWING:
-                        # row unbounded following window
-                        window_start = window.lower_boundary
-                        for j in range(input_cnt):
-                            start = max(j + window_start, 0)
-                            series_slices = [s.iloc[start: input_cnt] for s in input_series]
-                            result.append(func(series_slices))
-                    else:
-                        # row sliding window
-                        window_start = window.lower_boundary
-                        window_end = window.upper_boundary
-                        for j in range(input_cnt):
-                            start = max(j + window_start, 0)
-                            end = min(j + window_end + 1, input_cnt)
-                            series_slices = [s.iloc[start: end] for s in input_series]
-                            result.append(func(series_slices))
-                results.append(pd.Series(result))
-            yield results
+                    # range sliding window
+                    for j in range(input_cnt):
+                        start = window_boundaries[j * 2]
+                        end = window_boundaries[j * 2 + 1]
+                        series_slices = [s.iloc[start:end] for s in input_series]
+                        result.append(func(series_slices))
+            else:
+                # unbounded range window or unbounded row window
+                if (window_type is OverWindow.RANGE_UNBOUNDED) or (
+                        window_type is OverWindow.ROW_UNBOUNDED):
+                    series_slices = [s.iloc[:] for s in input_series]
+                    func_result = func(series_slices)
+                    result = [func_result for _ in range(input_cnt)]
+                elif window_type is OverWindow.ROW_UNBOUNDED_PRECEDING:
+                    # row unbounded preceding window
+                    window_end = window.upper_boundary
+                    for j in range(input_cnt):
+                        end = min(j + window_end + 1, input_cnt)
+                        series_slices = [s.iloc[: end] for s in input_series]
+                        result.append(func(series_slices))
+                elif window_type is OverWindow.ROW_UNBOUNDED_FOLLOWING:
+                    # row unbounded following window
+                    window_start = window.lower_boundary
+                    for j in range(input_cnt):
+                        start = max(j + window_start, 0)
+                        series_slices = [s.iloc[start: input_cnt] for s in input_series]
+                        result.append(func(series_slices))
+                else:
+                    # row sliding window
+                    window_start = window.lower_boundary
+                    window_end = window.upper_boundary
+                    for j in range(input_cnt):
+                        start = max(j + window_start, 0)
+                        end = min(j + window_end + 1, input_cnt)
+                        series_slices = [s.iloc[start: end] for s in input_series]
+                        result.append(func(series_slices))
+            results.append(pd.Series(result))
+        return results
 
 
 class StatefulFunctionOperation(StatelessFunctionOperation):
@@ -376,7 +377,7 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
             self.generate_update_before,
             self.state_cleaning_enabled,
             self.index_of_count_star)
-        return lambda it: map(self.process_element_or_timer, it), []
+        return self.process_element_or_timer, []
 
     def process_element_or_timer(self, input_data: Tuple[int, Row, int, Row]):
         # the structure of the input data:
