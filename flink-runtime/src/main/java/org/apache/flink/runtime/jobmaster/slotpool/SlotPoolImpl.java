@@ -409,7 +409,8 @@ public class SlotPoolImpl implements SlotPool {
 	@Override
 	public Optional<PhysicalSlot> allocateAvailableSlot(
 		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull AllocationID allocationID) {
+		@Nonnull AllocationID allocationID,
+		@Nonnull ResourceProfile requirementProfile) {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 

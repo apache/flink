@@ -652,7 +652,7 @@ public class JobMasterTest extends TestLogger {
 		}
 
 		@Override
-		public Optional<PhysicalSlot> allocateAvailableSlot(@Nonnull SlotRequestId slotRequestId, @Nonnull AllocationID allocationID) {
+		public Optional<PhysicalSlot> allocateAvailableSlot(@Nonnull SlotRequestId slotRequestId, @Nonnull AllocationID allocationID, @Nonnull ResourceProfile requirementProfile) {
 			throw new UnsupportedOperationException("TestingSlotPool does not support this operation.");
 		}
 
