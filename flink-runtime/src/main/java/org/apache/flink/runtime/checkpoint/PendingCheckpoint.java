@@ -393,7 +393,7 @@ public class PendingCheckpoint implements Checkpoint {
 
 					// if no real operatorSubtaskState was reported, we insert an empty state
 					if (operatorSubtaskState == null) {
-						operatorSubtaskState = new OperatorSubtaskState();
+						operatorSubtaskState = OperatorSubtaskState.builder().build();
 					}
 
 					OperatorState operatorState = operatorStates.get(operatorID.getGeneratedOperatorID());

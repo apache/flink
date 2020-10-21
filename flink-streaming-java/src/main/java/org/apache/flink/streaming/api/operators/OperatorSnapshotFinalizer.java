@@ -31,6 +31,9 @@ import javax.annotation.Nonnull;
 
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.emptyIfNull;
+import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singletonOrEmpty;
+
 /**
  * This class finalizes {@link OperatorSnapshotFutures}. Each object is created with a {@link OperatorSnapshotFutures}
  * that is executed. The object can then deliver the results from the execution as {@link OperatorSubtaskState}.
@@ -62,23 +65,23 @@ public class OperatorSnapshotFinalizer {
 
 		SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartition = snapshotFutures.getResultSubpartitionStateFuture().get();
 
-		jobManagerOwnedState = new OperatorSubtaskState(
-			operatorManaged.getJobManagerOwnedSnapshot(),
-			operatorRaw.getJobManagerOwnedSnapshot(),
-			keyedManaged.getJobManagerOwnedSnapshot(),
-			keyedRaw.getJobManagerOwnedSnapshot(),
-			inputChannel.getJobManagerOwnedSnapshot(),
-			resultSubpartition.getJobManagerOwnedSnapshot()
-		);
+		jobManagerOwnedState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(singletonOrEmpty(operatorManaged.getJobManagerOwnedSnapshot()))
+			.setRawOperatorState(singletonOrEmpty(operatorRaw.getJobManagerOwnedSnapshot()))
+			.setManagedKeyedState(singletonOrEmpty(keyedManaged.getJobManagerOwnedSnapshot()))
+			.setRawKeyedState(singletonOrEmpty(keyedRaw.getJobManagerOwnedSnapshot()))
+			.setInputChannelState(emptyIfNull(inputChannel.getJobManagerOwnedSnapshot()))
+			.setResultSubpartitionState(emptyIfNull(resultSubpartition.getJobManagerOwnedSnapshot()))
+			.build();
 
-		taskLocalState = new OperatorSubtaskState(
-			operatorManaged.getTaskLocalSnapshot(),
-			operatorRaw.getTaskLocalSnapshot(),
-			keyedManaged.getTaskLocalSnapshot(),
-			keyedRaw.getTaskLocalSnapshot(),
-			inputChannel.getTaskLocalSnapshot(),
-			resultSubpartition.getTaskLocalSnapshot()
-		);
+		taskLocalState = OperatorSubtaskState.builder()
+			.setManagedOperatorState(singletonOrEmpty(operatorManaged.getTaskLocalSnapshot()))
+			.setRawOperatorState(singletonOrEmpty(operatorRaw.getTaskLocalSnapshot()))
+			.setManagedKeyedState(singletonOrEmpty(keyedManaged.getTaskLocalSnapshot()))
+			.setRawKeyedState(singletonOrEmpty(keyedRaw.getTaskLocalSnapshot()))
+			.setInputChannelState(emptyIfNull(inputChannel.getTaskLocalSnapshot()))
+			.setResultSubpartitionState(emptyIfNull(resultSubpartition.getTaskLocalSnapshot()))
+			.build();
 	}
 
 	public OperatorSubtaskState getTaskLocalState() {

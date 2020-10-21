@@ -21,7 +21,6 @@ package org.apache.flink.runtime.messages;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -40,6 +39,8 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.Random;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
@@ -62,17 +63,13 @@ public class CheckpointMessagesTest {
 			KeyGroupRange keyGroupRange = KeyGroupRange.of(42, 42);
 
 			TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
-			checkpointStateHandles.putSubtaskStateByOperatorID(
-				new OperatorID(),
-				new OperatorSubtaskState(
-					CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle(new JobVertexID(), 0, 2, 8, false),
-					null,
-					CheckpointCoordinatorTestingUtils.generateKeyGroupState(keyGroupRange, Collections.singletonList(new MyHandle())),
-					null,
-					singleton(createNewInputChannelStateHandle(10, rnd)),
-					singleton(createNewResultSubpartitionStateHandle(10, rnd))
-				)
-			);
+			OperatorSubtaskState subtaskState = OperatorSubtaskState.builder()
+				.setManagedOperatorState(generatePartitionableStateHandle(new JobVertexID(), 0, 2, 8, false))
+				.setManagedKeyedState(generateKeyGroupState(keyGroupRange, Collections.singletonList(new MyHandle())))
+				.setInputChannelState(singleton(createNewInputChannelStateHandle(10, rnd)))
+				.setResultSubpartitionState(singleton(createNewResultSubpartitionStateHandle(10, rnd)))
+				.build();
+			checkpointStateHandles.putSubtaskStateByOperatorID(new OperatorID(), subtaskState);
 
 			AcknowledgeCheckpoint withState = new AcknowledgeCheckpoint(
 					new JobID(),

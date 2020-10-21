@@ -48,7 +48,7 @@ public class PrioritizedOperatorSubtaskState {
 
 	/** Singleton instance for an empty, non-restored operator state. */
 	private static final PrioritizedOperatorSubtaskState EMPTY_NON_RESTORED_INSTANCE =
-		new PrioritizedOperatorSubtaskState.Builder(new OperatorSubtaskState(), Collections.emptyList(), false)
+		new PrioritizedOperatorSubtaskState.Builder(OperatorSubtaskState.builder().build(), Collections.emptyList(), false)
 			.build();
 
 	/** List of prioritized snapshot alternatives for managed operator state. */

@@ -124,11 +124,7 @@ public class CheckpointStateRestoreTest {
 
 			subtaskStates.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(statefulId),
-				new OperatorSubtaskState(
-					StateObjectCollection.empty(),
-					StateObjectCollection.empty(),
-					StateObjectCollection.singleton(serializedKeyGroupStates),
-					StateObjectCollection.empty()));
+				OperatorSubtaskState.builder().setManagedKeyedState(serializedKeyGroupStates).build());
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates), TASK_MANAGER_LOCATION_INFO);
@@ -224,9 +220,9 @@ public class CheckpointStateRestoreTest {
 		Map<OperatorID, OperatorState> checkpointTaskStates = new HashMap<>();
 		{
 			OperatorState taskState = new OperatorState(operatorId1, 3, 3);
-			taskState.putState(0, new OperatorSubtaskState());
-			taskState.putState(1, new OperatorSubtaskState());
-			taskState.putState(2, new OperatorSubtaskState());
+			taskState.putState(0, OperatorSubtaskState.builder().build());
+			taskState.putState(1, OperatorSubtaskState.builder().build());
+			taskState.putState(2, OperatorSubtaskState.builder().build());
 
 			checkpointTaskStates.put(operatorId1, taskState);
 		}
@@ -254,7 +250,7 @@ public class CheckpointStateRestoreTest {
 		// There is no task for this
 		{
 			OperatorState taskState = new OperatorState(newOperatorID, 1, 1);
-			taskState.putState(0, new OperatorSubtaskState());
+			taskState.putState(0, OperatorSubtaskState.builder().build());
 
 			checkpointTaskStates.put(newOperatorID, taskState);
 		}

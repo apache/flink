@@ -89,13 +89,10 @@ public class ChannelStateNoRescalingPartitionerTest {
 	@Test
 	public <T extends AbstractChannelStateHandle<?>> void testNoRescaling() {
 		OperatorState state = new OperatorState(OPERATOR_ID, oldParallelism, oldParallelism);
-		state.putState(0, new OperatorSubtaskState(
-			empty(),
-			empty(),
-			empty(),
-			empty(),
-			singleton(new InputChannelStateHandle(new InputChannelInfo(0, 0), new EmptyStreamStateHandle(), getOffset())),
-			singleton(new ResultSubpartitionStateHandle(new ResultSubpartitionInfo(0, 0), new EmptyStreamStateHandle(), getOffset()))));
+		state.putState(0, OperatorSubtaskState.builder()
+			.setInputChannelState(singleton(new InputChannelStateHandle(new InputChannelInfo(0, 0), new EmptyStreamStateHandle(), getOffset())))
+			.setResultSubpartitionState(singleton(new ResultSubpartitionStateHandle(new ResultSubpartitionInfo(0, 0), new EmptyStreamStateHandle(), getOffset())))
+			.build());
 		try {
 			// noinspection unchecked
 			StateAssignmentOperation.reDistributePartitionableStates(

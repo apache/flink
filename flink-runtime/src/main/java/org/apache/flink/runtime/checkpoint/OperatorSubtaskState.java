@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -26,19 +27,17 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.runtime.checkpoint.StateObjectCollection.emptyIfNull;
 import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class encapsulates the state for one parallel instance of an operator. The complete state of a (logical)
@@ -98,47 +97,20 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 */
 	private final long stateSize;
 
-	/**
-	 * Empty state.
-	 */
-	public OperatorSubtaskState() {
-		this(
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty());
-	}
-
-	public OperatorSubtaskState(
+	private OperatorSubtaskState(
 			@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
 			@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
 			@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
-			@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState) {
-		this(
-			managedOperatorState,
-			rawOperatorState,
-			managedKeyedState,
-			rawKeyedState,
-			StateObjectCollection.empty(),
-			StateObjectCollection.empty());
-	}
+			@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState,
+			@Nonnull StateObjectCollection<InputChannelStateHandle> inputChannelState,
+			@Nonnull StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
 
-	public OperatorSubtaskState(
-		@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
-		@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
-		@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
-		@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState,
-		@Nonnull StateObjectCollection<InputChannelStateHandle> inputChannelState,
-		@Nonnull StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
-
-		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
-		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
-		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
-		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
-		this.inputChannelState = Preconditions.checkNotNull(inputChannelState);
-		this.resultSubpartitionState = Preconditions.checkNotNull(resultSubpartitionState);
+		this.managedOperatorState = checkNotNull(managedOperatorState);
+		this.rawOperatorState = checkNotNull(rawOperatorState);
+		this.managedKeyedState = checkNotNull(managedKeyedState);
+		this.rawKeyedState = checkNotNull(rawKeyedState);
+		this.inputChannelState = checkNotNull(inputChannelState);
+		this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
 
 		long calculateStateSize = managedOperatorState.getStateSize();
 		calculateStateSize += rawOperatorState.getStateSize();
@@ -149,28 +121,14 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		stateSize = calculateStateSize;
 	}
 
-	/**
-	 * For convenience because the size of the collections is typically 0 or 1. Null values are translated into empty
-	 * Collections.
-	 */
-	public OperatorSubtaskState(
-			@Nullable OperatorStateHandle managedOperatorState,
-			@Nullable OperatorStateHandle rawOperatorState,
-			@Nullable KeyedStateHandle managedKeyedState,
-			@Nullable KeyedStateHandle rawKeyedState,
-			@Nullable StateObjectCollection<InputChannelStateHandle> inputChannelState,
-			@Nullable StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
-		this(
-			singletonOrEmptyOnNull(managedOperatorState),
-			singletonOrEmptyOnNull(rawOperatorState),
-			singletonOrEmptyOnNull(managedKeyedState),
-			singletonOrEmptyOnNull(rawKeyedState),
-			emptyIfNull(inputChannelState),
-			emptyIfNull(resultSubpartitionState));
-	}
-
-	private static <T extends StateObject> StateObjectCollection<T> singletonOrEmptyOnNull(T element) {
-		return element != null ? StateObjectCollection.singleton(element) : StateObjectCollection.empty();
+	@VisibleForTesting
+	OperatorSubtaskState() {
+		this(StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -222,7 +180,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		try {
 			List<StateObject> toDispose =
 				new ArrayList<>(
-						managedOperatorState.size() +
+					managedOperatorState.size() +
 						rawOperatorState.size() +
 						managedKeyedState.size() +
 						rawKeyedState.size() +
@@ -326,5 +284,80 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			|| rawKeyedState.hasState()
 			|| inputChannelState.hasState()
 			|| resultSubpartitionState.hasState();
+	}
+
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * The builder for a new {@link OperatorSubtaskState} which can be obtained by {@link #builder()}.
+	 */
+	public static class Builder {
+		private StateObjectCollection<OperatorStateHandle> managedOperatorState = StateObjectCollection.empty();
+		private StateObjectCollection<OperatorStateHandle> rawOperatorState = StateObjectCollection.empty();
+		private StateObjectCollection<KeyedStateHandle> managedKeyedState = StateObjectCollection.empty();
+		private StateObjectCollection<KeyedStateHandle> rawKeyedState = StateObjectCollection.empty();
+		private StateObjectCollection<InputChannelStateHandle> inputChannelState = StateObjectCollection.empty();
+		private StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState = StateObjectCollection.empty();
+
+		private Builder() {
+		}
+
+		public Builder setManagedOperatorState(StateObjectCollection<OperatorStateHandle> managedOperatorState) {
+			this.managedOperatorState = checkNotNull(managedOperatorState);
+			return this;
+		}
+
+		public Builder setManagedOperatorState(OperatorStateHandle managedOperatorState) {
+			return setManagedOperatorState(StateObjectCollection.singleton(checkNotNull(managedOperatorState)));
+		}
+
+		public Builder setRawOperatorState(StateObjectCollection<OperatorStateHandle> rawOperatorState) {
+			this.rawOperatorState = checkNotNull(rawOperatorState);
+			return this;
+		}
+
+		public Builder setRawOperatorState(OperatorStateHandle rawOperatorState) {
+			return setRawOperatorState(StateObjectCollection.singleton(checkNotNull(rawOperatorState)));
+		}
+
+		public Builder setManagedKeyedState(StateObjectCollection<KeyedStateHandle> managedKeyedState) {
+			this.managedKeyedState = checkNotNull(managedKeyedState);
+			return this;
+		}
+
+		public Builder setManagedKeyedState(KeyedStateHandle managedKeyedState) {
+			return setManagedKeyedState(StateObjectCollection.singleton(checkNotNull(managedKeyedState)));
+		}
+
+		public Builder setRawKeyedState(StateObjectCollection<KeyedStateHandle> rawKeyedState) {
+			this.rawKeyedState = checkNotNull(rawKeyedState);
+			return this;
+		}
+
+		public Builder setRawKeyedState(KeyedStateHandle rawKeyedState) {
+			return setRawKeyedState(StateObjectCollection.singleton(checkNotNull(rawKeyedState)));
+		}
+
+		public Builder setInputChannelState(StateObjectCollection<InputChannelStateHandle> inputChannelState) {
+			this.inputChannelState = checkNotNull(inputChannelState);
+			return this;
+		}
+
+		public Builder setResultSubpartitionState(StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
+			this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
+			return this;
+		}
+
+		public OperatorSubtaskState build() {
+			return new OperatorSubtaskState(
+				managedOperatorState,
+				rawOperatorState,
+				managedKeyedState,
+				rawKeyedState,
+				inputChannelState,
+				resultSubpartitionState);
+		}
 	}
 }

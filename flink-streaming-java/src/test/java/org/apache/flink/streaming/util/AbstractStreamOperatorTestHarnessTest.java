@@ -73,7 +73,7 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
 				0);
 		result.setup();
 		result.open();
-		result.initializeState(new OperatorSubtaskState());
+		result.initializeState(OperatorSubtaskState.builder().build());
 	}
 
 	@Test
@@ -88,7 +88,7 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
 			result.config.setStateKeySerializer(IntSerializer.INSTANCE);
 
 			Time timeToLive = Time.hours(1);
-			result.initializeState(new OperatorSubtaskState());
+			result.initializeState(OperatorSubtaskState.builder().build());
 			result.open();
 
 			ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("test", IntSerializer.INSTANCE);
