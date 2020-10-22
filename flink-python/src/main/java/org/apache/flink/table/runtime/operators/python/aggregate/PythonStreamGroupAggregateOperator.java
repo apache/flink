@@ -45,8 +45,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.UpdatableRowData;
+import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.functions.CleanupState;
@@ -105,7 +105,7 @@ public class PythonStreamGroupAggregateOperator
 	 */
 	private final Map<String, String> jobOptions;
 
-	private final PythonFunctionInfo[] aggregateFunctions;
+	private final PythonAggregateFunctionInfo[] aggregateFunctions;
 
 	private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
 
@@ -205,7 +205,7 @@ public class PythonStreamGroupAggregateOperator
 			Configuration config,
 			RowType inputType,
 			RowType outputType,
-			PythonFunctionInfo[] aggregateFunctions,
+			PythonAggregateFunctionInfo[] aggregateFunctions,
 			DataViewUtils.DataViewSpec[][] dataViewSpecs,
 			int[] grouping,
 			int indexOfCountStar,
