@@ -156,6 +156,13 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 		return newExecutionVertex(new JobVertexID(), 0);
 	}
 
+	public TestingSchedulingExecutionVertex newExecutionVertex(ExecutionState executionState) {
+		final TestingSchedulingExecutionVertex newVertex =
+				TestingSchedulingExecutionVertex.newBuilder().withExecutionState(executionState).build();
+		addSchedulingExecutionVertex(newVertex);
+		return newVertex;
+	}
+
 	public TestingSchedulingExecutionVertex newExecutionVertex(final JobVertexID jobVertexId, final int subtaskIndex) {
 		final TestingSchedulingExecutionVertex newVertex =
 				TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexId, subtaskIndex);
