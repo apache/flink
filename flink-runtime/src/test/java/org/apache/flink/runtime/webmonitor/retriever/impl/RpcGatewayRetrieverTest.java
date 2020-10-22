@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FixedRetryStrategy;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -33,6 +34,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -73,7 +75,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
 		final String expectedValue2 = "barfoo";
 		final UUID leaderSessionId = UUID.randomUUID();
 
-		RpcGatewayRetriever<UUID, DummyGateway> gatewayRetriever = new RpcGatewayRetriever<>(rpcService, DummyGateway.class, Function.identity(), 0, Time.milliseconds(0L));
+		RpcGatewayRetriever<UUID, DummyGateway> gatewayRetriever = new RpcGatewayRetriever<>(rpcService, DummyGateway.class, Function.identity(), new FixedRetryStrategy(0, Duration.ZERO));
 		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService();
 		DummyRpcEndpoint dummyRpcEndpoint = new DummyRpcEndpoint(rpcService, "dummyRpcEndpoint1", expectedValue);
 		DummyRpcEndpoint dummyRpcEndpoint2 = new DummyRpcEndpoint(rpcService, "dummyRpcEndpoint2", expectedValue2);
