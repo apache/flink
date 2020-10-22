@@ -31,7 +31,7 @@ under the License.
 创建 TableEnvironment
 -------------------------
 
-创建 `TableEnvironment` 的推荐方式是通过 `EnvironmentSettings` 对象中创建:
+创建 `TableEnvironment` 的推荐方式是通过 `EnvironmentSettings` 对象创建:
 
 {% highlight python %}
 
@@ -146,7 +146,7 @@ TableEnvironment API
         <strong>sql_query(query)</strong>
       </td>
       <td>
-        计算一条 SQL 查询并将查询的结果作为一个 `Table` 对象。 
+        执行一条 SQL 查询，并将查询的结果作为一个 `Table` 对象。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.sql_query">链接</a>
@@ -343,7 +343,7 @@ TableEnvironment API
       </td>
       <td>
         创建一个可接受 DML 语句或表的 StatementSet 实例。
-        它可用于执行包含多个 sinks 的作业。
+        它可用于执行包含多个 sink 的作业。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_statement_set">链接</a>
@@ -368,7 +368,7 @@ TableEnvironment API
         <strong>explain(table=None, extended=False)</strong>
       </td>
       <td>
-        返回指定 Table API 和 SQL 查询的抽象语法树，以及用来计算给定 `Table` 对象或者多个 sinks 计划结果的执行计划。
+        返回指定 Table API 和 SQL 查询的抽象语法树，以及用来计算给定 `Table` 对象或者多个 sink 计划结果的执行计划。
         如果你使用 "insert_into" 或者 "sql_update" 方法将数据发送到多个 sinks，你可以通过这个方法来得到执行计划。
         它也可以用 <strong>TableEnvironment.explain_sql</strong>，<strong>Table.explain</strong> 或者 <strong>StatementSet.explain</strong> 来替换。
       </td>
@@ -412,7 +412,7 @@ TableEnvironment API
         <strong>create_temporary_function(path, function)</strong>
       </td>
       <td>
-        将一个 Python 用户自定义函数类注册为临时 catalog 函数。
+        将一个 Python 用户自定义函数注册为临时 catalog 函数。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_function">链接</a>
@@ -423,7 +423,7 @@ TableEnvironment API
         <strong>create_temporary_system_function(name, function)</strong>
       </td>
       <td>
-        将一个 Python 用户自定义函数类注册为临时系统函数。
+        将一个 Python 用户自定义函数注册为临时系统函数。
         如果临时系统函数的名称与临时 catalog 函数名称相同，优先使用临时系统函数。
       </td>
       <td class="text-center">
@@ -435,7 +435,7 @@ TableEnvironment API
         <strong>create_java_function(path, function_class_name, ignore_if_exists=None)</strong>
       </td>
       <td>
-        将 Java 用户定义的函数类注册为指定路径下的 catalog 函数。
+        将 Java 用户自定义函数注册为指定路径下的 catalog 函数。
         如果 catalog 是持久化的，则可以跨多个 Flink 会话和集群使用已注册的 catalog 函数。
       </td>
       <td class="text-center">
@@ -447,7 +447,7 @@ TableEnvironment API
         <strong>create_java_temporary_function(path, function_class_name)</strong>
       </td>
       <td>
-        将 Java 用户定义的函数类注册为临时 catalog 函数。
+        将 Java 用户自定义函数注册为临时 catalog 函数。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_function">链接</a>
@@ -458,7 +458,7 @@ TableEnvironment API
         <strong>create_java_temporary_system_function(name, function_class_name)</strong>
       </td>
       <td>
-        将 Java 用户定义的函数类注册为临时系统函数。
+        将 Java 用户定义的函数注册为临时系统函数。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_system_function">链接</a>
@@ -480,7 +480,7 @@ TableEnvironment API
         <strong>drop_temporary_function(path)</strong>
       </td>
       <td>
-        删除指定名称下已注册的临时函数。
+        删除指定名称下已注册的临时系统函数。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_function">链接</a>
@@ -516,8 +516,8 @@ TableEnvironment API
         <strong>register_function(name, function)</strong>
       </td>
       <td>
-        注册一个具有唯一名称的Python 自定义函数。 
-        可替换与该名称相同的已经存在的用户自定义函数。
+        注册一个 Python 用户自定义函数，并为其指定一个唯一的名称。 
+        若已有与该名称相同的用户自定义函数，则替换之。
         它可以通过 <strong>create_temporary_system_function</strong> 来替换。
       </td>
       <td class="text-center">
@@ -529,8 +529,8 @@ TableEnvironment API
         <strong>register_java_function(name, function_class_name)</strong>
       </td>
       <td>
-        注册一个具有唯一名称的 Java 自定义函数。 
-        可替换与该名称相同的已经存在的用户自定义函数。
+        注册一个 Java 用户自定义函数，并为其指定一个唯一的名称。 
+        若已有与该名称相同的用户自定义函数，则替换之。
         它可以通过 <strong>create_java_temporary_system_function</strong> 来替换。
       </td>
       <td class="text-center">
@@ -583,7 +583,7 @@ TableEnvironment API
         <strong>add_python_archive(archive_path, target_dir=None)</strong>
       </td>
       <td>
-        添加 Python 归档文件。该文件将被压缩到 Python UDF 程序的工作目录中。
+        添加 Python 归档文件。该文件将被解压到 Python UDF 程序的工作目录中。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_archive">链接</a>
@@ -608,7 +608,7 @@ TableEnvironment API
         <strong>get_config()</strong>
       </td>
       <td>
-        通过 table config 来定义 Table API 的运行时行为。
+        返回 table config，可以通过 table config 来定义 Table API 的运行时行为。
         你可以在 <a href="{{ site.baseurl }}/zh/ops/config.html">配置</a> 和
         <a href="{{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
         下面的代码示例展示了如何通过这个 API 来设置配置选项：
@@ -665,8 +665,8 @@ table_env.get_config().get_configuration().set_string(
         <strong>use_catalog(catalog_name)</strong>
       </td>
       <td>
-        将当前目录设置为指定名称的 catalog。
-        它也可以将默认数据库设置为 catalog 的默认数据库。
+        将当前目录设置为所指定的 catalog。
+        它也将默认数据库设置为所指定 catalog 的默认数据库。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.use_catalog">链接</a>
@@ -746,7 +746,7 @@ table_env.get_config().get_configuration().set_string(
         <strong>list_modules()</strong>
       </td>
       <td>
-        获取在这个环境中注册的所有模块名称
+        获取在这个环境中注册的所有模块名称。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_modules">链接</a>
@@ -792,7 +792,7 @@ table_env.get_config().get_configuration().set_string(
         <strong>list_user_defined_functions()</strong>
       </td>
       <td>
-        获取在该环境中已注册的所有用户定义函数名称。
+        获取在该环境中已注册的所有用户自定义函数的名称。
       </td>
       <td class="text-center">
         <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_user_defined_functions">链接</a>
@@ -838,7 +838,7 @@ Statebackend，Checkpoint 以及重启策略
 ---------------------------------------------
 
 在 Flink 1.10 之前，你可以通过 `StreamExecutionEnvironment` 来配置 statebackend，checkpointing 以及重启策略。
-现在你可以通过在 `TableConfig` 中设置键值选项来配置它们，更多详情可查阅 [容错]({% link ops/config.zh.md %}#fault-tolerance)，[State Backends]({% link ops/config.zh.md %}#checkpoints-and-state-backends) 以及 [Checkpointing]({% link ops/config.zh.md %}#checkpointing)。
+现在你可以通过在 `TableConfig` 中，通过设置键值选项来配置它们，更多详情可查阅 [容错]({% link ops/config.zh.md %}#fault-tolerance)，[State Backends]({% link ops/config.zh.md %}#checkpoints-and-state-backends) 以及 [Checkpointing]({% link ops/config.zh.md %}#checkpointing)。
 
 下面代码示例展示了如何通过 Table API 来配置 statebackend，checkpoint 以及重启策略：
 {% highlight python %}
@@ -851,8 +851,8 @@ table_env.get_config().get_configuration().set_string("restart-strategy.fixed-de
 table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "3min")
 
-# 设置 statebackend 类型为 "rocksdb"，其他可用选项有 "filesystem" 和 "jobmanager"
-# 你也可以使用 StateBackendFactory 的完整类名来设置这个属性
+# 设置 statebackend 类型为 "rocksdb"，其他可选项有 "filesystem" 和 "jobmanager"
+# 你也可以将这个属性设置为 StateBackendFactory 的完整类名
 # e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
 table_env.get_config().get_configuration().set_string("state.backend", "rocksdb")
 
