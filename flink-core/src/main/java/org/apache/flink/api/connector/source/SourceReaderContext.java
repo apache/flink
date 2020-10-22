@@ -45,6 +45,11 @@ public interface SourceReaderContext {
 	String getLocalHostName();
 
 	/**
+	 * @return The index of this subtask.
+	 */
+	int getIndexOfSubtask();
+
+	/**
 	 * Send a source event to the source coordinator.
 	 *
 	 * @param sourceEvent the source event to coordinator.
