@@ -18,13 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.operators.InputSelection;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper;
-import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
-import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
+import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
 
 import org.junit.Test;
 
@@ -37,7 +32,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test for {@link InputSelectionHandler}.
  */
-public class InputSelectionHandlerTest {
+public class InputSelectionHandlerTest extends MultipleInputTestBase {
 
 	@Test
 	public void testWithSamePriority() {
@@ -93,23 +88,5 @@ public class InputSelectionHandlerTest {
 
 		handler.endInput(5);
 		assertEquals(InputSelection.ALL, handler.getInputSelection());
-	}
-
-	private TableOperatorWrapper<TestingOneInputStreamOperator> createOneInputOperatorWrapper(String name) {
-		return new TableOperatorWrapper<>(
-				SimpleOperatorFactory.of(new TestingOneInputStreamOperator()),
-				name,
-				Collections.singletonList(new RowTypeInfo(Types.STRING)),
-				new RowTypeInfo(Types.STRING)
-		);
-	}
-
-	private TableOperatorWrapper<TestingTwoInputStreamOperator> createTwoInputOperatorWrapper(String name) {
-		return new TableOperatorWrapper<>(
-				SimpleOperatorFactory.of(new TestingTwoInputStreamOperator()),
-				name,
-				Arrays.asList(new RowTypeInfo(Types.STRING), new RowTypeInfo(Types.STRING)),
-				new RowTypeInfo(Types.STRING, Types.STRING)
-		);
 	}
 }

@@ -29,6 +29,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -45,7 +46,7 @@ import static org.junit.Assert.assertSame;
 /**
  * Test for the sub-classes of {@link Output}.
  */
-public class OutputTest {
+public class OutputTest extends MultipleInputTestBase {
 
 	private StreamRecord<RowData> element;
 	private Watermark watermark;
@@ -62,8 +63,8 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testOneInput() {
-		TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
+	public void testOneInput() throws Exception {
+		TestingOneInputStreamOperator op = createOneInputStreamOperator();
 		OneInputStreamOperatorOutput output = new OneInputStreamOperatorOutput(op);
 
 		output.collect(element);
@@ -77,8 +78,8 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testCopyingOneInput() {
-		TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
+	public void testCopyingOneInput() throws Exception {
+		TestingOneInputStreamOperator op = createOneInputStreamOperator();
 		CopyingOneInputStreamOperatorOutput output = new CopyingOneInputStreamOperatorOutput(op, serializer);
 
 		output.collect(element);
@@ -93,8 +94,8 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testFirstInputOfTwoInput() {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
+	public void testFirstInputOfTwoInput() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
 		FirstInputOfTwoInputStreamOperatorOutput output = new FirstInputOfTwoInputStreamOperatorOutput(op);
 
 		output.collect(element);
@@ -111,9 +112,10 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testCopyingFirstInputOfTwoInput() {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
-		CopyingFirstInputOfTwoInputStreamOperatorOutput output = new CopyingFirstInputOfTwoInputStreamOperatorOutput(op, serializer);
+	public void testCopyingFirstInputOfTwoInput() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		CopyingFirstInputOfTwoInputStreamOperatorOutput output = new CopyingFirstInputOfTwoInputStreamOperatorOutput(op,
+				serializer);
 
 		output.collect(element);
 		assertNotSame(element, op.getCurrentElement1());
@@ -130,8 +132,8 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testSecondInputOfTwoInput() {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
+	public void testSecondInputOfTwoInput() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
 		SecondInputOfTwoInputStreamOperatorOutput output = new SecondInputOfTwoInputStreamOperatorOutput(op);
 
 		output.collect(element);
@@ -148,9 +150,10 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testCopyingSecondInputOfTwoInput() {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
-		CopyingSecondInputOfTwoInputStreamOperatorOutput output = new CopyingSecondInputOfTwoInputStreamOperatorOutput(op, serializer);
+	public void testCopyingSecondInputOfTwoInput() throws Exception {
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+		CopyingSecondInputOfTwoInputStreamOperatorOutput output =
+				new CopyingSecondInputOfTwoInputStreamOperatorOutput(op, serializer);
 
 		output.collect(element);
 		assertNotSame(element, op.getCurrentElement2());
@@ -167,12 +170,12 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testBroadcasting() {
-		TestingOneInputStreamOperator op1 = new TestingOneInputStreamOperator();
-		OneInputStreamOperatorOutput output1 = new OneInputStreamOperatorOutput(op1);
-		TestingOneInputStreamOperator op2 = new TestingOneInputStreamOperator();
-		OneInputStreamOperatorOutput output2 = new OneInputStreamOperatorOutput(op2);
-		BroadcastingOutput output = new BroadcastingOutput(new Output[] { output1, output2 });
+	public void testBroadcasting() throws Exception {
+		TestingOneInputStreamOperator op1 = createOneInputStreamOperator();
+		TestingOneInputStreamOperator op2 = createOneInputStreamOperator();
+		BroadcastingOutput output = new BroadcastingOutput(new Output[] {
+				new OneInputStreamOperatorOutput(op1),
+				new OneInputStreamOperatorOutput(op2) });
 
 		output.collect(element);
 		assertEquals(element, op1.getCurrentElement());
@@ -193,12 +196,12 @@ public class OutputTest {
 	}
 
 	@Test
-	public void testCopyingBroadcasting() {
-		TestingOneInputStreamOperator op1 = new TestingOneInputStreamOperator();
-		OneInputStreamOperatorOutput output1 = new OneInputStreamOperatorOutput(op1);
-		TestingOneInputStreamOperator op2 = new TestingOneInputStreamOperator();
-		OneInputStreamOperatorOutput output2 = new OneInputStreamOperatorOutput(op2);
-		CopyingBroadcastingOutput output = new CopyingBroadcastingOutput(new Output[] { output1, output2 });
+	public void testCopyingBroadcasting() throws Exception {
+		TestingOneInputStreamOperator op1 = createOneInputStreamOperator();
+		TestingOneInputStreamOperator op2 = createOneInputStreamOperator();
+		CopyingBroadcastingOutput output = new CopyingBroadcastingOutput(new Output[] {
+				new OneInputStreamOperatorOutput(op1),
+				new OneInputStreamOperatorOutput(op2) });
 
 		output.collect(element);
 		assertNotSame(element, op1.getCurrentElement());

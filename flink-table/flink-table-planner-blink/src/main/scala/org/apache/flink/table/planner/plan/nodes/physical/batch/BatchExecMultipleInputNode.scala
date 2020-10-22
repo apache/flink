@@ -98,7 +98,7 @@ class BatchExecMultipleInputNode(
     // set resources
     multipleInputTransform.setResources(generator.getMinResources, generator.getPreferredResources)
     val memoryKB = generator.getManagedMemoryWeight
-    ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024)
+    ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024L)
 
     // set chaining strategy for source chaining
     multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES)

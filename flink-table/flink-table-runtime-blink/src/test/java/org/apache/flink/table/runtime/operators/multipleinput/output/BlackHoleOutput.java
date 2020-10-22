@@ -18,25 +18,40 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.output;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputStreamOperatorBase;
-import org.apache.flink.util.WrappingRuntimeException;
-
-import static java.util.Objects.requireNonNull;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.util.OutputTag;
 
 /**
- * A special exception that signifies that the cause exception came from a {@link MultipleInputStreamOperatorBase}.
+ * A {@link Output} for testing which does not output anything.
  */
-@Internal
-public class ExceptionInMultipleInputOperatorException extends WrappingRuntimeException {
+public class BlackHoleOutput implements Output<StreamRecord<RowData>> {
 
-	private static final long serialVersionUID = 1L;
-
-	public ExceptionInMultipleInputOperatorException(Throwable cause) {
-		this("Could not forward element to next operator", cause);
+	@Override
+	public void emitWatermark(Watermark mark) {
+		// do nothing
 	}
 
-	public ExceptionInMultipleInputOperatorException(String message, Throwable cause) {
-		super(message, requireNonNull(cause));
+	@Override
+	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+		// do nothing
+	}
+
+	@Override
+	public void emitLatencyMarker(LatencyMarker latencyMarker) {
+		// do nothing
+	}
+
+	@Override
+	public void collect(StreamRecord<RowData> record) {
+		// do nothing
+	}
+
+	@Override
+	public void close() {
+		// do nothing
 	}
 }
