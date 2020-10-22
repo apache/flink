@@ -145,12 +145,16 @@ public class RowTest {
 		}
 
 		{
+			final Map<String, byte[]> map = new HashMap<>();
+			map.put("k1", new byte[]{1, 2, 3});
+			map.put("k2", new byte[]{3, 4, 6});
+
 			final Row row = Row.of(
 					RowKind.INSERT,
 					true,
 					new Integer[]{1, null, 3, 99}, // diff here
 					Arrays.asList(1, null, 3),
-					originalMap,
+					map,
 					Collections.emptyMap(),
 					new int[][]{{1, 2, 3}, {}, {4, 5}},
 					1.44
@@ -177,12 +181,16 @@ public class RowTest {
 		}
 
 		{
+			final Map<String, byte[]> map = new HashMap<>();
+			map.put("k1", new byte[]{1, 2, 3});
+			map.put("k2", new byte[]{3, 4, 6});
+
 			final Row row = Row.of(
 					RowKind.INSERT,
 					true,
 					new Integer[]{1, null, 3},
 					Arrays.asList(1, null, 3),
-					originalMap,
+					map,
 					Collections.emptyMap(),
 					new Integer[][]{{1, 2, 3}, {}, {4, 5}}, // diff here
 					1.44

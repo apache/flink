@@ -288,8 +288,8 @@ public final class Row implements Serializable {
 	 * support comparing arrays stored in the values of a map. We might update the {@link #equals(Object)}
 	 * with this implementation in future versions.
 	 */
-	public static boolean deepEquals(Row row, Object other) {
-		return deepEqualsInternal(row, other);
+	public static boolean deepEquals(Row row1, Row row2) {
+		return deepEqualsInternal(row1, row2);
 	}
 
 	/**
@@ -382,6 +382,9 @@ public final class Row implements Serializable {
 	}
 
 	private static <E> boolean deepEqualsList(List<E> l1, List<?> l2) {
+		if (l1.size() != l2.size()) {
+			return false;
+		}
 		final Iterator<E> i1 = l1.iterator();
 		final Iterator<?> i2 = l2.iterator();
 		while (i1.hasNext() && i2.hasNext()) {
@@ -391,6 +394,6 @@ public final class Row implements Serializable {
 				return false;
 			}
 		}
-		return !(i1.hasNext() || i2.hasNext());
+		return true;
 	}
 }
