@@ -62,11 +62,11 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 	public void testStartScheduling() {
 		final JobVertexID jobVertexID = new JobVertexID();
 		final List<TestingSchedulingExecutionVertex> executionVertices = Arrays.asList(
-			new TestingSchedulingExecutionVertex(jobVertexID, 4),
-			new TestingSchedulingExecutionVertex(jobVertexID, 0),
-			new TestingSchedulingExecutionVertex(jobVertexID, 2),
-			new TestingSchedulingExecutionVertex(jobVertexID, 1),
-			new TestingSchedulingExecutionVertex(jobVertexID, 3));
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 4),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 0),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 2),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 1),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 3));
 		testingSchedulingTopology.addSchedulingExecutionVertices(executionVertices);
 
 		schedulingStrategy.startScheduling();
@@ -89,11 +89,11 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 	public void testRestartTasks() {
 		final JobVertexID jobVertexID = new JobVertexID();
 		final List<TestingSchedulingExecutionVertex> executionVertices = Arrays.asList(
-			new TestingSchedulingExecutionVertex(jobVertexID, 4),
-			new TestingSchedulingExecutionVertex(jobVertexID, 0),
-			new TestingSchedulingExecutionVertex(jobVertexID, 2),
-			new TestingSchedulingExecutionVertex(jobVertexID, 1),
-			new TestingSchedulingExecutionVertex(jobVertexID, 3));
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 4),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 0),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 2),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 1),
+			TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexID, 3));
 		testingSchedulingTopology.addSchedulingExecutionVertices(executionVertices);
 
 		final List<ExecutionVertexID> verticesToRestart1 = Arrays.asList(

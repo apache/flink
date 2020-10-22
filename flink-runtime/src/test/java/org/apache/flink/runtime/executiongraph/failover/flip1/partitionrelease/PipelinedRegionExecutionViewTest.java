@@ -40,9 +40,9 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
 	private static final ExecutionVertexID TEST_EXECUTION_VERTEX_ID = new ExecutionVertexID(new JobVertexID(), 0);
 
 	private static final TestingSchedulingPipelinedRegion TEST_PIPELINED_REGION = new TestingSchedulingPipelinedRegion(Collections.singleton(
-		new TestingSchedulingExecutionVertex(
-			TEST_EXECUTION_VERTEX_ID.getJobVertexId(),
-			TEST_EXECUTION_VERTEX_ID.getSubtaskIndex())));
+		TestingSchedulingExecutionVertex.withExecutionVertexID(
+				TEST_EXECUTION_VERTEX_ID.getJobVertexId(),
+				TEST_EXECUTION_VERTEX_ID.getSubtaskIndex())));
 
 	@Test
 	public void regionIsUnfinishedIfNotAllVerticesAreFinished() {

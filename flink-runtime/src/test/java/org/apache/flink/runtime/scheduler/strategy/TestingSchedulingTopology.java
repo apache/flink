@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.strategy;
 
 import org.apache.flink.api.common.InputDependencyConstraint;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -156,7 +157,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 	}
 
 	public TestingSchedulingExecutionVertex newExecutionVertex(final JobVertexID jobVertexId, final int subtaskIndex) {
-		final TestingSchedulingExecutionVertex newVertex = new TestingSchedulingExecutionVertex(jobVertexId, subtaskIndex);
+		final TestingSchedulingExecutionVertex newVertex =
+				TestingSchedulingExecutionVertex.withExecutionVertexID(jobVertexId, subtaskIndex);
 		addSchedulingExecutionVertex(newVertex);
 		return newVertex;
 	}
@@ -350,12 +352,21 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 		public List<TestingSchedulingExecutionVertex> finish() {
 			final List<TestingSchedulingExecutionVertex> vertices = new ArrayList<>();
 			for (int subtaskIndex = 0; subtaskIndex < parallelism; subtaskIndex++) {
-				vertices.add(new TestingSchedulingExecutionVertex(jobVertexId, subtaskIndex, inputDependencyConstraint));
+				vertices.add(createTestingSchedulingExecutionVertex(subtaskIndex));
 			}
 
 			TestingSchedulingTopology.this.addSchedulingExecutionVertices(vertices);
 
 			return vertices;
+		}
+
+		private TestingSchedulingExecutionVertex createTestingSchedulingExecutionVertex(
+				final int subtaskIndex) {
+			return TestingSchedulingExecutionVertex
+					.newBuilder()
+					.withExecutionVertexID(jobVertexId, subtaskIndex)
+					.withInputDependencyConstraint(inputDependencyConstraint)
+					.build();
 		}
 	}
 }
