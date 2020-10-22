@@ -94,7 +94,8 @@ public class AvroRowDataDeSerializationSchemaTest {
 			FIELD("timestamp3_2", TIMESTAMP(3)),
 			FIELD("map", MAP(STRING(), BIGINT())),
 			FIELD("map2map", MAP(STRING(), MAP(STRING(), INT()))),
-			FIELD("map2array", MAP(STRING(), ARRAY(INT()))));
+			FIELD("map2array", MAP(STRING(), ARRAY(INT()))),
+			FIELD("nullEntryMap", MAP(STRING(), STRING())));
 		final RowType rowType = (RowType) dataType.getLogicalType();
 		final TypeInformation<RowData> typeInfo = new RowDataTypeInfo(rowType);
 
@@ -142,6 +143,10 @@ public class AvroRowDataDeSerializationSchemaTest {
 		map2list.put("list1", list1);
 		map2list.put("list2", list2);
 		record.put(17, map2list);
+
+		Map<String, String> map2 = new HashMap<>();
+		map2.put("key1", null);
+		record.put(18, map2);
 
 		AvroRowDataSerializationSchema serializationSchema = new AvroRowDataSerializationSchema(rowType);
 		serializationSchema.open(null);

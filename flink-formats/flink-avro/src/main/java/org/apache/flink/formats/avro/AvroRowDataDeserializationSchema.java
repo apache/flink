@@ -304,7 +304,7 @@ public class AvroRowDataDeserializationSchema implements DeserializationSchema<R
 	private static DeserializationRuntimeConverter createMapConverter(LogicalType type) {
 		final DeserializationRuntimeConverter keyConverter = createConverter(
 				DataTypes.STRING().getLogicalType());
-		final DeserializationRuntimeConverter valueConverter = createConverter(
+		final DeserializationRuntimeConverter valueConverter = createNullableConverter(
 				extractValueTypeToAvroMap(type));
 
 		return avroObject -> {
