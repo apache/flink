@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.FixedRetryStrategy;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.RetryStrategy;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -29,7 +27,6 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -46,15 +43,6 @@ public class RpcGatewayRetriever<F extends Serializable, T extends FencedRpcGate
 	private final Class<T> gatewayType;
 	private final Function<UUID, F> fencingTokenMapper;
 	private final RetryStrategy retryStrategy;
-
-	public RpcGatewayRetriever(
-			RpcService rpcService,
-			Class<T> gatewayType,
-			Function<UUID, F> fencingTokenMapper,
-			int retries,
-			Time retryDelay) {
-		this(rpcService, gatewayType, fencingTokenMapper, new FixedRetryStrategy(retries, Duration.ofMillis(retryDelay.toMilliseconds())));
-	}
 
 	public RpcGatewayRetriever(
 			RpcService rpcService,
