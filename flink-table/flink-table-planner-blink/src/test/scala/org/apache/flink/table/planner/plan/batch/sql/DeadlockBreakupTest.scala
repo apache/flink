@@ -87,7 +87,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,HashAgg")
     util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
@@ -146,7 +146,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,SortAgg")
     val sqlQuery =
       """
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
@@ -186,7 +186,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
     val sqlQuery =
       s"""
          |WITH
@@ -205,7 +205,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,HashAgg")
     val sqlQuery =
       s"""
          |WITH
