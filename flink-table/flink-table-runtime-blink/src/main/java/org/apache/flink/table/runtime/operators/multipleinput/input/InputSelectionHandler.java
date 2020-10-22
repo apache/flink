@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
 import org.apache.flink.streaming.api.operators.InputSelection;
-import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputStreamOperatorBase;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This handler is mainly used for selecting the next available input index
- * according to read priority in {@link MultipleInputStreamOperator}.
+ * according to read priority in {@link MultipleInputStreamOperatorBase}.
  *
  * <p>Input read order: the input with high priority (the value of read order is lower)
  * will be read first, the inputs with same priorities will be read fairly.

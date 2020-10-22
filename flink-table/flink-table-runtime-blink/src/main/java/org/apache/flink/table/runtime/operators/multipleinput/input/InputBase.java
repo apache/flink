@@ -19,12 +19,12 @@
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputStreamOperatorBase;
 
 /**
- * Base {@link Input} used in {@link MultipleInputStreamOperator}.
+ * Base {@link Input} used in {@link MultipleInputStreamOperatorBase}.
  */
 public abstract class InputBase implements Input<RowData> {
 
