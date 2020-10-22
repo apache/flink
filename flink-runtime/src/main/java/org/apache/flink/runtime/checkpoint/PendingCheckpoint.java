@@ -338,6 +338,13 @@ public class PendingCheckpoint implements Checkpoint {
 
                 // to prevent null-pointers from concurrent modification, copy reference onto stack
                 if (statsCallback != null) {
+                    LOG.trace(
+                            "Checkpoint {} size: {}Kb, duration: {}ms",
+                            checkpointId,
+                            statsCallback.getStateSize() == 0
+                                    ? 0
+                                    : statsCallback.getStateSize() / 1024,
+                            statsCallback.getEndToEndDuration());
                     // Finalize the statsCallback and give the completed checkpoint a
                     // callback for discards.
                     CompletedCheckpointStats.DiscardCallback discardCallback =
@@ -445,6 +452,16 @@ public class PendingCheckpoint implements Checkpoint {
                                 metrics.getUnalignedCheckpoint(),
                                 true);
 
+                LOG.trace(
+                        "Checkpoint {} stats for {}: size={}Kb, duration={}ms, sync part={}ms, async part={}ms",
+                        checkpointId,
+                        vertex.getTaskNameWithSubtaskIndex(),
+                        subtaskStateStats.getStateSize() == 0
+                                ? 0
+                                : subtaskStateStats.getStateSize() / 1024,
+                        subtaskStateStats.getEndToEndDuration(statsCallback.getTriggerTimestamp()),
+                        subtaskStateStats.getSyncCheckpointDuration(),
+                        subtaskStateStats.getAsyncCheckpointDuration());
                 statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
             }
 
