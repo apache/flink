@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -174,6 +175,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 					notifyIfNewLeaderAddress(leaderAddress, leaderSessionID);
 				} catch (Exception e) {
 					leaderListener.handleError(new Exception("Could not handle node changed event.", e));
+					ExceptionUtils.checkInterrupted(e);
 				}
 			} else {
 				LOG.debug("Ignoring node change notification since the service has already been stopped.");
