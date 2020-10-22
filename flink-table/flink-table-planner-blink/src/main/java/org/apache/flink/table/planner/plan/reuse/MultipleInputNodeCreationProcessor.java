@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.planner.plan.reuse;
 
-import org.apache.calcite.rel.RelDistribution;
-import org.apache.calcite.rel.RelNode;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
@@ -39,6 +36,9 @@ import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessor;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.rel.RelDistribution;
+import org.apache.calcite.rel.RelNode;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,6 +49,12 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+/**
+ * A {@link DAGProcessor} which organize {@link ExecNode}s into multiple input nodes.
+ *
+ * <p>For a detailed explanation of the algorithm, see appendix of the
+ * <a href="https://docs.google.com/document/d/1qKVohV12qn-bM51cBZ8Hcgp31ntwClxjoiNBUOqVHsI">design doc</a>.
+ */
 public class MultipleInputNodeCreationProcessor implements DAGProcessor {
 
 	private final boolean isStreaming;
