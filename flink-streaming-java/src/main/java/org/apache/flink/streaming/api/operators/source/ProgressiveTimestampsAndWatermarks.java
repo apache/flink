@@ -65,6 +65,9 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 	private StreamingReaderOutput<T> currentMainOutput;
 
 	@Nullable
+	private WatermarkToDataOutput watermarkOutput;
+
+	@Nullable
 	private ScheduledFuture<?> periodicEmitHandle;
 
 	public ProgressiveTimestampsAndWatermarks(
@@ -98,7 +101,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 		// support re-assigning the underlying output
 		checkState(currentMainOutput == null && currentPerSplitOutputs == null, "already created a main output");
 
-		final WatermarkOutput watermarkOutput = new WatermarkToDataOutput(output);
+		watermarkOutput = new WatermarkToDataOutput(output);
 		final WatermarkGenerator<T> watermarkGenerator = watermarksFactory.createWatermarkGenerator(watermarksContext);
 
 		currentPerSplitOutputs = new SplitLocalOutputs<>(
@@ -138,6 +141,15 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 		if (periodicEmitHandle != null) {
 			periodicEmitHandle.cancel(false);
 			periodicEmitHandle = null;
+		}
+	}
+
+	@Override
+	public long getWatermark() {
+		if (watermarkOutput != null) {
+			return watermarkOutput.getMaxWatermarkSoFar();
+		} else {
+			return -1L;
 		}
 	}
 

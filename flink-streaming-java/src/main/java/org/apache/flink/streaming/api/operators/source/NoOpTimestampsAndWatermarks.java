@@ -64,6 +64,12 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
 		// no periodic watermarks
 	}
 
+	@Override
+	public long getWatermark() {
+		// No watermark.
+		return -1L;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

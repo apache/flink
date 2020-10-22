@@ -19,8 +19,8 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.metrics.SourceMetricGroup;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.MetricGroup;
 
 /**
  * The class that expose some context from runtime to the {@link SourceReader}.
@@ -31,7 +31,7 @@ public interface SourceReaderContext {
 	/**
 	 * @return The metric group this source belongs to.
 	 */
-	MetricGroup metricGroup();
+	SourceMetricGroup metricGroup();
 
 	/**
 	 * Gets the configuration with which Flink was started.

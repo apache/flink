@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -113,8 +112,8 @@ public class MultipleInputStreamTaskTest {
 			ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
 			addSourceRecords(testHarness, 1, 42, 43);
-			expectedOutput.add(new StreamRecord<>("42", TimestampAssigner.NO_TIMESTAMP));
-			expectedOutput.add(new StreamRecord<>("43", TimestampAssigner.NO_TIMESTAMP));
+			expectedOutput.add(new StreamRecord<>("42", 42));
+			expectedOutput.add(new StreamRecord<>("43", 43));
 			testHarness.processElement(new StreamRecord<>("Hello", initialTime + 1), 0);
 			expectedOutput.add(new StreamRecord<>("Hello", initialTime + 1));
 			testHarness.processElement(new StreamRecord<>(42.44d, initialTime + 3), 1);
@@ -419,7 +418,7 @@ public class MultipleInputStreamTaskTest {
 			testHarness.processElement(new Watermark(initialTime), 0, 1);
 
 			addSourceRecords(testHarness, 1, initialTime);
-			expectedOutput.add(new StreamRecord<>("" + (initialTime), TimestampAssigner.NO_TIMESTAMP));
+			expectedOutput.add(new StreamRecord<>("" + (initialTime), initialTime));
 
 			testHarness.processElement(new Watermark(initialTime), 1, 0);
 
@@ -443,7 +442,7 @@ public class MultipleInputStreamTaskTest {
 			testHarness.processElement(new Watermark(initialTime + 3), 0, 1);
 
 			addSourceRecords(testHarness, 1, initialTime + 3);
-			expectedOutput.add(new StreamRecord<>("" + (initialTime + 3), TimestampAssigner.NO_TIMESTAMP));
+			expectedOutput.add(new StreamRecord<>("" + (initialTime + 3), initialTime + 3));
 
 			testHarness.processElement(new Watermark(initialTime + 3), 1, 0);
 			testHarness.processElement(new Watermark(initialTime + 2), 1, 1);
@@ -463,7 +462,7 @@ public class MultipleInputStreamTaskTest {
 			testHarness.processElement(new Watermark(initialTime + 4), 0, 1);
 
 			addSourceRecords(testHarness, 1, initialTime + 4);
-			expectedOutput.add(new StreamRecord<>("" + (initialTime + 4), TimestampAssigner.NO_TIMESTAMP));
+			expectedOutput.add(new StreamRecord<>("" + (initialTime + 4), initialTime + 4));
 
 			testHarness.processElement(new Watermark(initialTime + 4), 1, 0);
 			expectedOutput.add(new Watermark(initialTime + 4));
@@ -518,7 +517,7 @@ public class MultipleInputStreamTaskTest {
 				// we wake up the source and emit watermark
 				addSourceRecords(testHarness, 1, initialTime + 5);
 				testHarness.processAll();
-				expectedOutput.add(new StreamRecord<>("" + (initialTime + 5), TimestampAssigner.NO_TIMESTAMP));
+				expectedOutput.add(new StreamRecord<>("" + (initialTime + 5), initialTime + 5));
 				expectedOutput.add(new Watermark(initialTime + 5));
 				// the source should go back to being idle immediately, but AbstractStreamOperatorV2
 				// should have updated it's watermark by then.
@@ -534,7 +533,7 @@ public class MultipleInputStreamTaskTest {
 
 			// make source active once again, emit a watermark and go idle again.
 			addSourceRecords(testHarness, 1, initialTime + 10);
-			expectedOutput.add(new StreamRecord<>("" + (initialTime + 10), TimestampAssigner.NO_TIMESTAMP));
+			expectedOutput.add(new StreamRecord<>("" + (initialTime + 10), initialTime + 10));
 			expectedOutput.add(StreamStatus.ACTIVE);
 			expectedOutput.add(StreamStatus.IDLE);
 			testHarness.processAll();

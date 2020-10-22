@@ -24,6 +24,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.testutils.source.reader.TestingSourceMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -36,7 +37,7 @@ import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 /**
  * A SourceOperator extension to simplify test setup.
  */
-public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit> {
+public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -80,7 +81,8 @@ public class TestingSourceOperator<T>  extends SourceOperator<T, MockSourceSplit
 			timeService,
 			new Configuration(),
 			"localhost",
-			emitProgressiveWatermarks);
+			emitProgressiveWatermarks,
+			new TestingSourceMetricGroup());
 
 		this.subtaskIndex = subtaskIndex;
 		this.parallelism = parallelism;

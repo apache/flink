@@ -28,10 +28,12 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.metrics.SourceMetricGroup;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.groups.SourceMetricGroupImpl;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -42,10 +44,13 @@ import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -119,6 +124,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 	 * but we currently need to instantiate this lazily, because the metric groups exist only later. */
 	private TimestampsAndWatermarks<OUT> eventTimeLogic;
 
+	/** The metric group is initialized lazily at runtime. */
+	private SourceMetricGroup sourceMetricGroup;
+
 	public SourceOperator(
 			FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception> readerFactory,
 			OperatorEventGateway operatorEventGateway,
@@ -128,6 +136,22 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			Configuration configuration,
 			String localHostname,
 			boolean emitProgressiveWatermarks) {
+		// The SourceMetricGorup is set to null here because it is set lazily in the setup().
+		this(readerFactory, operatorEventGateway, splitSerializer, watermarkStrategy,
+			timeService, configuration, localHostname, emitProgressiveWatermarks, null);
+	}
+
+	@VisibleForTesting
+	protected SourceOperator(
+		FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception> readerFactory,
+		OperatorEventGateway operatorEventGateway,
+		SimpleVersionedSerializer<SplitT> splitSerializer,
+		WatermarkStrategy<OUT> watermarkStrategy,
+		ProcessingTimeService timeService,
+		Configuration configuration,
+		String localHostname,
+		boolean emitProgressiveWatermarks,
+		SourceMetricGroup sourceMetricGroup) {
 
 		this.readerFactory = checkNotNull(readerFactory);
 		this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -137,16 +161,35 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		this.configuration = checkNotNull(configuration);
 		this.localHostname = checkNotNull(localHostname);
 		this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+		this.sourceMetricGroup = sourceMetricGroup;
+	}
+
+	@Override
+	public void setup(
+			StreamTask<?, ?> containingTask,
+			StreamConfig config,
+			Output<StreamRecord<OUT>> output) {
+		super.setup(containingTask, config, output);
+		// Reuse the numBytesInCounter from TaskMetricGroup.
+		sourceMetricGroup = new SourceMetricGroupImpl(
+			super.metrics,
+			super.metrics.parent().getIOMetricGroup().getNumBytesInCounter(),
+			() -> {
+				if (eventTimeLogic != null) {
+					return eventTimeLogic.getWatermark();
+				} else {
+					return -1L;
+				}
+			});
 	}
 
 	@Override
 	public void open() throws Exception {
-		final MetricGroup metricGroup = getMetricGroup();
 
 		final SourceReaderContext context = new SourceReaderContext() {
 			@Override
-			public MetricGroup metricGroup() {
-				return metricGroup;
+			public SourceMetricGroup metricGroup() {
+				return sourceMetricGroup;
 			}
 
 			@Override
@@ -180,13 +223,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 		if (emitProgressiveWatermarks) {
 			eventTimeLogic = TimestampsAndWatermarks.createProgressiveEventTimeLogic(
 					watermarkStrategy,
-					metricGroup,
+					sourceMetricGroup,
 					getProcessingTimeService(),
 					getExecutionConfig().getAutoWatermarkInterval());
 		} else {
 			eventTimeLogic = TimestampsAndWatermarks.createNoOpEventTimeLogic(
 					watermarkStrategy,
-					metricGroup);
+					sourceMetricGroup);
 		}
 
 		sourceReader = readerFactory.apply(context);
@@ -215,6 +258,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit>
 			eventTimeLogic.stopPeriodicWatermarkEmits();
 		}
 		super.close();
+	}
+
+	@Override
+	public MetricGroup getMetricGroup() {
+		return sourceMetricGroup;
 	}
 
 	@Override

@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.groups.SourceMetricGroupImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
@@ -177,6 +179,31 @@ public class SourceOperatorTest {
 		operator.snapshotState(new StateSnapshotContextSynchronousImpl(100L, 100L));
 		operator.notifyCheckpointAborted(100L);
 		assertEquals(100L, (long) mockSourceReader.getAbortedCheckpoints().get(0));
+	}
+
+	@Test
+	public void testMetrics() throws Exception {
+		StateInitializationContext stateContext = getStateContext();
+		operator.initializeState(stateContext);
+		operator.open();
+		mockSourceReader.enableWatermarkEmission();
+		try {
+			MockSourceSplit newSplit = new MockSourceSplit(2);
+			newSplit.addRecord(100);
+			operator.handleOperatorEvent(new AddSplitEvent<>(
+					Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+			CollectingDataOutput<Integer> output = new CollectingDataOutput<>();
+			SourceMetricGroupImpl metrics =
+					(SourceMetricGroupImpl) operator.getMetricGroup();
+			assertEquals(-1L, (long) metrics.getCurrentWatermarkSupplier().get());
+			operator.emitNext(output);
+			assertEquals("There should be a record and a watermark emission.",
+					2, output.events.size());
+			assertEquals(100L, (long) metrics.getCurrentWatermarkSupplier().get());
+		}
+		finally {
+			operator.close();
+		}
 	}
 
 	// ---------------- helper methods -------------------------

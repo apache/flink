@@ -63,6 +63,13 @@ public interface TimestampsAndWatermarks<T> {
 	 */
 	void stopPeriodicWatermarkEmits();
 
+	/**
+	 * Get the current watermark.
+	 *
+	 * @return the current watermark.
+	 */
+	long getWatermark();
+
 	// ------------------------------------------------------------------------
 	//  factories
 	// ------------------------------------------------------------------------

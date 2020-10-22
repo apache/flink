@@ -24,9 +24,10 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.metrics.SourceMetricGroup;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
 import org.junit.Test;
@@ -106,8 +107,8 @@ public class NumberSequenceSourceTest {
 	private static final class DummyReaderContext implements SourceReaderContext {
 
 		@Override
-		public MetricGroup metricGroup() {
-			return new UnregisteredMetricsGroup();
+		public SourceMetricGroup metricGroup() {
+			return new DummySourceMetricsGroup();
 		}
 
 		@Override
@@ -166,6 +167,25 @@ public class NumberSequenceSourceTest {
 
 		public ArrayList<E> getEmittedRecords() {
 			return emittedRecords;
+		}
+	}
+
+	private static final class DummySourceMetricsGroup
+		extends UnregisteredMetricsGroup implements SourceMetricGroup {
+
+		@Override
+		public Counter getNumRecordsInCounter() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Counter getNumBytesInCounter() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Counter getNumRecordsInErrorsCounter() {
+			throw new UnsupportedOperationException();
 		}
 	}
 }

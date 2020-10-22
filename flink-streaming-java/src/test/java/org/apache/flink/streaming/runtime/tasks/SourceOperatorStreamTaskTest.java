@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -143,7 +142,7 @@ public class SourceOperatorStreamTaskTest {
 
 			// Build expected output to verify the results
 			Queue<Object> expectedOutput = new LinkedList<>();
-			expectedRecords.forEach(r -> expectedOutput.offer(new StreamRecord<>(r, TimestampAssigner.NO_TIMESTAMP)));
+			expectedRecords.forEach(r -> expectedOutput.offer(new StreamRecord<>(r, r)));
 			// Add barrier to the expected output.
 			expectedOutput.add(new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 

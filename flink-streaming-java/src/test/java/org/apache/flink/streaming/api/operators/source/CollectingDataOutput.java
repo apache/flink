@@ -30,9 +30,9 @@ import java.util.List;
 /**
  * A test utility implementation of {@link PushingAsyncDataInput.DataOutput} that collects all events.
  */
-final class CollectingDataOutput<E> implements PushingAsyncDataInput.DataOutput<E> {
+public final class CollectingDataOutput<E> implements PushingAsyncDataInput.DataOutput<E> {
 
-	final List<Object> events = new ArrayList<>();
+	public final List<Object> events = new ArrayList<>();
 
 	@Override
 	public void emitWatermark(Watermark watermark) throws Exception {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.mocks;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -43,6 +44,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 	private boolean started;
 	private boolean closed;
 	private boolean waitingForMoreSplits;
+	private boolean emitWatermark;
 
 	@GuardedBy("this")
 	private CompletableFuture<Void> availableFuture;
@@ -76,7 +78,11 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		}
 		// Read from the split with available record.
 		if (currentSplitIndex < assignedSplits.size()) {
-			sourceOutput.collect(assignedSplits.get(currentSplitIndex).getNext(false)[0]);
+			int value = assignedSplits.get(currentSplitIndex).getNext(false)[0];
+			sourceOutput.collect(value, value);
+			if (emitWatermark) {
+				sourceOutput.emitWatermark(new Watermark(value));
+			}
 			return InputStatus.MORE_AVAILABLE;
 		} else if (finished) {
 			// In case no split has available record, return depending on whether all the splits has finished.
@@ -151,6 +157,10 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 		if (toNotify != null) {
 			toNotify.complete(null);
 		}
+	}
+
+	public void enableWatermarkEmission() {
+		emitWatermark = true;
 	}
 
 	public boolean isStarted() {

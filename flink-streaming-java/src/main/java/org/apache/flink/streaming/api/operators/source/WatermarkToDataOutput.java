@@ -83,4 +83,8 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
 			throw new ExceptionInChainedOperatorException(e);
 		}
 	}
+
+	public long getMaxWatermarkSoFar() {
+		return maxWatermarkSoFar;
+	}
 }
