@@ -181,4 +181,39 @@ class DeadlockBreakupTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
+  @Test
+  def testSubplanReuse_BuildAndProbeNoCommonSuccessors_HashJoin(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+    val sqlQuery =
+      s"""
+         |WITH
+         |  T1 AS (SELECT a, COUNT(*) AS cnt1 FROM x GROUP BY a),
+         |  T2 AS (SELECT d, COUNT(*) AS cnt2 FROM y GROUP BY d)
+         |SELECT * FROM
+         |  (SELECT cnt1, cnt2 FROM T1 LEFT JOIN T2 ON a = d)
+         |  UNION ALL
+         |  (SELECT cnt1, cnt2 FROM T2 LEFT JOIN T1 ON d = a)
+         |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testSubplanReuse_AddSingletonExchange(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    val sqlQuery =
+      s"""
+         |WITH
+         |  T1 AS (SELECT COUNT(*) AS cnt FROM x),
+         |  T2 AS (SELECT cnt FROM T1 WHERE cnt > 3),
+         |  T3 AS (SELECT cnt FROM T1 WHERE cnt < 5)
+         |SELECT * FROM T2 FULL JOIN T3 ON T2.cnt <> T3.cnt
+         |""".stripMargin
+    util.verifyPlan(sqlQuery)
+  }
 }

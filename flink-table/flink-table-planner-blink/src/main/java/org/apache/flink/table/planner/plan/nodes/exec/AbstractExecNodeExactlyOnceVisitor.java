@@ -18,15 +18,30 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Implement of {@link ExecNodeVisitor}.
- * An exec node may be visited multiple times if it's the input of multiple nodes.
+ * All nodes are visited exactly once.
  */
-public class ExecNodeVisitorImpl implements ExecNodeVisitor {
+public abstract class AbstractExecNodeExactlyOnceVisitor implements ExecNodeVisitor {
+
+	private final Set<ExecNode<?, ?>> visited;
+
+	public AbstractExecNodeExactlyOnceVisitor() {
+		this.visited = new HashSet<>();
+	}
 
 	public void visit(ExecNode<?, ?> node) {
-		visitInputs(node);
+		if (visited.contains(node)) {
+			return;
+		}
+		visited.add(node);
+		visitNode(node);
 	}
+
+	protected abstract void visitNode(ExecNode<?, ?> node);
 
 	protected void visitInputs(ExecNode<?, ?> node) {
 		node.getInputNodes().forEach(n -> n.accept(this));
