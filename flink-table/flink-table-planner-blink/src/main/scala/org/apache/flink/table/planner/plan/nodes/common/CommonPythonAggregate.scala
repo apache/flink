@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
-import org.apache.flink.table.functions.python.{PythonAggregateFunction, PythonFunction, PythonFunctionInfo}
+import org.apache.flink.table.functions.python.{PythonAggregateFunction, PythonAggregateFunctionInfo, PythonFunction, PythonFunctionInfo}
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.planner.plan.utils.AggregateInfo
+import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.types.logical.{RowType, StructuredType}
 import org.apache.flink.table.types.{DataType, FieldsDataType}
@@ -59,37 +59,45 @@ trait CommonPythonAggregate extends CommonPythonBase {
           case function: BridgingSqlAggFunction =>
             function.getDefinition.asInstanceOf[PythonFunction]
         }
-        new PythonFunctionInfo(pythonFunction, inputs.toArray)
+        new PythonAggregateFunctionInfo(
+          pythonFunction, inputs.toArray, aggregateCall.filterArg, aggregateCall.isDistinct)
     }
     val udafInputOffsets = inputNodes.toArray.map(_._1.toInt)
     (udafInputOffsets, pythonFunctionInfos.toArray)
   }
 
   /**
-    * For streaming execution we extract the PythonFunctionInfo from AggregateInfo.
+    * For streaming execution we extract the PythonFunctionInfo from both AggregateInfo and
+    * AggregateCall.
     */
-  protected def extractPythonAggregateFunctionInfosFromAggregateInfo(
-      aggIndex: Int,
-      pythonAggregateInfo: AggregateInfo): (PythonFunctionInfo, Array[DataViewSpec]) = {
-    pythonAggregateInfo.function match {
-      case function: PythonFunction =>
-        (
-          new PythonFunctionInfo(
+  protected def extractPythonAggregateFunctionInfos(
+      pythonAggregateInfoList: AggregateInfoList, aggCalls: Seq[AggregateCall]):
+  (Array[PythonAggregateFunctionInfo], Array[Array[DataViewSpec]]) = {
+    val pythonAggregateFunctionInfoList = new mutable.ArrayBuffer[PythonAggregateFunctionInfo]
+    val dataViewSpecList = new mutable.ArrayBuffer[Array[DataViewSpec]]
+    for (i <- pythonAggregateInfoList.aggInfos.indices) {
+      pythonAggregateInfoList.aggInfos(i).function match {
+        case function: PythonFunction =>
+          pythonAggregateFunctionInfoList.add(new PythonAggregateFunctionInfo(
             function,
-            pythonAggregateInfo.argIndexes.map(_.asInstanceOf[AnyRef])),
-          extractDataViewSpecs(
-            aggIndex,
-            function.asInstanceOf[PythonAggregateFunction].getTypeInference(null)
-              .getAccumulatorTypeStrategy.get()
-              .inferType(null).get())
-        )
-      case _: Count1AggFunction =>
-        // The count star will be treated specially in Python UDF worker
-        (PythonFunctionInfo.DUMMY_PLACEHOLDER, Array())
-      case _ =>
-        throw new TableException(
-          "Unsupported python aggregate function: " + pythonAggregateInfo.function)
+            pythonAggregateInfoList.aggInfos(i).argIndexes.map(_.asInstanceOf[AnyRef]),
+            aggCalls(i).filterArg,
+            aggCalls(i).isDistinct))
+          dataViewSpecList.add(
+            extractDataViewSpecs(
+              i,
+              function.asInstanceOf[PythonAggregateFunction].getTypeInference(null)
+              .getAccumulatorTypeStrategy.get().inferType(null).get()))
+        case _: Count1AggFunction =>
+          pythonAggregateFunctionInfoList.add(PythonAggregateFunctionInfo.DUMMY_PLACEHOLDER)
+          dataViewSpecList.add(Array())
+        case _ =>
+          throw new TableException(
+            "Unsupported python aggregate function: " +
+              pythonAggregateInfoList.aggInfos(i).function)
+      }
     }
+    (pythonAggregateFunctionInfoList.toArray, dataViewSpecList.toArray)
   }
 
   protected def extractDataViewSpecs(

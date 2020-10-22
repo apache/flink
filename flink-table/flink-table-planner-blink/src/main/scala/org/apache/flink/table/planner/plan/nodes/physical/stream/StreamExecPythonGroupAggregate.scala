@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.functions.python.PythonFunctionInfo
+import org.apache.flink.table.functions.python.{PythonAggregateFunctionInfo, PythonFunctionInfo}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
@@ -121,13 +121,8 @@ class StreamExecPythonGroupAggregate(
 
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
-    val extractedResult: Array[(PythonFunctionInfo, Array[DataViewSpec])] =
-      aggInfoList.aggInfos.zipWithIndex.map(t =>
-        extractPythonAggregateFunctionInfosFromAggregateInfo(t._2, t._1))
-
-    val pythonFunctionInfos = extractedResult.map(_._1)
-
-    var dataViewSpecs = extractedResult.map(_._2)
+    var (pythonFunctionInfos, dataViewSpecs) =
+      extractPythonAggregateFunctionInfos(aggInfoList, aggCalls)
 
     if (dataViewSpecs.forall(_.isEmpty)) {
       dataViewSpecs = Array()
@@ -176,7 +171,7 @@ class StreamExecPythonGroupAggregate(
       config: Configuration,
       inputType: RowType,
       outputType: RowType,
-      aggregateFunctions: Array[PythonFunctionInfo],
+      aggregateFunctions: Array[PythonAggregateFunctionInfo],
       dataViewSpecs: Array[Array[DataViewSpec]],
       minIdleStateRetentionTime: Long,
       maxIdleStateRetentionTime: Long,
@@ -189,7 +184,7 @@ class StreamExecPythonGroupAggregate(
       classOf[Configuration],
       classOf[RowType],
       classOf[RowType],
-      classOf[Array[PythonFunctionInfo]],
+      classOf[Array[PythonAggregateFunctionInfo]],
       classOf[Array[Array[DataViewSpec]]],
       classOf[Array[Int]],
       classOf[Int],

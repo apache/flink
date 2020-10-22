@@ -131,6 +131,10 @@ message UserDefinedAggregateFunction {
   repeated Input inputs = 2;
 
   repeated DataViewSpec specs = 3;
+
+  int32 filter_arg = 4;
+
+  bool distinct = 5;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.

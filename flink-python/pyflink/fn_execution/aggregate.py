@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Dict
 
 from apache_beam.coders import PickleCoder, Coder
 
@@ -141,6 +141,19 @@ class MapViewSpec(DataViewSpec):
         super(MapViewSpec, self).__init__(state_id, field_index)
         self.key_coder = key_coder
         self.value_coder = value_coder
+
+
+class DistinctViewDescriptor(object):
+
+    def __init__(self, input_extractor, filter_args):
+        self._input_extractor = input_extractor
+        self._filter_args = filter_args
+
+    def get_input_extractor(self):
+        return self._input_extractor
+
+    def get_filter_args(self):
+        return self._filter_args
 
 
 class RowKeySelector(object):
@@ -287,7 +300,10 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
                  udfs: List[AggregateFunction],
                  input_extractors: List,
                  index_of_count_star: int,
-                 udf_data_view_specs: List[List[DataViewSpec]]):
+                 udf_data_view_specs: List[List[DataViewSpec]],
+                 filter_args: List[int],
+                 distinct_indexes: List[int],
+                 distinct_view_descriptors: Dict[int, DistinctViewDescriptor]):
         self._udfs = udfs
         self._input_extractors = input_extractors
         self._accumulators = None  # type: Row
@@ -297,6 +313,10 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
             self._get_value_indexes.remove(index_of_count_star)
         self._udf_data_view_specs = udf_data_view_specs
         self._udf_data_views = []
+        self._filter_args = filter_args
+        self._distinct_indexes = distinct_indexes
+        self._distinct_view_descriptors = distinct_view_descriptors
+        self._distinct_data_views = {}
 
     def open(self, state_data_view_store):
         for udf in self._udfs:
@@ -317,17 +337,68 @@ class SimpleAggsHandleFunction(AggsHandleFunction):
                             PickleCoder(),
                             PickleCoder())
             self._udf_data_views.append(data_views)
+        for key in self._distinct_view_descriptors.keys():
+            self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
+                "agg%ddistinct" % key,
+                PickleCoder(),
+                PickleCoder())
 
     def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
+            if i in self._distinct_data_views:
+                if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
+                    filtered = False
+                else:
+                    filtered = True
+                    for filter_arg in self._distinct_view_descriptors[i].get_filter_args():
+                        if input_data[filter_arg]:
+                            filtered = False
+                            break
+                if not filtered:
+                    input_extractor = self._distinct_view_descriptors[i].get_input_extractor()
+                    args = input_extractor(input_data)
+                    if args in self._distinct_data_views[i]:
+                        self._distinct_data_views[i][args] += 1
+                    else:
+                        self._distinct_data_views[i][args] = 1
+            if self._filter_args[i] >= 0 and not input_data[self._filter_args[i]]:
+                continue
             input_extractor = self._input_extractors[i]
             args = input_extractor(input_data)
+            if self._distinct_indexes[i] >= 0:
+                if args in self._distinct_data_views[self._distinct_indexes[i]]:
+                    if self._distinct_data_views[self._distinct_indexes[i]][args] > 1:
+                        continue
+                else:
+                    raise Exception(
+                        "The args are not in the distinct data view, this should not happen.")
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
     def retract(self, input_data: Row):
         for i in range(len(self._udfs)):
+            if i in self._distinct_data_views:
+                if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
+                    filtered = False
+                else:
+                    filtered = True
+                    for filter_arg in self._distinct_view_descriptors[i].get_filter_args():
+                        if input_data[filter_arg]:
+                            filtered = False
+                            break
+                if not filtered:
+                    input_extractor = self._distinct_view_descriptors[i].get_input_extractor()
+                    args = input_extractor(input_data)
+                    if args in self._distinct_data_views[i]:
+                        self._distinct_data_views[i][args] -= 1
+                        if self._distinct_data_views[i][args] == 0:
+                            del self._distinct_data_views[i][args]
+            if self._filter_args[i] >= 0 and not input_data[self._filter_args[i]]:
+                continue
             input_extractor = self._input_extractors[i]
             args = input_extractor(input_data)
+            if self._distinct_indexes[i] >= 0 and \
+                    args in self._distinct_data_views[self._distinct_indexes[i]]:
+                continue
             self._udfs[i].retract(self._accumulators[i], *args)
 
     def merge(self, accumulators: Row):

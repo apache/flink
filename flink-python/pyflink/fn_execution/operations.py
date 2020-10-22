@@ -26,7 +26,7 @@ from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 from pyflink.fn_execution.aggregate import RowKeySelector, SimpleAggsHandleFunction, \
-    GroupAggFunction, extract_data_view_specs
+    GroupAggFunction, extract_data_view_specs, DistinctViewDescriptor
 from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
 from pyflink.table.functions import Count1AggFunction
@@ -285,23 +285,46 @@ class StreamGroupAggregateOperation(StatefulFunctionOperation):
     def generate_func(self, serialized_fn):
         user_defined_aggs = []
         input_extractors = []
+        filter_args = []
+        # stores the indexes of the distinct views which the agg functions used
+        distinct_indexes = []
+        # stores the indexes of the functions which share the same distinct view
+        # and the filter args of them
+        distinct_info_dict = {}
         for i in range(len(serialized_fn.udfs)):
             if i != self.index_of_count_star:
-                user_defined_agg, input_extractor = extract_user_defined_aggregate_function(
-                    serialized_fn.udfs[i])
+                user_defined_agg, input_extractor, filter_arg, distinct_index = \
+                    extract_user_defined_aggregate_function(
+                        i, serialized_fn.udfs[i], distinct_info_dict)
             else:
                 user_defined_agg = Count1AggFunction()
+                filter_arg = -1
+                distinct_index = -1
 
                 def dummy_input_extractor(value):
                     return []
                 input_extractor = dummy_input_extractor
             user_defined_aggs.append(user_defined_agg)
             input_extractors.append(input_extractor)
+            filter_args.append(filter_arg)
+            distinct_indexes.append(distinct_index)
+        distinct_view_descriptors = {}
+        for agg_index_list, filter_arg_list in distinct_info_dict.values():
+            if -1 in filter_arg_list:
+                # If there is a non-filter call, we don't need to check filter or not before
+                # writing the distinct data view.
+                filter_arg_list = []
+            # use the agg index of the first function as the key of shared distinct view
+            distinct_view_descriptors[agg_index_list[0]] = DistinctViewDescriptor(
+                input_extractors[agg_index_list[0]], filter_arg_list)
         aggs_handler_function = SimpleAggsHandleFunction(
             user_defined_aggs,
             input_extractors,
             self.index_of_count_star,
-            self.data_view_specs)
+            self.data_view_specs,
+            filter_args,
+            distinct_indexes,
+            distinct_view_descriptors)
         key_selector = RowKeySelector(self.grouping)
         if len(self.data_view_specs) > 0:
             state_value_coder = DataViewFilterCoder(self.data_view_specs)

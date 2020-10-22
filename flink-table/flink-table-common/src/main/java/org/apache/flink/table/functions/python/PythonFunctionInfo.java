@@ -28,7 +28,7 @@ import java.io.Serializable;
  * the actual Python function, the input arguments, etc.
  */
 @Internal
-public final class PythonFunctionInfo implements Serializable {
+public class PythonFunctionInfo implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -57,16 +57,4 @@ public final class PythonFunctionInfo implements Serializable {
 	public Object[] getInputs() {
 		return this.inputs;
 	}
-
-	public static final PythonFunctionInfo DUMMY_PLACEHOLDER = new PythonFunctionInfo(new PythonFunction() {
-		@Override
-		public byte[] getSerializedPythonFunction() {
-			return new byte[0];
-		}
-
-		@Override
-		public PythonEnv getPythonEnv() {
-			return new PythonEnv(PythonEnv.ExecType.PROCESS);
-		}
-	}, new Object[0]);
 }

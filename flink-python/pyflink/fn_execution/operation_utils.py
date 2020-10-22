@@ -180,7 +180,10 @@ def _parse_constant_value(constant_value) -> Tuple[str, Any]:
     return constant_value_name, parsed_constant_value
 
 
-def extract_user_defined_aggregate_function(user_defined_function_proto):
+def extract_user_defined_aggregate_function(
+        current_index,
+        user_defined_function_proto,
+        distinct_info_dict: Dict[Tuple[List[str]], Tuple[List[int], List[int]]]):
     user_defined_agg = pickle.loads(user_defined_function_proto.payload)
     assert isinstance(user_defined_agg, AggregateFunction)
     args_str = []
@@ -193,7 +196,26 @@ def extract_user_defined_aggregate_function(user_defined_function_proto):
             # the input argument is a constant value
             constant_value_name, parsed_constant_value = \
                 _parse_constant_value(arg.inputConstant)
+            for key, value in local_variable_dict.items():
+                if value == parsed_constant_value:
+                    constant_value_name = key
+                    break
+            if constant_value_name not in local_variable_dict:
+                local_variable_dict[constant_value_name] = parsed_constant_value
             args_str.append(constant_value_name)
-            local_variable_dict[constant_value_name] = parsed_constant_value
 
-    return user_defined_agg, eval("lambda value : [%s]" % ",".join(args_str), local_variable_dict)
+    if user_defined_function_proto.distinct:
+        if tuple(args_str) in distinct_info_dict:
+            distinct_info_dict[tuple(args_str)][0].append(current_index)
+            distinct_info_dict[tuple(args_str)][1].append(user_defined_function_proto.filter_arg)
+            distinct_index = distinct_info_dict[tuple(args_str)][0][0]
+        else:
+            distinct_info_dict[tuple(args_str)] = \
+                ([current_index], [user_defined_function_proto.filter_arg])
+            distinct_index = current_index
+    else:
+        distinct_index = -1
+    return user_defined_agg, \
+        eval("lambda value : (%s,)" % ",".join(args_str), local_variable_dict), \
+        user_defined_function_proto.filter_arg, \
+        distinct_index
