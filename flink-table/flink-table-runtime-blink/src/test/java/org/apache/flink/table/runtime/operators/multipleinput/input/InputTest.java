@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
 
@@ -38,7 +39,7 @@ import static org.junit.Assert.assertNull;
 /**
  * Test for the sub-classes of {@link Input}.
  */
-public class InputTest {
+public class InputTest extends MultipleInputTestBase {
 
 	private StreamRecord<RowData> element;
 	private Watermark watermark;
@@ -53,7 +54,7 @@ public class InputTest {
 
 	@Test
 	public void testOneInput() throws Exception {
-		TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
+		TestingOneInputStreamOperator op = createOneInputStreamOperator();
 		OneInput input = new OneInput(op);
 
 		input.processElement(element);
@@ -68,7 +69,7 @@ public class InputTest {
 
 	@Test
 	public void testFirstInputOfTwoInput() throws Exception {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
 		FirstInputOfTwoInput input = new FirstInputOfTwoInput(op);
 
 		input.processElement(element);
@@ -86,7 +87,7 @@ public class InputTest {
 
 	@Test
 	public void testSecondInputOfTwoInput() throws Exception {
-		TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
+		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
 		SecondInputOfTwoInput input = new SecondInputOfTwoInput(op);
 
 		input.processElement(element);

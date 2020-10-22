@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
+import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputStreamOperatorBase;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper;
 
 import java.io.Serializable;
@@ -35,7 +35,7 @@ public class InputSpec implements Serializable {
 
 	/**
 	 * The input id (start from 1) used for identifying each {@link Input}
-	 * in {@link MultipleInputStreamOperator#getInputs()}.
+	 * in {@link MultipleInputStreamOperatorBase#getInputs()}.
 	 */
 	private final int multipleInputId;
 

@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -47,12 +46,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class TableOperatorWrapperGenerator {
 
 	/**
-	 * Original input transformations for {@link MultipleInputStreamOperator}.
+	 * Original input transformations for {@link MultipleInputStreamOperatorBase}.
 	 */
 	private final List<Transformation<?>> inputTransforms;
 
 	/**
-	 * The tail (root) transformation of the transformation-graph in {@link MultipleInputStreamOperator}.
+	 * The tail (root) transformation of the transformation-graph in {@link MultipleInputStreamOperatorBase}.
 	 */
 	private final Transformation<?> tailTransform;
 
@@ -67,12 +66,12 @@ public class TableOperatorWrapperGenerator {
 	private final List<Pair<Transformation<?>, InputSpec>> inputTransformAndInputSpecPairs;
 
 	/**
-	 * The head (leaf) operator wrappers of the operator-graph in {@link MultipleInputStreamOperator}.
+	 * The head (leaf) operator wrappers of the operator-graph in {@link MultipleInputStreamOperatorBase}.
 	 */
 	private final List<TableOperatorWrapper<?>> headWrappers;
 
 	/**
-	 * The tail (root) operator wrapper of the operator-graph in {@link MultipleInputStreamOperator}.
+	 * The tail (root) operator wrapper of the operator-graph in {@link MultipleInputStreamOperatorBase}.
 	 */
 	private TableOperatorWrapper<?> tailWrapper;
 
@@ -81,7 +80,7 @@ public class TableOperatorWrapperGenerator {
 	 */
 	private final Map<Transformation<?>, TableOperatorWrapper<?>> visitedTransforms;
 	/**
-	 * The identifier for each sub operator in {@link MultipleInputStreamOperator}.
+	 * The identifier for each sub operator in {@link MultipleInputStreamOperatorBase}.
 	 */
 	private int identifierOfSubOp = 0;
 
@@ -92,7 +91,7 @@ public class TableOperatorWrapperGenerator {
 	/**
 	 * managed memory weight for batch operator.
 	 */
-	private int managedMemoryWeight;
+	private long managedMemoryWeight;
 
 	public TableOperatorWrapperGenerator(
 			List<Transformation<?>> inputTransforms,
@@ -149,7 +148,7 @@ public class TableOperatorWrapperGenerator {
 		return preferredResources;
 	}
 
-	public int getManagedMemoryWeight() {
+	public long getManagedMemoryWeight() {
 		return managedMemoryWeight;
 	}
 

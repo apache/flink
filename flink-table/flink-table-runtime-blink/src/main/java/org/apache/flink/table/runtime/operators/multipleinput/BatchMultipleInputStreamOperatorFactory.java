@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
@@ -28,7 +27,7 @@ import org.apache.flink.table.runtime.operators.multipleinput.input.InputSpec;
 import java.util.List;
 
 /**
- * The factory to create batch {@link MultipleInputStreamOperator}.
+ * The factory to create {@link BatchMultipleInputStreamOperator}.
  */
 public class BatchMultipleInputStreamOperatorFactory extends AbstractStreamOperatorFactory<RowData> {
 	private static final long serialVersionUID = 1L;
@@ -46,14 +45,18 @@ public class BatchMultipleInputStreamOperatorFactory extends AbstractStreamOpera
 		this.tailWrapper = tailWrapper;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public <T extends StreamOperator<RowData>> T createStreamOperator(
-			StreamOperatorParameters<RowData> parameters) {
-		throw new UnsupportedOperationException("Unsupported now.");
+	public <T extends StreamOperator<RowData>> T createStreamOperator(StreamOperatorParameters<RowData> parameters) {
+		return (T) new BatchMultipleInputStreamOperator(
+				parameters,
+				inputSpecs,
+				headWrappers,
+				tailWrapper);
 	}
 
 	@Override
 	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		throw new UnsupportedOperationException("Unsupported now.");
+		return BatchMultipleInputStreamOperator.class;
 	}
 }
