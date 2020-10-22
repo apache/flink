@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "theme";
 
 :host {
   display: block;
@@ -23,4 +24,45 @@
 
 nz-card:first-child {
   margin-bottom: 16px;
+}
+
+.flink-memory-model {
+  ::ng-deep {
+    table {
+      border-collapse: collapse;
+    }
+    .ant-table-small {
+      border: none;
+      .ant-table-body {
+        margin: 0;
+        overflow: hidden !important;
+      }
+      tr {
+        &:hover {
+          td, th {
+            background: transparent;
+          }
+        }
+      }
+      td, th {
+        border-collapse: collapse;
+        border: 1px solid @border-color-split !important;
+        &.table-header {
+          background: @table-header-bg !important;
+          color: @table-header-color;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+}
+
+nz-progress {
+  display: block;
+  width: 90%;
+  ::ng-deep {
+    .ant-progress-inner {
+      border-radius: 0 !important;
+    }
+  }
 }
