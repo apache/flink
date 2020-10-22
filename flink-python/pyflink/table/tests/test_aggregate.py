@@ -326,7 +326,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         self.t_env.get_config().get_configuration().set_string(
             "python.map-state.write-cache-size", "2")
         self.t_env.get_config().get_configuration().set_string(
-            "python.map-state.iterate-cache-size", "2")
+            "python.map-state.iterate-response-batch-size", "2")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
              (1, 'Hi', 'hi'),

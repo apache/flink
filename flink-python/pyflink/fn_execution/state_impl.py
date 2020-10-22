@@ -156,6 +156,17 @@ class IterateType(Enum):
     VALUES = 2
 
 
+class IteratorToken(Enum):
+    """
+    The token indicates the status of current underlying iterator. It can also be a UUID,
+    which represents an iterator on the Java side.
+    """
+    NOT_START = 0
+    WRITE_CACHE = 1
+    READ_CACHE = 2
+    FINISHED = 3
+
+
 class CachingMapStateHandler(object):
     # GET request flags
     GET_FLAG = 0
@@ -212,24 +223,29 @@ class CachingMapStateHandler(object):
             else:
                 return cached_value
 
-    def iterate(self, state_key, iterate_type, iterator_token, map_key_coder, map_value_coder):
+    def iterate(self, state_key, iterate_type, last_iterator_token, map_key_coder, map_value_coder):
+        assert last_iterator_token is not None
         cache_token = self._get_cache_token()
-        if cache_token and iterator_token is None:
+        if cache_token and last_iterator_token == IteratorToken.WRITE_CACHE:
             # check if the data in the read cache can be used
             cache_state_key = self._convert_to_cache_key(state_key)
             cached_map_state = self._state_cache.get(cache_state_key, cache_token)
             if cached_map_state and cached_map_state.is_all_data_cached():
-                return cached_map_state, iterator_token
+                return cached_map_state, IteratorToken.READ_CACHE
         # request Java side
-        current_batch, response_token = self._iterate_raw(
-            state_key, iterate_type, iterator_token, map_key_coder, map_value_coder)
-        if len(response_token) == 0:
-            response_token = None
-        if iterator_token is None and response_token is not None:
+        current_batch, new_iterator_token = self._iterate_raw(
+            state_key, iterate_type, last_iterator_token, map_key_coder, map_value_coder)
+        assert isinstance(new_iterator_token, bytes)
+        if len(new_iterator_token) == 0:
+            new_iterator_token = IteratorToken.FINISHED
+        if not isinstance(last_iterator_token, IteratorToken) and \
+                new_iterator_token != IteratorToken.FINISHED:
+            # There is a new iterator created on the Java side.
             self.inc_cached_iterators_num()
         if cache_token and \
-            iterator_token is None and response_token is None and \
-            iterate_type != IterateType.KEYS and \
+                isinstance(last_iterator_token, IteratorToken) and \
+                new_iterator_token == IteratorToken.FINISHED and \
+                iterate_type != IterateType.KEYS and \
                 self._max_cached_map_key_entries >= len(current_batch):
             # the data can be stored in read cache
             cached_map_state = CachedMapState(self._max_cached_map_key_entries)
@@ -238,7 +254,7 @@ class CachingMapStateHandler(object):
                 cached_map_state.put(key, (True, value))
             cached_map_state.set_all_data_cached()
             self._state_cache.put(cache_state_key, cache_token, cached_map_state)
-        return current_batch, response_token
+        return current_batch, new_iterator_token
 
     def extend(self, state_key, items: List[Tuple[int, Any, Any]], map_key_coder, map_value_coder):
         cache_token = self._get_cache_token()
@@ -327,7 +343,8 @@ class CachingMapStateHandler(object):
         output_stream = coder_impl.create_OutputStream()
         output_stream.write_byte(self.ITERATE_FLAG)
         output_stream.write_byte(iterate_type.value)
-        if iterator_token is not None:
+        if not isinstance(iterator_token, IteratorToken):
+            # The iterator token represents a Java iterator
             output_stream.write_bigendian_int32(len(iterator_token))
             output_stream.write(iterator_token)
         else:
@@ -385,10 +402,11 @@ class RemovableIterator(collections.Iterator):
     def __init__(self, internal_map_state, iterate_type):
         self._internal_map_state = internal_map_state
         self._mod_count = internal_map_state._mod_count
-        self._underlying = iter(self._internal_map_state._write_cache.items())
-        self._underlying_is_write_cache = True
+        self._underlying_is_write_cache = False
         self._underlying_is_read_cache = False
-        self._iterator_token = None
+        self._iterator_token = IteratorToken.NOT_START
+        self._iterate_type = iterate_type
+        self._underlying = self._next_batch()
         self._cached_map_state = None
         self._last_key = None
         self._iterate_type = iterate_type
@@ -405,23 +423,22 @@ class RemovableIterator(collections.Iterator):
 
     def __next__(self):
         self._check_modification()
-        if self._underlying_is_write_cache:
+        if self._iterator_token == IteratorToken.WRITE_CACHE:
             # Iterate the data in write cache firstly
             try:
-                key, existed_and_value = next(self._underlying)
-                while not existed_and_value[0]:
-                    key, existed_and_value = next(self._underlying)
-                return self._get_from_cache(key, existed_and_value)
+                self._last_key, (exists, value) = next(self._underlying)
+                while not exists:
+                    self._last_key, (exists, value) = next(self._underlying)
+                return self._get_from_cache(self._last_key, value)
             except StopIteration:
                 self._underlying = self._next_batch()
-                self._underlying_is_write_cache = False
-        if self._underlying_is_read_cache:
+                return self.__next__()
+        elif self._iterator_token == IteratorToken.READ_CACHE:
             # If the read cache contains all data (except the data in write cache) of the map state
-            self._last_key, existed_and_value = next(self._underlying)
-            while not existed_and_value[0] or \
-                    self._last_key in self._internal_map_state._write_cache:
-                key, existed_and_value = next(self._underlying)
-            return self._get_from_cache(self._last_key, existed_and_value)
+            self._last_key, (exists, value) = next(self._underlying)
+            while not exists or self._last_key in self._internal_map_state._write_cache:
+                key, (exists, value) = next(self._underlying)
+            return self._get_from_cache(self._last_key, value)
         else:
             try:
                 # The data is from Java side
@@ -430,7 +447,7 @@ class RemovableIterator(collections.Iterator):
                     next_value = self._get_from_data(next(self._underlying))
                 return next_value
             except StopIteration:
-                if self._iterator_token is None:
+                if self._iterator_token == IteratorToken.FINISHED:
                     raise
                 else:
                     self._underlying = self._next_batch()
@@ -448,12 +465,12 @@ class RemovableIterator(collections.Iterator):
         # cache.
         if self._internal_map_state._cleared:
             del self._internal_map_state._write_cache[self._last_key]
-            self._mod_count += 1
-            self._internal_map_state._mod_count += 1
+            if len(self._internal_map_state._write_cache) == 0:
+                self._internal_map_state._is_empty = True
         else:
             self._internal_map_state._write_cache[self._last_key] = (False, None)
-            self._mod_count += 1
-            self._internal_map_state._mod_count += 1
+        self._mod_count += 1
+        self._internal_map_state._mod_count += 1
         self._last_key = None
 
     def _check_modification(self):
@@ -463,27 +480,31 @@ class RemovableIterator(collections.Iterator):
                             "'remove' method of this iterator.")
 
     def _next_batch(self):
-        data, self._iterator_token = self._internal_map_state._iterate_next_batch(
+        data, self._iterator_token = self._internal_map_state.next_batch(
             self._iterate_type, self._iterator_token)
-        if isinstance(data, CachedMapState):
-            self._underlying_is_read_cache = True
+        if self._iterator_token == IteratorToken.WRITE_CACHE:
+            return iter(data.items())
+        if self._iterator_token == IteratorToken.READ_CACHE:
+            assert isinstance(data, CachedMapState)
             return iter(data._cache.items())
         elif self._iterate_type == IterateType.KEYS:
+            # map keys requested from Java
             return iter(data)
         else:
+            # map items requested from Java
             return iter(data.items())
 
-    def _get_key_from_cache(self, key, existed_and_value):
-        self._last_key = key
+    @staticmethod
+    def _get_key_from_cache(key, value):
         return key
 
-    def _get_value_from_cache(self, key, existed_and_value):
-        self._last_key = key
-        return existed_and_value[1]
+    @staticmethod
+    def _get_value_from_cache(key, value):
+        return value
 
-    def _get_item_from_cache(self, key, existed_and_value):
-        self._last_key = key
-        return key, existed_and_value[1]
+    @staticmethod
+    def _get_item_from_cache(key, value):
+        return key, value
 
     def _get_key_from_data(self, key):
         self._last_key = key
@@ -618,17 +639,21 @@ class InternalSynchronousMapRuntimeState(object):
             to_await.get()
         self._write_cache.clear()
         self._cleared = False
+        self._mod_count += 1
 
-    def _iterate_next_batch(self, iterate_type, iterator_token):
-        if self._cleared:
-            return [] if iterate_type == IterateType.KEYS else {}, None
+    def next_batch(self, iterate_type, last_iterator_token):
+        if last_iterator_token == IteratorToken.NOT_START:
+            return self._write_cache, IteratorToken.WRITE_CACHE
         else:
-            return self._map_state_handler.iterate(
-                self._state_key,
-                iterate_type,
-                iterator_token,
-                self._map_key_coder_impl,
-                self._map_value_coder_impl)
+            if self._cleared:
+                return [] if iterate_type == IterateType.KEYS else {}, IteratorToken.FINISHED
+            else:
+                return self._map_state_handler.iterate(
+                    self._state_key,
+                    iterate_type,
+                    last_iterator_token,
+                    self._map_key_coder_impl,
+                    self._map_value_coder_impl)
 
 
 class SynchronousMapRuntimeState(MapState):
