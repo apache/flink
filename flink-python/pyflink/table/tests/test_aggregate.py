@@ -83,6 +83,32 @@ class SumAggregateFunction(AggregateFunction):
 class ConcatAggregateFunction(AggregateFunction):
 
     def get_value(self, accumulator):
+        str_list = [i for i in accumulator[0]]
+        str_list.sort()
+        return accumulator[1].join(str_list)
+
+    def create_accumulator(self):
+        return Row([], '')
+
+    def accumulate(self, accumulator, *args):
+        accumulator[1] = args[1]
+        accumulator[0].append(args[0])
+
+    def retract(self, accumulator, *args):
+        accumulator[0].remove(args[0])
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.ARRAY(DataTypes.STRING())),
+            DataTypes.FIELD("f1", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.STRING()
+
+
+class ListViewConcatAggregateFunction(AggregateFunction):
+
+    def get_value(self, accumulator):
         return accumulator[1].join(accumulator[0])
 
     def create_accumulator(self):
@@ -96,7 +122,9 @@ class ConcatAggregateFunction(AggregateFunction):
         raise NotImplementedError
 
     def get_accumulator_type(self):
-        return DataTypes.ROW([DataTypes.FIELD("f0", DataTypes.LIST_VIEW(DataTypes.STRING()))])
+        return DataTypes.ROW([
+            DataTypes.FIELD("f0", DataTypes.LIST_VIEW(DataTypes.STRING())),
+            DataTypes.FIELD("f1", DataTypes.BIGINT())])
 
     def get_result_type(self):
         return DataTypes.STRING()
@@ -241,7 +269,7 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
         self.assertEqual(result_type, DataTypes.INT())
 
     def test_list_view(self):
-        my_concat = udaf(ConcatAggregateFunction())
+        my_concat = udaf(ListViewConcatAggregateFunction())
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
@@ -357,6 +385,39 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                 ["hello,hello2", "1,3", 'hello:3,hello2:1', 2, "hello"],
                 ["Hi,Hi2,Hi3", "1,2,3", "Hi:3,Hi2:2,Hi3:1", 3, "hi"]],
                 columns=['a', 'b', 'c', 'd', 'e']))
+
+    def test_distinct_and_filter(self):
+        self.t_env.create_temporary_system_function(
+            "concat",
+            ConcatAggregateFunction())
+        t = self.t_env.from_elements(
+            [(1, 'Hi_', 'hi'),
+             (1, 'Hi', 'hi'),
+             (2, 'hello', 'hello'),
+             (3, 'Hi_', 'hi'),
+             (3, 'Hi', 'hi'),
+             (4, 'hello', 'hello'),
+             (5, 'Hi2_', 'hi'),
+             (5, 'Hi2', 'hi'),
+             (6, 'hello2', 'hello'),
+             (7, 'Hi', 'hi'),
+             (8, 'hello', 'hello'),
+             (9, 'Hi2', 'hi'),
+             (13, 'Hi3', 'hi')], ['a', 'b', 'c'])
+        self.t_env.create_temporary_view("source", t)
+        table_with_retract_message = self.t_env.sql_query(
+            "select LAST_VALUE(b) as b, LAST_VALUE(c) as c from source group by a")
+        self.t_env.create_temporary_view("retract_table", table_with_retract_message)
+        result = self.t_env.sql_query(
+            "select concat(distinct b, '.') as a, "
+            "concat(distinct b, ',') filter (where c = 'hi') as b, "
+            "concat(distinct b, ',') filter (where c = 'hello') as c, "
+            "c as d "
+            "from retract_table group by c")
+        assert_frame_equal(result.to_pandas().sort_values(by='a').reset_index(drop=True),
+                           pd.DataFrame([["Hi.Hi2.Hi3", "Hi,Hi2,Hi3", "", "hi"],
+                                         ["hello.hello2", "", "hello,hello2", "hello"]],
+                                        columns=['a', 'b', 'c', 'd']))
 
 
 if __name__ == '__main__':
