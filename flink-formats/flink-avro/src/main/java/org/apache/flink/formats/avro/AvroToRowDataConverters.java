@@ -178,7 +178,7 @@ public class AvroToRowDataConverters {
 
 	private static AvroToRowDataConverter createMapConverter(LogicalType type) {
 		final AvroToRowDataConverter keyConverter = createConverter(DataTypes.STRING().getLogicalType());
-		final AvroToRowDataConverter valueConverter = createConverter(extractValueTypeToAvroMap(type));
+		final AvroToRowDataConverter valueConverter = createNullableConverter(extractValueTypeToAvroMap(type));
 
 		return avroObject -> {
 			final Map<?, ?> map = (Map<?, ?>) avroObject;
