@@ -31,8 +31,6 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,31 +61,25 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	/**
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<OperatorStateHandle> managedOperatorState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<OperatorStateHandle> rawOperatorState;
 
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<KeyedStateHandle> managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
-	@Nonnull
 	private final StateObjectCollection<KeyedStateHandle> rawKeyedState;
 
-	@Nonnull
 	private final StateObjectCollection<InputChannelStateHandle> inputChannelState;
 
-	@Nonnull
 	private final StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState;
 
 	/**
@@ -98,12 +90,12 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	private final long stateSize;
 
 	private OperatorSubtaskState(
-			@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
-			@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
-			@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
-			@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState,
-			@Nonnull StateObjectCollection<InputChannelStateHandle> inputChannelState,
-			@Nonnull StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
+			StateObjectCollection<OperatorStateHandle> managedOperatorState,
+			StateObjectCollection<OperatorStateHandle> rawOperatorState,
+			StateObjectCollection<KeyedStateHandle> managedKeyedState,
+			StateObjectCollection<KeyedStateHandle> rawKeyedState,
+			StateObjectCollection<InputChannelStateHandle> inputChannelState,
+			StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
 
 		this.managedOperatorState = checkNotNull(managedOperatorState);
 		this.rawOperatorState = checkNotNull(rawOperatorState);
@@ -133,44 +125,28 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Returns a handle to the managed operator state.
-	 */
-	@Nonnull
 	public StateObjectCollection<OperatorStateHandle> getManagedOperatorState() {
 		return managedOperatorState;
 	}
 
-	/**
-	 * Returns a handle to the raw operator state.
-	 */
-	@Nonnull
 	public StateObjectCollection<OperatorStateHandle> getRawOperatorState() {
 		return rawOperatorState;
 	}
 
-	/**
-	 * Returns a handle to the managed keyed state.
-	 */
-	@Nonnull
 	public StateObjectCollection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
-	/**
-	 * Returns a handle to the raw keyed state.
-	 */
-	@Nonnull
 	public StateObjectCollection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}
 
-	@Nonnull
+	
 	public StateObjectCollection<InputChannelStateHandle> getInputChannelState() {
 		return inputChannelState;
 	}
 
-	@Nonnull
+	
 	public StateObjectCollection<ResultSubpartitionStateHandle> getResultSubpartitionState() {
 		return resultSubpartitionState;
 	}
