@@ -19,10 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
+import org.apache.flink.table.runtime.operators.multipleinput.{BatchMultipleInputStreamOperatorFactory, TableOperatorWrapperGenerator}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -64,6 +68,38 @@ class BatchExecMultipleInputNode(
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = ???
+      planner: BatchPlanner): Transformation[RowData] = {
+    val inputTransforms = getInputNodes.map(n => n.translateToPlan(planner))
+    val tailTransform = outputRel.asInstanceOf[BatchExecNode[_]].translateToPlan(planner)
+
+    val outputType = InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+
+    val generator = new TableOperatorWrapperGenerator(inputTransforms, tailTransform, readOrders)
+    generator.generate()
+
+    val inputTransformAndInputSpecPairs = generator.getInputTransformAndInputSpecPairs
+    val multipleInputTransform = new MultipleInputTransformation[RowData](
+      getRelDetailedDescription,
+      new BatchMultipleInputStreamOperatorFactory(
+        inputTransformAndInputSpecPairs.map(_.getValue),
+        generator.getHeadWrappers,
+        generator.getTailWrapper),
+      outputType,
+      generator.getParallelism)
+
+    // add inputs as the order of input specs
+    inputTransformAndInputSpecPairs.foreach(input => multipleInputTransform.addInput(input.getKey))
+
+    if (generator.getMaxParallelism > 0) {
+      multipleInputTransform.setMaxParallelism(generator.getMaxParallelism)
+    }
+
+    // set resources
+    multipleInputTransform.setResources(generator.getMinResources, generator.getPreferredResources)
+    val memoryKB = generator.getManagedMemoryWeight
+    ExecNode.setManagedMemoryWeight(multipleInputTransform, memoryKB * 1024)
+
+    multipleInputTransform
+  }
 
 }
