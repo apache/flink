@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
@@ -52,7 +53,10 @@ public final class DataStreamUtils {
 	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
 	 * and the events from the stream are polled back to this application process and thread through
 	 * Flink's REST API.
+	 *
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
 	 */
+	@Deprecated
 	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) {
 		return collect(stream, "Data Stream Collect");
 	}
@@ -64,7 +68,9 @@ public final class DataStreamUtils {
 	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
 	 * and the events from the stream are polled back to this application process and thread through
 	 * Flink's REST API.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
 	 */
+	@Deprecated
 	public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream, String executionJobName) {
 		try {
 			return collectWithClient(stream, executionJobName).iterator;
@@ -78,7 +84,9 @@ public final class DataStreamUtils {
 	/**
 	 * Starts the execution of the program and returns an iterator to read the result of the
 	 * given data stream, plus a {@link JobClient} to interact with the application execution.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
 	 */
+	@Deprecated
 	public static <OUT> ClientAndIterator<OUT> collectWithClient(
 			DataStream<OUT> stream,
 			String jobExecutionName) throws Exception {
@@ -112,7 +120,9 @@ public final class DataStreamUtils {
 	 * Out-of-Memory Error because it attempts to collect an infinite stream into a list.
 	 *
 	 * @throws Exception Exceptions that occur during the execution are forwarded.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
 	 */
+	@Deprecated
 	public static <E> List<E> collectBoundedStream(DataStream<E> stream, String jobName) throws Exception {
 		final ArrayList<E> list = new ArrayList<>();
 		final Iterator<E> iter = collectWithClient(stream, jobName).iterator;
@@ -126,7 +136,9 @@ public final class DataStreamUtils {
 	/**
 	 * Triggers execution of the DataStream application and collects the given number of records from the stream.
 	 * After the records are received, the execution is canceled.
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
 	 */
+	@Deprecated
 	public static <E> List<E> collectUnboundedStream(DataStream<E> stream, int numElements, String jobName) throws Exception {
 		final ClientAndIterator<E> clientAndIterator = collectWithClient(stream, jobName);
 		final List<E> result = collectRecordsFromUnboundedStream(clientAndIterator, numElements);
@@ -137,6 +149,10 @@ public final class DataStreamUtils {
 		return result;
 	}
 
+	/**
+	 * @deprecated Please use {@link DataStream#executeAndCollect()}.
+	 */
+	@Deprecated
 	public static <E> List<E> collectRecordsFromUnboundedStream(
 			final ClientAndIterator<E> client,
 			final int numElements) {
@@ -228,18 +244,4 @@ public final class DataStreamUtils {
 
 	// ------------------------------------------------------------------------
 
-	/**
-	 * A pair of an {@link Iterator} to receive results from a streaming application and a
-	 * {@link JobClient} to interact with the program.
-	 */
-	public static final class ClientAndIterator<E> {
-
-		public final JobClient client;
-		public final Iterator<E> iterator;
-
-		ClientAndIterator(JobClient client, Iterator<E> iterator) {
-			this.client = checkNotNull(client);
-			this.iterator = checkNotNull(iterator);
-		}
-	}
 }
