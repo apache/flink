@@ -67,6 +67,8 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
 
 	private final WatermarkOutput periodicWatermarkOutput;
 
+	private final StreamRecord<T> reusingRecord;
+
 	/**
 	 * Creates a new SourceOutputWithWatermarks that emits records to the given DataOutput
 	 * and watermarks to the (possibly different) WatermarkOutput.
@@ -83,6 +85,7 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
 		this.periodicWatermarkOutput = checkNotNull(periodicWatermarkOutput);
 		this.timestampAssigner = checkNotNull(timestampAssigner);
 		this.watermarkGenerator = checkNotNull(watermarkGenerator);
+		this.reusingRecord = new StreamRecord<>(null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -103,7 +106,7 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
 			final long assignedTimestamp = timestampAssigner.extractTimestamp(record, timestamp);
 
 			// IMPORTANT: The event must be emitted before the watermark generator is called.
-			recordsOutput.emitRecord(new StreamRecord<>(record, assignedTimestamp));
+			recordsOutput.emitRecord(reusingRecord.replace(record, assignedTimestamp));
 			watermarkGenerator.onEvent(record, assignedTimestamp, onEventWatermarkOutput);
 		} catch (ExceptionInChainedOperatorException e) {
 			throw e;
