@@ -88,7 +88,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates a source that produces a sequence of values.
- * And {@link TestValuesTableSource} can push down filter into table source. And it has some limitations.
+ * And {@link TestValuesScanTableSource} can push down filter into table source. And it has some limitations.
  * A predicate can be pushed down only if it satisfies the following conditions:
  * 1. field name is in filterable-fields, which are defined in with properties.
  * 2. the field type all should be comparable.
@@ -224,6 +224,11 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		.booleanType()
 		.defaultValue(false);
 
+	private static final ConfigOption<Boolean> DISABLE_LOOKUP = ConfigOptions
+		.key("disable-lookup")
+		.booleanType()
+		.defaultValue(false);
+
 	private static final ConfigOption<Boolean> SINK_INSERT_ONLY = ConfigOptions
 		.key("sink-insert-only")
 		.booleanType()
@@ -270,6 +275,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 		String sourceClass = helper.getOptions().get(TABLE_SOURCE_CLASS);
 		boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
 		String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
+		boolean disableLookup = helper.getOptions().get(DISABLE_LOOKUP);
 		boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
 		Optional<List<String>> filterableFields = helper.getOptions().getOptional(FILTERABLE_FIELDS);
 		Set<String> filterableFieldsSet = new HashSet<>();
@@ -290,20 +296,35 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 				partition2Rows.put(Collections.emptyMap(), data);
 			}
 
-			return new TestValuesTableSource(
-				physicalSchema,
-				changelogMode,
-				isBounded,
-				runtimeSource,
-				partition2Rows,
-				isAsync,
-				lookupFunctionClass,
-				nestedProjectionSupported,
-				null,
-				Collections.emptyList(),
-				filterableFieldsSet,
-				Long.MAX_VALUE,
-				partitions);
+			if (disableLookup) {
+				return new TestValuesScanTableSource(
+					physicalSchema,
+					changelogMode,
+					isBounded,
+					runtimeSource,
+					partition2Rows,
+					nestedProjectionSupported,
+					null,
+					Collections.emptyList(),
+					filterableFieldsSet,
+					Long.MAX_VALUE,
+					partitions);
+			} else {
+				return new TestValuesScanLookupTableSource(
+					physicalSchema,
+					changelogMode,
+					isBounded,
+					runtimeSource,
+					partition2Rows,
+					isAsync,
+					lookupFunctionClass,
+					nestedProjectionSupported,
+					null,
+					Collections.emptyList(),
+					filterableFieldsSet,
+					Long.MAX_VALUE,
+					partitions);
+			}
 		} else {
 			try {
 				return InstantiationUtil.instantiate(
@@ -359,6 +380,7 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			TABLE_SOURCE_CLASS,
 			LOOKUP_FUNCTION_CLASS,
 			ASYNC_ENABLED,
+			DISABLE_LOOKUP,
 			TABLE_SOURCE_CLASS,
 			TABLE_SINK_CLASS,
 			SINK_INSERT_ONLY,
@@ -449,37 +471,33 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Values {@link DynamicTableSource} for testing.
+	 * Values {@link ScanTableSource} for testing.
 	 */
-	private static class TestValuesTableSource implements ScanTableSource,
-		LookupTableSource,
+	private static class TestValuesScanTableSource implements ScanTableSource,
 		SupportsProjectionPushDown,
 		SupportsFilterPushDown,
 		SupportsLimitPushDown,
-		SupportsPartitionPushDown{
+		SupportsPartitionPushDown {
 
 		private TableSchema physicalSchema;
 		private final ChangelogMode changelogMode;
 		private final boolean bounded;
 		private final String runtimeSource;
-		private Map<Map<String, String>, Collection<Row>> data;
-		private final boolean isAsync;
-		private final @Nullable String lookupFunctionClass;
+		protected Map<Map<String, String>, Collection<Row>> data;
+
 		private final boolean nestedProjectionSupported;
 		private @Nullable int[] projectedFields;
 		private List<ResolvedExpression> filterPredicates;
 		private final Set<String> filterableFields;
 		private long limit;
-		private List<Map<String, String>> allPartitions;
+		protected List<Map<String, String>> allPartitions;
 
-		private TestValuesTableSource(
+		private TestValuesScanTableSource(
 				TableSchema physicalSchema,
 				ChangelogMode changelogMode,
 				boolean bounded,
 				String runtimeSource,
 				Map<Map<String, String>, Collection<Row>> data,
-				boolean isAsync,
-				@Nullable String lookupFunctionClass,
 				boolean nestedProjectionSupported,
 				int[] projectedFields,
 				List<ResolvedExpression> filterPredicates,
@@ -491,8 +509,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			this.bounded = bounded;
 			this.runtimeSource = runtimeSource;
 			this.data = data;
-			this.isAsync = isAsync;
-			this.lookupFunctionClass = lookupFunctionClass;
 			this.nestedProjectionSupported = nestedProjectionSupported;
 			this.projectedFields = projectedFields;
 			this.filterPredicates = filterPredicates;
@@ -531,55 +547,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 			}
 		}
 
-		@SuppressWarnings({"unchecked", "rawtypes"})
-		@Override
-		public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
-			if (lookupFunctionClass != null) {
-				// use the specified lookup function
-				try {
-					Class<?> clazz = Class.forName(lookupFunctionClass);
-					Object udtf = InstantiationUtil.instantiate(clazz);
-					if (udtf instanceof TableFunction) {
-						return TableFunctionProvider.of((TableFunction) udtf);
-					} else {
-						return AsyncTableFunctionProvider.of((AsyncTableFunction) udtf);
-					}
-				} catch (ClassNotFoundException e) {
-					throw new IllegalArgumentException("Could not instantiate class: " + lookupFunctionClass);
-				}
-			}
-
-			int[] lookupIndices = Arrays.stream(context.getKeys())
-				.mapToInt(k -> k[0])
-				.toArray();
-			Map<Row, List<Row>> mapping = new HashMap<>();
-			Collection<Row> rows;
-			if (allPartitions.equals(Collections.EMPTY_LIST)) {
-				rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
-			} else {
-				rows = new ArrayList<>();
-				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
-			}
-			rows.forEach(record -> {
-				Row key = Row.of(Arrays.stream(lookupIndices)
-					.mapToObj(record::getField)
-					.toArray());
-				List<Row> list = mapping.get(key);
-				if (list != null) {
-					list.add(record);
-				} else {
-					list = new ArrayList<>();
-					list.add(record);
-					mapping.put(key, list);
-				}
-			});
-			if (isAsync) {
-				return AsyncTableFunctionProvider.of(new AsyncTestValueLookupFunction(mapping));
-			} else {
-				return TableFunctionProvider.of(new TestValuesLookupFunction(mapping));
-			}
-		}
-
 		@Override
 		public boolean supportsNestedProjection() {
 			return nestedProjectionSupported;
@@ -615,14 +582,12 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public DynamicTableSource copy() {
-			return new TestValuesTableSource(
+			return new TestValuesScanTableSource(
 				physicalSchema,
 				changelogMode,
 				bounded,
 				runtimeSource,
 				data,
-				isAsync,
-				lookupFunctionClass,
 				nestedProjectionSupported,
 				projectedFields,
 				filterPredicates,
@@ -711,6 +676,99 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 	}
 
 	/**
+	 * Values {@link LookupTableSource} and {@link ScanTableSource} for testing.
+	 *
+	 * <p>Note: we separate the implementations for scan and lookup to make it possible to support
+	 * a scan source without lookup ability, e.g. testing temporal join changelog source.
+	 */
+	private static class TestValuesScanLookupTableSource
+		extends TestValuesScanTableSource
+		implements LookupTableSource {
+
+		private final @Nullable String lookupFunctionClass;
+		private final boolean isAsync;
+
+		private TestValuesScanLookupTableSource(
+				TableSchema physicalSchema,
+				ChangelogMode changelogMode,
+				boolean bounded,
+				String runtimeSource,
+				Map<Map<String, String>, Collection<Row>> data,
+				boolean isAsync,
+				@Nullable String lookupFunctionClass,
+				boolean nestedProjectionSupported,
+				int[] projectedFields,
+				List<ResolvedExpression> filterPredicates,
+				Set<String> filterableFields,
+				long limit,
+				List<Map<String, String>> allPartitions) {
+			super(
+				physicalSchema,
+				changelogMode,
+				bounded,
+				runtimeSource,
+				data,
+				nestedProjectionSupported,
+				projectedFields,
+				filterPredicates,
+				filterableFields,
+				limit,
+				allPartitions);
+			this.lookupFunctionClass = lookupFunctionClass;
+			this.isAsync = isAsync;
+		}
+
+		@SuppressWarnings({"unchecked", "rawtypes"})
+		@Override
+		public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
+			if (lookupFunctionClass != null) {
+				// use the specified lookup function
+				try {
+					Class<?> clazz = Class.forName(lookupFunctionClass);
+					Object udtf = InstantiationUtil.instantiate(clazz);
+					if (udtf instanceof TableFunction) {
+						return TableFunctionProvider.of((TableFunction) udtf);
+					} else {
+						return AsyncTableFunctionProvider.of((AsyncTableFunction) udtf);
+					}
+				} catch (ClassNotFoundException e) {
+					throw new IllegalArgumentException("Could not instantiate class: " + lookupFunctionClass);
+				}
+			}
+
+			int[] lookupIndices = Arrays.stream(context.getKeys())
+				.mapToInt(k -> k[0])
+				.toArray();
+			Map<Row, List<Row>> mapping = new HashMap<>();
+			Collection<Row> rows;
+			if (allPartitions.equals(Collections.EMPTY_LIST)) {
+				rows = data.getOrDefault(Collections.EMPTY_MAP, Collections.EMPTY_LIST);
+			} else {
+				rows = new ArrayList<>();
+				allPartitions.forEach(key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
+			}
+			rows.forEach(record -> {
+				Row key = Row.of(Arrays.stream(lookupIndices)
+					.mapToObj(record::getField)
+					.toArray());
+				List<Row> list = mapping.get(key);
+				if (list != null) {
+					list.add(record);
+				} else {
+					list = new ArrayList<>();
+					list.add(record);
+					mapping.put(key, list);
+				}
+			});
+			if (isAsync) {
+				return AsyncTableFunctionProvider.of(new AsyncTestValueLookupFunction(mapping));
+			} else {
+				return TableFunctionProvider.of(new TestValuesLookupFunction(mapping));
+			}
+		}
+	}
+
+	/**
 	 * A mocked {@link LookupTableSource} for validation test.
 	 */
 	public static class MockedLookupTableSource implements LookupTableSource {
@@ -727,37 +785,6 @@ public final class TestValuesTableFactory implements DynamicTableSourceFactory, 
 
 		@Override
 		public String asSummaryString() {
-			return null;
-		}
-	}
-
-	/**
-	 * A mocked {@link ScanTableSource} with {@link SupportsFilterPushDown} ability for validation test.
-	 */
-	public static class MockedFilterPushDownTableSource implements ScanTableSource, SupportsFilterPushDown {
-
-		@Override
-		public ChangelogMode getChangelogMode() {
-			return ChangelogMode.insertOnly();
-		}
-
-		@Override
-		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-			return null;
-		}
-
-		@Override
-		public DynamicTableSource copy() {
-			return null;
-		}
-
-		@Override
-		public String asSummaryString() {
-			return null;
-		}
-
-		@Override
-		public Result applyFilters(List<ResolvedExpression> filters) {
 			return null;
 		}
 	}
