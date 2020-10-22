@@ -40,6 +40,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -48,6 +49,7 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -68,6 +70,11 @@ import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -96,11 +103,13 @@ import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -1292,6 +1301,87 @@ public class DataStream<T> {
 
 		getExecutionEnvironment().addOperator(sink.getTransformation());
 		return sink;
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 *
+	 *<p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+	 */
+	public CloseableIterator<T> executeAndCollect() throws Exception {
+		return executeAndCollect("DataStream Collect");
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 *
+	 *<p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+	 */
+	public CloseableIterator<T> executeAndCollect(String jobExecutionName) throws Exception {
+		return executeAndCollectWithClient(jobExecutionName).iterator;
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 */
+	public List<T> executeAndCollect(int limit) throws Exception {
+		return executeAndCollect("DataStream Collect", limit);
+	}
+
+	/**
+	 * Triggers the distributed execution of the streaming dataflow and returns an iterator over the elements
+	 * of the given DataStream.
+	 *
+	 * <p>The DataStream application is executed in the regular distributed manner on the target environment,
+	 * and the events from the stream are polled back to this application process and thread through
+	 * Flink's REST API.
+	 */
+	public List<T> executeAndCollect(String jobExecutionName, int limit) throws Exception {
+		Preconditions.checkState(limit > 0, "Limit must be greater than 0");
+
+		try (ClientAndIterator<T> clientAndIterator = executeAndCollectWithClient(jobExecutionName)){
+			List<T> results = new ArrayList<>(limit);
+			while (clientAndIterator.iterator.hasNext() && limit > 0) {
+				results.add(clientAndIterator.iterator.next());
+				limit--;
+			}
+
+			return results;
+		}
+	}
+
+	ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
+		TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
+		String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
+
+		StreamExecutionEnvironment env = getExecutionEnvironment();
+		CollectSinkOperatorFactory<T> factory = new CollectSinkOperatorFactory<>(serializer, accumulatorName);
+		CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+		CollectResultIterator<T> iterator = new CollectResultIterator<>(
+				operator.getOperatorIdFuture(), serializer, accumulatorName, env.getCheckpointConfig());
+		CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
+		sink.name("Data stream collect sink");
+		env.addOperator(sink.getTransformation());
+
+		final JobClient jobClient = env.executeAsync(jobExecutionName);
+		iterator.setJobClient(jobClient);
+
+		return new ClientAndIterator<>(jobClient, iterator);
 	}
 
 	/**
