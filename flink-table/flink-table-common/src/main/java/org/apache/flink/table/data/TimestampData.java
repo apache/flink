@@ -42,6 +42,9 @@ public final class TimestampData implements Comparable<TimestampData> {
 	// the number of milliseconds in a day
 	private static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
 
+	// the offset in the timezone
+	private static final long TIMEZONE_OFFSET = TimeZone.getDefault().getRawOffset();
+
 	// this field holds the integral second and the milli-of-second
 	private final long millisecond;
 
@@ -81,8 +84,8 @@ public final class TimestampData implements Comparable<TimestampData> {
 	 * Converts this {@link TimestampData} object to a {@link LocalDateTime}.
 	 */
 	public LocalDateTime toLocalDateTime() {
-		int date = (int) (millisecond / MILLIS_PER_DAY);
-		int time = (int) (millisecond % MILLIS_PER_DAY);
+		int date = (int) (millisecond + TIMEZONE_OFFSET / MILLIS_PER_DAY);
+		int time = (int) (millisecond + TIMEZONE_OFFSET % MILLIS_PER_DAY);
 		if (time < 0) {
 			--date;
 			time += MILLIS_PER_DAY;
@@ -173,7 +176,7 @@ public final class TimestampData implements Comparable<TimestampData> {
 		long epochDay = dateTime.toLocalDate().toEpochDay();
 		long nanoOfDay = dateTime.toLocalTime().toNanoOfDay();
 
-		long millisecond = epochDay * MILLIS_PER_DAY + nanoOfDay / 1_000_000;
+		long millisecond = epochDay * MILLIS_PER_DAY + nanoOfDay / 1_000_000 - TIMEZONE_OFFSET;
 		int nanoOfMillisecond = (int) (nanoOfDay % 1_000_000);
 
 		return new TimestampData(millisecond, nanoOfMillisecond);
