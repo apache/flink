@@ -25,6 +25,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -114,7 +115,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
 				WatermarkStrategy.noWatermarks(),
 				"file-source");
 
-		final DataStreamUtils.ClientAndIterator<String> client =
+		final ClientAndIterator<String> client =
 				DataStreamUtils.collectWithClient(stream, "Continuous TextFiles Monitoring Test");
 
 		// write one file, execute, and wait for its result
