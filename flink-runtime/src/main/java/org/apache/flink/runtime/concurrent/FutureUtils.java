@@ -181,14 +181,48 @@ public class FutureUtils {
 			final ScheduledExecutor scheduledExecutor) {
 
 		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+		final Duration delayAsDuration = Duration.ofMillis(retryDelay.toMilliseconds());
 
 		retryOperationWithDelay(
 			resultFuture,
 			operation,
 			retries,
-			retryDelay,
+				delayAsDuration,
+				delayAsDuration,
 			retryPredicate,
 			scheduledExecutor);
+
+		return resultFuture;
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between failures, exponentially increasing the delay with each failure.
+	 *
+	 * @param operation to retry
+	 * @param retryDelay initial delay between retries
+	 * @param maxRetryDelay max delay between retries
+	 * @param retryPredicate Predicate to test whether an exception is retryable
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+	 */
+	public static <T> CompletableFuture<T> retryWithExponentialDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final Duration retryDelay,
+			final Duration maxRetryDelay,
+			final Predicate<Throwable> retryPredicate,
+			final ScheduledExecutor scheduledExecutor) {
+
+		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+		retryOperationWithDelay(
+				resultFuture,
+				operation,
+				Integer.MAX_VALUE,
+				retryDelay,
+				maxRetryDelay,
+				retryPredicate,
+				scheduledExecutor);
 
 		return resultFuture;
 	}
@@ -275,7 +309,8 @@ public class FutureUtils {
 			final CompletableFuture<T> resultFuture,
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,
-			final Time retryDelay,
+			final Duration initialRetryDelay,
+			final Duration maxRetryDelay,
 			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
@@ -293,9 +328,16 @@ public class FutureUtils {
 								resultFuture.completeExceptionally(throwable);
 							} else if (retries > 0) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
-									retryDelay.toMilliseconds(),
-									TimeUnit.MILLISECONDS);
+										(Runnable) () -> retryOperationWithDelay(
+												resultFuture,
+												operation,
+												retries - 1,
+												Duration.ofMillis(Math.min(initialRetryDelay.toMillis() * 2, maxRetryDelay.toMillis())),
+												maxRetryDelay,
+												retryPredicate,
+												scheduledExecutor),
+										initialRetryDelay.toMillis(),
+										TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));

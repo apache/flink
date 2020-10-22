@@ -29,6 +29,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -206,6 +207,36 @@ public class FutureUtilsTest extends TestLogger {
 
 		assertTrue(result);
 		assertTrue("The completion time should be at least rertries times delay between retries.", completionTime >= retries * delay.toMilliseconds());
+	}
+
+	@Test
+	public void testRetryWithExponentialDelay() throws Exception {
+		final int retries = 4;
+		final Duration initialDelay = Duration.ofMillis(5L);
+		final Duration maxDelay = Duration.ofMillis(40L);
+		final AtomicInteger countDown = new AtomicInteger(retries);
+
+		long start = System.currentTimeMillis();
+
+		CompletableFuture<Boolean> retryFuture = FutureUtils.retryWithExponentialDelay(
+				() -> {
+					if (countDown.getAndDecrement() == 0) {
+						return CompletableFuture.completedFuture(true);
+					} else {
+						return FutureUtils.completedExceptionally(new FlinkException("Test exception."));
+					}
+				},
+				initialDelay,
+				maxDelay,
+				throwable -> true,
+				TestingUtils.defaultScheduledExecutor());
+
+		Boolean result = retryFuture.get();
+
+		long completionTime = System.currentTimeMillis() - start;
+
+		assertTrue(result);
+		assertTrue("The completion time should be at least 2^retries times delay between retries.", completionTime >= (Math.pow(2, retries) - 1) * initialDelay.toMillis());
 	}
 
 	/**
