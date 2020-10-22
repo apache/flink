@@ -44,7 +44,7 @@ class MultipleInputRel(
     traitSet: RelTraitSet,
     inputRels: Array[RelNode],
     val outputRel: RelNode,
-    readOrders: Array[Int])
+    val readOrders: Array[Int])
   extends AbstractRelNode(cluster, traitSet)
   with FlinkPhysicalRel {
 
@@ -59,7 +59,6 @@ class MultipleInputRel(
     }
     val hasDiffReadOrder = readOrders.slice(1, readOrders.length).exists(readOrders.head != _)
     pw.itemIf("readOrder", readOrders.mkString(","), hasDiffReadOrder)
-    pw.item("output", outputRel)
     pw.item("members", "\\n" + getExplainTermsOfMembers.replace("\n", "\\n"))
   }
 

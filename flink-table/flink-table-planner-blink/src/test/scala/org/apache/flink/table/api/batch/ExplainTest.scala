@@ -21,11 +21,12 @@ package org.apache.flink.table.api.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashJoin, BatchExecMultipleInputNode}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{ExecutorUtils, PlanUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
 import org.apache.calcite.rel.RelNode
@@ -33,6 +34,8 @@ import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}
+
+import java.util.Collections
 
 @RunWith(classOf[Parameterized])
 class ExplainTest(extended: Boolean) extends TableTestBase {
@@ -137,10 +140,10 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     //  after supporting converting rel nodes to multiple input node
     val relNode = TableTestUtil.toRelNode(util.tableEnv.sqlQuery(sql))
     val batchRelNode = util.getPlanner.optimize(relNode).asInstanceOf[BatchExecHashJoin]
-    val firstBorder = batchRelNode.getInputNodes.get(0).getInputNodes.get(0)
+    val firstBorder = batchRelNode.getInputNodes.get(0)
     val firstInput = firstBorder.getInputNodes.get(0)
     val firstEdge = firstBorder.getInputEdges.get(0)
-    val secondBorder = batchRelNode.getInputNodes.get(1).getInputNodes.get(0)
+    val secondBorder = batchRelNode.getInputNodes.get(1)
     val secondInput = secondBorder.getInputNodes.get(0)
     val secondEdge = secondBorder.getInputEdges.get(0)
     val multipleInputRel = new BatchExecMultipleInputNode(
@@ -159,9 +162,19 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
           .damBehavior(secondEdge.getDamBehavior)
           .priority(1)
           .build()))
-    val actual = FlinkRelOptUtil.toString(multipleInputRel)
+
+    val ast = FlinkRelOptUtil.toString(multipleInputRel)
+
+    val transform = multipleInputRel.translateToPlan(
+      util.getTableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[BatchPlanner])
+    val streamGraph = ExecutorUtils.generateStreamGraph(
+      util.getStreamEnv, Collections.singletonList(transform))
+    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
+
+    val actual = ast + "\n" + executionPlan
+
     val expected = TableTestUtil.readFromResource("/explain/testExplainMultipleInput.out")
-    assertEquals(expected, actual)
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 
 }
