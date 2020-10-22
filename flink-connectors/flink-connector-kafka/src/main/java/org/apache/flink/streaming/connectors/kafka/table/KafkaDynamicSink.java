@@ -21,9 +21,8 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
-import org.apache.flink.streaming.connectors.kafka.KafkaContextAware;
-import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -31,19 +30,14 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
 
-import javax.annotation.Nullable;
-
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -64,9 +58,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 	// --------------------------------------------------------------------------------------------
 	// Mutable attributes
 	// --------------------------------------------------------------------------------------------
-
-	/** Data type that describes the final input of the sink. */
-	protected DataType consumedDataType;
 
 	/** Metadata that is appended at the end of a physical sink row. */
 	protected List<String> metadataKeys;
@@ -105,7 +96,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 			EncodingFormat<SerializationSchema<RowData>> encodingFormat,
 			KafkaSinkSemantic semantic) {
 		this.physicalDataType = Preconditions.checkNotNull(physicalDataType, "Physical data type must not be null.");
-		this.consumedDataType = physicalDataType;
 		this.metadataKeys = Collections.emptyList();
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
@@ -138,7 +128,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 
 	@Override
 	public void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType) {
-		this.consumedDataType = consumedDataType;
 		this.metadataKeys = metadataKeys;
 	}
 
@@ -151,7 +140,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 				this.partitioner,
 				this.encodingFormat,
 				this.semantic);
-		copy.consumedDataType = consumedDataType;
 		copy.metadataKeys = metadataKeys;
 		return copy;
 	}
@@ -170,8 +158,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 			return false;
 		}
 		final KafkaDynamicSink that = (KafkaDynamicSink) o;
-		return Objects.equals(consumedDataType, that.consumedDataType) &&
-			Objects.equals(metadataKeys, that.metadataKeys) &&
+		return Objects.equals(metadataKeys, that.metadataKeys) &&
 			Objects.equals(physicalDataType, that.physicalDataType) &&
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
@@ -183,7 +170,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 	@Override
 	public int hashCode() {
 		return Objects.hash(
-			consumedDataType,
 			metadataKeys,
 			physicalDataType,
 			topic,
@@ -213,10 +199,11 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 				})
 				.toArray();
 
-		final MetadataKafkaSerializationSchema kafkaSerializer = new MetadataKafkaSerializationSchema(
+		final DynamicKafkaSerializationSchema kafkaSerializer = new DynamicKafkaSerializationSchema(
 				topic,
 				partitioner.orElse(null),
 				valueSerialization,
+				metadataKeys.size() > 0,
 				metadataPositions,
 				physicalFieldGetters);
 
@@ -232,7 +219,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 	// Metadata handling
 	// --------------------------------------------------------------------------------------------
 
-	private enum WritableMetadata {
+	enum WritableMetadata {
 
 		HEADERS(
 				"headers",
@@ -278,127 +265,6 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 			this.dataType = dataType;
 			this.converter = converter;
 		}
-	}
-
-	private static class MetadataKafkaSerializationSchema
-			implements KafkaSerializationSchema<RowData>, KafkaContextAware<RowData> {
-
-		private final @Nullable FlinkKafkaPartitioner<RowData> partitioner;
-
-		private final String topic;
-
-		private final SerializationSchema<RowData> valueSerialization;
-
-		/**
-		 * Contains the position for each value of {@link WritableMetadata} in the consumed row or
-		 * -1 if this metadata key is not used.
-		 */
-		private final int[] metadataPositions;
-
-		private final RowData.FieldGetter[] physicalFieldGetters;
-
-		private int[] partitions;
-
-		private int parallelInstanceId;
-
-		private int numParallelInstances;
-
-		MetadataKafkaSerializationSchema(
-				String topic,
-				@Nullable FlinkKafkaPartitioner<RowData> partitioner,
-				SerializationSchema<RowData> valueSerialization,
-				int[] metadataPositions,
-				RowData.FieldGetter[] physicalFieldGetters) {
-			this.topic = topic;
-			this.partitioner = partitioner;
-			this.valueSerialization = valueSerialization;
-			this.metadataPositions = metadataPositions;
-			this.physicalFieldGetters = physicalFieldGetters;
-		}
-
-		@Override
-		public void open(SerializationSchema.InitializationContext context) throws Exception {
-			valueSerialization.open(context);
-			if (partitioner != null) {
-				partitioner.open(parallelInstanceId, numParallelInstances);
-			}
-		}
-
-		@Override
-		public ProducerRecord<byte[], byte[]> serialize(RowData consumedRow, @Nullable Long timestamp) {
-			final int physicalArity = physicalFieldGetters.length;
-			final boolean hasMetadata = physicalArity != consumedRow.getArity();
-
-			final RowData physicalRow;
-			// shortcut if no metadata is required
-			if (!hasMetadata) {
-				physicalRow = consumedRow;
-			} else {
-				final GenericRowData genericRowData = new GenericRowData(
-						consumedRow.getRowKind(),
-						physicalArity);
-				for (int i = 0; i < physicalArity; i++) {
-					genericRowData.setField(i, physicalFieldGetters[i].getFieldOrNull(consumedRow));
-				}
-				physicalRow = genericRowData;
-			}
-
-			final byte[] valueSerialized = valueSerialization.serialize(physicalRow);
-
-			final Integer partition;
-			if (partitioner != null) {
-				partition = partitioner.partition(physicalRow, null, valueSerialized, topic, partitions);
-			} else {
-				partition = null;
-			}
-
-			// shortcut if no metadata is required
-			if (!hasMetadata) {
-				return new ProducerRecord<>(topic, partition, null, null, valueSerialized);
-			}
-			return new ProducerRecord<>(
-					topic,
-					partition,
-					readMetadata(consumedRow, WritableMetadata.TIMESTAMP),
-					null,
-					valueSerialized,
-					readMetadata(consumedRow, WritableMetadata.HEADERS));
-		}
-
-		@Override
-		public void setParallelInstanceId(int parallelInstanceId) {
-			this.parallelInstanceId = parallelInstanceId;
-		}
-
-		@Override
-		public void setNumParallelInstances(int numParallelInstances) {
-			this.numParallelInstances = numParallelInstances;
-		}
-
-		@Override
-		public void setPartitions(int[] partitions) {
-			this.partitions = partitions;
-		}
-
-		@Override
-		public String getTargetTopic(RowData element) {
-			return topic;
-		}
-
-		@SuppressWarnings("unchecked")
-		private <T> T readMetadata(RowData consumedRow, WritableMetadata metadata) {
-			final int pos = metadataPositions[metadata.ordinal()];
-			if (pos < 0) {
-				return null;
-			}
-			return (T) metadata.converter.read(consumedRow, pos);
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private interface MetadataConverter extends Serializable {
-		Object read(RowData consumedRow, int pos);
 	}
 
 	// --------------------------------------------------------------------------------------------

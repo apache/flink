@@ -51,8 +51,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -375,7 +376,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 				Row.of("data 3", 3, "CreateTime", LocalDateTime.parse("2020-03-10T13:12:11.123"), 2L, 0, headers3, 0, topic, true)
 		);
 
-		assertTrue(Row.deepEquals(expected, result));
+		assertThat(result, deepEqualTo(expected));
 
 		// ------------- cleanup -------------------
 

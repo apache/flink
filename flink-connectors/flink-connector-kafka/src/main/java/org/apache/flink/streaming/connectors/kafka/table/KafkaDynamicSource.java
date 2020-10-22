@@ -25,6 +25,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -33,12 +34,10 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.GenericMapData;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -46,7 +45,6 @@ import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -234,8 +232,9 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				.map(m -> m.converter)
 				.toArray(MetadataConverter[]::new);
 
-		final KafkaDeserializationSchema<RowData> kafkaDeserializer = new MetadataKafkaDeserializationSchema(
+		final KafkaDeserializationSchema<RowData> kafkaDeserializer = new DynamicKafkaDeserializationSchema(
 				valueDeserialization,
+				metadataKeys.size() > 0,
 				metadataConverters,
 				producedTypeInfo);
 
@@ -273,7 +272,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	// Metadata handling
 	// --------------------------------------------------------------------------------------------
 
-	private enum ReadableMetadata {
+	enum ReadableMetadata {
 		TOPIC(
 			"topic",
 			DataTypes.STRING().notNull(),
@@ -332,105 +331,5 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			this.dataType = dataType;
 			this.converter = converter;
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static class MetadataKafkaDeserializationSchema implements KafkaDeserializationSchema<RowData> {
-
-		private final DeserializationSchema<RowData> valueDeserialization;
-
-		private final MetadataAppendingCollector metadataAppendingCollector;
-
-		private final TypeInformation<RowData> producedTypeInfo;
-
-		MetadataKafkaDeserializationSchema(
-				DeserializationSchema<RowData> valueDeserialization,
-				MetadataConverter[] metadataConverters,
-				TypeInformation<RowData> producedTypeInfo) {
-			this.valueDeserialization = valueDeserialization;
-			this.metadataAppendingCollector = new MetadataAppendingCollector(metadataConverters);
-			this.producedTypeInfo = producedTypeInfo;
-		}
-
-		@Override
-		public void open(DeserializationSchema.InitializationContext context) throws Exception {
-			valueDeserialization.open(context);
-		}
-
-		@Override
-		public boolean isEndOfStream(RowData nextElement) {
-			return false;
-		}
-
-		@Override
-		public RowData deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
-			throw new IllegalStateException("A collector is required for deserializing.");
-		}
-
-		@Override
-		public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector) throws Exception {
-			metadataAppendingCollector.inputRecord = record;
-			metadataAppendingCollector.outputCollector = collector;
-			valueDeserialization.deserialize(record.value(), metadataAppendingCollector);
-		}
-
-		@Override
-		public TypeInformation<RowData> getProducedType() {
-			return producedTypeInfo;
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private static final class MetadataAppendingCollector implements Collector<RowData>, Serializable {
-
-		private final MetadataConverter[] metadataConverters;
-
-		private transient ConsumerRecord<?, ?> inputRecord;
-
-		private transient Collector<RowData> outputCollector;
-
-		MetadataAppendingCollector(MetadataConverter[] metadataConverters) {
-			this.metadataConverters = metadataConverters;
-		}
-
-		@Override
-		public void collect(RowData physicalRow) {
-			final int metadataArity = metadataConverters.length;
-			// shortcut if no metadata is required
-			if (metadataArity == 0) {
-				outputCollector.collect(physicalRow);
-				return;
-			}
-
-			final GenericRowData genericPhysicalRow = (GenericRowData) physicalRow;
-			final int physicalArity = physicalRow.getArity();
-
-			final GenericRowData producedRow = new GenericRowData(
-					physicalRow.getRowKind(),
-					physicalArity + metadataArity);
-
-			for (int i = 0; i < physicalArity; i++) {
-				producedRow.setField(i, genericPhysicalRow.getField(i));
-			}
-
-			for (int i = 0; i < metadataArity; i++) {
-				producedRow.setField(i + physicalArity, metadataConverters[i].read(inputRecord));
-			}
-
-			outputCollector.collect(producedRow);
-		}
-
-		@Override
-		public void close() {
-			// nothing to do
-		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private interface MetadataConverter extends Serializable {
-		Object read(ConsumerRecord<?, ?> record);
 	}
 }
