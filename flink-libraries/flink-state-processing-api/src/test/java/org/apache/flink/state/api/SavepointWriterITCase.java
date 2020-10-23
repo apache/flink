@@ -171,7 +171,9 @@ public class SavepointWriterITCase extends AbstractTestBase {
 			.get()
 			.getSerializedThrowable();
 
-		Assert.assertFalse(serializedThrowable.isPresent());
+		serializedThrowable.ifPresent(t -> {
+			throw new AssertionError("Unexpected exception during bootstrapping", t);
+		});
 		Assert.assertEquals("Unexpected output", 3, results.get().size());
 	}
 
