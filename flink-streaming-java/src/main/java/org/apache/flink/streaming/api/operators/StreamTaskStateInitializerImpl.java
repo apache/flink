@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -62,6 +63,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.state.StateUtil.unexpectedStateHandleException;
 
@@ -413,13 +415,21 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			while (stateHandleIterator.hasNext()) {
 				currentStateHandle = stateHandleIterator.next();
 				if (currentStateHandle.getKeyGroupRange().getNumberOfKeyGroups() > 0) {
-					currentOffsetsIterator = currentStateHandle.getGroupRangeOffsets().iterator();
+					currentOffsetsIterator = unsetOffsetsSkippingIterator(currentStateHandle);
 
-					return true;
+					if (currentOffsetsIterator.hasNext()) {
+						return true;
+					}
 				}
 			}
 
 			return false;
+		}
+
+		private static Iterator<Tuple2<Integer, Long>> unsetOffsetsSkippingIterator(KeyGroupsStateHandle keyGroupsStateHandle) {
+			return StreamSupport.stream(keyGroupsStateHandle.getGroupRangeOffsets().spliterator(), false)
+				.filter(keyGroupIdAndOffset -> keyGroupIdAndOffset.f1 != KeyedStateCheckpointOutputStream.NO_OFFSET_SET)
+				.iterator();
 		}
 
 		@Override
