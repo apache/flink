@@ -383,6 +383,146 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 		deleteTestTopic(topic);
 	}
 
+	@Test
+	public void testKafkaSourceSinkWithKeyAndPartialValue() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "key_partial_value_topic_" + format;
+		createTestTopic(topic, 1, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		// k_user_id and user_id have different data types to verify the correct mapping,
+		// fields are reordered on purpose
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `k_user_id` BIGINT,\n"
+						+ "  `name` STRING,\n"
+						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
+						+ "  `k_event_id` BIGINT,\n"
+						+ "  `user_id` INT,\n"
+						+ "  `payload` STRING\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  'key.format' = '%s',\n"
+						+ "  'key.fields' = 'k_event_id; k_user_id',\n"
+						+ "  'key.fields-prefix' = 'k_',\n"
+						+ "  'value.format' = '%s',\n"
+						+ "  'value.fields-include' = 'EXCEPT_KEY'\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				format,
+				format);
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
+				+ " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
+				+ " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 43, 'payload 3')";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+
+		final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+
+		final List<Row> expected = Arrays.asList(
+				Row.of(1L, "name 1", LocalDateTime.parse("2020-03-08T13:12:11.123"), 100L, 41, "payload 1"),
+				Row.of(2L, "name 2", LocalDateTime.parse("2020-03-09T13:12:11.123"), 101L, 42, "payload 2"),
+				Row.of(3L, "name 3", LocalDateTime.parse("2020-03-10T13:12:11.123"), 102L, 43, "payload 3")
+		);
+
+		assertThat(result, deepEqualTo(expected, true));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testKafkaSourceSinkWithKeyAndFullValue() throws Exception {
+		if (isLegacyConnector) {
+			return;
+		}
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "key_full_value_topic_" + format;
+		createTestTopic(topic, 1, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		// compared to the partial value test we cannot support both k_user_id and user_id in a full
+		// value due to duplicate names after key prefix stripping,
+		// fields are reordered on purpose,
+		// fields for keys and values are overlapping
+		final String createTable = String.format(
+				"CREATE TABLE kafka (\n"
+						+ "  `user_id` BIGINT,\n"
+						+ "  `name` STRING,\n"
+						+ "  `timestamp` TIMESTAMP(3) METADATA,\n"
+						+ "  `event_id` BIGINT,\n"
+						+ "  `payload` STRING\n"
+						+ ") WITH (\n"
+						+ "  'connector' = 'kafka',\n"
+						+ "  'topic' = '%s',\n"
+						+ "  'properties.bootstrap.servers' = '%s',\n"
+						+ "  'properties.group.id' = '%s',\n"
+						+ "  'scan.startup.mode' = 'earliest-offset',\n"
+						+ "  'key.format' = '%s',\n"
+						+ "  'key.fields' = 'event_id; user_id',\n"
+						+ "  'value.format' = '%s',\n"
+						+ "  'value.fields-include' = 'ALL'\n"
+						+ ")",
+				topic,
+				bootstraps,
+				groupId,
+				format,
+				format);
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n"
+				+ "VALUES\n"
+				+ " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 'payload 1'),\n"
+				+ " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 'payload 2'),\n"
+				+ " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 'payload 3')";
+		tEnv.executeSql(initialValues).await();
+
+		// ---------- Consume stream from Kafka -------------------
+
+		final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+
+		final List<Row> expected = Arrays.asList(
+				Row.of(1L, "name 1", LocalDateTime.parse("2020-03-08T13:12:11.123"), 100L, "payload 1"),
+				Row.of(2L, "name 2", LocalDateTime.parse("2020-03-09T13:12:11.123"), 101L, "payload 2"),
+				Row.of(3L, "name 3", LocalDateTime.parse("2020-03-10T13:12:11.123"), 102L, "payload 3")
+		);
+
+		assertThat(result, deepEqualTo(expected, true));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+
 	private String formatOptions() {
 		if (!isLegacyConnector) {
 			return String.format("'format' = '%s'", format);
