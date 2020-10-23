@@ -105,6 +105,11 @@ public interface FlinkKubeClient extends AutoCloseable {
 		WatchCallbackHandler<KubernetesPod> podCallbackHandler);
 
 	/**
+	 * Close the Kubernetes client with no exception.
+	 */
+	void close();
+
+	/**
 	 * Callback handler for kubernetes resources.
 	 */
 	interface WatchCallbackHandler<T> {
