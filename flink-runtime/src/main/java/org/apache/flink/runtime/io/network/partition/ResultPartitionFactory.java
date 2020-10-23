@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.function.BiFunction;
 
 /**
  * Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}.
@@ -118,7 +119,8 @@ public class ResultPartitionFactory {
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
 		final ResultPartition partition;
-		if (type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED) {
+		if (type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED ||
+				type == ResultPartitionType.PIPELINED_APPROXIMATE) {
 			final PipelinedResultPartition pipelinedPartition = new PipelinedResultPartition(
 				taskNameWithSubtaskAndId,
 				partitionIndex,
@@ -130,8 +132,15 @@ public class ResultPartitionFactory {
 				bufferCompressor,
 				bufferPoolFactory);
 
+			BiFunction<Integer, PipelinedResultPartition, PipelinedSubpartition> factory;
+			if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
+				factory = PipelinedApproximateSubpartition::new;
+			} else {
+				factory = PipelinedSubpartition::new;
+			}
+
 			for (int i = 0; i < subpartitions.length; i++) {
-				subpartitions[i] = new PipelinedSubpartition(i, pipelinedPartition);
+				subpartitions[i] = factory.apply(i, pipelinedPartition);
 			}
 
 			partition = pipelinedPartition;

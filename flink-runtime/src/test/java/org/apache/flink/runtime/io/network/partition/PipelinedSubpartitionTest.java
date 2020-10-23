@@ -69,7 +69,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	}
 
 	@Override
-	PipelinedSubpartition createSubpartition() {
+	PipelinedSubpartition createSubpartition() throws Exception {
 		return createPipelinedSubpartition();
 	}
 
