@@ -45,6 +45,8 @@ public interface StreamTaskStateInitializer {
 	 * @param keySerializer the key-serializer for the operator. Can be null.
 	 * @param streamTaskCloseableRegistry the closeable registry to which created closeable objects will be registered.
 	 * @param metricGroup the parent metric group for all statebackend metrics
+	 * @param isUsingCustomRawKeyedState flag indicating whether or not the {@link AbstractStreamOperator} is writing
+	 *                                   custom raw keyed state.
 	 * @return a context from which the given operator can initialize everything related to state.
 	 * @throws Exception when something went wrong while creating the context.
 	 */
@@ -55,5 +57,39 @@ public interface StreamTaskStateInitializer {
 		@Nonnull KeyContext keyContext,
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
-		@Nonnull MetricGroup metricGroup) throws Exception;
+		@Nonnull MetricGroup metricGroup,
+		boolean isUsingCustomRawKeyedState) throws Exception;
+
+	/**
+	 * Returns the {@link StreamOperatorStateContext} for an {@link AbstractStreamOperator} that runs in the stream
+	 * task that owns this manager.
+	 *
+	 * @param operatorID the id of the operator for which the context is created. Cannot be null.
+	 * @param operatorClassName the classname of the operator instance for which the context is created. Cannot be null.
+	 * @param processingTimeService
+	 * @param keyContext the key context of the operator instance for which the context is created Cannot be null.
+	 * @param keySerializer the key-serializer for the operator. Can be null.
+	 * @param streamTaskCloseableRegistry the closeable registry to which created closeable objects will be registered.
+	 * @param metricGroup the parent metric group for all statebackend metrics
+	 * @return a context from which the given operator can initialize everything related to state.
+	 * @throws Exception when something went wrong while creating the context.
+	 */
+	default StreamOperatorStateContext streamOperatorStateContext(
+			@Nonnull OperatorID operatorID,
+			@Nonnull String operatorClassName,
+			@Nonnull ProcessingTimeService processingTimeService,
+			@Nonnull KeyContext keyContext,
+			@Nullable TypeSerializer<?> keySerializer,
+			@Nonnull CloseableRegistry streamTaskCloseableRegistry,
+			@Nonnull MetricGroup metricGroup) throws Exception {
+		return streamOperatorStateContext(
+			operatorID,
+			operatorClassName,
+			processingTimeService,
+			keyContext,
+			keySerializer,
+			streamTaskCloseableRegistry,
+			metricGroup,
+			false);
+	}
 }
