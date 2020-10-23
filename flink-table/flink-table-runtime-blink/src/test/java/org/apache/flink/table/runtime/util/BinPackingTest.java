@@ -36,19 +36,19 @@ public class BinPackingTest {
 	public void testBinPacking() {
 		Assert.assertEquals("Should pack the first 2 values",
 				asList(asList(1, 2), singletonList(3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 3));
+				pack(asList(1, 2, 3, 4, 5), 3));
 
 		Assert.assertEquals("Should pack the first 2 values",
 				asList(asList(1, 2), singletonList(3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 5));
+				pack(asList(1, 2, 3, 4, 5), 5));
 
 		Assert.assertEquals("Should pack the first 3 values",
 				asList(asList(1, 2, 3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 6));
+				pack(asList(1, 2, 3, 4, 5), 6));
 
 		Assert.assertEquals("Should pack the first 3 values",
 				asList(asList(1, 2, 3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 8));
+				pack(asList(1, 2, 3, 4, 5), 8));
 
 		Assert.assertEquals("Should pack the first 3 values, last 2 values",
 				asList(asList(1, 2, 3), asList(4, 5)), pack(asList(1, 2, 3, 4, 5), 9));
