@@ -240,6 +240,7 @@ public class RowDataToJsonConverters implements Serializable {
 				node = mapper.createObjectNode();
 			} else {
 				node = (ObjectNode) reuse;
+				node.removeAll();
 			}
 
 			MapData map = (MapData) object;
