@@ -111,10 +111,19 @@ function post_test_validation {
 }
 
 function log_environment_info {
+    echo "##[group]Environment Information"
     echo "Jps"
     jps
+
     echo "Disk information"
     df -hH
+
+    echo "Allocated ports"
+    sudo netstat -tulpn
+
+    echo "Running docker containers"
+    docker ps -a
+    echo "##[endgroup]"
 }
 
 # Shuts down cluster and reverts changes to cluster configs
