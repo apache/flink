@@ -105,7 +105,8 @@ public class StreamOperatorStateHandlerTest {
 				IntSerializer.INSTANCE,
 				closeableRegistry,
 				new InterceptingOperatorMetricGroup(),
-				1.0);
+				1.0,
+				false);
 			StreamOperatorStateHandler stateHandler = new StreamOperatorStateHandler(stateContext, new ExecutionConfig(), closeableRegistry);
 
 			final String keyedStateField = "keyedStateField";
@@ -146,7 +147,8 @@ public class StreamOperatorStateHandlerTest {
 					CheckpointOptions.forCheckpointWithDefaultLocation(),
 					new MemCheckpointStreamFactory(1024),
 					operatorSnapshotResult,
-					context);
+					context,
+					false);
 				fail("Exception expected.");
 			} catch (CheckpointException e) {
 				// We can not check for ExpectedTestException class directly,

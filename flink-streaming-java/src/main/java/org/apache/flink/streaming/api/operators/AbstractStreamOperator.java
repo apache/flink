@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -255,12 +256,36 @@ public abstract class AbstractStreamOperator<OUT>
 				config.getManagedMemoryFractionOperatorUseCaseOfSlot(
 					ManagedMemoryUseCase.STATE_BACKEND,
 					runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
-					runtimeContext.getUserCodeClassLoader()));
+					runtimeContext.getUserCodeClassLoader()),
+				isUsingCustomRawKeyedState());
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), streamTaskCloseableRegistry);
 		timeServiceManager = context.internalTimerServiceManager();
 		stateHandler.initializeOperatorState(this);
 		runtimeContext.setKeyedStateStore(stateHandler.getKeyedStateStore().orElse(null));
+	}
+
+	/**
+	 * Indicates whether or not implementations of this class is writing to the raw keyed state streams
+	 * on snapshots, using {@link #snapshotState(StateSnapshotContext)}. If yes, subclasses should
+	 * override this method to return {@code true}.
+	 *
+	 * <p>Subclasses need to explicitly indicate the use of raw keyed state because, internally,
+	 * the {@link AbstractStreamOperator} may attempt to read from it as well to restore heap-based timers and
+	 * ultimately fail with read errors. By setting this flag to {@code true}, this allows the
+	 * {@link AbstractStreamOperator} to know that the data written in the raw keyed states were
+	 * not written by the timer services, and skips the timer restore attempt.
+	 *
+	 * <p>Please refer to FLINK-19741 for further details.
+	 *
+	 * <p>TODO: this method can be removed once all timers are moved to be managed by state backends.
+	 *
+	 * @return flag indicating whether or not this operator is writing to raw keyed
+	 *         state via {@link #snapshotState(StateSnapshotContext)}.
+	 */
+	@Internal
+	protected boolean isUsingCustomRawKeyedState() {
+		return false;
 	}
 
 	/**
@@ -322,7 +347,8 @@ public abstract class AbstractStreamOperator<OUT>
 			checkpointId,
 			timestamp,
 			checkpointOptions,
-			factory);
+			factory,
+			isUsingCustomRawKeyedState());
 	}
 
 	/**

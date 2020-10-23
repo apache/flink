@@ -31,7 +31,6 @@ import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
-import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
@@ -46,6 +45,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An entity keeping all the time-related services. Right now, this is only a
@@ -187,36 +187,31 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 	//////////////////				Fault Tolerance Methods				///////////////////
 
 	@Override
-	public void snapshotState(StateSnapshotContext context, String operatorName) throws Exception {
-		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
-		if (useLegacySynchronousSnapshots) {
+	public boolean isUsingLegacyRawKeyedStateSnapshots() {
+		return useLegacySynchronousSnapshots;
+	}
 
-			KeyedStateCheckpointOutputStream out;
-			try {
-				out = context.getRawKeyedOperatorStateOutput();
-			} catch (Exception exception) {
-				throw new Exception("Could not open raw keyed operator state stream for " +
-					operatorName + '.', exception);
+	@Override
+	public void snapshotToRawKeyedState(KeyedStateCheckpointOutputStream out, String operatorName) throws Exception {
+		checkState(useLegacySynchronousSnapshots);
+
+		try {
+			KeyGroupsList allKeyGroups = out.getKeyGroupList();
+			for (int keyGroupIdx : allKeyGroups) {
+				out.startNewKeyGroup(keyGroupIdx);
+
+				snapshotStateForKeyGroup(
+					new DataOutputViewStreamWrapper(out), keyGroupIdx);
 			}
-
+		} catch (Exception exception) {
+			throw new Exception("Could not write timer service of " + operatorName +
+				" to checkpoint state stream.", exception);
+		} finally {
 			try {
-				KeyGroupsList allKeyGroups = out.getKeyGroupList();
-				for (int keyGroupIdx : allKeyGroups) {
-					out.startNewKeyGroup(keyGroupIdx);
-
-					snapshotStateForKeyGroup(
-						new DataOutputViewStreamWrapper(out), keyGroupIdx);
-				}
-			} catch (Exception exception) {
-				throw new Exception("Could not write timer service of " + operatorName +
-					" to checkpoint state stream.", exception);
-			} finally {
-				try {
-					out.close();
-				} catch (Exception closeException) {
-					LOG.warn("Could not close raw keyed operator state stream for {}. This " +
-						"might have prevented deleting some state data.", operatorName, closeException);
-				}
+				out.close();
+			} catch (Exception closeException) {
+				LOG.warn("Could not close raw keyed operator state stream for {}. This " +
+					"might have prevented deleting some state data.", operatorName, closeException);
 			}
 		}
 	}

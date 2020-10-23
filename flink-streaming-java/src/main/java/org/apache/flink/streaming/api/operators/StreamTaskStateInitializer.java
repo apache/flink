@@ -46,6 +46,8 @@ public interface StreamTaskStateInitializer {
 	 * @param streamTaskCloseableRegistry the closeable registry to which created closeable objects will be registered.
 	 * @param metricGroup the parent metric group for all statebackend metrics
 	 * @param managedMemoryFraction the managed memory fraction of the operator for state backend
+	 * @param isUsingCustomRawKeyedState flag indicating whether or not the {@link AbstractStreamOperator} is writing
+	 *                                   custom raw keyed state.
 	 * @return a context from which the given operator can initialize everything related to state.
 	 * @throws Exception when something went wrong while creating the context.
 	 */
@@ -57,5 +59,6 @@ public interface StreamTaskStateInitializer {
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
 		@Nonnull MetricGroup metricGroup,
-		double managedMemoryFraction) throws Exception;
+		double managedMemoryFraction,
+		boolean isUsingCustomRawKeyedState) throws Exception;
 }
