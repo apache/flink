@@ -75,10 +75,10 @@ class FlinkRelMdDistinctRowCountTest extends FlinkRelMdHandlerTestBase {
   def testGetDistinctRowCountOnValues(): Unit = {
     assertEquals(1.0, mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(), null))
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
-      assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+      assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
         mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(idx), null))
     }
-    assertEquals(RelMdUtil.numDistinctVals(2.0, 2.0),
+    assertEquals(FlinkRelMdUtil.numDistinctVals(2.0, 2.0),
       mq.getDistinctRowCount(logicalValues, ImmutableBitSet.of(0, 1), null))
 
     (0 until logicalValues.getRowType.getFieldCount).foreach { idx =>
