@@ -124,7 +124,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		@Nullable TypeSerializer<?> keySerializer,
 		@Nonnull CloseableRegistry streamTaskCloseableRegistry,
 		@Nonnull MetricGroup metricGroup,
-		double managedMemoryFraction) throws Exception {
+		double managedMemoryFraction,
+		boolean isUsingCustomRawKeyedState) throws Exception {
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 		OperatorSubtaskDescriptionText operatorSubtaskDescription =

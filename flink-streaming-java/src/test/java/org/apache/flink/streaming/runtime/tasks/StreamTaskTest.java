@@ -1529,7 +1529,15 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 			final StreamTaskStateInitializer streamTaskStateManager = super.createStreamTaskStateInitializer();
-			return (operatorID, operatorClassName, processingTimeService, keyContext, keySerializer, closeableRegistry, metricGroup, fraction) -> {
+			return (operatorID,
+					operatorClassName,
+					processingTimeService,
+					keyContext,
+					keySerializer,
+					closeableRegistry,
+					metricGroup,
+					fraction,
+					isUsingCustomRawKeyedState) -> {
 
 				final StreamOperatorStateContext controller = streamTaskStateManager.streamOperatorStateContext(
 					operatorID,
@@ -1539,7 +1547,8 @@ public class StreamTaskTest extends TestLogger {
 					keySerializer,
 					closeableRegistry,
 					metricGroup,
-					fraction);
+					fraction,
+					isUsingCustomRawKeyedState);
 
 				return new StreamOperatorStateContext() {
 					@Override
