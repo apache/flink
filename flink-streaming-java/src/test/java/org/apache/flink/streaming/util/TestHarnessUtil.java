@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -32,6 +33,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -124,5 +126,30 @@ public class TestHarnessUtil {
 				Assert.assertTrue("Late data was emitted after join", dataIsOnTime);
 			}
 		}
+	}
+
+	/**
+	 * Get the operator's state after processing given inputs.
+	 *
+	 * @param testHarness A operator whose state is computed
+	 * @param input A list of inputs
+	 *
+	 * @return The operator's snapshot
+	 *
+	 */
+	public static <InputT, CommT> OperatorSubtaskState buildSubtaskState(
+			OneInputStreamOperatorTestHarness<InputT, CommT> testHarness,
+			List<InputT> input) throws Exception {
+		testHarness.initializeEmptyState();
+		testHarness.open();
+
+		testHarness.processElements(input
+				.stream()
+				.map(StreamRecord::new)
+				.collect(Collectors.toList()));
+		final OperatorSubtaskState operatorSubtaskState = testHarness.snapshot(1, 1);
+		testHarness.close();
+
+		return operatorSubtaskState;
 	}
 }
