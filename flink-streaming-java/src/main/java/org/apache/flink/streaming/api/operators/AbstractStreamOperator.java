@@ -256,7 +256,8 @@ public abstract class AbstractStreamOperator<OUT>
 				config.getManagedMemoryFractionOperatorUseCaseOfSlot(
 					ManagedMemoryUseCase.STATE_BACKEND,
 					runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
-					runtimeContext.getUserCodeClassLoader()));
+					runtimeContext.getUserCodeClassLoader()),
+				isUsingCustomRawKeyedState());
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), streamTaskCloseableRegistry);
 		timeServiceManager = context.internalTimerServiceManager();
