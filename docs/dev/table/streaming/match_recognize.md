@@ -921,8 +921,9 @@ For the following input rows:
  XYZ      2     9       2018-09-17 10:00:02
  XYZ      1     10      2018-09-17 10:00:03
  XYZ      2     5       2018-09-17 10:00:04
- XYZ      2     17      2018-09-17 10:00:05
- XYZ      2     14      2018-09-17 10:00:06
+ XYZ      2     10      2018-09-17 10:00:05
+ XYZ      2     7       2018-09-17 10:00:06
+ XYZ      2     14      2018-09-17 10:00:07
 {% endhighlight %}
 
 We evaluate the following query with different strategies:
@@ -956,12 +957,12 @@ The query will produce different results based on which `AFTER MATCH` strategy w
  symbol   sumPrice        startTime              endTime
 ======== ========== ===================== =====================
  XYZ      26         2018-09-17 10:00:01   2018-09-17 10:00:04
- XYZ      17         2018-09-17 10:00:05   2018-09-17 10:00:06
+ XYZ      17         2018-09-17 10:00:05   2018-09-17 10:00:07
 {% endhighlight %}
 
 The first result matched against the rows #1, #2, #3, #4.
 
-The second result matched against the rows #5, #6.
+The second result matched against the rows #5, #6, #7.
 
 ##### `AFTER MATCH SKIP TO NEXT ROW`
 
@@ -970,9 +971,9 @@ The second result matched against the rows #5, #6.
 ======== ========== ===================== =====================
  XYZ      26         2018-09-17 10:00:01   2018-09-17 10:00:04
  XYZ      24         2018-09-17 10:00:02   2018-09-17 10:00:05
- XYZ      15         2018-09-17 10:00:03   2018-09-17 10:00:05
- XYZ      22         2018-09-17 10:00:04   2018-09-17 10:00:06
- XYZ      17         2018-09-17 10:00:05   2018-09-17 10:00:06
+ XYZ      25         2018-09-17 10:00:03   2018-09-17 10:00:06
+ XYZ      22         2018-09-17 10:00:04   2018-09-17 10:00:07
+ XYZ      17         2018-09-17 10:00:05   2018-09-17 10:00:07
 {% endhighlight %}
 
 Again, the first result matched against the rows #1, #2, #3, #4.
@@ -980,11 +981,11 @@ Again, the first result matched against the rows #1, #2, #3, #4.
 Compared to the previous strategy, the next match includes row #2 again for the next matching.
 Therefore, the second result matched against the rows #2, #3, #4, #5.
 
-The third result matched against the rows #3, #4, #5.
+The third result matched against the rows #3, #4, #5, #6.
 
-The forth result matched against the rows #4, #5, #6.
+The forth result matched against the rows #4, #5, #6, #7.
 
-The last result matched against the rows #5, #6.
+The last result matched against the rows #5, #6, #7.
 
 ##### `AFTER MATCH SKIP TO LAST A`
 
@@ -992,19 +993,16 @@ The last result matched against the rows #5, #6.
  symbol   sumPrice        startTime              endTime
 ======== ========== ===================== =====================
  XYZ      26         2018-09-17 10:00:01   2018-09-17 10:00:04
- XYZ      15         2018-09-17 10:00:03   2018-09-17 10:00:05
- XYZ      22         2018-09-17 10:00:04   2018-09-17 10:00:06
- XYZ      17         2018-09-17 10:00:05   2018-09-17 10:00:06
+ XYZ      25         2018-09-17 10:00:03   2018-09-17 10:00:06
+ XYZ      17         2018-09-17 10:00:05   2018-09-17 10:00:07
 {% endhighlight %}
 
 Again, the first result matched against the rows #1, #2, #3, #4.
 
 Compared to the previous strategy, the next match includes only row #3 (mapped to `A`) again for
-the next matching. Therefore, the second result matched against the rows #3, #4, #5.
+the next matching. Therefore, the second result matched against the rows #3, #4, #5, #6.
 
-The third result matched against the rows #4, #5, #6.
-
-The last result matched against the rows #5, #6.
+The last result matched against the rows #5, #6, #7.
 
 ##### `AFTER MATCH SKIP TO FIRST A`
 
