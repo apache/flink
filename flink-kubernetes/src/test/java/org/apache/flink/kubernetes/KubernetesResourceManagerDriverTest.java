@@ -24,6 +24,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.PodCallbackHandler;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.TestingKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -217,7 +218,7 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 					return FutureUtils.completedVoidFuture();
 				});
 
-		private TestingFlinkKubeClient flinkKubeClient;
+		private TestingKubeClientFactory kubeClientFactory;
 
 		PodCallbackHandler getPodCallbackHandler() {
 			try {
@@ -233,7 +234,7 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 			flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
 			flinkConfig.setString(TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
-			flinkKubeClient = flinkKubeClientBuilder.build();
+			kubeClientFactory = new TestingKubeClientFactory(flinkKubeClientBuilder);
 		}
 
 		@Override
@@ -243,7 +244,7 @@ public class KubernetesResourceManagerDriverTest extends ResourceManagerDriverTe
 
 		@Override
 		protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver() {
-			return new KubernetesResourceManagerDriver(flinkConfig, flinkKubeClient, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
+			return new KubernetesResourceManagerDriver(flinkConfig, kubeClientFactory, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
 		}
 
 		@Override
