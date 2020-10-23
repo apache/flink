@@ -27,7 +27,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.util.ExecutorUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
@@ -47,8 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -65,12 +63,12 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	private final String clusterId;
 	private final String namespace;
 
-	private final ExecutorService kubeClientExecutorService;
+	private final Executor kubeClientExecutorService;
 
 	public Fabric8FlinkKubeClient(
 			Configuration flinkConfig,
 			KubernetesClient client,
-			Supplier<ExecutorService> asyncExecutorFactory) {
+			Supplier<Executor> asyncExecutorFactory) {
 		this.internalClient = checkNotNull(client);
 		this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
@@ -220,7 +218,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 	@Override
 	public void close() {
 		this.internalClient.close();
-		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.kubeClientExecutorService);
 	}
 
 	private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {

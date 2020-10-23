@@ -24,7 +24,7 @@ import org.apache.flink.kubernetes.KubernetesResourceManagerDriver;
 import org.apache.flink.kubernetes.KubernetesWorkerNode;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
-import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
+import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFactory;
@@ -58,7 +58,7 @@ public class KubernetesResourceManagerFactory extends ActiveResourceManagerFacto
 
 		return new KubernetesResourceManagerDriver(
 				configuration,
-				KubeClientFactory.fromConfiguration(configuration),
+				DefaultKubeClientFactory.getInstance(),
 				kubernetesResourceManagerDriverConfiguration);
 	}
 
