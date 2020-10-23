@@ -187,6 +187,12 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   }
 
   @Test
+  def testPythonFunctionWithCompositeInputsAndWhereClause(): Unit = {
+    val sqlQuery = "SELECT a, pyFunc1(b, d._1) FROM MyTable WHERE a + 1 > 0"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testChainingPythonFunctionWithCompositeInputs(): Unit = {
     val sqlQuery = "SELECT a, pyFunc1(b, pyFunc1(c, d._1)) FROM MyTable"
     util.verifyPlan(sqlQuery)
