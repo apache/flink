@@ -45,6 +45,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -69,8 +70,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 public final class DataTypeUtils {
 
 	/**
-	 * Projects a (possibly nested) row data type by returning a new data type that only includes fields of the given
-	 * index paths.
+	 * Projects a (possibly nested) row data type by returning a new data type that only includes
+	 * fields of the given index paths.
 	 *
 	 * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
 	 * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
@@ -86,6 +87,19 @@ public final class DataTypeUtils {
 			new RowType(dataType.getLogicalType().isNullable(), updatedFields),
 			dataType.getConversionClass(),
 			updatedChildren);
+	}
+
+	/**
+	 * Projects a (possibly nested) row data type by returning a new data type that only includes
+	 * fields of the given indices.
+	 *
+	 * <p>Note: This method only projects (possibly nested) fields in the top-level row.
+	 */
+	public static DataType projectRow(DataType dataType, int[] indices) {
+		final int[][] indexPaths = IntStream.of(indices)
+				.mapToObj(i -> new int[]{i})
+				.toArray(int[][]::new);
+		return projectRow(dataType, indexPaths);
 	}
 
 	private static DataType selectChild(DataType dataType, int[] indexPath, int pos) {
@@ -108,6 +122,27 @@ public final class DataTypeUtils {
 			return child;
 		}
 		return selectChild(child.getType(), indexPath, pos + 1);
+	}
+
+	/**
+	 * Removes a string prefix from the fields of the given row data type.
+	 */
+	public static DataType stripRowPrefix(DataType dataType, String prefix) {
+		Preconditions.checkArgument(
+			hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ROW),
+			"Row data type expected.");
+		final RowType rowType = (RowType) dataType.getLogicalType();
+		final List<String> newFieldNames = rowType.getFieldNames()
+				.stream()
+				.map(s -> {
+					if (s.startsWith(prefix)) {
+						return s.substring(prefix.length());
+					}
+					return s;
+				})
+				.collect(Collectors.toList());
+		final LogicalType newRowType = LogicalTypeUtils.renameRowFields(rowType, newFieldNames);
+		return new FieldsDataType(newRowType, dataType.getConversionClass(), dataType.getChildren());
 	}
 
 	/**

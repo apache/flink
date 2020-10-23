@@ -38,6 +38,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -45,6 +46,7 @@ import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -75,11 +77,23 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	// Format attributes
 	// --------------------------------------------------------------------------------------------
 
-	/** Scan format for decoding records from Kafka. */
-	protected final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
-
-	/** Data type to configure the format. */
+	/** Data type to configure the formats. */
 	protected final DataType physicalDataType;
+
+	/** Optional format for decoding keys from Kafka. */
+	protected final @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat;
+
+	/** Format for decoding values from Kafka. */
+	protected final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat;
+
+	/** Indices that determine the key fields and the target position in the produced row. */
+	protected final int[] keyProjection;
+
+	/** Indices that determine the value fields and the target position in the produced row. */
+	protected final int[] valueProjection;
+
+	/** Prefix that needs to be removed from fields when constructing the physical data type. */
+	protected final @Nullable String keyPrefix;
 
 	// --------------------------------------------------------------------------------------------
 	// Kafka-specific attributes
@@ -105,24 +119,35 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 
 	public KafkaDynamicSource(
 			DataType physicalDataType,
+			@Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
+			DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
+			int[] keyProjection,
+			int[] valueProjection,
+			@Nullable String keyPrefix,
 			@Nullable List<String> topics,
 			@Nullable Pattern topicPattern,
 			Properties properties,
-			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
+		// Format attributes
 		this.physicalDataType = Preconditions.checkNotNull(physicalDataType, "Physical data type must not be null.");
+		this.keyDecodingFormat = keyDecodingFormat;
+		this.valueDecodingFormat = Preconditions.checkNotNull(
+				valueDecodingFormat, "Value decoding format must not be null.");
+		this.keyProjection = Preconditions.checkNotNull(keyProjection, "Key projection must not be null.");
+		this.valueProjection = Preconditions.checkNotNull(valueProjection, "Value projection must not be null.");
+		this.keyPrefix = keyPrefix;
+		// Mutable attributes
 		this.producedDataType = physicalDataType;
 		this.metadataKeys = Collections.emptyList();
+		// Kafka-specific attributes
 		Preconditions.checkArgument((topics != null && topicPattern == null) ||
 				(topics == null && topicPattern != null),
 			"Either Topic or Topic Pattern must be set for source.");
 		this.topics = topics;
 		this.topicPattern = topicPattern;
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
-		this.decodingFormat = Preconditions.checkNotNull(
-			decodingFormat, "Decoding format must not be null.");
 		this.startupMode = Preconditions.checkNotNull(startupMode, "Startup mode must not be null.");
 		this.specificStartupOffsets = Preconditions.checkNotNull(
 			specificStartupOffsets, "Specific offsets must not be null.");
@@ -131,18 +156,22 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 
 	@Override
 	public ChangelogMode getChangelogMode() {
-		return this.decodingFormat.getChangelogMode();
+		return valueDecodingFormat.getChangelogMode();
 	}
 
 	@Override
-	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
+		final DeserializationSchema<RowData> keyDeserialization =
+				createDeserialization(context, keyDecodingFormat, keyProjection, keyPrefix);
+
 		final DeserializationSchema<RowData> valueDeserialization =
-				decodingFormat.createRuntimeDecoder(runtimeProviderContext, physicalDataType);
+				createDeserialization(context, valueDecodingFormat, valueProjection, null);
 
 		final TypeInformation<RowData> producedTypeInfo =
-				runtimeProviderContext.createTypeInformation(producedDataType);
+				context.createTypeInformation(producedDataType);
 
-		final FlinkKafkaConsumer<RowData> kafkaConsumer = createKafkaConsumer(valueDeserialization, producedTypeInfo);
+		final FlinkKafkaConsumer<RowData> kafkaConsumer =
+				createKafkaConsumer(keyDeserialization, valueDeserialization, producedTypeInfo);
 
 		return SourceFunctionProvider.of(kafkaConsumer, false);
 	}
@@ -163,14 +192,18 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	@Override
 	public DynamicTableSource copy() {
 		final KafkaDynamicSource copy = new KafkaDynamicSource(
-				this.physicalDataType,
-				this.topics,
-				this.topicPattern,
-				this.properties,
-				this.decodingFormat,
-				this.startupMode,
-				this.specificStartupOffsets,
-				this.startupTimestampMillis);
+				physicalDataType,
+				keyDecodingFormat,
+				valueDecodingFormat,
+				keyProjection,
+				valueProjection,
+				keyPrefix,
+				topics,
+				topicPattern,
+				properties,
+				startupMode,
+				specificStartupOffsets,
+				startupTimestampMillis);
 		copy.producedDataType = producedDataType;
 		copy.metadataKeys = metadataKeys;
 		return copy;
@@ -193,10 +226,14 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 		return Objects.equals(producedDataType, that.producedDataType) &&
 			Objects.equals(metadataKeys, that.metadataKeys) &&
 			Objects.equals(physicalDataType, that.physicalDataType) &&
+			Objects.equals(keyDecodingFormat, that.keyDecodingFormat) &&
+			Objects.equals(valueDecodingFormat, that.valueDecodingFormat) &&
+			Arrays.equals(keyProjection, that.keyProjection) &&
+			Arrays.equals(valueProjection, that.valueProjection) &&
+			Objects.equals(keyPrefix, that.keyPrefix) &&
 			Objects.equals(topics, that.topics) &&
 			Objects.equals(String.valueOf(topicPattern), String.valueOf(that.topicPattern)) &&
 			Objects.equals(properties, that.properties) &&
-			Objects.equals(decodingFormat, that.decodingFormat) &&
 			startupMode == that.startupMode &&
 			Objects.equals(specificStartupOffsets, that.specificStartupOffsets) &&
 			startupTimestampMillis == that.startupTimestampMillis;
@@ -208,10 +245,14 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 			producedDataType,
 			metadataKeys,
 			physicalDataType,
+			keyDecodingFormat,
+			valueDecodingFormat,
+			keyProjection,
+			valueProjection,
+			keyPrefix,
 			topics,
 			topicPattern,
 			properties,
-			decodingFormat,
 			startupMode,
 			specificStartupOffsets,
 			startupTimestampMillis);
@@ -220,6 +261,7 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 	// --------------------------------------------------------------------------------------------
 
 	protected FlinkKafkaConsumer<RowData> createKafkaConsumer(
+			DeserializationSchema<RowData> keyDeserialization,
 			DeserializationSchema<RowData> valueDeserialization,
 			TypeInformation<RowData> producedTypeInfo) {
 
@@ -232,9 +274,16 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 				.map(m -> m.converter)
 				.toArray(MetadataConverter[]::new);
 
+		// check if metadata is used at all
+		final boolean hasMetadata = metadataKeys.size() > 0;
+
 		final KafkaDeserializationSchema<RowData> kafkaDeserializer = new DynamicKafkaDeserializationSchema(
+				physicalDataType.getChildren().size(),
+				keyDeserialization,
+				keyProjection,
 				valueDeserialization,
-				metadataKeys.size() > 0,
+				valueProjection,
+				hasMetadata,
 				metadataConverters,
 				producedTypeInfo);
 
@@ -266,6 +315,21 @@ public class KafkaDynamicSource implements ScanTableSource, SupportsReadingMetad
 		kafkaConsumer.setCommitOffsetsOnCheckpoints(properties.getProperty("group.id") != null);
 
 		return kafkaConsumer;
+	}
+
+	private @Nullable DeserializationSchema<RowData> createDeserialization(
+			DynamicTableSource.Context context,
+			@Nullable DecodingFormat<DeserializationSchema<RowData>> format,
+			int[] projection,
+			@Nullable String prefix) {
+		if (format == null) {
+			return null;
+		}
+		DataType physicalFormatDataType = DataTypeUtils.projectRow(this.physicalDataType, projection);
+		if (prefix != null) {
+			physicalFormatDataType = DataTypeUtils.stripRowPrefix(physicalFormatDataType, prefix);
+		}
+		return format.createRuntimeDecoder(context, physicalFormatDataType);
 	}
 
 	// --------------------------------------------------------------------------------------------

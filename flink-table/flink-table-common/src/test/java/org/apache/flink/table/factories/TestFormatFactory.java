@@ -99,6 +99,9 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		public final String delimiter;
 		public final Boolean failOnMissing;
 
+		// we make the format stateful for capturing parameterization during testing
+		public DataType producedDataType;
+
 		public DecodingFormatMock(String delimiter, Boolean failOnMissing) {
 			this.delimiter = delimiter;
 			this.failOnMissing = failOnMissing;
@@ -108,12 +111,13 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		public DeserializationSchema<RowData> createRuntimeDecoder(
 				DynamicTableSource.Context context,
 				DataType producedDataType) {
+			this.producedDataType = producedDataType;
 			return null;
 		}
 
 		@Override
 		public ChangelogMode getChangelogMode() {
-			return null;
+			return ChangelogMode.insertOnly();
 		}
 
 		@Override
@@ -125,12 +129,14 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 				return false;
 			}
 			DecodingFormatMock that = (DecodingFormatMock) o;
-			return delimiter.equals(that.delimiter) && failOnMissing.equals(that.failOnMissing);
+			return delimiter.equals(that.delimiter)
+					&& failOnMissing.equals(that.failOnMissing)
+					&& Objects.equals(producedDataType, that.producedDataType);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(delimiter, failOnMissing);
+			return Objects.hash(delimiter, failOnMissing, producedDataType);
 		}
 	}
 
@@ -145,6 +151,9 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 
 		public final String delimiter;
 
+		// we make the format stateful for capturing parameterization during testing
+		public DataType consumedDataType;
+
 		public EncodingFormatMock(String delimiter) {
 			this.delimiter = delimiter;
 		}
@@ -152,13 +161,14 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 		@Override
 		public SerializationSchema<RowData> createRuntimeEncoder(
 				DynamicTableSink.Context context,
-				DataType consumeDataType) {
+				DataType consumedDataType) {
+			this.consumedDataType = consumedDataType;
 			return null;
 		}
 
 		@Override
 		public ChangelogMode getChangelogMode() {
-			return null;
+			return ChangelogMode.insertOnly();
 		}
 
 		@Override
@@ -170,12 +180,13 @@ public class TestFormatFactory implements DeserializationFormatFactory, Serializ
 				return false;
 			}
 			EncodingFormatMock that = (EncodingFormatMock) o;
-			return delimiter.equals(that.delimiter);
+			return delimiter.equals(that.delimiter)
+					&& Objects.equals(consumedDataType, that.consumedDataType);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(delimiter);
+			return Objects.hash(delimiter, consumedDataType);
 		}
 	}
 }

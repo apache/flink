@@ -34,9 +34,11 @@ import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Utilities for handling {@link LogicalType}s.
@@ -149,6 +151,25 @@ public final class LogicalTypeUtils {
 			fieldName = ATOMIC_FIELD_NAME + "_" + i++;
 		}
 		return fieldName;
+	}
+
+	/**
+	 * Renames the fields of the given {@link RowType}.
+	 */
+	public static RowType renameRowFields(RowType rowType, List<String> newFieldNames) {
+		Preconditions.checkArgument(
+				rowType.getFieldCount() == newFieldNames.size(),
+				"Row length and new names must match.");
+		final List<RowField> newFields = IntStream.range(0, rowType.getFieldCount())
+				.mapToObj(pos -> {
+					final RowField oldField = rowType.getFields().get(pos);
+					return new RowField(
+							newFieldNames.get(pos),
+							oldField.getType(),
+							oldField.getDescription().orElse(null));
+				})
+				.collect(Collectors.toList());
+		return new RowType(rowType.isNullable(), newFields);
 	}
 
 	// --------------------------------------------------------------------------------------------

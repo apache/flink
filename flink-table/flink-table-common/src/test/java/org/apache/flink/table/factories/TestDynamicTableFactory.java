@@ -39,8 +39,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
-import static org.apache.flink.table.factories.FactoryUtil.KEY_FORMAT;
-import static org.apache.flink.table.factories.FactoryUtil.VALUE_FORMAT;
+import static org.apache.flink.table.factories.FactoryUtil.FORMAT_SUFFIX;
 
 /**
  * Test implementations for {@link DynamicTableSourceFactory} and {@link DynamicTableSinkFactory}.
@@ -58,6 +57,16 @@ public final class TestDynamicTableFactory implements DynamicTableSourceFactory,
 		.key("buffer-size")
 		.longType()
 		.defaultValue(100L);
+
+	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
+		.key("key" + FORMAT_SUFFIX)
+		.stringType()
+		.noDefaultValue();
+
+	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
+		.key("value" + FORMAT_SUFFIX)
+		.stringType()
+		.noDefaultValue();
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {

@@ -28,7 +28,11 @@ import org.apache.flink.util.Collector;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A specific {@link KafkaSerializationSchema} for {@link KafkaDynamicSource}.
@@ -37,27 +41,44 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
 	private static final long serialVersionUID = 1L;
 
+	private final @Nullable DeserializationSchema<RowData> keyDeserialization;
+
 	private final DeserializationSchema<RowData> valueDeserialization;
 
 	private final boolean hasMetadata;
 
-	private final MetadataAppendingCollector metadataAppendingCollector;
+	private final BufferingCollector keyCollector;
+
+	private final OutputProjectionCollector outputCollector;
 
 	private final TypeInformation<RowData> producedTypeInfo;
 
 	DynamicKafkaDeserializationSchema(
+			int physicalArity,
+			@Nullable DeserializationSchema<RowData> keyDeserialization,
+			int[] keyProjection,
 			DeserializationSchema<RowData> valueDeserialization,
+			int[] valueProjection,
 			boolean hasMetadata,
 			MetadataConverter[] metadataConverters,
 			TypeInformation<RowData> producedTypeInfo) {
-		this.hasMetadata = hasMetadata;
+		this.keyDeserialization = keyDeserialization;
 		this.valueDeserialization = valueDeserialization;
-		this.metadataAppendingCollector = new MetadataAppendingCollector(metadataConverters);
+		this.hasMetadata = hasMetadata;
+		this.keyCollector = new BufferingCollector();
+		this.outputCollector = new OutputProjectionCollector(
+				physicalArity,
+				keyProjection,
+				valueProjection,
+				metadataConverters);
 		this.producedTypeInfo = producedTypeInfo;
 	}
 
 	@Override
 	public void open(DeserializationSchema.InitializationContext context) throws Exception {
+		if (keyDeserialization != null) {
+			keyDeserialization.open(context);
+		}
 		valueDeserialization.open(context);
 	}
 
@@ -73,14 +94,24 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
 	@Override
 	public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<RowData> collector) throws Exception {
-		// shortcut if no metadata is required
-		if (!hasMetadata) {
+		// shortcut in case no output projection is required,
+		// also not for a cartesian product with the keys
+		if (keyDeserialization == null && !hasMetadata) {
 			valueDeserialization.deserialize(record.value(), collector);
-		} else {
-			metadataAppendingCollector.inputRecord = record;
-			metadataAppendingCollector.outputCollector = collector;
-			valueDeserialization.deserialize(record.value(), metadataAppendingCollector);
+			return;
 		}
+
+		// buffer key(s)
+		if (keyDeserialization != null) {
+			keyDeserialization.deserialize(record.key(), keyCollector);
+		}
+
+		// project output while emitting values
+		outputCollector.inputRecord = record;
+		outputCollector.physicalKeyRows = keyCollector.buffer;
+		outputCollector.outputCollector = collector;
+		valueDeserialization.deserialize(record.value(), outputCollector);
+		keyCollector.buffer.clear();
 	}
 
 	@Override
@@ -96,44 +127,104 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
 	// --------------------------------------------------------------------------------------------
 
-	private static final class MetadataAppendingCollector implements Collector<RowData>, Serializable {
+	private static final class BufferingCollector implements Collector<RowData>, Serializable {
 
 		private static final long serialVersionUID = 1L;
 
-		private final MetadataConverter[] metadataConverters;
-
-		private transient ConsumerRecord<?, ?> inputRecord;
-
-		private transient Collector<RowData> outputCollector;
-
-		MetadataAppendingCollector(MetadataConverter[] metadataConverters) {
-			this.metadataConverters = metadataConverters;
-		}
+		private final List<RowData> buffer = new ArrayList<>();
 
 		@Override
-		public void collect(RowData physicalRow) {
-			final GenericRowData genericPhysicalRow = (GenericRowData) physicalRow;
-			final int physicalArity = physicalRow.getArity();
-			final int metadataArity = metadataConverters.length;
-
-			final GenericRowData producedRow = new GenericRowData(
-					physicalRow.getRowKind(),
-					physicalArity + metadataArity);
-
-			for (int i = 0; i < physicalArity; i++) {
-				producedRow.setField(i, genericPhysicalRow.getField(i));
-			}
-
-			for (int i = 0; i < metadataArity; i++) {
-				producedRow.setField(i + physicalArity, metadataConverters[i].read(inputRecord));
-			}
-
-			outputCollector.collect(producedRow);
+		public void collect(RowData record) {
+			buffer.add(record);
 		}
 
 		@Override
 		public void close() {
 			// nothing to do
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Emits a row with key, value, and metadata fields.
+	 *
+	 * <p>The collector is able to handle the following kinds of keys:
+	 * <ul>
+	 *     <li>No key is used.
+	 *     <li>A key is used.
+	 *     <li>The deserialization schema emits multiple keys.
+	 *     <li>Keys and values have overlapping fields.
+	 * </ul>
+	 */
+	private static final class OutputProjectionCollector implements Collector<RowData>, Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int physicalArity;
+
+		private final int[] keyProjection;
+
+		private final int[] valueProjection;
+
+		private final MetadataConverter[] metadataConverters;
+
+		private transient ConsumerRecord<?, ?> inputRecord;
+
+		private transient List<RowData> physicalKeyRows;
+
+		private transient Collector<RowData> outputCollector;
+
+		OutputProjectionCollector(
+				int physicalArity,
+				int[] keyProjection,
+				int[] valueProjection,
+				MetadataConverter[] metadataConverters) {
+			this.physicalArity = physicalArity;
+			this.keyProjection = keyProjection;
+			this.valueProjection = valueProjection;
+			this.metadataConverters = metadataConverters;
+		}
+
+		@Override
+		public void collect(RowData physicalValueRow) {
+			// no key defined
+			if (keyProjection.length == 0) {
+				emitRow(null, (GenericRowData) physicalValueRow);
+				return;
+			}
+
+			// otherwise emit a value for each key
+			for (RowData physicalKeyRow : physicalKeyRows) {
+				emitRow((GenericRowData) physicalKeyRow, (GenericRowData) physicalValueRow);
+			}
+		}
+
+		@Override
+		public void close() {
+			// nothing to do
+		}
+
+		private void emitRow(GenericRowData physicalKeyRow, GenericRowData physicalValueRow) {
+			final int metadataArity = metadataConverters.length;
+
+			final GenericRowData producedRow = new GenericRowData(
+					physicalValueRow.getRowKind(),
+					physicalArity + metadataArity);
+
+			for (int keyPos = 0; keyPos < keyProjection.length; keyPos++) {
+				producedRow.setField(keyProjection[keyPos], physicalKeyRow.getField(keyPos));
+			}
+
+			for (int valuePos = 0; valuePos < valueProjection.length; valuePos++) {
+				producedRow.setField(valueProjection[valuePos], physicalValueRow.getField(valuePos));
+			}
+
+			for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
+				producedRow.setField(physicalArity + metadataPos, metadataConverters[metadataPos].read(inputRecord));
+			}
+
+			outputCollector.collect(producedRow);
 		}
 	}
 }

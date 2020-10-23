@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 
@@ -43,7 +44,13 @@ class DynamicKafkaSerializationSchema
 
 	private final String topic;
 
+	private final @Nullable SerializationSchema<RowData> keySerialization;
+
 	private final SerializationSchema<RowData> valueSerialization;
+
+	private final RowData.FieldGetter[] keyFieldGetters;
+
+	private final RowData.FieldGetter[] valueFieldGetters;
 
 	private final boolean hasMetadata;
 
@@ -52,8 +59,6 @@ class DynamicKafkaSerializationSchema
 	 * -1 if this metadata key is not used.
 	 */
 	private final int[] metadataPositions;
-
-	private final RowData.FieldGetter[] physicalFieldGetters;
 
 	private int[] partitions;
 
@@ -64,20 +69,27 @@ class DynamicKafkaSerializationSchema
 	DynamicKafkaSerializationSchema(
 			String topic,
 			@Nullable FlinkKafkaPartitioner<RowData> partitioner,
+			@Nullable SerializationSchema<RowData> keySerialization,
 			SerializationSchema<RowData> valueSerialization,
+			RowData.FieldGetter[] keyFieldGetters,
+			RowData.FieldGetter[] valueFieldGetters,
 			boolean hasMetadata,
-			int[] metadataPositions,
-			RowData.FieldGetter[] physicalFieldGetters) {
+			int[] metadataPositions) {
 		this.topic = topic;
 		this.partitioner = partitioner;
+		this.keySerialization = keySerialization;
 		this.valueSerialization = valueSerialization;
+		this.keyFieldGetters = keyFieldGetters;
+		this.valueFieldGetters = valueFieldGetters;
 		this.hasMetadata = hasMetadata;
 		this.metadataPositions = metadataPositions;
-		this.physicalFieldGetters = physicalFieldGetters;
 	}
 
 	@Override
 	public void open(SerializationSchema.InitializationContext context) throws Exception {
+		if (keySerialization != null) {
+			keySerialization.open(context);
+		}
 		valueSerialization.open(context);
 		if (partitioner != null) {
 			partitioner.open(parallelInstanceId, numParallelInstances);
@@ -86,39 +98,32 @@ class DynamicKafkaSerializationSchema
 
 	@Override
 	public ProducerRecord<byte[], byte[]> serialize(RowData consumedRow, @Nullable Long timestamp) {
-		final RowData physicalRow;
-		// shortcut if no metadata is required
-		if (!hasMetadata) {
-			physicalRow = consumedRow;
+		// shortcut in case no input projection is required
+		if (keySerialization == null && !hasMetadata) {
+			final byte[] valueSerialized = valueSerialization.serialize(consumedRow);
+			return new ProducerRecord<>(
+					topic,
+					extractPartition(consumedRow, null, valueSerialized),
+					null,
+					valueSerialized);
+		}
+
+		final byte[] keySerialized;
+		if (keySerialization == null) {
+			keySerialized = null;
 		} else {
-			final int physicalArity = physicalFieldGetters.length;
-			final GenericRowData genericRowData = new GenericRowData(
-					consumedRow.getRowKind(),
-					physicalArity);
-			for (int i = 0; i < physicalArity; i++) {
-				genericRowData.setField(i, physicalFieldGetters[i].getFieldOrNull(consumedRow));
-			}
-			physicalRow = genericRowData;
+			final RowData keyRow = createProjectedRow(consumedRow, RowKind.INSERT, keyFieldGetters);
+			keySerialized = keySerialization.serialize(keyRow);
 		}
 
-		final byte[] valueSerialized = valueSerialization.serialize(physicalRow);
+		final RowData valueRow = createProjectedRow(consumedRow, consumedRow.getRowKind(), valueFieldGetters);
+		final byte[] valueSerialized = valueSerialization.serialize(valueRow);
 
-		final Integer partition;
-		if (partitioner != null) {
-			partition = partitioner.partition(physicalRow, null, valueSerialized, topic, partitions);
-		} else {
-			partition = null;
-		}
-
-		// shortcut if no metadata is required
-		if (!hasMetadata) {
-			return new ProducerRecord<>(topic, partition, null, null, valueSerialized);
-		}
 		return new ProducerRecord<>(
 				topic,
-				partition,
+				extractPartition(consumedRow, keySerialized, valueSerialized),
 				readMetadata(consumedRow, KafkaDynamicSink.WritableMetadata.TIMESTAMP),
-				null,
+				keySerialized,
 				valueSerialized,
 				readMetadata(consumedRow, KafkaDynamicSink.WritableMetadata.HEADERS));
 	}
@@ -150,6 +155,22 @@ class DynamicKafkaSerializationSchema
 			return null;
 		}
 		return (T) metadata.converter.read(consumedRow, pos);
+	}
+
+	private Integer extractPartition(RowData consumedRow, @Nullable byte[] keySerialized, byte[] valueSerialized) {
+		if (partitioner != null) {
+			return partitioner.partition(consumedRow, keySerialized, valueSerialized, topic, partitions);
+		}
+		return null;
+	}
+
+	private static RowData createProjectedRow(RowData consumedRow, RowKind kind, RowData.FieldGetter[] fieldGetters) {
+		final int arity = fieldGetters.length;
+		final GenericRowData genericRowData = new GenericRowData(kind, arity);
+		for (int fieldPos = 0; fieldPos < arity; fieldPos++) {
+			genericRowData.setField(fieldPos, fieldGetters[fieldPos].getFieldOrNull(consumedRow));
+		}
+		return genericRowData;
 	}
 
 	// --------------------------------------------------------------------------------------------
