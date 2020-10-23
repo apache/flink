@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
@@ -305,5 +306,10 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
 	protected void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
+	}
+
+	@VisibleForTesting
+	public ResultPartitionManager getPartitionManager() {
+		return partitionManager;
 	}
 }

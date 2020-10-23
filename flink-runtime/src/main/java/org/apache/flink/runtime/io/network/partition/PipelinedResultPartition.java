@@ -158,7 +158,8 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
 	// ------------------------------------------------------------------------
 
 	private static ResultPartitionType checkResultPartitionType(ResultPartitionType type) {
-		checkArgument(type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED);
+		checkArgument(type == ResultPartitionType.PIPELINED || type == ResultPartitionType.PIPELINED_BOUNDED ||
+			type == ResultPartitionType.PIPELINED_APPROXIMATE);
 		return type;
 	}
 }
