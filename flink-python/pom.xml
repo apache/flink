@@ -334,6 +334,7 @@ under the License.
 									<excludes>
 										<exclude>org/apache/beam/vendor/bytebuddy/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
+										<exclude>META-INF/maven/org.antlr/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
 									</excludes>
