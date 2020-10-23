@@ -71,7 +71,17 @@ public enum ResultPartitionType {
 	 * <p>For batch jobs, it will be best to keep this unlimited ({@link #PIPELINED}) since there are
 	 * no checkpoint barriers.
 	 */
-	PIPELINED_BOUNDED(true, true, true, false);
+	PIPELINED_BOUNDED(true, true, true, false),
+
+	/**
+	 * Pipelined partitions with a bounded (local) buffer pool to support downstream task to
+	 * continue consuming data after reconnection in Approximate Local-Recovery.
+	 *
+	 * <p>Pipelined results can be consumed only once by a single consumer at one time.
+	 * {@link #PIPELINED_APPROXIMATE} is different from {@link #PIPELINED_BOUNDED} in that
+	 * {@link #PIPELINED_APPROXIMATE} is not decomposed automatically after consumption.
+	 */
+	PIPELINED_APPROXIMATE(true, true, true, true);
 
 	/** Can the partition be consumed while being produced? */
 	private final boolean isPipelined;
