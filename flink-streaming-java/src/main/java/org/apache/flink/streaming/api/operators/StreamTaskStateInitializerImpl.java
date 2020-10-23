@@ -58,6 +58,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -165,7 +166,21 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
 			// -------------- Internal Timer Service Manager --------------
-			timeServiceManager = internalTimeServiceManager(keyedStatedBackend, keyContext, processingTimeService, rawKeyedStateInputs);
+
+			// if the operator indicates that it is using custom raw keyed state,
+			// then whatever was written in the raw keyed state snapshot was NOT written
+			// by the internal timer services (because there is only ever one user of raw keyed state);
+			// in this case, we should not attempt to restore timers from the raw keyed state.
+			final Iterable<KeyGroupStatePartitionStreamProvider> restoredRawKeyedStateTimers =
+				(prioritizedOperatorSubtaskStates.isRestored() && !isUsingCustomRawKeyedState)
+					? rawKeyedStateInputs
+					: Collections.emptyList();
+
+			timeServiceManager = internalTimeServiceManager(
+				keyedStatedBackend,
+				keyContext,
+				processingTimeService,
+				restoredRawKeyedStateTimers);
 
 			// -------------- Preparing return value --------------
 

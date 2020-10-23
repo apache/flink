@@ -252,7 +252,8 @@ public abstract class AbstractStreamOperator<OUT>
 				this,
 				keySerializer,
 				streamTaskCloseableRegistry,
-				metrics);
+				metrics,
+				isUsingCustomRawKeyedState());
 
 		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), streamTaskCloseableRegistry);
 		timeServiceManager = context.internalTimerServiceManager();
