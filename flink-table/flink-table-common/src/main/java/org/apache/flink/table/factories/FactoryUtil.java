@@ -77,7 +77,9 @@ public final class FactoryUtil {
 			.key("sink.parallelism")
 			.intType()
 			.noDefaultValue()
-			.withDescription("Defines the user specified parallelism for the sink.");
+			.withDescription("Defines a custom parallelism for the sink. "
+					+ "By default, if this option is not defined, the planner will derive the parallelism "
+					+ "for each statement individually by also considering the global configuration.");
 
 	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
 		.key("key.format")

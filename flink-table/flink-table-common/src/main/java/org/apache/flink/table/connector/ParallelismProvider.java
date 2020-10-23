@@ -19,24 +19,28 @@
 package org.apache.flink.table.connector;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.sink.OutputFormatProvider;
 
 import java.util.Optional;
 
 /**
- * Parallelism provider for connector providers.
+ * Parallelism provider for other connector providers. It allows to express a custom parallelism for
+ * the connector runtime implementation. Otherwise the parallelism is determined by the planner.
  *
- * <p>Note: currently, it only supports to work with {@code SinkFunctionProvider} and
- * {@code OutputFormatProvider}.
+ * <p>Note: Currently, this interface can only work with {@code org.apache.flink.table.connector.sink.SinkFunctionProvider}
+ * in {@code flink-table-api-java-bridge} module and {@link OutputFormatProvider}.
  */
 @PublicEvolving
 public interface ParallelismProvider {
 
 	/**
-	 * Gets the parallelism for this contract instance. The parallelism denotes how many parallel
-	 * instances of the user source/sink will be spawned during the execution.
+	 * Returns the parallelism for this instance.
 	 *
-	 * @return empty if the connector does not want to provide parallelism, then the planner will
-	 * decide the number of parallel instances by itself.
+	 * <p>The parallelism denotes how many parallel instances of a source or sink will be spawned
+	 * during the execution.
+	 *
+	 * @return empty if the connector does not provide a custom parallelism, then the planner will
+	 *         decide the number of parallel instances by itself.
 	 */
 	default Optional<Integer> getParallelism() {
 		return Optional.empty();

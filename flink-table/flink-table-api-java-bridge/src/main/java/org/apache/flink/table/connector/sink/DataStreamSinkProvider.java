@@ -24,16 +24,16 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Provider to consume a {@link DataStream} as a runtime implementation for
- * {@link DynamicTableSink}.
+ * Provider that consumes a Java {@link DataStream} as a runtime implementation for {@link DynamicTableSink}.
  *
- * <p>NOTE: This is only for advanced connector developers.
+ * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should consist
+ * of a single entity expressed via {@link OutputFormatProvider} or {@link SinkFunctionProvider}.
  */
 @PublicEvolving
 public interface DataStreamSinkProvider extends DynamicTableSink.SinkRuntimeProvider {
 
 	/**
-	 * Consume the DataStream and return the sink transformation {@link DataStreamSink}.
+	 * Consumes the given Java {@link DataStream} and returns the sink transformation {@link DataStreamSink}.
 	 */
-	DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream);
+	DataStreamSink<RowData> consumeDataStream(DataStream<RowData> dataStream);
 }

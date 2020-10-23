@@ -24,16 +24,17 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.data.RowData;
 
 /**
- * Provider to create a {@link DataStream} instance as a runtime implementation for
- * {@link ScanTableSource}.
+ * Provider that produces a Java {@link DataStream} as a runtime implementation for {@link ScanTableSource}.
  *
- * <p>NOTE: This is only for advanced connector developers.
+ * <p>Note: This provider is only meant for advanced connector developers. Usually, a source should consist
+ * of a single entity expressed via {@link InputFormatProvider}, {@link SourceFunctionProvider}, or
+ * {@link SourceProvider}.
  */
 @PublicEvolving
 public interface DataStreamScanProvider extends ScanTableSource.ScanRuntimeProvider {
 
 	/**
-	 * Creates a scan {@link DataStream} from {@link StreamExecutionEnvironment}.
+	 * Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}.
 	 */
-	DataStream<RowData> createDataStream(StreamExecutionEnvironment execEnv);
+	DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv);
 }
