@@ -35,5 +35,5 @@ public interface DataStreamSinkProvider extends DynamicTableSink.SinkRuntimeProv
 	/**
 	 * Consumes the given Java {@link DataStream} and returns the sink transformation {@link DataStreamSink}.
 	 */
-	DataStreamSink<RowData> consumeDataStream(DataStream<RowData> dataStream);
+	DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream);
 }
