@@ -6,7 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
- - commons-codec:commons-codec:jar:1.10
+ - commons-codec:commons-codec:jar:1.13
  - commons-lang:commons-lang:2.6
  - commons-logging:commons-logging:1.2
  - io.netty:netty-all:jar:4.1.44.Final
