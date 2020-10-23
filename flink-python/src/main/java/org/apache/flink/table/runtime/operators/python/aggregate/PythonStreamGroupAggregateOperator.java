@@ -371,8 +371,8 @@ public class PythonStreamGroupAggregateOperator
 			PythonOptions.STATE_CACHE_SIZE.key(),
 			String.valueOf(config.get(PythonOptions.STATE_CACHE_SIZE)));
 		jobOptions.put(
-			PythonOptions.MAP_STATE_ITERATE_REQUEST_BATCH_SIZE.key(),
-			String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_REQUEST_BATCH_SIZE)));
+			PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
+			String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
 		return jobOptions;
 	}
 

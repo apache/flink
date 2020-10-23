@@ -658,7 +658,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 		 */
 		private final Map<ByteArrayWrapper, Iterator> mapStateIteratorCache;
 
-		private final int mapStateIterateRequestBatchSize;
+		private final int mapStateIterateResponseBatchSize;
 
 		private final ByteArrayWrapper reuseByteArrayWrapper = new ByteArrayWrapper(new byte[0]);
 
@@ -676,12 +676,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			baosWrapper = new DataOutputViewStreamWrapper(baos);
 			stateDescriptorCache = new HashMap<>();
 			mapStateIteratorCache = new HashMap<>();
-			mapStateIterateRequestBatchSize = Integer.valueOf(
-				config.get(PythonOptions.MAP_STATE_ITERATE_REQUEST_BATCH_SIZE.key()));
-			if (mapStateIterateRequestBatchSize <= 0) {
+			mapStateIterateResponseBatchSize = Integer.valueOf(config.getOrDefault(
+				PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
+				PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.defaultValue().toString()));
+			if (mapStateIterateResponseBatchSize <= 0) {
 				throw new RuntimeException(String.format(
 					"The value of '%s' must be greater than 0!",
-					PythonOptions.MAP_STATE_ITERATE_REQUEST_BATCH_SIZE.key()));
+					PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key()));
 			}
 		}
 
@@ -993,7 +994,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 				case ITEMS:
 				case VALUES:
 					Iterator<Map.Entry<ByteArrayWrapper, byte[]>> entryIterator = iterator;
-					for (int i = 0; i < mapStateIterateRequestBatchSize; i++) {
+					for (int i = 0; i < mapStateIterateResponseBatchSize; i++) {
 						if (entryIterator.hasNext()) {
 							Map.Entry<ByteArrayWrapper, byte[]> entry = entryIterator.next();
 							ByteArrayWrapper key = entry.getKey();
@@ -1009,7 +1010,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 					break;
 				case KEYS:
 					Iterator<ByteArrayWrapper> keyIterator = iterator;
-					for (int i = 0; i < mapStateIterateRequestBatchSize; i++) {
+					for (int i = 0; i < mapStateIterateResponseBatchSize; i++) {
 						if (keyIterator.hasNext()) {
 							ByteArrayWrapper key = keyIterator.next();
 							baosWrapper.write(key.getData(), key.getOffset(), key.getLimit() - key.getOffset());

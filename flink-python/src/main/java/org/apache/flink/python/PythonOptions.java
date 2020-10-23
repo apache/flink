@@ -176,7 +176,7 @@ public class PythonOptions {
 	 * The maximum number of entries sent to Python UDF worker per request when iterating a Python MapState.
 	 */
 	@Experimental
-	public static final ConfigOption<Integer> MAP_STATE_ITERATE_REQUEST_BATCH_SIZE = ConfigOptions
+	public static final ConfigOption<Integer> MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE = ConfigOptions
 		.key("python.map-state.iterate-response-batch-size")
 		.defaultValue(1000)
 		.withDescription("The maximum number of the MapState keys/entries sent to Python UDF worker " +
