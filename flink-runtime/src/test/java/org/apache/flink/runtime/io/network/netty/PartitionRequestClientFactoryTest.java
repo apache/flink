@@ -61,15 +61,19 @@ public class PartitionRequestClientFactoryTest {
 
 	@Test
 	public void testInterruptsNotCached() throws Exception {
-		ConnectionID connectionId = new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0);
-		try (AwaitingNettyClient nettyClient = new AwaitingNettyClient()) {
+		NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
+		try {
+			AwaitingNettyClient nettyClient = new AwaitingNettyClient(nettyServerAndClient.client());
 			PartitionRequestClientFactory factory = new PartitionRequestClientFactory(nettyClient, 0);
 
 			nettyClient.awaitForInterrupts = true;
-			connectAndInterrupt(factory, connectionId);
+			connectAndInterrupt(factory, nettyServerAndClient.getConnectionID(0));
 
 			nettyClient.awaitForInterrupts = false;
-			factory.createPartitionRequestClient(connectionId);
+			factory.createPartitionRequestClient(nettyServerAndClient.getConnectionID(0));
+		} finally {
+			nettyServerAndClient.client().shutdown();
+			nettyServerAndClient.server().shutdown();
 		}
 	}
 
@@ -231,13 +235,13 @@ public class PartitionRequestClientFactoryTest {
 		}
 	}
 
-	private class AwaitingNettyClient extends NettyClient implements AutoCloseable {
+	private class AwaitingNettyClient extends NettyClient {
 		private volatile boolean awaitForInterrupts;
-		private final NettyTestUtil.NettyServerAndClient nettyServerAndClient;
+		private final NettyClient client;
 
-		AwaitingNettyClient() throws Exception {
+		AwaitingNettyClient(NettyClient client) {
 			super(null);
-			nettyServerAndClient = createNettyServerAndClient();
+			this.client = client;
 		}
 
 		@Override
@@ -246,17 +250,9 @@ public class PartitionRequestClientFactoryTest {
 				return new NeverCompletingChannelFuture();
 			}
 			try {
-				return nettyServerAndClient.client().connect(serverSocketAddress);
+				return client.connect(serverSocketAddress);
 			} catch (Exception exception) {
 				throw new RuntimeException(exception);
-			}
-		}
-
-		@Override
-		public void close() throws Exception {
-			if (nettyServerAndClient != null) {
-				nettyServerAndClient.client().shutdown();
-				nettyServerAndClient.server().shutdown();
 			}
 		}
 	}
