@@ -295,7 +295,7 @@ public class YarnConfigOptions {
 				"hdfs://$namenode_address/path/of/flink/lib");
 
 	public static final ConfigOption<List<String>> YARN_ACCESS =
-		key("yarn.access.hadoopFileSystems")
+		key("yarn.security.kerberos.additionalFileSystems")
 			.stringType()
 			.asList()
 			.noDefaultValue()
