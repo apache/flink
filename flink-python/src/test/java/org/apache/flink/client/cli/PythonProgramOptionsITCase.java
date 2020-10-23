@@ -51,7 +51,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link PythonProgramOptions}.
  */
-public class PythonProgramOptionsTest {
+public class PythonProgramOptionsITCase {
 
 	private Options options;
 
@@ -128,7 +128,7 @@ public class PythonProgramOptionsTest {
 		};
 
 		final File[] dummyJobJar = {null};
-		Files.walkFileTree(FileSystems.getDefault().getPath("target/dummy-job-jar"), new SimpleFileVisitor<Path>() {
+		Files.walkFileTree(FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/dummy-job-jar"), new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 				FileVisitResult result = super.visitFile(file, attrs);
