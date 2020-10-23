@@ -25,6 +25,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -47,6 +48,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +67,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	private final Time podCreationRetryInterval;
 
-	private final FlinkKubeClient kubeClient;
+	private final KubeClientFactory kubeClientFactory;
+
+	private Optional<FlinkKubeClient> kubeClient;
 
 	/** Request resource futures, keyed by pod names. */
 	private final Map<String, CompletableFuture<KubernetesWorkerNode>> requestResourceFutures;
@@ -86,13 +90,12 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	public KubernetesResourceManagerDriver(
 			Configuration flinkConfig,
-			FlinkKubeClient kubeClient,
+			KubeClientFactory kubeClientFactory,
 			KubernetesResourceManagerDriverConfiguration configuration) {
 		super(flinkConfig, GlobalConfiguration.loadConfiguration());
-
 		this.clusterId = Preconditions.checkNotNull(configuration.getClusterId());
 		this.podCreationRetryInterval = Preconditions.checkNotNull(configuration.getPodCreationRetryInterval());
-		this.kubeClient = Preconditions.checkNotNull(kubeClient);
+		this.kubeClientFactory = Preconditions.checkNotNull(kubeClientFactory);
 		this.requestResourceFutures = new HashMap<>();
 		this.podCreationCoolDown = FutureUtils.completedVoidFuture();
 	}
@@ -103,8 +106,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 
 	@Override
 	protected void initializeInternal() throws Exception {
+		kubeClient = Optional.of(kubeClientFactory.fromConfiguration(flinkConfig, getIoExecutor()));
 		podsWatchOpt = Optional.of(
-			kubeClient.watchPodsAndDoCallback(
+			kubeClient.get().watchPodsAndDoCallback(
 				KubernetesUtils.getTaskManagerLabels(clusterId),
 				new PodCallbackHandlerImpl()));
 		recoverWorkerNodesFromPreviousAttempts();
@@ -122,7 +126,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		}
 
 		try {
-			kubeClient.close();
+			if  (kubeClient.isPresent()) {
+				kubeClient.get().close();
+			}
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -137,7 +143,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		log.info("Deregistering Flink Kubernetes cluster, clusterId: {}, diagnostics: {}",
 				clusterId,
 				optionalDiagnostics == null ? "" : optionalDiagnostics);
-		kubeClient.stopAndCleanupCluster(clusterId);
+		kubeClient.ifPresent(client -> client.stopAndCleanupCluster(clusterId));
 	}
 
 	@Override
@@ -160,7 +166,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 		// In case of pod creation failures, we should wait for an interval before trying to create new pods.
 		// Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps the main thread busy.
 		final CompletableFuture<Void> createPodFuture =
-				podCreationCoolDown.thenCompose((ignore) -> kubeClient.createTaskManagerPod(taskManagerPod));
+				podCreationCoolDown.thenCompose((ignore) -> kubeClient
+						.map(client -> client.createTaskManagerPod(taskManagerPod))
+						.orElse(CompletableFuture.completedFuture(null)));
 
 		FutureUtils.assertNoException(
 				createPodFuture.handleAsync((ignore, exception) -> {
@@ -195,7 +203,9 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	// ------------------------------------------------------------------------
 
 	private void recoverWorkerNodesFromPreviousAttempts() throws ResourceManagerException {
-		final List<KubernetesPod> podList = kubeClient.getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId));
+		List<KubernetesPod> podList = kubeClient
+				.map(client -> client.getPodsWithLabels(KubernetesUtils.getTaskManagerLabels(clusterId)))
+				.orElse(Collections.emptyList());
 		final List<KubernetesWorkerNode> recoveredWorkers = new ArrayList<>();
 
 		for (KubernetesPod pod : podList) {
@@ -280,12 +290,12 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 	}
 
 	private void stopPod(String podName) {
-		kubeClient.stopPod(podName)
+		kubeClient.ifPresent(client -> client.stopPod(podName)
 				.whenComplete((ignore, throwable) -> {
 					if (throwable != null) {
 						log.warn("Could not remove TaskManager pod {}, exception: {}", podName, throwable);
 					}
-				});
+				}));
 	}
 
 	// ------------------------------------------------------------------------
