@@ -52,22 +52,22 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 * the YARN container ID, Mesos container ID, or any other unique identifier. */
 	private final ResourceID resourceID;
 
-	/** The network address that the TaskManager binds its sockets to */
+	/** The network address that the TaskManager binds its sockets to. */
 	private final InetAddress inetAddress;
 
-	/** The supplier for fully qualified host name and pure hostname */
+	/** The supplier for fully qualified host name and pure hostname. */
 	private final HostNameSupplier hostNameSupplier;
 
-	/** The port that the TaskManager receive data transport connection requests at */
+	/** The port that the TaskManager receive data transport connection requests at. */
 	private final int dataPort;
 
-	/** The toString representation, eagerly constructed and cached to avoid repeated string building */  
+	/** The toString representation, eagerly constructed and cached to avoid repeated string building. */
 	private String stringRepresentation;
 
 	/**
 	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
 	 * host name and domain name through the operating system's lookup mechanisms.
-	 * 
+	 *
 	 * @param inetAddress
 	 *        the network address the instance's task manager binds its sockets to
 	 * @param dataPort
@@ -104,8 +104,9 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 		this(resourceID, inetAddress, dataPort,	new DefaultHostNameSupplier(inetAddress));
 	}
 
-	public static TaskManagerLocation fromUnresolvedLocation(final UnresolvedTaskManagerLocation unresolvedLocation,
-	                                                         final ResolutionMode resolutionMode)
+	public static TaskManagerLocation fromUnresolvedLocation(
+			final UnresolvedTaskManagerLocation unresolvedLocation,
+			final ResolutionMode resolutionMode)
 		throws UnknownHostException {
 
 		InetAddress inetAddress = InetAddress.getByName(unresolvedLocation.getExternalAddress());
@@ -141,7 +142,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	 *     <li>If the TaskManager is started in standalone mode, or via a MiniCluster, this is a random ID.</li>
 	 *     <li>Other deployment modes can set the resource ID in other ways.</li>
 	 * </ul>
-	 * 
+	 *
 	 * @return The ID of the resource in which the TaskManager is started
 	 */
 	public ResourceID getResourceID() {
@@ -150,7 +151,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 	/**
 	 * Returns the port instance's task manager expects to receive transfer envelopes on.
-	 * 
+	 *
 	 * @return the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public int dataPort() {
@@ -159,7 +160,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 	/**
 	 * Returns the network address the instance's task manager binds its sockets to.
-	 * 
+	 *
 	 * @return the network address the instance's task manager binds its sockets to
 	 */
 	public InetAddress address() {
@@ -177,7 +178,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 	/**
 	 * Returns the fully-qualified domain name of the TaskManager provided by {@link #hostNameSupplier}.
-	 * 
+	 *
 	 * @return The fully-qualified domain name of the TaskManager.
 	 */
 	public String getFQDNHostname() {
@@ -268,7 +269,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 	@Override
 	public int hashCode() {
-		return resourceID.hashCode() + 
+		return resourceID.hashCode() +
 				17 * inetAddress.hashCode() +
 				129 * dataPort;
 	}
@@ -317,6 +318,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
 	public interface HostNameSupplier extends Serializable {
 		String getHostName();
+
 		String getFqdnHostName();
 	}
 
@@ -404,7 +406,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 	}
 
 	/**
-	 * The DNS resolution mode for TaskManager's IP address
+	 * The DNS resolution mode for TaskManager's IP address.
 	 */
 	public enum ResolutionMode {
 		RETRIEVE_HOST_NAME,
