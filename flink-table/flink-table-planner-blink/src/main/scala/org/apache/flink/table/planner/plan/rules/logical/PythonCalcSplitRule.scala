@@ -231,7 +231,9 @@ object PythonCalcExpandProjectRule extends PythonCalcSplitRuleBase(
 
   override def split(program: RexProgram, splitter: ScalarFunctionSplitter)
       : (Option[RexNode], Option[RexNode], Seq[RexNode]) = {
-    (None, None, program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
+    (Option(program.getCondition).map(program.expandLocalRef),
+      None,
+      program.getProjectList.map(program.expandLocalRef(_).accept(splitter)))
   }
 
   private def containsFieldAccessInputs(node: RexNode): Boolean = {
