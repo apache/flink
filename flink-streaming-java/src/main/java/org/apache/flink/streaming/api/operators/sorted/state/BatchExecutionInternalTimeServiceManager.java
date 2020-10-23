@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -79,9 +79,14 @@ public class BatchExecutionInternalTimeServiceManager<K> implements InternalTime
 	}
 
 	@Override
-	public void snapshotState(
-			StateSnapshotContext context,
+	public void snapshotToRawKeyedState(
+			KeyedStateCheckpointOutputStream context,
 			String operatorName) throws Exception {
+		throw new UnsupportedOperationException("Checkpoints are not supported in BATCH execution");
+	}
+
+	@Override
+	public boolean isUsingLegacyRawKeyedStateSnapshots() {
 		throw new UnsupportedOperationException("Checkpoints are not supported in BATCH execution");
 	}
 

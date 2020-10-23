@@ -202,7 +202,8 @@ public class StateInitializationContextImplTest {
 			IntSerializer.INSTANCE,
 			closableRegistry,
 			new UnregisteredMetricsGroup(),
-			1.0);
+			1.0,
+			false);
 
 		this.initializationContext =
 				new StateInitializationContextImpl(
