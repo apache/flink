@@ -434,12 +434,37 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		private final KeyedStream<T1, KEY> streamOne;
 		private final KeyedStream<T2, KEY> streamTwo;
 
+		/**
+		 * The time behaviour enum defines how the system determines time for time-dependent order and
+		 * operations that depend on time.
+		 */
+		enum TimeBehaviour {
+			ProcessingTime,
+			EventTime
+		}
+
+		/**
+		 * The time behaviour to specify processing time or event time.
+		 * Default time behaviour is {@link TimeBehaviour#EventTime}.
+		 */
+		private TimeBehaviour timeBehaviour = TimeBehaviour.EventTime;
+
 		IntervalJoin(
 				KeyedStream<T1, KEY> streamOne,
 				KeyedStream<T2, KEY> streamTwo
 		) {
 			this.streamOne = checkNotNull(streamOne);
 			this.streamTwo = checkNotNull(streamTwo);
+		}
+
+		public IntervalJoin<T1, T2, KEY> inEventTime() {
+			timeBehaviour = TimeBehaviour.EventTime;
+			return this;
+		}
+
+		public IntervalJoin<T1, T2, KEY> inProcessingTime() {
+			timeBehaviour = TimeBehaviour.ProcessingTime;
+			return this;
 		}
 
 		/**
@@ -454,11 +479,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		 */
 		@PublicEvolving
 		public IntervalJoined<T1, T2, KEY> between(Time lowerBound, Time upperBound) {
-
-			TimeCharacteristic timeCharacteristic =
-				streamOne.getExecutionEnvironment().getStreamTimeCharacteristic();
-
-			if (timeCharacteristic != TimeCharacteristic.EventTime) {
+			if (timeBehaviour != TimeBehaviour.EventTime) {
 				throw new UnsupportedTimeCharacteristicException("Time-bounded stream joins are only supported in event time");
 			}
 
