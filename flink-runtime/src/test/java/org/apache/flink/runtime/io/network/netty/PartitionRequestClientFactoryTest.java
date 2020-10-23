@@ -98,10 +98,8 @@ public class PartitionRequestClientFactoryTest {
 		UnstableNettyClient unstableNettyClient = new UnstableNettyClient(serverAndClient.client(), 2);
 
 		PartitionRequestClientFactory factory = new PartitionRequestClientFactory(unstableNettyClient, 2);
-		ConnectionID serverAddress = new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(),
-			serverAndClient.server().getConfig().getServerPort()), 0);
 
-		factory.createPartitionRequestClient(serverAddress);
+		factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
 
 		serverAndClient.client().shutdown();
 		serverAndClient.server().shutdown();
@@ -126,10 +124,8 @@ public class PartitionRequestClientFactoryTest {
 
 		try {
 			PartitionRequestClientFactory factory = new PartitionRequestClientFactory(unstableNettyClient, 2);
-			ConnectionID serverAddress = new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(),
-				serverAndClient.server().getConfig().getServerPort()), 0);
 
-			factory.createPartitionRequestClient(serverAddress);
+			factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
 
 		} catch (Exception e) {
 			throw e;
@@ -145,8 +141,6 @@ public class PartitionRequestClientFactoryTest {
 		UnstableNettyClient unstableNettyClient = new UnstableNettyClient(serverAndClient.client(), 2);
 
 		PartitionRequestClientFactory factory = new PartitionRequestClientFactory(unstableNettyClient, 2);
-		ConnectionID serverAddress = new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(),
-			serverAndClient.server().getConfig().getServerPort()), 0);
 
 		ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(10);
 		List<Future<NettyPartitionRequestClient>> futures = new ArrayList<>();
@@ -157,7 +151,7 @@ public class PartitionRequestClientFactoryTest {
 				public NettyPartitionRequestClient call() {
 					NettyPartitionRequestClient client = null;
 					try {
-						client = factory.createPartitionRequestClient(serverAddress);
+						client = factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
 					} catch (Exception e) {
 						fail(e.getMessage());
 					}
