@@ -259,7 +259,7 @@ public class KubernetesResourceManagerDriver extends AbstractResourceManagerDriv
 			for (KubernetesPod pod : pods) {
 				if (pod.isTerminated()) {
 					final String podName = pod.getName();
-					log.info("TaskManager pod {} is terminated.", podName);
+					log.debug("TaskManager pod {} is terminated.", podName);
 
 					// this is a safe net, in case onModified/onDeleted/onError is received before onAdded
 					final CompletableFuture<KubernetesWorkerNode> requestResourceFuture = requestResourceFutures.remove(podName);
