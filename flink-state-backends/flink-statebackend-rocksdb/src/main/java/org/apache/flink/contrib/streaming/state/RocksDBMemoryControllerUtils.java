@@ -105,7 +105,10 @@ public class RocksDBMemoryControllerUtils {
 	 * @param writeBufferSize the write buffer size (bytes)
 	 */
 	static long calculateRocksDBDefaultArenaBlockSize(long writeBufferSize) {
-		return writeBufferSize / 8;
+		long arenaBlockSize = writeBufferSize / 8;
+
+		long align = 4 * 1024;
+		return ((arenaBlockSize + align - 1) / align) * align;
 	}
 
 	/**

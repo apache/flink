@@ -104,9 +104,21 @@ public class RocksDBMemoryControllerUtilsTest {
 
 	@Test
 	public void testCalculateRocksDBDefaultArenaBlockSize() {
+		long align = 4 * 1024;
+
 		long writeBufferSize = 64 * 1024 * 1024;
+
 		long expectArenaBlockSize = writeBufferSize / 8;
+		long expectArenaBlockSize2 = expectArenaBlockSize + align;
+		long expectArenaBlockSize3 = expectArenaBlockSize + 2 * align;
+
 		assertThat(RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize), is(expectArenaBlockSize));
+
+		// Alignment tests
+		assertThat(RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize + 7), is(expectArenaBlockSize));
+		assertThat(RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize + 8), is(expectArenaBlockSize2));
+		assertThat(RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize + 8 * align + 7), is(expectArenaBlockSize2));
+		assertThat(RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(writeBufferSize + 8 * align + 8), is(expectArenaBlockSize3));
 	}
 
 	@Test
