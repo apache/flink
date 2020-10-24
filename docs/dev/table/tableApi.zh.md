@@ -24,7 +24,7 @@ under the License.
 
 The Table API is a unified, relational API for stream and batch processing. Table API queries can be run on batch or streaming input without modifications. The Table API is a super set of the SQL language and is specially designed for working with Apache Flink. The Table API is a language-integrated API for Scala, Java and Python. Instead of specifying queries as String values as common with SQL, Table API queries are defined in a language-embedded style in Java, Scala or Python with IDE support like autocompletion and syntax validation. 
 
-The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({{ site.baseurl }}/dev/table/common.html) to learn how to register tables or to create a `Table` object. The [Streaming Concepts](./streaming) pages discuss streaming specific concepts such as dynamic tables and time attributes.
+The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({% link dev/table/common.zh.md %}) to learn how to register tables or to create a `Table` object. The [Streaming Concepts](./streaming) pages discuss streaming specific concepts such as dynamic tables and time attributes.
 
 The following examples assume a registered table called `Orders` with attributes `(a, b, c, rowtime)`. The `rowtime` field is either a logical [time attribute](./streaming/time_attributes.html) in streaming or a regular timestamp field in batch.
 
@@ -101,9 +101,7 @@ val result = orders
 </div>
 <div data-lang="python" markdown="1">
 
-使用`from pyflink.table import *`来导入Python Table API。
-
-下面这个例子演示了如何组织一个Python Table API程序，以及字符串形式的表达式用法。
+下面这个例子演示了如何组织一个 Python Table API 程序，以及字符串形式的表达式用法。
 
 {% highlight python %}
 from pyflink.table import *
@@ -204,6 +202,8 @@ val result: Table = orders
 
 {% highlight python %}
 # specify table program
+from pyflink.table.expressions import col, lit
+
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
 result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is_not_null) \
@@ -250,7 +250,7 @@ Table orders = tableEnv.from("Orders");
 {% endhighlight %}
       </td>
   	</tr>
-    <tr>
+  	<tr>
       <td>
             <strong>Values</strong><br>
             <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
@@ -477,11 +477,11 @@ val result = orders.where($"b" === "red")
   <tbody>
   	<tr>
   		<td>
-        <strong>From</strong><br>
+        <strong>FromPath</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
   		<td>
-        <p>类似于SQL请求中的FROM子句，将一个环境中已注册的表转换成Table对象。</p>
+        <p>类似于 SQL 请求中的 FROM 子句，将一个环境中已注册的表转换成 Table 对象。</p>
 {% highlight python %}
 orders = t_env.from_path("Orders")
 {% endhighlight %}
@@ -490,7 +490,7 @@ orders = t_env.from_path("Orders")
   	<tr>
       <td>
             <strong>FromElements</strong><br>
-            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+            <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
           <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
@@ -529,19 +529,19 @@ root
 |-- name: STRING
 {% endhighlight %}
       </td>
-  	</tr>
+    </tr>
     <tr>
       <td>
         <strong>Select</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的SELECT子句，执行一个select操作。</p>
+        <p>类似于 SQL 请求中的 SELECT 子句，执行一个 select 操作。</p>
 {% highlight python %}
 orders = t_env.from_path("Orders")
 result = orders.select(orders.a, orders.c.alias('d'))
 {% endhighlight %}
-        <p>您可以使用星号 (<code>*</code>) 表示选择表中的所有列。</p>
+        <p>你可以使用星号（<code>*</code>）表示选择表中的所有列。</p>
 {% highlight python %}
 from pyflink.table.expressions import col
 
@@ -569,7 +569,7 @@ result = orders.alias("x, y, z, t")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的WHERE子句，过滤掉表中不满足条件的行。</p>
+        <p>类似于 SQL 请求中的 WHERE 子句，过滤掉表中不满足条件的行。</p>
 {% highlight python %}
 orders = t_env.from_path("Orders")
 result = orders.where(orders.a == 'red')
@@ -614,14 +614,14 @@ Table result = orders.addColumns(concat($("c"), "sunny"));
 {% endhighlight %}
 </td>
         </tr>
-
+        
  <tr>
      <td>
                     <strong>AddOrReplaceColumns</strong><br>
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                  <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
@@ -687,7 +687,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                     <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                     <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
 val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
@@ -719,7 +719,7 @@ val orders = tableEnv.from("Orders");
 val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
 {% endhighlight %}
                   </td>
-                </tr>
+                </tr>                
   </tbody>
 </table>
 </div>
@@ -783,7 +783,7 @@ result = orders.drop_columns(orders.b, orders.c)
                     <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
                   </td>
                   <td>
-                  <p>执行重命名字段操作。参数必须是字段别名(例：b as b2)列表，并且必须是已经存在的字段才能被重命名。</p>
+                  <p>执行重命名字段操作。参数必须是字段别名（例：b as b2）列表，并且必须是已经存在的字段才能被重命名。</p>
 {% highlight python %}
 orders = t_env.from_path("Orders")
 result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
@@ -1054,7 +1054,8 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
     <tr>
       <td>
         <strong>Distinct</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span> <br>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
@@ -1062,7 +1063,7 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
 val orders: Table = tableEnv.from("Orders")
 val result = orders.distinct()
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1085,12 +1086,12 @@ val result = orders.distinct()
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL的GROUP BY子句。将数据按照指定字段进行分组，之后对各组内数据执行聚合操作。</p>
+        <p>类似于 SQL 的 GROUP BY 子句。将数据按照指定字段进行分组，之后对各组内数据执行聚合操作。</p>
 {% highlight python %}
 orders = t_env.from_path("Orders")
 result = orders.group_by(orders.a).select(orders.a, orders.b.sum.alias('d'))
 {% endhighlight %}
-        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于聚合操作的类型和分组的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于聚合操作的类型和分组的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
       </td>
     </tr>
     <tr>
@@ -1117,7 +1118,7 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-       <p>类似于SQL中的OVER开窗函数。Over窗口聚合对每一行都进行一次聚合计算，聚合的对象是以当前行的位置为基准，向前向后取一个区间范围内的所有数据。详情请见<a href="#over-windows">Over窗口</a>一节。</p>
+       <p>类似于 SQL 中的 OVER 开窗函数。Over 窗口聚合对每一行都进行一次聚合计算，聚合的对象是以当前行的位置为基准，向前向后取一个区间范围内的所有数据。详情请见 <a href="#over-windows">Over 窗口</a>一节。</p>
 {% highlight python %}
 from pyflink.table.window import Over
 from pyflink.table.expressions import col, UNBOUNDED_RANGE, CURRENT_RANGE
@@ -1138,7 +1139,7 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL聚合函数中的的DISTINCT关键字比如COUNT(DISTINCT a)。带有distinct标记的聚合函数只会接受不重复的输入，重复输入将被丢弃。这个去重特性可以在<b>分组聚合（GroupBy Aggregation）</b>，<b>分组窗口聚合（GroupBy Window Aggregation）</b>以及<b>Over窗口聚合（Over Window Aggregation）</b>上使用。</p>
+        <p>类似于 SQL 聚合函数中的的 DISTINCT 关键字比如 COUNT(DISTINCT a)。带有 distinct 标记的聚合函数只会接受不重复的输入，重复输入将被丢弃。这个去重特性可以在<b>分组聚合（GroupBy Aggregation）</b>，<b>分组窗口聚合（GroupBy Window Aggregation）</b>以及<b> Over窗口聚合（Over Window Aggregation）</b>上使用。</p>
 {% highlight python %}
 from pyflink.table.expressions import col, lit, UNBOUNDED_RANGE
 
@@ -1158,7 +1159,7 @@ result = orders.over_window(Over
                        .alias("w")) \
                        .select(orders.a, orders.b.avg.distinct.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
 {% endhighlight %}
-        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
       </td>
     </tr>
     <tr>
@@ -1168,12 +1169,12 @@ result = orders.over_window(Over
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL中的DISTINCT子句。返回去重后的数据。</p>
+        <p>类似于 SQL 中的 DISTINCT 子句。返回去重后的数据。</p>
 {% highlight python %}
 orders = t_env.from_path("Orders")
 result = orders.distinct()
 {% endhighlight %}
-        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
       </td>
     </tr>
   </tbody>
@@ -1247,7 +1248,7 @@ Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
       <td>
         <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
@@ -1263,7 +1264,7 @@ Table result = left.join(right)
   .where(
     and(
         $("a").isEqual($("d")),
-        $("ltime").isGreaterEqual($("rtime").minus(lit(5).minutes())),
+        $("ltime").isGreaterOrEqual($("rtime").minus(lit(5).minutes())),
         $("ltime").isLess($("rtime").plus(lit(10).minutes()))
     ))
   .select($("a"), $("b"), $("e"), $("ltime"));
@@ -1400,7 +1401,7 @@ val fullOuterResult = left.fullOuterJoin(right, $"a" === $"d").select($"a", $"b"
       <td>
         <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
@@ -1502,7 +1503,7 @@ val result = orders
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL的JOIN子句。对两张表执行内连接操作。两张表必须具有不同的字段名称，并且必须在join方法或者随后的where或filter方法中定义至少一个等值连接条件。</p>
+        <p>类似于 SQL 的 JOIN 子句。对两张表执行内连接操作。两张表必须具有不同的字段名称，并且必须在 join 方法或者随后的 where 或 filter 方法中定义至少一个等值连接条件。</p>
 {% highlight python %}
 from pyflink.table.expressions import col
 
@@ -1510,7 +1511,7 @@ left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
 result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
-<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
       </td>
     </tr>
 
@@ -1522,7 +1523,7 @@ result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL的LEFT/RIGHT/FULL OUTER JOIN子句。对两张表执行外连接操作。两张表必须具有不同的字段名称，并且必须定义至少一个等值连接条件。</p>
+        <p>类似于 SQL 的 LEFT/RIGHT/FULL OUTER JOIN 子句。对两张表执行外连接操作。两张表必须具有不同的字段名称，并且必须定义至少一个等值连接条件。</p>
 {% highlight python %}
 from pyflink.table.expressions import col
 
@@ -1533,7 +1534,7 @@ left_outer_result = left.left_outer_join(right, left.a == right.d).select(left.a
 right_outer_result = left.right_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
 full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
-<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
       </td>
     </tr>
     <tr>
@@ -1541,10 +1542,11 @@ full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
-      <td>                   
-                    <p><b>注意：</b> Interval Join 是所有常规流式数据处理join操作中的其中一种场景。</p>               
-                    <p>Interval Join 要求至少有一个等值连接条件以及一个用于划定时间间隔的条件。对两条数据流时间的划定可以通过两个范围比较确定一个合适时间区间(<code>&lt;, &lt;=, &gt;=, &gt;</code>)， 也可以简单的通过对相同<a href="streaming/time_attributes.html">时间属性</a>（当前处理时间或事件时间）的时间值进行等值比较确定。</p>
-                    <p>如下示例是合法的Interval Join条件：</p>
+      
+      <td>
+                    <p><b>注意：</b> Interval Join 是所有常规流式数据处理 join 操作中的其中一种场景。</p>               
+                    <p>Interval Join 要求至少有一个等值连接条件以及一个用于划定时间间隔的条件。对两条数据流时间的划定可以通过两个范围比较确定一个合适时间区间（<code>&lt;, &lt;=, &gt;=, &gt;</code>），也可以简单的通过对相同<a href="streaming/time_attributes.html">时间属性</a>（当前处理时间或事件时间）的时间值进行等值比较确定。</p>
+                    <p>如下示例是合法的 Interval Join 条件：</p>
             
                     <ul>
                       <li><code>ltime = rtime</code></li>
@@ -1559,8 +1561,9 @@ right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('row
   
 joined_table = left.join(right).where(left.a == right.d & left.rowtime1 >= right.rowtime2 - lit(1).second & left.rowtime1 <= right.rowtime2 + lit(2).seconds)
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joined_table.rowtime1)
-            {% endhighlight %}
-            </td>
+      {% endhighlight %}
+      </td>
+      
     </tr>
     <tr>
     	<td>
@@ -1568,7 +1571,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
     	<td>
-        <p>将一张表与一个表函数的执行结果执行内连接操作。左表的每一行都会进行一次表函数调用，调用将会返回0个，1个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，则这行数据会被丢弃。
+        <p>将一张表与一个表函数的执行结果执行内连接操作。左表的每一行都会进行一次表函数调用，调用将会返回 0 个，1 个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，则这行数据会被丢弃。
         </p>
 {% highlight python %}
 # register User-Defined Table Function
@@ -1589,8 +1592,8 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>将一张表与一个表函数的执行结果执行左连接操作。左表的每一行都会进行一次表函数调用，调用将会返回0个，1个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，这行数据依然会被保留，对应的右表数值用null(python为None)填充。</p>
-        <p><b>注意：</b>目前，表函数的左连接操作的连接条件(join predicate)只能为空或者为"true"常量。</p>
+        <p>将一张表与一个表函数的执行结果执行左连接操作。左表的每一行都会进行一次表函数调用，调用将会返回 0 个，1 个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，这行数据依然会被保留，对应的右表数值用 null（python为None）填充。</p>
+        <p><b>注意：</b>目前，表函数的左连接操作的连接条件（join predicate）只能为空或者为"true"常量。</p>
 {% highlight python %}
 # register User-Defined Table Function
 @udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
@@ -1610,7 +1613,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -1882,7 +1885,7 @@ val result = left.select($"a", $"b", $"c").where($"a".in(right))
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的UNION子句。将两张表组合成一张表，这张表拥有二者去除重复后的全部数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 UNION 子句。将两张表组合成一张表，这张表拥有二者去除重复后的全部数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
 from pyflink.table.expressions import col
 
@@ -1899,7 +1902,7 @@ result = left.union(right)
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL的UNION ALL子句。将两张表组合成一张表，这张表拥有二者的全部数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 UNION ALL 子句。将两张表组合成一张表，这张表拥有二者的全部数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
@@ -1914,7 +1917,7 @@ result = left.union_all(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的INTERSECT子句。Intersect返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则只返回一次，即结果表没有重复记录。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 INTERSECT 子句。Intersect 返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则只返回一次，即结果表没有重复记录。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
@@ -1929,7 +1932,7 @@ result = left.intersect(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的INTERSECT ALL子句。IntersectAll返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则按照它在两张表中都出现的次数返回，即结果表可能包含重复数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 INTERSECT ALL 子句。IntersectAll 返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则按照它在两张表中都出现的次数返回，即结果表可能包含重复数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
@@ -1944,7 +1947,7 @@ result = left.intersect_all(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的EXCEPT子句。Minus返回仅存在于左表，不存在于右表中的数据。左表中的相同数据只会返回一次，即数据会被去重。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 EXCEPT 子句。Minus 返回仅存在于左表，不存在于右表中的数据。左表中的相同数据只会返回一次，即数据会被去重。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
@@ -1959,7 +1962,7 @@ result = left.minus(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的EXCEPT ALL子句。MinusAll返回仅存在于左表，不存在于右表中的数据。如果一条数据在左表中出现了n次，在右表中出现了m次，最终这条数据将会被返回(n - m)次，即按右表中出现的次数来移除数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 EXCEPT ALL 子句。MinusAll 返回仅存在于左表，不存在于右表中的数据。如果一条数据在左表中出现了 n 次，在右表中出现了 m 次，最终这条数据将会被返回（n - m）次，即按右表中出现的次数来移除数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
@@ -1974,7 +1977,7 @@ result = left.minus_all(right)
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL的IN子句。如果In左边表达式的值在给定的子查询结果中则返回true。子查询的结果必须为单列。此列数据类型必须和表达式一致。</p>
+        <p>类似于 SQL 的 IN 子句。如果 In 左边表达式的值在给定的子查询结果中则返回 true。子查询的结果必须为单列。此列数据类型必须和表达式一致。</p>
 {% highlight python %}
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('a'))
@@ -1982,7 +1985,7 @@ right = t_env.from_path("Source2").select(col('a'))
 result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 {% endhighlight %}
 
-        <p><b>注意：</b> 对于流式查询，这个操作会被替换成一个连接操作和一个分组操作。计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，这个操作会被替换成一个连接操作和一个分组操作。计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
       </td>
     </tr>
   </tbody>
@@ -2008,10 +2011,10 @@ result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.orderBy($("a").asc()");
@@ -2022,10 +2025,10 @@ Table result = in.orderBy($("a").asc()");
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 
@@ -2057,10 +2060,10 @@ Table result3 = in.orderBy($("a").asc()).offset(10).fetch(5);
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, $"a", $"b", $"c")
 val result = in.orderBy($"a".asc)
@@ -2071,10 +2074,11 @@ val result = in.orderBy($"a".asc)
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, $"a", $"b", $"c")
 
@@ -2108,7 +2112,7 @@ val result3: Table = in.orderBy($"a".asc).offset(10).fetch(5)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的ORDER BY子句。返回包括所有子并发分区内所有数据的全局排序结果。</p>
+        <p>类似于 SQL 的 ORDER BY 子句。返回包括所有子并发分区内所有数据的全局排序结果。</p>
 {% highlight python %}
 in = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 result = in.order_by(in.a.asc)
@@ -2122,7 +2126,7 @@ result = in.order_by(in.a.asc)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的OFFSET和FETCH子句。Offset和Fetch从已排序的结果中返回指定数量的数据。Offset和Fetch在技术上是Order By操作的一部分，因此必须紧跟其后出现。</p>
+        <p>类似于 SQL 的 OFFSET 和 FETCH 子句。Offset 和 Fetch 从已排序的结果中返回指定数量的数据。Offset 和 Fetch 在技术上是 Order By 操作的一部分，因此必须紧跟其后出现。</p>
 {% highlight python %}
 table = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 
@@ -2164,7 +2168,7 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
       <td>
         <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
@@ -2222,9 +2226,9 @@ orders.executeInsert("OutOrders")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的INSERT INTO子句。将数据输出到一个已注册的输出表中。`execute_insert` 方法会立即提交一个 Flink 作业，触发插入操作。</p>
+        <p>类似于 SQL 请求中的 INSERT INTO 子句。将数据输出到一个已注册的输出表中。`execute_insert` 方法会立即提交一个 Flink 作业，触发插入操作。</p>
 
-        <p>输出表必须先在TableEnvironment中注册（详见<a href="common.html#register-a-tablesink">注册一个TableSink</a>）。此外，注册的表的模式（schema）必须和请求的结果的模式（schema）相匹配。</p>
+        <p>输出表必须先在 TableEnvironment 中注册（详见<a href="common.html#register-a-tablesink">注册一个 TableSink</a>）。此外，注册的表的模式（schema）必须和请求的结果的模式（schema）相匹配。</p>
 
 {% highlight python %}
 orders = t_env.from_path("Orders")
@@ -2246,10 +2250,10 @@ Group window aggregates group rows into finite groups based on time or row-count
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-{% highlight java %}
 Windows are defined using the `window(GroupWindow w)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
 The following example shows how to define a window aggregation on a table.
 
+{% highlight java %}
 Table table = input
   .window([GroupWindow w].as("w"))  // define window with alias w
   .groupBy($("w"))  // group the table by window w
@@ -2737,7 +2741,7 @@ A session window is defined by using the `Session` class as follows:
 
 Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
 
-Over windows are defined using the `window(w: OverWindow*)` clause (在Python API中为`over_window(*OverWindow)`) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
+Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -3172,7 +3176,7 @@ Table table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{{ site.baseurl }}/dev/table/functions/udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{% link dev/table/functions/udfs.zh.md %}#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight java %}
 /**
  * Accumulator for Top2.
@@ -3398,7 +3402,7 @@ val table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{{ site.baseurl }}/dev/table/functions/udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{% link dev/table/functions/udfs.zh.md %}#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight scala %}
 import java.lang.{Integer => JInteger}
 import org.apache.flink.table.api.Types
@@ -3501,7 +3505,7 @@ val result = orders
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -3511,7 +3515,7 @@ val result = orders
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -3522,7 +3526,7 @@ val result = orders
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -3532,7 +3536,7 @@ val result = orders
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -3543,7 +3547,7 @@ val result = orders
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -3554,7 +3558,7 @@ val result = orders
         <span class="label label-primary">Streaming</span><br>
       </td>
       <td>
-        <p>Python Table API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
   </tbody>
@@ -3571,9 +3575,9 @@ Please see the dedicated page about [data types](types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({% link dev/table/functions/systemFunctions.zh.md %}#value-access-functions).
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({% link dev/table/functions/udfs.zh.md %}).
 
 {% top %}
 
