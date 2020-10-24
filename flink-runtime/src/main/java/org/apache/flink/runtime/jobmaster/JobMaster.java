@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -99,14 +100,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -184,6 +178,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
 	private SchedulerNG schedulerNG;
+
+	private List<JobStatusListener> customJobStatusListeners = new ArrayList<>();
 
 	@Nullable
 	private JobManagerJobStatusListener jobStatusListener;
@@ -926,8 +922,32 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		// register self as job status change listener
 		jobStatusListener = new JobManagerJobStatusListener();
 		schedulerNG.registerJobStatusListener(jobStatusListener);
+		// load and register custom job status change listener
+		loadCustomJobStatusListeners();
 
+		for(JobStatusListener jobStatusListener: customJobStatusListeners){
+			schedulerNG.registerJobStatusListener(jobStatusListener);
+		}
 		schedulerNG.startScheduling();
+	}
+
+	private void loadCustomJobStatusListeners(){
+		jobMasterConfiguration.getConfiguration()
+			.getOptional(DeploymentOptions.JOB_STATUS_LISTENERS)
+			.ifPresent(this::loadCustomJobStatusListeners);
+	}
+
+	private void loadCustomJobStatusListeners(final List<String> listeners){
+		for(String listener: listeners){
+			JobStatusListener jobStatusListener;
+			try {
+				jobStatusListener = InstantiationUtil.instantiate(
+					listener, JobStatusListener.class, userCodeLoader);
+				customJobStatusListeners.add(jobStatusListener);
+			} catch (FlinkException e) {
+				throw new RuntimeException("Could not load JobStatusListener : " + listener, e);
+			}
+		}
 	}
 
 	private void suspendAndClearSchedulerFields(Exception cause) {
@@ -950,6 +970,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private void clearSchedulerFields() {
 		jobManagerJobMetricGroup = null;
 		jobStatusListener = null;
+		customJobStatusListeners = null;
 	}
 
 	//----------------------------------------------------------------------------------------------

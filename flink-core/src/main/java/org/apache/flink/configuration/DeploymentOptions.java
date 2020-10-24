@@ -56,4 +56,12 @@ public class DeploymentOptions {
 					.noDefaultValue()
 					.withDescription("Custom JobListeners to be registered with the execution environment." +
 							" The registered listeners cannot have constructors with arguments.");
+
+	public static final ConfigOption<List<String>> JOB_STATUS_LISTENERS =
+		key("execution.job-status-listeners")
+			.stringType()
+			.asList()
+			.noDefaultValue()
+			.withDescription("Custom JobStatusListeners to be registered with the JobMaster." +
+				" The registered listeners cannot have constructors with arguments.");
 }
