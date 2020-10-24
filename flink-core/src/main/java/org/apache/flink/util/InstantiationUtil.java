@@ -590,7 +590,8 @@ public final class InstantiationUtil {
 	}
 
 	public static void serializeObject(OutputStream out, Object o) throws IOException {
-		ObjectOutputStream oos = new ObjectOutputStream(out);
+		ObjectOutputStream oos =
+			out instanceof ObjectOutputStream ? (ObjectOutputStream) out : new ObjectOutputStream(out);
 		oos.writeObject(o);
 	}
 
