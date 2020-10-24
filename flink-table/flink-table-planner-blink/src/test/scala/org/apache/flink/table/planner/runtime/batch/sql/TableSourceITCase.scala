@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
+import org.apache.flink.util.FileUtils
 
 import org.junit.{Before, Test}
 
@@ -199,6 +201,33 @@ class TableSourceITCase extends BatchTestBase {
   }
 
   @Test
+  def testDataStreamSource(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(TestData.smallData3)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyDataStreamTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true',
+         |  'runtime-source' = 'DataStream'
+         |)
+         |""".stripMargin
+    )
+
+    checkResult(
+      "SELECT a, c FROM MyDataStreamTable",
+      Seq(
+        row(1, "Hi"),
+        row(2, "Hello"),
+        row(3, "Hello world"))
+    )
+  }
+
+  @Test
   def testAllDataTypes(): Unit = {
     val dataId = TestValuesTableFactory.registerData(TestData.fullDataTypesData)
     tEnv.executeSql(
@@ -252,6 +281,32 @@ class TableSourceITCase extends BatchTestBase {
           null, null, null, null, null, null, null, null, null, null, null, null, null,
           null, null, null, null)
       )
+    )
+  }
+
+  @Test
+  def testSourceProvider(): Unit = {
+    val file = TEMPORARY_FOLDER.newFile()
+    file.delete()
+    file.createNewFile()
+    FileUtils.writeFileUtf8(file, "1\n5\n6")
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyFileSourceTable (
+         |  `a` STRING
+         |) WITH (
+         |  'connector' = 'filesource',
+         |  'path' = '${file.toURI}'
+         |)
+         |""".stripMargin
+    )
+
+    checkResult(
+      "SELECT a FROM MyFileSourceTable",
+      Seq(
+        row("1"),
+        row("5"),
+        row("6"))
     )
   }
 }
