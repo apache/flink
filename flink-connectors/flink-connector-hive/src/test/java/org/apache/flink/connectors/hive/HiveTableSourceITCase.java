@@ -654,7 +654,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 		}
 
 		@Override
-		public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+		protected DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
 			DataStreamSource<RowData> dataStream = (DataStreamSource<RowData>) super.getDataStream(execEnv);
 			int parallelism = dataStream.getTransformation().getParallelism();
 			assertEquals(inferParallelism ? 1 : 2, parallelism);

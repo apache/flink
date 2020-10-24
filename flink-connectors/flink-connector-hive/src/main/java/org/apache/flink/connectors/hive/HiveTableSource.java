@@ -173,7 +173,8 @@ public class HiveTableSource implements
 		};
 	}
 
-	private DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+	@VisibleForTesting
+	protected DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
 		checkAcidTable(catalogTable, tablePath);
 		List<HiveTablePartition> allHivePartitions = initAllPartitions();
 
@@ -512,11 +513,16 @@ public class HiveTableSource implements
 			}
 			keyNames.add(schema.getFieldName(key[0]).get());
 		}
+		return getLookupFunction(keyNames.toArray(new String[0]));
+	}
+
+	@VisibleForTesting
+	TableFunction<RowData> getLookupFunction(String[] keys) {
 		List<HiveTablePartition> allPartitions = initAllPartitions();
 		TableSchema producedSchema = getProducedTableSchema();
 		return new FileSystemLookupFunction<>(
 				getInputFormat(allPartitions, flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER)),
-				keyNames.toArray(new String[0]),
+				keys,
 				producedSchema.getFieldNames(),
 				producedSchema.getFieldDataTypes(),
 				hiveTableCacheTTL
