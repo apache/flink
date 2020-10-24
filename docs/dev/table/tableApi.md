@@ -621,7 +621,7 @@ Table result = orders.addColumns(concat($("c"), "sunny"));
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                  <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
@@ -687,7 +687,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                     <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                     <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
 val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
@@ -755,7 +755,7 @@ result = orders.add_columns(concat(orders.c, 'sunny'))
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                  <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight python %}
 from pyflink.table.expressions import concat
 
@@ -836,7 +836,7 @@ Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over(lit(5).minutes())).on($("rowtime")).as("w")) // define window
+    .window(Tumble.over(lit(5).minutes()).on($("rowtime")).as("w")) // define window
     .groupBy($("a"), $("w")) // group by key and window
     // access window properties and aggregate
     .select(
@@ -895,7 +895,7 @@ Table groupByDistinctResult = orders
 // Distinct aggregation on time window group by
 Table groupByWindowDistinctResult = orders
     .window(Tumble
-            .over(lit(5).minutes()))
+            .over(lit(5).minutes())
             .on($("rowtime"))
             .as("w")
     )
@@ -1264,7 +1264,7 @@ Table result = left.join(right)
   .where(
     and(
         $("a").isEqual($("d")),
-        $("ltime").isGreaterEqual($("rtime").minus(lit(5).minutes())),
+        $("ltime").isGreaterOrEqual($("rtime").minus(lit(5).minutes())),
         $("ltime").isLess($("rtime").plus(lit(10).minutes()))
     ))
   .select($("a"), $("b"), $("e"), $("ltime"));
