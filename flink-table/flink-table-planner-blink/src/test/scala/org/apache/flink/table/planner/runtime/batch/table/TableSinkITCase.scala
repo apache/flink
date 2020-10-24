@@ -18,16 +18,18 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.util.ExceptionUtils
-
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Test
 
 import scala.collection.JavaConversions._
+import scala.util.{Failure, Success, Try}
 
 class TableSinkITCase extends BatchTestBase {
 
@@ -153,6 +155,114 @@ class TableSinkITCase extends BatchTestBase {
   @Test
   def testDataStreamNotNullEnforcer(): Unit = {
     innerTestNotNullEnforcer("DataStream")
+  }
+
+  @Test
+  def testParallelismWithDataStream(): Unit = {
+    Try(innerTestSetParallelism("DataStreamWithParallelism", 1, index = 1)) match {
+      case Success(_) => fail("this should not happen")
+      case Failure(t) => {
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          "`DataStreamSinkProvider` is not allowed to work with `ParallelismProvider`, please see document of `ParallelismProvider`")
+        assertTrue(exception.isPresent)
+      }
+    }
+  }
+
+  @Test
+  def testParallelismWithSinkFunction(): Unit = {
+    val taskParallelism = env.getParallelism
+    val oversizeParallelism = taskParallelism + 1
+    val negativeParallelism = -1
+    val vaildParallelism = 1
+    val index = new AtomicInteger(1)
+
+    Try(innerTestSetParallelism("SinkFunction", oversizeParallelism, index = index.getAndIncrement)) match {
+      case Success(_) => fail("this should not happen")
+      case Failure(t) => {
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          s"the configured sink parallelism: ${oversizeParallelism} is larger than the task max parallelism: ${taskParallelism}")
+        assertTrue(exception.isPresent)
+      }
+    }
+
+    Try(innerTestSetParallelism("SinkFunction", negativeParallelism, index = index.getAndIncrement)) match {
+      case Success(_) => fail("this should not happen")
+      case Failure(t) => {
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          s"the configured sink parallelism: ${negativeParallelism} should not be little or equal zero")
+        assertTrue(exception.isPresent)
+      }
+    }
+
+    assertTrue(Try(innerTestSetParallelism("SinkFunction", vaildParallelism, index = index.getAndIncrement)).isSuccess)
+  }
+
+  @Test
+  def testParallelismWithOutputFormat(): Unit = {
+    val taskParallelism = env.getParallelism
+    val oversizeParallelism = taskParallelism + 1
+    val negativeParallelism = -1
+    val vaildParallelism = 1
+    val index = new AtomicInteger(1)
+
+    Try(innerTestSetParallelism("OutputFormat", oversizeParallelism, index = index.getAndIncrement)) match {
+      case Success(_) => fail("this should not happen")
+      case Failure(t) => {
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          s"the configured sink parallelism: ${oversizeParallelism} is larger than the task max parallelism: ${taskParallelism}")
+        assertTrue(exception.isPresent)
+      }
+    }
+
+    Try(innerTestSetParallelism("OutputFormat", negativeParallelism, index = index.getAndIncrement)) match {
+      case Success(_) => fail("this should not happen")
+      case Failure(t) => {
+        val exception = ExceptionUtils.findThrowableWithMessage(
+          t,
+          s"the configured sink parallelism: ${negativeParallelism} should not be less than zero or equal to zero")
+        assertTrue(exception.isPresent)
+      }
+    }
+
+    assertTrue(Try(innerTestSetParallelism("SinkFunction", vaildParallelism, index = index.getAndIncrement)).isSuccess)
+  }
+
+
+  def innerTestSetParallelism(provider: String, parallelism: Int, index: Int): Unit = {
+    val dataId = TestValuesTableFactory.registerData(data1)
+    val sourceTableName = s"test_para_source_${provider.toLowerCase.trim}_$index"
+    val sinkTableName = s"test_para_sink_${provider.toLowerCase.trim}_$index"
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE $sourceTableName (
+         |  the_month INT,
+         |  area STRING,
+         |  product INT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE $sinkTableName (
+         |  the_month INT,
+         |  area STRING,
+         |  product INT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true',
+         |  'runtime-sink' = '$provider',
+         |  'sink.parallelism' = '$parallelism'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(s"INSERT INTO $sinkTableName SELECT * FROM $sourceTableName").await()
   }
 
   def innerTestNotNullEnforcer(provider: String): Unit = {
